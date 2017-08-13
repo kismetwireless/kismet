@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __GPS_MANAGER_H__
-#define __GPS_MANAGER_H__
+#ifndef __GPSTRACKER_H__
+#define __GPSTRACKER_H__
 
 #include "config.h"
 
@@ -77,20 +77,20 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class GpsManager : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class GpsTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
-    static shared_ptr<GpsManager> create_gpsmanager(GlobalRegistry *in_globalreg) {
-        shared_ptr<GpsManager> mon(new GpsManager(in_globalreg));
+    static shared_ptr<GpsTracker> create_gpsmanager(GlobalRegistry *in_globalreg) {
+        shared_ptr<GpsTracker> mon(new GpsTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("GPS_MANAGER", mon);
+        in_globalreg->InsertGlobal("GPSTRACKER", mon);
         return mon;
     }
 
 private:
-    GpsManager(GlobalRegistry *in_globalreg);
+    GpsTracker(GlobalRegistry *in_globalreg);
 
 public:
-    virtual ~GpsManager();
+    virtual ~GpsTracker();
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 

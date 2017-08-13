@@ -18,7 +18,7 @@
 
 #include "base64.h"
 #include "gpsweb.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "messagebus.h"
 #include "msgpack_adapter.h"
 

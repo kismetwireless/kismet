@@ -74,7 +74,7 @@
 #include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"
 
-#include "gps_manager.h"
+#include "gpstracker.h"
 
 #include "devicetracker.h"
 #include "phy_80211.h"
@@ -966,7 +966,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the GPS components
-    GpsManager::create_gpsmanager(globalregistry);
+    GpsTracker::create_gpsmanager(globalregistry);
 
     // Create the manuf db
     globalregistry->manufdb = new Manuf(globalregistry);

@@ -36,7 +36,7 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "packet.h"
 #include "uuid.h"
 #include "packinfo_signal.h"

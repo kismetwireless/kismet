@@ -20,7 +20,7 @@
 
 #include "gpsserial2.h"
 #include "util.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "pollabletracker.h"
 
 GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {

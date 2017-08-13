@@ -27,7 +27,7 @@
 #include "ipc_remote2.h"
 #include "buffer_handler.h"
 #include "uuid.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "packet.h"
 #include "devicetracker_component.h"
 #include "packetchain.h"

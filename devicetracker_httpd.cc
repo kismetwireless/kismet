@@ -39,7 +39,7 @@
 #include "packetchain.h"
 #include "devicetracker.h"
 #include "packet.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "alertracker.h"
 #include "manuf.h"
 #include "entrytracker.h"

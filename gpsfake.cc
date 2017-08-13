@@ -17,7 +17,7 @@
 */
 
 #include "gpsfake.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "messagebus.h"
 
 GPSFake::GPSFake(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {

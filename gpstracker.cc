@@ -21,7 +21,7 @@
 #include "globalregistry.h"
 #include "kis_net_microhttpd.h"
 #include "messagebus.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "kis_gps.h"
 #include "configfile.h"
 
@@ -30,7 +30,7 @@
 #include "gpsfake.h"
 #include "gpsweb.h"
 
-GpsManager::GpsManager(GlobalRegistry *in_globalreg) :
+GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     globalreg = in_globalreg;
@@ -67,10 +67,10 @@ GpsManager::GpsManager(GlobalRegistry *in_globalreg) :
     }
 }
 
-GpsManager::~GpsManager() {
+GpsTracker::~GpsTracker() {
     {
         local_locker lock(&manager_locker);
-        globalreg->RemoveGlobal("GPS_MANAGER");
+        globalreg->RemoveGlobal("GPSTRACKER");
         httpd->RemoveHandler(this);
 
         map<string, gps_prototype *>::iterator i;
@@ -91,7 +91,7 @@ GpsManager::~GpsManager() {
     pthread_mutex_destroy(&manager_locker);
 }
 
-void GpsManager::RegisterGpsPrototype(string in_name, string in_desc,
+void GpsTracker::RegisterGpsPrototype(string in_name, string in_desc,
         Kis_Gps *in_builder,
         int in_priority) {
     local_locker lock(&manager_locker);
@@ -101,7 +101,7 @@ void GpsManager::RegisterGpsPrototype(string in_name, string in_desc,
     map<string, gps_prototype *>::iterator i = prototype_map.find(lname);
 
     if (i != prototype_map.end()) {
-        _MSG("GpsManager tried to register GPS type " + in_name + " but it "
+        _MSG("GpsTracker tried to register GPS type " + in_name + " but it "
                 "already exists", MSGFLAG_ERROR);
         return;
     }
@@ -118,7 +118,7 @@ void GpsManager::RegisterGpsPrototype(string in_name, string in_desc,
     return;
 }
 
-void GpsManager::RemoveGpsPrototype(string in_name) {
+void GpsTracker::RemoveGpsPrototype(string in_name) {
     local_locker lock(&manager_locker);
 
     string lname = StrLower(in_name);
@@ -132,13 +132,13 @@ void GpsManager::RemoveGpsPrototype(string in_name) {
     prototype_map.erase(i);
 }
 
-unsigned int GpsManager::CreateGps(string in_gpsconfig) {
+unsigned int GpsTracker::CreateGps(string in_gpsconfig) {
     local_locker lock(&manager_locker);
 
     vector<string> optvec = StrTokenize(in_gpsconfig, ":");
 
     if (optvec.size() != 2) {
-        _MSG("GpsManager expected type:option1=value,option2=value style "
+        _MSG("GpsTracker expected type:option1=value,option2=value style "
                 "options.", MSGFLAG_ERROR);
         return 0;
     }
@@ -149,14 +149,14 @@ unsigned int GpsManager::CreateGps(string in_gpsconfig) {
     map<string, gps_prototype *>::iterator i = prototype_map.find(ltname);
 
     if (i == prototype_map.end()) {
-        _MSG("GpsManager tried to create a GPS of type " + ltname + 
+        _MSG("GpsTracker tried to create a GPS of type " + ltname + 
                 "but that type doesn't exist", MSGFLAG_ERROR);
         return 0;
     }
 
     Kis_Gps *gps = i->second->builder->BuildGps(in_opts);
     if (gps == NULL) {
-        _MSG("GpsManager failed to create a GPS of type " + ltname + 
+        _MSG("GpsTracker failed to create a GPS of type " + ltname + 
                 "(" + in_opts + ")", MSGFLAG_ERROR);
         return 0;
     }
@@ -188,7 +188,7 @@ unsigned int GpsManager::CreateGps(string in_gpsconfig) {
     return instance->id;
 }
 
-void GpsManager::RemoveGps(unsigned int in_id) {
+void GpsTracker::RemoveGps(unsigned int in_id) {
     local_locker lock(&manager_locker);
 
     gps_instance *instance = NULL;
@@ -202,7 +202,7 @@ void GpsManager::RemoveGps(unsigned int in_id) {
     }
 
     if (instance == NULL) {
-        _MSG("GpsManager can't remove a GPS (id: " + UIntToString(in_id) + 
+        _MSG("GpsTracker can't remove a GPS (id: " + UIntToString(in_id) + 
                 ") as it doesn't exist.", MSGFLAG_ERROR);
         return;
     }
@@ -213,7 +213,7 @@ void GpsManager::RemoveGps(unsigned int in_id) {
     instance_vec.erase(instance_vec.begin() + pos);
 }
 
-kis_gps_packinfo *GpsManager::GetBestLocation() {
+kis_gps_packinfo *GpsTracker::GetBestLocation() {
     local_locker lock(&manager_locker);
 
     kis_gps_packinfo *location = NULL;
@@ -228,18 +228,18 @@ kis_gps_packinfo *GpsManager::GetBestLocation() {
     return location;
 }
 
-int GpsManager::kis_gpspack_hook(CHAINCALL_PARMS) {
-    // We're an 'external user' of gpsmanager despite being inside it,
-    // so don't do thread locking - that's up to gpsmanager internals
+int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
+    // We're an 'external user' of GpsTracker despite being inside it,
+    // so don't do thread locking - that's up to GpsTracker internals
     
-    GpsManager *gpsmanager = (GpsManager *) auxdata;
+    GpsTracker *gpstracker = (GpsTracker *) auxdata;
 
     // Don't override if this packet already has a location, which could
     // come from a drone or from a PPI file
     if (in_pack->fetch(_PCM(PACK_COMP_GPS)) != NULL)
         return 1;
 
-    kis_gps_packinfo *gpsloc = gpsmanager->GetBestLocation();
+    kis_gps_packinfo *gpsloc = gpstracker->GetBestLocation();
 
     if (gpsloc == NULL)
         return 0;
@@ -250,14 +250,14 @@ int GpsManager::kis_gpspack_hook(CHAINCALL_PARMS) {
     return 1;
 }
 
-bool GpsManager::Httpd_VerifyPath(const char *path, const char *method) {
+bool GpsTracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
     return false;
 }
 
-void GpsManager::Httpd_CreateStreamResponse(
+void GpsTracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, 

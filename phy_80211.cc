@@ -39,7 +39,7 @@
 #include "packetchain.h"
 #include "timetracker.h"
 #include "filtercore.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 #include "packet.h"
 #include "uuid.h"
 #include "alertracker.h"

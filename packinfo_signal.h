@@ -34,7 +34,7 @@
 
 #include "globalregistry.h"
 #include "packet.h"
-#include "gps_manager.h"
+#include "gpstracker.h"
 
 class Packinfo_Sig_Combo {
     public:

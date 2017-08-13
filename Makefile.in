@@ -38,7 +38,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	datasourcetracker.cc.o kis_datasource.cc.o \
 	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
-	gps_manager.cc.o kis_gps.cc.o gpsserial2.cc.o gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
+	gpstracker.cc.o kis_gps.cc.o gpsserial2.cc.o gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
 	packetchain.cc.o \
 	trackedelement.cc.o entrytracker.cc.o \
 	msgpack_adapter.cc.o xmlserialize_adapter.cc.o json_adapter.cc.o \
@@ -71,7 +71,7 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PSO) 
+$(PS):	$(PSO) $(patsubst %c.o,%c.d,$(PSO))
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
 
 $(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
@@ -212,6 +212,9 @@ rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \
 		export INSTUSR=`id -u`; $(MAKE) -e install )
+
+depclean:
+	@-rm -f *.d
 
 clean:
 	@-rm -f *.o *.mo

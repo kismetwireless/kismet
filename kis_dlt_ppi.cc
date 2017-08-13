@@ -32,7 +32,7 @@
 #include "kis_dlt_ppi.h"
 #include "kis_ppi.h"
 
-#include "gps_manager.h"
+#include "gpstracker.h"
 
 Kis_DLT_PPI::Kis_DLT_PPI(GlobalRegistry *in_globalreg) :
 	Kis_DLT_Handler(in_globalreg) {
