@@ -370,6 +370,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "Excessive WPS events may indicate a malformed client, or an "
                 "attack on the WPS system by a tool such as Reaver.",
                 phyid);
+    alert_l33t_ref = 
+        alertracker->ActivateConfiguredAlert("KARMAOUI",
+                "Probe responses from MAC addresses with an OUI of 00:13:37 often "
+                "indicate an Karma AP impersonation attack.",
+                phyid);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -764,6 +769,21 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             // Set the type
             ssid->set_ssid_beacon(true);
         } else if (dot11info->subtype == packet_sub_probe_resp) {
+            if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
+                    dot11info->source_mac) {
+
+                if (alertracker->PotentialAlert(alert_l33t_ref)) {
+                    string al = "IEEE80211 probe response from OUI 00:13:37 seen, "
+                        "which typically implies a Karma AP impersonation attack.";
+
+                    alertracker->RaiseAlert(alert_l33t_ref, in_pack, 
+                            dot11info->bssid_mac, dot11info->source_mac, 
+                            dot11info->dest_mac, dot11info->other_mac, 
+                            dot11info->channel, al);
+                }
+
+            }
+
             ssid->set_ssid_probe_response(true);
             dot11dev->set_last_probed_ssid(ssid->get_ssid());
             dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
