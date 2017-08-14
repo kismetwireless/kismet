@@ -48,10 +48,8 @@ public:
         reserve_fields(NULL);
 
         if (in_id == 0) {
-            if (in_id == 0) {
-                tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
-                        TrackerMap, "Log type definition / driver");
-            }
+            tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
+                    TrackerMap, "Log type definition / driver");
         }
 
         initialize();
@@ -64,10 +62,8 @@ public:
         reserve_fields(e);
 
         if (in_id == 0) {
-            if (in_id == 0) {
-                tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
-                        TrackerMap, "Log type definition / driver");
-            }
+            tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
+                    TrackerMap, "Log type definition / driver");
         }
 
         initialize();
@@ -79,7 +75,9 @@ public:
         return SharedTrackerElement(new KisLogfileBuilder(globalreg, get_id()));
     }
 
-    virtual SharedLogfile build_logfile(SharedLogBuilder in_shared_builder) {
+    // Take a shared_ptr reference to ourselves from the caller, because we can't 
+    // consistently get a universal shared_ptr to 'this'
+    virtual SharedLogfile build_logfile(SharedLogBuilder) {
         return NULL;
     }
 
@@ -88,7 +86,7 @@ public:
     __Proxy(log_class, string, string, string, log_class);
     __Proxy(log_name, string, string, string, log_name);
     __Proxy(stream, uint8_t, bool, bool, stream_log);
-    __Proxy(single, uint8_t, bool, bool, singleton);
+    __Proxy(singleton, uint8_t, bool, bool, singleton);
 
 protected:
     virtual void register_fields() {
