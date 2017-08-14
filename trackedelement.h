@@ -1010,6 +1010,19 @@ class tracker_component : public TrackerElement {
         cvar->set((ptype) in); \
     } 
 
+// Proxy a split public/private get/set function; This is even funkier than the 
+// normal proxy macro and should only be used in a 'public' segment of the class.
+#define __ProxyPrivSplit(name, ptype, itype, rtype, cvar) \
+    public: \
+    virtual rtype get_##name() { \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } \
+    protected: \
+    virtual void set_int_##name(itype in) { \
+        cvar->set((ptype) in); \
+    } \
+    public:
+
 // Proxy increment and decrement functions
 #define __ProxyIncDec(name, ptype, rtype, cvar) \
     virtual void inc_##name() { \
