@@ -414,6 +414,25 @@ int FetchOptBoolean(string in_key, vector<opt_pair> *in_vec, int dvalue) {
 	return StringToBool(s, dvalue);
 }
 
+// Quick fetch of strings from a map of options
+string FetchOpt(string in_key, map<string, string> in_map, string dvalue = "") {
+    auto i = in_map.find(in_key);
+
+    if (i == in_map.end())
+        return dvalue;
+
+    return i->second;
+}
+
+int FetchOptBoolean(string in_key, map<string, string> in_map, int dvalue = 0) {
+    auto i = in_map.find(in_key);
+
+    if (i == in_map.end())
+        return dvalue;
+
+    return StringToBool(i->second, dvalue);
+}
+
 vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
 	string lkey = StrLower(in_key);
 	vector<string> ret;

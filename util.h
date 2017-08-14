@@ -134,6 +134,11 @@ struct opt_pair {
 string FetchOpt(string in_key, vector<opt_pair> *in_vec);
 int FetchOptBoolean(string in_key, vector<opt_pair> *in_vec, int dvalue);
 vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec);
+
+// Quick fetch of strings from a map of options
+string FetchOpt(string in_key, map<string, string> in_map, string dvalue);
+int FetchOptBoolean(string in_key, map<string, string> in_map, int dvalue);
+
 int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec);
 void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec);
 void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec);
