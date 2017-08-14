@@ -19,31 +19,44 @@
 #include "config.h"
 #include "kis_gps.h"
 
-Kis_Gps::Kis_Gps(GlobalRegistry *in_globalreg) {
-    globalreg = in_globalreg;
+bool KisGps::open_gps(string in_definition) {
+    local_locker lock(&gps_mutex);
 
-    gps_location = NULL;
-    gps_last_location = NULL;
+    set_int_gps_definition(in_definition);
 
-    pthread_mutex_init(&gps_locker, NULL);
+    // Source extraction modeled on datasource
+    // We already had to extract the type= option in the gps tracker to get to
+    // here but it's easier to just do it again and happens very very rarely
+
+    // gps=name:type=foo,etc=something
+   
+    size_t cpos = in_definition.find(":");
+
+    // Turn the rest into an opt vector
+    std::vector<opt_pair> options;
+
+    // If there's no ':' then there are no options
+    if (cpos == string::npos) {
+        set_int_gps_name(in_definition);
+    } else {
+        // Slice the interface
+        set_int_gps_name(in_definition.substr(0, cpos));
+
+        // Blow up if we fail parsing
+        if (StringToOpts(in_definition.substr(cpos + 1, 
+                        in_definition.size() - cpos - 1), ",", &options) < 0) {
+            return false;
+        }
+
+        for (auto i = options.begin(); i != options.end(); ++i) {
+            source_definition_opts[StrLower((*i).opt)] = (*i).val;
+        }
+    }
+
+    return true;
 }
 
-Kis_Gps::~Kis_Gps() {
-    pthread_mutex_destroy(&gps_locker);
-}
-
-int Kis_Gps::OpenGps(string in_opts) {
-    // Now figure out if our options make sense... 
-    vector<opt_pair> optvec;
-    StringToOpts(in_opts, ",", &optvec);
-
-    name = FetchOpt("name", &optvec);
-    reconnect = FetchOptBoolean("reconnect", &optvec, true);
-
-    return 0;
-}
-
-double Kis_Gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
+double KisGps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
     double r = GpsCalcRad((double) in_lat2);
 
@@ -90,15 +103,15 @@ double Kis_Gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2,
     return (double) GpsRad2Deg(angle);
 }
 
-double Kis_Gps::GpsRad2Deg(double x) {
+double KisGps::GpsRad2Deg(double x) {
     return (x/M_PI) * 180.0;
 }
 
-double Kis_Gps::GpsDeg2Rad(double x) {
+double KisGps::GpsDeg2Rad(double x) {
     return 180/(x*M_PI);
 }
 
-double Kis_Gps::GpsEarthDistance(double in_lat, double in_lon, 
+double KisGps::GpsEarthDistance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
     double x1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
     double x2 = 
@@ -113,7 +126,7 @@ double Kis_Gps::GpsEarthDistance(double in_lat, double in_lon,
     return GpsCalcRad((double) (in_lat+in_lat2) / 2) * a;
 }
 
-double Kis_Gps::GpsCalcRad(double lat) {
+double KisGps::GpsCalcRad(double lat) {
     double a = 6378.137, r, sc, x, y, z;
     double e2 = 0.081082 * 0.081082;
 
