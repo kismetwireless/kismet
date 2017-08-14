@@ -759,6 +759,8 @@ public:
     __Proxy(speed, double, double, double, spd);
     __Proxy(fix, uint8_t, uint8_t, uint8_t, fix);
     __Proxy(valid, uint8_t, bool, bool, valid);
+    __Proxy(time_sec, uint64_t, time_t, time_t, time_sec);
+    __Proxy(time_usec, uint64_t, uint64_t, uint64_t, time_usec);
 
     void set(double in_lat, double in_lon, double in_alt, unsigned int in_fix) {
         set_lat(in_lat);
@@ -766,6 +768,11 @@ public:
         set_alt(in_alt);
         set_fix(in_fix);
         set_valid(1);
+
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        set_time_sec(tv.tv_sec);
+        set_time_usec(tv.tv_usec);
     }
 
     void set(double in_lat, double in_lon) {
@@ -773,6 +780,11 @@ public:
         set_lon(in_lon);
         set_fix(2);
         set_valid(1);
+
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        set_time_sec(tv.tv_sec);
+        set_time_usec(tv.tv_usec);
     }
 
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in) {
@@ -802,9 +814,13 @@ protected:
                 "gps fix", &fix);
         RegisterField("kismet.common.location.valid", TrackerUInt8,
                 "valid location", &valid);
+        RegisterField("kismet.common.location.time_sec", TrackerUInt64,
+                "timestamp (seconds)", &time_sec);
+        RegisterField("kismet.common.location.time_usec", TrackerUInt64,
+                "timestamp (usec)", &time_usec);
     }
 
-    SharedTrackerElement lat, lon, alt, spd, fix, valid;
+    SharedTrackerElement lat, lon, alt, spd, fix, valid, time_sec, time_usec;
 };
 
 // min/max/avg location
