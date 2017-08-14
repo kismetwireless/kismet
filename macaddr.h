@@ -77,7 +77,7 @@ struct mac_addr {
 				continue;
 			}
 
-			if (in[0] == '/') {
+			if (in[0] == '/' || in[0] == '*') {
                 longmask = 0L;
 				mode = 1;
 				nbyte = 0;
