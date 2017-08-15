@@ -58,20 +58,6 @@ public:
         initialize();
     }
 
-    KisGpsBuilder(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
-
-        register_fields();
-        reserve_fields(e);
-
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
-                    TrackerMap, "Log type definition / driver");
-        }
-
-        initialize();
-    }
-
     virtual ~KisGpsBuilder() { }
 
     virtual SharedTrackerElement clone_type() {
@@ -86,10 +72,11 @@ public:
         return NULL;
     }
 
-    __Proxy(gps_class, string, string, string, gps_class);
-    __Proxy(gps_priority, int32_t, int32_t, int32_t, gps_priority);
-    __Proxy(default_name, string, string, string, gps_default_name);
-    __Proxy(singleton, uint8_t, bool, bool, singleton);
+    __ProxyPrivSplit(gps_class, string, string, string, gps_class);
+    __ProxyPrivSplit(gps_class_description, string, string, string, gps_class_description);
+    __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
+    __ProxyPrivSplit(default_name, string, string, string, gps_default_name);
+    __ProxyPrivSplit(singleton, uint8_t, bool, bool, singleton);
 
 protected:
     virtual void register_fields() {
@@ -97,6 +84,8 @@ protected:
 
         RegisterField("kismet.gps.type.class", TrackerString,
                 "Class/type", &gps_class);
+        RegisterField("kismet.gps.type.description", TrackerString,
+                "Class description", &gps_class_description);
         RegisterField("kismet.gps.type.priority", TrackerInt32,
                 "Default priority", &gps_priority);
         RegisterField("kismet.gps.type.default_name", TrackerString,
@@ -106,6 +95,7 @@ protected:
     }
 
     SharedTrackerElement gps_class;
+    SharedTrackerElement gps_class_description;
     SharedTrackerElement gps_priority;
     SharedTrackerElement gps_default_name;
     SharedTrackerElement singleton;
@@ -114,30 +104,19 @@ protected:
 // GPS superclass; built by a GPS builder; GPS drivers implement the low-level GPS 
 // interaction (such as serial port, network, etc)
 class KisGps : public tracker_component {
-    KisGps(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+public:
+    KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
+        tracker_component(in_globalreg, 0) {
 
         register_fields();
         reserve_fields(NULL);
 
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.gps.type_driver",
-                    TrackerMap, "GPS type definition / driver");
-        }
+        // Force the ID
+        tracked_id = entrytracker->RegisterField("kismet.gps.instance", TrackerMap, "GPS");
 
-        initialize();
-    }
-
-    KisGps(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
-
-        register_fields();
-        reserve_fields(e);
-
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
-                    TrackerMap, "Log type definition / driver");
-        }
+        // Link the builder
+        gps_prototype = in_builder;
+        add_map(gps_prototype);
 
         initialize();
     }
@@ -201,6 +180,8 @@ protected:
                 "GPS definition", &gps_definition);
 
     }
+
+    SharedTrackerElement gps_prototype;
 
     SharedTrackerElement gps_name;
     SharedTrackerElement gps_description;

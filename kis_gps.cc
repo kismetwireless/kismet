@@ -19,6 +19,8 @@
 #include "config.h"
 #include "kis_gps.h"
 
+#include "messagebus.h"
+
 bool KisGps::open_gps(string in_definition) {
     local_locker lock(&gps_mutex);
 
@@ -51,6 +53,32 @@ bool KisGps::open_gps(string in_definition) {
         for (auto i = options.begin(); i != options.end(); ++i) {
             source_definition_opts[StrLower((*i).opt)] = (*i).val;
         }
+    }
+
+    string suuid = FetchOpt("uuid", source_definition_opts);
+    if (suuid != "") {
+        // Use the static UUID from the defintion
+        uuid u(suuid);
+
+        if (u.error) {
+            _MSG("Invalid UUID passed in GPS definition as uuid=... for " + 
+                    get_gps_name(), MSGFLAG_FATAL);
+            return false;
+        }
+
+        set_int_gps_uuid(u);
+    } else {
+        // Otherwise combine the server name and the definition, checksum it, and 
+        // munge it into a UUID like we do for datasources
+        string id = globalreg->servername + in_definition;
+        char ubuf[40];
+
+        snprintf(ubuf, 40, "%08X-0000-0000-0000-0000%08X",
+                Adler32Checksum("kismet_gps", strlen("kismet_gps")) & 0xFFFFFFFF,
+                Adler32Checksum(id.c_str(), id.length()) & 0xFFFFFFFF);
+        uuid u(ubuf);
+
+        set_int_gps_uuid(u);
     }
 
     return true;
