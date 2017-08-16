@@ -1262,12 +1262,15 @@ kis_gps_packinfo *KisDatasource::handle_kv_gps(KisDatasourceCapKeyedObject *in_o
         }
 
         if ((obj_iter = dict.find("time")) != dict.end()) {
-            gpsinfo->time = (time_t) obj_iter->second.as<uint64_t>();
+            gpsinfo->tv.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
+            gpsinfo->tv.tv_usec = 0;
         }
 
+        /*
         if ((obj_iter = dict.find("name")) != dict.end()) {
             gpsinfo->gpsname = obj_iter->second.as<string>();
         }
+        */
 
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
