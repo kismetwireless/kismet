@@ -131,10 +131,11 @@ public:
 
     __ProxyPrivSplit(gps_name, string, string, string, gps_name);
     __ProxyPrivSplit(gps_description, string, string, string, gps_description);
-    __ProxyTrackable(location, kis_tracked_location_triplet, location);
-    __ProxyTrackable(last_location, kis_tracked_location_triplet, last_location);
     __ProxyPrivSplit(gps_uuid, uuid, uuid, uuid, gps_uuid);
     __ProxyPrivSplit(gps_definition, string, string, string, gps_definition);
+
+    virtual kis_gps_packinfo *get_location() { return gps_location; }
+    virtual kis_gps_packinfo *get_last_location() { return gps_last_location; }
 
     // Fetch if we have a valid location anymore; per-gps-driver logic 
     // will determine if we consider a value to still be valid
@@ -168,26 +169,49 @@ protected:
         RegisterField("kismet.gps.description", TrackerString,
                 "GPS instance description", &gps_description);
 
-        RegisterComplexField("kismet.gps.location", 
-                shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
-                "current location");
-        RegisterComplexField("kismet.gps.last_location",
-                shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
-                "previous location");
+        tracked_location_id = 
+            RegisterComplexField("kismet.gps.location", 
+                    shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    "current location");
+
+        tracked_last_location_id = 
+            RegisterComplexField("kismet.gps.last_location",
+                    shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    "previous location");
 
         RegisterField("kismet.gps.uuid", TrackerUuid, "UUID", &gps_uuid);
         RegisterField("kismet.gps.definition", TrackerString, 
                 "GPS definition", &gps_definition);
-
     }
+
+    virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+
+        if (e != NULL) {
+            tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_location_id, e->get_map_value(tracked_location_id)));
+            tracked_last_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id, e->get_map_value(tracked_last_location_id)));
+        } else {
+            tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id));
+            tracked_last_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id));
+        }
+    }
+
+    // Push the locations into the tracked locations and swap
+    virtual void update_locations();
 
     SharedTrackerElement gps_prototype;
 
     SharedTrackerElement gps_name;
     SharedTrackerElement gps_description;
 
-    shared_ptr<kis_tracked_location_triplet> location;
-    shared_ptr<kis_tracked_location_triplet> last_location;
+    int tracked_location_id;
+    shared_ptr<kis_tracked_location_triplet> tracked_location;
+
+    int tracked_last_location_id;
+    shared_ptr<kis_tracked_location_triplet> tracked_last_location;
+
+    kis_gps_packinfo *gps_location;
+    kis_gps_packinfo *gps_last_location;
 
     SharedTrackerElement gps_uuid;
     SharedTrackerElement gps_definition;
