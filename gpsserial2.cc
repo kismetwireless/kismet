@@ -18,13 +18,15 @@
 
 #include "config.h"
 
+#include <time.h>
+
 #include "gpsserial2.h"
 #include "util.h"
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
-    globalreg = in_globalreg;
+GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
+    KisGps(in_globalreg, in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -41,31 +43,17 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 }
 
 GPSSerialV2::~GPSSerialV2() {
-    local_eol_locker lock(&gps_locker);
+    local_eol_locker lock(&gps_mutex);
 
     if (serialhandler != NULL)
         delete(serialhandler);
 
     pollabletracker->RemovePollable(serialclient);
-
-    pthread_mutex_destroy(&gps_locker);
 }
 
-Kis_Gps *GPSSerialV2::BuildGps(string in_opts) {
-    local_locker lock(&gps_locker);
-
-    GPSSerialV2 *new_gps = new GPSSerialV2(globalreg);
-
-    if (new_gps->OpenGps(in_opts) < 0) {
-        delete new_gps;
-        return NULL;
-    }
-
-    return new_gps;
-}
-
-int GPSSerialV2::OpenGps(string in_opts) {
-    local_locker lock(&gps_locker);
+bool GPSSerialV2::open_gps(string in_opts) {
+    if (!KisGps::open_gps(in_opts))
+        return false;
 
     // Delete any existing serial interface before we parse options
     if (serialhandler != NULL) {
@@ -78,18 +66,14 @@ int GPSSerialV2::OpenGps(string in_opts) {
         serialclient.reset();
     }
 
-    // Now figure out if our options make sense... 
-    vector<opt_pair> optvec;
-    StringToOpts(in_opts, ",", &optvec);
-
     string proto_device;
     string proto_baud_s;
     string proto_name;
     unsigned int proto_baud;
 
-    proto_device = FetchOpt("device", &optvec);
-    proto_baud_s = FetchOpt("baud", &optvec);
-    proto_name = FetchOpt("name", &optvec);
+    proto_device = FetchOpt("device", source_definition_opts);
+    proto_baud_s = FetchOpt("baud", source_definition_opts);
+    proto_name = FetchOpt("name", source_definition_opts);
 
     if (proto_device == "") {
         _MSG("GPSSerial expected device= option, none found.", MSGFLAG_ERROR);
@@ -107,11 +91,6 @@ int GPSSerialV2::OpenGps(string in_opts) {
                 "if your device uses a different speed.", MSGFLAG_INFO);
     }
 
-    if (proto_name != "")
-        name = proto_name;
-    else
-        name = proto_device;
-
     // We never write to a serial gps so don't make a write buffer
     serialhandler = new BufferHandler<RingbufV2>(2048, 0);
     // Set the read handler to us
@@ -128,37 +107,28 @@ int GPSSerialV2::OpenGps(string in_opts) {
     return 1;
 }
 
-string GPSSerialV2::FetchGpsDescription() {
-    local_locker lock(&gps_locker);
+bool GPSSerialV2::get_location_valid() {
+    local_locker lock(&gps_mutex);
 
-    stringstream str;
-
-    str << "Serial " << serial_device << "@" << baud;
-
-    return str.str();
-}
-
-bool GPSSerialV2::FetchGpsLocationValid() {
-    local_locker lock(&gps_locker);
-
-    if (gps_location == NULL) {
+    if (location == NULL) {
         return false;
     }
 
-    if (gps_location->fix < 2) {
+    if (location->get_fix() < 2) {
         return false;
     }
 
-    // If a location is older than 10 seconds, it's no good anymore
-    if (globalreg->timestamp.tv_sec - gps_location->time > 10) {
+    time_t now = time(0);
+
+    if (now - location->get_time_sec() > 10) {
         return false;
     }
 
     return true;
 }
 
-bool GPSSerialV2::FetchGpsConnected() {
-    local_locker lock(&gps_locker);
+bool GPSSerialV2::get_device_connected() {
+    local_locker lock(&gps_mutex);
 
     if (serialclient == NULL)
         return false;
@@ -167,7 +137,7 @@ bool GPSSerialV2::FetchGpsConnected() {
 }
 
 void GPSSerialV2::BufferAvailable(size_t in_amt) {
-    local_locker lock(&gps_locker);
+    local_locker lock(&gps_mutex);
 
     size_t buf_sz;
     char *buf;
@@ -448,7 +418,11 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
             gps_location->fix = new_location->fix;
         }
 
-        gps_location->time = globalreg->timestamp.tv_sec;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+
+        gps_location->tv.tv_sec = tv.tv_sec;
+        gps_location->tv.tv_usec = tv.tv_usec;
 
 		if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
                 gps_last_location != NULL &&
@@ -456,7 +430,7 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
 			gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
-            last_heading_time = gps_location->time;
+            last_heading_time = gps_location->tv.tv_sec;
 		}
     }
 

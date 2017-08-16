@@ -34,24 +34,36 @@
 // This code replaces gpsserial with a new gps driver based on
 // a ringbuffer interface, serialclientv2, and new kis_gps interface.
 
-class GPSSerialV2 : public Kis_Gps, public BufferInterface {
+class GPSSerialV2;
+
+class GPSSerialV2Builder : public KisGpsBuilder {
 public:
-    GPSSerialV2(GlobalRegistry *in_globalreg);
+    virtual void initialize() {
+        set_int_gps_class("serial");
+        set_int_gps_class_description("serial-attached NMEA gps (includes USB GPS)");
+        set_int_gps_priority(-1000);
+        set_int_default_name("serial");
+        set_int_singleton(false);
+    }
+
+    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
+        return SharedGps(new GPSSerialV2(globalreg, in_builder));
+    }
+};
+
+class GPSSerialV2 : public KisGps, public BufferInterface {
+public:
+    GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSSerialV2();
 
     // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
 
-    // Kis_GPS Api
-    virtual Kis_Gps *BuildGps(string in_opts);
+    virtual bool open_gps(string in_opts);
 
-    virtual int OpenGps(string in_opts);
+    virtual bool get_location_valid();
 
-    virtual string FetchGpsDescription();
-
-    virtual bool FetchGpsLocationValid();
-
-    virtual bool FetchGpsConnected();
+    virtual bool get_device_connected();
 
 protected:
     GlobalRegistry *globalreg;
