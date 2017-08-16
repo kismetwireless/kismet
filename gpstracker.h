@@ -21,13 +21,18 @@
 
 #include "config.h"
 
-#include <pthread.h>
+#include <mutex>
 
 #include "packetchain.h"
 #include "globalregistry.h"
 #include "kis_net_microhttpd.h"
+#include "tracked_location.h"
 
-class Kis_Gps;
+class KisGpsBuilder;
+typedef shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+
+class KisGps;
+typedef shared_ptr<KisGps> SharedGps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
 class kis_gps_packinfo : public packet_component {
@@ -37,14 +42,14 @@ public:
         lat = lon = alt = speed = heading = 0;
         precision = 0;
 		fix = 0;
-        time = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
 	}
 
     kis_gps_packinfo(kis_gps_packinfo *src) {
-        if (src == NULL) {
-
-        } else {
+        if (src != NULL) {
             self_destruct = src->self_destruct;
+
             lat = src->lat;
             lon = src->lon;
             alt = src->alt;
@@ -52,8 +57,9 @@ public:
             heading = src->heading;
             precision = src->precision;
             fix = src->fix;
-            time = src->time;
-            gpsname = src->gpsname;
+            tv.tv_sec = src->tv.tv_sec;
+            tv.tv_usec = src->tv.tv_usec;
+            gpsuuid = src->gpsuuid;
         }
     }
 
@@ -69,10 +75,10 @@ public:
     // If we know it, 2d vs 3d fix
     int fix;
 
-    time_t time;
+    struct timeval tv;
 
     // GPS that created us
-    string gpsname;
+    uuid gpsuuid;
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one
@@ -99,47 +105,39 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    // Register prototype builders for different GPS sources
-    void RegisterGpsPrototype(string in_name, string in_desc, 
-            Kis_Gps *in_builder, int in_priority);
-    void RemoveGpsPrototype(string in_name);
+    // Register a gps builer prototype
+    int register_gps_builder(SharedGpsBuilder in_builder);
 
-    // Create a GPS instance
-    unsigned int CreateGps(string in_gpsconfig);
+    // Create a GPS from a definition string
+    shared_ptr<KisGps> create_gps(string in_definition);
 
-    // Remove a GPS instance
-    void RemoveGps(unsigned int in_id);
+    // Remove a GPS by UUID
+    bool remove_gps(uuid in_uuid);
 
-    // Get the best location if we have multiple GPS devices
-    kis_gps_packinfo *GetBestLocation();
+    // Set a primary GPS
+    bool set_primary_gps(uuid in_uuid);
 
+    // Get the 'best' location - starting with our primary GPS
+    shared_ptr<kis_tracked_location_triplet> get_best_location();
+
+    // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);
 
 protected:
     GlobalRegistry *globalreg;
 
-    pthread_mutex_t manager_locker;
+    std::recursive_timed_mutex gpsmanager_mutex;
 
-    // Prototype GPS devices we can activate
-    class gps_prototype {
-    public:
-        string type_name;
-        string description;
-        Kis_Gps *builder;
-        int priority;
-    };
-    map<string, gps_prototype *> prototype_map;
+    SharedTrackerElement gps_prototype;
+    TrackerElementMap gps_prototype_map;
 
-    // Basic priority-monitored list of GPS
-    class gps_instance {
-    public:
-        Kis_Gps *gps;
-        string type_name;
-        int priority;
-        unsigned int id;
-    };
-    vector<gps_instance *> instance_vec;
-    unsigned int next_gps_id;
+    // GPS instances, as a vector, sorted by priority; we don't mind doing a 
+    // linear search because we'll typically have very few GPS devices
+    SharedTrackerElement gps_instances;
+    TrackerElementVector gps_instance_vec;
+
+    // Primary GPS device used to fetch the most recent location
+    SharedGps gps_primary;
 
 };
 

@@ -33,8 +33,8 @@
 #include <arpa/inet.h>
 
 #include "globalregistry.h"
-#include "packet.h"
 #include "gpstracker.h"
+#include "packet.h"
 
 class Packinfo_Sig_Combo {
     public:

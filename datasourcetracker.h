@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __Datasourcetracker_H__
-#define __Datasourcetracker_H__
+#ifndef __DATASOURCETRACKER_H__
+#define __DATASOURCETRACKER_H__
 
 #include "config.h"
 

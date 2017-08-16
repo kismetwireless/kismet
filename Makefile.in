@@ -41,6 +41,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsserial2.cc.o gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
 	packetchain.cc.o \
 	trackedelement.cc.o entrytracker.cc.o \
+	tracked_location.cc.o devicetracker_component.cc.o \
 	msgpack_adapter.cc.o xmlserialize_adapter.cc.o json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_workers.cc.o devicetracker_httpd.cc.o \

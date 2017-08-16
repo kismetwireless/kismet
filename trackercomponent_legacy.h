@@ -46,8 +46,6 @@
 #include "devicetracker_component.h"
 #include "packinfo_signal.h"
 
-class Packinfo_Sig_Combo;
-
 /* Legacy devicetracker stuff which will be supplanted by trackercomponent.h versions which use
  * exportable/introspectable backends */
 

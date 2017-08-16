@@ -35,12 +35,6 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
 
     globalreg = in_globalreg;
 
-    httpd->RegisterHandler(this);
-
-    pthread_mutex_init(&manager_locker, NULL);
-
-    next_gps_id = 1;
-
     // Register the gps component
     _PCM(PACK_COMP_GPS) =
         globalreg->packetchain->RegisterPacketComponent("gps");
