@@ -54,6 +54,9 @@ GPSGpsdV2::~GPSGpsdV2() {
 bool GPSGpsdV2::open_gps(string in_opts) {
     local_locker lock(&gps_mutex);
 
+    if (!KisGps::open_gps(in_opts))
+        return false;
+
     // Delete any existing serial interface before we parse options
     if (tcphandler != NULL) {
         delete tcphandler;
@@ -65,16 +68,12 @@ bool GPSGpsdV2::open_gps(string in_opts) {
         tcpclient.reset();
     }
 
-    // Now figure out if our options make sense... 
-    vector<opt_pair> optvec;
-    StringToOpts(in_opts, ",", &optvec);
-
     string proto_host;
     string proto_port_s;
     unsigned int proto_port;
 
-    proto_host = FetchOpt("host", &optvec);
-    proto_port_s = FetchOpt("port", &optvec);
+    proto_host = FetchOpt("host", source_definition_opts);
+    proto_port_s = FetchOpt("port", source_definition_opts);
 
     if (proto_host == "") {
         _MSG("GPSGpsdV2 expected host= option, none found.", MSGFLAG_ERROR);
