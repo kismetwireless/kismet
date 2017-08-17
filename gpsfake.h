@@ -29,27 +29,33 @@
 //
 // Always sets a fixed location and optional altitude.
 
-class GPSFake : public Kis_Gps {
+class GPSFake : public KisGps {
 public:
-    GPSFake(GlobalRegistry *in_globalreg);
+    GPSFake(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSFake();
 
-    // Kis_GPS Api
-    virtual Kis_Gps *BuildGps(string in_opts);
+    virtual bool open_gps(string in_opts);
 
-    virtual int OpenGps(string in_opts);
+    virtual bool get_location_valid() { return true; };
+    virtual bool get_device_connected() { return true; };
 
-    virtual string FetchGpsDescription();
+    virtual kis_gps_packinfo *get_location();
+    virtual kis_gps_packinfo *get_last_location();
+};
 
-    virtual bool FetchGpsLocationValid();
+class GPSFakeBuilder : public KisGpsBuilder {
+public:
+    virtual void initialize() {
+        set_int_gps_class("virtual");
+        set_int_gps_class_description("Virtual fixed-location GPS");
+        set_int_gps_priority(0);
+        set_int_default_name("virtual");
+        set_int_singleton(true);
+    }
 
-    virtual bool FetchGpsConnected();
-
-    virtual kis_gps_packinfo *FetchGpsLocation();
-
-protected:
-    GlobalRegistry *globalreg;
-
+    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
+        return SharedGps(new GPSFake(globalreg, in_builder));
+    }
 };
 
 #endif

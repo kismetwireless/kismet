@@ -16,64 +16,46 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <time.h>
 #include "gpsfake.h"
 #include "gpstracker.h"
 #include "messagebus.h"
 
-GPSFake::GPSFake(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
-    globalreg = in_globalreg;
-}
+GPSFake::GPSFake(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
+    KisGps(in_globalreg, in_builder) { }
 
-GPSFake::~GPSFake() {
+GPSFake::~GPSFake() { }
 
-}
+bool GPSFake::open_gps(string in_opts) {
+    local_locker lock(&gps_mutex);
 
-Kis_Gps *GPSFake::BuildGps(string in_opts) {
-    local_locker lock(&gps_locker);
-
-    GPSFake *new_gps = new GPSFake(globalreg);
-
-    if (new_gps->OpenGps(in_opts) < 0) {
-        delete new_gps;
-        return NULL;
+    if (!KisGps::open_gps(in_opts)) {
+        return false;
     }
-
-    return new_gps;
-}
-
-int GPSFake::OpenGps(string in_opts) {
-    local_locker lock(&gps_locker);
-
-    if (Kis_Gps::OpenGps(in_opts) < 0)
-        return -1;
-
-    // Now figure out if our options make sense... 
-    vector<opt_pair> optvec;
-    StringToOpts(in_opts, ",", &optvec);
 
     string proto_lat;
     string proto_lon;
     string proto_alt;
 
-    proto_lat = FetchOpt("lat", &optvec);
-    proto_lon = FetchOpt("lon", &optvec);
-    proto_alt = FetchOpt("alt", &optvec);
+    proto_lat = FetchOpt("lat", source_definition_opts);
+    proto_lon = FetchOpt("lon", source_definition_opts);
+    proto_alt = FetchOpt("alt", source_definition_opts);
 
     gps_location = new kis_gps_packinfo();
 
     if (proto_lat == "" || proto_lon == "") {
         _MSG("GPSVirtual expected lat= and lon= options.", MSGFLAG_ERROR);
-        return -1;
+        return false;
     }
 
     if (sscanf(proto_lat.c_str(), "%lf", &(gps_location->lat)) != 1) {
         _MSG("GPSVirtual expected decimal coordinate in lat= option", MSGFLAG_ERROR);
-        return -1;
+        return false;
     }
 
     if (sscanf(proto_lon.c_str(), "%lf", &(gps_location->lon)) != 1) {
         _MSG("GPSVirtual expected decimal coordinate in lon= option", MSGFLAG_ERROR);
-        return -1;
+        return false;
     }
 
     gps_location->fix = 2;
@@ -81,7 +63,7 @@ int GPSFake::OpenGps(string in_opts) {
     if (proto_alt != "") {
         if (sscanf(proto_alt.c_str(), "%lf", &(gps_location->alt)) != 1) {
             _MSG("GPSVirtual expected decimal altitude in alt= option", MSGFLAG_ERROR);
-            return -1;
+            return false;
         }
 
         gps_location->fix = 3;
@@ -92,34 +74,29 @@ int GPSFake::OpenGps(string in_opts) {
         gps_location->lon << " @ " << gps_location->alt << "m";
     _MSG(msg.str(), MSGFLAG_INFO);
 
-    return 1;
-}
-
-string GPSFake::FetchGpsDescription() {
-    local_locker lock(&gps_locker);
-
-    stringstream str;
-
-    str << "Virtual GPS at " << gps_location->lat << "," <<
+    msg.str("");
+    msg << "Virtual GPS at " << gps_location->lat << "," << 
         gps_location->lon << " @ " << gps_location->alt << "m";
+    set_int_gps_description(msg.str());
 
-    return str.str();
-}
+    gps_last_location = new kis_gps_packinfo(gps_location);
 
-bool GPSFake::FetchGpsLocationValid() {
     return true;
 }
 
-bool GPSFake::FetchGpsConnected() {
-    return true;
-}
+kis_gps_packinfo *GPSFake::get_location() {
+    local_locker lock(&gps_mutex);
 
-kis_gps_packinfo *GPSFake::FetchGpsLocation() {
-    local_locker lock(&gps_locker);
-
-    if (gps_location != NULL)
-        gps_location->time = globalreg->timestamp.tv_sec;
+    gettimeofday(&(gps_location->tv), NULL);
 
     return gps_location;
+}
+
+kis_gps_packinfo *GPSFake::get_last_location() {
+    local_locker lock(&gps_mutex);
+
+    gettimeofday(&(gps_last_location->tv), NULL);
+
+    return gps_last_location;
 }
 
