@@ -30,19 +30,20 @@ bool KisGps::open_gps(string in_definition) {
     // We already had to extract the type= option in the gps tracker to get to
     // here but it's easier to just do it again and happens very very rarely
 
-    // gps=name:type=foo,etc=something
+    // gps=type:name=whatever,etc=something
    
     size_t cpos = in_definition.find(":");
 
     // Turn the rest into an opt vector
     std::vector<opt_pair> options;
 
+    string types;
+
     // If there's no ':' then there are no options
     if (cpos == string::npos) {
-        set_int_gps_name(in_definition);
+        types = in_definition;
     } else {
-        // Slice the interface
-        set_int_gps_name(in_definition.substr(0, cpos));
+        types = in_definition.substr(0, cpos);
 
         // Blow up if we fail parsing
         if (StringToOpts(in_definition.substr(cpos + 1, 
@@ -80,6 +81,8 @@ bool KisGps::open_gps(string in_definition) {
 
         set_int_gps_uuid(u);
     }
+
+    string sname = FetchOpt("name", source_definition_opts);
 
     return true;
 }
