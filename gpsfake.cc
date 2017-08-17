@@ -81,6 +81,8 @@ bool GPSFake::open_gps(string in_opts) {
 
     gps_last_location = new kis_gps_packinfo(gps_location);
 
+    update_locations();
+
     return true;
 }
 
