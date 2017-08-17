@@ -643,5 +643,8 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             last_heading_time = gps_location->tv.tv_sec;
 		}
     }
+
+    // Sync w/ the tracked fields
+    update_locations();
 }
 

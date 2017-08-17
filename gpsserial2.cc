@@ -52,6 +52,8 @@ GPSSerialV2::~GPSSerialV2() {
 }
 
 bool GPSSerialV2::open_gps(string in_opts) {
+    local_locker lock(&gps_mutex);
+
     if (!KisGps::open_gps(in_opts))
         return false;
 
@@ -433,6 +435,9 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
             last_heading_time = gps_location->tv.tv_sec;
 		}
     }
+
+    // Sync w/ the tracked fields
+    update_locations();
 
     delete new_location;
 }
