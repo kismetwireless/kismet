@@ -110,17 +110,17 @@ bool GPSSerialV2::open_gps(string in_opts) {
 bool GPSSerialV2::get_location_valid() {
     local_locker lock(&gps_mutex);
 
-    if (location == NULL) {
+    if (gps_location == NULL) {
         return false;
     }
 
-    if (location->get_fix() < 2) {
+    if (gps_location->fix < 2) {
         return false;
     }
 
     time_t now = time(0);
 
-    if (now - location->get_time_sec() > 10) {
+    if (now - gps_location->tv.tv_sec > 10) {
         return false;
     }
 
