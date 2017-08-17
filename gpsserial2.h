@@ -75,6 +75,9 @@ protected:
 
 class GPSSerialV2Builder : public KisGpsBuilder {
 public:
+    GPSSerialV2Builder(GlobalRegistry *in_globalreg) : 
+        KisGpsBuilder(in_globalreg, 0) { }
+
     virtual void initialize() {
         set_int_gps_class("serial");
         set_int_gps_class_description("serial-attached NMEA gps (includes USB GPS)");

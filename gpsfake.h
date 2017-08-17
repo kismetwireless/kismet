@@ -45,6 +45,9 @@ public:
 
 class GPSFakeBuilder : public KisGpsBuilder {
 public:
+    GPSFakeBuilder(GlobalRegistry *in_globalreg) : 
+        KisGpsBuilder(in_globalreg, 0) { }
+
     virtual void initialize() {
         set_int_gps_class("virtual");
         set_int_gps_class_description("Virtual fixed-location GPS");

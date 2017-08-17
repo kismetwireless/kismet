@@ -78,6 +78,9 @@ protected:
 
 class GPSGpsdV2Builder : public KisGpsBuilder {
 public:
+    GPSGpsdV2Builder(GlobalRegistry *in_globalreg) : 
+        KisGpsBuilder(in_globalreg, 0) { }
+
     virtual void initialize() {
         set_int_gps_class("gpsd");
         set_int_gps_class_description("networked GPSD server");
