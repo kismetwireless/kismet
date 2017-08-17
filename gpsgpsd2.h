@@ -83,6 +83,7 @@ public:
         set_int_gps_class_description("networked GPSD server");
         set_int_gps_priority(-1000);
         set_int_singleton(false);
+        set_int_default_name("gpsd");
     }
 
     virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
