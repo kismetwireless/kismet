@@ -24,53 +24,32 @@
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
-GPSWeb::GPSWeb(GlobalRegistry *in_globalreg) : 
-    Kis_Gps(in_globalreg),
+GPSWeb::GPSWeb(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
+    KisGps(in_globalreg, in_builder),
     Kis_Net_Httpd_CPPStream_Handler(NULL) {
-
-    globalreg = in_globalreg;
 
     last_heading_time = 0;
 }
 
-GPSWeb::~GPSWeb() {
+GPSWeb::~GPSWeb() { }
 
-}
+bool GPSWeb::open_gps(string in_opts) {
+    local_locker lock(&gps_mutex);
 
-Kis_Gps *GPSWeb::BuildGps(string in_opts) {
-    local_locker lock(&gps_locker);
-
-    GPSWeb *new_gps = new GPSWeb(globalreg);
-
-    if (new_gps->OpenGps(in_opts) < 0) {
-        delete new_gps;
-        return NULL;
-    }
-
-    return new_gps;
-}
-
-int GPSWeb::OpenGps(string in_opts) {
-    local_locker lock(&gps_locker);
-
-    if (Kis_Gps::OpenGps(in_opts) < 0) {
-        return -1;
+    if (!KisGps::open_gps(in_opts)) {
+        return false;
     }
 
     // Call the http stream handler init to bind to the webserver
     Bind_Httpd_Server(globalreg);
 
-    return 1;
+    set_int_gps_description("web-based GPS using location from browser");
+
+    return true;
 }
 
-string GPSWeb::FetchGpsDescription() {
-    local_locker lock(&gps_locker);
-
-    return "Web GPS";
-}
-
-bool GPSWeb::FetchGpsLocationValid() {
-    local_locker lock(&gps_locker);
+bool GPSWeb::get_location_valid() {
+    local_locker lock(&gps_mutex);
 
     if (gps_location == NULL) {
         return false;
@@ -80,21 +59,24 @@ bool GPSWeb::FetchGpsLocationValid() {
         return false;
     }
 
-    if (globalreg->timestamp.tv_sec - gps_location->time > 30) {
+    // Allow a wider location window
+    if (time(0) - gps_location->tv.tv_sec > 30) {
         return false;
     }
 
     return true;
 }
 
-bool GPSWeb::FetchGpsConnected() {
+bool GPSWeb::get_device_connected() {
+    if (gps_location == NULL)
+        return false;
+
+    // If we've seen a GPS update w/in the past 2 minutes, we count as 'connected' to a gps
+    if (time(0) - gps_location->tv.tv_sec > 120) {
+        return false;
+    }
+
     return true;
-}
-
-kis_gps_packinfo *GPSWeb::FetchGpsLocation() {
-    local_locker lock(&gps_locker);
-
-    return gps_location;
 }
 
 bool GPSWeb::Httpd_VerifyPath(const char *path, const char *method) {
@@ -210,9 +192,7 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
         if (set_spd) 
             gps_location->speed = spd;
 
-        gps_location->time = globalreg->timestamp.tv_sec;
-
-        // printf("debug - gps %f,%f alt %f spd %f\n", gps_location->lat, gps_location->lon, gps_location->alt, gps_location->speed);
+        gettimeofday(&(gps_location->tv), NULL);
 
         if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
                 gps_last_location != NULL &&
@@ -220,9 +200,11 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
             gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
-            last_heading_time = gps_location->time;
+            last_heading_time = gps_location->tv.tv_sec;
         }
     }
+
+    update_locations();
 
     return 1;
 }

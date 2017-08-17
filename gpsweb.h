@@ -30,26 +30,18 @@
 //
 // Accept GPS location from HTTP POST, allows using a phone browser as a
 // GPS source
-//
-// Ranked between fixed GPS
 
-class GPSWeb : public Kis_Gps, public Kis_Net_Httpd_CPPStream_Handler {
+class GPSWeb : public KisGps, public Kis_Net_Httpd_CPPStream_Handler {
 public:
-    GPSWeb(GlobalRegistry *in_globalreg);
+    GPSWeb(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSWeb();
 
-    // Kis_GPS Api
-    virtual Kis_Gps *BuildGps(string in_opts);
+    virtual bool open_gps(string in_opts);
 
-    virtual int OpenGps(string in_opts);
+    virtual bool get_location_valid();
+    virtual bool get_device_connected();
 
-    virtual string FetchGpsDescription();
-
-    virtual bool FetchGpsLocationValid();
-
-    virtual bool FetchGpsConnected();
-
-    virtual kis_gps_packinfo *FetchGpsLocation();
+    virtual kis_gps_packinfo *get_location();
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -65,12 +57,9 @@ public:
             uint64_t off, size_t size);
 
 protected:
-    GlobalRegistry *globalreg;
-
     // Last time we calculated the heading, don't do it more than once every 
     // few seconds or we get nasty noise
     time_t last_heading_time;
-
 };
 
 #endif
