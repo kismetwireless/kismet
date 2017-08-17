@@ -32,26 +32,20 @@
 // New GPSD interface
 //
 // This code uses the new buffer handler interface for communicating with a 
-// gpsd host
+// gpsd host over TCP
 
-class GPSGpsdV2 : public Kis_Gps, public BufferInterface {
+class GPSGpsdV2 : public KisGps, public BufferInterface {
 public:
-    GPSGpsdV2(GlobalRegistry *in_globalreg);
+    GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSGpsdV2();
 
     // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
 
-    // Kis_GPS API
-    virtual Kis_Gps *BuildGps(string in_opts);
+    virtual bool open_gps(string in_definition);
 
-    virtual int OpenGps(string in_opts);
-
-    virtual string FetchGpsDescription();
-
-    virtual bool FetchGpsLocationValid();
-
-    virtual bool FetchGpsConnected();
+    virtual bool get_location_valid();
+    virtual bool get_device_connected();
 
 protected:
     GlobalRegistry *globalreg;
@@ -80,7 +74,20 @@ protected:
     int si_units;
     // Do we run in raw mode?
     int si_raw;
+};
 
+class GPSGpsdV2Builder : public KisGpsBuilder {
+public:
+    virtual void initialize() {
+        set_int_gps_class("gpsd");
+        set_int_gps_class_description("networked GPSD server");
+        set_int_gps_priority(-1000);
+        set_int_singleton(false);
+    }
+
+    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
+        return SharedGps(new GPSGpsdV2(globalreg, in_builder));
+    }
 };
 
 #endif

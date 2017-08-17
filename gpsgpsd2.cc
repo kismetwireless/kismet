@@ -20,12 +20,13 @@
 
 #include "gpsgpsd2.h"
 #include "util.h"
+#include "time.h"
 #include "gpstracker.h"
 #include "kismet_json.h"
 #include "pollabletracker.h"
 
-GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
-    globalreg = in_globalreg;
+GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
+    KisGps(in_globalreg, in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -43,30 +44,15 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg) : Kis_Gps(in_globalreg) {
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
-    local_eol_locker lock(&gps_locker);
+    local_eol_locker lock(&gps_mutex);
 
     pollabletracker->RemovePollable(tcpclient);
 
     delete(tcphandler);
-
-    pthread_mutex_destroy(&gps_locker);
 }
 
-Kis_Gps *GPSGpsdV2::BuildGps(string in_opts) {
-    local_locker lock(&gps_locker);
-
-    GPSGpsdV2 *new_gps = new GPSGpsdV2(globalreg);
-
-    if (new_gps->OpenGps(in_opts) < 0) {
-        delete new_gps;
-        return NULL;
-    }
-
-    return new_gps;
-}
-
-int GPSGpsdV2::OpenGps(string in_opts) {
-    local_locker lock(&gps_locker);
+bool GPSGpsdV2::open_gps(string in_opts) {
+    local_locker lock(&gps_mutex);
 
     // Delete any existing serial interface before we parse options
     if (tcphandler != NULL) {
@@ -128,18 +114,8 @@ int GPSGpsdV2::OpenGps(string in_opts) {
     return 1;
 }
 
-string GPSGpsdV2::FetchGpsDescription() {
-    local_locker lock(&gps_locker);
-
-    stringstream str;
-
-    str << "GPSD " << host << ":" << port;
-
-    return str.str();
-}
-
-bool GPSGpsdV2::FetchGpsLocationValid() {
-    local_locker lock(&gps_locker);
+bool GPSGpsdV2::get_location_valid() {
+    local_locker lock(&gps_mutex);
 
     if (gps_location == NULL) {
         return false;
@@ -150,15 +126,15 @@ bool GPSGpsdV2::FetchGpsLocationValid() {
     }
 
     // If a location is older than 10 seconds, it's no good anymore
-    if (globalreg->timestamp.tv_sec - gps_location->time > 10) {
+    if (globalreg->timestamp.tv_sec - gps_location->tv.tv_sec > 10) {
         return false;
     }
 
     return true;
 }
 
-bool GPSGpsdV2::FetchGpsConnected() {
-    local_locker lock(&gps_locker);
+bool GPSGpsdV2::get_device_connected() {
+    local_locker lock(&gps_mutex);
 
     if (tcpclient == NULL)
         return false;
@@ -167,7 +143,7 @@ bool GPSGpsdV2::FetchGpsConnected() {
 }
 
 void GPSGpsdV2::BufferAvailable(size_t in_amt) {
-    local_locker lock(&gps_locker);
+    local_locker lock(&gps_mutex);
 
     size_t buf_sz;
     char *buf;
@@ -658,14 +634,14 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             gps_location->heading = new_location->heading;
         }
 
-        gps_location->time = globalreg->timestamp.tv_sec;
+        gettimeofday(&(gps_location->tv), NULL);
 
 		if (!set_heading && globalreg->timestamp.tv_sec - last_heading_time > 5 &&
                 gps_last_location->fix >= 2) {
 			gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
-            last_heading_time = gps_location->time;
+            last_heading_time = gps_location->tv.tv_sec;
 		}
     }
 }
