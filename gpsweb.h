@@ -62,5 +62,20 @@ protected:
     time_t last_heading_time;
 };
 
+class GPSWebBuilder : public KisGpsBuilder {
+public:
+    virtual void initialize() {
+        set_int_gps_class("web");
+        set_int_gps_class_description("Web-based GPS using client browser");
+        set_int_gps_priority(0);
+        set_int_default_name("web");
+        set_int_singleton(true);
+    }
+
+    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
+        return SharedGps(new GPSWeb(globalreg, in_builder));
+    }
+};
+
 #endif
 
