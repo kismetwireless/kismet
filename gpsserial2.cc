@@ -420,11 +420,7 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
             gps_location->fix = new_location->fix;
         }
 
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-
-        gps_location->tv.tv_sec = tv.tv_sec;
-        gps_location->tv.tv_usec = tv.tv_usec;
+        gettimeofday(&(gps_location->tv), NULL);
 
 		if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
                 gps_last_location != NULL &&
