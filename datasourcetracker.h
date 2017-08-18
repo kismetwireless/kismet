@@ -38,6 +38,7 @@
 #include "pollabletracker.h"
 #include "kis_net_microhttpd.h"
 #include "buffer_handler.h"
+#include "tracked_rrd.h"
 
 /* Data source tracker
  *
