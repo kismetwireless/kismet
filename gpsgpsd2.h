@@ -48,8 +48,6 @@ public:
     virtual bool get_device_connected();
 
 protected:
-    GlobalRegistry *globalreg;
-
     shared_ptr<PollableTracker> pollabletracker;
 
     shared_ptr<TcpClientV2> tcpclient;
@@ -78,8 +76,9 @@ protected:
 
 class GPSGpsdV2Builder : public KisGpsBuilder {
 public:
-    GPSGpsdV2Builder(GlobalRegistry *in_globalreg) : 
-        KisGpsBuilder(in_globalreg, 0) { }
+    GPSGpsdV2Builder(GlobalRegistry *in_globalreg) : KisGpsBuilder(in_globalreg, 0) { 
+        initialize();
+    }
 
     virtual void initialize() {
         set_int_gps_class("gpsd");

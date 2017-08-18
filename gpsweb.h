@@ -62,8 +62,9 @@ protected:
 
 class GPSWebBuilder : public KisGpsBuilder {
 public:
-    GPSWebBuilder(GlobalRegistry *in_globalreg) : 
-        KisGpsBuilder(in_globalreg, 0) { }
+    GPSWebBuilder(GlobalRegistry *in_globalreg) : KisGpsBuilder(in_globalreg, 0) { 
+        initialize();
+    }
 
     virtual void initialize() {
         set_int_gps_class("web");

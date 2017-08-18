@@ -36,7 +36,7 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_build
 
     ever_seen_gps = false;
 
-    last_heading_time = globalreg->timestamp.tv_sec;
+    last_heading_time = time(0);
 
     pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));

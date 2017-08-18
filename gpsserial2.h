@@ -49,8 +49,6 @@ public:
     virtual bool get_device_connected();
 
 protected:
-    GlobalRegistry *globalreg;
-
     shared_ptr<PollableTracker> pollabletracker;
     
     shared_ptr<SerialClientV2> serialclient;
@@ -76,7 +74,9 @@ protected:
 class GPSSerialV2Builder : public KisGpsBuilder {
 public:
     GPSSerialV2Builder(GlobalRegistry *in_globalreg) : 
-        KisGpsBuilder(in_globalreg, 0) { }
+        KisGpsBuilder(in_globalreg, 0) { 
+        initialize();
+    }
 
     virtual void initialize() {
         set_int_gps_class("serial");

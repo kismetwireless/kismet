@@ -133,7 +133,7 @@ public:
     __ProxyPrivSplit(gps_description, string, string, string, gps_description);
     __ProxyPrivSplit(gps_uuid, uuid, uuid, uuid, gps_uuid);
     __ProxyPrivSplit(gps_definition, string, string, string, gps_definition);
-    __ProxyPrivSplit(gps_priority, uint32_t, uint32_t, uint32_t, gps_priority);
+    __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
     __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
@@ -149,13 +149,11 @@ public:
     virtual bool open_gps(string in_definition);
 
     // Various GPS transformation utility functions
-    static double GpsCalcHeading(double in_lat, double in_lon, 
-            double in_lat2, double in_lon2);
+    static double GpsCalcHeading(double in_lat, double in_lon, double in_lat2, double in_lon2);
     static double GpsCalcRad(double lat);
     static double GpsRad2Deg(double x);
     static double GpsDeg2Rad(double x);
-    static double GpsEarthDistance(double in_lat, double in_lon, 
-            double in_lat2, double in_lon2);
+    static double GpsEarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
 protected:
     std::recursive_timed_mutex gps_mutex;
