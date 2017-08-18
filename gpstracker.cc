@@ -43,180 +43,118 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
             CHAINPOS_POSTCAP, -100);
 
+    gps_prototypes.reset(new TrackerElement(TrackerVector));
+    gps_prototypes_vec = TrackerElementVector(gps_prototypes);
+
+    gps_instances.reset(new TrackerElement(TrackerVector));
+    gps_instances_vec = TrackerElementVector(gps_instances);
+
     // Register the built-in GPS drivers
-    RegisterGpsPrototype("serial", "serial attached", 
-            new GPSSerialV2(globalreg), 100);
-    RegisterGpsPrototype("gpsd", "gpsd network-attached", 
-            new GPSGpsdV2(globalreg), 99);
-    RegisterGpsPrototype("virtual", "virtual gps with fixed location",
-            new GPSFake(globalreg), 0);
-    RegisterGpsPrototype("web", "browser-based location",
-            new GPSWeb(globalreg), 50);
+    register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder(globalreg)));
+    register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder(globalreg)));
+    register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder(globalreg)));
+    register_gps_builder(SharedGpsBuilder(new GPSWebBuilder(globalreg)));
 
     // Process any gps options in the config file
-    vector<string> gpsvec = 
-        globalreg->kismet_config->FetchOptVec("gps");
-    for (unsigned int x = 0; x < gpsvec.size(); x++) {
-        CreateGps(gpsvec[x]);
+    vector<string> gpsvec = globalreg->kismet_config->FetchOptVec("gps");
+    for (auto g : gpsvec) {
+        create_gps(g);
     }
 }
 
 GpsTracker::~GpsTracker() {
-    {
-        local_locker lock(&manager_locker);
-        globalreg->RemoveGlobal("GPSTRACKER");
-        httpd->RemoveHandler(this);
+    local_eol_locker lock(&gpsmanager_mutex);
 
-        map<string, gps_prototype *>::iterator i;
-        for (i = prototype_map.begin(); i != prototype_map.end(); ++i) {
-            delete i->second->builder;
-            delete i->second;
+    globalreg->RemoveGlobal("GPSTRACKER");
+    httpd->RemoveHandler(this);
+
+    globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
+}
+
+void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {
+    local_locker lock(&gpsmanager_mutex);
+
+    for (auto x : gps_prototypes_vec) {
+        SharedGpsBuilder gb = static_pointer_cast<KisGpsBuilder>(x);
+
+        if (gb->get_gps_class() == in_builder->get_gps_class()) {
+            _MSG("GPSTRACKER - tried to register a duplicate GPS driver for '" +
+                    in_builder->get_gps_class() + "'", MSGFLAG_ERROR);
+            return;
         }
-
-        vector<gps_instance *>::iterator ii;
-        for (ii = instance_vec.begin(); ii != instance_vec.end(); ++ii) {
-            delete((*ii)->gps);
-            delete(*ii);
-        }
-
-        globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
     }
 
-    pthread_mutex_destroy(&manager_locker);
+    gps_prototypes_vec.push_back(in_builder);
 }
 
-void GpsTracker::RegisterGpsPrototype(string in_name, string in_desc,
-        Kis_Gps *in_builder,
-        int in_priority) {
-    local_locker lock(&manager_locker);
+shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
+    local_locker lock(&gpsmanager_mutex);
 
-    string lname = StrLower(in_name);
+    SharedGps gps;
+    SharedGpsBuilder builder;
 
-    map<string, gps_prototype *>::iterator i = prototype_map.find(lname);
+    size_t cpos = in_definition.find(":");
+    string types;
 
-    if (i != prototype_map.end()) {
-        _MSG("GpsTracker tried to register GPS type " + in_name + " but it "
-                "already exists", MSGFLAG_ERROR);
-        return;
-    }
-
-    gps_prototype *proto = new gps_prototype();
-
-    proto->type_name = in_name;
-    proto->description = in_desc;
-    proto->builder = in_builder;
-    proto->priority = in_priority;
-
-    prototype_map[lname] = proto;
-
-    return;
-}
-
-void GpsTracker::RemoveGpsPrototype(string in_name) {
-    local_locker lock(&manager_locker);
-
-    string lname = StrLower(in_name);
-    map<string, gps_prototype *>::iterator i = prototype_map.find(lname);
-
-    if (i == prototype_map.end())
-        return;
-
-    delete i->second->builder;
-    delete i->second;
-    prototype_map.erase(i);
-}
-
-unsigned int GpsTracker::CreateGps(string in_gpsconfig) {
-    local_locker lock(&manager_locker);
-
-    vector<string> optvec = StrTokenize(in_gpsconfig, ":");
-
-    if (optvec.size() != 2) {
-        _MSG("GpsTracker expected type:option1=value,option2=value style "
-                "options.", MSGFLAG_ERROR);
-        return 0;
-    }
-
-    string ltname = StrLower(optvec[0]);
-    string in_opts = optvec[1];
-
-    map<string, gps_prototype *>::iterator i = prototype_map.find(ltname);
-
-    if (i == prototype_map.end()) {
-        _MSG("GpsTracker tried to create a GPS of type " + ltname + 
-                "but that type doesn't exist", MSGFLAG_ERROR);
-        return 0;
-    }
-
-    Kis_Gps *gps = i->second->builder->BuildGps(in_opts);
-    if (gps == NULL) {
-        _MSG("GpsTracker failed to create a GPS of type " + ltname + 
-                "(" + in_opts + ")", MSGFLAG_ERROR);
-        return 0;
-    }
-
-    gps_instance *instance = new gps_instance;
-    instance->gps = gps;
-    instance->type_name = ltname;
-    instance->priority = i->second->priority;
-    instance->id = next_gps_id++;
-
-    if (instance_vec.size() == 0) {
-        instance_vec.push_back(instance);
+    // Extract the type string
+    if (cpos == string::npos) {
+        types = in_definition;
     } else {
-        // Insert at priority
-        bool inserted = false;
-        for (unsigned int i = 0; i < instance_vec.size(); i++) {
-            // Higher priority goes earlier)
-            if (instance->priority > instance_vec[i]->priority) {
-                instance_vec.insert(instance_vec.begin() + i, instance);
-                inserted = true;
-                break;
-            }
-        }
-
-        if (!inserted) 
-            instance_vec.push_back(instance);
+        types = in_definition.substr(0, cpos);
     }
 
-    return instance->id;
-}
+    // Find a driver
+    for (auto p : gps_prototypes_vec) {
+        SharedGpsBuilder optbuilder = static_pointer_cast<KisGpsBuilder>(p);
 
-void GpsTracker::RemoveGps(unsigned int in_id) {
-    local_locker lock(&manager_locker);
-
-    gps_instance *instance = NULL;
-    unsigned int pos = 0;
-    for (unsigned int x = 0; x < instance_vec.size(); x++) {
-        if (instance_vec[x]->id == in_id) {
-            instance = instance_vec[x];
-            pos = x;
+        if (optbuilder->get_gps_class() == types) {
+            builder = optbuilder;
             break;
         }
     }
 
-    if (instance == NULL) {
-        _MSG("GpsTracker can't remove a GPS (id: " + UIntToString(in_id) + 
-                ") as it doesn't exist.", MSGFLAG_ERROR);
-        return;
+    // Didn't find a builder... 
+    if (builder == NULL) {
+        _MSG("GPSTRACKER - Failed to find driver for gps type '" + types + "'",
+                MSGFLAG_ERROR);
+        return NULL;
     }
 
-    delete instance->gps;
-    delete instance;
+    // If it's a singleton make sure we don't have something built already
+    if (builder->get_singleton()) {
+        for (auto d : gps_instances_vec) {
+            SharedGps igps = static_pointer_cast<KisGps>(d);
 
-    instance_vec.erase(instance_vec.begin() + pos);
+            if (igps->get_gps_prototype()->get_gps_class() == types) {
+                _MSG("GPSTRACKER - Already defined a GPS of type '" + types + "', this "
+                        "GPS driver cannot be defined multiple times.", MSGFLAG_ERROR);
+                return NULL;
+            }
+        }
+    }
+
+    // Fetch an instance
+    gps = builder->build_gps(builder);
+
+    // Open it
+    if (!gps->open_gps(in_definition)) {
+        _MSG("GPSTRACKER - Failed to open GPS '" + gps->get_gps_name() + "'", MSGFLAG_ERROR);
+        return NULL;
+    }
+
+    // Add it to the running GPS list
+    gps_instances_vec.push_back(gps);
+
+    return gps;
 }
 
-kis_gps_packinfo *GpsTracker::GetBestLocation() {
-    local_locker lock(&manager_locker);
+kis_gps_packinfo *GpsTracker::get_best_location() {
+    local_locker lock(&gpsmanager_mutex);
 
     kis_gps_packinfo *location = NULL;
 
-    for (unsigned int i = 0; i < instance_vec.size(); i++) {
-        if (instance_vec[i]->gps->FetchGpsLocationValid()) {
-            location = instance_vec[i]->gps->FetchGpsLocation();
-            break;
-        }
+    for (auto d : gps_instances_vec) {
+
     }
 
     return location;
@@ -233,13 +171,13 @@ int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     if (in_pack->fetch(_PCM(PACK_COMP_GPS)) != NULL)
         return 1;
 
-    kis_gps_packinfo *gpsloc = gpstracker->GetBestLocation();
+    kis_gps_packinfo *gpsloc = gpstracker->get_best_location();
 
     if (gpsloc == NULL)
         return 0;
 
-    // Insert a new gps location so the chain isn't tied to our gps instance
-    in_pack->insert(_PCM(PACK_COMP_GPS), new kis_gps_packinfo(gpsloc));
+    // Insert into chain; we were given a new location
+    in_pack->insert(_PCM(PACK_COMP_GPS), gpsloc);
 
     return 1;
 }

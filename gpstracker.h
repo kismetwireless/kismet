@@ -60,6 +60,7 @@ public:
             tv.tv_sec = src->tv.tv_sec;
             tv.tv_usec = src->tv.tv_usec;
             gpsuuid = src->gpsuuid;
+            gpsname = src->gpsname;
         }
     }
 
@@ -79,6 +80,9 @@ public:
 
     // GPS that created us
     uuid gpsuuid;
+
+    // Name of GPS that created us
+    string gpsname;
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one
@@ -106,7 +110,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
     // Register a gps builer prototype
-    int register_gps_builder(SharedGpsBuilder in_builder);
+    void register_gps_builder(SharedGpsBuilder in_builder);
 
     // Create a GPS from a definition string
     shared_ptr<KisGps> create_gps(string in_definition);
@@ -117,8 +121,9 @@ public:
     // Set a primary GPS
     bool set_primary_gps(uuid in_uuid);
 
-    // Get the 'best' location - starting with our primary GPS
-    shared_ptr<kis_tracked_location_triplet> get_best_location();
+    // Get the 'best' location - returns a new gpspackinfo which the caller is 
+    // responsible for deleting.
+    kis_gps_packinfo *get_best_location();
 
     // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);
@@ -128,17 +133,13 @@ protected:
 
     std::recursive_timed_mutex gpsmanager_mutex;
 
-    SharedTrackerElement gps_prototype;
-    TrackerElementMap gps_prototype_map;
+    SharedTrackerElement gps_prototypes;
+    TrackerElementVector gps_prototypes_vec;
 
     // GPS instances, as a vector, sorted by priority; we don't mind doing a 
     // linear search because we'll typically have very few GPS devices
     SharedTrackerElement gps_instances;
-    TrackerElementVector gps_instance_vec;
-
-    // Primary GPS device used to fetch the most recent location
-    SharedGps gps_primary;
-
+    TrackerElementVector gps_instances_vec;
 };
 
 #endif

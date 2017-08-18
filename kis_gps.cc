@@ -56,6 +56,13 @@ bool KisGps::open_gps(string in_definition) {
         }
     }
 
+    string sname = FetchOpt("name", source_definition_opts);
+    if (sname != "") {
+        set_int_gps_name(sname);
+    } else {
+        set_int_gps_name(types);
+    }
+
     string suuid = FetchOpt("uuid", source_definition_opts);
     if (suuid != "") {
         // Use the static UUID from the defintion
@@ -82,7 +89,18 @@ bool KisGps::open_gps(string in_definition) {
         set_int_gps_uuid(u);
     }
 
-    string sname = FetchOpt("name", source_definition_opts);
+    string sprio = FetchOpt("priority", source_definition_opts);
+    if (sprio != "") {
+        int priority;
+
+        if (sscanf(sprio.c_str(), "%d", &priority) != 1) {
+            _MSG("Invalid priority passed in GPS definition as priority=... for " + 
+                    get_gps_name(), MSGFLAG_FATAL);
+            set_int_gps_priority(priority);
+        }
+    } else {
+        set_int_gps_priority(gps_prototype->get_gps_priority());
+    }
 
     return true;
 }

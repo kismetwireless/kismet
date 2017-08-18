@@ -133,6 +133,8 @@ public:
     __ProxyPrivSplit(gps_description, string, string, string, gps_description);
     __ProxyPrivSplit(gps_uuid, uuid, uuid, uuid, gps_uuid);
     __ProxyPrivSplit(gps_definition, string, string, string, gps_definition);
+    __ProxyPrivSplit(gps_priority, uint32_t, uint32_t, uint32_t, gps_priority);
+    __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
     virtual kis_gps_packinfo *get_last_location() { return gps_last_location; }
@@ -182,6 +184,8 @@ protected:
         RegisterField("kismet.gps.uuid", TrackerUuid, "UUID", &gps_uuid);
         RegisterField("kismet.gps.definition", TrackerString, 
                 "GPS definition", &gps_definition);
+
+        RegisterField("kismet.gps.priority", TrackerInt32, "Multi-gps priority", &gps_priority);
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -199,10 +203,12 @@ protected:
     // Push the locations into the tracked locations and swap
     virtual void update_locations();
 
-    SharedTrackerElement gps_prototype;
+    SharedGpsBuilder gps_prototype;
 
     SharedTrackerElement gps_name;
     SharedTrackerElement gps_description;
+
+    SharedTrackerElement gps_priority;
 
     int tracked_location_id;
     shared_ptr<kis_tracked_location_triplet> tracked_location;
