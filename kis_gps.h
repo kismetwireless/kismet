@@ -134,6 +134,7 @@ public:
     __ProxyPrivSplit(gps_uuid, uuid, uuid, uuid, gps_uuid);
     __ProxyPrivSplit(gps_definition, string, string, string, gps_definition);
     __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
+    __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
     __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
@@ -184,6 +185,9 @@ protected:
                 "GPS definition", &gps_definition);
 
         RegisterField("kismet.gps.priority", TrackerInt32, "Multi-gps priority", &gps_priority);
+
+        RegisterField("kismet.gps.data_only", TrackerUInt8, 
+                "Used for populating data only, never for live location", &gps_data_only);
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -193,9 +197,12 @@ protected:
             tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_location_id, e->get_map_value(tracked_location_id)));
             tracked_last_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id, e->get_map_value(tracked_last_location_id)));
         } else {
-            tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id));
+            tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_location_id));
             tracked_last_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id));
         }
+
+        add_map(tracked_location);
+        add_map(tracked_last_location);
     }
 
     // Push the locations into the tracked locations and swap
@@ -219,6 +226,8 @@ protected:
 
     SharedTrackerElement gps_uuid;
     SharedTrackerElement gps_definition;
+
+    SharedTrackerElement gps_data_only;
 };
 
 #endif

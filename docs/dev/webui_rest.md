@@ -510,7 +510,15 @@ Alias for `open_source`, re-opens a defined source.
 
 ## GPS
 
-Kismet now supports multiple simultaneous GPS devices, selecting the "best" quality device.
+Kismet now supports multiple simultaneous GPS devices, and can select the 'best' quality device based on priority and GPS signal.
+
+##### /gps/drivers `/gps/drivers.json` `/gps/drivers.msgpack`
+
+Returns a list of all supported GPS driver types
+
+##### /gps/all_gps `/gps/all_gps.json` `/gps/all_gps.msgpack`
+
+Returns a list of all GPS devices
 
 ##### `/gps/web/update.cmd`
 

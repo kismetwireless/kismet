@@ -145,6 +145,15 @@ shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
     // Add it to the running GPS list
     gps_instances_vec.push_back(gps);
 
+    // Sort running GPS by priority
+    sort(gps_instances_vec.begin(), gps_instances_vec.end(), 
+            [](const SharedTrackerElement a, const SharedTrackerElement b) -> bool {
+                SharedGps ga = static_pointer_cast<KisGps>(a);
+                SharedGps gb = static_pointer_cast<KisGps>(b);
+
+                return ga->get_gps_priority() < gb->get_gps_priority();
+            });
+
     return gps;
 }
 
@@ -153,8 +162,15 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
 
     kis_gps_packinfo *location = NULL;
 
+    // Iterate 
     for (auto d : gps_instances_vec) {
+        SharedGps gps = static_pointer_cast<KisGps>(d);
 
+        if (gps->get_gps_data_only())
+            continue;
+
+        if (gps->get_location_valid())
+            return gps->get_location();
     }
 
     return location;
@@ -186,6 +202,17 @@ bool GpsTracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
+    string stripped = Httpd_StripSuffix(path);
+    
+    if (!Httpd_CanSerialize(path))
+        return false;
+
+    if (stripped == "/gps/drivers")
+        return true;
+
+    if (stripped == "/gps/all_gps")
+        return true;
+
     return false;
 }
 
@@ -196,6 +223,22 @@ void GpsTracker::Httpd_CreateStreamResponse(
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    string stripped = Httpd_StripSuffix(path);
+
+    if (stripped == "/gps/drivers") {
+        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_prototypes, NULL);
+        return;
+    }
+
+    if (stripped == "/gps/all_gps") {
+        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_instances, NULL);
+        return;
+    }
 
     return;
 }

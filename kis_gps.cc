@@ -60,7 +60,7 @@ bool KisGps::open_gps(string in_definition) {
     if (sname != "") {
         set_int_gps_name(sname);
     } else {
-        set_int_gps_name(types);
+        set_int_gps_name(gps_prototype->get_default_name());
     }
 
     string suuid = FetchOpt("uuid", source_definition_opts);
@@ -101,6 +101,8 @@ bool KisGps::open_gps(string in_definition) {
     } else {
         set_int_gps_priority(gps_prototype->get_gps_priority());
     }
+
+    set_int_gps_data_only(FetchOptBoolean("dataonly", source_definition_opts, false));
 
     return true;
 }
