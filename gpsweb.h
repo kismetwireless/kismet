@@ -41,8 +41,6 @@ public:
     virtual bool get_location_valid();
     virtual bool get_device_connected();
 
-    virtual kis_gps_packinfo *get_location();
-
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
