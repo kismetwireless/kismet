@@ -21,6 +21,25 @@
 
 #include "messagebus.h"
 
+KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
+    tracker_component(in_globalreg, 0) {
+
+    register_fields();
+    reserve_fields(NULL);
+
+    // Force the ID
+    tracked_id = entrytracker->RegisterField("kismet.gps.instance", TrackerMap, "GPS");
+
+    // Link the builder
+    gps_prototype = in_builder;
+    add_map(gps_prototype);
+
+    gps_location = new kis_gps_packinfo();
+    gps_last_location = new kis_gps_packinfo();
+
+    initialize();
+}
+
 bool KisGps::open_gps(string in_definition) {
     local_locker lock(&gps_mutex);
 

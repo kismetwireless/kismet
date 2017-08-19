@@ -105,21 +105,7 @@ protected:
 // interaction (such as serial port, network, etc)
 class KisGps : public tracker_component {
 public:
-    KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
-        tracker_component(in_globalreg, 0) {
-
-        register_fields();
-        reserve_fields(NULL);
-
-        // Force the ID
-        tracked_id = entrytracker->RegisterField("kismet.gps.instance", TrackerMap, "GPS");
-
-        // Link the builder
-        gps_prototype = in_builder;
-        add_map(gps_prototype);
-
-        initialize();
-    }
+    KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
 
     virtual ~KisGps() { }
 
