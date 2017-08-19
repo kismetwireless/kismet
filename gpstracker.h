@@ -121,7 +121,7 @@ public:
     // Set a primary GPS
     bool set_primary_gps(uuid in_uuid);
 
-    // Get the 'best' location - returns a new gpspackinfo which the caller is 
+    // Get the 'best' location - returns a NEW gpspackinfo which the caller is 
     // responsible for deleting.
     kis_gps_packinfo *get_best_location();
 

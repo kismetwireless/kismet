@@ -160,8 +160,6 @@ shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
 kis_gps_packinfo *GpsTracker::get_best_location() {
     local_locker lock(&gpsmanager_mutex);
 
-    kis_gps_packinfo *location = NULL;
-
     // Iterate 
     for (auto d : gps_instances_vec) {
         SharedGps gps = static_pointer_cast<KisGps>(d);
@@ -170,10 +168,10 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
             continue;
 
         if (gps->get_location_valid())
-            return gps->get_location();
+            return new kis_gps_packinfo(gps->get_location());
     }
 
-    return location;
+    return NULL;
 }
 
 int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
