@@ -24,10 +24,6 @@
 #ifndef H_6B9572DA_A64B_49E6_B234_051480991C89
 #define H_6B9572DA_A64B_49E6_B234_051480991C89
 
-#include "config.h"
-
-#ifndef DISABLE_BACKWARD
-
 #ifndef __cplusplus
 #	error "It's not going to compile without a C++ compiler..."
 #endif
@@ -76,6 +72,7 @@
 #include <streambuf>
 #include <string>
 #include <vector>
+#include <limits>
 
 #if defined(BACKWARD_SYSTEM_LINUX)
 
@@ -590,7 +587,12 @@ private:
 		uintptr_t ip = _Unwind_GetIPInfo(ctx, &ip_before_instruction);
 
 		if (!ip_before_instruction) {
-			ip -= 1;
+			// calculating 0-1 for unsigned, looks like a possible bug to sanitiziers, so let's do it explicitly:
+			if (ip==0) {
+				ip = std::numeric_limits<uintptr_t>::max(); // set it to 0xffff... (as from casting 0-1)
+			} else {
+				ip -= 1; // else just normally decrement it (no overflow/underflow will happen)
+			}
 		}
 
 		if (_index >= 0) { // ignore first frame.
@@ -750,14 +752,18 @@ public:
 		while (*funcname && *funcname != '(') {
 			funcname += 1;
 		}
-		trace.object_filename.assign(filename, funcname++);
-		char* funcname_end = funcname;
-		while (*funcname_end && *funcname_end != ')' && *funcname_end != '+') {
-			funcname_end += 1;
+		trace.object_filename.assign(filename, funcname); // ok even if funcname is the ending \0 (then we assign entire string)
+
+		if (*funcname) { // if it's not end of string (e.g. from last frame ip==0)
+			funcname += 1;
+			char* funcname_end = funcname;
+			while (*funcname_end && *funcname_end != ')' && *funcname_end != '+') {
+				funcname_end += 1;
+			}
+			*funcname_end = '\0';
+			trace.object_function = this->demangle(funcname);
+			trace.source.function = trace.object_function; // we cannot do better.
 		}
-		*funcname_end = '\0';
-		trace.object_function = this->demangle(funcname);
-		trace.source.function = trace.object_function; // we cannot do better.
 		return trace;
 	}
 
@@ -1678,7 +1684,7 @@ namespace ColorMode {
 
 class cfile_streambuf: public std::streambuf {
 public:
-	cfile_streambuf(FILE *sink): sink(sink) {}
+	cfile_streambuf(FILE *_sink): sink(_sink) {}
 	int_type underflow() { return traits_type::eof(); }
 	int_type overflow(int_type ch) {
 		if (traits_type::not_eof(ch) && fwrite(&ch, sizeof ch, 1, sink) == 1) {
@@ -2030,6 +2036,8 @@ private:
 		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_EIP]);
 #elif defined(__arm__)
 		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.arm_pc);
+#elif defined(__aarch64__)
+		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.pc);
 #elif defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__)
 		error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.regs->nip);
 #else
@@ -2072,7 +2080,5 @@ public:
 #endif // BACKWARD_SYSTEM_UNKNOWN
 
 } // namespace backward
-
-#endif
 
 #endif /* H_GUARD */

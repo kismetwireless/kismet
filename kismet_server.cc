@@ -22,7 +22,7 @@
 
 #include "version.h"
 
-#include "backward.h"
+#include "backward_wrapper.h"
 
 #include <cstdlib>
 #include <exception>
