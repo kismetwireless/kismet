@@ -45,8 +45,9 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) 
     auto timetracker = 
         globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
     error_reconnect_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0,
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                    fprintf(stderr, "debug - gpsgpsd2 recon timer connected %d\n", get_device_connected());
                     if (get_device_connected()) 
                         return 1;
 
