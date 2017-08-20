@@ -56,6 +56,7 @@
 <script src="/js/jquery.kismet.battery.js"></script>
 <script src="/js/jquery.kismet.alert.js"></script>
 <script src="/js/jquery.kismet.auth.js"></script>
+<script src="/js/jquery.kismet.gps.js"></script>
 
 <link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css">
 
@@ -77,10 +78,11 @@
 <link rel="stylesheet" type="text/css" href="/css/jquery.kismet.alert.css" />
 <link rel="stylesheet" type="text/css" href="/css/jquery.kismet.battery.css" />
 <link rel="stylesheet" type="text/css" href="/css/jquery.kismet.auth.css" />
+<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.gps.css" />
 
 <link rel="stylesheet" type="text/css" href="/css/reset.css" />
-<link rel="stylesheet" type="text/css" href="/css/text.css" /> 
-<link rel="stylesheet" type="text/css" href="/css/layout.css" /> 
+<link rel="stylesheet" type="text/css" href="/css/text.css" />
+<link rel="stylesheet" type="text/css" href="/css/layout.css" />
 
 <link rel="stylesheet" type="text/css" href="/css/kismet.css" />
 
@@ -117,9 +119,9 @@ $(function() {
 
     // Compute 30% height of window
     var southsize = $(window).height() * 0.30;
-    
+
     // Load the framework
-    var layout = $('#panelcontainer').layout({ 
+    var layout = $('#panelcontainer').layout({
         resizeWithWindowDelay:  250,
         north: {
             closable: false,
@@ -159,6 +161,14 @@ $(function() {
     });
 
     kismet_ui_iconbar.AddIconbarItem({
+        id: 'gps',
+        priorty: 110,
+        createCallback: function(div) {
+            div.gps();
+        }
+    })
+
+    kismet_ui_iconbar.AddIconbarItem({
         id: 'alert',
         priority: 125,
         createCallback: function(div) {
@@ -174,13 +184,12 @@ $(function() {
         }
     });
 
-
     kismet_ui_iconbar.makeIconbar($('#iconbar'));
 
     /*
     $('#topbar_alert').alert();
     $('#topbar_login').loginwatcher();
-    $('#topbar_battery').battery(); 
+    $('#topbar_battery').battery();
     */
 
     kismet_ui.HealthCheck();

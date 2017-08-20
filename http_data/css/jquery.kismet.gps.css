@@ -1,0 +1,68 @@
+div.kg-top-icon {
+    display: inline-block;
+    font-size: 14px;
+    font-weight: normal;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+div.kg-dialog-content {
+    height: 100%;
+    display: flex;
+
+    flex-direction: column;
+}
+
+div.kg-dialog-header {
+    background-color: #AAAAAA;
+    height: 20px;
+}
+
+div.kg-dialog-main {
+    height: 100%;
+    flex: 1;
+}
+
+div.kg-dialog-footer {
+    background-color: #CCCCCC;
+    height: 20px;
+}
+
+i.kg-icon-base {
+    color: #707070;
+}
+
+i.kg-icon-2d {
+    color: yellow !important;
+}
+
+i.kg-icon-3d {
+    color: green !important;
+}
+
+i.kg-header-icon {
+    margin: 5px;
+    font-size: 14px;
+}
+
+b.kg-header-text {
+    font-size: 14px;
+}
+
+.kg-bottom-text {
+    margin: auto;
+    display: table;
+}
+
+span.kg-header-close {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+}
+
+.kg-dialog-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%);
+}
