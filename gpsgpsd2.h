@@ -41,6 +41,7 @@ public:
 
     // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
+    virtual void BufferError(string in_err);
 
     virtual bool open_gps(string in_definition);
 
@@ -48,6 +49,8 @@ public:
     virtual bool get_device_connected();
 
 protected:
+    int error_reconnect_timer;
+
     shared_ptr<PollableTracker> pollabletracker;
 
     shared_ptr<TcpClientV2> tcpclient;

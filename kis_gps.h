@@ -54,8 +54,6 @@ public:
             tracked_id = entrytracker->RegisterField("kismet.gps.type_driver",
                     TrackerMap, "GPS type definition / driver");
         }
-
-        initialize();
     }
 
     virtual ~KisGpsBuilder() { }
@@ -107,7 +105,7 @@ class KisGps : public tracker_component {
 public:
     KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
 
-    virtual ~KisGps() { }
+    virtual ~KisGps();
 
     virtual SharedTrackerElement clone_type() {
         return SharedTrackerElement(new KisGpsBuilder(globalreg, get_id()));
@@ -121,6 +119,7 @@ public:
     __ProxyPrivSplit(gps_definition, string, string, string, gps_definition);
     __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
     __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
+    __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
     __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
@@ -129,9 +128,6 @@ public:
     // Fetch if we have a valid location anymore; per-gps-driver logic 
     // will determine if we consider a value to still be valid
     virtual bool get_location_valid() { return false; }
-
-    // Are we connected to our gps device?
-    virtual bool get_device_connected() { return false; }
 
     virtual bool open_gps(string in_definition);
 
@@ -155,6 +151,9 @@ protected:
                 "GPS instance name", &gps_name);
         RegisterField("kismet.gps.description", TrackerString,
                 "GPS instance description", &gps_description);
+
+        RegisterField("kismet.gps.connected", TrackerUInt8,
+                "GPS device is connected", &gps_connected);
 
         tracked_location_id = 
             RegisterComplexField("kismet.gps.location", 
@@ -198,6 +197,8 @@ protected:
 
     SharedTrackerElement gps_name;
     SharedTrackerElement gps_description;
+
+    SharedTrackerElement gps_connected;
 
     SharedTrackerElement gps_priority;
 

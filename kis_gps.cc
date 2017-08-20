@@ -20,6 +20,7 @@
 #include "kis_gps.h"
 
 #include "messagebus.h"
+#include "timetracker.h"
 
 KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
     tracker_component(in_globalreg, 0) {
@@ -37,12 +38,17 @@ KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
     gps_location = new kis_gps_packinfo();
     gps_last_location = new kis_gps_packinfo();
 
-    initialize();
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+}
+
+KisGps::~KisGps() {
+    local_eol_locker lock(&gps_mutex);
 }
 
 bool KisGps::open_gps(string in_definition) {
     local_locker lock(&gps_mutex);
 
+    set_int_device_connected(false);
     set_int_gps_definition(in_definition);
 
     // Source extraction modeled on datasource
@@ -122,6 +128,8 @@ bool KisGps::open_gps(string in_definition) {
     }
 
     set_int_gps_data_only(FetchOptBoolean("dataonly", source_definition_opts, false));
+
+    set_int_device_connected(true);
 
     return true;
 }

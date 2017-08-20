@@ -24,6 +24,7 @@
 #include "gpstracker.h"
 #include "kismet_json.h"
 #include "pollabletracker.h"
+#include "timetracker.h"
 
 GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
     KisGps(in_globalreg, in_builder) {
@@ -39,8 +40,20 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) 
     si_units = 0;
     si_raw = 0;
 
-    pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+    pollabletracker = globalreg->FetchGlobalAs<PollableTracker>("POLLABLETRACKER");
+
+    auto timetracker = 
+        globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    error_reconnect_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0,
+                [this](int) -> int {
+                    if (get_device_connected()) 
+                        return 1;
+
+                    open_gps(get_gps_definition());
+
+                    return 1;
+                });
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
@@ -49,6 +62,9 @@ GPSGpsdV2::~GPSGpsdV2() {
     pollabletracker->RemovePollable(tcpclient);
 
     delete(tcphandler);
+
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    timetracker->RemoveTimer(error_reconnect_timer);
 }
 
 bool GPSGpsdV2::open_gps(string in_opts) {
@@ -56,6 +72,8 @@ bool GPSGpsdV2::open_gps(string in_opts) {
 
     if (!KisGps::open_gps(in_opts))
         return false;
+
+    set_int_device_connected(false);
 
     // Delete any existing serial interface before we parse options
     if (tcphandler != NULL) {
@@ -109,6 +127,8 @@ bool GPSGpsdV2::open_gps(string in_opts) {
     stringstream msg;
     msg << "GPSGpsdV2 connecting to GPSD server on " << host << ":" << port;
     _MSG(msg.str(), MSGFLAG_INFO);
+
+    set_int_device_connected(true);
 
     return 1;
 }
@@ -647,4 +667,14 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     // Sync w/ the tracked fields
     update_locations();
 }
+
+void GPSGpsdV2::BufferError(string in_error) {
+    local_locker lock(&gps_mutex);
+
+    _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
+            MSGFLAG_ERROR);
+
+    set_int_device_connected(false);
+}
+
 

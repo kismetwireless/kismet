@@ -40,6 +40,19 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_build
 
     pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+
+    error_reconnect_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0,
+                [this](int) -> int {
+                    if (get_device_connected()) 
+                        return 1;
+
+                    open_gps(get_gps_definition());
+
+                    return 1;
+                });
 }
 
 GPSSerialV2::~GPSSerialV2() {
@@ -49,6 +62,9 @@ GPSSerialV2::~GPSSerialV2() {
         delete(serialhandler);
 
     pollabletracker->RemovePollable(serialclient);
+
+    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    timetracker->RemoveTimer(error_reconnect_timer);
 }
 
 bool GPSSerialV2::open_gps(string in_opts) {
@@ -56,6 +72,8 @@ bool GPSSerialV2::open_gps(string in_opts) {
 
     if (!KisGps::open_gps(in_opts))
         return false;
+
+    set_int_device_connected(false);
 
     // Delete any existing serial interface before we parse options
     if (serialhandler != NULL) {
@@ -105,6 +123,8 @@ bool GPSSerialV2::open_gps(string in_opts) {
 
     serial_device = proto_device;
     baud = proto_baud;
+
+    set_int_device_connected(true);
 
     return 1;
 }
@@ -436,5 +456,14 @@ void GPSSerialV2::BufferAvailable(size_t in_amt) {
     update_locations();
 
     delete new_location;
+}
+
+void GPSSerialV2::BufferError(string in_error) {
+    local_locker lock(&gps_mutex);
+
+    _MSG("GPS device '" + get_gps_name() + "' encountered a serial error: " + in_error,
+            MSGFLAG_ERROR);
+
+    set_int_device_connected(false);
 }
 
