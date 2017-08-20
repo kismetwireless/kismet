@@ -520,6 +520,10 @@ Returns a list of all supported GPS driver types
 
 Returns a list of all GPS devices
 
+##### /gps/location `/gps/location.json` `/gps/location.msgpack`
+
+Returns the current optimum location (as determined by the priority of connected GPS devices)
+
 ##### `/gps/web/update.cmd`
 
 *LOGIN REQUIRED*.

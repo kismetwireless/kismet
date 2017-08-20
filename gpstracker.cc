@@ -33,6 +33,10 @@
 GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
+    tracked_uuid_addition_id = 
+        entrytracker->RegisterField("kismet.common.location.gps_uuid", TrackerUuid,
+                "UUID of GPS reporting location");
+
     globalreg = in_globalreg;
 
     // Register the gps component
@@ -167,8 +171,14 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
         if (gps->get_gps_data_only())
             continue;
 
-        if (gps->get_location_valid())
-            return new kis_gps_packinfo(gps->get_location());
+        if (gps->get_location_valid()) {
+            kis_gps_packinfo *pi = new kis_gps_packinfo(gps->get_location());
+
+            pi->gpsuuid = gps->get_gps_uuid();
+            pi->gpsname  = gps->get_gps_name();
+
+            return pi;
+        }
     }
 
     return NULL;
@@ -211,6 +221,9 @@ bool GpsTracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (stripped == "/gps/all_gps")
         return true;
 
+    if (stripped == "/gps/location")
+        return true;
+
     return false;
 }
 
@@ -221,6 +234,8 @@ void GpsTracker::Httpd_CreateStreamResponse(
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
+
+    local_locker lock(&gpsmanager_mutex);
 
     if (strcmp(method, "GET") != 0) {
         return;
@@ -235,6 +250,35 @@ void GpsTracker::Httpd_CreateStreamResponse(
 
     if (stripped == "/gps/all_gps") {
         entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_instances, NULL);
+        return;
+    }
+
+    if (stripped == "/gps/location") {
+        kis_gps_packinfo *pi = get_best_location();
+
+        shared_ptr<kis_tracked_location_triplet> loctrip(new kis_tracked_location_triplet(globalreg, 0));
+
+        SharedTrackerElement ue(new TrackerElement(TrackerUuid, tracked_uuid_addition_id));
+
+        loctrip->add_map(ue);
+
+        if (pi != NULL) {
+            ue->set(pi->gpsuuid);
+            loctrip->set_lat(pi->lat);
+            loctrip->set_lon(pi->lon);
+            loctrip->set_alt(pi->alt);
+            loctrip->set_speed(pi->speed);
+            loctrip->set_heading(pi->heading);
+            loctrip->set_fix(pi->fix);
+            loctrip->set_valid(pi->fix >= 2);
+            loctrip->set_time_sec(pi->tv.tv_sec);
+            loctrip->set_time_usec(pi->tv.tv_usec);
+            delete(pi);
+        } else {
+            loctrip->set_valid(false);
+        }
+
+        entrytracker->Serialize(httpd->GetSuffix(path), stream, loctrip, NULL);
         return;
     }
 

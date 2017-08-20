@@ -140,6 +140,9 @@ protected:
     // linear search because we'll typically have very few GPS devices
     SharedTrackerElement gps_instances;
     TrackerElementVector gps_instances_vec;
+
+    // Extra field we insert into a location triplet
+    int tracked_uuid_addition_id;
 };
 
 #endif
