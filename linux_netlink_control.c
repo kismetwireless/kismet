@@ -679,6 +679,7 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
                 "write netlink command", interface);
         mac80211_disconnect(handle, cache);
         free(cb);
+        nlmsg_free(msg);
         return -1;
     }
 
@@ -692,6 +693,8 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
     (*ret_chan_list) = (cblock.channel_list);
 
     free(cblock.phyname);
+
+    nlmsg_free(msg);
 
     return (*ret_num_chans);
 #endif
