@@ -559,6 +559,25 @@ xx. Remote Packet Capture
 
         Places the capture tool in the background and daemonizes it.
 
+xx. Tuning Kismet Packet Capture
+
+    Kismet has a number of tuning options to handle quirks in different types 
+    packet captures.  These options can be set in the kismet.conf config file
+    to control how Kismet behaves in some situations:
+
+    dot11_process_phy=[true|false]
+
+        802.11 Wi-Fi networks have three basic packet classes - Management,
+        Phy, and Data.  The Phy packet type is the shortest, and caries the
+        least amount of information - it is used to acknowledge packet reception
+        and controls the packet collision detection CTS/RTS system.  These packets
+        can be useful, however they are also the most likely to become corrupted
+        and still pass checksum.
+
+        Kismet turns off processing of Phy packets by default because they can lead
+        to spurious device detection, especially in high-data captures.  For 
+        complete tracking and possible detection of hidden-node devices, it can
+        be set to 'true'.
 
 xx. Kismet Webserver
 

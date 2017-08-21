@@ -386,6 +386,21 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 		dissect_data = 1;
 	}
 
+    // Do we process phy and control frames?  They seem to be the glitchiest
+    // on many cards including the ath9k which is otherwise excellent
+    if (globalreg->kismet_config->FetchOptBoolean("dot11_process_phy", 0)) {
+        _MSG("PHY802.11 will process Wi-Fi 'phy' and 'control' type frames, which "
+                "gives the most complete view of device traffic but may result in "
+                "false devices due to driver and firmware quirks.", MSGFLAG_INFO);
+        process_ctl_phy = true;
+    } else {
+        _MSG("PHY802.11 will not process Wi-Fi 'phy' and 'control' frames; these "
+                "typically are the most susceptible to corruption resulting in "
+                "false devices.  This can be re-enabled with dot11_process_phy=true",
+                MSGFLAG_INFO);
+        process_ctl_phy = false;
+    }
+
 	dissect_strings = 0;
 	dissect_all_strings = 0;
 
@@ -1252,6 +1267,10 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     if (dot11info->corrupt)  {
         return 0;
     }
+
+    // If we don't process phys...
+    if (commoninfo->type == packet_basic_phy && !process_ctl_phy)
+        return 0;
 
     // Find & update the common attributes of our base record.
     // We want to update signal, frequency, location, packet counts, devices,

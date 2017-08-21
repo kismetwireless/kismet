@@ -1141,6 +1141,9 @@ protected:
 
     // Pcap handlers
     unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;
+
+    // Do we process control and phy frames?
+    bool process_ctl_phy;
 };
 
 #endif
