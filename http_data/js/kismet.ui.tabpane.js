@@ -15,7 +15,7 @@ exports.load_complete = 0;
 $('<link>')
     .appendTo('head')
     .attr({
-        type: 'text/css', 
+        type: 'text/css',
         rel: 'stylesheet',
         href: '/css/kismet.ui.tabpane.css'
     });
@@ -73,6 +73,12 @@ function createListCallback(c) {
     };
 }
 
+function createExpanderCallback(c) {
+    return function() {
+        MoveToExpanded(c);
+    }
+}
+
 function populateList(div) {
     TabDiv = div;
 
@@ -115,12 +121,10 @@ function populateList(div) {
         $('i', ul).tooltipster({content: 'Expand tab to own window'});
 
         if (c.expandable) {
-            $('i', ul).on('click', function() {
-                MoveToExpanded(c);
-            });
+            $('i', ul).on('click', createExpanderCallback(c));
         }
 
-        var td = 
+        var td =
             $('<div>', {
                 id: c.id
             });
@@ -152,7 +156,7 @@ function MoveToExpanded(tab) {
 
     var original = div;
 
-    var panelcontainer = 
+    var panelcontainer =
         $('<div>', {
             id: 'panel',
             height: '100%',
