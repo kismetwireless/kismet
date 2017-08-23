@@ -202,6 +202,8 @@ void mac80211_insert_flags(unsigned int *flags, unsigned int flags_sz,
 
     nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, nl_flags);
 
+    return;
+
 nla_put_failure:
     nlmsg_free(nl_flags);
 #endif
@@ -460,6 +462,12 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
     nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
             genlmsg_attrlen(gnlh, 0), NULL);
 
+    if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
+        if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), chanb->phyname) != 0) {
+            return NL_SKIP;
+        }
+    }
+
     if (tb_msg[NL80211_ATTR_WIPHY_BANDS]) {
         nla_for_each_nested(nl_band, tb_msg[NL80211_ATTR_WIPHY_BANDS], rem_band) {
             band_ht40 = band_ht80 = band_ht160 = 0;
@@ -493,6 +501,8 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     band_ht160 = 1;
                 }
             }
+
+            // fprintf(stderr, "debug - %u %u %u\n", band_ht40, band_ht80, band_ht160);
 
             if (tb_band[NL80211_BAND_ATTR_FREQS]) {
                 nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
@@ -715,6 +725,8 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
     while (chan_list_cur != NULL && num_freq < cblock.nfreqs) {
         /* Use the dup'd string directly */
         (*ret_chan_list)[num_freq++] = chan_list_cur->channel;
+
+        // fprintf(stderr, "debug - %u %s\n", num_freq, chan_list_cur->channel);
 
         /* Shuffle the pointers */
         chan_list_old = chan_list_cur;
