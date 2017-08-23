@@ -550,8 +550,17 @@ exports.DegToDir = function(deg) {
 // Use our settings to make some conversion functions for distance and temperature
 exports.renderDistance = function(k, precision = 5) {
     if (kismet.getStorage('kismet.base.unit.distance') === 'metric') {
+        if (k < 1) {
+            return (k * 1000).toFixed(precision) + ' m';
+        }
+
         return k.toFixed(precision) + ' km';
     } else {
+        var m = (k * 0.621371);
+
+        if (m < 1) {
+            return (5280 * m).toFixed(precision) + ' feet';
+        }
         return (k * 0.621371).toFixed(precision) + ' miles';
     }
 }
@@ -746,11 +755,11 @@ kismet_ui_settings.AddSettingsPane({
     listTitle: 'Device List Columns',
     create: function(elem) {
 
-        var rowcontainer = 
+        var rowcontainer =
             $('<div>', {
                 id: 'k-c-p-rowcontainer'
             });
-       
+
         var cols = exports.GetDeviceColumns(true);
 
         for (var ci in cols) {
@@ -759,7 +768,7 @@ kismet_ui_settings.AddSettingsPane({
             if (! c.user_selectable)
                 continue;
 
-            var crow = 
+            var crow =
                 $('<div>', {
                     class: 'k-c-p-column',
                     id: c.kismetId,
@@ -829,7 +838,7 @@ kismet_ui_settings.AddSettingsPane({
             )
         )
         .append(
-            $('<div>', { 
+            $('<div>', {
                 class: 'k-c-p-header',
             })
             .append(
