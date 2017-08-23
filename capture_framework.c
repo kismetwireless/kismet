@@ -349,6 +349,7 @@ void cf_params_interface_free(cf_params_interface_t *pi) {
         for (x = 0; x < pi->channels_len; x++) {
             free(pi->channels[x]);
         }
+        free(pi->channels);
     }
 
     free(pi);
