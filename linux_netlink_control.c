@@ -202,8 +202,6 @@ void mac80211_insert_flags(unsigned int *flags, unsigned int flags_sz,
 
     nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, nl_flags);
 
-    return;
-
 nla_put_failure:
     nlmsg_free(nl_flags);
 #endif
