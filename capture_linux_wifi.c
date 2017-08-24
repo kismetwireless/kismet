@@ -863,10 +863,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    /* We HAVE to unref the nmclient and disconnect here or it keeps trying
-     * to deliver messages to us, filling up hundreds of megs of ram */
-    if (nmclient != NULL)
-        g_object_unref(nmclient);
+    /* We MUST make sure to release the networkmanager object later or we'll leak
+     * memory continually as NM queues events for us */
 
 #endif
 
@@ -1150,6 +1148,46 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
         }
     }
+
+#ifdef HAVE_LIBNM
+    /* Now, if we have a reference to networkmanager, try to tell it to ignore
+     * the monitor mode interface, too, in case it gets any ideas */
+
+    if (nmclient != NULL && nm_client_get_nm_running(nmclient)) {
+        nmdevices = nm_client_get_devices(nmclient);
+
+        if (nmdevices != NULL) {
+            for (i = 0; i < nmdevices->len; i++) {
+                const NMDevice *d = g_ptr_array_index(nmdevices, i);
+
+                if (strcmp(nm_device_get_iface((NMDevice *) d), 
+                            local_wifi->cap_interface) == 0) {
+                    nmdevice = (NMDevice *) d;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (nmdevice != NULL) {
+        local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
+
+        if (local_wifi->reset_nm_management) {
+            snprintf(errstr, STATUS_MAX, "Telling NetworkManager not to control "
+                    "interface '%s': you may need to re-initialize this interface "
+                    "later or tell NetworkManager to control it again via 'nmcli'",
+                    local_wifi->interface);
+            cf_send_message(caph, errstr, MSGFLAG_INFO);
+            nm_device_set_managed(nmdevice, 0);
+        }
+    }
+
+    /* We HAVE to unref the nmclient and disconnect here or it keeps trying
+     * to deliver messages to us, filling up hundreds of megs of ram */
+    if (nmclient != NULL)
+        g_object_unref(nmclient);
+#endif
+
 
     /* fprintf(stderr, "debug - bringing up cap interface %s to capture\n", local_wifi->cap_interface); */
 
