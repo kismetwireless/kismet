@@ -96,9 +96,9 @@ typedef struct {
     int use_mac80211_channels;
 
     /* Cached mac80211 controls */
-    void *mac80211_handle;
-    void *mac80211_cache;
-    void *mac80211_family;
+    void *mac80211_socket;
+    int mac80211_id;
+    int mac80211_ifidx;
 
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
@@ -582,15 +582,15 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
              * a control freq, a width, and possibly an extended center frequency
              * for VHT; if center1 is 0 _set_frequency will automatically
              * exclude it and only set the width */
-            r = mac80211_set_frequency_cache(local_wifi->cap_interface,
-                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
+            r = mac80211_set_frequency_cache(local_wifi->mac80211_ifidx,
+                    local_wifi->mac80211_socket, local_wifi->mac80211_id,
                     channel->control_freq, channel->chan_width,
                     channel->center_freq1, channel->center_freq2, errstr);
         } else {
             /* Otherwise for HT40 and non-HT channels, set the channel w/ any
              * flags present */
-            r = mac80211_set_channel_cache(local_wifi->cap_interface,
-                    local_wifi->mac80211_handle, local_wifi->mac80211_family,
+            r = mac80211_set_channel_cache(local_wifi->mac80211_ifidx,
+                    local_wifi->mac80211_socket, local_wifi->mac80211_id,
                     channel->control_freq, channel->chan_type, errstr);
         } 
 
@@ -956,23 +956,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* We're going to start interacting with devices - connect to mac80211 if
      * we can; an error here is tolerable because we'll fail properly later
      * on */
-    local_wifi->mac80211_handle = NULL;
-    local_wifi->mac80211_cache = NULL;
-    local_wifi->mac80211_family = NULL;
+    local_wifi->mac80211_socket = NULL;
 
-    if (mac80211_connect(local_wifi->interface, &(local_wifi->mac80211_handle),
-                &(local_wifi->mac80211_cache), &(local_wifi->mac80211_family),
+    if (mac80211_connect(local_wifi->interface, &(local_wifi->mac80211_socket),
+                &(local_wifi->mac80211_id), &(local_wifi->mac80211_ifidx),
                 errstr) < 0) {
-        local_wifi->mac80211_handle = NULL;
-        local_wifi->mac80211_cache = NULL;
-        local_wifi->mac80211_family = NULL;
-    }
 
-    /* If we didn't get a mac80211 handle we can't use mac80211, period, fall back
-     * to trying to use the legacy ioctls */
-    if (local_wifi->mac80211_handle == NULL) {
+        /* If we didn't get a mac80211 handle we can't use mac80211, period, fall back
+         * to trying to use the legacy ioctls */
         local_wifi->use_mac80211_vif = 0;
         local_wifi->use_mac80211_channels = 0;
+    } else {
+        /* We know we can talk to mac80211; disconnect until we know our capinterface */
+        mac80211_disconnect(local_wifi->mac80211_socket);
     }
 
     /* The interface we want to use isn't in monitor mode - and presumably
@@ -1272,6 +1268,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->capif = strdup(local_wifi->cap_interface);
 
+    if (local_wifi->use_mac80211_channels) {
+        if (mac80211_connect(local_wifi->cap_interface, &(local_wifi->mac80211_socket),
+                    &(local_wifi->mac80211_id), &(local_wifi->mac80211_ifidx),
+                    errstr) < 0) {
+            local_wifi->use_mac80211_channels = 0;
+        }
+
+        fprintf(stderr, "connected to mac80211 ifidx %d\n", local_wifi->mac80211_ifidx);
+    }
+
     return 1;
 }
 
@@ -1417,9 +1423,7 @@ int main(int argc, char *argv[]) {
         .override_dlt = -1,
         .use_mac80211_vif = 1,
         .use_mac80211_channels = 1,
-        .mac80211_cache = NULL,
-        .mac80211_handle = NULL,
-        .mac80211_family = NULL,
+        .mac80211_socket = NULL,
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
     };

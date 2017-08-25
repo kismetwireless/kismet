@@ -24,25 +24,6 @@
 /* Use local copy of nl80211.h */
 #include "nl80211.h"
 
-/* Connect to the mac80211 subsystem; return a handle, cache, and family
- * structure in *handle, *cache, and *family, respectively.
- *
- * Handle, cache, and family must be initialized to NULL when calling for
- * the first time.
- *
- * errstr must be allocated by the caller and be able to hold STATUS_MAX
- * characters.
- *
- * Returns:
- * -1   Error
- *  0   Success
- */
-int mac80211_connect(const char *interface, void **handle, void **cache,
-					 void **family, char *errstr);
-
-/* Disconnect a handle to the mac80211 subsystem. */
-void mac80211_disconnect(void *handle, void *cache);
-
 /* Create a monitor vif using mac80211, based on existing interface *interface
  * and named *newinterface.
  *
@@ -57,6 +38,23 @@ void mac80211_disconnect(void *handle, void *cache);
  */
 int mac80211_create_monitor_vif(const char *interface, const char *newinterface, 
         unsigned int *flags, unsigned int flags_sz, char *errstr);
+
+/* Connect to nl80211 and resolve the genl and nl80211 ids; this generates the
+ * cache state needed for channel control.
+ *
+ * **nl_sock is allocated by the function, and must be freed with mac80211_nl_disconnect
+ * *nl80211_id is populated by the function
+ * *if_index is populated with the interface index of the provided interface
+ *
+ * Returns:
+ * -1   Error
+ *  0   Success
+ */
+int mac80211_connect(const char *interface, void **nl_sock, int *nl80211_id, 
+        int *if_index, char *errstr);
+
+/* Disconnect from nl80211; frees resources used */
+void mac80211_disconnect(void *nl_sock);
 
 /* Set a channel on an interface via mac80211, initiating a new connection
  * to the interface.
@@ -75,11 +73,9 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
  * -1   Error
  *  0   Success
  */
-int mac80211_set_channel(const char *interface, int channel, 
-        unsigned int chmode, char *errstr);
-int mac80211_set_channel_cache(const char *interface, void *handle,
-        void *family, int channel,
-        unsigned int chmode, char *errstr);
+int mac80211_set_channel(const char *interface, int channel, unsigned int chmode, char *errstr);
+int mac80211_set_channel_cache(int ifindex, void *nl_sock, int nl80211_id,
+        int channel, unsigned int chmode, char *errstr);
 
 /* Set a device frequency by frequency, width, and center frequency, required for
  * advanced 11AC controls.  This MAY also be used for 11n 40mhz channels.
@@ -99,7 +95,7 @@ int mac80211_set_channel_cache(const char *interface, void *handle,
 int mac80211_set_frequency(const char *interface, unsigned int control_freq,
         unsigned int chan_width, unsigned int center_freq1, unsigned int center_freq2,
         char *errstr);
-int mac80211_set_frequency_cache(const char *interface, void *handle, void *family, 
+int mac80211_set_frequency_cache(int ifidx, void *nl_sock, int nl80211_id, 
         unsigned int control_freq, unsigned int chan_width, unsigned int center_freq1, 
         unsigned int center_freq2, char *errstr);
 

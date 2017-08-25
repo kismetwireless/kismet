@@ -72,19 +72,7 @@ static inline void nl_socket_free(struct nl_sock *h) {
 #endif
 }
 
-static inline int __genl_ctrl_alloc_cache(struct nl_sock *h, struct nl_cache **cache) {
-#ifdef HAVE_LINUX_NETLINK
-    struct nl_cache *tmp = genl_ctrl_alloc_cache(h);
-    if (!tmp)
-        return -1;
-    *cache = tmp;
-    return 0;
-#else
-    *cache = NULL;
-    return 0;
 #endif
-}
-#define genl_ctrl_alloc_cache __genl_ctrl_alloc_cache
 #endif
 
 unsigned int mac80211_chan_to_freq(unsigned int in_chan) {
@@ -120,144 +108,132 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
     return in_freq / 5 - 1000;
 }
 
-int mac80211_connect(const char *interface, void **handle, void **cache,
-					 void **family, char *errstr) {
+int mac80211_connect(const char *interface, void **nl_sock, 
+        int *nl80211_id, int *if_index, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
-    snprintf(errstr, STATUS_MAX,
-            "failed to connect interface '%s' via netlink/nl80211: Kismet was "
-            "not compiled with netlink support, check the output of ./configure "
-            "for more information.", interface);
-	return -1;
+    snrptinf(errstr, STATUS_MAX,
+            "cannot connect to netlink; not compiled with netlink "
+            "support.  Check the output of ./configure for more information");
+    return -1;
 #else
-	struct nl_sock *nl_handle;
-	struct nl_cache *nl_cache;
-	struct genl_family *nl80211;
 
-    if (*handle == NULL) {
-        if ((nl_handle = nl_socket_alloc()) == NULL) {
-            snprintf(errstr, STATUS_MAX, 
-                    "failed to connect interface '%s' via netlink: unable to "
-                    "allocate netlink socket.", interface);
-            return -1;
-        }
-
-        if (genl_connect(nl_handle)) {
-            snprintf(errstr, STATUS_MAX, 
-                    "failed to connect interface '%s' via netlink: unable to "
-                    "connect to netlink: %s", interface, strerror(errno));
-            nl_socket_free(nl_handle);
-            return -1;
-        }
-    } else {
-        nl_handle = (struct nl_sock *) (*handle);
-    }
-
-	if (genl_ctrl_alloc_cache(nl_handle, &nl_cache) != 0) {
-		snprintf(errstr, STATUS_MAX, 
-                "failed to connect interface '%s' via netlink: unable to allocate "
-                "control data.", interface);
-		nl_socket_free(nl_handle);
-		return -1;
-	}
-
-    if ((nl80211 = genl_ctrl_search_by_name(nl_cache, "nl80211")) == NULL) {
-        snprintf(errstr, STATUS_MAX, 
-                "failed to connect interface '%s' via netlink: failed to find "
-                "nl80211 controls, kernel may be very old.", interface);
-        nl_socket_free(nl_handle);
+    if ((*if_index = if_nametoindex(interface)) < 0) {
+        snprintf(errstr, STATUS_MAX,
+                "cannot connect to netlink:  Could not find interface '%s'", interface);
         return -1;
     }
 
-    (*handle) = (void *) nl_handle;
-    (*cache) = (void *) nl_cache;
-    (*family) = (void *) nl80211;
-
-	return 0;
-#endif
-}
-
-void mac80211_disconnect(void *handle, void *cache) {
-#ifdef HAVE_LINUX_NETLINK
-    if (handle != NULL)
-        nl_socket_free((struct nl_sock *) handle);
-
-    if (cache != NULL)
-        nl_cache_free((struct nl_cache *) cache);
-#endif
-}
-
-void mac80211_insert_flags(unsigned int *flags, unsigned int flags_sz, 
-        struct nl_msg *msg) {
-#ifdef HAVE_LINUX_NETLINK
-    struct nl_msg *nl_flags;
-    unsigned int x;
-
-    if ((nl_flags = nlmsg_alloc()) == NULL) {
-        return;
+    *nl_sock = nl_socket_alloc();
+    if (!nl_sock) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to connect to netlink: could not allocate netlink socket");
+        return -1;
     }
 
-    for (x = 0; x < flags_sz; x++) {
-        NLA_PUT_FLAG(nl_flags, flags[x]);
+    if (genl_connect(*nl_sock)) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to connect to netlink: could not connect to generic netlink");
+        return -1;
+        nl_socket_free(*nl_sock);
     }
 
-    nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, nl_flags);
+    *nl80211_id = genl_ctrl_resolve(*nl_sock, "nl80211");
+    if (nl80211_id < 0) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to connect to netlink: could not resolve nl80211");
+        nl_socket_free(*nl_sock);
+    }
 
-nla_put_failure:
-    nlmsg_free(nl_flags);
-#endif
+    return 0;
+}
+
+void mac80211_disconnect(void *nl_sock) {
+    nl_socket_free(nl_sock);
 }
 
 int mac80211_create_monitor_vif(const char *interface, const char *newinterface, 
-        unsigned int *flags, unsigned int flags_sz, char *errstr) {
+        unsigned int *in_flags, unsigned int flags_sz, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
     snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
             "support, check the output of ./configure for why");
     return -1;
 #else
 
-    struct nl_sock *nl_handle = NULL;
-    struct nl_cache *nl_cache = NULL;
-    struct genl_family *nl80211 = NULL;
+    void *nl_sock;
+    int nl80211_id;
+
     struct nl_msg *msg;
+    struct nl_msg *flags;
+
+    unsigned int x;
 
     if (if_nametoindex(newinterface) > 0) 
         return 1;
 
-    if (mac80211_connect(interface, (void **) &nl_handle, 
-                (void **) &nl_cache, (void **) &nl80211, errstr) < 0) {
-        mac80211_disconnect(nl_handle, nl_cache);
+    nl_sock = nl_socket_alloc();
+    if (!nl_sock) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to create monitor vif %s:%s, unable to allocate netlink socket",
+                interface, newinterface);
         return -1;
+    }
+
+    if (genl_connect(nl_sock)) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to create monitor vif %s:%s, unable to connect generic netlink",
+                interface, newinterface);
+        nl_socket_free(nl_sock);
+    }
+
+    nl80211_id = genl_ctrl_resolve(nl_sock, "nl80211");
+    if (nl80211_id < 0) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to create monitor vif %s:%s, unable to resolve nl80211",
+                interface, newinterface);
+        nl_socket_free(nl_sock);
     }
 
     if ((msg = nlmsg_alloc()) == NULL) {
         snprintf(errstr, STATUS_MAX, 
                 "unable to create monitor vif %s:%s, unable to allocate nl80211 "
                 "message", interface, newinterface);
-        mac80211_disconnect(nl_handle, nl_cache);
+        nl_socket_free(nl_sock);
         return -1;
     }
 
-    genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, 
-            NL80211_CMD_NEW_INTERFACE, 0);
+    if ((flags = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to create monitor vif %s:%s, unable to allocate nl80211 flags",
+                interface, newinterface);
+        nl_socket_free(nl_sock);
+        return -1;
+    }
+
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
     NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
     NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, newinterface);
     NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
 
+    for (x = 0; x < flags_sz; x++) {
+        NLA_PUT_FLAG(flags, in_flags[x]);
+    }
+    
     if (flags_sz > 0)
-        mac80211_insert_flags(flags, flags_sz, msg);
+        nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, flags);
 
-    if (nl_send_auto_complete(nl_handle, msg) < 0 || nl_wait_for_ack(nl_handle) < 0) {
+    if (nl_send_auto_complete(nl_sock, msg) < 0 || nl_wait_for_ack(nl_sock) < 0) {
 nla_put_failure:
-        snprintf(errstr, STATUS_MAX, 
-                "failed to create monitor interface %s:%s",
+        snprintf(errstr, STATUS_MAX, "failed to create monitor interface %s:%s",
                 interface, newinterface);
+        nl_socket_free(nl_sock);
         nlmsg_free(msg);
-        mac80211_disconnect(nl_handle, nl_cache);
+        nlmsg_free(flags);
         return -1;
     }
 
+    nl_socket_free(nl_sock);
     nlmsg_free(msg);
-    mac80211_disconnect(nl_handle, nl_cache);
+    nlmsg_free(flags);
 
     if (if_nametoindex(newinterface) <= 0) {
         snprintf(errstr, STATUS_MAX, 
@@ -270,40 +246,34 @@ nla_put_failure:
 #endif
 }
 
-int mac80211_set_channel_cache(const char *interface, void *handle,
-        void *family, int channel,
-        unsigned int chmode, char *errstr) {
+int mac80211_set_channel_cache(int ifindex, void *nl_sock,
+        int nl80211_id, int channel, unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
     snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
             "support, check the output of ./configure for why");
     return -1;
 #else
-    struct nl_sock *nl_handle = (struct nl_sock *) handle;
-    struct genl_family *nl80211 = (struct genl_family *) family;
     struct nl_msg *msg;
     int ret = 0;
 
     if (chmode >= 4) {
-        snprintf(errstr, STATUS_MAX, 
-                "unable to set channel on interface '%s': invalid channel mode",
-                interface);
+        snprintf(errstr, STATUS_MAX, "unable to set channel: invalid channel mode");
         return -1;
     }
 
     if ((msg = nlmsg_alloc()) == NULL) {
         snprintf(errstr, STATUS_MAX, 
-                "unable to set channel on interface '%s': unable to allocate mac80211 "
-                "control message.", interface);
+                "unable to set channel: unable to allocate mac80211 control message.");
         return -1;
     }
 
-    genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
-    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_SET_WIPHY, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifindex);
     NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, mac80211_chan_to_freq(channel));
     NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, chmode);
 
-    if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
-        if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
+    if ((ret = nl_send_auto_complete(nl_sock, msg)) >= 0) {
+        if ((ret = nl_wait_for_ack(nl_sock)) < 0) 
             goto nla_put_failure;
     }
 
@@ -313,9 +283,8 @@ int mac80211_set_channel_cache(const char *interface, void *handle,
 
 nla_put_failure:
     snprintf(errstr, STATUS_MAX, 
-            "unable to set channel %u/%u mode %u on interface '%s' via mac80211: "
-            "error code %d", channel, mac80211_chan_to_freq(channel), chmode,
-            interface, ret);
+            "unable to set channel %u/%u mode %u via mac80211: "
+            "error code %d", channel, mac80211_chan_to_freq(channel), chmode, ret);
     nlmsg_free(msg);
     return ret;
 #endif
@@ -328,27 +297,23 @@ int mac80211_set_channel(const char *interface, int channel,
             "support, check the output of ./configure for why");
     return -1;
 #else
-    struct nl_sock *nl_handle = NULL;
-    struct nl_cache *nl_cache = NULL;
-    struct genl_family *nl80211 = NULL;
+    void *nl_sock;
+    int nl80211_id;
+    int ifidx;
 
-    if (mac80211_connect(interface, (void **) &nl_handle, 
-                (void **) &nl_cache, (void **) &nl80211, errstr) < 0) {
-        mac80211_disconnect(nl_handle, nl_cache);
+    if (mac80211_connect(interface, &nl_sock, &nl80211_id, &ifidx, errstr) < 0)
         return -1;
-    }
 
     int ret = 
-        mac80211_set_channel_cache(interface, (void *) nl_handle,
-                (void *) nl80211, channel, chmode, errstr);
+        mac80211_set_channel_cache(ifidx, nl_sock, nl80211_id, channel, chmode, errstr);
 
-    mac80211_disconnect(nl_handle, nl_cache);
+    mac80211_disconnect(nl_sock);
 
     return ret;
 #endif
 }
 
-int mac80211_set_frequency_cache(const char *interface, void *handle, void *family, 
+int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id, 
         unsigned int control_freq, unsigned int chan_width, 
         unsigned int center_freq1, unsigned int center_freq2,
         char *errstr) {
@@ -357,20 +322,18 @@ int mac80211_set_frequency_cache(const char *interface, void *handle, void *fami
 			 "support, check the output of ./configure for why");
     return -1;
 #else
-    struct nl_sock *nl_handle = (struct nl_sock *) handle;
-    struct genl_family *nl80211 = (struct genl_family *) family;
     struct nl_msg *msg;
     int ret = 0;
 
     if ((msg = nlmsg_alloc()) == NULL) {
         snprintf(errstr, STATUS_MAX, 
-                "unable to set channel/frequency on interface '%s': unable to "
-                "allocate mac80211 control message.", interface);
+                "unable to set channel/frequency: unable to allocate "
+                "mac80211 control message.");
         return -1;
     }
 
-    genlmsg_put(msg, 0, 0, genl_family_get_id(nl80211), 0, 0, NL80211_CMD_SET_WIPHY, 0);
-    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_SET_WIPHY, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifindex);
     NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, control_freq);
     NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, chan_width);
 
@@ -378,8 +341,8 @@ int mac80211_set_frequency_cache(const char *interface, void *handle, void *fami
         NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, center_freq1);
     }
 
-    if ((ret = nl_send_auto_complete(nl_handle, msg)) >= 0) {
-        if ((ret = nl_wait_for_ack(nl_handle)) < 0) 
+    if ((ret = nl_send_auto_complete(nl_sock, msg)) >= 0) {
+        if ((ret = nl_wait_for_ack(nl_sock)) < 0) 
             goto nla_put_failure;
     }
 
@@ -389,9 +352,8 @@ int mac80211_set_frequency_cache(const char *interface, void *handle, void *fami
 
 nla_put_failure:
 	snprintf(errstr, STATUS_MAX, 
-            "unable to set frequency %u %u %u on interface '%s' via mac80211: "
-            "error code %d",
-            control_freq, chan_width, center_freq1, interface, ret);
+            "unable to set frequency %u %u %u via mac80211: error code %d",
+            control_freq, chan_width, center_freq1, ret);
 	nlmsg_free(msg);
 	return ret;
 #endif
@@ -406,21 +368,19 @@ int mac80211_set_frequency(const char *interface,
             "support, check the output of ./configure for why");
     return -1;
 #else
-    struct nl_sock *nl_handle = NULL;
-    struct nl_cache *nl_cache = NULL;
-    struct genl_family *nl80211 = NULL;
+    void *nl_sock;
+    int ifidx;
+    int nl80211_id;
 
-    if (mac80211_connect(interface, (void **) &nl_handle, 
-                (void **) &nl_cache, (void **) &nl80211, errstr) < 0) {
-        mac80211_disconnect(nl_handle, nl_cache);
+    if (mac80211_connect(interface, &nl_sock, &nl80211_id, &ifidx, errstr) < 0) {
         return -1;
     }
 
     int ret = 
-        mac80211_set_frequency_cache(interface, (void *) nl_handle, (void *) nl80211, 
+        mac80211_set_frequency_cache(ifidx, nl_sock, nl80211_id, 
                 control_freq, chan_width, center_freq1, center_freq2, errstr);
 
-    mac80211_disconnect(nl_handle, nl_cache);
+    mac80211_disconnect(nl_sock);
 
     return ret;
 #endif
