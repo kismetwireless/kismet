@@ -113,5 +113,59 @@ protected:
     SharedTrackerElement loc_fix;
 };
 
+// Historic location track; used in the averaging / rrd historic location.
+// Signal is tracked agnostically as whatever type of signal the owning device
+// presents (dbm or rssi)
+class kis_historic_location : public tracker_component {
+public:
+    kis_historic_location(GlobalRegistry *in_globalreg, int in_id);
+    kis_historic_location(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+
+    virtual SharedTrackerElement clone_type();
+
+    __Proxy(lat, double, double, double, lat);
+    __Proxy(lon, double, double, double, lon);
+    __Proxy(heading, double, double, double, heading);
+    __Proxy(alt, double, double, double, alt);
+    __Proxy(speed, double, double, double, speed);
+    __Proxy(signal, int32_t, int32_t, int32_t, signal);
+
+protected:
+    virtual void register_fields();
+
+    SharedTrackerElement lat, lon, alt, heading, speed;
+    SharedTrackerElement time_sec;
+    SharedTrackerElement signal;
+};
+
+// RRD-style historic location cloud of cascading precision
+// Collects a historical record about a device and then averages them to the next level
+// of precision
+class kis_gps_history : public tracker_component { 
+public:
+    kis_gps_history(GlobalRegistry *in_globalreg, int in_id);
+    kis_gps_history(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+
+    virtual SharedTrackerElement clone_type();
+
+    void add_sample(shared_ptr<kis_historic_location> in_sample);
+
+protected:
+    virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
+
+    SharedTrackerElement samples_100;
+    SharedTrackerElement samples_10k;
+    SharedTrackerElement samples_1m;
+
+    unsigned int samples_100_cascade;
+    unsigned int samples_10k_cascade;
+
+    TrackerElementVector samples_100_vec;
+    TrackerElementVector samples_10k_vec;
+    TrackerElementVector samples_1m_vec;
+
+};
+
 #endif
 
