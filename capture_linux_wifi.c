@@ -1291,8 +1291,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     errstr) < 0) {
             local_wifi->use_mac80211_channels = 0;
         }
-
-        fprintf(stderr, "connected to mac80211 ifidx %d\n", local_wifi->mac80211_ifidx);
     }
 
     return 1;

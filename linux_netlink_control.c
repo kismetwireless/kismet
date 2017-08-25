@@ -635,9 +635,6 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
 
     cb = nl_cb_alloc(NL_CB_DEFAULT);
 
-    nla_put_flag(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
-    nlmsg_hdr(msg)->nlmsg_flags |= NLM_F_DUMP;
-
     err = 1;
 
     nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nl80211_freqlist_cb, &cblock);
