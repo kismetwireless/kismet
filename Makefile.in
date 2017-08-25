@@ -303,6 +303,12 @@ kaitai-parsers:
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
+ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
+	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))
+endif
+ifneq ($(BUILD_CAPTURE_LINUX_WIFI)x, "x")
+	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_LINUX_WIFI_O)))
+endif
 
 .SUFFIXES: .c .cc .o 
 
