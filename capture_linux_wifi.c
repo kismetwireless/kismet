@@ -736,6 +736,23 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int i;
 #endif
 
+    /* Clean up any existing local state on open; we can get re-opened if we're a 
+     * remote source */
+    if (local_wifi->interface) {
+        free(local_wifi->interface);
+        local_wifi->interface = NULL;
+    }
+
+    if (local_wifi->cap_interface) {
+        free(local_wifi->cap_interface);
+        local_wifi->cap_interface = NULL;
+    }
+
+    if (local_wifi->mac80211_socket) {
+        mac80211_disconnect(local_wifi->mac80211_socket);
+        local_wifi->mac80211_socket = NULL;
+    }
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return -1;
