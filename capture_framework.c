@@ -411,6 +411,11 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
         }
     }
 
+    if (caph->channel_hop_list) 
+        free(caph->channel_hop_list);
+    if (caph->custom_channel_hop_list)
+        free(caph->custom_channel_hop_list);
+
     caph->channel_hop_list = stringchans;
     caph->custom_channel_hop_list = privchans;
     caph->channel_hop_list_sz = chan_sz;
@@ -1078,6 +1083,11 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 cf_params_spectrum_free(spectrumparams);
 
 
+            if (caph->remote_host) {
+                fprintf(stderr, "INFO - %s:%u starting capture...\n",
+                        caph->remote_host, caph->remote_port);
+            }
+
             if (cbret >= 0) {
                 cf_handler_launch_capture_thread(caph);
             }
@@ -1173,8 +1183,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     for (szi = 0; szi < chanhop_channels_sz; szi++) {
                         if (caph->chantranslate_cb != NULL) {
                             chanhop_priv_channels[szi] = 
-                                (*(caph->chantranslate_cb))(caph, 
-                                    chanhop_channels[szi]);
+                                (*(caph->chantranslate_cb))(caph, chanhop_channels[szi]);
                         } else {
                             chanhop_priv_channels[szi] = strdup(chanhop_channels[szi]);
                         }
@@ -1555,7 +1564,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
 
         caph->tcp_fd = client_fd;
 
-        fprintf(stderr, "INFO - Connected to '%s:%u', sending source info...\n",
+        fprintf(stderr, "INFO - Connected to '%s:%u'...\n",
                 caph->remote_host, caph->remote_port);
     
         /* Send the NEWSOURCE command to the Kismet server */
