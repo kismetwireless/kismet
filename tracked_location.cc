@@ -308,7 +308,7 @@ void kis_location_history::register_fields() {
             "last 100 historic GPS records", &samples_100);
     RegisterField("kis.gps.rrd.samples_10k", TrackerVector,
             "last 10,000 historic GPS records, as averages of 100", &samples_10k);
-    RegisterField("kis.gps.rrd.sampkes_1m", TrackerVector,
+    RegisterField("kis.gps.rrd.samples_1m", TrackerVector,
             "last 1,000,000 historic GPS records, as averages of 10,000", &samples_1m);
 }
 
