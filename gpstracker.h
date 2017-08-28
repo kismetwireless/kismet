@@ -64,6 +64,23 @@ public:
         }
     }
 
+    shared_ptr<kis_tracked_location_triplet> as_tracked_triplet(GlobalRegistry *globalreg) {
+        shared_ptr<kis_tracked_location_triplet> 
+            r(new kis_tracked_location_triplet(globalreg, 0));
+
+        r->set_lat(lat);
+        r->set_lon(lon);
+        r->set_alt(alt);
+        r->set_speed(speed);
+        r->set_heading(heading);
+        r->set_fix(fix);
+        r->set_valid(fix >= 2);
+        r->set_time_sec(tv.tv_sec);
+        r->set_time_usec(tv.tv_usec);
+
+        return r;
+    }
+
     double lat;
     double lon;
     double alt;

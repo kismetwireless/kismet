@@ -218,6 +218,8 @@ public:
 
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
     __ProxyDynamicTrackable(data_rrd, rrdt, data_rrd, data_rrd_id);
+    __ProxyDynamicTrackable(location_cloud, kis_location_history, location_cloud, 
+            location_cloud_id);
 
     typedef kis_tracked_minute_rrd<> mrrdt;
     __ProxyDynamicTrackable(packet_rrd_bin_250, mrrdt, packet_rrd_bin_250, 
@@ -401,6 +403,11 @@ protected:
             RegisterComplexField("kismet.device.base.location", loc_builder,
                     "location");
 
+        location_cloud_id =
+            RegisterComplexField("kismet.device.base.location_cloud", 
+                    shared_ptr<kis_location_history>(new kis_location_history(globalreg, 0)),
+                    "historic location cloud");
+
         RegisterField("kismet.device.base.seenby", TrackerIntMap,
                 "sources that have seen this device", &seenby_map);
 
@@ -443,6 +450,9 @@ protected:
             location.reset(new kis_tracked_location(globalreg, location_id,
                     e->get_map_value(location_id)));
 
+            location_cloud.reset(new kis_location_history(globalreg, location_cloud_id,
+                    e->get_map_value(location_cloud_id)));
+
             packets_rrd.reset(new kis_tracked_rrd<>(globalreg,
                     packets_rrd_id, e->get_map_value(packets_rrd_id)));
 
@@ -473,6 +483,7 @@ protected:
         // add using known fields b/c we might add null
         add_map(signal_data_id, signal_data);
         add_map(location_id, location);
+        add_map(location_cloud_id, location_cloud);
         add_map(packets_rrd_id, packets_rrd);
         add_map(data_rrd_id, data_rrd);
         add_map(packet_rrd_bin_250_id, packet_rrd_bin_250);
@@ -583,6 +594,9 @@ protected:
     // Location min/max/avg
     shared_ptr<kis_tracked_location> location;
     int location_id;
+
+    shared_ptr<kis_location_history> location_cloud;
+    int location_cloud_id;
 
     // Seenby map (mapped by int16 device id)
     SharedTrackerElement seenby_map;

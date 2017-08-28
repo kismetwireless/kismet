@@ -129,22 +129,24 @@ public:
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, speed);
     __Proxy(signal, int32_t, int32_t, int32_t, signal);
+    __Proxy(time_sec, uint64_t, time_t, time_t, time_sec);
+    __Proxy(frequency, uint64_t, uint64_t, uint64_t, frequency);
 
 protected:
     virtual void register_fields();
 
     SharedTrackerElement lat, lon, alt, heading, speed;
     SharedTrackerElement time_sec;
-    SharedTrackerElement signal;
+    SharedTrackerElement signal, frequency;
 };
 
-// RRD-style historic location cloud of cascading precision
+// rrd-ish historic location cloud of cascading precision
 // Collects a historical record about a device and then averages them to the next level
 // of precision
-class kis_gps_history : public tracker_component { 
+class kis_location_history : public tracker_component { 
 public:
-    kis_gps_history(GlobalRegistry *in_globalreg, int in_id);
-    kis_gps_history(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+    kis_location_history(GlobalRegistry *in_globalreg, int in_id);
+    kis_location_history(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
 
     virtual SharedTrackerElement clone_type();
 

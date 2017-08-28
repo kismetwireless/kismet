@@ -628,6 +628,28 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
     if ((in_flags & UCD_UPDATE_LOCATION) && pack_gpsinfo != NULL) {
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                 pack_gpsinfo->alt, pack_gpsinfo->fix);
+
+        if (pack_gpsinfo->fix >= 2) {
+            shared_ptr<kis_historic_location> histloc(new kis_historic_location(globalreg, 0));
+
+            histloc->set_lat(pack_gpsinfo->lat);
+            histloc->set_lon(pack_gpsinfo->lon);
+            histloc->set_alt(pack_gpsinfo->alt);
+            histloc->set_speed(pack_gpsinfo->speed);
+            histloc->set_heading(pack_gpsinfo->heading);
+
+            histloc->set_time_sec(in_pack->ts.tv_sec);
+
+            if (pack_l1info != NULL) {
+                histloc->set_frequency(pack_l1info->freq_khz);
+                if (pack_l1info->signal_dbm != 0)
+                    histloc->set_signal(pack_l1info->signal_dbm);
+                else
+                    histloc->set_signal(pack_l1info->signal_rssi);
+            }
+
+            device->get_location_cloud()->add_sample(histloc);
+        }
     }
 
 	// Update seenby records for time, frequency, packets

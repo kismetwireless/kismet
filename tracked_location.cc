@@ -276,26 +276,32 @@ void kis_historic_location::register_fields() {
     RegisterField("kis.historic.location.lon", TrackerDouble, "longitude", &lon);
     RegisterField("kis.historic.location.alt", TrackerDouble, "altitude (m)", &alt);
     RegisterField("kis.historic.location.speed", TrackerDouble, "speed (kph)", &speed);
+    RegisterField("kis.historic.location.heading", TrackerDouble, 
+            "heading (degrees)", &heading);
     RegisterField("kis.historic.location.signal", TrackerInt32, "signal", &signal);
+    RegisterField("kis.historic.location.time_sec", TrackerUInt64, 
+            "time (unix ts)", &time_sec);
+    RegisterField("kis.historic.location.frequency", TrackerUInt64, 
+            "frequency (khz)", &frequency);
 }
 
-kis_gps_history::kis_gps_history(GlobalRegistry *in_globalreg, 
+kis_location_history::kis_location_history(GlobalRegistry *in_globalreg, 
         int in_id) : tracker_component(in_globalreg, in_id) {
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_gps_history::kis_gps_history(GlobalRegistry *in_globalreg, 
+kis_location_history::kis_location_history(GlobalRegistry *in_globalreg, 
         int in_id, SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
     register_fields();
     reserve_fields(e);
 }
 
-SharedTrackerElement kis_gps_history::clone_type() {
-    return SharedTrackerElement(new kis_gps_history(globalreg, get_id()));
+SharedTrackerElement kis_location_history::clone_type() {
+    return SharedTrackerElement(new kis_location_history(globalreg, get_id()));
 }
 
-void kis_gps_history::register_fields() {
+void kis_location_history::register_fields() {
     tracker_component::register_fields();
 
     RegisterField("kis.gps.rrd.samples_100", TrackerVector,
@@ -306,7 +312,7 @@ void kis_gps_history::register_fields() {
             "last 1,000,000 historic GPS records, as averages of 10,000", &samples_1m);
 }
 
-void kis_gps_history::reserve_fields(SharedTrackerElement e) {
+void kis_location_history::reserve_fields(SharedTrackerElement e) {
     tracker_component::reserve_fields(e);
 
     samples_100_vec = TrackerElementVector(samples_100);
@@ -317,7 +323,7 @@ void kis_gps_history::reserve_fields(SharedTrackerElement e) {
     samples_10k_cascade = 0;
 }
 
-void kis_gps_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
+void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
     samples_100_vec.push_back(in_sample);
     if (samples_100_vec.size() > 100) 
         samples_100_vec.erase(samples_100_vec.begin());
@@ -326,9 +332,11 @@ void kis_gps_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
 
     // We've gotten 100 samples, cascade up to our next bucket
     if (samples_100_cascade >= 100) {
-        double lat, lon, alt, heading, speed, signal;
+        double lat, lon, alt, heading, speed, signal, timesec, frequency;
+        double num_signal, num_alt;
 
-        lat = lon = alt = heading = speed = signal = 0;
+        lat = lon = alt = heading = speed = signal = timesec = frequency = 0;
+        num_signal = num_alt = 0;
 
         for (auto g : samples_100_vec) {
             shared_ptr<kis_historic_location> gl =
@@ -336,20 +344,33 @@ void kis_gps_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
 
             lat += gl->get_lat();
             lon += gl->get_lon();
-            alt += gl->get_alt();
+            if (gl->get_alt()) {
+                alt += gl->get_alt();
+                num_alt++;
+            }
+
             heading += gl->get_heading();
             speed += gl->get_speed();
-            signal += gl->get_signal();
+
+            if (gl->get_signal() != 0) {
+                signal += gl->get_signal();
+                num_signal++;
+            }
+
+            timesec += gl->get_time_sec();
+            frequency += gl->get_frequency();
         }
 
         shared_ptr<kis_historic_location> aggloc(new kis_historic_location(globalreg, 0));
 
         aggloc->set_lat(lat / samples_100_vec.size());
         aggloc->set_lon(lon / samples_100_vec.size());
-        aggloc->set_alt(alt / samples_100_vec.size());
+        aggloc->set_alt(alt / num_alt);
         aggloc->set_heading(heading / samples_100_vec.size());
         aggloc->set_speed(speed / samples_100_vec.size());
-        aggloc->set_signal(signal / samples_100_vec.size());
+        aggloc->set_signal(signal / num_signal);
+        aggloc->set_time_sec(timesec / samples_100_vec.size());
+        aggloc->set_frequency(frequency / samples_100_vec.size());
 
         samples_100_cascade = 0;
 
@@ -361,7 +382,8 @@ void kis_gps_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
 
         if (samples_10k_cascade >= 100) {
             // If we've gotten 100 samples in the 10k bucket, cascade up again
-            lat = lon = alt = heading = speed = signal = 0;
+            lat = lon = alt = heading = speed = signal = timesec = frequency = 0;
+            num_alt = num_signal = 0;
 
             for (auto g : samples_10k_vec) {
                 shared_ptr<kis_historic_location> gl =
@@ -369,10 +391,22 @@ void kis_gps_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
 
                 lat += gl->get_lat();
                 lon += gl->get_lon();
-                alt += gl->get_alt();
+                
+                if (gl->get_alt()) {
+                    alt += gl->get_alt();
+                    num_alt++;
+                }
+
                 heading += gl->get_heading();
                 speed += gl->get_speed();
-                signal += gl->get_signal();
+
+                if (gl->get_signal()) {
+                    signal += gl->get_signal();
+                    num_signal++;
+                }
+
+                timesec += gl->get_time_sec();
+                frequency += gl->get_frequency();
             }
 
             shared_ptr<kis_historic_location> 
@@ -380,10 +414,12 @@ void kis_gps_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
 
             aggloc10->set_lat(lat / samples_10k_vec.size());
             aggloc10->set_lon(lon / samples_10k_vec.size());
-            aggloc10->set_alt(alt / samples_10k_vec.size());
+            aggloc10->set_alt(alt / num_alt);
             aggloc10->set_heading(heading / samples_10k_vec.size());
             aggloc10->set_speed(speed / samples_10k_vec.size());
-            aggloc10->set_signal(signal / samples_10k_vec.size());
+            aggloc10->set_signal(signal / num_signal);
+            aggloc10->set_time_sec(timesec / samples_10k_vec.size());
+            aggloc10->set_frequency(timesec / samples_10k_vec.size());
 
             samples_10k_cascade = 0;
 
