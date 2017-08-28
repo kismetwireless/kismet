@@ -1061,6 +1061,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
                 snprintf(msg, STATUS_MAX, "Could not bring down interface "
                         "'%s' to set monitor mode: %s", local_wifi->interface, errstr);
+                free(flags);
                 return -1;
             }
 
