@@ -248,6 +248,7 @@ int find_interface_mode_by_parent(const char *base_ifname, int wlmode) {
         free(if_parent);
     }
 
+    freeifaddrs(ifaddr);
     free(base_parent);
 
     return -1;
