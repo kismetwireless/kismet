@@ -1083,7 +1083,7 @@ protected:
 	int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
 		pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
 		pack_comp_decap, pack_comp_common, pack_comp_datapayload,
-        pack_comp_gps;
+        pack_comp_gps, pack_comp_l1info;
 
 	// Do we do any data dissection or do we hide it all (legal safety
 	// cutout)
@@ -1110,11 +1110,13 @@ protected:
 	unsigned char wep_identity[256];
 
 	// Tracker alert references
-	int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
-		alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
-		alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
-		alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
-        alert_l33t_ref;
+    int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
+        alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
+        alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
+        alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
+        alert_l33t_ref, alert_tooloud_ref;
+
+    int signal_too_loud_threshold;
 
 	// Command refs
 	int addfiltercmd_ref, addnetclifiltercmd_ref;

@@ -193,6 +193,9 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	pack_comp_gps =
 		packetchain->RegisterPacketComponent("GPS");
 
+    pack_comp_l1info =
+        packetchain->RegisterPacketComponent("RADIODATA");
+
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
 		alertracker->ActivateConfiguredAlert("NETSTUMBLER", 
@@ -375,6 +378,15 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "Probe responses from MAC addresses with an OUI of 00:13:37 often "
                 "indicate an Karma AP impersonation attack.",
                 phyid);
+    alert_tooloud_ref =
+        alertracker->ActivateConfiguredAlert("OVERPOWERED",
+                "Signal levels are abnormally high, when using an external amplifier "
+                "this could indicate that the gain is too high.  Over-amplified signals "
+                "may miss packets entirely.",
+                phyid);
+
+    // Threshold
+    globalreg->kismet_config->FetchOptInt("dot11_max_signal", -20);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
@@ -540,14 +552,34 @@ int Kis_80211_Phy::LoadWepkeys() {
 // Classifier is responsible for processing a dot11 packet and filling in enough
 // of the common info for the system to make a device out of it.
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
-	Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
+    Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
 
-	// Get the 802.11 info
-	dot11_packinfo *dot11info = 
-		(dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
+    // Get the 802.11 info
+    dot11_packinfo *dot11info = 
+        (dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
 
-	if (dot11info == NULL)
-		return 0;
+	kis_layer1_packinfo *pack_l1info =
+		(kis_layer1_packinfo *) in_pack->fetch(d11phy->pack_comp_l1info);
+
+    if (dot11info == NULL)
+        return 0;
+
+    if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold) {
+        if (d11phy->alertracker->PotentialAlert(d11phy->alert_tooloud_ref)) {
+            stringstream ss;
+
+            ss << "Saw packet with a reported signal level of " <<
+                pack_l1info->signal_dbm << " which is above the threshold of " <<
+                d11phy->alert_tooloud_ref << ".  Excessively high signal levels can " <<
+                "be caused by misconfigured external amplifiers and lead to lost " <<
+                "packets.";
+
+            d11phy->alertracker->RaiseAlert(d11phy->alert_tooloud_ref, in_pack, 
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, ss.str());
+        }
+    }
 
     // Get the checksum info
     kis_packet_checksum *fcs =
@@ -563,61 +595,61 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         return 0;
     }
 
-	kis_common_info *ci = 
-		(kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
+    kis_common_info *ci = 
+        (kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
 
-	if (ci == NULL) {
-		ci = new kis_common_info;
-		in_pack->insert(d11phy->pack_comp_common, ci);
+    if (ci == NULL) {
+        ci = new kis_common_info;
+        in_pack->insert(d11phy->pack_comp_common, ci);
     } 
 
-	ci->phyid = d11phy->phyid;
+    ci->phyid = d11phy->phyid;
 
-	if (dot11info->type == packet_management) {
-		ci->type = packet_basic_mgmt;
+    if (dot11info->type == packet_management) {
+        ci->type = packet_basic_mgmt;
 
-		// We track devices/nets/clients by source mac, bssid if source
-		// is impossible
-		if (dot11info->source_mac == globalreg->empty_mac) {
-			if (dot11info->bssid_mac == globalreg->empty_mac) {
+        // We track devices/nets/clients by source mac, bssid if source
+        // is impossible
+        if (dot11info->source_mac == globalreg->empty_mac) {
+            if (dot11info->bssid_mac == globalreg->empty_mac) {
                 fprintf(stderr, "debug - dot11info bssid and src are empty and mgmt\n");
-				ci->error = 1;
-			}
+                ci->error = 1;
+            }
 
-			ci->device = dot11info->bssid_mac;
-		} else {
-			ci->device = dot11info->source_mac;
-		}
+            ci->device = dot11info->bssid_mac;
+        } else {
+            ci->device = dot11info->source_mac;
+        }
 
-		ci->source = dot11info->source_mac;
+        ci->source = dot11info->source_mac;
 
-		ci->dest = dot11info->dest_mac;
+        ci->dest = dot11info->dest_mac;
 
         ci->transmitter = dot11info->bssid_mac;
-	} else if (dot11info->type == packet_phy) {
+    } else if (dot11info->type == packet_phy) {
         if (dot11info->subtype == packet_sub_ack || dot11info->subtype == packet_sub_cts) {
             // map some phys as a device since we know they're being talked to
             ci->device = dot11info->dest_mac;
         } else if (dot11info->source_mac == globalreg->empty_mac) {
             ci->error = 1;
-		} else {
+        } else {
             ci->device = dot11info->source_mac;
         }
 
-		ci->type = packet_basic_phy;
+        ci->type = packet_basic_phy;
 
         ci->transmitter = ci->device;
-	
-	} else if (dot11info->type == packet_data) {
+
+    } else if (dot11info->type == packet_data) {
         // Data packets come from the source address.  Wired devices bridged
         // from an AP are considered wired clients of that AP and classified as
         // clients normally
-		ci->type = packet_basic_data;
+        ci->type = packet_basic_data;
 
-		ci->device = dot11info->source_mac;
-		ci->source = dot11info->source_mac;
+        ci->device = dot11info->source_mac;
+        ci->source = dot11info->source_mac;
 
-		ci->dest = dot11info->dest_mac;
+        ci->dest = dot11info->dest_mac;
 
         ci->transmitter = dot11info->bssid_mac;
 
@@ -628,33 +660,33 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             fprintf(stderr, "debug - dot11info macs are empty and data\n");
             ci->error = 1;
         }
-	} 
+    } 
 
-	if (dot11info->type == packet_noise || dot11info->corrupt ||
-			   in_pack->error || dot11info->type == packet_unknown ||
-			   dot11info->subtype == packet_sub_unknown) {
+    if (dot11info->type == packet_noise || dot11info->corrupt ||
+            in_pack->error || dot11info->type == packet_unknown ||
+            dot11info->subtype == packet_sub_unknown) {
         fprintf(stderr, "debug - noise, corrupt, error, etc %d %d %d %d %d\n", dot11info->type == packet_noise, dot11info->corrupt, in_pack->error, dot11info->type == packet_unknown, dot11info->subtype == packet_sub_unknown);
-		ci->error = 1;
-	}
+        ci->error = 1;
+    }
 
-	ci->channel = dot11info->channel;
+    ci->channel = dot11info->channel;
 
-	ci->datasize = dot11info->datasize;
+    ci->datasize = dot11info->datasize;
 
-	if (dot11info->cryptset == crypt_none) {
-		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_NONE;
-	} else {
-		ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-	}
+    if (dot11info->cryptset == crypt_none) {
+        ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_NONE;
+    } else {
+        ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+    }
 
     // Fill in basic l2 and l3 encryption
-	if (dot11info->cryptset & crypt_l2_mask) {
-		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-	} if (dot11info->cryptset & crypt_l3_mask) {
-		ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-	}
+    if (dot11info->cryptset & crypt_l2_mask) {
+        ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
+    } if (dot11info->cryptset & crypt_l3_mask) {
+        ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
+    }
 
-	return 1;
+    return 1;
 }
 
 void Kis_80211_Phy::SetStringExtract(int in_extr) {
