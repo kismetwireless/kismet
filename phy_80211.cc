@@ -573,7 +573,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
         ss << "Saw packet with a reported signal level of " <<
             pack_l1info->signal_dbm << " which is above the threshold of " <<
-            d11phy->alert_tooloud_ref << ".  Excessively high signal levels can " <<
+            d11phy->signal_too_loud_threshold << ".  Excessively high signal levels can " <<
             "be caused by misconfigured external amplifiers and lead to lost " <<
             "packets.";
 
