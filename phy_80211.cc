@@ -386,7 +386,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 phyid);
 
     // Threshold
-    globalreg->kismet_config->FetchOptInt("dot11_max_signal", -20);
+    signal_too_loud_threshold = 
+        globalreg->kismet_config->FetchOptInt("dot11_max_signal", -20);
 
 	// Do we process the whole data packet?
     if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
