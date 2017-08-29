@@ -775,6 +775,16 @@ class KismetConnector:
 
         return r == 200
 
+    def alerts(self, ts_sec = 0, ts_usec = 0):
+        """
+        Fetch alert object, containing metadata and list of alerts, optionally 
+        filtered to alerts since a given timestamp
+        """
+
+        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts, ts_usec))
+
+        return v[0]
+
 if __name__ == "__main__":
     x = KismetConnector()
     print x.system_status()
