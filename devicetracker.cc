@@ -629,7 +629,10 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                 pack_gpsinfo->alt, pack_gpsinfo->fix);
 
-        if (pack_gpsinfo->fix >= 2) {
+        // Throttle history cloud to one update per second to prevent floods of
+        // data from swamping the cloud
+        if (pack_gpsinfo->fix >= 2 &&
+                in_pack->ts.tv_sec - device->get_location_cloud()->get_last_sample_ts() >= 1) {
             shared_ptr<kis_historic_location> histloc(new kis_historic_location(globalreg, 0));
 
             histloc->set_lat(pack_gpsinfo->lat);

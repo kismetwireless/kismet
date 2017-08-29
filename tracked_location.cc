@@ -310,6 +310,8 @@ void kis_location_history::register_fields() {
             "last 10,000 historic GPS records, as averages of 100", &samples_10k);
     RegisterField("kis.gps.rrd.samples_1m", TrackerVector,
             "last 1,000,000 historic GPS records, as averages of 10,000", &samples_1m);
+    RegisterField("kis.gps.rrd.last_sample_ts", TrackerUInt64,
+            "time (unix ts) of last sample", &last_sample_ts);
 }
 
 void kis_location_history::reserve_fields(SharedTrackerElement e) {
@@ -324,7 +326,10 @@ void kis_location_history::reserve_fields(SharedTrackerElement e) {
 }
 
 void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
+    set_int_last_sample_ts(in_sample->get_time_sec());
+
     samples_100_vec.push_back(in_sample);
+
     if (samples_100_vec.size() > 100) 
         samples_100_vec.erase(samples_100_vec.begin());
 

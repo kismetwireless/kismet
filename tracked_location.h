@@ -152,6 +152,8 @@ public:
 
     void add_sample(shared_ptr<kis_historic_location> in_sample);
 
+    __ProxyPrivSplit(last_sample_ts, uint64_t, time_t, time_t, last_sample_ts);
+
 protected:
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
@@ -159,6 +161,8 @@ protected:
     SharedTrackerElement samples_100;
     SharedTrackerElement samples_10k;
     SharedTrackerElement samples_1m;
+
+    SharedTrackerElement last_sample_ts;
 
     unsigned int samples_100_cascade;
     unsigned int samples_10k_cascade;
