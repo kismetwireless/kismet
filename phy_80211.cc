@@ -565,21 +565,22 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     if (dot11info == NULL)
         return 0;
 
-    if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold) {
-        if (d11phy->alertracker->PotentialAlert(d11phy->alert_tooloud_ref)) {
-            stringstream ss;
+    if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold
+            && pack_l1info->signal_dbm < 0 && 
+            d11phy->alertracker->PotentialAlert(d11phy->alert_tooloud_ref)) {
 
-            ss << "Saw packet with a reported signal level of " <<
-                pack_l1info->signal_dbm << " which is above the threshold of " <<
-                d11phy->alert_tooloud_ref << ".  Excessively high signal levels can " <<
-                "be caused by misconfigured external amplifiers and lead to lost " <<
-                "packets.";
+        stringstream ss;
 
-            d11phy->alertracker->RaiseAlert(d11phy->alert_tooloud_ref, in_pack, 
-                    dot11info->bssid_mac, dot11info->source_mac, 
-                    dot11info->dest_mac, dot11info->other_mac, 
-                    dot11info->channel, ss.str());
-        }
+        ss << "Saw packet with a reported signal level of " <<
+            pack_l1info->signal_dbm << " which is above the threshold of " <<
+            d11phy->alert_tooloud_ref << ".  Excessively high signal levels can " <<
+            "be caused by misconfigured external amplifiers and lead to lost " <<
+            "packets.";
+
+        d11phy->alertracker->RaiseAlert(d11phy->alert_tooloud_ref, in_pack, 
+                dot11info->bssid_mac, dot11info->source_mac, 
+                dot11info->dest_mac, dot11info->other_mac, 
+                dot11info->channel, ss.str());
     }
 
     // Get the checksum info
