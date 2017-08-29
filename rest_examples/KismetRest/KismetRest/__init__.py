@@ -86,12 +86,12 @@ Filter Specification:
 class KismetConnectorException(Exception):
     pass
 
-class KismetLoginException(Exception):
+class KismetLoginException(KismetConnectorException):
     def __init__(self, message, rcode):
         super(Exception, self).__init__(message)
         self.rcode = rcode
 
-class KismetRequestException(Exception):
+class KismetRequestException(KismetConnectorException):
     def __init__(self, message, rcode):
         super(Exception, self).__init__(message)
         self.rcode = rcode
