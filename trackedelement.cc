@@ -936,12 +936,21 @@ string TrackerElement::type_to_string(TrackerType t) {
 
 void TrackerElement::add_map(int f, shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerMap);
+    
+    auto o = dataunion.submap_value->find(f);
+    if (o != dataunion.submap_value->end())
+        dataunion.submap_value->erase(o);
 
     dataunion.submap_value->emplace(f, s);
 }
 
 void TrackerElement::add_map(shared_ptr<TrackerElement> s) {
     except_type_mismatch(TrackerMap);
+
+    auto o = dataunion.submap_value->find(s->get_id());
+    if (o != dataunion.submap_value->end())
+        dataunion.submap_value->erase(o);
+
 
     dataunion.submap_value->emplace(s->get_id(), s);
 }
