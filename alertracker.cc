@@ -169,9 +169,9 @@ int Alertracker::FetchAlertRef(string in_header) {
 }
 
 int Alertracker::CheckTimes(shared_alert_def arec) {
-	// Is this alert rate-limited?  If not, shortcut out and send it
+    // Alerts limited to 0 are squelched
 	if (arec->get_limit_rate() == 0) {
-		return 1;
+		return 0;
 	}
 
 	struct timeval now;
