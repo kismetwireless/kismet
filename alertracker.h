@@ -35,6 +35,14 @@
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
 
+#ifdef PRELUDE
+#include <libprelude/prelude.hxx>
+#define PRELUDE_ANALYZER_MODEL "Kismet"
+#define PRELUDE_ANALYZER_CLASS "Wireless Monitor"
+#define PRELUDE_ANALYZER_MANUFACTURER "https://www.kismetwireless.net/"
+#define PRELUDE_KISMET_VERSION "2017-08"
+#endif
+
 // TODO:
 // - move packet_component to a tracked system & just use the converted
 //   kis_alert_info in the future...
@@ -301,6 +309,14 @@ public:
 
 private:
     Alertracker(GlobalRegistry *in_globalreg);
+#ifdef PRELUDE
+    // Raise an Prelude alert
+    int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
+    mac_addr dest, mac_addr other, string in_channel, string in_text);
+
+    // Initialize Prelude Client
+    void PreludeInitClient(const char *analyzer_name);
+#endif
 
 public:
     virtual ~Alertracker();
@@ -382,6 +398,12 @@ protected:
 
     // Alert configs we read before we know the alerts themselves
 	map<string, alert_conf_rec *> alert_conf_map;
+
+#ifdef PRELUDE
+    // Prelude client
+    Prelude::ClientEasy *client;
+#endif
+
 };
 
 #endif

@@ -888,6 +888,21 @@ CPPFLAGS="$CPPFLAGS -I$winpcap_devpack/Include"
 
 fi # cygwin
 
+AC_ARG_ENABLE(prelude,
+              AS_HELP_STRING([--enable-prelude],
+                             [Enable Prelude support for alerts.]),
+[
+  wantprelude=no
+  if test "$enableval" != "no"; then
+    AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
+    CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
+    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
+    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LIBS}"
+    AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
+    wantprelude=yes
+  fi
+],[wantprelude=no])
+
 AC_ARG_ENABLE(pcap,
 	[  --disable-pcap          disable libpcap (most sources) capture support],
 	[case "${enableval}" in
@@ -1304,6 +1319,7 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
+printf "   Prelude SIEM       : $wantprelude\n"
 printf "   OSX/Darwin capture : "
 if test "$darwin" = "yes"; then
 	echo "yes"
