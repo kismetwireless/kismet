@@ -1,6 +1,9 @@
 # Process this file with autoconf to produce a configure script.
 AC_INIT
 
+VERSION=`cat VERSION`
+AC_SUBST(VERSION)
+
 BUNDLE_MSGPACK=./msgpack-1.4.1
 
 #m4_include([m4/acx_pthread.m4])
@@ -1273,7 +1276,7 @@ AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf])
+AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf packaging/kismet.pc])
 AC_OUTPUT
 
 echo

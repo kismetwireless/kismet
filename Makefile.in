@@ -128,6 +128,9 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(MAN)/man5
 	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
 
+	mkdir -p $(LIB)/pkgconfig
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 packaging/kismet.pc $(LIB)/pkgconfig/kismet.pc
+
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 

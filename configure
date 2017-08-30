@@ -690,6 +690,7 @@ build_vendor
 build_cpu
 build
 subdirs
+VERSION
 target_alias
 host_alias
 build_alias
@@ -2355,6 +2356,9 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
+
+
+VERSION=`cat VERSION`
 
 
 BUNDLE_MSGPACK=./msgpack-1.4.1
@@ -9771,7 +9775,7 @@ CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf"
+ac_config_files="$ac_config_files Makefile Makefile.inc scripts/kismet conf/kismet.conf packaging/kismet.pc"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -10469,6 +10473,7 @@ do
     "Makefile.inc") CONFIG_FILES="$CONFIG_FILES Makefile.inc" ;;
     "scripts/kismet") CONFIG_FILES="$CONFIG_FILES scripts/kismet" ;;
     "conf/kismet.conf") CONFIG_FILES="$CONFIG_FILES conf/kismet.conf" ;;
+    "packaging/kismet.pc") CONFIG_FILES="$CONFIG_FILES packaging/kismet.pc" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
