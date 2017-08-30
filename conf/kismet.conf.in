@@ -174,7 +174,7 @@ alert=MSFNETGEARBEACON,5/min,1/sec
 alert=MALFORMMGMT,5/min,1/sec
 alert=NETSTUMBLER,5/min,1/sec
 alert=NULLPROBERESP,5/min,1/sec
-alert=OVERPOWERED,1/min,1/sec
+alert=OVERPOWERED,0/min,0/sec
 alert=WPSBRUTE,5/min,1/sec
 alert=WMMOVERFLOW,10/min,1/sec
 
