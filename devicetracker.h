@@ -830,6 +830,10 @@ protected:
     // Timestamp for the last time we removed a device
     time_t full_refresh_time;
 
+    // Do we track history clouds?
+    bool track_history_cloud;
+    bool track_persource_history;
+
 	// Common device component
 	int devcomp_ref_common;
 

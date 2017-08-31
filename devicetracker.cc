@@ -202,6 +202,24 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	}
 
     full_refresh_time = globalreg->timestamp.tv_sec;
+
+    track_history_cloud =
+        globalreg->kismet_config->FetchOptBoolean("keep_location_cloud_history", true);
+
+    if (!track_history_cloud) {
+        _MSG("Location history cloud tracking disabled.  This may prevent some plugins "
+                "from working.  This can be re-enabled by setting "
+                "keep_datasource_signal_history=true", MSGFLAG_INFO);
+    }
+
+    track_persource_history =
+        globalreg->kismet_config->FetchOptBoolean("keep_datasource_signal_history", true);
+
+    if (!track_persource_history) {
+        _MSG("Per-source signal history tracking disabled.  This may prevent some plugins "
+                "from working.  This can be re-enabled by setting "
+                "keep_datasource_signal_history=true", MSGFLAG_INFO);
+    }
 }
 
 Devicetracker::~Devicetracker() {
@@ -631,7 +649,7 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 
         // Throttle history cloud to one update per second to prevent floods of
         // data from swamping the cloud
-        if (pack_gpsinfo->fix >= 2 &&
+        if (track_history_cloud && pack_gpsinfo->fix >= 2 &&
                 in_pack->ts.tv_sec - device->get_location_cloud()->get_last_sample_ts() >= 1) {
             shared_ptr<kis_historic_location> histloc(new kis_historic_location(globalreg, 0));
 
