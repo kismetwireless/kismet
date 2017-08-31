@@ -1084,6 +1084,8 @@ protected:
     GlobalRegistry *globalreg;
     shared_ptr<EntryTracker> entrytracker;
 
+    int pcre_match_id;
+
     vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > filter_vec;
     bool error;
 

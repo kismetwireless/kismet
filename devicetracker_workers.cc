@@ -25,6 +25,7 @@
 #include <list>
 #include <map>
 #include <vector>
+#include <iterator>
 
 #include "kismet_algorithm.h"
 
@@ -169,6 +170,10 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
     return_dev_vec = in_devvec_object;
 
+    pcre_match_id = 
+        entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
+                "Index of last matching PCRE comparison");
+
     pthread_mutex_init(&worker_mutex, NULL);
 }
 
@@ -225,6 +230,10 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         filter_vec.push_back(filter);
     }
 
+    pcre_match_id = 
+        entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
+                "Index of last matching PCRE comparison");
+
     pthread_mutex_init(&worker_mutex, NULL);
 }
 
@@ -277,6 +286,10 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         filter_vec.push_back(filter);
     }
 
+    pcre_match_id = 
+        entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
+                "Index of last matching PCRE comparison");
+
     pthread_mutex_init(&worker_mutex, NULL);
 }
 
@@ -289,6 +302,7 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
     vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
     bool matched = false;
+    unsigned int match_idx = 0;
 
     // Go through all the filters until we find one that hits
     for (i = filter_vec.begin(); i != filter_vec.end(); ++i) {
@@ -315,6 +329,7 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
             // Stop matching as soon as we find a hit
             if (rc >= 0) {
                 matched = true;
+                match_idx = std::distance(filter_vec.begin(), i);
                 break;
             }
 
@@ -322,6 +337,12 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
 
         if (matched) {
             local_locker lock(&worker_mutex);
+
+            SharedTrackerElement pcre_index(new TrackerElement(TrackerUInt32, pcre_match_id));
+            pcre_index->set((uint32_t) match_idx);
+
+            device->add_map(pcre_index);
+
             return_dev_vec->add_vector(device);
         }
     }
