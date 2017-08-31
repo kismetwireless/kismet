@@ -15,6 +15,12 @@ opt_include=%E/kismet_site.conf
 # %E is expanded to the system etc path configured at install
 include=%E/kismet_httpd.conf
 
+# Include the memory tuning options
+include=%E/kismet_memory.conf
+
+# Include the alert config options
+include=%E/kismet_alerts.conf
+
 # Where capture binaries are allowed to live; for security reasons capture
 # binaries are only executed from these directories
 capture_binary_path=%B/kismet_capture_tools/
@@ -91,25 +97,6 @@ override_remote_timestamp=true
 # plugin locations).
 allowplugins=true
 
-# For long-running instances of Kismet in a WIDS style usage, it may be 
-# useful to limit the amount of memory kismet will consume, with the
-# following tuning values:
-
-# Time, in seconds, for devices to be tracked when idle.  By default, devices
-# are kept forever, however in RAM constrained environments it may be preferable
-# to stop tracking older devices.
-# Devices which are removed will be detected as new devices without historical
-# data if they are detected a second time.
-# Example timeout of 2 hours (60*60*2)
-#
-# tracker_device_timeout=7200
-
-# Maximum number of devices allowed in the tracker.  If this is reached, older
-# devices will be purged, and if they are detected again, will show up as new 
-# devices without historical data.
-#
-# tracker_max_devices=10000
-
 # OUI file, expected format 00:11:22<tab>manufname
 # IEEE OUI file used to look up manufacturer info.  We default to the
 # wireshark one since most people have that.
@@ -117,73 +104,6 @@ ouifile=/etc/manuf
 ouifile=/usr/share/wireshark/wireshark/manuf
 ouifile=/usr/share/wireshark/manuf
 ouifile=/Applications/Wireshark.app/Contents/Resources/share/wireshark/manuf
-
-
-
-# Packet filtering options:
-# filter_tracker - Packets filtered from the tracker are not processed or
-#                  recorded in any way.
-# filter_export  - Controls what packets influence the exported CSV, network,
-#                  xml, gps, etc files.
-# All filtering options take arguments containing the type of address and
-# addresses to be filtered.  Valid address types are 'ANY', 'BSSID',
-# 'SOURCE', and 'DEST'.  Filtering can be inverted by the use of '!' before
-# the address.  For example,
-# filter_tracker=ANY(!"00:00:DE:AD:BE:EF")
-# has the same effect as the previous mac_filter config file option.
-# filter_tracker=...
-# filter_dump=...
-# filter_export=...
-# filter_netclient=...
-
-# Alerts to be reported and the throttling rates.
-# alert=name,throttle/unit,burst
-# The throttle/unit describes the number of alerts of this type that are
-# sent per time unit.  Valid time units are second, minute, hour, and day.
-# Burst describes the number of alerts sent before throttling takes place.
-# For example:
-# alert=FOO,10/min,5
-# Would allow 5 alerts through before throttling is enabled, and will then
-# limit the number of alerts to 10 per minute.
-# A throttle rate of 0 disables throttling of the alert.
-# See the README for a list of alert types.
-alert=ADHOCCONFLICT,5/min,1/sec
-alert=ADVCRYPTCHANGE,5/min,1/sec
-alert=AIRJACKSSID,5/min,1/sec
-alert=APSPOOF,10/min,1/sec
-alert=BCASTDISCON,5/min,2/sec
-alert=BEACONRATE,5/min,1/sec
-alert=BSSTIMESTAMP,5/min,1/sec
-alert=CHANCHANGE,5/min,1/sec
-alert=CRYPTODROP,5/min,1/sec
-alert=DEAUTHFLOOD,5/min,2/sec
-alert=DEAUTHCODEINVALID,5/min,1/sec
-alert=DHCPNAMECHANGE,5/min,1/sec
-alert=DHCPOSCHANGE,5/min,1/sec
-alert=DHCPCLIENTID,5/min,1/sec
-alert=DHCPCONFLICT,10/min,1/sec
-alert=DISASSOCTRAFFIC,10/min,1/sec
-alert=DISCONCODEINVALID,5/min,1/sec
-alert=DOT11D,5/min,1/sec
-alert=KARMAOUI,5/min,1/sec
-alert=LUCENTTEST,5/min,1/sec
-alert=LONGSSID,5/min,1/sec
-alert=MSFBCOMSSID,5/min,1/sec
-alert=MSFDLINKRATE,5/min,1/sec
-alert=MSFNETGEARBEACON,5/min,1/sec
-alert=MALFORMMGMT,5/min,1/sec
-alert=NETSTUMBLER,5/min,1/sec
-alert=NULLPROBERESP,5/min,1/sec
-alert=OVERPOWERED,0/min,0/sec
-alert=WPSBRUTE,5/min,1/sec
-alert=WMMOVERFLOW,10/min,1/sec
-
-# Controls behavior of the APSPOOF alert.  SSID may be a literal match (ssid=) or
-# a regex (ssidregex=) if PCRE was available when kismet was built.  The allowed 
-# MAC list must be comma-separated and enclosed in quotes if there are multiple 
-# MAC addresses allowed.  MAC address masks are allowed.
-apspoof=Foo1:ssidregex="(?i:foobar)",validmacs=00:11:22:33:44:55
-apspoof=Foo2:ssid="Foobar",validmacs="00:11:22:33:44:55,aa:bb:cc:dd:ee:ff"
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.

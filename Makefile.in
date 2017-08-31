@@ -1,5 +1,11 @@
 include Makefile.inc
 
+CONFIGFILES = \
+	kismet.conf \
+	kismet_httpd.conf \
+	kismet_alerts.conf \
+	kismet_memory.conf
+
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
 	msgpuck.c.o msgpuck_hints.c.o \
@@ -134,31 +140,36 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 
+CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
+${CONFINSTTARGETS}: install_conf_%: 
+	@if test -f $(ETC)/$*; then \
+		echo "$(ETC)/$(f) already exists; it will not be automatically replaced."; \
+		echo "HOWEVER if there have been any changes you will need to manually"; \
+		echo "reconcile the differences in the config files!"; \
+		echo "You can update all config files with"; \
+		echo "make forceconfigs"; \
+	else \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  \
+	fi
+
+FORCECONFINSTTARGETS = $(addprefix install_force_conf_, $(CONFIGFILES))
+${FORCECONFINSTTARGETS}: install_force_conf_%: 
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  
+
 suidinstall: $(PS) $(DATASOURCE_BINS)
 	-groupadd -f $(SUIDGROUP)
 
-	$(MAKE) -e commoninstall
-	$(MAKE) -e binsuidinstall
+	@$(MAKE) -e commoninstall
+	@$(MAKE) -e binsuidinstall
 
-	@if test -f $(ETC)/kismet.conf; then \
-		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
-		echo "if there have been any changes to the base config you will need"; \
-		echo "to add them to your config file."; \
-    else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo "Installed config into $(ETC)/kismet.conf."; \
-	fi
-	@if test -f $(ETC)/kismet_httpd.conf; then \
-		echo "$(ETC)/kismet_http.conf already installed, not replacing it.  HOWEVER"; \
-		echo "if there have been any changes to the base config you will need"; \
-		echo "to add them to your config file."; \
-    else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
-		echo "Installed httpd config into $(ETC)/kismet_httpd.conf."; \
-	fi
+	@$(MAKE) install_conf_kismet.conf
+	@$(MAKE) install_conf_kismet_httpd.conf
+	@$(MAKE) install_conf_kismet_memory.conf
+	@$(MAKE) install_conf_kismet_alerts.conf
 
+	@echo
+	@echo
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
@@ -173,29 +184,22 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@echo "If you have just created this group, you will need to log out and back in"
 	@echo "before your user will have access.   Check the output of the 'groups' "
 	@echo "command to make sure your user has the proper group!"
+	@echo
+	@echo "If you have installed Kismet in the past, you may need to UPDATE YOUR CONFIG"
+	@echo "FILES or Kismet may not work properly!  You can manually reconcile differences"
+	@echo "or you can replace the previously installed config files entirely by running"
+	@echo "make forceconfigs"
 
 install: $(INSTBINS)
-	$(MAKE) -e commoninstall
+	@$(MAKE) -e commoninstall
 
-	@if test -f $(ETC)/kismet.conf; then \
-		echo "$(ETC)/kismet.conf already installed, not replacing it.  HOWEVER"; \
-		echo "if there have been any changes to the base config you will need"; \
-		echo "to add them to your config file."; \
-    else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo "Installed config into $(ETC)/kismet.conf."; \
-	fi
-	@if test -f $(ETC)/kismet_httpd.conf; then \
-		echo "$(ETC)/kismet_http.conf already installed, not replacing it.  HOWEVER"; \
-		echo "if there have been any changes to the base config you will need"; \
-		echo "to add them to your config file."; \
-    else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_httpd.conf $(ETC)/kismet_httpd.conf;  \
-		echo "Installed config into $(ETC)/kismet_httpd.conf."; \
-	fi
+	@$(MAKE) install_conf_kismet.conf
+	@$(MAKE) install_conf_kismet_httpd.conf
+	@$(MAKE) install_conf_kismet_memory.conf
+	@$(MAKE) install_conf_kismet_alerts.conf
 
+	@echo
+	@echo
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
@@ -211,7 +215,18 @@ install: $(INSTBINS)
 	@echo
 	@echo "It is generally *MORE SECURE* to install Kismet with the suid-root "
 	@echo "option."
-                
+	@echo
+	@echo "If you have installed Kismet in the past, you may need to UPDATE YOUR CONFIG"
+	@echo "FILES or Kismet may not work properly!  You can manually reconcile differences"
+	@echo "or you can replace the previously installed config files entirely by running"
+	@echo "make forceconfigs"
+
+forceconfigs: 
+	@$(MAKE) install_force_conf_kismet.conf
+	@$(MAKE) install_force_conf_kismet_httpd.conf
+	@$(MAKE) install_force_conf_kismet_memory.conf
+	@$(MAKE) install_force_conf_kismet_alerts.conf
+
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \
