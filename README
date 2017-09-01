@@ -857,4 +857,10 @@ xx. GPS
 
         gps=virtual:lat=123.4566,lon=40.002,alt=23.45
 
+xx. SIEM support
 
+    Kismet is natively compatible with Prelude SIEM
+    (https://www.prelude-siem.org) and can send security alerts through this.
+
+    To enable Prelude SIEM sensor, you have to run this :
+        ./configure --enable-prelude

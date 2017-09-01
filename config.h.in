@@ -290,6 +290,9 @@
 /* writeable argv type */
 #undef PF_ARGV_TYPE
 
+/* Libprelude support enabled */
+#undef PRELUDE
+
 /* Define to the necessary symbol if this constant uses a non-standard name on
    your system. */
 #undef PTHREAD_CREATE_JOINABLE
