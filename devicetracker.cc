@@ -677,10 +677,20 @@ shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr i
 	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
         double f = -1;
 
+        Packinfo_Sig_Combo *sc = NULL;
+
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
-        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f);
+        // Generate a signal record if we're following per-source signal
+        if (track_persource_history) {
+            sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+        }
+
+        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc);
+
+        if (sc != NULL)
+            delete(sc);
 	}
 
     return device;
@@ -777,9 +787,11 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
         Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
         (*(device->get_signal_data())) += *sc;
 
-        delete(sc);
-
         device->inc_frequency_count((int) pack_l1info->freq_khz);
+
+        if (sc != NULL)
+            delete(sc);
+
     }
 
     if (pack_gpsinfo != NULL) {
@@ -790,11 +802,20 @@ int Devicetracker::PopulateCommon(shared_ptr<kis_tracked_device_base> device,
     // Update seenby records for time, frequency, packets
     if (pack_datasrc != NULL) {
         int f = -1;
+        Packinfo_Sig_Combo *sc = NULL;
 
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
-        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f);
+        // Generate a signal record if we're following per-source signal
+        if (track_persource_history) {
+            sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+        }
+
+        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc);
+
+        if (sc != NULL)
+            delete(sc);
     }
 
     device->add_basic_crypt(pack_common->basic_crypt_set);

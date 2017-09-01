@@ -344,10 +344,28 @@ void kis_tracked_seenby_data::register_fields() {
             "last time seen time_t", &last_time);
     RegisterField("kismet.common.seenby.num_packets", TrackerUInt64,
             "number of packets seen by this device", &num_packets);
+
     RegisterField("kismet.common.seenby.freq_khz_map", TrackerIntMap,
             "packets seen per frequency (khz)", &freq_khz_map);
+
     frequency_val_id =
         globalreg->entrytracker->RegisterField("kismet.common.seenby.frequency.count",
                 TrackerUInt64, "frequency packet count");
+
+    signal_data_id =
+        RegisterComplexField("kismet.common.seenby.signal", 
+                shared_ptr<kis_tracked_signal_data>(new kis_tracked_signal_data(globalreg, 0)),
+                "signal data");
+}
+
+void kis_tracked_seenby_data::reserve_fields(SharedTrackerElement e) {
+    tracker_component::reserve_fields(e);
+
+    if (e != NULL) {
+        signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
+                    e->get_map_value(signal_data_id)));
+    }
+
+    add_map(signal_data_id, signal_data);
 }
 

@@ -265,7 +265,8 @@ public:
         return seenby_map;
     }
 
-    void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency) {
+    void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
+            Packinfo_Sig_Combo *siginfo) {
         TrackerElement::map_iterator seenby_iter;
         shared_ptr<kis_tracked_seenby_data> seenby;
 
@@ -283,6 +284,9 @@ public:
             if (frequency > 0)
                 seenby->inc_frequency_count(frequency);
 
+            if (siginfo != NULL)
+                (*(seenby->get_signal_data())) += *siginfo;
+
             seenby_map->add_intmap(source->get_source_number(), seenby);
 
         } else {
@@ -293,6 +297,9 @@ public:
 
             if (frequency > 0)
                 seenby->inc_frequency_count(frequency);
+
+            if (siginfo != NULL)
+                (*(seenby->get_signal_data())) += *siginfo;
         }
 
     }

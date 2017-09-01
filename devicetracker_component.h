@@ -152,21 +152,26 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    // Intmaps need special care by the caller
-    SharedTrackerElement get_freq_khz_map() { return freq_khz_map; }
+    __ProxyTrackable(freq_khz_map, TrackerElement, freq_khz_map);
+    __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data,
+            signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
 
 protected:
     virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
 
     SharedTrackerElement src_uuid;
     SharedTrackerElement first_time; 
     SharedTrackerElement last_time;
     SharedTrackerElement num_packets;
-    SharedTrackerElement freq_khz_map;
 
+    SharedTrackerElement freq_khz_map;
     int frequency_val_id;
+
+    shared_ptr<kis_tracked_signal_data> signal_data;
+    int signal_data_id;
 };
 
 #endif
