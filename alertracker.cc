@@ -48,11 +48,11 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 	}
 
 #ifdef PRELUDE
-    //Start client Prelude
+    // Start client Prelude
     int ret;
     ret = prelude_init(0, NULL);
     if (ret < 0) {
-        _MSG("Failed to Init Prelude", MSGFLAG_ERROR);
+        _MSG("Alertracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
         return;
     }
@@ -126,25 +126,33 @@ Alertracker::~Alertracker() {
 
 #ifdef PRELUDE
     prelude_deinit();
-    delete client;
+    delete prelude_client;
 #endif
 
     pthread_mutex_destroy(&alert_mutex);
 }
 
-#ifdef PRELUDE
 void Alertracker::PreludeInitClient(const char *analyzer_name) {
+#ifdef PRELUDE
     try {
-        client = new Prelude::ClientEasy(analyzer_name, 4, PRELUDE_ANALYZER_MODEL, PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, PRELUDE_KISMET_VERSION);
-        client->start();
+        string version = 
+            globalreg->version_major + "." + 
+            globalreg->version_minor + "." +
+            globalreg->version_tiny;
+
+        prelude_client = 
+            new Prelude::ClientEasy(analyzer_name, 4, PRELUDE_ANALYZER_MODEL, 
+                    PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version);
+        prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
-        _MSG(error.what(), MSGFLAG_ERROR);
+        _MSG("Alertracker failed to initialize connection to Prelude: " + 
+                error.what(), MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
 
         return;
     }
-}
 #endif
+}
 
 int Alertracker::RegisterAlert(string in_header, string in_description, 
         alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
@@ -304,7 +312,8 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 #ifdef PRELUDE
 	// Send alert to Prelude
-	RaisePreludeAlert(in_ref, in_pack, info->bssid, info->source, info->dest, info->other, info->channel, info->text);
+	RaisePreludeAlert(in_ref, in_pack, info->bssid, info->source, 
+            info->dest, info->other, info->channel, info->text);
 #endif
 
 	// Send the text info
@@ -313,10 +322,12 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	return 1;
 }
 
-#ifdef PRELUDE
 int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
-                            mac_addr bssid, mac_addr source, mac_addr dest,
-                            mac_addr other, string in_channel, string in_text) {
+        mac_addr bssid, mac_addr source, mac_addr dest,
+        mac_addr other, string in_channel, string in_text) {
+
+#ifdef PRELUDE
+    mac_addr emptymac = mac_addr(0);
 
     Prelude::IDMEF idmef;
 
@@ -324,13 +335,13 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     idmef.set("alert.classification.text", "Suspicious network detected");
 
     // Source
-    if (!source.Mac2String().empty()) {
+    if (source != emptymac) {
         idmef.set("alert.source(0).node.address(0).category", "mac");
         idmef.set("alert.source(0).node.address(0).address", source.Mac2String().c_str());
     }
 
     // Target
-    if (!dest.Mac2String().empty()) {
+    if (dest != emptymac) {
         idmef.set("alert.target(0).node.address(0).category", "mac");
         idmef.set("alert.target(0).node.address(0).address", dest.Mac2String().c_str());
     }
@@ -341,12 +352,12 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     idmef.set("alert.assessment.impact.description", in_text);
 
     // Additional Data
-    if (!bssid.Mac2String().empty()) {
+    if (bssid != emptymac) {
         idmef.set("alert.additional_data(>>).meaning", "BSSID");
         idmef.set("alert.additional_data(-1).data", bssid.Mac2String().c_str());
     }
 
-    if (!other.Mac2String().empty()) {
+    if (other != emptymac) {
         idmef.set("alert.additional_data(>>).meaning", "Other");
         idmef.set("alert.additional_data(-1).data", other.Mac2String().c_str());
     }
@@ -357,16 +368,16 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     idmef.set("alert.additional_data(>>).meaning", "in_ref");
     idmef.set("alert.additional_data(-1).data", in_ref);
 
-    client->sendIDMEF(idmef);
+    prelude_client->sendIDMEF(idmef);
+#endif
 
     return 0;
 }
-#endif
 
 int Alertracker::ParseAlertStr(string alert_str, string *ret_name, 
-							   alert_time_unit *ret_limit_unit, int *ret_limit_rate,
-							   alert_time_unit *ret_limit_burst, 
-							   int *ret_burst_rate) {
+        alert_time_unit *ret_limit_unit, int *ret_limit_rate,
+        alert_time_unit *ret_limit_burst, 
+        int *ret_burst_rate) {
 	char err[1024];
 	vector<string> tokens = StrTokenize(alert_str, ",");
 

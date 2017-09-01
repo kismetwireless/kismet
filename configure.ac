@@ -890,7 +890,7 @@ fi # cygwin
 
 AC_ARG_ENABLE(prelude,
               AS_HELP_STRING([--enable-prelude],
-                             [Enable Prelude support for alerts.]),
+                             [Enable Prelude SIEM as a target for alerts.]),
 [
   wantprelude=no
   if test "$enableval" != "no"; then

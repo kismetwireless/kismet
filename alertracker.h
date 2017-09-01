@@ -40,7 +40,6 @@
 #define PRELUDE_ANALYZER_MODEL "Kismet"
 #define PRELUDE_ANALYZER_CLASS "Wireless Monitor"
 #define PRELUDE_ANALYZER_MANUFACTURER "https://www.kismetwireless.net/"
-#define PRELUDE_KISMET_VERSION "2017-08"
 #endif
 
 // TODO:
@@ -309,14 +308,13 @@ public:
 
 private:
     Alertracker(GlobalRegistry *in_globalreg);
-#ifdef PRELUDE
-    // Raise an Prelude alert
-    int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
-    mac_addr dest, mac_addr other, string in_channel, string in_text);
 
-    // Initialize Prelude Client
+    // Raise an Prelude alert (requires prelude support compiled in)
+    int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
+            mac_addr dest, mac_addr other, string in_channel, string in_text);
+
+    // Initialize Prelude Client (requires prelude support compiled in)
     void PreludeInitClient(const char *analyzer_name);
-#endif
 
 public:
     virtual ~Alertracker();
@@ -401,7 +399,7 @@ protected:
 
 #ifdef PRELUDE
     // Prelude client
-    Prelude::ClientEasy *client;
+    Prelude::ClientEasy *prelude_client;
 #endif
 
 };
