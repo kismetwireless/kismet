@@ -385,6 +385,39 @@ public:
     ~local_eol_locker() { }
 };
 
+// Act as a scope-based unlocker; assuming a mutex is already locked, unlock
+// when it leaves scope
+class local_unlocker {
+public:
+    local_unlocker(pthread_mutex_t *in) {
+        cpplock = NULL;
+        lock = in;
+    }
+
+    local_unlocker(std::recursive_timed_mutex *in) {
+        lock = NULL;
+        cpplock = in;
+    }
+
+    void unlock() {
+        if (lock != NULL)
+            pthread_mutex_unlock(lock);
+        else if (cpplock != NULL)
+            cpplock->unlock();
+    }
+
+    ~local_unlocker() {
+        if (lock != NULL)
+            pthread_mutex_unlock(lock);
+        else if (cpplock != NULL)
+            cpplock->unlock();
+    }
+
+protected:
+    pthread_mutex_t *lock;
+    std::recursive_timed_mutex *cpplock;
+};
+
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
 string kis_strerror_r(int errnum);
 

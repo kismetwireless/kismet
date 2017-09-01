@@ -112,6 +112,7 @@ ssize_t RingbufV2::available() {
 
 ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 peek already locked");
@@ -167,6 +168,7 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
 
 ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 peek already locked");
@@ -200,6 +202,7 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
 
 void RingbufV2::peek_free(unsigned char *in_data) {
     local_locker lock(&buffer_locker);
+    local_unlocker unpeeklock(&peek_mutex);
 
     if (!peek_reserved) {
         throw std::runtime_error("ringbuf v2 peek_free on unlocked buffer");
@@ -216,8 +219,16 @@ void RingbufV2::peek_free(unsigned char *in_data) {
 size_t RingbufV2::consume(size_t in_sz) {
     local_locker lock(&buffer_locker);
 
+    // Protect cross-thread
+    local_locker peeklock(&peek_mutex);
+    local_locker writelock(&write_mutex);
+
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 consume while peeked data pending");
+    }
+
+    if (write_reserved) {
+        throw std::runtime_error("ringbuf v2 consume while reserved data pending");
     }
 
     // No matter what is requested we can't read more than we have
@@ -250,6 +261,7 @@ size_t RingbufV2::consume(size_t in_sz) {
 
 ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_locker writelock(&write_mutex);
 
     if (write_reserved) {
         throw std::runtime_error("ringbuf v2 write already locked");
@@ -309,6 +321,7 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
 
 ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker writelock(&write_mutex);
 
     if (write_reserved) {
         throw std::runtime_error("ringbuf v2 write already locked");
@@ -346,6 +359,7 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
 
 ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker writelock(&write_mutex);
 
     if (write_reserved) {
         throw std::runtime_error("ringbuf v2 write already locked");
@@ -377,6 +391,7 @@ ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
 
 bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_unlocker unwritelock(&write_mutex);
 
     if (!write_reserved) {
         throw std::runtime_error("ringbuf v2 no pending commit");

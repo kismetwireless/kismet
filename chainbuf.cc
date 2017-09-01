@@ -75,6 +75,7 @@ size_t Chainbuf::total() {
 
 ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_locker writelock(&write_mutex);
 
     size_t total_written = 0;
 
@@ -127,6 +128,7 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
 
 ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("chainbuf peek already locked");
@@ -187,6 +189,7 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
 
 ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("chainbuf peek already locked");
@@ -223,6 +226,7 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
 
 void Chainbuf::peek_free(unsigned char *in_data) {
     local_locker lock(&buffer_locker);
+    local_unlocker unpeeklock(&peek_mutex);
 
     if (!peek_reserved) {
         throw std::runtime_error("chainbuf peek_free on unlocked buffer");
@@ -238,6 +242,10 @@ void Chainbuf::peek_free(unsigned char *in_data) {
 
 size_t Chainbuf::consume(size_t in_sz) {
     local_locker lock(&buffer_locker);
+
+    // Protect against crossthread
+    local_locker peeklock(&peek_mutex);
+    local_locker writelock(&write_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("chainbuf consume while peeked data pending");
@@ -302,6 +310,7 @@ size_t Chainbuf::consume(size_t in_sz) {
 
 ssize_t Chainbuf::reserve(unsigned char **data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_eol_locker writelock(&write_mutex);
 
     if (write_reserved) {
         throw std::runtime_error("chainbuf already locked");
@@ -327,6 +336,7 @@ ssize_t Chainbuf::zero_copy_reserve(unsigned char **data, size_t in_sz) {
 
 bool Chainbuf::commit(unsigned char *data, size_t in_sz) {
     local_locker lock(&buffer_locker);
+    local_unlocker unwritelock(&write_mutex);
 
     if (!write_reserved) {
         throw std::runtime_error("chainbuf no pending commit");

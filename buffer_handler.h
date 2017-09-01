@@ -69,6 +69,8 @@ public:
     // commit should fail.
     //
     // Implementations must track internally if the reserved data must be free'd upon commit
+    //
+    // Implementations should protect cross-thread reservations via write_mutex
     virtual ssize_t reserve(unsigned char **data, size_t in_sz) = 0;
 
     // Reserve as much space as possible, up to in_sz, and do as much as possible to 
@@ -79,14 +81,20 @@ public:
     // Only one reservation may be made at a time.
     //
     // The caller must commit the reserved data.
+    //
+    // Implementations should protect cross-thread reservations via write_mutex
     virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz) = 0;
 
     // Commit changes to the reserved block
+    //
+    // Implementations should release the write_mutex lock 
     virtual bool commit(unsigned char *data, size_t in_sz) = 0;
 
     // Write an existing block of data to the buffer; this always performs a memcpy to copy 
     // the data into the buffer.  When possible, it is more efficient to use the 
     // reservation system.
+    //
+    // Implementations should protect cross-thread reservations via write_mutex
     virtual ssize_t write(unsigned char *data, size_t in_sz) = 0;
 
     // Peek data.  If possible, this will be a zero-copy operation, if not, it will 
@@ -104,6 +112,8 @@ public:
     // buffer implementation cannot return a zero-copy reference; as such it is most 
     // appropriate for performing read operations of structured data where the entire
     // object must be available.
+    //
+    // implementations should protect peek data cross-thread using the peek_mutex 
     virtual ssize_t peek(unsigned char **data, size_t in_sz) = 0;
 
     // Attempt a zero-copy peek; if the underlying buffer supports zero-copy references
@@ -120,8 +130,12 @@ public:
     //
     // Only one piece of data should be peek'd at a time, additional attempts prior
     // to a peek_free may fail; this includes peek() and zero_copy_peek()
+    //
+    // implementations should protect peek data cross-thread using the peek_mutex 
     virtual ssize_t zero_copy_peek(unsigned char **data, size_t in_sz) = 0;
 
+    // Deallocate peeked data; implementations should also use this time to release
+    // the peek_mutex lock on peek data
     virtual void peek_free(unsigned char *data) = 0;
 
     // Remove data from a buffer
@@ -133,6 +147,10 @@ protected:
 
     bool write_reserved;
     bool peek_reserved;
+
+    // Additional mutex for protecting peek and write reservations across threads
+    std::recursive_timed_mutex peek_mutex, write_mutex;
+
 };
 
 // Common handler for a buffer, which allows a simple standardized interface
