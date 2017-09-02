@@ -17,7 +17,7 @@
 */
 
 #include "config.h"
-#include "linux_rfkill.h"
+#include "linux_wireless_rfkill.h"
 
 #ifdef SYS_LINUX
 

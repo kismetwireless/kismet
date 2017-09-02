@@ -20,7 +20,7 @@ BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
 CAPTURE_LINUX_WIFI_O = \
 	interface_control.c.o linux_wireless_control.c.o linux_netlink_control.c.o \
-	linux_rfkill.c.o wifi_ht_channels.c.o \
+	linux_wireless_rfkill.c.o wifi_ht_channels.c.o \
 	capture_linux_wifi.c.o
 CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
