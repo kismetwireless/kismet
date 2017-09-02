@@ -142,10 +142,10 @@ void Alertracker::PreludeInitClient(const char *analyzer_name) {
 
         prelude_client = 
             new Prelude::ClientEasy(analyzer_name, 4, PRELUDE_ANALYZER_MODEL, 
-                    PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version);
+                    PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
         prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
-        _MSG("Alertracker failed to initialize connection to Prelude: " + 
+        _MSG(std::string("Alertracker failed to initialize connection to Prelude: ") + 
                 error.what(), MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
 

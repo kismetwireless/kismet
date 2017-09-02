@@ -897,7 +897,7 @@ AC_ARG_ENABLE(prelude,
     AM_PATH_LIBPRELUDE(1.2.6, , AC_MSG_ERROR(Cannot find libprelude: Is libprelude-config in the path?), no)
     CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
     LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
-    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LIBS}"
+    LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
     AC_DEFINE([PRELUDE], [1], [Libprelude support enabled])
     wantprelude=yes
   fi

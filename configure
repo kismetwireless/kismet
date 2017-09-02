@@ -8774,7 +8774,7 @@ rm -f core conftest.err conftest.$ac_objext \
 
     CPPFLAGS="${CPPFLAGS} ${LIBPRELUDE_CFLAGS}"
     LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LDFLAGS}"
-    LDFLAGS="${LDFLAGS} ${LIBPRELUDE_LIBS}"
+    LIBS="${LIBS} ${LIBPRELUDE_LIBS}"
 
 $as_echo "#define PRELUDE 1" >>confdefs.h
 
