@@ -75,6 +75,7 @@
 #include "interface_control.h"
 #include "linux_wireless_control.h"
 #include "linux_netlink_control.h"
+#include "linux_rfkill.h"
 
 #include "wifi_ht_channels.h"
 

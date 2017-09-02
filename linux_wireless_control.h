@@ -173,35 +173,6 @@ int iwconfig_get_chanlist(const char *interface, char *errstr,
 
 #endif
 
-/* Fetch if rfkill is enabled on an interface 
- *
- * This uses the /sys filesystem to query mac80211 drivers to see if the rfkill
- * attributes are enabled.
- *
- * rfkill_type == 0 checks hard kill
- * rfkill_type == 1 checks soft kill
- *
- * Returns:
- * -1   Error, cannot determine rfkill status
- *  0   Rfkill not enabled
- *  1   Rfkill enabled
- */
-#define LINUX_RFKILL_TYPE_HARD  0
-#define LINUX_RFKILL_TYPE_SOFT  1
-int linux_sys_get_rfkill(const char *interface, unsigned int rfkill_type);
-
-/* Disable soft rfkill on an interface
- *
- * This uses the /sys filesystem to query mac80211 drivers and clear the rfkill
- *
- * This only disables softkill as we cannot alter hard kill from sw
- *
- * Returns:
- * -1   Error, cannot change rfkill
- *  0   Success
- */
-int linux_sys_clear_rfkill(const char *interface);
-
 /* Fetch the regulatory domain country code for the system
  *
  * This uses the /sys filesystem to query cfg80211 to see what the country code is
