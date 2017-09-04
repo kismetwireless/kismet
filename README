@@ -17,7 +17,8 @@ https://www.kismetwireless.net
 
         $ sudo apt-get install build-essential libmicrohttpd-dev git \
             libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
-            libncurses5-dev libnm-dev libdw-dev libsqlite3-dev
+            libncurses5-dev libnm-dev libdw-dev libsqlite3-dev \
+            libglib2.0-dev libdbus-glib-1-dev
 
         Additionally, to support HackRF sweep, you'll need:
 
