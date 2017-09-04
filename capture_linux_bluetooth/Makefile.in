@@ -7,7 +7,7 @@ MONITOR_OBJS = \
 	gdbus/polkit.c.o \
 	gdbus/watch.c.o \
 	linux_bt_rfkill.c.o \
-	bluez-monitor.c.o
+	capture_linux_bluetooth.c.o
 MONITOR_BIN = kismet_cap_linux_bluetooth
 
 GLIBCFLAGS = @GLIBCFLAGS@

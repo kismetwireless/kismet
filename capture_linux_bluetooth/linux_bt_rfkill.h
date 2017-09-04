@@ -19,7 +19,7 @@
 #ifndef __LINUX_BT_RFKILL_H__
 #define __LINUX_BT_RFKILL_H__
 
-#include "config.h"
+#include "../config.h"
 
 #ifdef HAVE_LINUX_WIRELESS
 
