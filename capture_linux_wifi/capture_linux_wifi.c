@@ -62,22 +62,22 @@
 
 #include <ifaddrs.h>
 
-#include "config.h"
+#include "../config.h"
 
 #ifdef HAVE_LIBNM
 #include <libnm/NetworkManager.h>
 #include <glib.h>
 #endif
 
-#include "simple_datasource_proto.h"
-#include "capture_framework.h"
+#include "../simple_datasource_proto.h"
+#include "../capture_framework.h"
 
-#include "interface_control.h"
+#include "../interface_control.h"
 #include "linux_wireless_control.h"
 #include "linux_netlink_control.h"
 #include "linux_wireless_rfkill.h"
 
-#include "wifi_ht_channels.h"
+#include "../wifi_ht_channels.h"
 
 #define MAX_PACKET_LEN  8192
 

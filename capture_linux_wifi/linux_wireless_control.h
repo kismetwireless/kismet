@@ -19,7 +19,7 @@
 #ifndef __WIRELESS_CONTROL_H__
 #define __WIRELESS_CONTROL_H__
 
-#include "config.h"
+#include "../config.h"
 
 #include <errno.h>
 #include <string.h>

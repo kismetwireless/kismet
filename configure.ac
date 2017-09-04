@@ -1332,7 +1332,7 @@ AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf packaging/kismet.pc capture_linux_bluetooth/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf packaging/kismet.pc capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile])
 AC_OUTPUT
 
 echo

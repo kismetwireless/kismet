@@ -16,13 +16,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.h"
+#include "../config.h"
 
 #ifndef __LINUX_NETLINK_CONFIG__
 #define __LINUX_NETLINK_CONFIG__
 
 /* Use local copy of nl80211.h */
-#include "nl80211.h"
+#include "../nl80211.h"
 
 /* Create a monitor vif using mac80211, based on existing interface *interface
  * and named *newinterface.

@@ -18,11 +18,7 @@ CAPTURE_PCAPFILE_O = \
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
-CAPTURE_LINUX_WIFI_O = \
-	interface_control.c.o linux_wireless_control.c.o linux_netlink_control.c.o \
-	linux_wireless_rfkill.c.o wifi_ht_channels.c.o \
-	capture_linux_wifi.c.o
-CAPTURE_LINUX_WIFI	= kismet_cap_linux_wifi
+CAPTURE_LINUX_WIFI	= capture_linux_wifi/kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
 CAPTURE_HACKRF_SWEEP_O = \
@@ -30,7 +26,7 @@ CAPTURE_HACKRF_SWEEP_O = \
 CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
 BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
 
-CAPTURE_LINUX_BLUETOOTH = kismet_cap_linux_bluetooth/kismet_cap_linux_bluetooth
+CAPTURE_LINUX_BLUETOOTH = capture_linux_bluetooth/kismet_cap_linux_bluetooth
 BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 
 # Capture binaries to build
@@ -90,10 +86,10 @@ $(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
 $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) -lpthread
 
-$(CAPTURE_LINUX_WIFI):	$(CAPTURE_LINUX_WIFI_O) $(DATASOURCE_COMMON_A)
-	$(CC) $(LDFLAGS) -o $(CAPTURE_LINUX_WIFI) $(CAPTURE_LINUX_WIFI_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) -lpthread -lm $(NMLIBS) $(NETLINKLIBS)
+$(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A)
+	(cd capture_linux_wifi && make)
 
-$(CAPTURE_LINUX_BLUETOOTH):
+$(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A)
 	(cd capture_linux_bluetooth && make)
 
 $(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A)
@@ -109,7 +105,7 @@ binsuidinstall: $(DATASOURCE_BINS)
 	mkdir -p $(BIN)/kismet_capture_tools/
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/$(CAPTURE_LINUX_WIFI); \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_WIFI)`; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -128,7 +124,7 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/$(CAPTURE_LINUX_WIFI); \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_WIFI)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \
@@ -332,9 +328,6 @@ include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))
-endif
-ifneq ($(BUILD_CAPTURE_LINUX_WIFI)x, "x")
-	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_LINUX_WIFI_O)))
 endif
 
 .SUFFIXES: .c .cc .o 

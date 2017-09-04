@@ -16,7 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "config.h"
+#include "../config.h"
 
 #if defined(HAVE_LIBNL20) || defined(HAVE_LIBNL30) || defined(HAVE_LIBNLTINY)
 #define HAVE_LIBNL_NG
@@ -38,7 +38,7 @@
 #include <netlink/msg.h>
 #include <netlink/attr.h>
 
-#include "nl80211.h"
+#include "../nl80211.h"
 #include <net/if.h>
 #endif
 
@@ -49,7 +49,7 @@
 #include <errno.h>
 
 #include "linux_netlink_control.h"
-#include "wifi_ht_channels.h"
+#include "../wifi_ht_channels.h"
 
 // Libnl1->Libnl2 compatability mode since the API changed, cribbed from 'iw'
 #if defined(HAVE_LIBNL10)
