@@ -63,6 +63,7 @@
 #include "datasourcetracker.h"
 #include "datasource_pcapfile.h"
 #include "datasource_linux_wifi.h"
+#include "datasource_linux_bluetooth.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
@@ -939,7 +940,12 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifdef HAVE_LIBPCAP
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
 #endif
+#ifdef HAVE_LINUX_WIFI_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder(globalregistry)));
+#endif
+#ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
+#endif
 
     shared_ptr<Plugintracker> plugintracker;
 

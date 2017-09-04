@@ -108,6 +108,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_WIFI)`; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
@@ -125,6 +129,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_WIFI)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \

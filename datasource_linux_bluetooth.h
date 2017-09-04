@@ -16,31 +16,31 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DATASOURCE_LINUXWIFI_H__
-#define __DATASOURCE_LINUXWIFI_H__
+#ifndef __DATASOURCE_LINUXBLUETOOTH_H__
+#define __DATASOURCE_LINUXBLUETOOTH_H__
 
 #include "config.h"
 
-#ifdef HAVE_LINUX_WIRELESS
+#if defined HAVE_DBUSGLIB && HAVE_GLIB2
 
-#define HAVE_LINUX_WIFI_DATASOURCE
+#define HAVE_LINUX_BLUETOOTH_DATASOURCE
 
 #include "kis_datasource.h"
 
-class KisDatasourceLinuxWifi;
-typedef shared_ptr<KisDatasourceLinuxWifi> SharedDatasourceLinuxWifi;
+class KisDatasourceLinuxBluetooth;
+typedef shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBluetooth;
 
-class KisDatasourceLinuxWifi : public KisDatasource {
+class KisDatasourceLinuxBluetooth : public KisDatasource {
 public:
-    KisDatasourceLinuxWifi(GlobalRegistry *in_globalreg, 
+    KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, 
             SharedDatasourceBuilder in_builder) :
         KisDatasource(in_globalreg, in_builder) {
 
         // Set the capture binary
-        set_int_source_ipc_binary("kismet_cap_linux_wifi");
+        set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
     }
 
-    virtual ~KisDatasourceLinuxWifi() { };
+    virtual ~KisDatasourceLinuxBluetooth() { };
 
     // Almost all of the logic is implemented in the capture binary and derived
     // from our prototype; all the list, probe, etc functions proxy to our binary
@@ -50,9 +50,9 @@ public:
 };
 
 
-class DatasourceLinuxWifiBuilder : public KisDatasourceBuilder {
+class DatasourceLinuxBluetoothBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceLinuxWifiBuilder(GlobalRegistry *in_globalreg, int in_id) :
+    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg, int in_id) :
         KisDatasourceBuilder(in_globalreg, in_id) {
 
         register_fields();
@@ -60,7 +60,7 @@ public:
         initialize();
     }
 
-    DatasourceLinuxWifiBuilder(GlobalRegistry *in_globalreg, int in_id,
+    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg, int in_id,
         SharedTrackerElement e) :
         KisDatasourceBuilder(in_globalreg, in_id, e) {
 
@@ -69,7 +69,7 @@ public:
         initialize();
     }
 
-    DatasourceLinuxWifiBuilder(GlobalRegistry *in_globalreg) :
+    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg) :
         KisDatasourceBuilder(in_globalreg, 0) {
 
         register_fields();
@@ -77,19 +77,19 @@ public:
         initialize();
     }
 
-    virtual ~DatasourceLinuxWifiBuilder() { }
+    virtual ~DatasourceLinuxBluetoothBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceLinuxWifi(new KisDatasourceLinuxWifi(globalreg, 
+        return SharedDatasourceLinuxBluetooth(new KisDatasourceLinuxBluetooth(globalreg, 
                     in_sh_this));
     }
 
     virtual void initialize() {
         // Set up our basic parameters for the linux wifi driver
         
-        set_source_type("linuxwifi");
-        set_source_description("Capture from Linux Wi-Fi devices using (old) wireless "
-                "extensions or (new) mac80211 controls");
+        set_source_type("linuxbluetooth");
+        set_source_description("Capture from Linux Bluetooth devices using the Linux "
+                "kernel drivers and Blue-Z");
 
         // We can probe an interface
         set_probe_capable(true);
@@ -106,8 +106,8 @@ public:
         // We don't do passive packets over http
         set_passive_capable(false);
 
-        // We allow tuning, sure
-        set_tune_capable(true);
+        // Can't tune a BT
+        set_tune_capable(false);
     }
 
 };
