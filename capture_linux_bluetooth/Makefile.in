@@ -8,13 +8,13 @@ MONITOR_OBJS = \
 	gdbus/watch.c.o \
 	linux_bt_rfkill.c.o \
 	bluez-monitor.c.o
-MONITOR_BIN = bluez-monitor
+MONITOR_BIN = kismet_cap_linux_bluetooth
 
-GLIBCFLAGS = @glibcflags@
-GLIBLIBS = @gliblibs@
+GLIBCFLAGS = @GLIBCFLAGS@
+GLIBLIBS = @GLIBLIBS@
 
-DBUSGLIBCFLAGS = @dbusglibcflags@
-DBUSGLIBLIBS = @dbusgliblibs@
+DBUSGLIBCFLAGS = @DBUSGLIBCFLAGS@
+DBUSGLIBLIBS = @DBUSGLIBLIBS@
 
 all: $(MONITOR_BIN)
 

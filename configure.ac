@@ -1207,6 +1207,46 @@ fi
 AC_SUBST(NLLIBS)
 AC_SUBST(NLCFLAGS)
 
+
+# Look for glib2 for linux bluetooth
+GLIBLIBS=""
+GLIBCFLAGS=""
+
+PKG_CHECK_MODULES(glib20, [glib-2.0], haveglib2=yes, haveglib2=no)
+if test $haveglib2 = yes; then
+    GLIBLIBS=`pkg-config --libs glib-2.0`
+    GLIBCFLAGS=`pkg-config --cflags glib-2.0`
+    AC_DEFINE(HAVE_GLIB2, 1, Glib2 library available)
+fi
+
+AC_SUBST(GLIBLIBS)
+AC_SUBST(GLIBCFLAGS)
+
+
+# Look for glib2-dbus for linux bluetooth
+DBUSGLIBLIBS=""
+DBUSGLIBCFLAGS=""
+
+PKG_CHECK_MODULES(dbusglib1, [dbus-glib-1], havedbusglib=yes, havedbusglib=no)
+if test $havedbusglib = yes; then
+    DBUSGLIBLIBS=`pkg-config --libs dbus-glib-1`
+    DBUSGLIBCFLAGS=`pkg-config --cflags dbus-glib-1`
+    AC_DEFINE(HAVE_DBUSGLIB, 1, DBUS-Glib1 library available)
+fi
+
+AC_SUBST(DBUSGLIBLIBS)
+AC_SUBST(DBUSGLIBCFLAGS)
+
+if test "$linux" = "yes"; then
+    if test "$haveglib2" != "yes" -o "$havedbusglib" != "yes"; then
+        AC_MSG_WARN("Missing glib2 or dbus-glib-1 can not build Linux bluetooth support")
+        BUILD_CAPTURE_LINUX_BLUETOOTH=0
+    else
+        BUILD_CAPTURE_LINUX_BLUETOOTH=1
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
+    fi
+fi
+
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
 else
@@ -1286,12 +1326,13 @@ AC_SUBST(DATASOURCE_BINS)
 AC_SUBST(BUILD_CAPTURE_PCAPFILE)
 AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
 AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
+AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf packaging/kismet.pc])
+AC_CONFIG_FILES([Makefile Makefile.inc scripts/kismet conf/kismet.conf packaging/kismet.pc capture_linux_bluetooth/Makefile])
 AC_OUTPUT
 
 echo
@@ -1380,6 +1421,15 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to control NetworkManager)";
+fi
+
+printf "       Linux Bluetooth: "
+if test "$BUILD_CAPTURE_LINUX_BLUETOOTH" = 1; then
+	echo "yes";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
+else
+	echo "no (will not be able to track Bluetooth on Linux)";
 fi
 
 printf "       HackRF spectrum: "

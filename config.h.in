@@ -48,6 +48,9 @@
 /* define if the compiler supports basic C++11 syntax */
 #undef HAVE_CXX11
 
+/* DBUS-Glib1 library available */
+#undef HAVE_DBUSGLIB
+
 /* Define to 1 if you have the <dwarf.h> header file. */
 #undef HAVE_DWARF_H
 
@@ -74,6 +77,9 @@
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
+
+/* Glib2 library available */
+#undef HAVE_GLIB2
 
 /* Define to 1 if you have the <glob.h> header file. */
 #undef HAVE_GLOB_H
