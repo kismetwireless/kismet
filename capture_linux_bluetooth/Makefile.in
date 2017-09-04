@@ -19,17 +19,18 @@ DBUSGLIBLIBS = @DBUSGLIBLIBS@
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS))
-		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(LIBS) $(GLIBLIBS) $(DBUSGLIBLIBS)
+		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBS) $(GLIBLIBS) $(DBUSGLIBLIBS)
 
 clean:
-	@rm *.o
-	@rm *.d
-	@rm gdbus/*.o
-	@rm gdbus/*.d
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+	@-rm -f gdbus/*.o
+	@-rm -f gdbus/*.d
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
 	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
