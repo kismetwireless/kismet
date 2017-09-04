@@ -1727,11 +1727,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 	return 1;
 }
 
-void Kis_80211_Phy::ExportLogRecord(kis_tracked_device_base *in_device, 
-        string in_logtype, FILE *in_logfile, int in_lineindent) {
-	return;
-}
-
 string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 	string ret;
 

@@ -408,10 +408,6 @@ public:
     Kis_RTL433_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
             int in_phyid);
 
-    // Log stub
-	virtual void ExportLogRecord(kis_tracked_device_base *in_device, string in_logtype, 
-								 FILE *in_logfile, int in_lineindent) { }
-
     // HTTPD API
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 

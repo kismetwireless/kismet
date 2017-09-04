@@ -1016,14 +1016,6 @@ public:
 
 	void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
-	virtual void ExportLogRecord(kis_tracked_device_base *in_device, string in_logtype, 
-								 FILE *in_logfile, int in_lineindent);
-
-	// We need to return something cleaner for xsd namespace
-	virtual string FetchPhyXsdNs() {
-		return "phy80211";
-	}
-
 	static string CryptToString(uint64_t cryptset);
 
     // HTTPD API

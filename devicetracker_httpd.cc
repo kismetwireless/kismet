@@ -45,7 +45,6 @@
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"
-#include "xmlserialize_adapter.h"
 #include "json_adapter.h"
 #include "structured.h"
 #include "kismet_json.h"
@@ -63,17 +62,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
         // same way
         if (strcmp(path, "/devices/all_devices.ekjson") == 0)
             return true;
-
-        /*
-        if (stripped == "/devices/all_devices" && can_serialize)
-            return true;
-
-        if (stripped == "/devices/all_devices_dt" && can_serialize)
-            return true;
-
-        if (strcmp(path, "/devices/all_devices.xml") == 0)
-            return true;
-        */
 
         if (stripped == "/phy/all_phys" && can_serialize)
             return true;
@@ -327,76 +315,6 @@ void Devicetracker::httpd_device_summary(string url, std::ostream &stream,
     }
 
     entrytracker->Serialize(httpd->GetSuffix(url), stream, wrapper, &rename_map);
-}
-
-void Devicetracker::httpd_xml_device_summary(std::ostream &stream) {
-    local_locker lock(&devicelist_mutex);
-
-    SharedTrackerElement devvec =
-        globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
-
-    for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-        devvec->add_vector(tracked_vec[x]);
-    }
-
-    XmlserializeAdapter *xml = new XmlserializeAdapter(globalreg);
-
-    xml->RegisterField("kismet.device.list", "SummaryDevices");
-    xml->RegisterFieldNamespace("kismet.device.list",
-            "k",
-            "http://www.kismetwireless.net/xml/summary",
-            "http://www.kismetwireless.net/xml/summary.xsd");
-    xml->RegisterFieldSchema("kismet.device.list",
-            "common",
-            "http://www.kismetwireless.net/xml/common",
-            "http://www.kismetwireless.net/xml/common.xsd");
-    xml->RegisterFieldSchema("kismet.device.list",
-            "gps",
-            "http://www.kismetwireless.net/xml/gps",
-            "http://www.kismetwireless.net/xml/gps.xsd");
-
-
-    xml->RegisterField("kismet.device.summary", "summary");
-
-    xml->RegisterField("kismet.device.base.name", "name");
-    xml->RegisterField("kismet.device.base.phyname", "phyname");
-    xml->RegisterField("kismet.device.base.signal", "signal");
-    xml->RegisterField("kismet.device.base.channel", "channel");
-    xml->RegisterField("kismet.device.base.frequency", "frequency");
-    xml->RegisterField("kismet.device.base.manuf", "manufacturer");
-    xml->RegisterField("kismet.device.base.key", "key");
-    xml->RegisterField("kismet.device.base.macaddr", "macaddress");
-    xml->RegisterField("kismet.device.base.type", "type");
-    xml->RegisterField("kismet.device.base.first_time", "firstseen");
-    xml->RegisterField("kismet.device.base.last_time", "lastseen");
-    xml->RegisterField("kismet.device.base.packets.total", "packetstotal");
-
-    xml->RegisterField("kismet.common.signal.last_signal_dbm", "lastsignaldbm");
-    xml->RegisterField("kismet.common.signal.min_signal_dbm", "minsignaldbm");
-    xml->RegisterField("kismet.common.signal.max_signal_dbm", "maxsignaldbm");
-    xml->RegisterField("kismet.common.signal.last_noise_dbm", "lastnoisedbm");
-    xml->RegisterField("kismet.common.signal.min_noise_dbm", "minnoisedbm");
-    xml->RegisterField("kismet.common.signal.max_noise_dbm", "maxnoisedbm");
-    xml->RegisterField("kismet.common.signal.last_signal_rssi", "lastsignalrssi");
-    xml->RegisterField("kismet.common.signal.min_signal_rssi", "minsignalrssi");
-    xml->RegisterField("kismet.common.signal.max_signal_rssi", "maxsignalrssi");
-    xml->RegisterField("kismet.common.signal.last_noise_rssi", "lastnoiserssi");
-    xml->RegisterField("kismet.common.signal.min_noise_rssi", "minnoiserssi");
-    xml->RegisterField("kismet.common.signal.max_noise_rssi", "maxnoiserssi");
-
-    xml->RegisterField("kismet.common.signal.peak_loc", "peaklocation");
-    xml->RegisterFieldXsitype("kismet.common.signal.peak_loc", "kismet:location");
-
-    xml->RegisterField("kismet.common.location.lat", "lat");
-    xml->RegisterField("kismet.common.location.lon", "lon");
-    xml->RegisterField("kismet.common.location.alt", "alt");
-    xml->RegisterField("kismet.common.location.speed", "speed");
-
-    stream << "<?xml version=\"1.0\"?>";
-
-    xml->XmlSerialize(devvec, stream);
-
-    delete(xml);
 }
 
 int Devicetracker::Httpd_CreateStreamResponse(
