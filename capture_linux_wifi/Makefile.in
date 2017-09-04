@@ -1,0 +1,37 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	../interface_control.c.o \
+	../wifi_ht_channels.c.o \
+	linux_wireless_control.c.o \
+	linux_netlink_control.c.o \
+	linux_wireless_rfkill.c.o \
+	capture_linux_wifi.c.o
+
+MONITOR_BIN = kismet_cap_linux_wifi
+
+PCAPLIBS=@pcaplnk@
+NMLIBS=@NMLIBS@
+NETLINKLIBS=@NLLIBS@
+
+all: $(MONITOR_BIN)
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS))
+		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBS) $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) -lpthread -lm
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+
