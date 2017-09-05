@@ -279,12 +279,15 @@ xx. Datasource: Linux Wi-Fi
 
     The Linux Wi-Fi source will auto-detect supported interfaces by querying the
     network interface list and checking for wireless configuration APIs.  It
-    can be manually specified with 'type=linuxwifi.
+    can be manually specified with 'type=linuxwifi'.
 
     The Linux Wi-Fi capture uses the 'kismet_cap_linux_wifi' tool, and should
     typically be installed suid-root:  Linux requires root to manipulate the
     network interfaces and create new ones.
 
+    Example source
+
+        source=wlan0:name=linuxwifi
 
     Supported Hardware
 
@@ -439,6 +442,43 @@ xx. Datasource: Linux Wi-Fi
       Additionally, the rtl8812au will sometimes refuse to tune to channels it
       reports as supported - other times it works as expected.  Kismet will continue
       despite intermittent errors.
+
+xx. Datasource: Linux Bluetooth
+
+    Bluetooth Capture on Linux
+
+    Bluetooth uses a frequency-hopping system with dynamic MAC addresses and other
+    oddities - this makes sniffing it not as straightforward as capturing Wi-Fi.
+
+    The Linux Bluetooth source will auto-detect supported interfaces by querying the
+    bluetooth interface list.  It can be manually specified with 'type=linuxbluetooth'.
+
+    The Linux Bluetooth capture uses the 'kismet_cap_linux_bluetooth' tool, and should
+    typically be installed suid-root:  Linux requires root to manipulate the
+    'rfkill' state of the Bluetooth interface.
+
+    Supported Hardware
+
+    For simply identifying Bluetooth (and BTLE) devices, the Linux Bluetooth 
+    datasource can use any standard Bluetooth interface supported by Kismet.
+
+    This includes almost any built-in Bluetooth interface, as well as external
+    USB interfaces such as the Sena UD100.
+
+    Inactive Scanning
+
+    By default, the Kismet Linux Bluetooth data source turns on the Bluetooth
+    interface and enables scanning mode.  This allows it to see broadcasting
+    Bluetooth (and BTLE) devices and some basic information such as the device
+    name, but does not allow it to index services on the device.
+
+    Bluetooth Source Parameters
+
+    uuid=AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE
+
+        Assign a custom UUID to this source.  If no custom UUID is provided,
+        a purely random UUID is generated.
+
 
 xx. Data source: Pcapfile
 
