@@ -132,7 +132,7 @@ int mp_b_encode_uint(msgpuck_buffer_t *buf, uint32_t size) {
     return 1;
 }
 
-int mp_b_encode_int(msgpuck_buffer_t *buf, uint32_t size) {
+int mp_b_encode_int(msgpuck_buffer_t *buf, int32_t size) {
     if (mp_b_available_buffer(buf) < mp_sizeof_int(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
@@ -140,7 +140,7 @@ int mp_b_encode_int(msgpuck_buffer_t *buf, uint32_t size) {
     return 1;
 }
 
-int mp_b_encode_float(msgpuck_buffer_t *buf, uint32_t size) {
+int mp_b_encode_float(msgpuck_buffer_t *buf, float size) {
     if (mp_b_available_buffer(buf) < mp_sizeof_float(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
@@ -148,7 +148,7 @@ int mp_b_encode_float(msgpuck_buffer_t *buf, uint32_t size) {
     return 1;
 }
 
-int mp_b_encode_double(msgpuck_buffer_t *buf, uint32_t size) {
+int mp_b_encode_double(msgpuck_buffer_t *buf, double size) {
     if (mp_b_available_buffer(buf) < mp_sizeof_double(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
