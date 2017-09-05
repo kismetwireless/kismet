@@ -131,10 +131,26 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
     basedev->set_type_string("Bluetooth");
 
+    // Always set the name, but don't forget a name we used to know
     if (btpi->name.length() > 0)
         basedev->set_devicename(btpi->name);
-    else
+    else if (basedev->get_devicename().length() == 0) {
         basedev->set_devicename(basedev->get_macaddr().Mac2String());
+    }
+
+    // Set the new tx power
+    btdev->set_txpower(btpi->txpower);
+
+    // Reset the service UUID vector
+    TrackerElementVector sv(btdev->get_tracker_service_uuid_vec());
+    sv.clear();
+
+    for (auto u : btpi->service_uuid_vec) {
+        SharedTrackerElement tu(new TrackerElement(TrackerUuid));
+        tu->set(u);
+
+        sv.push_back(tu);
+    }
 
     return 0;
 }

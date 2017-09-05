@@ -54,6 +54,7 @@ public:
     mac_addr address;
     string name;
     vector<uuid> service_uuid_vec;
+    int txpower;
 };
 
 class bluetooth_tracked_device : public tracker_component {
@@ -77,11 +78,14 @@ public:
     }
 
     __ProxyTrackable(service_uuid_vec, TrackerElement, service_uuid_vec);
+    __Proxy(txpower, int16_t, int16_t, int16_t, txpower);
 
 protected:
     virtual void register_fields() {
         RegisterField("bluetooth.device.service_uuid_vec", TrackerVector,
                 "advertised service UUIDs", &service_uuid_vec);
+        RegisterField("bluetooth.device.txpower", TrackerInt16,
+                "advertised transmit power", &txpower);
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -90,6 +94,7 @@ protected:
     }
 
     SharedTrackerElement service_uuid_vec;
+    SharedTrackerElement txpower;
 };
 
 class Kis_Bluetooth_Phy : public Kis_Phy_Handler {

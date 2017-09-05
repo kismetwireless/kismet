@@ -28,6 +28,8 @@
     Controls a linux bluetooth interface in bluez via dbus and hci sockets
 */
 
+/* https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/device-api.txt */
+
 /* Bluetooth devices are sent as complete device records in a custom
  * capsource packet:
  *
@@ -50,6 +52,7 @@
  * "uuid_vec": Vetor of string UUIDs (optional)
  * "tv_sec": Unix timestamp second component
  * "tv_usec": Unix timestamp microsecond component
+ * "txpower": Transmit power, if advertised (optional)
  *
  */
 
@@ -100,14 +103,22 @@ typedef struct {
 } local_command_t;
 
 /* Encode a BTDEVICE KV pair */
-simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
-        const char **uuid_vec, size_t uuid_sz) {
-
+simple_cap_proto_kv_t *encode_kv_btdevice(GDBusProxy *proxy) {
     const char *key_address = "address";
     const char *key_name = "name";
     const char *key_uuid_vec = "uuid_vec";
     const char *key_tv_sec = "tv_sec";
     const char *key_tv_usec = "tv_usec";
+    const char *key_txpower = "txpower";
+
+    DBusMessageIter iter, value;
+    const char *str = NULL;
+    dbus_int16_t txpower = 0;
+
+    if (g_dbus_proxy_get_property(proxy, "Address", &iter))
+        dbus_message_iter_get_basic(&iter, &str);
+    else
+        return NULL;
 
     simple_cap_proto_kv_t *kv;
     size_t content_sz;
@@ -117,12 +128,13 @@ simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
     /* Address and time always */
     size_t num_fields = 3;
 
-    size_t i = 0;
-
-    if (name != NULL)
+    if (g_dbus_proxy_get_property(proxy, "Name", &iter))
         num_fields++;
 
-    if (uuid_sz > 0)
+    if (g_dbus_proxy_get_property(proxy, "UUIDs", &iter))
+        num_fields++;
+
+    if (g_dbus_proxy_get_property(proxy, "TxPower", &iter))
         num_fields++;
 
     msgpuck_buffer_t *puckbuffer;
@@ -138,7 +150,7 @@ simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
 
     /* Always encode address and timestamp */
     mp_b_encode_str(puckbuffer, key_address, strlen(key_address));
-    mp_b_encode_str(puckbuffer, address, strlen(address));
+    mp_b_encode_str(puckbuffer, str, strlen(str));
 
     gettimeofday(&tv, NULL);
 
@@ -148,17 +160,42 @@ simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
     mp_b_encode_str(puckbuffer, key_tv_usec, strlen(key_tv_usec));
     mp_b_encode_uint(puckbuffer, tv.tv_usec);
 
-    if (name != NULL) {
+    if (g_dbus_proxy_get_property(proxy, "Name", &iter)) {
+        dbus_message_iter_get_basic(&iter, &str);
         mp_b_encode_str(puckbuffer, key_name, strlen(key_name));
-        mp_b_encode_str(puckbuffer, name, strlen(name));
+        mp_b_encode_str(puckbuffer, str, strlen(str));
     }
 
-    if (uuid_sz > 0) {
-        mp_b_encode_str(puckbuffer, key_uuid_vec, strlen(key_uuid_vec));
-        mp_b_encode_array(puckbuffer, uuid_sz);
+    if (g_dbus_proxy_get_property(proxy, "TxPower", &iter)) {
+        dbus_message_iter_get_basic(&iter, &txpower);
 
-        for (i = 0; i < uuid_sz; i++) {
-            mp_b_encode_str(puckbuffer, uuid_vec[i], strlen(uuid_vec[i]));
+        mp_b_encode_str(puckbuffer, key_txpower, strlen(key_txpower));
+        mp_b_encode_int(puckbuffer, txpower);
+    }
+
+    if (g_dbus_proxy_get_property(proxy, "UUIDs", &iter)) {
+        int uuid_sz = 0;
+
+        dbus_message_iter_recurse(&iter, &value);
+        while (dbus_message_iter_get_arg_type(&value) == DBUS_TYPE_STRING) {
+            uuid_sz++;
+            dbus_message_iter_next(&value);
+        }
+
+        if (uuid_sz > 0) {
+            mp_b_encode_str(puckbuffer, key_uuid_vec, strlen(key_uuid_vec));
+            mp_b_encode_array(puckbuffer, uuid_sz);
+
+            dbus_message_iter_recurse(&iter, &value);
+            while (dbus_message_iter_get_arg_type(&value) == DBUS_TYPE_STRING) {
+                const char *uuid;
+
+                dbus_message_iter_get_basic(&value, &uuid);
+
+                mp_b_encode_str(puckbuffer, uuid, strlen(uuid));
+
+                dbus_message_iter_next(&value);
+            }
         }
     }
 
@@ -181,17 +218,22 @@ simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
     return kv;
 }
 
-int cf_send_btdevice(kis_capture_handler_t *caph, const char *address, const char *name,
-        int16_t rssi, const char **uuid_vec, size_t uuid_sz) {
-
+int cf_send_btdevice(local_command_t *cmd) {
+    DBusMessageIter iter;
     size_t num_kvs = 2;
+    dbus_int16_t rssi = 0;
 
     simple_cap_proto_kv_t **kv_pairs;
+
+    if (g_dbus_proxy_get_property(cmd->proxy, "RSSI", &iter))
+        dbus_message_iter_get_basic(&iter, &rssi);
+    else
+        return 0;
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
 
-    kv_pairs[0] = encode_kv_btdevice(address, name, uuid_vec, uuid_sz);
+    kv_pairs[0] = encode_kv_btdevice(cmd->proxy);
     
     if (kv_pairs[0] == NULL) {
         free(kv_pairs);
@@ -205,7 +247,7 @@ int cf_send_btdevice(kis_capture_handler_t *caph, const char *address, const cha
         return -1;
     }
 
-    return cf_stream_packet(caph, "LINUXBTDEVICE", kv_pairs, 2);
+    return cf_stream_packet(cmd->localbt->caph, "LINUXBTDEVICE", kv_pairs, 2);
 }
 
 /* Figure out if a given adapter is powered on */
@@ -329,7 +371,7 @@ static void dbus_bt_device(local_command_t *cmd) {
         return;
 
     // fprintf(stderr, "DEVICE - %s (%s) %d\n", address, name, rssi);
-    cf_send_btdevice(cmd->localbt->caph, address, name, rssi, NULL, 0);
+    cf_send_btdevice(cmd);
 }
 
 /* Called whenever a dbus entity is connected (specifically, adapter and 
@@ -479,14 +521,11 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     interface = strndup(placeholder, placeholder_len);
 
     if (sscanf(interface, "hci%u", &devid) != 1) {
-        snprintf(msg, STATUS_MAX, "Unable to parse device id");
         free(interface);
         return 0;
     }
 
     if ((hci_sock = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI)) < 0) {
-        snprintf(msg, STATUS_MAX, "Unable to connect HCI socket: %s",
-                strerror(errno));
         free(interface);
         return 0;
     }
@@ -494,8 +533,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     di.dev_id = devid;
 
     if (ioctl(hci_sock, HCIGETDEVINFO, (void *) &di)) {
-        snprintf(msg, STATUS_MAX, "Unable to get device info: %s", 
-                strerror(errno));
         free(interface);
         return 0;
     }

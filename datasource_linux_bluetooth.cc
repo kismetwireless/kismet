@@ -146,6 +146,13 @@ kis_packet *
             bpi->name = obj_iter->second.as<string>();
         }
 
+        if ((obj_iter = dict.find("txpower")) != dict.end()) {
+            bpi->txpower = obj_iter->second.as<int>();
+        } else {
+            // Spec says -127 - 127 so -256 is out of bounds
+            bpi->txpower = -256;
+        }
+
         /* Optional uuid vector */
         if ((obj_iter = dict.find("uuid_vec")) != dict.end()) {
             MsgpackAdapter::AsStringVector(obj_iter->second, uuid_str_vec);
