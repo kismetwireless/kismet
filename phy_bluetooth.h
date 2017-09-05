@@ -113,8 +113,17 @@ public:
 	Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
             int in_phyid);
 
+	// Bluetooth device record classifier to common for the devicetracker layer
+	static int CommonClassifierBluetooth(CHAINCALL_PARMS);
+   
+    // Tracker entry
+	static int PacketTrackerBluetooth(CHAINCALL_PARMS);
+
 protected:
     shared_ptr<Alertracker> alertracker;
+    shared_ptr<Packetchain> packetchain;
+    shared_ptr<EntryTracker> entrytracker;
+    shared_ptr<Devicetracker> devicetracker;
 
     int bluetooth_device_entry_id;
 
@@ -122,7 +131,7 @@ protected:
 	int dev_comp_bluetooth, dev_comp_common;
 
 	// Packet components
-	int pack_comp_bluetooth, pack_comp_common;
+	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info;
 };
 
 #endif

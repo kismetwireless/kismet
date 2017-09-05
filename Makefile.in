@@ -56,6 +56,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	kaitaistream.cc.o \
 	$(KAITAI_PARSERS) \
 	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_zwave.cc.o \
+	phy_bluetooth.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	dumpfile.cc.o dumpfile_pcap.cc.o \

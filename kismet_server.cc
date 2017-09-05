@@ -81,6 +81,7 @@
 #include "phy_80211.h"
 #include "phy_rtl433.h"
 #include "phy_zwave.h"
+#include "phy_bluetooth.h"
 
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
@@ -934,6 +935,9 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 
     if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
+        CatchShutdown(-1);
+
+    if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
         CatchShutdown(-1);
 
     // Add the datasources

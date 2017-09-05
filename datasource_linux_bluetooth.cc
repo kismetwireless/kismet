@@ -144,8 +144,6 @@ kis_packet *
 
         if ((obj_iter = dict.find("name")) != dict.end()) {
             bpi->name = obj_iter->second.as<string>();
-        } else {
-            throw std::runtime_error(string("name missing from bt device"));
         }
 
         /* Optional uuid vector */

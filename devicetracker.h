@@ -960,12 +960,22 @@ public:
         tracker = in_tracker;
     }
 
+    devicelist_scope_locker(shared_ptr<Devicetracker> in_tracker) {
+        in_tracker->lock_devicelist();
+        sharedtracker = in_tracker;
+        tracker = NULL;
+    }
+
     ~devicelist_scope_locker() {
-        tracker->unlock_devicelist();
+        if (tracker != NULL)
+            tracker->unlock_devicelist();
+        else if (sharedtracker != NULL)
+            sharedtracker->unlock_devicelist();
     }
 
 private:
     Devicetracker *tracker;
+    shared_ptr<Devicetracker> sharedtracker;
 };
 
 // C++ lambda matcher
