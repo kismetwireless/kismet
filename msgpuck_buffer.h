@@ -65,10 +65,10 @@ char *mp_b_extract_buffer(msgpuck_buffer_t *buf);
 int mp_b_zoom_buffer(msgpuck_buffer_t *buf);
 
 /* Duplicates of the msgpuck encode functions, but with length checking */
-int mp_b_encode_array(msgpuck_buffer_t *buf, uint32_t size);
-int mp_b_encode_map(msgpuck_buffer_t *buf, uint32_t size);
-int mp_b_encode_uint(msgpuck_buffer_t *buf, uint32_t size);
-int mp_b_encode_int(msgpuck_buffer_t *buf, int32_t in);
+int mp_b_encode_array(msgpuck_buffer_t *buf, unsigned size);
+int mp_b_encode_map(msgpuck_buffer_t *buf, unsigned int size);
+int mp_b_encode_uint(msgpuck_buffer_t *buf, unsigned int in);
+int mp_b_encode_int(msgpuck_buffer_t *buf, int in);
 int mp_b_encode_float(msgpuck_buffer_t *buf, float in);
 int mp_b_encode_double(msgpuck_buffer_t *buf, double in);
 int mp_b_encode_str(msgpuck_buffer_t *buf, const char *str, uint32_t size);

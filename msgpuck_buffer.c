@@ -88,8 +88,9 @@ int mp_b_zoom_buffer(msgpuck_buffer_t *buf) {
 
     char *newbuf = (char *) malloc(bufsz * 2);
 
-    if (newbuf == NULL)
+    if (newbuf == NULL) {
         return -1;
+    }
 
     size_t sz = mp_b_sizeof_buffer(buf);
 
@@ -101,63 +102,75 @@ int mp_b_zoom_buffer(msgpuck_buffer_t *buf) {
     buf->buffer = newbuf;
 
     // Advance the write pointer
-    buf->buffer_write = newbuf + sz;
+    buf->buffer_write = &(buf->buffer[sz]);
+
+    // Set the new len
+    buf->buffer_len = (bufsz * 2);
 
     return 1;
 }
 
 /* Duplicates of the msgpuck encode functions, but with length checking */
 
-int mp_b_encode_array(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_array(size)) 
+int mp_b_encode_array(msgpuck_buffer_t *buf, unsigned int size) {
+    if (mp_b_available_buffer(buf) <= mp_sizeof_array(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
     buf->buffer_write = mp_encode_array(buf->buffer_write, size);
     return 1;
 }
 
-int mp_b_encode_map(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_map(size)) 
+int mp_b_encode_map(msgpuck_buffer_t *buf, unsigned int size) {
+    if (mp_b_available_buffer(buf) <= mp_sizeof_map(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
     buf->buffer_write = mp_encode_map(buf->buffer_write, size);
     return 1;
 }
 
-int mp_b_encode_uint(msgpuck_buffer_t *buf, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_uint(size)) 
+int mp_b_encode_uint(msgpuck_buffer_t *buf, unsigned int in) {
+    if (mp_b_available_buffer(buf) <= mp_sizeof_uint(in)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
-    buf->buffer_write = mp_encode_uint(buf->buffer_write, size);
+    buf->buffer_write = mp_encode_uint(buf->buffer_write, in);
     return 1;
 }
 
-int mp_b_encode_int(msgpuck_buffer_t *buf, int32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_int(size)) 
-        if (mp_b_zoom_buffer(buf) < 0)
-            return -1;
-    buf->buffer_write = mp_encode_int(buf->buffer_write, size);
+int mp_b_encode_int(msgpuck_buffer_t *buf, int in ) {
+    /* Msgpuck INSISTS that positive ints be encoded as unsigned.  I don't
+     * know why. */
+    if (in < 0) {
+        if (mp_b_available_buffer(buf) <= mp_sizeof_int(in)) 
+            if (mp_b_zoom_buffer(buf) < 0)
+                return -1;
+        buf->buffer_write = mp_encode_int(buf->buffer_write, in);
+    } else {
+        if (mp_b_available_buffer(buf) <= mp_sizeof_uint(in)) 
+            if (mp_b_zoom_buffer(buf) < 0)
+                return -1;
+        buf->buffer_write = mp_encode_uint(buf->buffer_write, in);
+    }
     return 1;
 }
 
-int mp_b_encode_float(msgpuck_buffer_t *buf, float size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_float(size)) 
+int mp_b_encode_float(msgpuck_buffer_t *buf, float in) {
+    if (mp_b_available_buffer(buf) <= mp_sizeof_float(in)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
-    buf->buffer_write = mp_encode_float(buf->buffer_write, size);
+    buf->buffer_write = mp_encode_float(buf->buffer_write, in);
     return 1;
 }
 
-int mp_b_encode_double(msgpuck_buffer_t *buf, double size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_double(size)) 
+int mp_b_encode_double(msgpuck_buffer_t *buf, double in) {
+    if (mp_b_available_buffer(buf) <= mp_sizeof_double(in)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
-    buf->buffer_write = mp_encode_double(buf->buffer_write, size);
+    buf->buffer_write = mp_encode_double(buf->buffer_write, in);
     return 1;
 }
 
 int mp_b_encode_str(msgpuck_buffer_t *buf, const char *str, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_str(size)) 
+    if (mp_b_available_buffer(buf) <= mp_sizeof_str(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
     buf->buffer_write = mp_encode_str(buf->buffer_write, str, size);
@@ -165,7 +178,7 @@ int mp_b_encode_str(msgpuck_buffer_t *buf, const char *str, uint32_t size) {
 }
 
 int mp_b_encode_bin(msgpuck_buffer_t *buf, const char *str, uint32_t size) {
-    if (mp_b_available_buffer(buf) < mp_sizeof_bin(size)) 
+    if (mp_b_available_buffer(buf) <= mp_sizeof_bin(size)) 
         if (mp_b_zoom_buffer(buf) < 0)
             return -1;
     buf->buffer_write = mp_encode_bin(buf->buffer_write, str, size);
