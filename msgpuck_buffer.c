@@ -83,6 +83,8 @@ int mp_b_zoom_buffer(msgpuck_buffer_t *buf) {
      * double it) because otherwise we'll never grow */
     size_t bufsz = buf->buffer_len;
 
+    size_t bufused = mp_b_used_buffer(buf);
+
     if (bufsz == 0)
         bufsz = 32;
 
@@ -102,7 +104,7 @@ int mp_b_zoom_buffer(msgpuck_buffer_t *buf) {
     buf->buffer = newbuf;
 
     // Advance the write pointer
-    buf->buffer_write = &(buf->buffer[sz]);
+    buf->buffer_write = &(buf->buffer[bufused]);
 
     // Set the new len
     buf->buffer_len = (bufsz * 2);
