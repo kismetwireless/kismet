@@ -881,18 +881,13 @@ void Datasourcetracker::schedule_cleanup() {
 
     completion_cleanup_id = 
         timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
-            fprintf(stderr, "debug - dst cleanup scheduler\n");
-                {
             local_locker lock(&dst_lock);
 
             completion_cleanup_id = -1;
 
-            fprintf(stderr, "debug - dst cleanup scheduler - emptying complete vecs\n");
-
             probing_complete_vec.clear();
             listing_complete_vec.clear();
             broken_source_vec.clear();
-            }
 
             return 0;
         });
