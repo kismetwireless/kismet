@@ -28,6 +28,28 @@
     Controls a linux bluetooth interface in bluez via dbus and hci sockets
 */
 
+/* Bluetooth devices are sent as complete device records in a custom
+ * capsource packet:
+ *
+ * LINUXBTDEVICE
+ * A complete bluetooth device record as reported over the dbus channel
+ *
+ * KV Pairs:
+ * GPS (optional)
+ * SIGNAL 
+ * BTDEVICE
+ *
+ * KV BTDEVICE
+ * Bluetooth device record KV.
+ *
+ * Content:
+ *
+ * Msgpack packed dictionary containing the following:
+ * "address": String mac address of the device
+ * "name": String name of the device, as advertised (optional)
+ * "uuid_vec": Vetor of string UUIDs (optional)
+ *
+ */
 
 #include "../config.h"
 
@@ -74,6 +96,101 @@ typedef struct {
     /* Dbus proxy object */
     GDBusProxy *proxy;
 } local_command_t;
+
+/* Encode a BTDEVICE KV pair */
+simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
+        const char **uuid_vec, size_t uuid_sz) {
+
+    const char *key_address = "address";
+    const char *key_name = "name";
+    const char *key_uuid_vec = "uuid_vec";
+
+    simple_cap_proto_kv_t *kv;
+    size_t content_sz;
+
+    size_t num_fields = 1;
+
+    size_t i = 0;
+
+    if (name != NULL)
+        num_fields++;
+
+    if (uuid_sz > 0)
+        num_fields++;
+
+    msgpuck_buffer_t *puckbuffer;
+
+    size_t initial_sz = num_fields * 32;
+
+    puckbuffer = mp_b_create_buffer(initial_sz);
+
+    if (puckbuffer == NULL)
+        return NULL;
+
+    mp_b_encode_map(puckbuffer, num_fields);
+
+    mp_b_encode_str(puckbuffer, key_address, strlen(key_address));
+    mp_b_encode_str(puckbuffer, address, strlen(address));
+
+    if (name != NULL) {
+        mp_b_encode_str(puckbuffer, key_name, strlen(key_name));
+        mp_b_encode_str(puckbuffer, name, strlen(name));
+    }
+
+    if (uuid_sz > 0) {
+        mp_b_encode_str(puckbuffer, key_uuid_vec, strlen(key_uuid_vec));
+        mp_b_encode_array(puckbuffer, uuid_sz);
+
+        for (i = 0; i < uuid_sz; i++) {
+            mp_b_encode_str(puckbuffer, uuid_vec[i], strlen(uuid_vec[i]));
+        }
+    }
+
+    content_sz = mp_b_used_buffer(puckbuffer);
+
+    kv = (simple_cap_proto_kv_t *) malloc(sizeof(simple_cap_proto_kv_t) + content_sz);
+
+    if (kv == NULL) {
+        mp_b_free_buffer(puckbuffer);
+        return NULL;
+    }
+
+    snprintf(kv->header.key, 16, "%.16s", "BTDEVICE");
+    kv->header.obj_sz = htonl(content_sz);
+
+    memcpy(kv->object, mp_b_get_buffer(puckbuffer), content_sz);
+
+    mp_b_free_buffer(puckbuffer);
+
+    return kv;
+}
+
+int cf_send_btdevice(kis_capture_handler_t *caph, const char *address, const char *name,
+        int16_t rssi, const char **uuid_vec, size_t uuid_sz) {
+
+    size_t num_kvs = 2;
+
+    simple_cap_proto_kv_t **kv_pairs;
+
+    kv_pairs = 
+        (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
+
+    kv_pairs[0] = encode_kv_btdevice(address, name, uuid_vec, uuid_sz);
+    
+    if (kv_pairs[0] == NULL) {
+        free(kv_pairs);
+        return -1;
+    }
+
+    kv_pairs[1] = encode_kv_signal(rssi, 0, 0, 0, 0.0f, NULL, 0.0f);
+    if (kv_pairs[1] == NULL) {
+        free(kv_pairs[0]);
+        free(kv_pairs);
+        return -1;
+    }
+
+    return cf_stream_packet(caph, "LINUXBTDEVICE", kv_pairs, 2);
+}
 
 /* Figure out if a given adapter is powered on */
 static dbus_bool_t dbus_adapter_is_powered(GDBusProxy *proxy) {
@@ -176,23 +293,27 @@ static void dbus_initiate_adapter_poweron(local_command_t *cmd) {
 }
 
 /* Called when devices change; grab info about the device and print it out */
-static void dbus_bt_device(GDBusProxy *proxy) {
+static void dbus_bt_device(local_command_t *cmd) {
     DBusMessageIter iter;
 
     const char *name = NULL;
     const char *address = NULL;
     dbus_int16_t rssi = 0;
 
-    if (g_dbus_proxy_get_property(proxy, "Address", &iter))
+    if (g_dbus_proxy_get_property(cmd->proxy, "Address", &iter))
         dbus_message_iter_get_basic(&iter, &address);
 
-    if (g_dbus_proxy_get_property(proxy, "Name", &iter))
+    if (g_dbus_proxy_get_property(cmd->proxy, "Name", &iter))
         dbus_message_iter_get_basic(&iter, &name);
 
-    if (g_dbus_proxy_get_property(proxy, "RSSI", &iter))
+    if (g_dbus_proxy_get_property(cmd->proxy, "RSSI", &iter))
         dbus_message_iter_get_basic(&iter, &rssi);
 
-    fprintf(stderr, "DEVICE - %s (%s) %d\n", address, name, rssi);
+    if (rssi == 0)
+        return;
+
+    // fprintf(stderr, "DEVICE - %s (%s) %d\n", address, name, rssi);
+    cf_send_btdevice(cmd->localbt->caph, address, name, rssi, NULL, 0);
 }
 
 /* Called whenever a dbus entity is connected (specifically, adapter and 
@@ -210,7 +331,7 @@ static void dbus_proxy_added(GDBusProxy *proxy, void *user_data) {
     interface = g_dbus_proxy_get_interface(proxy);
 
     if (!strcmp(interface, "org.bluez.Device1")) {
-        dbus_bt_device(proxy);
+        dbus_bt_device(&cmd);
     } else if (!strcmp(interface, "org.bluez.Adapter1")) {
         /* We've been notified there's a new adapter; we need to compare it to our
          * desired adapter, see if it has scan enabled, and enable scan if it
@@ -282,7 +403,7 @@ static void dbus_property_changed(GDBusProxy *proxy, const char *name,
 
     if (!strcmp(interface, "org.bluez.Device1")) {
         /* Shove devices at the device handler directly */
-        dbus_bt_device(proxy);
+        dbus_bt_device(&cmd);
     } else if (!strcmp(interface, "org.bluez.Adapter1")) {
         /* If the adapter changed, maybe we need to inventory its state */
         DBusMessageIter addr_iter;
