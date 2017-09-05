@@ -18,7 +18,7 @@ DBUSGLIBLIBS = @DBUSGLIBLIBS@
 
 all: $(MONITOR_BIN)
 
-$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS))
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
 		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBS) $(GLIBLIBS) $(DBUSGLIBLIBS)
 
 clean:
