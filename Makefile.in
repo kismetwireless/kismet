@@ -18,7 +18,7 @@ CAPTURE_PCAPFILE_O = \
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
-CAPTURE_LINUX_WIFI	= capture_linux_wifi/kismet_cap_linux_wifi FORCE
+CAPTURE_LINUX_WIFI	= capture_linux_wifi/kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
 CAPTURE_HACKRF_SWEEP_O = \
@@ -26,10 +26,8 @@ CAPTURE_HACKRF_SWEEP_O = \
 CAPTURE_HACKRF_SWEEP = kismet_cap_hackrf_sweep
 BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
 
-CAPTURE_LINUX_BLUETOOTH = capture_linux_bluetooth/kismet_cap_linux_bluetooth FORCE
+CAPTURE_LINUX_BLUETOOTH = capture_linux_bluetooth/kismet_cap_linux_bluetooth
 BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
-
-FORCE:
 
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
@@ -43,6 +41,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	psutils.cc.o battery.cc.o kismet_json.cc.o \
 	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
 	datasourcetracker.cc.o kis_datasource.cc.o \
+	datasource_linux_bluetooth.cc.o \
 	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsserial2.cc.o gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
@@ -88,15 +87,16 @@ $(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
 $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) -lpthread
 
-$(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A)
+$(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_wifi && make)
 
-$(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A)
+$(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_bluetooth && make)
 
 $(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
 
+FORCE:
 
 datasources:	$(DATASOURCE_BINS)
 
