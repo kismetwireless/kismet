@@ -681,6 +681,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    (*ret_interface)->capif = strdup(localbt->bt_interface);
+
     return 1;
 }
 
