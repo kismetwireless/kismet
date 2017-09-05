@@ -50,7 +50,6 @@ void KisDatasourceLinuxBluetooth::proto_packet_linuxbtdevice(KVmap in_kvpairs) {
     kis_packet *packet = NULL;
     kis_layer1_packinfo *siginfo = NULL;
     kis_gps_packinfo *gpsinfo = NULL;
-    bluetooth_packinfo *btinfo = NULL;
 
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         handle_kv_message(i->second);
