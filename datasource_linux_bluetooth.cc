@@ -63,7 +63,39 @@ void KisDatasourceLinuxBluetooth::proto_packet_linuxbtdevice(KVmap in_kvpairs) {
     if ((i = in_kvpairs.find("btdevice")) != in_kvpairs.end()) {
         packet = handle_kv_btdevice(i->second);
     }
+
+    if (packet == NULL)
+        return;
+
+    // Gather signal data
+    if ((i = in_kvpairs.find("signal")) != in_kvpairs.end()) {
+        siginfo = handle_kv_signal(i->second);
+    }
+
+    // Gather GPS data
+    if ((i = in_kvpairs.find("gps")) != in_kvpairs.end()) {
+        gpsinfo = handle_kv_gps(i->second);
+    }
+
+    // Add them to the packet
+    if (siginfo != NULL) {
+        packet->insert(pack_comp_l1info, siginfo);
+    }
+
+    if (gpsinfo != NULL) {
+        packet->insert(pack_comp_gps, gpsinfo);
+    }
     
+    packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
+    datasrcinfo->ref_source = this;
+
+    packet->insert(pack_comp_datasrc, datasrcinfo);
+
+    inc_source_num_packets(1);
+    get_source_packet_rrd()->add_sample(1, time(0));
+
+    // Inject the packet into the packetchain if we have one
+    packetchain->ProcessPacket(packet);
 }
 
 kis_packet *
@@ -142,8 +174,6 @@ kis_packet *
         
         return NULL;
     }
-
-    fprintf(stderr, "debug - got bt device %s %s\n", bpi->address.Mac2String().c_str(), bpi->name.c_str());
 
     packet->insert(pack_comp_btdevice, bpi);
 
