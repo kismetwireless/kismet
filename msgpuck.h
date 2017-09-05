@@ -1980,10 +1980,10 @@ enum {
 };
 
 MP_PROTO void
-mp_next_slowpath(const char **data, int k);
+mp_next_slowpath(const char **data, int64_t k);
 
 MP_IMPL void
-mp_next_slowpath(const char **data, int k)
+mp_next_slowpath(const char **data, int64_t k)
 {
 	for (; k > 0; k--) {
 		uint8_t c = mp_load_u8(data);
@@ -2056,7 +2056,7 @@ mp_next_slowpath(const char **data, int k)
 MP_IMPL void
 mp_next(const char **data)
 {
-	int k = 1;
+	int64_t k = 1;
 	for (; k > 0; k--) {
 		uint8_t c = mp_load_u8(data);
 		int l = mp_parser_hint[c];
@@ -2081,14 +2081,17 @@ mp_next(const char **data)
 MP_IMPL int
 mp_check(const char **data, const char *end)
 {
-	int k;
-	for (k = 1; k > 0; k--) {
-		if (mp_unlikely(*data >= end))
-			return 1;
+#define MP_CHECK_LEN(_l) \
+	if (mp_unlikely((size_t)(end - *data) < (size_t)(_l))) \
+		return 1;
 
+	int64_t k;
+	for (k = 1; k > 0; k--) {
+		MP_CHECK_LEN(1);
 		uint8_t c = mp_load_u8(data);
 		int l = mp_parser_hint[c];
 		if (mp_likely(l >= 0)) {
+			MP_CHECK_LEN(l);
 			*data += l;
 			continue;
 		} else if (mp_likely(l > MP_HINT)) {
@@ -2100,71 +2103,67 @@ mp_check(const char **data, const char *end)
 		switch (l) {
 		case MP_HINT_STR_8:
 			/* MP_STR (8) */
-			if (mp_unlikely(*data + sizeof(uint8_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint8_t));
 			len = mp_load_u8(data);
+			MP_CHECK_LEN(len);
 			*data += len;
 			break;
 		case MP_HINT_STR_16:
 			/* MP_STR (16) */
-			if (mp_unlikely(*data + sizeof(uint16_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint16_t));
 			len = mp_load_u16(data);
+			MP_CHECK_LEN(len);
 			*data += len;
 			break;
 		case MP_HINT_STR_32:
 			/* MP_STR (32) */
-			if (mp_unlikely(*data + sizeof(uint32_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint32_t))
 			len = mp_load_u32(data);
+			MP_CHECK_LEN(len);
 			*data += len;
 			break;
 		case MP_HINT_ARRAY_16:
 			/* MP_ARRAY (16) */
-			if (mp_unlikely(*data + sizeof(uint16_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint16_t));
 			k += mp_load_u16(data);
 			break;
 		case MP_HINT_ARRAY_32:
 			/* MP_ARRAY (32) */
-			if (mp_unlikely(*data + sizeof(uint32_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint32_t));
 			k += mp_load_u32(data);
 			break;
 		case MP_HINT_MAP_16:
 			/* MP_MAP (16) */
-			if (mp_unlikely(*data + sizeof(uint16_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint16_t));
 			k += 2 * mp_load_u16(data);
 			break;
 		case MP_HINT_MAP_32:
 			/* MP_MAP (32) */
-			if (mp_unlikely(*data + sizeof(uint32_t) > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint32_t));
 			k += 2 * mp_load_u32(data);
 			break;
 		case MP_HINT_EXT_8:
 			/* MP_EXT (8) */
-			if (mp_unlikely(*data + sizeof(uint8_t) + 1 > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint8_t) + sizeof(uint8_t));
 			len = mp_load_u8(data);
 			mp_load_u8(data);
+			MP_CHECK_LEN(len);
 			*data += len;
 			break;
 		case MP_HINT_EXT_16:
 			/* MP_EXT (16) */
-			if (mp_unlikely(*data + sizeof(uint16_t) + 1 > end))
-				return 1;
+			MP_CHECK_LEN(sizeof(uint16_t) + sizeof(uint8_t));
 			len = mp_load_u16(data);
 			mp_load_u8(data);
+			MP_CHECK_LEN(len);
 			*data += len;
 			break;
 		case MP_HINT_EXT_32:
 			/* MP_EXT (32) */
-			if (mp_unlikely(*data + sizeof(uint32_t) + 1 > end))
-				return 1;
-		        len = mp_load_u32(data);
+			MP_CHECK_LEN(sizeof(uint32_t) + sizeof(uint8_t));
+			len = mp_load_u32(data);
 			mp_load_u8(data);
+			MP_CHECK_LEN(len);
 			*data += len;
 			break;
 		default:
@@ -2172,9 +2171,8 @@ mp_check(const char **data, const char *end)
 		}
 	}
 
-	if (mp_unlikely(*data > end))
-		return 1;
-
+	assert(*data <= end);
+#undef MP_CHECK_LEN
 	return 0;
 }
 
