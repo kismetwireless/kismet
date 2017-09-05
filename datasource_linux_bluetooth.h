@@ -42,10 +42,8 @@ public:
 
     virtual ~KisDatasourceLinuxBluetooth() { };
 
-    // Almost all of the logic is implemented in the capture binary and derived
-    // from our prototype; all the list, probe, etc functions proxy to our binary
-    // and we communicate using only standard Kismet functions so we don't need
-    // to do anything else
+protected:
+    virtual void proto_dispatch_packet(string in_type, KVmap in_kvmap);
     
 };
 
