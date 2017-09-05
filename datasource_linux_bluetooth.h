@@ -33,18 +33,18 @@ typedef shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBluetooth;
 class KisDatasourceLinuxBluetooth : public KisDatasource {
 public:
     KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, 
-            SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_globalreg, in_builder) {
-
-        // Set the capture binary
-        set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
-    }
+            SharedDatasourceBuilder in_builder);
 
     virtual ~KisDatasourceLinuxBluetooth() { };
 
 protected:
     virtual void proto_dispatch_packet(string in_type, KVmap in_kvmap);
-    
+   
+    void proto_packet_linuxbtdevice(KVmap in_kvpairs);
+
+    kis_packet *handle_kv_btdevice(KisDatasourceCapKeyedObject *in_obj);
+
+    int pack_comp_btdevice;
 };
 
 

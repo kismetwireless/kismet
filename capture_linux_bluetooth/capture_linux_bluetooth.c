@@ -48,6 +48,8 @@
  * "address": String mac address of the device
  * "name": String name of the device, as advertised (optional)
  * "uuid_vec": Vetor of string UUIDs (optional)
+ * "tv_sec": Unix timestamp second component
+ * "tv_usec": Unix timestamp microsecond component
  *
  */
 
@@ -104,11 +106,16 @@ simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
     const char *key_address = "address";
     const char *key_name = "name";
     const char *key_uuid_vec = "uuid_vec";
+    const char *key_tv_sec = "tv_sec";
+    const char *key_tv_usec = "tv_usec";
 
     simple_cap_proto_kv_t *kv;
     size_t content_sz;
 
-    size_t num_fields = 1;
+    struct timeval tv;
+
+    /* Address and time always */
+    size_t num_fields = 3;
 
     size_t i = 0;
 
@@ -129,8 +136,17 @@ simple_cap_proto_kv_t *encode_kv_btdevice(const char *address, const char *name,
 
     mp_b_encode_map(puckbuffer, num_fields);
 
+    /* Always encode address and timestamp */
     mp_b_encode_str(puckbuffer, key_address, strlen(key_address));
     mp_b_encode_str(puckbuffer, address, strlen(address));
+
+    gettimeofday(&tv, NULL);
+
+    mp_b_encode_str(puckbuffer, key_tv_sec, strlen(key_tv_sec));
+    mp_b_encode_uint(puckbuffer, tv.tv_sec);
+
+    mp_b_encode_str(puckbuffer, key_tv_usec, strlen(key_tv_usec));
+    mp_b_encode_uint(puckbuffer, tv.tv_usec);
 
     if (name != NULL) {
         mp_b_encode_str(puckbuffer, key_name, strlen(key_name));

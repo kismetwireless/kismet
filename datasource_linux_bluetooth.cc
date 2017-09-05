@@ -21,6 +21,16 @@
 #include "kis_datasource.h"
 #include "simple_datasource_proto.h"
 #include "datasource_linux_bluetooth.h"
+#include "phy_bluetooth.h"
+#include "msgpack_adapter.h"
+
+KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, 
+        SharedDatasourceBuilder in_builder) : KisDatasource(in_globalreg, in_builder) {
+    // Set the capture binary
+    set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
+
+    pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
+}
 
 void KisDatasourceLinuxBluetooth::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
     local_locker lock(&source_lock);
@@ -30,7 +40,113 @@ void KisDatasourceLinuxBluetooth::proto_dispatch_packet(string in_type, KVmap in
     string ltype = StrLower(in_type);
 
     if (ltype == "linuxbtdevice") {
-        fprintf(stderr, "debug - kismet got btdevice\n");
+        proto_packet_linuxbtdevice(in_kvmap);
     }
+}
+
+void KisDatasourceLinuxBluetooth::proto_packet_linuxbtdevice(KVmap in_kvpairs) {
+    KVmap::iterator i;
+
+    kis_packet *packet = NULL;
+    kis_layer1_packinfo *siginfo = NULL;
+    kis_gps_packinfo *gpsinfo = NULL;
+    bluetooth_packinfo *btinfo = NULL;
+
+    if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
+        handle_kv_message(i->second);
+    }
+
+    if ((i = in_kvpairs.find("warning")) != in_kvpairs.end()) {
+        handle_kv_warning(i->second);
+    }
+
+    if ((i = in_kvpairs.find("btdevice")) != in_kvpairs.end()) {
+        packet = handle_kv_btdevice(i->second);
+    }
+    
+}
+
+kis_packet *
+    KisDatasourceLinuxBluetooth::handle_kv_btdevice(KisDatasourceCapKeyedObject *in_obj) {
+
+    kis_packet *packet = packetchain->GeneratePacket();
+
+    MsgpackAdapter::MsgpackStrMap dict;
+    msgpack::unpacked result;
+    MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
+    vector<string> uuid_str_vec;
+
+    bluetooth_packinfo *bpi = new bluetooth_packinfo();
+
+    try {
+        msgpack::unpack(result, in_obj->object, in_obj->size);
+        msgpack::object deserialized = result.get();
+
+        dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
+
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
+                packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
+            } else {
+                throw std::runtime_error(string("tv_sec timestamp missing"));
+            }
+
+            if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
+                packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
+            } else {
+                throw std::runtime_error(string("tv_usec timestamp missing"));
+            }
+        }
+
+        if ((obj_iter = dict.find("address")) != dict.end()) {
+            mac_addr m(obj_iter->second.as<string>());
+
+            if (m.error)
+                throw std::runtime_error(string("invalid mac address for btdevice"));
+
+            bpi->address = m;
+        } else {
+            throw std::runtime_error(string("address missing from bt device"));
+        }
+
+        if ((obj_iter = dict.find("name")) != dict.end()) {
+            bpi->name = obj_iter->second.as<string>();
+        } else {
+            throw std::runtime_error(string("name missing from bt device"));
+        }
+
+        /* Optional uuid vector */
+        if ((obj_iter = dict.find("uuid_vec")) != dict.end()) {
+            MsgpackAdapter::AsStringVector(obj_iter->second, uuid_str_vec);
+
+            for (auto u : uuid_str_vec) {
+                uuid ui(u);
+
+                if (ui.error) {
+                    throw std::runtime_error(string("invalid uuid in service vec from "
+                                "bt device"));
+                }
+
+                bpi->service_uuid_vec.push_back(ui);
+            }
+        }
+    } catch (const std::exception& e) {
+        packetchain->DestroyPacket(packet);
+        delete(bpi);
+
+        stringstream ss;
+        ss << "failed to unpack btdevice bundle: " << e.what();
+        trigger_error(ss.str());
+        
+        return NULL;
+    }
+
+    fprintf(stderr, "debug - got bt device %s %s\n", bpi->address.Mac2String().c_str(), bpi->name.c_str());
+
+    packet->insert(pack_comp_btdevice, bpi);
+
+    return packet;
 }
 
