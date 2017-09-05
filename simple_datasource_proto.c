@@ -404,8 +404,8 @@ simple_cap_proto_kv_t *encode_kv_gps(double in_lat, double in_lon, double in_alt
     return kv;
 }
 
-simple_cap_proto_kv_t *encode_kv_signal(uint32_t signal_dbm, uint32_t signal_rssi, 
-        uint32_t noise_dbm, uint32_t noise_rssi, double freq_khz, char *channel, 
+simple_cap_proto_kv_t *encode_kv_signal(int32_t signal_dbm, uint32_t signal_rssi, 
+        int32_t noise_dbm, uint32_t noise_rssi, double freq_khz, char *channel, 
         double datarate) {
 
     const char *key_signal_dbm = "signal_dbm";
