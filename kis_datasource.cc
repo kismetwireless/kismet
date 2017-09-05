@@ -1303,12 +1303,7 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         dict = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
 
         if (clobber_timestamp && get_source_remote()) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL);
-
-            packet->ts.tv_sec = tv.tv_sec;
-            packet->ts.tv_usec = tv.tv_usec;
-
+            gettimeofday(&(packet->ts), NULL);
         } else {
             if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
                 packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
