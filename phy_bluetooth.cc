@@ -67,7 +67,6 @@ int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
 
     if (btpi == NULL) {
-        fprintf(stderr, "debug - CommonClassifierBluetooth no btdevice\n");
         return 0;
     }
 
