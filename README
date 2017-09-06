@@ -457,10 +457,14 @@ xx. Datasource: Linux Bluetooth
     typically be installed suid-root:  Linux requires root to manipulate the
     'rfkill' state of the Bluetooth interface.
 
+    Example source
+
+        source=hci0:name=linuxbt
+
     Supported Hardware
 
     For simply identifying Bluetooth (and BTLE) devices, the Linux Bluetooth 
-    datasource can use any standard Bluetooth interface supported by Kismet.
+    datasource can use any standard Bluetooth interface supported by Linux.
 
     This includes almost any built-in Bluetooth interface, as well as external
     USB interfaces such as the Sena UD100.
