@@ -513,6 +513,9 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
     struct mgmt_ev_cmd_complete *crec;
     struct mgmt_ev_cmd_status *cstat;
 
+    /* caph */
+    char errstr[STATUS_MAX];
+
     while ((bufsz = kis_simple_ringbuf_used(localbt->read_rbuf)) >= 
             sizeof(bluez_mgmt_command_t)) {
         evt = (bluez_mgmt_command_t *) malloc(bufsz);
@@ -580,6 +583,14 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                             rlength - sizeof(bluez_mgmt_command_t),
                             evt->param);
                     break;
+                case MGMT_EV_INDEX_REMOVED:
+                    /* we only get here if rindex matches, so we know our own 
+                     * device got removed */
+                    snprintf(errstr, STATUS_MAX, 
+                            "Bluetooth interface hci%u was removed", rindex);
+                    cf_send_error(localbt->caph, errstr);
+                    break;
+
                 default:
                     break;
             }
