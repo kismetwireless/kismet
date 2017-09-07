@@ -630,14 +630,6 @@ DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
-DBUSGLIBCFLAGS
-DBUSGLIBLIBS
-dbusglib1_LIBS
-dbusglib1_CFLAGS
-GLIBCFLAGS
-GLIBLIBS
-glib20_LIBS
-glib20_CFLAGS
 NLCFLAGS
 NLLIBS
 libnl1_LIBS
@@ -794,11 +786,7 @@ libnlgenl30_LIBS
 libnl20_CFLAGS
 libnl20_LIBS
 libnl1_CFLAGS
-libnl1_LIBS
-glib20_CFLAGS
-glib20_LIBS
-dbusglib1_CFLAGS
-dbusglib1_LIBS'
+libnl1_LIBS'
 ac_subdirs_all='${BUNDLE_MSGPACK}'
 
 # Initialize some variables set by options.
@@ -1481,13 +1469,6 @@ Some influential environment variables:
   libnl1_CFLAGS
               C compiler flags for libnl1, overriding pkg-config
   libnl1_LIBS linker flags for libnl1, overriding pkg-config
-  glib20_CFLAGS
-              C compiler flags for glib20, overriding pkg-config
-  glib20_LIBS linker flags for glib20, overriding pkg-config
-  dbusglib1_CFLAGS
-              C compiler flags for dbusglib1, overriding pkg-config
-  dbusglib1_LIBS
-              linker flags for dbusglib1, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -9974,189 +9955,9 @@ fi
 
 
 
-
-# Look for glib2 for linux bluetooth
-GLIBLIBS=""
-GLIBCFLAGS=""
-
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for glib20" >&5
-$as_echo_n "checking for glib20... " >&6; }
-
-if test -n "$glib20_CFLAGS"; then
-    pkg_cv_glib20_CFLAGS="$glib20_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"glib-2.0\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "glib-2.0") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_glib20_CFLAGS=`$PKG_CONFIG --cflags "glib-2.0" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-if test -n "$glib20_LIBS"; then
-    pkg_cv_glib20_LIBS="$glib20_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"glib-2.0\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "glib-2.0") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_glib20_LIBS=`$PKG_CONFIG --libs "glib-2.0" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
-else
-        _pkg_short_errors_supported=no
-fi
-        if test $_pkg_short_errors_supported = yes; then
-	        glib20_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "glib-2.0" 2>&1`
-        else
-	        glib20_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "glib-2.0" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$glib20_PKG_ERRORS" >&5
-
-	haveglib2=no
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	haveglib2=no
-else
-	glib20_CFLAGS=$pkg_cv_glib20_CFLAGS
-	glib20_LIBS=$pkg_cv_glib20_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-	haveglib2=yes
-fi
-if test $haveglib2 = yes; then
-    GLIBLIBS=`pkg-config --libs glib-2.0`
-    GLIBCFLAGS=`pkg-config --cflags glib-2.0`
-
-$as_echo "#define HAVE_GLIB2 1" >>confdefs.h
-
-fi
-
-
-
-
-
-# Look for glib2-dbus for linux bluetooth
-DBUSGLIBLIBS=""
-DBUSGLIBCFLAGS=""
-
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dbusglib1" >&5
-$as_echo_n "checking for dbusglib1... " >&6; }
-
-if test -n "$dbusglib1_CFLAGS"; then
-    pkg_cv_dbusglib1_CFLAGS="$dbusglib1_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"dbus-glib-1\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "dbus-glib-1") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_dbusglib1_CFLAGS=`$PKG_CONFIG --cflags "dbus-glib-1" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-if test -n "$dbusglib1_LIBS"; then
-    pkg_cv_dbusglib1_LIBS="$dbusglib1_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"dbus-glib-1\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "dbus-glib-1") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_dbusglib1_LIBS=`$PKG_CONFIG --libs "dbus-glib-1" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
-else
-        _pkg_short_errors_supported=no
-fi
-        if test $_pkg_short_errors_supported = yes; then
-	        dbusglib1_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "dbus-glib-1" 2>&1`
-        else
-	        dbusglib1_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "dbus-glib-1" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$dbusglib1_PKG_ERRORS" >&5
-
-	havedbusglib=no
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	havedbusglib=no
-else
-	dbusglib1_CFLAGS=$pkg_cv_dbusglib1_CFLAGS
-	dbusglib1_LIBS=$pkg_cv_dbusglib1_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-	havedbusglib=yes
-fi
-if test $havedbusglib = yes; then
-    DBUSGLIBLIBS=`pkg-config --libs dbus-glib-1`
-    DBUSGLIBCFLAGS=`pkg-config --cflags dbus-glib-1`
-
-$as_echo "#define HAVE_DBUSGLIB 1" >>confdefs.h
-
-fi
-
-
-
-
 if test "$linux" = "yes"; then
-    if test "$haveglib2" != "yes" -o "$havedbusglib" != "yes"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"Missing glib2 or dbus-glib-1 can not build Linux bluetooth support\"" >&5
-$as_echo "$as_me: WARNING: \"Missing glib2 or dbus-glib-1 can not build Linux bluetooth support\"" >&2;}
-        BUILD_CAPTURE_LINUX_BLUETOOTH=0
-    else
-        BUILD_CAPTURE_LINUX_BLUETOOTH=1
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
-    fi
+    BUILD_CAPTURE_LINUX_BLUETOOTH=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
 fi
 
 if test "$darwin" = "yes"; then
@@ -11716,7 +11517,7 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
-printf "   Prelude SIEM       : $wantprelude\n"
+printf "        Prelude  SIEM : $wantprelude\n"
 printf "   OSX/Darwin capture : "
 if test "$darwin" = "yes"; then
 	echo "yes"

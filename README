@@ -455,7 +455,7 @@ xx. Datasource: Linux Bluetooth
 
     The Linux Bluetooth capture uses the 'kismet_cap_linux_bluetooth' tool, and should
     typically be installed suid-root:  Linux requires root to manipulate the
-    'rfkill' state of the Bluetooth interface.
+    'rfkill' state and the management socket of the Bluetooth interface.
 
     Example source
 
@@ -469,7 +469,7 @@ xx. Datasource: Linux Bluetooth
     This includes almost any built-in Bluetooth interface, as well as external
     USB interfaces such as the Sena UD100.
 
-    Inactive Scanning
+    Service Scanning
 
     By default, the Kismet Linux Bluetooth data source turns on the Bluetooth
     interface and enables scanning mode.  This allows it to see broadcasting

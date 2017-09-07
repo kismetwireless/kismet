@@ -1207,44 +1207,9 @@ fi
 AC_SUBST(NLLIBS)
 AC_SUBST(NLCFLAGS)
 
-
-# Look for glib2 for linux bluetooth
-GLIBLIBS=""
-GLIBCFLAGS=""
-
-PKG_CHECK_MODULES(glib20, [glib-2.0], haveglib2=yes, haveglib2=no)
-if test $haveglib2 = yes; then
-    GLIBLIBS=`pkg-config --libs glib-2.0`
-    GLIBCFLAGS=`pkg-config --cflags glib-2.0`
-    AC_DEFINE(HAVE_GLIB2, 1, Glib2 library available)
-fi
-
-AC_SUBST(GLIBLIBS)
-AC_SUBST(GLIBCFLAGS)
-
-
-# Look for glib2-dbus for linux bluetooth
-DBUSGLIBLIBS=""
-DBUSGLIBCFLAGS=""
-
-PKG_CHECK_MODULES(dbusglib1, [dbus-glib-1], havedbusglib=yes, havedbusglib=no)
-if test $havedbusglib = yes; then
-    DBUSGLIBLIBS=`pkg-config --libs dbus-glib-1`
-    DBUSGLIBCFLAGS=`pkg-config --cflags dbus-glib-1`
-    AC_DEFINE(HAVE_DBUSGLIB, 1, DBUS-Glib1 library available)
-fi
-
-AC_SUBST(DBUSGLIBLIBS)
-AC_SUBST(DBUSGLIBCFLAGS)
-
 if test "$linux" = "yes"; then
-    if test "$haveglib2" != "yes" -o "$havedbusglib" != "yes"; then
-        AC_MSG_WARN("Missing glib2 or dbus-glib-1 can not build Linux bluetooth support")
-        BUILD_CAPTURE_LINUX_BLUETOOTH=0
-    else
-        BUILD_CAPTURE_LINUX_BLUETOOTH=1
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
-    fi
+    BUILD_CAPTURE_LINUX_BLUETOOTH=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
 fi
 
 if test "$darwin" = "yes"; then
@@ -1360,7 +1325,7 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
-printf "   Prelude SIEM       : $wantprelude\n"
+printf "        Prelude  SIEM : $wantprelude\n"
 printf "   OSX/Darwin capture : "
 if test "$darwin" = "yes"; then
 	echo "yes"

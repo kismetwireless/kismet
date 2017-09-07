@@ -47,12 +47,13 @@
  * Content:
  *
  * Msgpack packed dictionary containing the following:
- * "address": String mac address of the device
- * "name": String name of the device, as advertised (optional)
+ * "address": (string) String mac address of the device
+ * "name": (string) String name of the device, as advertised (optional)
  * "uuid_vec": Vetor of string UUIDs (optional)
- * "tv_sec": Unix timestamp second component
- * "tv_usec": Unix timestamp microsecond component
- * "txpower": Transmit power, if advertised (optional)
+ * "tv_sec": (uint64_t) Unix timestamp second component
+ * "tv_usec": (uint64_t) Unix timestamp microsecond component
+ * "txpower": (int) Transmit power, if advertised (optional)
+ * "addrtype": (uint) Address type
  *
  */
 
@@ -67,75 +68,99 @@
 #include <sys/signalfd.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <dirent.h>
 
-#include <glib.h>
-
-#include "gdbus/gdbus.h"
-
-#include "bluetooth.h"
-#include "hci.h"
+#include "mgmtlib/bluetooth.h"
+#include "mgmtlib/hci.h"
+#include "mgmtlib/mgmt.h"
 
 #include "linux_bt_rfkill.h"
 
 #include "../simple_datasource_proto.h"
+#include "../simple_ringbuf_c.h"
 #include "../capture_framework.h"
 
 /* Unique instance data passed around by capframework */
 typedef struct {
     /* Target interface */
     char *bt_interface;
-    char *bt_interface_address;
+    char *bt_interface_str_address;
 
-    /* Are we already in the middle of issuing a command? */
-    int state_powering_on;
-    int state_scanning_on;
+    /* Raw (inverse) bdaddress */
+    uint8_t bt_interface_address[6];
+
+    /* bluez management interface socket */
+    int mgmt_fd;
+    unsigned int devid;
+
+    /* Read ringbuf */
+    kis_simple_ringbuf_t *read_rbuf;
+
+    /* Scanning type */
+    uint8_t scan_type;
 
     kis_capture_handler_t *caph;
 } local_bluetooth_t;
 
-/* Command data passed around during instance events */
-typedef struct {
-    /* Local state reference */
-    local_bluetooth_t *localbt;
+#define SCAN_TYPE_BREDR (1 << BDADDR_BREDR)
+#define SCAN_TYPE_LE ((1 << BDADDR_LE_PUBLIC) | (1 << BDADDR_LE_RANDOM))
+#define SCAN_TYPE_DUAL (SCAN_TYPE_BREDR | SCAN_TYPE_LE)
 
-    /* Dbus proxy object */
-    GDBusProxy *proxy;
-} local_command_t;
+/* Outbound commands */
+typedef struct {
+    uint16_t opcode;
+    uint16_t index;
+    uint16_t length;
+    uint8_t param[0];
+} bluez_mgmt_command_t;
+
+/* Convert an address to a string; string must hold at least 18 bytes */
+#define BDADDR_STR_LEN      18
+
+static char *eir_get_name(const uint8_t *eir, uint16_t eir_len);
+static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len);
+void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
 /* Encode a BTDEVICE KV pair */
-simple_cap_proto_kv_t *encode_kv_btdevice(GDBusProxy *proxy) {
+simple_cap_proto_kv_t *encode_kv_btdevice(struct mgmt_ev_device_found *dev) {
     const char *key_address = "address";
     const char *key_name = "name";
     const char *key_uuid_vec = "uuid_vec";
     const char *key_tv_sec = "tv_sec";
     const char *key_tv_usec = "tv_usec";
     const char *key_txpower = "txpower";
+    const char *key_type = "type";
 
-    DBusMessageIter iter, value;
-    const char *str = NULL;
-    dbus_int16_t txpower = 0;
+    char address[BDADDR_STR_LEN];
+    char *name;
 
-    if (g_dbus_proxy_get_property(proxy, "Address", &iter))
-        dbus_message_iter_get_basic(&iter, &str);
-    else
-        return NULL;
+    uint16_t eirlen;
 
     simple_cap_proto_kv_t *kv;
     size_t content_sz;
 
     struct timeval tv;
 
-    /* Address and time always */
-    size_t num_fields = 3;
+    /* Address, 2 time fields, type are always sent */
+    size_t num_fields = 4;
 
-    if (g_dbus_proxy_get_property(proxy, "Name", &iter))
+    /* Extract the name from EIR */
+    eirlen = le16toh(dev->eir_len);
+    name = eir_get_name(dev->eir, eirlen);
+
+    bdaddr_to_string(dev->addr.bdaddr.b, address);
+
+    if (name != NULL)
         num_fields++;
 
+    /* We don't get these, yet, from the mgmtsock */
+    /*
     if (g_dbus_proxy_get_property(proxy, "UUIDs", &iter))
         num_fields++;
 
     if (g_dbus_proxy_get_property(proxy, "TxPower", &iter))
         num_fields++;
+    */
 
     msgpuck_buffer_t *puckbuffer;
 
@@ -150,7 +175,7 @@ simple_cap_proto_kv_t *encode_kv_btdevice(GDBusProxy *proxy) {
 
     /* Always encode address and timestamp */
     mp_b_encode_str(puckbuffer, key_address, strlen(key_address));
-    mp_b_encode_str(puckbuffer, str, strlen(str));
+    mp_b_encode_str(puckbuffer, address, strlen(address));
 
     gettimeofday(&tv, NULL);
 
@@ -160,12 +185,16 @@ simple_cap_proto_kv_t *encode_kv_btdevice(GDBusProxy *proxy) {
     mp_b_encode_str(puckbuffer, key_tv_usec, strlen(key_tv_usec));
     mp_b_encode_uint(puckbuffer, tv.tv_usec);
 
-    if (g_dbus_proxy_get_property(proxy, "Name", &iter)) {
-        dbus_message_iter_get_basic(&iter, &str);
+    mp_b_encode_str(puckbuffer, key_type, strlen(key_type));
+    mp_b_encode_uint(puckbuffer, dev->addr.type);
+
+    if (name != NULL) {
         mp_b_encode_str(puckbuffer, key_name, strlen(key_name));
-        mp_b_encode_str(puckbuffer, str, strlen(str));
+        mp_b_encode_str(puckbuffer, name, strlen(name));
+        free(name);
     }
 
+    /*
     if (g_dbus_proxy_get_property(proxy, "TxPower", &iter)) {
         dbus_message_iter_get_basic(&iter, &txpower);
 
@@ -198,6 +227,7 @@ simple_cap_proto_kv_t *encode_kv_btdevice(GDBusProxy *proxy) {
             }
         }
     }
+    */
 
     content_sz = mp_b_used_buffer(puckbuffer);
 
@@ -218,279 +248,345 @@ simple_cap_proto_kv_t *encode_kv_btdevice(GDBusProxy *proxy) {
     return kv;
 }
 
-int cf_send_btdevice(local_command_t *cmd) {
-    DBusMessageIter iter;
+int cf_send_btdevice(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
     size_t num_kvs = 2;
-    dbus_int16_t rssi = 0;
 
     simple_cap_proto_kv_t **kv_pairs;
-
-    if (g_dbus_proxy_get_property(cmd->proxy, "RSSI", &iter))
-        dbus_message_iter_get_basic(&iter, &rssi);
-    else
-        return 0;
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
 
-    kv_pairs[0] = encode_kv_btdevice(cmd->proxy);
+    kv_pairs[0] = encode_kv_btdevice(dev);
     
     if (kv_pairs[0] == NULL) {
         free(kv_pairs);
         return -1;
     }
 
-    kv_pairs[1] = encode_kv_signal(rssi, 0, 0, 0, 0.0f, NULL, 0.0f);
+    kv_pairs[1] = encode_kv_signal(dev->rssi, 0, 0, 0, 0.0f, NULL, 0.0f);
     if (kv_pairs[1] == NULL) {
         free(kv_pairs[0]);
         free(kv_pairs);
         return -1;
     }
 
-    return cf_stream_packet(cmd->localbt->caph, "LINUXBTDEVICE", kv_pairs, 2);
+    return cf_stream_packet(localbt->caph, "LINUXBTDEVICE", kv_pairs, 2);
 }
 
-/* Figure out if a given adapter is powered on */
-static dbus_bool_t dbus_adapter_is_powered(GDBusProxy *proxy) {
-    DBusMessageIter iter;
-    dbus_bool_t iter_bool;
+void bdaddr_to_string(const uint8_t *bdaddr, char *str) {
+    snprintf(str, 18, "%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X",
+            bdaddr[5], bdaddr[4], bdaddr[3],
+            bdaddr[2], bdaddr[1], bdaddr[0]);
+}
 
-    /* Make sure the interface is powered on */
-    if (!g_dbus_proxy_get_property(proxy, "Powered", &iter)) {
-        /* We'll throw an error later when we try to turn it on */
-        return FALSE;
+/* Connect to the bluez management system */
+int mgmt_connect() {
+    int fd;
+    struct sockaddr_hci addr;
+
+    if ((fd = socket(PF_BLUETOOTH, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, 
+                    BTPROTO_HCI)) < 0) {
+        return -errno;
     }
 
-    dbus_message_iter_get_basic(&iter, &iter_bool);
-    return iter_bool;
+    memset(&addr, 0, sizeof(addr));
+    addr.hci_family = AF_BLUETOOTH;
+    addr.hci_dev = HCI_DEV_NONE;
+    addr.hci_channel = HCI_CHANNEL_CONTROL;
+
+    if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        int err = -errno;
+        close(fd);
+        return err;
+    }
+    
+    return fd;
 }
 
-/* Figure out if a given adapter is scanning */
-static dbus_bool_t dbus_adapter_is_scanning(GDBusProxy *proxy) {
-    DBusMessageIter iter;
-    dbus_bool_t iter_bool;
+/* Write a request to the management socket ringbuffer, serviced by the
+ * select() loop */
+int mgmt_write_request(int mgmt_fd, uint16_t opcode, uint16_t index, 
+        uint16_t length, const void *param) {
+    bluez_mgmt_command_t *cmd;
+    size_t pksz = sizeof(bluez_mgmt_command_t) + length;
+    ssize_t written_sz;
 
-    /* Make sure the interface is powered on */
-    if (!g_dbus_proxy_get_property(proxy, "Discovering", &iter)) {
-        /* We'll throw an error later when we try to turn it on */
-        return FALSE;
+    if (opcode == 0) {
+        return -1;
     }
 
-    dbus_message_iter_get_basic(&iter, &iter_bool);
+    if (length > 0 && param == NULL) {
+        return -1;
+    }
 
-    return iter_bool;
+    cmd = (bluez_mgmt_command_t *) malloc(pksz);
+
+    cmd->opcode = htole16(opcode);
+    cmd->index = htole16(index);
+    cmd->length = htole16(length);
+
+    if (length != 0 && param != NULL) {
+        memcpy(cmd->param, param, length);
+    }
+
+    if ((written_sz = send(mgmt_fd, cmd, pksz, 0)) < 0) {
+        fprintf(stderr, "FATAL - Failed to send to mgmt sock %d: %s\n",
+                mgmt_fd, strerror(errno));
+        free(cmd);
+        exit(1);
+    }
+
+    free(cmd);
+
+    return 1;
 }
 
-/* Scan command callback */
-static void dbus_adapter_scan_reply(DBusMessage *message, void *user_data) {
-    DBusError error;
-    local_command_t *cmd = (local_command_t *) user_data;
+/* Initiate finding a device */
+int cmd_start_discovery(local_bluetooth_t *localbt) {
+    struct mgmt_cp_start_discovery cp;
+
+    memset(&cp, 0, sizeof(cp));
+    cp.type = localbt->scan_type;
+
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_START_DISCOVERY, 
+            localbt->devid, sizeof(cp), &cp);
+}
+
+/* Probe the controller */
+int cmd_get_controller_info(local_bluetooth_t *localbt) {
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_READ_INFO, localbt->devid, 0, NULL);
+}
+
+int cmd_enable_controller(local_bluetooth_t *localbt) {
+    uint8_t val = 0x1;
+
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_POWERED, localbt->devid, 
+            sizeof(val), &val);
+}
+
+/* Handle controller info response */
+void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t len, 
+        const void *param) {
+    const struct mgmt_rp_read_info *rp = (struct mgmt_rp_read_info *) param;
+    char bdaddr[BDADDR_STR_LEN];
+
+    if (len < sizeof(struct mgmt_rp_read_info)) {
+        return;
+    }
+
+    bdaddr_to_string(rp->bdaddr.b, bdaddr);
+
+    /* Figure out if we support BDR/EDR and BTLE */
+    if (!(rp->supported_settings & MGMT_SETTING_BREDR)) {
+        localbt->scan_type &= ~SCAN_TYPE_BREDR;
+    }
+
+    if (!(rp->supported_settings & MGMT_SETTING_LE)) {
+        localbt->scan_type &= ~SCAN_TYPE_LE;
+    }
+
+    /* Is it currently powered? */
+    if (!(rp->current_settings & MGMT_SETTING_POWERED)) {
+        /* If the interface is off, turn it on */
+        cmd_enable_controller(localbt);
+    } else {
+        /* If the interface is on, start scanning */
+        cmd_start_discovery(localbt);
+    }
+}
+
+void resp_controller_power(local_bluetooth_t *localbt, uint8_t status, uint16_t len,
+        const void *param) {
+    uint32_t *settings = (uint32_t *) param;
     char errstr[STATUS_MAX];
 
-    dbus_error_init(&error);
-
-    cmd->localbt->state_scanning_on = 0;
-
-    if (dbus_set_error_from_message(&error, message) == TRUE) {
-        snprintf(errstr, STATUS_MAX, "Unable to turn on scanning - %s: %s",
-                error.name, error.message);
-        cf_send_error(cmd->localbt->caph, errstr);
-    }
-}
-
-static void dbus_initiate_adapter_scan(local_command_t *cmd) {
-    const char *method = "StartDiscovery";
-
-    if (cmd->localbt->state_scanning_on) {
+    if (len < sizeof(uint32_t)) {
         return;
     }
 
-    cmd->localbt->state_scanning_on = 1;
-
-    if (g_dbus_proxy_method_call(cmd->proxy, method, NULL,
-                dbus_adapter_scan_reply, cmd, NULL) == FALSE) {
-        cf_send_error(cmd->localbt->caph, "Unable to turn on discovery mode");
+    if (*settings & MGMT_SETTING_POWERED) {
+        /* Initiate scanning mode */
+        cmd_start_discovery(localbt);
+    } else {
+        snprintf(errstr, STATUS_MAX, "Interface %s failed to power on",
+                localbt->bt_interface);
+        cf_send_error(localbt->caph, errstr);
         return;
     }
 }
 
-static void dbus_adapter_poweron_reply(const DBusError *error, void *user_data) {
-    local_command_t *cmd = (local_command_t *) user_data;
-    char errstr[STATUS_MAX];
+void evt_controller_discovering(local_bluetooth_t *localbt, uint16_t len, const void *param) {
+    struct mgmt_ev_discovering *dsc = (struct mgmt_ev_discovering *) param;
 
-    cmd->localbt->state_powering_on = 0;
-
-    if (dbus_error_is_set(error)) {
-        snprintf(errstr, STATUS_MAX, "Unable to turn on interface power - %s:%s",
-                error->name, error->message);
-        cf_send_error(cmd->localbt->caph, errstr);
+    if (len < sizeof(struct mgmt_ev_discovering)) {
         return;
     }
 
-    /* Do we need to enable scanning mode?  We probably do */
-    if (!dbus_adapter_is_scanning(cmd->proxy)) {
-        dbus_initiate_adapter_scan(cmd);
+    if (!dsc->discovering) {
+        cmd_start_discovery(localbt);
     }
+
 }
 
-static void dbus_initiate_adapter_poweron(local_command_t *cmd) {
-    dbus_bool_t powered = TRUE;
-    char errstr[STATUS_MAX];
+static char *eir_get_name(const uint8_t *eir, uint16_t eir_len) {
+    uint8_t parsed = 0;
 
-    if (cmd->localbt->state_powering_on) {
+    if (eir_len < 2)
+        return NULL;
+
+    while (parsed < eir_len - 1) {
+        uint8_t field_len = eir[0];
+
+        if (field_len == 0)
+            break;
+
+        parsed += field_len + 1;
+
+        if (parsed > eir_len)
+            break;
+
+        /* Check for short of complete name */
+        if (eir[1] == 0x09 || eir[1] == 0x08)
+            return strndup((char *) &eir[2], field_len - 1);
+
+        eir += field_len + 1;
+    }
+
+    return NULL;
+}
+
+static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len) {
+    uint8_t parsed = 0;
+
+    if (eir_len < 2)
+        return 0;
+
+    while (parsed < eir_len - 1) {
+        uint8_t field_len = eir[0];
+
+        if (field_len == 0)
+            break;
+
+        parsed += field_len + 1;
+
+        if (parsed > eir_len)
+            break;
+
+        /* Check for flags */
+        if (eir[1] == 0x01)
+            return eir[2];
+
+        eir += field_len + 1;
+    }
+
+    return 0;
+}
+
+/* Actual device found in scan trigger */
+void evt_device_found(local_bluetooth_t *localbt, uint16_t len, const void *param) {
+    struct mgmt_ev_device_found *dev = (struct mgmt_ev_device_found *) param;
+
+    if (len < sizeof(struct mgmt_ev_device_found)) {
         return;
     }
 
-    cmd->localbt->state_powering_on = 1;
-
-    if (g_dbus_proxy_set_property_basic(cmd->proxy, "Powered", DBUS_TYPE_BOOLEAN, &powered,
-                dbus_adapter_poweron_reply, cmd, NULL) == FALSE) {
-        snprintf(errstr, STATUS_MAX, "Unable to turn on interface power");
-        cf_send_error(cmd->localbt->caph, errstr);
-    }
+    cf_send_btdevice(localbt, dev);
 }
 
-/* Called when devices change; grab info about the device and print it out */
-static void dbus_bt_device(local_command_t *cmd) {
-    DBusMessageIter iter;
+void handle_mgmt_response(local_bluetooth_t *localbt) {
+    /* Top-level command */
+    bluez_mgmt_command_t *evt;
 
-    const char *name = NULL;
-    const char *address = NULL;
-    dbus_int16_t rssi = 0;
+    /* Buffer loading sizes */
+    size_t bufsz;
+    size_t peekedsz;
 
-    if (g_dbus_proxy_get_property(cmd->proxy, "Address", &iter))
-        dbus_message_iter_get_basic(&iter, &address);
+    /* Interpreted codes from response */
+    uint16_t ropcode;
+    uint16_t rlength;
+    uint16_t rindex;
 
-    if (g_dbus_proxy_get_property(cmd->proxy, "Name", &iter))
-        dbus_message_iter_get_basic(&iter, &name);
+    /* Nested records */
+    struct mgmt_ev_cmd_complete *crec;
+    struct mgmt_ev_cmd_status *cstat;
 
-    if (g_dbus_proxy_get_property(cmd->proxy, "RSSI", &iter))
-        dbus_message_iter_get_basic(&iter, &rssi);
+    while ((bufsz = kis_simple_ringbuf_used(localbt->read_rbuf)) >= 
+            sizeof(bluez_mgmt_command_t)) {
+        evt = (bluez_mgmt_command_t *) malloc(bufsz);
 
-    if (rssi == 0)
-        return;
-
-    // fprintf(stderr, "DEVICE - %s (%s) %d\n", address, name, rssi);
-    cf_send_btdevice(cmd);
-}
-
-/* Called whenever a dbus entity is connected (specifically, adapter and 
- * device) */
-static void dbus_proxy_added(GDBusProxy *proxy, void *user_data) {
-    const char *interface;
-    DBusMessageIter iter;
-    const char *address;
-    local_bluetooth_t *localbt = (local_bluetooth_t *) user_data;
-    local_command_t cmd = {
-        .localbt = localbt,
-        .proxy = proxy,
-    };
-
-    interface = g_dbus_proxy_get_interface(proxy);
-
-    if (!strcmp(interface, "org.bluez.Device1")) {
-        dbus_bt_device(&cmd);
-    } else if (!strcmp(interface, "org.bluez.Adapter1")) {
-        /* We've been notified there's a new adapter; we need to compare it to our
-         * desired adapter, see if it has scan enabled, and enable scan if it
-         * doesn't
-         */
-
-        /* Fetch address */
-        if (g_dbus_proxy_get_property(proxy, "Address", &iter)) {
-            dbus_message_iter_get_basic(&iter, &address);
-
-            /* Compare to the address we extracted for the hciX */
-            if (strcmp(address, localbt->bt_interface_address)) {
-                return;
-            }
-
-            /* See if adapter is powered on; if not, power it on, we'll enable
-             * scanning in the poweron completion */
-            if (!dbus_adapter_is_powered(proxy)) {
-                dbus_initiate_adapter_poweron(&cmd);
-                return;
-            } 
-
-            /* See if adapter is already scanning; if not, enable scanning */
-            if (!dbus_adapter_is_scanning(proxy)) {
-                dbus_initiate_adapter_scan(&cmd);
-            }
-        }
-    }
-}
-
-/* Called when an entity is removed; if we lose our primary adapter we're
- * going to have a bad time */
-static void dbus_proxy_removed(GDBusProxy *proxy, void *user_data) {
-    const char *interface;
-    DBusMessageIter iter;
-    const char *address;
-    local_bluetooth_t *localbt = (local_bluetooth_t *) user_data;
-    char errstr[STATUS_MAX];
-
-    interface = g_dbus_proxy_get_interface(proxy);
-
-    if (!strcmp(interface, "org.bluez.Adapter1")) {
-        /* Fetch address */
-        if (g_dbus_proxy_get_property(proxy, "Address", &iter)) {
-            dbus_message_iter_get_basic(&iter, &address);
-
-            /* Compare to the address we extracted for the hciX */
-            if (strcmp(address, localbt->bt_interface_address)) {
-                return;
-            }
-
-            snprintf(errstr, STATUS_MAX, "Bluetooth interface removed");
-            cf_send_error(localbt->caph, errstr);
+        if ((peekedsz = kis_simple_ringbuf_peek(localbt->read_rbuf, (void *) evt, bufsz)) < 
+                sizeof(bluez_mgmt_command_t)) {
+            free(evt);
             return;
         }
-    }
-}
 
-static void dbus_property_changed(GDBusProxy *proxy, const char *name,
-        DBusMessageIter *iter, void *user_data) {
-    const char *interface;
-    local_bluetooth_t *localbt = (local_bluetooth_t *) user_data;
-    local_command_t cmd = {
-        .localbt = localbt,
-        .proxy = proxy,
-    };
+        ropcode = le16toh(evt->opcode);
+        rindex = le16toh(evt->index);
+        rlength = le16toh(evt->length);
 
-    interface = g_dbus_proxy_get_interface(proxy);
+        if (rlength + sizeof(bluez_mgmt_command_t) > peekedsz) {
+            free(evt);
+            return;
+        }
 
-    if (!strcmp(interface, "org.bluez.Device1")) {
-        /* Shove devices at the device handler directly */
-        dbus_bt_device(&cmd);
-    } else if (!strcmp(interface, "org.bluez.Adapter1")) {
-        /* If the adapter changed, maybe we need to inventory its state */
-        DBusMessageIter addr_iter;
+        /* Consume this object from the buffer */
+        kis_simple_ringbuf_read(localbt->read_rbuf, NULL, 
+                sizeof(bluez_mgmt_command_t) + rlength);
 
-        if (g_dbus_proxy_get_property(proxy, "Address", &addr_iter) == TRUE) {
-            const char *address;
+        /* Ignore events not for us */
+        if (rindex != localbt->devid) {
+            continue;
+        }
 
-            dbus_message_iter_get_basic(&addr_iter, &address);
-
-            /* Is this the adapter we care about? */
-            if (strcmp(address, localbt->bt_interface_address)) {
-                return;
+        if (ropcode == MGMT_EV_CMD_COMPLETE) {
+            if (rlength < sizeof(struct mgmt_ev_cmd_complete)) {
+                free(evt);
+                continue;
             }
 
-            /* See if adapter is powered on; if not, power it on, we'll enable
-             * scanning in the poweron completion */
-            if (!dbus_adapter_is_powered(proxy)) {
-                dbus_initiate_adapter_poweron(&cmd);
-                return;
-            } 
+            crec = (struct mgmt_ev_cmd_complete *) evt->param;
 
-            /* See if adapter is already scanning; if not, enable scanning */
-            if (!dbus_adapter_is_scanning(proxy)) {
-                dbus_initiate_adapter_scan(&cmd);
-                return;
+            ropcode = le16toh(crec->opcode);
+
+            /* Handle the different opcodes */
+            switch (ropcode) {
+                case MGMT_OP_READ_INFO:
+                    resp_controller_info(localbt, crec->status, 
+                            rlength - sizeof(struct mgmt_ev_cmd_complete),
+                            crec->data);
+                    break;
+                case MGMT_OP_SET_POWERED:
+                    resp_controller_power(localbt, crec->status,
+                            rlength - sizeof(struct mgmt_ev_cmd_complete),
+                            crec->data);
+                    break;
+                default:
+                    break;
+            }
+        } else if (ropcode == MGMT_EV_CMD_STATUS) {
+            /* fprintf(stderr, "DEBUG - command status hci%u len %u\n", rindex, rlength); */
+        } else {
+            switch (ropcode) {
+                case MGMT_EV_DISCOVERING:
+                    evt_controller_discovering(localbt, 
+                            rlength - sizeof(bluez_mgmt_command_t),
+                            evt->param);
+                    break;
+                case MGMT_EV_DEVICE_FOUND:
+                    evt_device_found(localbt,
+                            rlength - sizeof(bluez_mgmt_command_t),
+                            evt->param);
+                    break;
+                default:
+                    break;
             }
         }
+
+        /* Dump the temp object */
+        free(evt);
     }
 }
+
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, simple_cap_proto_frame_t *frame,
@@ -665,6 +761,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     di.dev_id = devid;
+    localbt->devid = devid;
 
     if (ioctl(hci_sock, HCIGETDEVINFO, (void *) &di)) {
         snprintf(msg, STATUS_MAX, "Unable to get device info: %s", 
@@ -696,9 +793,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             di.bdaddr.b[5], di.bdaddr.b[4], di.bdaddr.b[3],
             di.bdaddr.b[2], di.bdaddr.b[1], di.bdaddr.b[0]);
 
-    if (localbt->bt_interface_address != NULL)
-        free(localbt->bt_interface_address);
-    localbt->bt_interface_address = strdup(textaddr);
+    if (localbt->bt_interface_str_address != NULL)
+        free(localbt->bt_interface_str_address);
+
+    memcpy(localbt->bt_interface_address, di.bdaddr.b, 6);
+    localbt->bt_interface_str_address = strdup(textaddr);
 
     if (linux_sys_get_bt_rfkill(localbt->bt_interface, LINUX_BT_RFKILL_TYPE_HARD)) {
         snprintf(msg, STATUS_MAX, "Bluetooth interface %s is hard blocked by rfkill, "
@@ -720,39 +819,107 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->capif = strdup(localbt->bt_interface);
 
+    if (localbt->mgmt_fd > 0)
+        close(localbt->mgmt_fd);
+
+    if ((localbt->mgmt_fd = mgmt_connect()) < 0) {
+        snprintf(errstr, STATUS_MAX, "Could not connect to kernel bluez management socket: %s",
+                strerror(-(localbt->mgmt_fd)));
+        return -1;
+    }
+
+    /* Set up our ringbuffers */
+    if (localbt->read_rbuf)
+        kis_simple_ringbuf_free(localbt->read_rbuf);
+
+    localbt->read_rbuf = kis_simple_ringbuf_create(4096);
+
+    if (localbt->read_rbuf == NULL) {
+        snprintf(errstr, STATUS_MAX, "Could not allocate ringbuffers");
+        close(localbt->mgmt_fd);
+        return -1;
+    }
+
+    cmd_get_controller_info(localbt);
+
     return 1;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
     local_bluetooth_t *localbt = (local_bluetooth_t *) caph->userdata;
-    GDBusClient *client;
 
-    static GMainLoop *main_loop;
-    static DBusConnection *dbus_connection;
+    /* Ringbuffer and select mgmt stuff */
+    fd_set rset;
+    struct timeval tm;
+    char errstr[STATUS_MAX];
 
-    main_loop = g_main_loop_new(NULL, FALSE);
-    dbus_connection = g_dbus_setup_bus(DBUS_BUS_SYSTEM, NULL, NULL);
-    g_dbus_attach_object_manager(dbus_connection);
+    while (1) {
+        if (caph->spindown) {
+            close(localbt->mgmt_fd);
+            localbt->mgmt_fd = -1;
 
-    client = g_dbus_client_new(dbus_connection, "org.bluez", "/org/bluez");
+            kis_simple_ringbuf_free(localbt->read_rbuf);
+            localbt->read_rbuf = NULL;
+            break;
+        }
 
-    g_dbus_client_set_proxy_handlers(client, dbus_proxy_added, 
-            dbus_proxy_removed, dbus_property_changed, localbt);
+        FD_ZERO(&rset);
 
-    g_main_loop_run(main_loop);
+        tm.tv_sec = 0;
+        tm.tv_usec = 100000;
 
-    g_dbus_client_unref(client);
-    dbus_connection_unref(dbus_connection);
-    g_main_loop_unref(main_loop);
+        /* Always set read buffer */
+        FD_SET(localbt->mgmt_fd, &rset);
+
+        if (select(localbt->mgmt_fd + 1, &rset, NULL, NULL, &tm) < 0) {
+            if (errno != EINTR && errno != EAGAIN) {
+                fprintf(stderr, "FATAL: Select failed %s\n", strerror(errno));
+                exit(1);
+            }
+
+            continue;
+        }
+
+        if (FD_ISSET(localbt->mgmt_fd, &rset)) {
+            while (kis_simple_ringbuf_available(localbt->read_rbuf)) {
+                ssize_t amt_read;
+                size_t amt_buffered;
+                uint8_t rbuf[512];
+
+                if ((amt_read = read(localbt->mgmt_fd, rbuf, 512)) <= 0) {
+                    if (errno != EINTR && errno != EAGAIN) {
+                        snprintf(errstr, STATUS_MAX, "Failed to read from "
+                                "management socket: %s", strerror(errno));
+                        cf_send_error(caph, errstr);
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+
+                amt_buffered = kis_simple_ringbuf_write(localbt->read_rbuf, rbuf, amt_read);
+
+                if ((ssize_t) amt_buffered != amt_read) {
+                    snprintf(errstr, STATUS_MAX, "Failed to put management data into buffer");
+                    cf_send_error(caph, errstr);
+                    break;
+                }
+
+                handle_mgmt_response(localbt);
+            }
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
     local_bluetooth_t localbt = {
         .bt_interface = NULL,
-        .bt_interface_address = NULL,
-        .state_powering_on = 0,
-        .state_scanning_on = 0,
+        .bt_interface_str_address = NULL,
+        .devid = 0,
+        .mgmt_fd = 0,
+        .read_rbuf = NULL,
+        .scan_type = SCAN_TYPE_DUAL,
         .caph = NULL,
     };
 

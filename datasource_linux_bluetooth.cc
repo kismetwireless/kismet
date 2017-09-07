@@ -24,6 +24,8 @@
 #include "phy_bluetooth.h"
 #include "msgpack_adapter.h"
 
+#ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
+
 KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, 
         SharedDatasourceBuilder in_builder) : KisDatasource(in_globalreg, in_builder) {
     // Set the capture binary
@@ -184,3 +186,4 @@ kis_packet *
     return packet;
 }
 
+#endif

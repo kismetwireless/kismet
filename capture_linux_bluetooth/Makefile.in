@@ -1,25 +1,14 @@
 include ../Makefile.inc
 
 MONITOR_OBJS = \
-	gdbus/client.c.o \
-	gdbus/mainloop.c.o \
-	gdbus/object.c.o \
-	gdbus/polkit.c.o \
-	gdbus/watch.c.o \
 	linux_bt_rfkill.c.o \
 	capture_linux_bluetooth.c.o
 MONITOR_BIN = kismet_cap_linux_bluetooth
 
-GLIBCFLAGS = @GLIBCFLAGS@
-GLIBLIBS = @GLIBLIBS@
-
-DBUSGLIBCFLAGS = @DBUSGLIBCFLAGS@
-DBUSGLIBLIBS = @DBUSGLIBLIBS@
-
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBS) $(GLIBLIBS) $(DBUSGLIBLIBS)
+		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a 
 
 clean:
 	@-rm -f $(MONITOR_BIN)
@@ -30,10 +19,10 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 .PRECIOUS: %.c.d
 

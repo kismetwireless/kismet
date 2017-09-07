@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#if defined HAVE_DBUSGLIB && HAVE_GLIB2
+#ifdef SYS_LINUX
 
 #define HAVE_LINUX_BLUETOOTH_DATASOURCE
 
