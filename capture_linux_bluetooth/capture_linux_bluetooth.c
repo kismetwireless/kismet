@@ -20,10 +20,13 @@
     Based on the bluez-5.46 client/ code
     Copyright (C) 2012  Intel Corporation. All rights reserved.
 
-    and the bluez-5.46 gdbus code
+    Based on the Blue-Z stack code,
 
-    Copyright (C) 2004-2011  Marcel Holtmann <marcel@holtmann.org>
+    Copyright (C) 2000-2001  Qualcomm Incorporated
+    Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+    Copyright (C) 2002-2010  Marcel Holtmann <marcel@holtmann.org>
 
+    and used under the GPL2 license
 
     Controls a linux bluetooth interface in bluez via dbus and hci sockets
 */
