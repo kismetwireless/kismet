@@ -155,6 +155,12 @@ kis_packet *
             bpi->txpower = -256;
         }
 
+        if ((obj_iter = dict.find("type")) != dict.end()) {
+            bpi->type = obj_iter->second.as<int>();
+        } else {
+            bpi->type = 4;
+        }
+
         /* Optional uuid vector */
         if ((obj_iter = dict.find("uuid_vec")) != dict.end()) {
             MsgpackAdapter::AsStringVector(obj_iter->second, uuid_str_vec);

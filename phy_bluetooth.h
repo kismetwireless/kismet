@@ -55,6 +55,7 @@ public:
     string name;
     vector<uuid> service_uuid_vec;
     int txpower;
+    int type;
 };
 
 class bluetooth_tracked_device : public tracker_component {

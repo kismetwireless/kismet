@@ -129,7 +129,15 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     }
 
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-    basedev->set_type_string("Bluetooth");
+
+    if (btpi->type == 0)
+        basedev->set_type_string("BR/EDR");
+    else if (btpi->type == 1)
+        basedev->set_type_string("BTLE");
+    else if (btpi->type == 2)
+        basedev->set_type_string("BTLE");
+    else
+        basedev->set_type_string("BT");
 
     // Always set the name, but don't forget a name we used to know
     if (btpi->name.length() > 0)
