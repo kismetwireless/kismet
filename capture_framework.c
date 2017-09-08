@@ -1218,11 +1218,21 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         pthread_mutex_unlock(&(caph->handler_lock));
     } else {
         /* fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type); */
-
-        pthread_mutex_unlock(&(caph->handler_lock));
-        cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                false, "Unsupported request", NULL, NULL);
         cbret = -1;
+
+        /* If we have an unknown frame handler, give it a chance to process this
+         * frame */
+        if (caph->unknown_cb != NULL) {
+            cbret = 
+                (*(caph->unknown_cb))(caph, ntohl(cap_proto_frame->header.sequence_number),
+                        cap_proto_frame);
+        }
+
+        if (cbret < 0) {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
+                    false, "Unsupported request", NULL, NULL);
+        }
 
         pthread_mutex_unlock(&(caph->handler_lock));
     }
