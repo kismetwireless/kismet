@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/common"
+	xmlns="http://www.kismetwireless.net/xml/common"
+	elementFormDefault="unqualified">
+
+<xs:simpleType name="macaddr">
+ <xs:restriction base="xs:string">
+  <xs:pattern value="([a-fA-F0-9]{2}:)+[a-fA-F0-9]{2}"/>
+ </xs:restriction>
+</xs:simpleType>
+
+<xs:simpleType name="gpslat">
+ <xs:restriction base="xs:decimal">
+  <xs:minInclusive value="-90"/>
+  <xs:maxInclusive value="90"/>
+ </xs:restriction>
+</xs:simpleType>
+
+<xs:simpleType name="gpslon">
+ <xs:restriction base="xs:decimal">
+  <xs:minInclusive value="-180"/>
+  <xs:maxInclusive value="180"/>
+ </xs:restriction>
+</xs:simpleType>
+
+<xs:complexType name="gps">
+ <xs:all>
+  <xs:element name="latitude" type="gpslat"/>
+  <xs:element name="longitude" type="gpslon"/>
+  <xs:element name="altitude" type="xs:decimal" minOccurs="0"/>
+  <xs:element name="speed" type="xs:decimal" minOccurs="0"/>
+  <xs:element name="quality" type="xs:integer"/>
+  <xs:element name="hdop" type="xs:decimal" minOccurs="0"/>
+  <xs:element name="vdop" type="xs:decimal" minOccurs="0"/>
+ </xs:all>
+</xs:complexType>
+
+<xs:complexType name="source">
+ <xs:sequence>
+  <xs:element name="uuid" type="xs:string"/>
+  <xs:element name="definition" type="xs:string"/>
+  <xs:element name="name" type="xs:string"/>
+  <xs:element name="interface" type="xs:string"/>
+  <xs:element name="type" type="xs:string"/>
+  <xs:element name="packets" type="xs:positiveInteger"/>
+  <xs:element name="errorPackets" type="xs:positiveInteger"/>
+  <xs:element name="channels" type="xs:string"/>
+  <xs:element name="channelhop" type="xs:boolean"/>
+ </xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="frequencyMap">
+ <xs:sequence>
+  <xs:element name="frequency" minOccurs="1" maxOccurs="unbounded">
+   <xs:complexType>
+    <xs:attribute name="mhz" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="packets" type="xs:positiveInteger" use="required"/>
+   </xs:complexType>
+  </xs:element>
+ </xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="seenBy">
+ <xs:sequence>
+  <xs:element name="uuid" type="xs:string"/>
+  <xs:element name="firstSeen" type="xs:string"/>
+  <xs:element name="lastSeen" type="xs:string"/>
+  <xs:element name="packets" type="xs:positiveInteger"/>
+  <xs:element name="frequencySeen" type="common:frequencyMap" minOccurs="0"/>
+ </xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="signalData">
+ <xs:sequence>
+  <xs:element name="lastSignal" type="xs:integer" minOccurs="0"/>
+  <xs:element name="lastNoise" type="xs:integer" minOccurs="0"/>
+  <xs:element name="minSignal" type="xs:integer" minOccurs="0"/>
+  <xs:element name="minNoise" type="xs:integer" minOccurs="0"/>
+  <xs:element name="maxSignal" type="xs:integer" minOccurs="0"/>
+  <xs:element name="maxNoise" type="xs:integer" minOccurs="0"/>
+ </xs:sequence>
+ <xs:attribute name="type" type="xs:string" use="required"/>
+</xs:complexType>
+
+<xs:complexType name="tag">
+ <xs:simpleContent>
+  <xs:extension base="xs:string">
+   <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:extension>
+ </xs:simpleContent>
+</xs:complexType>
+
+</xs:schema>
+

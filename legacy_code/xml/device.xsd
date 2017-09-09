@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/device"
+	xmlns="http://www.kismetwireless.net/xml/device"
+	elementFormDefault="unqualified"
+	xmlns:common="http://www.kismetwireless.net/xml/common">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="http://www.kismetwireless.net/xml/common.xsd"/>
+
+<xs:complexType name="device">
+ <xs:sequence>
+  <xs:element name="deviceMac" type="common:macaddr"/>
+
+  <xs:element name="name" type="xs:string" minOccurs="0"/>
+
+  <xs:element name="classifiedType" type="xs:string" minOccurs="0"/>
+
+  <xs:element name="commonTypes">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="commonType" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+  <xs:element name="commonCryptTypes">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="commonCrypt" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+  <xs:element name="firstSeen" type="xs:string"/>
+  <xs:element name="lastSeen" type="xs:string"/>
+
+  <xs:element name="seenBySources" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="seenBySource" type="common:seenBy" maxOccurs="unbounded"/> 
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+ 
+  <xs:element name="gpsAverage" type="common:gps" minOccurs="0"/>
+  <xs:element name="gpsMinimum" type="common:gps" minOccurs="0"/>
+  <xs:element name="gpsMaximum" type="common:gps" minOccurs="0"/>
+  <xs:element name="gpsPeaksignal" type="common:gps" minOccurs="0"/>
+ 
+  <xs:element name="frequencySeen" type="common:frequencyMap" minOccurs="0"/>
+
+  <xs:element name="signalLevel" type="common:signalData" minOccurs="0"/>
+
+  <xs:element name="packets" type="xs:integer"/>
+  <xs:element name="packetLink" type="xs:integer"/>
+  <xs:element name="packetData" type="xs:integer"/>
+  <xs:element name="packetFiltered" type="xs:integer"/>
+  <xs:element name="packetError" type="xs:integer"/>
+
+  <xs:element name="dataBytes" type="xs:integer"/>
+
+  <xs:element name="manufacturer" type="xs:string" minOccurs="0"/>
+
+  <xs:element name="tags" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="tag" type="common:tag" maxOccurs="unbounded"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+ </xs:sequence>
+ <xs:attribute name="phy" type="xs:string" use="required"/>
+</xs:complexType>
+
+</xs:schema>

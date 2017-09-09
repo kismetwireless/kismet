@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/gps"
+	xmlns="http://www.kismetwireless.net/xml/gps"
+	elementFormDefault="unqualified"
+	xmlns:common="http://www.kismetwireless.net/xml/common">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+
+<xs:complexType name="gpsBlock">
+ <xs:sequence>
+  <xs:element name="unixTimestamp" type="xs:positiveInteger"/>
+  <xs:element name="gpsPosition" type="common:gps"/>
+
+  <xs:element name="device" maxOccurs="unbounded" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="deviceMac" type="common:macaddr"/>
+     <xs:element name="signalLevel" type="common:signalData" minOccurs="0"/>
+     <xs:element name="packetDelta" type="xs:integer"/>
+    </xs:sequence>
+    <xs:attribute name="phy" type="xs:string" use="required"/>
+   </xs:complexType>
+  </xs:element>
+ 
+ </xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="gpsPacket">
+ <xs:sequence>
+  <xs:element name="unixTimeStamp" type="xs:positiveInteger"/>
+  <xs:element name="gpsPosition" type="common:gps"/>
+  <xs:element name="deviceMac" type="common:macaddr"/>
+  <xs:element name="signalLevel" type="common:signalData" minOccurs="0"/>
+  <xs:element name="devicePhy" type="xs:string" use="required"/>
+ </xs:sequence>
+</xs:complexType>
+
+</xs:schema>

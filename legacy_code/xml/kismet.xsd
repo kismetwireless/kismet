@@ -1,0 +1,38 @@
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	xmlns="http://xmlns.myexample.com/version3" 
+	
+	targetNamespace="http://www.kismetwireless.net/xml" 
+	xmlns:common="http://www.kismetwireless.net/xml/common" 
+	xmlns:device="http://www.kismetwireless.net/xml/device"
+	xmlns:gps="http://www.kismetwireless.net/xml/gps"
+	xmlns:run="http://www.kismetwireless.net/xml/run"
+
+	xmlns:phy80211="http://www.kismetwireless.net/xml/phy80211"
+
+	elementFormDefault="unqualified"
+	attributeFormDefault="unqualified">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/device"
+		schemaLocation="./device.xsd"/>
+
+	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/gps"
+		schemaLocation="./gps.xsd"/>
+
+	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/run"
+		schemaLocation="./run.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/phy80211"
+		schemaLocation="./phy80211.xsd"/>
+
+<xs:element name="run" type="run:run"/>
+
+</xs:schema>

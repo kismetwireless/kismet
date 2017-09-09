@@ -1,0 +1,50 @@
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+	xmlns="http://xmlns.myexample.com/version3" 
+	
+	targetNamespace="http://www.kismetwireless.net/xml/kismet-gps" 
+	xmlns:common="http://www.kismetwireless.net/xml/common" 
+	xmlns:gps="http://www.kismetwireless.net/xml/gps"
+
+	elementFormDefault="unqualified"
+	attributeFormDefault="unqualified">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="./common.xsd"/>
+
+	<xs:import
+	    namespace="http://www.kismetwireless.net/xml/gps"
+		schemaLocation="./gps.xsd"/>
+
+<xs:element name="run">
+ <xs:complexType>
+  <xs:sequence>
+   <xs:element name="version" type="xs:string"/>
+
+   <xs:element name="startTime" type="xs:string"/>
+   <xs:element name="startUnixtime" type="xs:string"/>
+
+   <xs:element name="gpsDevice">
+    <xs:complexType>
+	 <xs:sequence>
+	  <xs:element name="device" type="xs:string"/>
+	  <xs:element name="type" type="xs:string"/>
+	 </xs:sequence>
+	</xs:complexType>
+   </xs:element>
+
+   <xs:element name="gpsRecords">
+    <xs:complexType>
+	 <xs:choice maxOccurs="unbounded">
+	  <xs:element name="gpsBulk" type="gps:gpsBlock">
+	  <xs:element name="gpsPacket" type="gps:gpsPacket">
+	 </xs:choice>
+	</xs:complexType>
+   </xs:element>
+
+  </xs:sequence>
+ </xs:complexType>
+</xs:element>
+
+</xs:schema>

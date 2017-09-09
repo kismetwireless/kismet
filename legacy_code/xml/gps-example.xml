@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+
+<!-- This file is meant as an example of the kismet xml/xsd schema, and 
+	 is used with xmllint for testing.  The values contained in it are
+	 not currently valid nor necessarily representative of the valid
+	 ranges for data.  It is not designed to be internally consistent
+	 (ie sources are referred to which are not defined, aggregate counts
+	 are not accurate) -->
+
+<k:run xmlns:k="http://www.kismetwireless.net/xml/kismet-gps" 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.kismetwireless.net/xml kismet-gps.xsd"
+	xmlns:gps="http://www.kismetwireless.net/xml/gps">
+
+<version>2011-07-R1-SVN</version>
+
+<startTime>Tue Jul  5 20:58:09 2011</startTime>
+<startUnixtime>1309985397</startUnixtime>
+
+<gpsDevice>
+ <device>/dev/ttyUSB0</device>
+ <type>NMEA</type>
+</gpsDevice>
+
+<!-- Bulk update where two devices have been seen -->
+<gpsBulk>
+ <unixTimestamp>1309985397</unixTimestamp>
+ <gpsPosition>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+	<speed>10</speed>
+	<quality>3</quality>
+	<hdop>10.1</hdop>
+ </gpsPosition>
+
+ <device phy="phy80211">
+  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
+  <signalLevel scale="DBM">
+   <lastSignal>-10</lastSignal>
+   <lastNoise>-40</lastNoise>
+  </signalLevel>
+  <packetDelta>10</packetDelta>
+ </device>
+
+ <device phy="phy80211">
+  <deviceMac>00:11:22:33:44:55</deviceMac>
+  <signalLevel scale="DBM">
+   <lastSignal>-10</lastSignal>
+   <lastNoise>-40</lastNoise>
+  </signalLevel>
+  <packetDelta>10</packetDelta>
+ </device>
+</gpsBulk>
+
+<!-- Bulk update where no devices have been seen, recorded
+	 for track logging -->
+<gpsBulk>
+ <unixTimestamp>1309985398</unixTimestamp>
+ <gpsPosition>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+	<speed>10</speed>
+	<quality>3</quality>
+	<hdop>10.1</hdop>
+ </gpsPosition>
+</gpsBulk>
+
+<!-- Bulk GPS update where only the aa:bb:cc:dd:ee:ff device
+	 has been seen -->
+<gpsBulk>
+ <unixTimestamp>1309985399</unixTimestamp>
+ <gpsPosition>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+	<speed>10</speed>
+	<quality>3</quality>
+	<hdop>10.1</hdop>
+ </gpsPosition>
+
+ <device phy="phy80211">
+  <deviceMac>aa:bb:cc:dd:ee:ff</deviceMac>
+  <signalLevel scale="DBM">
+   <lastSignal>-10</lastSignal>
+   <lastNoise>-40</lastNoise>
+  </signalLevel>
+  <packetDelta>10</packetDelta>
+ </device>
+</gpsBulk>
+
+<!-- Single packet mode, gps record per packet.  Expensive but
+	 high resolution, probably not needed by most situations however
+	 since gps updates at 1hz -->
+<gpsPacket>
+ <unixTimestamp>1309985399</unixTimestamp>
+ <gpsPosition>
+	<latitude>10</latitude>
+	<longitude>100</longitude>
+	<altitude>50</altitude>
+	<speed>10</speed>
+	<quality>3</quality>
+	<hdop>10.1</hdop>
+ </gpsPosition>
+ <deviceMac>11:22:33:44:55:66</deviceMac>
+ <devicePhy>phy80211</devicePhy>
+</gpsPacket>
+
+</k:run>
+

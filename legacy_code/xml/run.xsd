@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+
+<xs:schema 
+	xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="http://www.kismetwireless.net/xml/run"
+	xmlns="http://www.kismetwireless.net/xml/run"
+	elementFormDefault="unqualified"
+	xmlns:common="http://www.kismetwireless.net/xml/common"
+	xmlns:device="http://www.kismetwireless.net/xml/device">
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/common"
+		schemaLocation="http://www.kismetwireless.net/xml/common.xsd"/>
+
+	<xs:import
+		namespace="http://www.kismetwireless.net/xml/device"
+		schemaLocation="http://www.kismetwireless.net/xml/device.xsd"/>
+
+<xs:complexType name="run">
+ <xs:sequence>
+  <xs:element name="version" type="xs:string"/>
+
+  <xs:element name="server" type="xs:string"/>
+  <xs:element name="logname" type="xs:string"/>
+
+  <xs:element name="startTime" type="xs:string"/>
+  <xs:element name="endTime" type="xs:string"/>
+
+  <xs:element name="captureSources">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="captureSource" maxOccurs="unbounded" type="common:source"/>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+  <xs:element name="totalDevices" type="xs:integer"/>
+
+  <xs:element name="phyTypes">
+   <xs:complexType>
+    <xs:sequence>
+     <xs:element name="phyType" maxOccurs="unbounded">
+      <xs:complexType>
+       <xs:sequence>
+        <xs:element name="name" type="xs:string"/>
+        <xs:element name="devices" type="xs:integer"/>
+        <xs:element name="packets" type="xs:integer"/>
+        <xs:element name="packetData" type="xs:integer"/>
+        <xs:element name="packetFiltered" type="xs:integer"/>
+        <xs:element name="packetError" type="xs:integer"/>
+       </xs:sequence>
+      </xs:complexType>
+     </xs:element>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+  <xs:element name="gpsDevices" minOccurs="0">
+   <xs:complexType>
+    <xs:sequence>
+      <xs:element name="gpsDevice" maxOccurs="unbounded">
+       <xs:complexType>
+        <xs:sequence>
+         <xs:element name="device" type="xs:string"/>
+         <xs:element name="type" type="xs:string"/>
+        </xs:sequence>
+       </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+   </xs:complexType>
+  </xs:element>
+
+ <xs:element name="devices" minOccurs="0">
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element name="device" maxOccurs="unbounded" type="device:device"/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ </xs:sequence>
+</xs:complexType>
+
+</xs:schema>
