@@ -22,7 +22,7 @@
 #undef BIN_LOC
 
 /* Able to build hackrf sweep source */
-#undef BUILD_HACKRF_SWEEP
+#undef BUILD_CAPTURE_HACKRF_SWEEP
 
 /* system data directory */
 #undef DATA_LOC

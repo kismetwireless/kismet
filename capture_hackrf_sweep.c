@@ -62,7 +62,7 @@
 #include "capture_framework.h"
 
 
-#ifndef BUILD_HACKRF_SWEEP
+#ifndef BUILD_CAPTURE_HACKRF_SWEEP
 
 /* If the required libraries (hackrf and fftw3) are not available, build the 
  * capture binary, but only return errors.
@@ -315,7 +315,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
-
+    return 0;
 }
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,

@@ -233,7 +233,7 @@ HAVE_LIBHACKRF=0
 HAVE_LIBFFTW3=0
 HAVE_HACKRF_H=0
 HAVE_FFTW3_H=0
-BUILD_HACKRF_SWEEP=0
+BUILD_CAPTURE_HACKRF_SWEEP=0
 HACKRF_MISSING_REASON="Missing required libhack/libfftw3 libraries"
 
 AC_CHECK_HEADERS([libhackrf/hackrf.h],
@@ -267,8 +267,8 @@ if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
     		return 0;
     		]])],[hackrfsweep=1],[hackrfsweep=0])
     if test "$hackrfsweep" -eq 1; then
-        AC_DEFINE(BUILD_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
-        BUILD_HACKRF_SWEEP=1
+        AC_DEFINE(BUILD_CAPTURE_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
+        BUILD_CAPTURE_HACKRF_SWEEP=1
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
     else
         AC_MSG_WARN([Old version of libhack does not contain sweep code])
@@ -1398,7 +1398,7 @@ else
 fi
 
 printf "       HackRF spectrum: "
-if test "$BUILD_HACKRF_SWEEP" -eq 1; then
+if test "$BUILD_CAPTURE_HACKRF_SWEEP" -eq 1; then
 	echo "yes (libhackrf and libfftw3 present)";
 else
 	echo "no ($HACKRF_MISSING_REASON)";
