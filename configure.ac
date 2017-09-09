@@ -1397,12 +1397,12 @@ else
 	echo "no (will not be able to track Bluetooth on Linux)";
 fi
 
-printf "       HackRF spectrum: "
-if test "$BUILD_CAPTURE_HACKRF_SWEEP" -eq 1; then
-	echo "yes (libhackrf and libfftw3 present)";
-else
-	echo "no ($HACKRF_MISSING_REASON)";
-fi
+# printf "       HackRF spectrum: "
+# if test "$BUILD_CAPTURE_HACKRF_SWEEP" -eq 1; then
+# 	echo "yes (libhackrf and libfftw3 present)";
+# else
+# 	echo "no ($HACKRF_MISSING_REASON)";
+# fi
 
 printf "      SQLite3 Database: "
 if test "$wantsql3" = "yes"; then
