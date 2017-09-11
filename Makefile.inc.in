@@ -37,6 +37,9 @@ LIBMLIB		= @LIBMLIB@
 
 SUIDGROUP 	= @suidgroup@
 
+DATASOURCE_LIBS	+= $(CAPLIBS) -lpthread -lm
+
+
 prefix 		= @prefix@
 exec_prefix = @exec_prefix@
 plugindir	= @libdir@/kismet

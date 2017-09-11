@@ -17,7 +17,7 @@ NETLINKLIBS=@NLLIBS@
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBS) $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) -lpthread -lm
+		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(LIBS) $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)

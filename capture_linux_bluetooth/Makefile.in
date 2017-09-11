@@ -8,7 +8,7 @@ MONITOR_BIN = kismet_cap_linux_bluetooth
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a 
+		$(LD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)

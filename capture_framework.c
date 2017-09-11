@@ -16,6 +16,12 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "config.h"
+
+#ifdef SYS_LINUX
+#define _GNU_SOURCE 1
+#endif
+
 #include <string.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -25,7 +31,18 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "config.h"
+#ifdef HAVE_CAPABILITY
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
+#endif
+
+#ifdef SYS_LINUX
+#include <linux/sched.h>
+#include <sys/mount.h>
+#endif
 
 #include "msgpuck.h"
 #include "capture_framework.h"
@@ -1918,6 +1935,20 @@ int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int f
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
+    if (caph->tcp_fd < 0 && caph->out_fd < 0) {
+        const char *type;
+
+        if (flags & MSGFLAG_INFO)
+            type = "INFO";
+        else if (flags & MSGFLAG_ERROR)
+            type = "ERROR";
+        else
+            type = "DEBUG";
+
+        fprintf(stderr, "%s: %s\n", type, msg);
+        return 0;
+    }
+
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
 
@@ -1938,6 +1969,20 @@ int cf_send_warning(kis_capture_handler_t *caph, const char *msg, unsigned int f
 
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
+
+    if (caph->tcp_fd < 0 && caph->out_fd < 0) {
+        const char *type;
+
+        if (flags & MSGFLAG_INFO)
+            type = "INFO";
+        else if (flags & MSGFLAG_ERROR)
+            type = "ERROR";
+        else
+            type = "DEBUG";
+
+        fprintf(stderr, "%s: %s\n", type, warning);
+        return 0;
+    }
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
@@ -1965,6 +2010,11 @@ int cf_send_error(kis_capture_handler_t *caph, const char *msg) {
 
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
+
+    if (caph->tcp_fd < 0 && caph->out_fd < 0) {
+        fprintf(stderr, "ERROR: %s\n", msg);
+        return 0;
+    }
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
@@ -2586,5 +2636,87 @@ double cf_parse_frequency(const char *freq) {
 
     free(ufreq);
     return v;
+}
+
+int cf_drop_most_caps(kis_capture_handler_t *caph) {
+    /* Modeled on the Wireshark Dumpcap priv dropping
+     *
+     * Restricts the capabilities of the process to only NET_ADMIN and NET_RAW and
+     * strips capabilities for anything else; almost all capture sources which run as 
+     * root will need these, but shouldn't have free reign of the system.
+     *
+     */
+
+    char errstr[STATUS_MAX];
+#ifdef HAVE_CAPABILITY
+	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
+	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
+	cap_t caps = cap_init(); 
+
+	if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to set keepcaps in prctl: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+        cap_free(caps);
+        return -1;
+	}
+
+	cap_set_flag(caps, CAP_PERMITTED, cl_len, cap_list, CAP_SET);
+	cap_set_flag(caps, CAP_INHERITABLE, cl_len, cap_list, CAP_SET);
+
+	if (cap_set_proc(caps)) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to set future process "
+                "capabilities: %s", strerror(errno));
+        cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+        cap_free(caps);
+        return -1;
+	}
+
+	cap_set_flag(caps, CAP_EFFECTIVE, cl_len, cap_list, CAP_SET);
+	if (cap_set_proc(caps)) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to set effective capabilities: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+        cap_free(caps);
+        return -1;
+    }
+
+	cap_free(caps);
+
+    return 1;
+#else
+    snprintf(errstr, STATUS_MAX, "datasource not compiled with libcap capabilities control");
+    cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+    return 0;
+#endif
+}
+
+int cf_jail_filesystem(kis_capture_handler_t *caph) {
+    char errstr[STATUS_MAX];
+#ifdef SYS_LINUX
+
+    /* Eject ourselves from the namespace into a new temporary one */
+    if (unshare(CLONE_NEWNS) < 0) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+        return -1;
+    }
+
+    /* Remount / as a read-only bind-mount of itself over our rootfs */
+    if (mount("/", "/", "bind", MS_BIND | MS_REMOUNT | MS_PRIVATE | 
+                MS_REC | MS_RDONLY, NULL) < 0) {
+        snprintf(errstr, STATUS_MAX, "datasource failed to remount root in jail as RO: %s",
+                strerror(errno));
+        cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+        return -1;
+    }
+
+    return 1;
+#else
+    snprintf(errstr, STATUS_MAX, "datasource framework can only jail namespaces on Linux");
+    cf_send_warning(caph, errstr, MSGFLAG_ERROR, errstr);
+    return 0;
+#endif
 }
 

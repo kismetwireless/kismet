@@ -433,7 +433,27 @@ void cf_handler_shutdown(kis_capture_handler_t *caph);
  */
 void cf_handler_spindown(kis_capture_handler_t *caph);
 
+/* Pivot into a new namespace and remount root as read-only - this should be
+ * used whenever possible by data sources on Linux which can be installed as suidroot;
+ * this pivots into a new namespace and remounts root as readonly.
+ *
+ * Returns
+ * -1   Error pivoting into restricted namespace
+ *  0   Not compiled on Linux
+ *  1   Success
+ */
+int cf_jail_filesystem(kis_capture_handler_t *caph);
 
+/* Drop most root capabilities - this should be used whenever possible by data
+ * sources which can be installed as suidroot; this removes all capabilities except
+ * NET_ADMIN and NET_RAW.
+ *
+ * Returns:
+ * -1   Error dropping capabilities
+ *  0   Capability support not compiled in
+ *  1   Success 
+ */
+int cf_drop_most_caps(kis_capture_handler_t *caph);
 
 /* Assign a channel hopping list processed by a capture binary */
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,

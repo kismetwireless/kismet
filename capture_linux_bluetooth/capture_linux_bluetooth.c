@@ -947,6 +947,16 @@ int main(int argc, char *argv[]) {
 
     localbt.caph = caph;
 
+    /* Jail our ns */
+    if (cf_jail_filesystem(caph) < 1) {
+        fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
+    }
+
+    /* Strip our privs */
+    if (cf_drop_most_caps(caph) < 1) {
+        fprintf(stderr, "DEBUG - Didn't drop some privs\n");
+    }
+
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localbt);
 
