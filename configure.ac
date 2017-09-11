@@ -268,8 +268,8 @@ if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
     		]])],[hackrfsweep=1],[hackrfsweep=0])
     if test "$hackrfsweep" -eq 1; then
         AC_DEFINE(BUILD_CAPTURE_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
-        BUILD_CAPTURE_HACKRF_SWEEP=1
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+        # BUILD_CAPTURE_HACKRF_SWEEP=1
+        # DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
     else
         AC_MSG_WARN([Old version of libhack does not contain sweep code])
         HACKRF_MISSING_REASON="old version of libhackrf found"

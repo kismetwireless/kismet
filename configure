@@ -5871,8 +5871,8 @@ rm -f core conftest.err conftest.$ac_objext \
 
 $as_echo "#define BUILD_CAPTURE_HACKRF_SWEEP 1" >>confdefs.h
 
-        BUILD_CAPTURE_HACKRF_SWEEP=1
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
+        # BUILD_CAPTURE_HACKRF_SWEEP=1
+        # DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
     else
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Old version of libhack does not contain sweep code" >&5
 $as_echo "$as_me: WARNING: Old version of libhack does not contain sweep code" >&2;}
