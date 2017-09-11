@@ -342,15 +342,15 @@ protected:
                 "probed ssid string (sanitized)", &ssid);
         RegisterField("dot11.probedssid.ssidlen", TrackerUInt32,
                 "probed ssid string length (original bytes)", &ssid_len);
-        RegisterField("dot11.probessid.bssid", TrackerMac,
+        RegisterField("dot11.probedssid.bssid", TrackerMac,
                 "probed ssid BSSID", &bssid);
-        RegisterField("dot11.probessid.first_time", TrackerUInt64,
+        RegisterField("dot11.probedssid.first_time", TrackerUInt64,
                 "first time probed", &first_time);
-        RegisterField("dot11.probessid.last_time", TrackerUInt64,
+        RegisterField("dot11.probedssid.last_time", TrackerUInt64,
                 "last time probed", &last_time);
 
         __RegisterComplexField(kis_tracked_location, location_id, 
-                "dot11.probessid.location", "location");
+                "dot11.probedssid.location", "location");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
