@@ -23,6 +23,10 @@ td.kismet_devicedata_span {
     width: 100%;
 }
 
+.k_padding_title {
+    padding-top: 10px;
+}
+
 /*
 table.kismet_devicedata td.span {
     text-align: center;
@@ -134,4 +138,3 @@ b.k-b-s-plugin-title {
 div.k-b-s-plugin-content {
     padding-left: 25px;
 }
-

@@ -67,6 +67,10 @@ exports.ObjectByString = function(o, s) {
 }
 
 exports.HumanReadableSize = function(sz) {
+    if (typeof(sz) !== 'number') {
+        return "0 B";
+    }
+
     if (sz < 1024) {
         return sz + " B";
     } else if (sz < 1024 * 1024) {

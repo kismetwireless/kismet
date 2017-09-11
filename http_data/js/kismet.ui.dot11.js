@@ -315,6 +315,71 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             },
 
             {
+                // Filler title
+                field: "dot11.device/dot11.device.probed_ssid_map",
+                id: "probed_ssid_header",
+                filter: function(opts) {
+                    return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
+                },
+                title: '<b class="k_padding_title">Probed SSIDs</b>'
+            },
+
+            {
+                field: "dot11.device/dot11.device.probed_ssid_map",
+                id: "probed_ssid",
+
+                filter: function(opts) {
+                    return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
+                },
+
+                groupIterate: true,
+
+                iterateTitle: function(opts) {
+                    var lastprobe = opts['value'][opts['index']];
+                    var lastpssid = lastprobe['dot11.probedssid.ssid'];
+                    var key = "probessid" + opts['index'];
+
+                    if (lastpssid === '')
+                        lastpssid = "<i>Broadcast</i>";
+
+                    return '<a id="' + key + '" class="expander collapsed" data-expander-target="#probed_ssid" href="#">Probed SSID ' + lastpssid + '</a>';
+                },
+
+                draw: function(opts) {
+                    var tb = $('.expander', opts['container']).simpleexpand();
+                },
+
+                fields: [
+                {
+                    field: "dot11.probedssid.ssid",
+                    title: "Probed SSID",
+                    empty: "<i>Broadcast</i>"
+                },
+                {
+                    field: "dot11.probedssid.first_time",
+                    title: "First Seen",
+                    render: kismet_ui.RenderTrimmedTime,
+                },
+                {
+                    field: "dot11.probedssid.last_time",
+                    title: "Last Seen",
+                    render: kismet_ui.RenderTrimmedTime,
+                },
+
+                ],
+            },
+
+            {
+                // Filler title
+                field: "dot11.device/dot11.device.advertised_ssid_map",
+                id: "advertised_ssid_header",
+                filter: function(opts) {
+                    return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
+                },
+                title: '<b class="k_padding_title">Advertised SSIDs</b>'
+            },
+
+            {
                 field: "dot11.device/dot11.device.advertised_ssid_map",
                 id: "advertised_ssid",
 
@@ -324,9 +389,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    console.log(opts['value'][opts['index']]);
                     var lastssid = opts['value'][opts['index']]['dot11.advertisedssid.ssid'];
-                    console.log(lastssid);
                     if (lastssid === '')
                         return "SSID: <i>Unknown</i>";
 
@@ -414,6 +477,17 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 ]
             },
+
+            {
+                // Filler title
+                field: "dot11.device/dot11.device.client_map",
+                id: "client_behavior_header",
+                filter: function(opts) {
+                    return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
+                },
+                title: '<b class="k_padding_title">Wi-Fi Client Behavior</b>'
+            },
+
             {
                 field: "dot11.device/dot11.device.client_map",
                 id: "client_behavior",
@@ -566,6 +640,17 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 ]
             },
+
+            {
+                // Filler title
+                field: "dot11.device/dot11.device.associated_client_map",
+                id: "client_list_header",
+                filter: function(opts) {
+                    return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
+                },
+                title: '<b class="k_padding_title">Associated Clients</b>'
+            },
+
             {
                 field: "dot11.device/dot11.device.associated_client_map",
                 id: "client_list",
