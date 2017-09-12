@@ -360,8 +360,8 @@ int TcpServerV2::AcceptConnection() {
         return 0;
     }
 #else
-    if ((new_fd = accept4(server_fd, (struct sockaddr *) &client_addr, 
-                    &client_len, 0)) < 0) {
+    if ((new_fd = accept(server_fd, (struct sockaddr *) &client_addr, 
+                    &client_len)) < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
             return -1;
