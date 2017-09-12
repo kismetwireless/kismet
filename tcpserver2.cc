@@ -82,11 +82,20 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
     }
 
     // Make a socket that closes on execve
+#ifdef SOCK_CLOEXEC
     if ((server_fd = socket(AF_INET, SOCK_CLOEXEC | SOCK_STREAM, 0)) < 0) {
         _MSG("TCP server socket() failed: " + kis_strerror_r(errno),
                 MSGFLAG_ERROR);
         return -1;
     }
+#else
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        _MSG("TCP server socket() failed: " + kis_strerror_r(errno),
+                MSGFLAG_ERROR);
+        return -1;
+    }
+    fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_CLOEXEC);
+#endif
 
     // Set reuse addr
     int i = 2;
