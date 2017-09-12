@@ -349,6 +349,7 @@ int TcpServerV2::AcceptConnection() {
     client_len = sizeof(struct sockaddr_in);
 
     // Accept it as a socket which closes on execve
+#ifdef SOCK_CLOEXEC
     if ((new_fd = accept4(server_fd, (struct sockaddr *) &client_addr, 
                     &client_len, SOCK_CLOEXEC)) < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -358,6 +359,19 @@ int TcpServerV2::AcceptConnection() {
 
         return 0;
     }
+#else
+    if ((new_fd = accept4(server_fd, (struct sockaddr *) &client_addr, 
+                    &client_len, 0)) < 0) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
+            return -1;
+        }
+
+        return 0;
+    }
+
+    fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL, 0) | O_CLOEXEC);
+#endif
 
     if (handler_map.size() >= maxcli) {
         _MSG("TCP server maximum number of clients reached, cannot accept new "
