@@ -149,6 +149,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     // [0] belongs to us, [1] to them
     int outpipepair[2];
 
+#ifdef HAVE_PIPE2
     if (pipe2(inpipepair, O_NONBLOCK) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         pthread_mutex_unlock(&ipc_locker);
@@ -162,6 +163,26 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         pthread_mutex_unlock(&ipc_locker);
         return -1;
     }
+#else
+    if (pipe(inpipepair) < 0) {
+        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        pthread_mutex_unlock(&ipc_locker);
+        return -1;
+    }
+    fcntl(inpipepair[0], F_SETFL, fcntl(inpipepair[0], F_GETFL, 0) | O_NONBLOCK);
+    fcntl(inpipepair[1], F_SETFL, fcntl(inpipepair[1], F_GETFL, 0) | O_NONBLOCK);
+
+    if (pipe(outpipepair) < 0) {
+        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        close(inpipepair[0]);
+        close(inpipepair[1]);
+        pthread_mutex_unlock(&ipc_locker);
+        return -1;
+    }
+    fcntl(outpipepair[0], F_SETFL, fcntl(outpipepair[0], F_GETFL, 0) | O_NONBLOCK);
+    fcntl(outpipepair[1], F_SETFL, fcntl(outpipepair[1], F_GETFL, 0) | O_NONBLOCK);
+
+#endif
     
    
     // Mask sigchild until we're done and it's in the list

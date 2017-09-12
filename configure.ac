@@ -418,6 +418,26 @@ else
 fi
 CFLAGS="$OCFL"
 
+# Do we have pipe2?
+AC_MSG_CHECKING([for pipe2])
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        #include <unistd.h>
+		]], [[
+        int fd[2], flags;
+
+        pipe2(fd, flags);
+		return 0;
+		]])],[have_pipe2=yes],[have_pipe2=no])
+if test "$have_pipe2" = "yes"; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE(HAVE_PIPE2, 1, System has pipe2)
+else
+	AC_MSG_RESULT(NO)
+fi
+CFLAGS="$OCFL"
+
 # Do we have large file support?
 AC_SYS_LARGEFILE
 

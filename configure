@@ -6629,6 +6629,48 @@ $as_echo "int" >&6; }
 fi
 CFLAGS="$OCFL"
 
+# Do we have pipe2?
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pipe2" >&5
+$as_echo_n "checking for pipe2... " >&6; }
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <unistd.h>
+
+int
+main ()
+{
+
+        int fd[2], flags;
+
+        pipe2(fd, flags);
+		return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  have_pipe2=yes
+else
+  have_pipe2=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+if test "$have_pipe2" = "yes"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_PIPE2 1" >>confdefs.h
+
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: NO" >&5
+$as_echo "NO" >&6; }
+fi
+CFLAGS="$OCFL"
+
 # Do we have large file support?
 # Check whether --enable-largefile was given.
 if test "${enable_largefile+set}" = set; then :
