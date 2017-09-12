@@ -1054,7 +1054,11 @@ string kis_strerror_r(int errnum) {
     delete[] d_errstr;
     return rs;
 #else
-    rs = string(strerror_r(errnum, d_errstr, 1024));
+    if (strerror_r(errnum, d_errstr, 1024)) {
+        rs = IntToString(errnum);
+    } else {
+        rs = string(d_errstr);
+    }
     delete[] d_errstr;
     return rs;
 #endif
