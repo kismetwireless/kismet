@@ -34,6 +34,10 @@
 #include "configfile.h"
 #include "messagebus.h"
 
+#ifndef GLOB_TILDE_CHECK
+#define GLOB_TILDE_CHECK GLOB_TILDE
+#endif
+
 ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     checksum = 0;
