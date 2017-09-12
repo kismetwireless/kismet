@@ -355,6 +355,22 @@ int cmd_start_discovery(local_bluetooth_t *localbt) {
             localbt->devid, sizeof(cp), &cp);
 }
 
+/* Enable BREDR */
+int cmd_enable_bredr(local_bluetooth_t *localbt) {
+    uint8_t val = 0x01;
+
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_BREDR, localbt->devid, 
+            sizeof(val), &val);
+}
+
+/* Enable BTLE */
+int cmd_enable_btle(local_bluetooth_t *localbt) {
+    uint8_t val = 0x01;
+
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_LE, localbt->devid, 
+            sizeof(val), &val);
+}
+
 /* Probe the controller */
 int cmd_get_controller_info(local_bluetooth_t *localbt) {
     return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_READ_INFO, localbt->devid, 0, NULL);
@@ -373,23 +389,40 @@ void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t l
     const struct mgmt_rp_read_info *rp = (struct mgmt_rp_read_info *) param;
     char bdaddr[BDADDR_STR_LEN];
 
+    uint32_t current, supported;
+
     if (len < sizeof(struct mgmt_rp_read_info)) {
         return;
     }
 
     bdaddr_to_string(rp->bdaddr.b, bdaddr);
 
+    current = le32toh(rp->current_settings);
+    supported = le32toh(rp->supported_settings);
+
     /* Figure out if we support BDR/EDR and BTLE */
-    if (!(rp->supported_settings & MGMT_SETTING_BREDR)) {
+    if (!(supported & MGMT_SETTING_BREDR)) {
         localbt->scan_type &= ~SCAN_TYPE_BREDR;
     }
 
-    if (!(rp->supported_settings & MGMT_SETTING_LE)) {
+    if (!(supported & MGMT_SETTING_LE)) {
         localbt->scan_type &= ~SCAN_TYPE_LE;
     }
 
+    /* Is BREDR enabled? If not, turn it on */
+    if ((supported & MGMT_SETTING_BREDR) && !(current & MGMT_SETTING_BREDR)) {
+        cmd_enable_bredr(localbt);    
+        return;
+    }
+
+    /* Is BLE enabled? If not, turn it on */
+    if ((supported & MGMT_SETTING_LE) && !(current & MGMT_SETTING_LE)) {
+        cmd_enable_btle(localbt);    
+        return;
+    }
+
     /* Is it currently powered? */
-    if (!(rp->current_settings & MGMT_SETTING_POWERED)) {
+    if (!(current & MGMT_SETTING_POWERED)) {
         /* If the interface is off, turn it on */
         cmd_enable_controller(localbt);
     } else {
@@ -565,6 +598,31 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                     resp_controller_power(localbt, crec->status,
                             rlength - sizeof(struct mgmt_ev_cmd_complete),
                             crec->data);
+                    break;
+                case MGMT_OP_START_DISCOVERY:
+                    if (crec->status != 0) {
+                        snprintf(errstr, STATUS_MAX, 
+                                "Bluetooth interface hci%u discovery failed", rindex);
+                        cf_send_error(localbt->caph, errstr);
+                    }
+                    break;
+                case MGMT_OP_SET_BREDR:
+                    if (crec->status != 0) {
+                        snprintf(errstr, STATUS_MAX, 
+                                "Bluetooth interface hci%u enabling BREDR failed", rindex);
+                        cf_send_error(localbt->caph, errstr);
+                    }
+
+                    cmd_get_controller_info(localbt);
+                    break;
+                case MGMT_OP_SET_LE:
+                    if (crec->status != 0) {
+                        snprintf(errstr, STATUS_MAX, 
+                                "Bluetooth interface hci%u enabling LE failed", rindex);
+                        cf_send_error(localbt->caph, errstr);
+                    }
+
+                    cmd_get_controller_info(localbt);
                     break;
                 default:
                     break;
