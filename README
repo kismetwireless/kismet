@@ -19,10 +19,6 @@ https://www.kismetwireless.net
             libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev \
             libncurses5-dev libnm-dev libdw-dev libsqlite3-dev 
 
-        Additionally, to support HackRF sweep, you'll need:
-
-        $ sudo apt-get install libhackrf-dev libfftw3-dev
-
     2.  Clone Kismet from git.  If you haven't cloned Kismet before:
 
         $ git clone https://www.kismetwireless.net/git/kismet.git
