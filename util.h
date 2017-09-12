@@ -325,7 +325,7 @@ public:
                 throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
             }
 #else
-            pthread_mutex_lock(in);
+            pthread_mutex_lock(lock);
 #endif
 
         } else if (cpplock != NULL) {
