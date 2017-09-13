@@ -63,7 +63,7 @@
 */
 
 (function ($) {
-    function showitemhelp(item) {
+    function showitemhelp(item, title) {
         var h = $(window).height() / 3;
         var w = $(window).width() / 2;
 
@@ -75,13 +75,13 @@
 
         $.jsPanel({
                 id: "item-help",
-                headerTitle: item['title'],
+                headerTitle: title,
                 headerControls: {
                     controls: 'closeonly',
                     iconfont: 'jsglyph',
                 },
                 paneltype: 'modal',
-                content: '<div style="padding: 10px;"><h3>' + item['title'] + '</h3><p>' + item['help'],
+                content: '<div style="padding: 10px;"><h3>' + title + '</h3><p>' + item['help'],
             })
             .resize({
                 width: w,
@@ -94,8 +94,8 @@
             });
     }
 
-    function make_help_func(item) {
-        return function() { showitemhelp(item); };
+    function make_help_func(item, title) {
+        return function() { showitemhelp(item, title); };
     }
 
     $.fn.devicedata = function(data, options) {
@@ -185,6 +185,17 @@
                     gt = v['groupTitle'](callopts);
 
                 cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
+
+                if (v['help']) {
+                    fn = make_help_func(v, gt);
+
+                    cell.append($('<i>', {
+                        class: 'k_dd_td_help pseudolink fa fa-question-circle'
+                    })
+                    .on('click', fn)
+                    );
+
+                }
 
                 cell.append($('<br />'));
                 cell.append($('<div />'));
@@ -288,7 +299,7 @@
                 titletd.html(v['title']);
 
                 if (v['help']) {
-                    fn = make_help_func(v);
+                    fn = make_help_func(v, v['title']);
 
                     titletd.append($('<i>', {
                         class: 'k_dd_td_help pseudolink fa fa-question-circle'
