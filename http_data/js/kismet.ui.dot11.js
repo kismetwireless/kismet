@@ -175,12 +175,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             {
                 field: "dot11.device/dot11.device.last_beaconed_ssid",
                 title: "Last Beaconed SSID (AP)",
-                empty: "<i>None</i>"
+                empty: "<i>None</i>",
+                help: "If present, the last SSID (network name) advertised by a device as an access point beacon or as an access point issuing a probe response",
             },
             {
                 field: "dot11.device/dot11.device.last_probed_ssid",
                 title: "Last Probed SSID (Client)",
-                empty: "<i>None</i>"
+                empty: "<i>None</i>",
+                help: "If present, the last SSID (network name) probed for by a device as a client looking for a network.",
             },
             {
                 field: "dot11.device/dot11.device.last_bssid",
@@ -190,7 +192,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 render: function(opts) {
                     return opts['value'].split('/')[0];
-                }
+                },
+                help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
             },
             {
                 field: "dot11_packet_group",
@@ -237,43 +240,52 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "kismet.device.base.packets.total",
-                    title: "Total Packets"
+                    title: "Total Packets",
+                    help: "Total packet count seen of all packet types",
                 },
                 {
                     field: "kismet.device.base.packets.llc",
-                    title: "LLC/Management"
+                    title: "LLC/Management",
+                    help: "LLC and Management packets define Wi-Fi networks.  They include packets like beacons, probe requests and responses, and other packets.  Access points will almost always have significantly more management packets than any other type.",
                 },
                 {
                     field: "kismet.device.base.packets.data",
-                    title: "Data Packets"
+                    title: "Data Packets",
+                    help: "Wi-Fi data packets encode the actual data being sent by the device.",
                 },
                 {
                     field: "kismet.device.base.packets.error",
-                    title: "Error/Invalid Packets"
+                    title: "Error/Invalid Packets",
+                    help: "Invalid Wi-Fi packets are packets which have become corrupted in the air or which are otherwise invalid.  Typically these packets are discarded instead of tracked because the validity of their contents cannot be verified, so this will often be 0.",
                 },
                 {
                     field: "dot11.device/dot11.device.num_fragments",
-                    title: "Fragmented Packets"
+                    title: "Fragmented Packets",
+                    help: "The data being sent over Wi-Fi can be fragmented into smaller packets.  Typically this is not desirable because it increases the packet load and can add latency to TCP connections.",
                 },
                 {
                     field: "dot11.device/dot11.device.num_retries",
-                    title: "Retried Packets"
+                    title: "Retried Packets",
+                    help: "If a Wi-Fi data packet cannot be transmitted (due to weak signal, interference, or collisions with other packets transmitted at the same time), the Wi-Fi layer will automatically attempt to retransmit it a number of times.  In busy environments, a retransmit rate of 50% or higher is not unusual.",
                 },
                 {
                     field: "dot11.device/dot11.device.datasize",
                     title: "Data (size)",
                     render: kismet_ui.RenderHumanSize,
+                    help: "The amount of data transmitted by this device",
                 },
                 {
                     field: "dot11.device/dot11.device.datasize.retry",
                     title: "Retried Data",
                     render: kismet_ui.RenderHumanSize,
+                    help: "The amount of data re-transmitted by this device, due to lost packets and automatic retry.",
                 }
                 ],
             },
             {
                 field: "dot11.device/dot11.device.wpa_handshake_list",
                 id: "wpa_handshake",
+                help: "When a client joins a WPA network, it performs a &quot;handshake&quot; of four packets to establish the connection and the unique per-session key.  To decrypt WPA or derive the PSK, at least two specific packets of this handshake are required.  Kismet provides a simplified pcap file of the handshake packets seen, which can be used with other tools to derive the PSK or decrypt the packet stream.",
                 filter: function(opts) {
                     return (opts['data']['dot11.device']['dot11.device.wpa_handshake_list'].length);
                 },
@@ -321,7 +333,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
                 },
-                title: '<b class="k_padding_title">Probed SSIDs</b>'
+                title: '<b class="k_padding_title">Probed SSIDs</b>',
+                help: "Wi-Fi clients will send out probe requests for networks they are trying to join.  Probe requests can either be broadcast requests, requesting any network in the area respond, or specific requests, requesting a single SSID the client has used previously.  Different clients may behave differently, and modern clients will typically only send generic broadcast probes.",
             },
 
             {
@@ -376,7 +389,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
                 },
-                title: '<b class="k_padding_title">Advertised SSIDs</b>'
+                title: '<b class="k_padding_title">Advertised SSIDs</b>',
+                help: "A single BSSID may advertise multiple SSIDs, either changing its network name over time or combining multiple SSIDs into a single BSSID radio address.  Most modern Wi-Fi access points which support multiple SSIDs will generate a dynamic MAC address for each SSID.",
             },
 
             {
@@ -399,7 +413,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.advertisedssid.ssid",
                     title: "SSID",
-                    empty: "<i>Unknown</i>"
+                    empty: "<i>Unknown</i>",
+                    help: "Advertised SSIDs can be any data, up to 32 characters.  Some access points attempt to cloak the SSID by sending blank spaces or an empty string; these SSIDs can be discovered when a client connects to the network.",
                 },
                 {
                     field: "dot11.advertisedssid.crypt_set",
@@ -407,15 +422,18 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     render: function(opts) {
                         return exports.CryptToHumanReadable(opts['value']);
                     },
+                    help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
                 },
                 {
                     field: "dot11.advertisedssid.channel",
-                    title: "Channel"
+                    title: "Channel",
+                    help: "Wi-Fi networks on 2.4GHz (channels 1 through 14) are required to include a channel in the advertisement because channel overlap makes it impossible to determine the exact channel the access point is transmitting on.  Networks on 5GHz channels are typically not required to include the channel.",
                 },
                 {
                     field: "dot11.advertisedssid.beacon_info",
                     title: "Beacon Info",
-                    filterOnEmpty: true
+                    filterOnEmpty: true,
+                    help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
                 },
                 {
                     field: "dot11.advertisedssid.first_time",
@@ -432,25 +450,29 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Beacon Rate",
                     render: function(opts) {
                         return opts['value'] + '/sec';
-                    }
+                    },
+                    help: "Wi-Fi typically beacons at 10 packets per second; normally there is no reason for an access point to change this rate, but it may be changed in some situations where a large number of SSIDs are hosted on a single access point.",
                 },
                 {
                     field: "dot11.advertisedssid.maxrate",
                     title: "Max. Rate",
                     render: function(opts) {
                         return opts['value'] + ' mbit';
-                    }
+                    },
+                    help: "The maximum basic transmission rate supported by this access point",
                 },
                 {
                     field: "dot11.advertisedssid.dot11d_country",
                     title: "802.11d Country",
                     filterOnEmpty: true,
+                    help: "The 802.11d standard required access points to identify their operating country code and signal levels.  This caused clients connecting to those access points to adopt the same regulatory requirements.  802.11d has been phased out and is not found on most modern access points but may still be seen on older hardware.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_manuf",
                     groupTitle: "WPS",
                     id: "dot11_wps_group",
                     filterOnEmpty: true,
+                    help: "WPS, or Wireless Protected Setup, is a mechanism for configuring clients without entering the complete WPA key.  It is susceptible to several attacks and should be, if possible, disabled.",
 
                     fields: [
                     {
@@ -482,6 +504,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 // Filler title
                 field: "dot11.device/dot11.device.client_map",
                 id: "client_behavior_header",
+                help: "A Wi-Fi device may be a client of multiple networks over time, but can only be actively associated with a single access point at a time.",
                 filter: function(opts) {
                     return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
                 },
@@ -580,6 +603,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     groupTitle: "DHCP",
                     id: "client_dhcp",
                     filterOnEmpty: true,
+                    help: "If a DHCP data packet is seen, the requested hostname and the operating system / vendor of the DHCP client can be extracted.",
                     fields: [
                     {
                         field: "dot11.client.dhcp_host",
@@ -597,12 +621,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.eap_identity",
                     title: "EAP Identity",
                     filterOnEmpty: true,
+                    help: "If an EAP handshake (part of joining a WPA-Enterprise protected network) is observed, Kismet may be able to extract the EAP identity of a client; this may represent the users login, or it may be empty or 'anonymouse' when joining a network with a phase-2 authentication, like WPA-PEAP",
                 },
                 {
                     field: "dot11.client.cdp_device",
                     groupTitle: "CDP",
                     id: "client_cdp",
                     filterOnEmpty: true,
+                    help: "Clients bridged to a wired network may leak CDP (Cisco Discovery Protocol) packets, which can disclose information about the internal wired network.",
                     fields: [
                     {
                         field: "dot11.client.cdp_device",
@@ -621,6 +647,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filter: function(opts) {
                         return (kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.ipdata/kismet.common.ipdata.address') != 0);
                     },
+                    help: "Kismet will attempt to derive the IP ranges in use on a network, either from observed traffic or from DHCP server responses.",
                     fields: [
                     {
                         field: "dot11.client.ipdata/kismet.common.ipdata.address",
@@ -648,7 +675,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
                 },
-                title: '<b class="k_padding_title">Associated Clients</b>'
+                title: '<b class="k_padding_title">Associated Clients</b>',
+                help: "An access point typically will have clients associated with it.  These client devices can either be wireless devices connected to the access point, or they can be bridged, wired devices on the network the access point is connected to.",
             },
 
             {
@@ -703,6 +731,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     field: "kismet.device.base.type",
                                     title: "Type",
                                     empty: "<i>Unknown</i>"
+
                                 },
                                 {
                                     field: "kismet.device.base.manuf",
@@ -743,8 +772,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
         });
     }
 });
-
-console.log("kismet.ui.dot11.js returning, we think we loaded everything?");
 
 // We're done loading
 exports.load_complete = 1;
