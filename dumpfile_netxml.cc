@@ -242,13 +242,13 @@ int Dumpfile_Netxml::Flush() {
                                 fprintf(xmlfile, "        <wps>No</wps>\n");
                         }
                         if (m->second->wps_manuf != "")
-                            fprintf(xmlfile, "        <wps-manuf>%s</wps-manuf>\n", m->second->wps_manuf.c_str());
+                            fprintf(xmlfile, "        <wps-manuf>%s</wps-manuf>\n", SanitizeXML(m->second->wps_manuf).c_str());
                         if (m->second->wps_device_name != "")
-                            fprintf(xmlfile, "        <dev-name>%s</dev-name>\n", m->second->wps_device_name.c_str());
+                            fprintf(xmlfile, "        <dev-name>%s</dev-name>\n", SanitizeXML(m->second->wps_device_name).c_str());
                         if (m->second->wps_model_name != "")
-                            fprintf(xmlfile, "        <model-name>%s</model-name>\n", m->second->wps_model_name.c_str());
+                            fprintf(xmlfile, "        <model-name>%s</model-name>\n", SanitizeXML(m->second->wps_model_name).c_str());
                         if (m->second->wps_model_number != "")
-                            fprintf(xmlfile, "        <model-num>%s</model-num>\n", m->second->wps_model_number.c_str());
+                            fprintf(xmlfile, "        <model-num>%s</model-num>\n", SanitizeXML(m->second->wps_model_number).c_str());
                                 
                         
 			if (m->second->cryptset == 0)
