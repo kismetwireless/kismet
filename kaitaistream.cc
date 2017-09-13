@@ -1,7 +1,7 @@
 #include <kaitai/kaitaistream.h>
 
-#include <endian.h>
-#include <byteswap.h>
+#include <kis_endian.h>
+#include <kis_byteswap.h>
 
 #include <iostream>
 #include <vector>
