@@ -13,6 +13,8 @@
  *
  */
 
+#include "config.h"
+
 #ifndef SYS_DARWIN
 #include <endian.h>
 #else
