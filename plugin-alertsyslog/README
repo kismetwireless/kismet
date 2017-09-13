@@ -1,0 +1,48 @@
+Kismet-ALERTSYSLOG
+
+1.  What is Kismet-ALERTSYSLOG
+2.  Compiling
+3.  Installing
+4.  Using
+
+1.  What is Kismet-ALERTSYSLOG
+
+    Kismet-ALERTSYSLOG is a Kismet plugin which provides a bridge from the
+    Kismet alert system to standard unix syslog services.
+
+    Alerts are logged as LOG_CRIT under the USER service.  The syslog ID is
+    the name assigned to the Kismet server.
+
+2.  Compiling
+
+	Compiling the Kismet-ALERTSYSLOG plugin requires the Kismet source be installed
+	and configured.
+
+	By default, Kismet-ALERTSYSLOG expects the Kismet source to be in
+	/usr/src/kismet; this can be overridden by setting the
+	KIS_SRC_DIR environment variable:
+
+		cd plugin-alertsyslog/
+		KIS_SRC_DIR=/home/foo/src/kismet make
+
+4.  Installing
+
+	Kismet plugins may be installed system-wide in the plugins directory (by
+	default, /usr/local/lib/kismet/) or in the users home directory
+	(~/.kismet/plugins)
+
+    The default installation path can be overridden with the KIS_DEST_DIR
+    variable if you have not installed Kismet in the default location and
+    wish to install the plugin in the system-wide plugins directory:
+        cd plugin-ptw
+        KIS_DEST_DIR=/usr make install
+
+    Plugins can be installed in the current users home directory with:
+        cd plugin-ptw
+        make userinstall
+
+5.  Using
+
+    Once the plugin is loaded, Kismet will automatically log alerts to
+    syslog.
+
