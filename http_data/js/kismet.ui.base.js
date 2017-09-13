@@ -267,16 +267,19 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             {
                 field: "kismet.device.base.name",
                 title: "Name",
-                empty: "<i>None</i>"
+                empty: "<i>None</i>",
+                help: "Device name, derived from device characteristics or set as a custom name by the user."
             },
             {
                 field: "kismet.device.base.macaddr",
                 title: "MAC Address",
+                help: "Unique per-phy address of the transmitting device, when available.  Not all phy types provide MAC addresses, however most do.",
             },
             {
                 field: "kismet.device.base.manuf",
                 title: "Manufacturer",
-                empty: "<i>Unknown</i>"
+                empty: "<i>Unknown</i>",
+                help: "Manufacturer of the device, derived from the MAC address.  Manufacturers are registered with the IEEE and resolved in the files specified in kismet.conf under 'manuf='",
             },
             {
                 field: "kismet.device.base.type",
@@ -576,31 +579,38 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 {
                     field: "kismet.device.base.packets.total",
-                    title: "Total Packets"
+                    title: "Total Packets",
+                    help: "Count of all packets of all types",
                 },
                 {
                     field: "kismet.device.base.packets.llc",
-                    title: "LLC/Management"
+                    title: "LLC/Management",
+                    help: "LLC (Link Layer Control) and Management packets are typically used for controlling and defining wireless networks.  Typically they do not carry data.",
                 },
                 {
                     field: "kismet.device.base.packets.error",
-                    title: "Error/Invalid"
+                    title: "Error/Invalid",
+                    help: "Error and invalid packets indicate a packet was received and was partially processable, but was damaged or incorrect in some way.  Most error packets are dropped completely as it is not possible to associate them with a specific device.",
                 },
                 {
                     field: "kismet.device.base.packets.data",
-                    title: "Data"
+                    title: "Data",
+                    help: "Data frames carry messages and content for the device.",
                 },
                 {
                     field: "kismet.device.base.packets.crypt",
-                    title: "Encrypted"
+                    title: "Encrypted",
+                    help: "Some data frames can be identified by Kismet as carrying encryption, either by the contents or by packet flags, depending on the phy type",
                 },
                 {
                     field: "kismet.device.base.packets.filtered",
-                    title: "Filtered"
+                    title: "Filtered",
+                    help: "Filtered packets are ignored by Kismet",
                 },
                 {
                     field: "kismet.device.base.datasize",
                     title: "Data Transferred",
+                    help: "Amount of data transferred",
                     render: function(opts) {
                         return kismet.HumanReadableSize(opts['value']);
                     }

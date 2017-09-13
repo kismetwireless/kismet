@@ -5,6 +5,8 @@
         "field": "..." // Field spec
         "title": "..." // title text
 
+        "help": "..." // Help / explanatory text
+
         // Options will contain AT LEAST
         // 'key' - current field key
         // 'data' - current data
@@ -61,6 +63,41 @@
 */
 
 (function ($) {
+    function showitemhelp(item) {
+        var h = $(window).height() / 3;
+        var w = $(window).width() / 2;
+
+        if (w < 450) 
+            w = $(window).width() - 5;
+
+        if (h < 200)
+            h = $(window).height() - 5;
+
+        $.jsPanel({
+                id: "item-help",
+                headerTitle: item['title'],
+                headerControls: {
+                    controls: 'closeonly',
+                    iconfont: 'jsglyph',
+                },
+                paneltype: 'modal',
+                content: '<div style="padding: 10px;"><h3>' + item['title'] + '</h3><p>' + item['help'],
+            })
+            .resize({
+                width: w,
+                height: h
+            })
+            .reposition({
+                my: 'center',
+                at: 'center',
+                of: 'window'
+            });
+    }
+
+    function make_help_func(item) {
+        return function() { showitemhelp(item); };
+    }
+
     $.fn.devicedata = function(data, options) {
         var settings = $.extend({
             "stripe": true,
@@ -246,7 +283,21 @@
             if (v["span"]) {
                 td = $('td:eq(0)', drow);
             } else {
-                $('td:eq(0)', drow).html(v['title']);
+                var titletd = $('td:eq(0)', drow);
+                
+                titletd.html(v['title']);
+
+                if (v['help']) {
+                    fn = make_help_func(v);
+
+                    titletd.append($('<i>', {
+                        class: 'k_dd_td_help pseudolink fa fa-question-circle'
+                    })
+                    .on('click', fn)
+                    );
+
+                }
+
                 td = $('td:eq(1)', drow);
             }
 

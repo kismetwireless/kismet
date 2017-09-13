@@ -19,6 +19,17 @@ td.kismet_devicedata_td_content {
     width: 100%;
 }
 
+.k_dd_td_help {
+    font-size: 8px;
+    color: #c0c0c0;
+    position: relative;
+    right: -8px;
+}
+
+.k_dd_td_help:hover {
+    color: black;
+}
+
 td.kismet_devicedata_span {
     width: 100%;
 }
