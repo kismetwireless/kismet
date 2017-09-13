@@ -973,6 +973,8 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
                 [this, ds](unsigned int, bool success, string msg) {
                     if (success)
                         merge_source(ds); 
+                    else
+                        broken_source_vec.push_back(ds);
                 });
 
             return;

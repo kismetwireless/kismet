@@ -111,6 +111,8 @@ KisDatasource::~KisDatasource() {
 
     ipc_remote.reset();
 
+    command_ack_map.empty();
+
     // We don't call a normal close here because we can't risk double-free
     // or going through commands again - if the source is being deleted, it should
     // be completed!
@@ -545,6 +547,8 @@ void KisDatasource::BufferError(string in_error) {
 void KisDatasource::trigger_error(string in_error) {
     local_locker lock(&source_lock);
 
+    // fprintf(stderr, "DEBUG - trigger error %s\n", in_error.c_str());
+
     stringstream ss;
 
     if (!quiet_errors) {
@@ -559,12 +563,13 @@ void KisDatasource::trigger_error(string in_error) {
     // Kill any interaction w/ the source
     close_source();
 
-    handle_source_error();
-
     /* Set errors as quiet after the first one */
     quiet_errors = 1;
 
     set_int_source_running(false);
+
+    handle_source_error();
+    cancel_all_commands(in_error);
 }
 
 string KisDatasource::get_definition_opt(string in_opt) {
@@ -698,11 +703,14 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
             cb(cmd->transaction, false, in_error);
         }
 
+        cmd.reset();
     }
 }
 
 void KisDatasource::cancel_all_commands(string in_error) {
     local_locker lock(&source_lock);
+
+    // fprintf(stderr, "debug - cancel all commands\n");
 
     while (1) {
         auto i = command_ack_map.begin();
@@ -712,6 +720,8 @@ void KisDatasource::cancel_all_commands(string in_error) {
 
         cancel_command(i->first, in_error);
     }
+
+    command_ack_map.empty();
 }
 
 void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
@@ -786,11 +796,18 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
 
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
+    KVmap::iterator successitr;
     string msg;
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         msg = handle_kv_message(i->second);
+    }
+
+    // If we don't have a success record we're flat out invalid
+    if ((successitr = in_kvpairs.find("success")) == in_kvpairs.end()) {
+        trigger_error("No valid response found for open request");
+        return;
     }
 
     // Process channels list if we got one
@@ -819,6 +836,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         handle_kv_dlt(i->second);
     } else {
         trigger_error("No DLT found for interface");
+        return;
     }
 
     // If we didn't get a uuid and we don't have one, make up a timestamp-based one
@@ -828,12 +846,6 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
 
         set_source_uuid(nuuid);
-    }
-
-    // If we don't have a success record we're flat out invalid
-    if ((i = in_kvpairs.find("success")) == in_kvpairs.end()) {
-        trigger_error("No valid response found for open request");
-        return;
     }
 
     // TODO configure channels based on source line, if any; otherwise, copy
@@ -851,8 +863,8 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         set_int_source_retry_attempts(0);
     }
 
-    set_int_source_running(get_kv_success(i->second));
-    set_int_source_error(get_kv_success(i->second) == 0);
+    set_int_source_running(get_kv_success(successitr->second));
+    set_int_source_error(get_kv_success(successitr->second) == 0);
 
     // Get the sequence number and look up our command
     uint32_t seq = get_kv_success_sequence(i->second);
@@ -1048,7 +1060,6 @@ void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
 
 bool KisDatasource::get_kv_success(KisDatasourceCapKeyedObject *in_obj) {
     if (in_obj->size != sizeof(simple_cap_proto_success_value)) {
-        trigger_error("Invalid SUCCESS object in response");
         return false;
     }
 
@@ -1059,8 +1070,7 @@ bool KisDatasource::get_kv_success(KisDatasourceCapKeyedObject *in_obj) {
 
 uint32_t KisDatasource::get_kv_success_sequence(KisDatasourceCapKeyedObject *in_obj) {
     if (in_obj->size != sizeof(simple_cap_proto_success_value)) {
-        trigger_error("Invalid SUCCESS object in response");
-        return false;
+        return 0;
     }
 
     simple_cap_proto_success_t *status = (simple_cap_proto_success_t *) in_obj->object;
