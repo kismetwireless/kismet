@@ -26,7 +26,8 @@
 
 #include "util.h"
 #include "macaddr.h"
-// #include "packet.h"
+
+class GlobalRegistry;
 
 // Pre-defs for all the things we point to
 class MessageBus;
@@ -288,15 +289,6 @@ public:
     shared_ptr<void> FetchGlobal(int in_ref);
 	shared_ptr<void> FetchGlobal(string in_name);
 
-    template<typename T> shared_ptr<T> FetchGlobalAs(int in_ref) {
-        return static_pointer_cast<T>(FetchGlobal(in_ref));
-    }
-
-    template<typename T> shared_ptr<T> FetchGlobalAs(string in_name) {
-        return static_pointer_cast<T>(FetchGlobal(in_name));
-}
-
-
     int InsertGlobal(int in_ref, shared_ptr<void> in_data);
 	int InsertGlobal(string in_name, shared_ptr<void> in_data);
     void RemoveGlobal(int in_ref);
@@ -330,6 +322,19 @@ protected:
 
     vector<shared_ptr<LifetimeGlobal> > lifetime_vec;
 };
+
+namespace Globalreg {
+    template<typename T> shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
+            int in_ref) {
+        return static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
+    }
+
+    template<typename T> shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
+            string in_name) {
+        return static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
+    }
+}
+
 
 #endif
 

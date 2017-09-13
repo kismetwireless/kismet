@@ -39,9 +39,10 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_build
     last_heading_time = time(0);
 
     pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+        Globalreg::FetchGlobalAs<PollableTracker>(globalreg, "POLLABLETRACKER");
 
-    auto timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -62,7 +63,8 @@ GPSSerialV2::~GPSSerialV2() {
 
     pollabletracker->RemovePollable(serialclient);
 
-    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     timetracker->RemoveTimer(error_reconnect_timer);
 }
 

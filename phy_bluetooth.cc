@@ -36,10 +36,14 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
         int in_phyid) : Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
     globalreg = in_globalreg;
 
-    alertracker = globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
-    packetchain = globalreg->FetchGlobalAs<Packetchain>("PACKETCHAIN");
-    entrytracker = globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
-    devicetracker = globalreg->FetchGlobalAs<Devicetracker>("DEVICE_TRACKER");
+    alertracker = 
+        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+    packetchain = 
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    entrytracker = 
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+    devicetracker = 
+        Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
 
     phyname = "Bluetooth";
 

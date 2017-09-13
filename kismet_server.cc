@@ -241,12 +241,12 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
 
     // Shut down the webserver first
     shared_ptr<Kis_Net_Httpd> httpd = 
-        static_pointer_cast<Kis_Net_Httpd>(globalregistry->FetchGlobal("HTTPD_SERVER"));
+        Globalreg::FetchGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER");
     if (httpd != NULL)
         httpd->StopHttpd();
 
     shared_ptr<Datasourcetracker> datasourcetracker = 
-        static_pointer_cast<Datasourcetracker>(globalregistry->FetchGlobal("DATASOURCETRACKER"));
+        Globalreg::FetchGlobalAs<Datasourcetracker>(globalregistry, "DATASOURCETRACKER");
     if (datasourcetracker != NULL)
         datasourcetracker->system_shutdown();
 
@@ -321,7 +321,7 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
 
     fprintf(stderr, "Shutting down plugins...\n");
     shared_ptr<Plugintracker> plugintracker =
-        globalregistry->FetchGlobalAs<Plugintracker>("PLUGINTRACKER");
+        Globalreg::FetchGlobalAs<Plugintracker>(globalregistry, "PLUGINTRACKER");
     if (plugintracker != NULL)
         plugintracker->ShutdownPlugins();
 

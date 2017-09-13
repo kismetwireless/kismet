@@ -41,8 +41,7 @@ DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg,
 
     globalreg = in_globalreg;
 
-    timetracker =
-        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+    timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     // Make a recursive mutex that the owning thread can lock multiple times;
     // Required to allow a timer event to reschedule itself on completion
@@ -196,8 +195,7 @@ DST_DatasourceList::DST_DatasourceList(GlobalRegistry *in_globalreg,
         SharedTrackerElement in_protovec) {
     globalreg = in_globalreg;
 
-    timetracker =
-        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+    timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     // Make a recursive mutex that the owning thread can lock multiple times;
     // Required to allow a timer event to reschedule itself on completion
@@ -316,18 +314,17 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     entrytracker = 
-        globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
     if (entrytracker == NULL)
         throw std::runtime_error("entrytracker not initialized before Datasourcetracker");
 
-    timetracker =
-        globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     if (timetracker == NULL)
         throw std::runtime_error("timetracker not initialized before Datasourcetracker");
 
     // Create an alert for source errors
     shared_ptr<Alertracker> alertracker =
-        globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
     if (alertracker == NULL)
         throw std::runtime_error("alertracker not initialized before Datasourcetracker");
 
@@ -443,7 +440,7 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
 
     // Register js module for UI
     shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_datasources", 
             "/js/kismet.ui.datasources.js");
 }
@@ -1616,10 +1613,10 @@ bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path,
         const char *method) {
     if (strcmp(method, "GET") == 0) {
         datasourcetracker =
-            static_pointer_cast<Datasourcetracker>(http_globalreg->FetchGlobal("DATASOURCETRACKER"));
+            Globalreg::FetchGlobalAs<Datasourcetracker>(http_globalreg, "DATASOURCETRACKER");
 
         shared_ptr<Packetchain> packetchain = 
-            static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+            Globalreg::FetchGlobalAs<Packetchain>(http_globalreg, "PACKETCHAIN");
         pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
         // Total pcap of all data; we put it in 2 locations
@@ -1669,7 +1666,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
     }
 
     shared_ptr<StreamTracker> streamtracker =
-        static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
+        Globalreg::FetchGlobalAs<StreamTracker>(http_globalreg, "STREAMTRACKER");
 
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
@@ -1719,10 +1716,10 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
                 }
 
                 datasourcetracker =
-                    static_pointer_cast<Datasourcetracker>(http_globalreg->FetchGlobal("DATASOURCETRACKER"));
+                    Globalreg::FetchGlobalAs<Datasourcetracker>(http_globalreg, "DATASOURCETRACKER");
 
                 shared_ptr<Packetchain> packetchain = 
-                    static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+                    Globalreg::FetchGlobalAs<Packetchain>(http_globalreg, "PACKETCHAIN");
                 pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
                 SharedDatasource ds = datasourcetracker->find_datasource(u);
@@ -1792,7 +1789,8 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
     rbuf_handler = in_rbufhandler;
     cb = in_cb;
 
-    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     timerid =
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
@@ -1807,7 +1805,8 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
-    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     // Kill the error timer
     if (timetracker != NULL && timerid > 0)
@@ -1825,7 +1824,8 @@ dst_incoming_remote::~dst_incoming_remote() {
 
 void dst_incoming_remote::kill() {
     // Kill the error timer
-    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     if (timetracker != NULL && timerid > 0)
         timetracker->RemoveTimer(timerid);
 
@@ -1839,7 +1839,7 @@ void dst_incoming_remote::kill() {
     }
 
     shared_ptr<Datasourcetracker> datasourcetracker =
-        globalreg->FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+        Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DATASOURCETRACKER");
 
     if (datasourcetracker != NULL) 
         datasourcetracker->queue_dead_remote(this);

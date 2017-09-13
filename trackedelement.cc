@@ -1441,7 +1441,8 @@ bool operator>(TrackerElement &te1, double d) {
 tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
     globalreg = in_globalreg;
 
-    entrytracker = in_globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
+    entrytracker = 
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
     set_type(TrackerMap);
     set_id(in_id);
@@ -1451,7 +1452,8 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id,
         shared_ptr<TrackerElement> e __attribute__((unused))) {
 
     globalreg = in_globalreg;
-    entrytracker = in_globalreg->FetchGlobalAs<EntryTracker>("ENTRY_TRACKER");
+    entrytracker = 
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
     set_type(TrackerMap);
     set_id(in_id);

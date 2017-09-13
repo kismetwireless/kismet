@@ -34,9 +34,9 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
     phyname = "RTL433";
 
     packetchain =
-        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
     entrytracker =
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -62,7 +62,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
 
     // Register js module for UI
     shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_rtl433", 
             "/js/kismet.ui.rtl433.js");
 

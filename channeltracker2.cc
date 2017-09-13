@@ -118,8 +118,9 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
     string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/channels/channels") {
-        Httpd_Serialize(path, stream, 
-                globalreg->FetchGlobalAs<Channeltracker_V2>("CHANNEL_TRACKER"));
+        shared_ptr<Channeltracker_V2> cv2 = 
+            Globalreg::FetchGlobalAs<Channeltracker_V2>(globalreg, "CHANNEL_TRACKER");
+        Httpd_Serialize(path, stream, cv2);
     }
 
 }

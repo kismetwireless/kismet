@@ -286,7 +286,7 @@ int Plugintracker::ActivatePlugins() {
     local_locker lock(&plugin_lock);
 
     shared_ptr<Kis_Httpd_Registry> httpdregistry =
-        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
 
     // Set the new signal handler, remember the old one; if something goes
     // wrong loading the plugins we need to catch it and return a special

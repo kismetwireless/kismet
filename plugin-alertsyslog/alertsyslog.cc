@@ -66,47 +66,47 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 	return 1;
 }
 
-int alertsyslog_unregister(GlobalRegistry *in_globalreg) {
-	return 0;
+int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
+    // We can't use the templated FetchGlobalAs here because the template object code
+    // won't exist in the server object
+    /*
+    shared_ptr<Packetchain> packetchain =
+        static_pointer_cast<Packetchain>(in_globalreg->FetchGlobal(string("PACKETCHAIN")));
+        */
+#if 0
+    shared_ptr<void> pcv = in_globalreg->FetchGlobal(string("PACKETCHAIN"));
+
+    if (packetchain == NULL) {
+        _MSG("Unable to register syslog plugin, packetchain was unavailable",
+                MSGFLAG_ERROR);
+        return -1;
+    }
+
+    openlog(globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
+
+    packetchain->RegisterHandler(&alertsyslog_chain_hook, NULL,
+            CHAINPOS_LOGGING, -100);
+#endif
+
+    return 1;
 }
 
 extern "C" {
     int kis_plugin_version_check(struct plugin_server_info *si) {
-        if (si->plugin_api_version != KIS_PLUGINTRACKER_VERSION)
-            return -1;
-
-        if (si->kismet_major != VERSION_MAJOR)
-            return -1;
-
-        if (si->kismet_minor != VERSION_MINOR)
-            return -1;
-
-        if (si->kismet_tiny != VERSION_TINY)
-            return -1;
+        si->plugin_api_version = KIS_PLUGINTRACKER_VERSION;
+        si->kismet_major = VERSION_MAJOR;
+        si->kismet_minor = VERSION_MINOR;
+        si->kismet_tiny = VERSION_TINY;
 
         return 1;
     }
 
     int kis_plugin_activate(GlobalRegistry *in_globalreg) {
-        openlog(globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
-
         return 1;
     }
 
     int kis_plugin_finalize(GlobalRegistry *in_globalreg) {
-        shared_ptr<Packetchain> packetchain =
-            globalreg->FetchGlobalAs<Packetchain>("PACKETCHAIN");
-
-        if (packetchain == NULL) {
-            _MSG("Unable to register syslog plugin, packetchain was unavailable",
-                    MSGFLAG_ERROR);
-            return -1;
-        }
-
-        packetchain->RegisterHandler(&alertsyslog_chain_hook, NULL,
-                CHAINPOS_LOGGING, -100);
-
-        return 1;
+        return alertsyslog_openlog(in_globalreg);
     }
 
 }

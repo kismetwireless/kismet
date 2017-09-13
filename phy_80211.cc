@@ -128,13 +128,13 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     alertracker =
-        static_pointer_cast<Alertracker>(globalreg->FetchGlobal("ALERTTRACKER"));
+        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
     packetchain =
-        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
 
     timetracker =
-        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
 	// Initialize the crc tables
 	crc32_init_table_80211(globalreg->crc32_table);
@@ -474,7 +474,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
     // Register js module for UI
     shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        globalreg->FetchGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_dot11", 
             "/js/kismet.ui.dot11.js");
 

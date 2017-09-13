@@ -60,10 +60,8 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
     PreludeInitClient(PRELUDE_ANALYZER_MODEL);
 #endif
 
-    packetchain =
-        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
-    entrytracker =
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+    packetchain = Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    entrytracker = Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;
@@ -678,7 +676,7 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             if (phyname != "any" && phyname != "") {
                 shared_ptr<Devicetracker> devicetracker = 
-                    static_pointer_cast<Devicetracker>(globalreg->FetchGlobal("DEVICE_TRACKER"));
+                    Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
                 Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
 
                 if (phyh == NULL)

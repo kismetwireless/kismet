@@ -49,13 +49,13 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
         add_map(in_builder);
 
     timetracker = 
-        static_pointer_cast<Timetracker>(globalreg->FetchGlobal("TIMETRACKER"));
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     packetchain =
-        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
 
     datasourcetracker =
-        static_pointer_cast<Datasourcetracker>(globalreg->FetchGlobal("DATASOURCETRACKER"));
+        Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DATASOURCETRACKER");
 
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
@@ -71,7 +71,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     mode_listing = false;
 
     shared_ptr<EntryTracker> entrytracker = 
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
     listed_interface_builder =
         entrytracker->RegisterAndGetField("kismet.datasourcetracker.listed_interface", 
                 SharedInterface(new KisDatasourceInterface(globalreg, 0)), 
@@ -1957,7 +1957,7 @@ void KisDatasource::handle_source_error() {
                 "to reconnect to resume capture.";
 
             shared_ptr<Alertracker> alertracker =
-                globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+                Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
             if (alertracker == NULL) 
                 throw std::runtime_error("Missing alertracker from datasource");
 
@@ -1980,7 +1980,7 @@ void KisDatasource::handle_source_error() {
                 "closed.";
 
             shared_ptr<Alertracker> alertracker =
-                globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+                Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
             if (alertracker == NULL) 
                 throw std::runtime_error("Missing alertracker from datasource");
 
@@ -2015,7 +2015,7 @@ void KisDatasource::handle_source_error() {
             get_source_retry_attempts() << " failures)";
 
         shared_ptr<Alertracker> alertracker =
-            globalreg->FetchGlobalAs<Alertracker>("ALERTTRACKER");
+            Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
         if (alertracker == NULL) 
             throw std::runtime_error("Missing alertracker from datasource");
 

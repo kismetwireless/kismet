@@ -38,7 +38,7 @@ void Kis_Httpd_Websession::activate_config() {
     string olduser = globalreg->kismet_config->FetchOpt("httpd_user");
 
     shared_ptr<Alertracker> alertracker = 
-        static_pointer_cast<Alertracker>(globalreg->FetchGlobal("ALERTTRACKER"));
+        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
     if (olduser != "") {
         int oldref;
@@ -105,7 +105,8 @@ void Kis_Httpd_Websession::activate_config() {
 
     activated = true;
 
-    auto websession = globalreg->FetchGlobalAs<Kis_Httpd_Websession>("WEBSESSION");
+    auto websession = 
+        Globalreg::FetchGlobalAs<Kis_Httpd_Websession>(globalreg, "WEBSESSION");
 
     httpd->RegisterSessionHandler(websession);
 }
@@ -169,7 +170,7 @@ void Kis_Httpd_Websession::userdir_login() {
         user_httpd_config->SaveConfig(user_httpd_config_file.c_str());
 
         shared_ptr<Alertracker> alertracker = 
-            static_pointer_cast<Alertracker>(globalreg->FetchGlobal("ALERTTRACKER"));
+            Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
         _MSG("Kismet has generated a random login for the web UI; it has been "
                 "saved in " + user_httpd_config_file + ".", MSGFLAG_INFO);

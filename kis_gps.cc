@@ -38,7 +38,8 @@ KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
     gps_location = new kis_gps_packinfo();
     gps_last_location = new kis_gps_packinfo();
 
-    shared_ptr<Timetracker> timetracker = globalreg->FetchGlobalAs<Timetracker>("TIMETRACKER");
+    shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 }
 
 KisGps::~KisGps() {
