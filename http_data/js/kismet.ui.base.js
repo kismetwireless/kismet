@@ -318,12 +318,12 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     help: "The primary frequency of the device, if known.  Not all phy types advertise a fixed frequency in packets.",
                     render: function(opts) {
                         return kismet.HumanReadableFrequency(opts['value']);
-                    }
+                    },
+                    filterOnZero: true,
                 },
                 {
                     field: "frequency_map",
                     span: true,
-                    help: "Many wireless protocols have overlapping channels, or a chance of seeing a signal",
                     filter: function(opts) {
                         return (Object.keys(opts['data']['kismet.device.base.freq_khz_map']).length >= 1);
                     },
