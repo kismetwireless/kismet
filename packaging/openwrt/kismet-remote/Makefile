@@ -55,7 +55,8 @@ endef
 define Package/kismet-remote/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_cap_pcapfile $(1)/usr/bin/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_cap_linux_wifi $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/capture_linux_wifi/kismet_cap_linux_wifi $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/capture_linux_bluetooth/kismet_cap_linux_bluetooth $(1)/usr/bin/
 endef
 
 $(eval $(call BuildPackage,kismet-remote))

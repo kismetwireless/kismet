@@ -10,7 +10,8 @@ PKG_RELEASE:=1
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://www.kismetwireless.net/git/kismet.git
 #PKG_SOURCE_URL:=/home/dragorn/src/kismet
-PKG_SOURCE_VERSION:=3449efe613836407c4c1cc8f8e6b74c929ffbda6
+#PKG_SOURCE_VERSION:=3449efe613836407c4c1cc8f8e6b74c929ffbda6
+PKG_SOURCE_VERSION:=head
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
@@ -55,7 +56,8 @@ define Package/kismet-tetra/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/usr/bin/kismet_capture_tools/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_cap_pcapfile $(1)/usr/bin/kismet_capture_tools/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/kismet_cap_linux_wifi $(1)/usr/bin/kismet_capture_tools/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/capture_linux_wifi/kismet_cap_linux_wifi $(1)/usr/bin/kismet_capture_tools/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/capture_linux_bluetooth/kismet_cap_linux_bluetooth $(1)/usr/bin/kismet_capture_tools/
 
 	$(INSTALL_DIR) $(1)/etc/kismet/
 	$(INSTALL_CONF) ./files/kismet.conf $(1)/etc/kismet/
