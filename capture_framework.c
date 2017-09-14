@@ -151,8 +151,6 @@ int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitli
         end++;
     }
 
-    printf("got %lu fields\n", num_fields);
-
     if (num_fields == 1) {
         *ret_splitlist = (char **) malloc(sizeof(char *));
 
@@ -935,8 +933,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     packet_sz = ntohl(cap_proto_frame->header.packet_sz);
 
     if (rb_available < packet_sz) {
-        fprintf(stderr, "DEBUG: Waiting additional data (%lu available, "
-                "%u needed\n", rb_available, packet_sz);
         return 0;
     }
 
