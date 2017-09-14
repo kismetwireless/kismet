@@ -927,18 +927,18 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
     if (merge_target_device != NULL) {
         if (merge_target_device->get_source_running()) {
             _MSG("Incoming connection for source " + in_uuid.UUID2String() + " matches " +
-                    merge_target_device->get_source_name() + " which is still running.  Make "
-                    "sure that multiple remote capture binaries are not running for the same "
+                    merge_target_device->get_source_name() + " which is still markedd as "
+                    "running.  The running instance will be closed.  Make sure that multiple "
+                    "remote capture binaries are not running for the same "
                     "source.", MSGFLAG_ERROR);
-            in_handler->ProtocolError();
-            return;
+            merge_target_device->close_source();
+        } else {
+            _MSG("Matching remote source '" + in_definition + "' with existing source "
+                    "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
         }
                     
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
-
-        _MSG("Matching remote source '" + in_definition + "' with existing source "
-                "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
 
         // Generate a detached thread for joining the ring buffer
         incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, 
