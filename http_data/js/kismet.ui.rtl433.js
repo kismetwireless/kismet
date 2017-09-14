@@ -15,8 +15,8 @@ exports.load_complete = 0;
 kismet_ui.AddDeviceRowHighlight({
     name: "RTL433 Devices",
     description: "RTL433 Sensor",
-    priority: 10,
-    defaultcolor: "yellow",
+    priority: 100,
+    defaultcolor: "#ffb3cc",
     defaultenable: true,
     fields: [
         'kismet.device.base.phyname'

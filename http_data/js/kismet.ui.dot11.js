@@ -163,6 +163,20 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
+kismet_ui.AddDeviceRowHighlight({
+    name: "Wi-Fi Device",
+    description: "Highlight all Wi-Fi devices",
+    priority: 100,
+    defaultcolor: "#99ff99",
+    defaultenable: false,
+    fields: [
+        'dot11.device'
+    ],
+    selector: function(data) {
+        return ('dot11.device' in data && data['dot11.device'] != 0);
+    }
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {

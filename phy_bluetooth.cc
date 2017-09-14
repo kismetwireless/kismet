@@ -31,6 +31,7 @@
 #include "packetchain.h"
 #include "timetracker.h"
 #include "phy_bluetooth.h"
+#include "kis_httpd_registry.h"
 
 Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
         int in_phyid) : Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
@@ -58,6 +59,12 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
     pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
 	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
+
+    // Register js module for UI
+    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_bluetooth", 
+            "/js/kismet.ui.bluetooth.js");
 }
 
 Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {

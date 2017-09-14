@@ -15,8 +15,8 @@ exports.load_complete = 0;
 kismet_ui.AddDeviceRowHighlight({
     name: "Z-Wave Devices",
     description: "Z-Wave Node",
-    priority: 10,
-    defaultcolor: '#4286f4',
+    priority: 100,
+    defaultcolor: '#ffe6b3',
     defaultenable: true,
     fields: [
         'kismet.device.base.phyname'
