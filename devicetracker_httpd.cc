@@ -754,7 +754,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Resolved paths to fields we search
             vector<vector<int> > dt_search_paths;
             
-            unsigned int dt_order_col = -1;
+            int dt_order_col = -1;
             int dt_order_dir = 0;
             vector<int> dt_order_field;
 
@@ -824,10 +824,10 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 // Don't allow ordering by a column that doesn't make sense
-                if (dt_order_col >= summary_vec.size())
+                if (dt_order_col >= (int) summary_vec.size())
                     dt_order_col = -1;
 
-                if (dt_order_col > 0 &&
+                if (dt_order_col >= 0 &&
                         concls->variable_cache.find("order[0][dir]") !=
                         concls->variable_cache.end()) {
                     string ord = concls->variable_cache["order[0][dir]"]->str();
@@ -939,8 +939,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 devicetracker_stringmatch_worker worker(globalreg, dt_search, 
                         dt_search_paths, matchdevs);
                 MatchOnDevices(&worker);
-                
-                if (dt_order_col > 0) {
+
+                if (dt_order_col >= 0) {
                     kismet__stable_sort(matchvec.begin(), matchvec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
@@ -991,7 +991,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (dt_filter_elem != NULL)
                     dt_filter_elem->set((uint64_t) tracked_vec.size());
 
-                if (dt_order_col > 0) {
+                if (dt_order_col >= 0) {
                     kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
                             [&](SharedTrackerElement a, SharedTrackerElement b) {
                             SharedTrackerElement fa =
