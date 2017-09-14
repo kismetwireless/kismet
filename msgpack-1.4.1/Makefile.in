@@ -193,7 +193,7 @@ am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/ac/install-sh $(top_srcdir)/ac/ltmain.sh \
 	$(top_srcdir)/ac/missing AUTHORS COPYING ChangeLog INSTALL \
 	NEWS README ac/compile ac/config.guess ac/config.sub \
-	ac/install-sh ac/ltmain.sh ac/missing
+	ac/depcomp ac/install-sh ac/ltmain.sh ac/missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -354,6 +354,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@

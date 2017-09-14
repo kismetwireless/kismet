@@ -302,9 +302,7 @@ int Plugintracker::ActivatePlugins() {
 
             if (dlfile == NULL) {
                 _MSG("Failed to open plugin '" + x->get_plugin_path() +
-                        "' as "
-                        "a shared library: " +
-                        kis_strerror_r(errno),
+                        "' as a shared library: " + kis_strerror_r(errno),
                         MSGFLAG_ERROR);
                 continue;
             }

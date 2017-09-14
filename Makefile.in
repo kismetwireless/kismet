@@ -80,7 +80,7 @@ all-with-plugins:
 	@make plugins
 
 $(PS):	$(PSO) $(patsubst %c.o,%c.d,$(PSO))
-	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS)
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)

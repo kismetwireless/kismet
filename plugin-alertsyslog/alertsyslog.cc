@@ -69,11 +69,8 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
     // We can't use the templated FetchGlobalAs here because the template object code
     // won't exist in the server object
-    /*
     shared_ptr<Packetchain> packetchain =
         static_pointer_cast<Packetchain>(in_globalreg->FetchGlobal(string("PACKETCHAIN")));
-        */
-#if 0
     shared_ptr<void> pcv = in_globalreg->FetchGlobal(string("PACKETCHAIN"));
 
     if (packetchain == NULL) {
@@ -82,11 +79,10 @@ int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
         return -1;
     }
 
-    openlog(globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
+    openlog(in_globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
 
     packetchain->RegisterHandler(&alertsyslog_chain_hook, NULL,
             CHAINPOS_LOGGING, -100);
-#endif
 
     return 1;
 }
