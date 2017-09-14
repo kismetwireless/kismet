@@ -337,7 +337,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
     // Set our cleanup function
     saux->set_aux(streambuf, 
-            [streambuf](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
                     delete((BufferHandlerOStreambuf *) (aux->aux));
             });
