@@ -30,11 +30,12 @@
 #include <errno.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #ifdef HAVE_CAPABILITY
 #include <sys/capability.h>
 #include <sys/prctl.h>
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
 #endif
@@ -1456,8 +1457,6 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
 
     int cbret;
 
-    static int first = 1;
-
     cf_params_interface_t *cpi;
     cf_params_spectrum_t *cps;
 
@@ -1465,144 +1464,121 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     if (caph->remote_host == NULL)
         return 0;
 
-    while (1) {
-        if (first) {
-            first = 0;
-        } else {
-            fprintf(stderr, "INFO - Waiting 5 seconds before attempting to reconnect to remote "
-                    "server...\n");
-            sleep(5);
-        }
+    /* Close the fd if it's open */
+    if (caph->tcp_fd >= 0) {
+        close(caph->tcp_fd);
+        caph->tcp_fd = -1;
+    }
 
-        /* Close the fd if it's open */
-        if (caph->tcp_fd >= 0) {
-            close(caph->tcp_fd);
-            caph->tcp_fd = -1;
-        }
+    /* Reset the last ping */
+    caph->last_ping = 0;
+
+    /* Reset spindown */
+    caph->spindown = 0;
+
+    /* Clear the buffers */
+    kis_simple_ringbuf_clear(caph->in_ringbuf);
+    kis_simple_ringbuf_clear(caph->out_ringbuf);
+
+    /* Perform a local probe on the source to see if it's valid */
+    msgstr[0] = 0;
+
+    cpi = NULL;
+    cps = NULL;
+
+    if (caph->probe_cb == NULL) {
+        fprintf(stderr, "FATAL - unable to connect as remote source when no probe callback "
+                "provided.\n");
+        return -1;
+    }
+
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, 
+            NULL, &cpi, &cps);
+
+    if (cpi != NULL)
+        cf_params_interface_free(cpi);
+
+    if (cps != NULL)
+        cf_params_spectrum_free(cps);
+
+    if (cbret <= 0) {
+        fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
+                "remote host: %s\n", msgstr);
+
+        if (uuid)
+            free(uuid);
     
-        /* Reset the last ping */
-        caph->last_ping = 0;
+        return -1;
+    }
 
-        /* Reset spindown */
-        caph->spindown = 0;
+    if ((connect_host = gethostbyname(caph->remote_host)) == NULL) {
+        fprintf(stderr, "FATAL - Could not resolve hostname for remote connection to '%s'\n",
+                caph->remote_host);
 
-        /* Clear the buffers */
-        kis_simple_ringbuf_clear(caph->in_ringbuf);
-        kis_simple_ringbuf_clear(caph->out_ringbuf);
+        if (uuid)
+            free(uuid);
 
-        /* Perform a local probe on the source to see if it's valid */
-        msgstr[0] = 0;
+        return -1;
+    }
 
-        cpi = NULL;
-        cps = NULL;
+    memset(&client_sock, 0, sizeof(client_sock));
+    client_sock.sin_family = connect_host->h_addrtype;
+    memcpy((char *) &(client_sock.sin_addr.s_addr), connect_host->h_addr_list[0],
+            connect_host->h_length);
+    client_sock.sin_port = htons(caph->remote_port);
 
-        cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, 
-                NULL, &cpi, &cps);
+    if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+                caph->remote_host, caph->remote_port, strerror(errno));
 
-        if (cpi != NULL)
-            cf_params_interface_free(cpi);
+        if (uuid)
+            free(uuid);
 
-        if (cps != NULL)
-            cf_params_spectrum_free(cps);
+        return -1;
+    }
 
-        if (cbret <= 0) {
-            fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
-                    "remote host: %s\n", msgstr);
+    memset(&local_sock, 0, sizeof(local_sock));
+    local_sock.sin_family = AF_INET;
+    local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    local_sock.sin_port = htons(0);
 
-            if (uuid)
-                free(uuid);
+    if (bind(client_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
+        fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
+                caph->remote_host, caph->remote_port, strerror(errno));
+        close(client_fd);
 
-            if (caph->remote_retry)
-                continue;
-            else
-                return -1;
-        }
+        if (uuid)
+            free(uuid);
 
-        if ((connect_host = gethostbyname(caph->remote_host)) == NULL) {
-            fprintf(stderr, "FATAL - Could not resolve hostname for remote connection to '%s'\n",
-                    caph->remote_host);
+        return -1;
+    }
 
-            if (uuid)
-                free(uuid);
-
-            if (caph->remote_retry)
-                continue;
-            else
-                return -1;
-        }
-
-        memset(&client_sock, 0, sizeof(client_sock));
-        client_sock.sin_family = connect_host->h_addrtype;
-        memcpy((char *) &(client_sock.sin_addr.s_addr), connect_host->h_addr_list[0],
-                connect_host->h_length);
-        client_sock.sin_port = htons(caph->remote_port);
-
-        if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if (connect(client_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
+        if (errno != EINPROGRESS) {
             fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
                     caph->remote_host, caph->remote_port, strerror(errno));
 
-            if (uuid)
-                free(uuid);
-
-            if (caph->remote_retry)
-                continue;
-            else
-                return -1;
-        }
-
-        memset(&local_sock, 0, sizeof(local_sock));
-        local_sock.sin_family = AF_INET;
-        local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
-        local_sock.sin_port = htons(0);
-
-        if (bind(client_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
-            fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
-                    caph->remote_host, caph->remote_port, strerror(errno));
             close(client_fd);
 
             if (uuid)
                 free(uuid);
 
-            if (caph->remote_retry)
-                continue;
-            else
-                return -1;
+            return -1;
         }
-
-        if (connect(client_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
-            if (errno != EINPROGRESS) {
-                fprintf(stderr, "FATAL - Could not connect to remote host '%s:%u': %s\n",
-                        caph->remote_host, caph->remote_port, strerror(errno));
-
-                close(client_fd);
-
-                if (uuid)
-                    free(uuid);
-
-                if (caph->remote_retry)
-                    continue;
-                else
-                    return -1;
-            }
-        }
-
-        sock_flags = fcntl(client_fd, F_GETFL, 0);
-        fcntl(client_fd, F_SETFL, sock_flags | O_NONBLOCK | FD_CLOEXEC);
-
-        caph->tcp_fd = client_fd;
-
-        fprintf(stderr, "INFO - Connected to '%s:%u'...\n",
-                caph->remote_host, caph->remote_port);
-    
-        /* Send the NEWSOURCE command to the Kismet server */
-        cf_send_newsource(caph, uuid);
-
-        if (uuid)
-            free(uuid);
-
-        /* We connected, break out */
-        break;
     }
+
+    sock_flags = fcntl(client_fd, F_GETFL, 0);
+    fcntl(client_fd, F_SETFL, sock_flags | O_NONBLOCK | FD_CLOEXEC);
+
+    caph->tcp_fd = client_fd;
+
+    fprintf(stderr, "INFO - Connected to '%s:%u'...\n", caph->remote_host, caph->remote_port);
+
+    /* Send the NEWSOURCE command to the Kismet server */
+    cf_send_newsource(caph, uuid);
+
+    if (uuid)
+        free(uuid);
 
     return 1;
 }
@@ -1616,235 +1592,203 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     int ret;
     int rv = 0;
 
-    /* If we're going into daemon mode, fork-exec and drop out here */
-    if (caph->daemonize) {
-        int pid = fork();
+    if (caph->tcp_fd >= 0) {
+        read_fd = caph->tcp_fd;
+        write_fd = caph->tcp_fd;
+    } else {
+        /* Set our descriptors as nonblocking */
+        fcntl(caph->in_fd, F_SETFL, fcntl(caph->in_fd, F_GETFL, 0) | O_NONBLOCK);
+        fcntl(caph->out_fd, F_SETFL, fcntl(caph->out_fd, F_GETFL, 0) | O_NONBLOCK);
 
-        if (pid < 0) {
-            fprintf(stderr, "FATAL:  Unable to fork child process: %s\n",
-                    strerror(errno));
-            cf_handler_free(caph);
-            exit(1);
-        } else if (pid > 0) {
-            fprintf(stderr, "INFO: Entering daemon mode...\n");
-            cf_handler_free(caph);
-            exit(0);
-        }
+        read_fd = caph->in_fd;
+        write_fd = caph->out_fd;
     }
 
-    /* Loop for reconnecting */
+    /* Basic select loop using ring buffers; we fill in from the read descriptor
+     * and try to make frames; similarly we populate the outbound descriptor from
+     * anything that comes in from our IO thread */
     while (1) {
-        /* Try to connect to a remote service if we need to, this will loop
-         * automatically and only return a failure when it's completely failed */
-        if (cf_handler_remote_connect(caph) < 0) {
-            return -1;
-        }
+        FD_ZERO(&rset);
+        FD_ZERO(&wset);
 
-        if (caph->tcp_fd >= 0) {
-            read_fd = caph->tcp_fd;
-            write_fd = caph->tcp_fd;
-        } else {
-            /* Set our descriptors as nonblocking */
-            fcntl(caph->in_fd, F_SETFL, fcntl(caph->in_fd, F_GETFL, 0) | O_NONBLOCK);
-            fcntl(caph->out_fd, F_SETFL, fcntl(caph->out_fd, F_GETFL, 0) | O_NONBLOCK);
+        /* Check shutdown state or if we're spinning down */
+        pthread_mutex_lock(&(caph->handler_lock));
 
-            read_fd = caph->in_fd;
-            write_fd = caph->out_fd;
-        }
-
-        /* Basic select loop using ring buffers; we fill in from the read descriptor
-         * and try to make frames; similarly we populate the outbound descriptor from
-         * anything that comes in from our IO thread */
-        while (1) {
-            FD_ZERO(&rset);
-            FD_ZERO(&wset);
-
-            /* Check shutdown state or if we're spinning down */
-            pthread_mutex_lock(&(caph->handler_lock));
-
-            /* Hard shutdown */
-            if (caph->shutdown) {
-                fprintf(stderr, "FATAL: Shutting down main select loop\n");
-                pthread_mutex_unlock(&(caph->handler_lock));
-                rv = -1;
-                break;
-            }
-
-            if (caph->last_ping != 0 && time(NULL) - caph->last_ping > 5) {
-                fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
-                        "over 5 seconds; shutting down\n");
-                pthread_mutex_unlock(&(caph->handler_lock));
-                rv = -1;
-                break;
-            }
-
-            /* Copy spindown state outside of lock */
-            spindown = caph->spindown;
-
+        /* Hard shutdown */
+        if (caph->shutdown) {
+            fprintf(stderr, "FATAL: Shutting down main select loop\n");
             pthread_mutex_unlock(&(caph->handler_lock));
+            rv = -1;
+            break;
+        }
 
-            /* Only set read sets if we're not spinning down */
-            if (spindown == 0) {
-                /* Only set rset if we're not spinning down */
-                FD_SET(read_fd, &rset);
-                max_fd = read_fd;
-            }
+        if (caph->last_ping != 0 && time(NULL) - caph->last_ping > 5) {
+            fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
+                    "over 5 seconds; shutting down\n");
+            pthread_mutex_unlock(&(caph->handler_lock));
+            rv = -1;
+            break;
+        }
 
-            /* Inspect the write buffer - do we have data? */
-            pthread_mutex_lock(&(caph->out_ringbuf_lock));
+        /* Copy spindown state outside of lock */
+        spindown = caph->spindown;
 
-            if (kis_simple_ringbuf_used(caph->out_ringbuf) != 0) {
-                /* fprintf(stderr, "debug - capf - writebuffer has %lu\n", kis_simple_ringbuf_used(caph->out_ringbuf)); */
-                FD_SET(write_fd, &wset);
-                if (max_fd < write_fd)
-                    max_fd = write_fd;
-            } else if (spindown != 0) {
-                /* fprintf(stderr, "DEBUG - caphandler finished spinning down\n"); */
-                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                rv = 0;
+        pthread_mutex_unlock(&(caph->handler_lock));
+
+        /* Only set read sets if we're not spinning down */
+        if (spindown == 0) {
+            /* Only set rset if we're not spinning down */
+            FD_SET(read_fd, &rset);
+            max_fd = read_fd;
+        }
+
+        /* Inspect the write buffer - do we have data? */
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+        if (kis_simple_ringbuf_used(caph->out_ringbuf) != 0) {
+            FD_SET(write_fd, &wset);
+            if (max_fd < write_fd)
+                max_fd = write_fd;
+        } else if (spindown != 0) {
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            rv = 0;
+            break;
+        }
+
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+        tm.tv_sec = 0;
+        tm.tv_usec = 500000;
+
+        if ((ret = select(max_fd + 1, &rset, &wset, NULL, &tm)) < 0) {
+            if (errno != EINTR && errno != EAGAIN) {
+                fprintf(stderr, "FATAL:  Error during select(): %s\n", strerror(errno));
+                rv = -1;
                 break;
             }
+        }
 
-            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        if (ret == 0)
+            continue;
 
-            tm.tv_sec = 0;
-            tm.tv_usec = 500000;
+        if (FD_ISSET(read_fd, &rset)) {
+            while (kis_simple_ringbuf_available(caph->in_ringbuf)) {
+                /* We use a fixed-length read buffer for simplicity, and we shouldn't
+                 * ever have too many incoming packets queued because the datasource
+                 * protocol is very tx-heavy */
+                ssize_t amt_read;
+                size_t amt_buffered;
+                uint8_t rbuf[1024];
 
-            if ((ret = select(max_fd + 1, &rset, &wset, NULL, &tm)) < 0) {
-                if (errno != EINTR && errno != EAGAIN) {
-                    fprintf(stderr, 
-                            "FATAL:  Error during select(): %s\n", strerror(errno));
-                    rv = -1;
-                    break;
-                }
-            }
+                /* We deliberately read as much as we need and try to put it in the 
+                 * buffer, if the buffer fills up something has gone wrong anyhow */
 
-            if (ret == 0)
-                continue;
-
-            if (FD_ISSET(read_fd, &rset)) {
-                while (kis_simple_ringbuf_available(caph->in_ringbuf)) {
-                    /* We use a fixed-length read buffer for simplicity, and we shouldn't
-                     * ever have too many incoming packets queued because the datasource
-                     * protocol is very tx-heavy */
-                    ssize_t amt_read;
-                    size_t amt_buffered;
-                    uint8_t rbuf[1024];
-
-                    /* We deliberately read as much as we need and try to put it in the 
-                     * buffer, if the buffer fills up something has gone wrong anyhow */
-
-                    if ((amt_read = read(read_fd, rbuf, 1024)) <= 0) {
-                        if (errno != EINTR && errno != EAGAIN) {
-                            /* Bail entirely */
-                            if (amt_read == 0) {
-                                fprintf(stderr, "FATAL: Remote side closed read pipe\n");
-                            } else {
-                                fprintf(stderr,
-                                        "FATAL:  Error during read(): %s\n", strerror(errno));
-                            }
-                            rv = -1;
-                            goto cap_loop_fail;
+                if ((amt_read = read(read_fd, rbuf, 1024)) <= 0) {
+                    if (errno != EINTR && errno != EAGAIN) {
+                        /* Bail entirely */
+                        if (amt_read == 0) {
+                            fprintf(stderr, "FATAL: Remote side closed read pipe\n");
                         } else {
-                            /* Drop out of read/process loop */
-                            break;
+                            fprintf(stderr, "FATAL:  Error during read(): %s\n", 
+                                    strerror(errno));
                         }
-                    }
-
-                    amt_buffered = kis_simple_ringbuf_write(caph->in_ringbuf, rbuf, amt_read);
-
-                    if ((ssize_t) amt_buffered != amt_read) {
-                        /* Bail entirely - to do, report error if we can over connection */
-                        fprintf(stderr,
-                                "FATAL:  Error during read(): insufficient buffer space\n");
                         rv = -1;
                         goto cap_loop_fail;
-                    }
-
-                    /* fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered); */
-
-                    /* See if we have a complete packet to do something with */
-                    if (cf_handle_rx_data(caph) < 0) {
-                        /* Enter spindown if processing an incoming packet failed */
-                        cf_handler_spindown(caph);
-                    }
-                }
-            }
-
-            if (FD_ISSET(write_fd, &wset)) {
-                /* We can write data - lock the ring buffer mutex and write out
-                 * whatever we can; we peek the ringbuffer and then flag off what
-                 * we've successfully written out */
-                ssize_t written_sz;
-                size_t peek_sz;
-                size_t peeked_sz;
-                uint8_t *peek_buf;
-
-                pthread_mutex_lock(&(caph->out_ringbuf_lock));
-
-                peek_sz = kis_simple_ringbuf_used(caph->out_ringbuf);
-
-                /* Don't know how we'd get here... */
-                if (peek_sz == 0) {
-                    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                    continue;
-                }
-
-                peek_buf = (uint8_t *) malloc(peek_sz);
-
-                if (peek_buf == NULL) {
-                    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                    fprintf(stderr,
-                            "FATAL:  Error during write(): could not allocate write "
-                            "buffer space\n");
-                    rv = -1;
-                    break;
-                }
-
-                peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
-
-                /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
-
-                if ((written_sz = write(write_fd, peek_buf, peeked_sz)) < 0) {
-                    if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                        fprintf(stderr,
-                                "FATAL:  Error during write(): %s\n", strerror(errno));
-                        free(peek_buf);
-                        rv = -1;
+                    } else {
+                        /* Drop out of read/process loop */
                         break;
                     }
                 }
 
-                free(peek_buf);
+                amt_buffered = kis_simple_ringbuf_write(caph->in_ringbuf, rbuf, amt_read);
 
-                /* Flag it as consumed */
-                kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
+                if ((ssize_t) amt_buffered != amt_read) {
+                    /* Bail entirely - to do, report error if we can over connection */
+                    fprintf(stderr, "FATAL:  Error during read(): insufficient buffer space\n");
+                    rv = -1;
+                    goto cap_loop_fail;
+                }
 
-                /* Unlock */
-                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+                /* fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered); */
 
-                /* Signal to any waiting IO that the buffer has some
-                 * headroom */
-                pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+                /* See if we have a complete packet to do something with */
+                if (cf_handle_rx_data(caph) < 0) {
+                    /* Enter spindown if processing an incoming packet failed */
+                    cf_handler_spindown(caph);
+                }
             }
         }
 
-        /* Fall out of select loop */
-cap_loop_fail:
-        /* Kill the capture thread */
-        pthread_mutex_lock(&(caph->out_ringbuf_lock));
-        if (caph->capture_running) {
-            pthread_cancel(caph->capturethread);
-            caph->capture_running = 0;
-        }
-        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        if (FD_ISSET(write_fd, &wset)) {
+            /* We can write data - lock the ring buffer mutex and write out
+             * whatever we can; we peek the ringbuffer and then flag off what
+             * we've successfully written out */
+            ssize_t written_sz;
+            size_t peek_sz;
+            size_t peeked_sz;
+            uint8_t *peek_buf;
 
-        if (caph->remote_retry)
-            continue;
-        else
-            return rv;
+            pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+            peek_sz = kis_simple_ringbuf_used(caph->out_ringbuf);
+
+            /* Don't know how we'd get here... */
+            if (peek_sz == 0) {
+                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+                continue;
+            }
+
+            peek_buf = (uint8_t *) malloc(peek_sz);
+
+            if (peek_buf == NULL) {
+                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+                fprintf(stderr,
+                        "FATAL:  Error during write(): could not allocate write "
+                        "buffer space\n");
+                rv = -1;
+                break;
+            }
+
+            peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
+
+            /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
+
+            if ((written_sz = write(write_fd, peek_buf, peeked_sz)) < 0) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+                    fprintf(stderr,
+                            "FATAL:  Error during write(): %s\n", strerror(errno));
+                    free(peek_buf);
+                    rv = -1;
+                    break;
+                }
+            }
+
+            free(peek_buf);
+
+            /* Flag it as consumed */
+            kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
+
+            /* Unlock */
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+            /* Signal to any waiting IO that the buffer has some
+             * headroom */
+            pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+        }
     }
+
+    /* Fall out of select loop */
+cap_loop_fail:
+    /* Kill the capture thread */
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+    if (caph->capture_running) {
+        pthread_cancel(caph->capturethread);
+        caph->capture_running = 0;
+    }
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    return rv;
 }
 
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
@@ -2011,10 +1955,7 @@ int cf_send_error(kis_capture_handler_t *caph, const char *msg) {
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
 
-    if (caph->tcp_fd < 0 && caph->out_fd < 0) {
-        fprintf(stderr, "ERROR: %s\n", msg);
-        return 0;
-    }
+    fprintf(stderr, "ERROR: %s\n", msg);
 
     kv_pairs = 
         (simple_cap_proto_kv_t **) malloc(sizeof(simple_cap_proto_kv_t *) * num_kvs);
@@ -2719,4 +2660,65 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
     return 0;
 #endif
 }
+
+void cf_handler_remote_capture(kis_capture_handler_t *caph) {
+    pid_t chpid;
+    int status;
+
+    /* If we're going into daemon mode, fork-exec and drop out here */
+    if (caph->daemonize) {
+        int pid = fork();
+
+        if (pid < 0) {
+            fprintf(stderr, "FATAL:  Unable to fork child process: %s\n",
+                    strerror(errno));
+            cf_handler_free(caph);
+            exit(1);
+        } else if (pid > 0) {
+            fprintf(stderr, "INFO: Entering daemon mode...\n");
+            cf_handler_free(caph);
+            exit(0);
+        }
+    }
+
+    /* Don't enter remote loop at all if we're not doing a remote connection */
+    if (caph->remote_host == NULL)
+        return;
+
+    while (1) {
+        if ((chpid = fork()) > 0) {
+            while (1) {
+                pid_t wpid;
+
+                wpid = wait(&status);
+
+                if (wpid == chpid) {
+                    if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                        fprintf(stderr, "INFO: capture process exited %d signal %d\n", 
+                                WEXITSTATUS(status), WTERMSIG(status));
+                        break;
+                    }
+                }
+            }
+        } else {
+            /* Initiate a TCP connection, fail if we can't establish it */
+            if (cf_handler_remote_connect(caph) < 1) {
+                exit(1);
+            }
+
+            /* Exit so main loop continues */
+            return;
+        }
+
+        /* Don't keep going if we're not retrying */
+        if (caph->remote_retry == 0) {
+            exit(1);
+        }
+
+        fprintf(stderr, "INFO - Sleeping 5 seconds before attempting to reconnect to "
+                "remote server\n");
+        sleep(5);
+    }
+}
+
 

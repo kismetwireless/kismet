@@ -1475,16 +1475,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    /* Jail our ns */
-    if (cf_jail_filesystem(caph) < 1) {
-        fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
-    }
-
-    /* Strip our privs */
-    if (cf_drop_most_caps(caph) < 1) {
-        fprintf(stderr, "DEBUG - Didn't drop some privs\n");
-    }
-
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_wifi);
 
@@ -1513,6 +1503,19 @@ int main(int argc, char *argv[]) {
     if (cf_handler_parse_opts(caph, argc, argv) < 1) {
         cf_print_help(caph, argv[0]);
         return -1;
+    }
+
+    /* Support remote capture by launching the remote loop */
+    cf_handler_remote_capture(caph);
+
+    /* Jail our ns */
+    if (cf_jail_filesystem(caph) < 1) {
+        fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
+    }
+
+    /* Strip our privs */
+    if (cf_drop_most_caps(caph) < 1) {
+        fprintf(stderr, "DEBUG - Didn't drop some privs\n");
     }
 
     cf_handler_loop(caph);

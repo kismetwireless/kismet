@@ -592,7 +592,9 @@ int cf_get_SPECSET(uint64_t *ret_start_mhz, uint64_t *ret_end_mhz,
         uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp,
         simple_cap_proto_frame_t *in_frame);
 
-/* Connect to a network socket, if remote connection is specified 
+/* Connect to a network socket, if remote connection is specified; this should
+ * not be needed by capture tools using the framework; the capture loop will
+ * be managed directly via cf_handler_remote_capture
  *
  * Returns:
  * -1   Error, could not connect, process should exit
@@ -601,12 +603,23 @@ int cf_get_SPECSET(uint64_t *ret_start_mhz, uint64_t *ret_end_mhz,
  */
 int cf_handler_remote_connect(kis_capture_handler_t *caph);
 
+/* Set up a fork loop for remote capture processes.  The normal capture code
+ * is run in an independently executed process, allowing for one-shot privilege 
+ * dropping and eliminating potential memory leaks from interfering with reloading
+ * the capture process.
+ *
+ * Capture drivers should call this after configuring callbacks and parsing options,
+ * but before dropping privileges, setting up any unique state inside the main loop,
+ * or running cf_handler_loop.
+ */
+void cf_handler_remote_capture(kis_capture_handler_t *caph);
+
 /* Handle the sockets in a select() loop; this function will block until it
  * encounters an error or gets a shutdown command.
  *
- * For capture drivers that want to perform the IO in a dedicated thread,
- * this function should be initiated from that thread; for all others it can
- * be called from main();
+ * Capture drivers should typically define their IO in a callback which will
+ * be run in a thread automatically via cf_handler_set_capture_cb. 
+ * cf_handler_loop() should be called in the main() function.
  *
  * Returns:
  * -1   Error, process should exit

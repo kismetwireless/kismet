@@ -425,10 +425,11 @@ void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t l
     if (!(current & MGMT_SETTING_POWERED)) {
         /* If the interface is off, turn it on */
         cmd_enable_controller(localbt);
-    } else {
-        /* If the interface is on, start scanning */
-        cmd_start_discovery(localbt);
+        return;
     }
+
+    /* If the interface is on, start scanning */
+    cmd_start_discovery(localbt);
 }
 
 void resp_controller_power(local_bluetooth_t *localbt, uint8_t status, uint16_t len,
@@ -600,7 +601,9 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                             crec->data);
                     break;
                 case MGMT_OP_START_DISCOVERY:
-                    if (crec->status != 0) {
+                    if (crec->status == 0x0A) {
+                        break;
+                    } else if (crec->status != 0) {
                         snprintf(errstr, STATUS_MAX, 
                                 "Bluetooth interface hci%u discovery failed", rindex);
                         cf_send_error(localbt->caph, errstr);
@@ -1003,17 +1006,12 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+        cf_print_help(caph, argv[0]);
+        return -1;
+    }
+
     localbt.caph = caph;
-
-    /* Jail our ns */
-    if (cf_jail_filesystem(caph) < 1) {
-        fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
-    }
-
-    /* Strip our privs */
-    if (cf_drop_most_caps(caph) < 1) {
-        fprintf(stderr, "DEBUG - Didn't drop some privs\n");
-    }
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localbt);
@@ -1030,12 +1028,22 @@ int main(int argc, char *argv[]) {
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
 
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
-        cf_print_help(caph, argv[0]);
-        return -1;
+    /* Support remote capture by launching the remote loop */
+    cf_handler_remote_capture(caph);
+
+    /* Jail our ns */
+    if (cf_jail_filesystem(caph) < 1) {
+        fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
+    }
+
+    /* Strip our privs */
+    if (cf_drop_most_caps(caph) < 1) {
+        fprintf(stderr, "DEBUG - Didn't drop some privs\n");
     }
 
     cf_handler_loop(caph);
+
+    fprintf(stderr, "debug - fell out of handler loop\n");
 
     return 0;
 }
