@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#ifdef SYS_LINUX
-
 #define HAVE_LINUX_BLUETOOTH_DATASOURCE
 
 #include "kis_datasource.h"
@@ -89,6 +87,7 @@ public:
         set_source_description("Capture from Linux Bluetooth devices using the Linux "
                 "kernel drivers and Blue-Z");
 
+#ifdef SYS_LINUX
         // We can probe an interface
         set_probe_capable(true);
 
@@ -97,6 +96,13 @@ public:
 
         // We're capable of opening a source
         set_local_capable(true);
+#else
+        // Not local capable on non-linux systems
+        set_probe_capable(false);
+        set_list_capable(false);
+        set_local_capable(false);
+
+#endif
 
         // We can do remote
         set_remote_capable(true);
@@ -109,8 +115,6 @@ public:
     }
 
 };
-
-#endif
 
 #endif
 

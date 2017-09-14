@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#ifdef HAVE_LINUX_WIRELESS
-
 #define HAVE_LINUX_WIFI_DATASOURCE
 
 #include "kis_datasource.h"
@@ -91,6 +89,7 @@ public:
         set_source_description("Capture from Linux Wi-Fi devices using (old) wireless "
                 "extensions or (new) mac80211 controls");
 
+#ifdef SYS_LINUX
         // We can probe an interface
         set_probe_capable(true);
 
@@ -99,6 +98,12 @@ public:
 
         // We're capable of opening a source
         set_local_capable(true);
+#else
+        // Only remote on other platforms
+        set_probe_capable(false);
+        set_list_capable(false);
+        set_local_capable(false);
+#endif
 
         // We can do remote
         set_remote_capable(true);
@@ -109,10 +114,7 @@ public:
         // We allow tuning, sure
         set_tune_capable(true);
     }
-
 };
-
-#endif
 
 #endif
 
