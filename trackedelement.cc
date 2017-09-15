@@ -664,7 +664,7 @@ TrackerElement::map_iterator TrackerElement::find(int k) {
     }
 }
 
-shared_ptr<TrackerElement> TrackerElement::get_macmap_value(int idx) {
+SharedTrackerElement TrackerElement::get_macmap_value(int idx) {
     except_type_mismatch(TrackerMacMap);
 
     mac_map_iterator i = dataunion.submacmap_value->find(idx);
@@ -706,7 +706,7 @@ TrackerElement::mac_map_iterator TrackerElement::mac_find(mac_addr k) {
     return dataunion.submacmap_value->find(k);
 }
 
-void TrackerElement::add_macmap(mac_addr i, shared_ptr<TrackerElement> s) {
+void TrackerElement::add_macmap(mac_addr i, SharedTrackerElement s) {
     except_type_mismatch(TrackerMacMap);
 
     (*dataunion.submacmap_value)[i] = s;
@@ -745,7 +745,7 @@ void TrackerElement::insert_macmap(mac_map_pair p) {
     dataunion.submacmap_value->insert(p);
 }
 
-shared_ptr<TrackerElement> TrackerElement::get_stringmap_value(string idx) {
+SharedTrackerElement TrackerElement::get_stringmap_value(std::string idx) {
     except_type_mismatch(TrackerStringMap);
 
     string_map_iterator i = dataunion.substringmap_value->find(idx);
@@ -769,19 +769,19 @@ TrackerElement::string_map_iterator TrackerElement::string_end() {
     return dataunion.substringmap_value->end();
 }
 
-TrackerElement::string_map_iterator TrackerElement::string_find(string k) {
+TrackerElement::string_map_iterator TrackerElement::string_find(std::string k) {
     except_type_mismatch(TrackerStringMap);
 
     return dataunion.substringmap_value->find(k);
 }
 
-void TrackerElement::add_stringmap(string i, shared_ptr<TrackerElement> s) {
+void TrackerElement::add_stringmap(std::string i, SharedTrackerElement s) {
     except_type_mismatch(TrackerStringMap);
 
     (*dataunion.substringmap_value)[i] = s;
 }
 
-void TrackerElement::del_stringmap(string f) {
+void TrackerElement::del_stringmap(std::string f) {
     except_type_mismatch(TrackerStringMap);
 
     string_map_iterator mi = dataunion.substringmap_value->find(f);
@@ -814,7 +814,7 @@ void TrackerElement::insert_stringmap(string_map_pair p) {
     dataunion.substringmap_value->insert(p);
 }
 
-shared_ptr<TrackerElement> TrackerElement::get_doublemap_value(double idx) {
+SharedTrackerElement TrackerElement::get_doublemap_value(double idx) {
     except_type_mismatch(TrackerDoubleMap);
 
     double_map_iterator i = dataunion.subdoublemap_value->find(idx);
@@ -844,7 +844,7 @@ TrackerElement::double_map_iterator TrackerElement::double_find(double k) {
     return dataunion.subdoublemap_value->find(k);
 }
 
-void TrackerElement::add_doublemap(double i, shared_ptr<TrackerElement> s) {
+void TrackerElement::add_doublemap(double i, SharedTrackerElement s) {
     except_type_mismatch(TrackerDoubleMap);
 
     (*dataunion.subdoublemap_value)[i] = s;
@@ -934,7 +934,7 @@ string TrackerElement::type_to_string(TrackerType t) {
     }
 }
 
-void TrackerElement::add_map(int f, shared_ptr<TrackerElement> s) {
+void TrackerElement::add_map(int f, SharedTrackerElement s) {
     except_type_mismatch(TrackerMap);
     
     auto o = dataunion.submap_value->find(f);
@@ -944,13 +944,12 @@ void TrackerElement::add_map(int f, shared_ptr<TrackerElement> s) {
     dataunion.submap_value->emplace(f, s);
 }
 
-void TrackerElement::add_map(shared_ptr<TrackerElement> s) {
+void TrackerElement::add_map(SharedTrackerElement s) {
     except_type_mismatch(TrackerMap);
 
     auto o = dataunion.submap_value->find(s->get_id());
     if (o != dataunion.submap_value->end())
         dataunion.submap_value->erase(o);
-
 
     dataunion.submap_value->emplace(s->get_id(), s);
 }
@@ -964,7 +963,7 @@ void TrackerElement::del_map(int f) {
     }
 }
 
-void TrackerElement::del_map(shared_ptr<TrackerElement> e) {
+void TrackerElement::del_map(SharedTrackerElement e) {
     del_map(e->get_id());
 }
 
@@ -991,7 +990,7 @@ size_t TrackerElement::size_map() {
     return dataunion.submap_value->size();
 }
 
-shared_ptr<TrackerElement> TrackerElement::get_intmap_value(int idx) {
+SharedTrackerElement TrackerElement::get_intmap_value(int idx) {
     except_type_mismatch(TrackerIntMap);
 
     int_map_iterator i = dataunion.subintmap_value->find(idx);
@@ -1039,7 +1038,7 @@ void TrackerElement::insert_intmap(int_map_pair p) {
     dataunion.subintmap_value->insert(p);
 }
 
-void TrackerElement::add_intmap(int i, shared_ptr<TrackerElement> s) {
+void TrackerElement::add_intmap(int i, SharedTrackerElement s) {
     except_type_mismatch(TrackerIntMap);
 
     (*dataunion.subintmap_value)[i] = s;
@@ -1060,7 +1059,7 @@ void TrackerElement::del_intmap(int_map_iterator i) {
     dataunion.subintmap_value->erase(i);
 }
 
-void TrackerElement::add_vector(shared_ptr<TrackerElement> s) {
+void TrackerElement::add_vector(SharedTrackerElement s) {
     except_type_mismatch(TrackerVector);
 
     dataunion.subvector_value->push_back(s);
@@ -1069,8 +1068,8 @@ void TrackerElement::add_vector(shared_ptr<TrackerElement> s) {
 void TrackerElement::del_vector(unsigned int p) {
     except_type_mismatch(TrackerVector);
 
-    if (p > dataunion.subvector_value->size()) {
-        string w = "del_vector out of range (" + IntToString(p) + ", vector " + 
+    if (p >= dataunion.subvector_value->size()) {
+        std::string w = "del_vector out of range (" + IntToString(p) + ", vector " + 
             IntToString(dataunion.submap_value->size()) + ")";
         throw std::runtime_error(w);
     }
@@ -1144,64 +1143,64 @@ size_t TrackerElement::size() {
     }
 }
 
-template<> string GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> std::string GetTrackerValue(SharedTrackerElement e) {
     return e->get_string();
 }
 
-template<> int8_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> int8_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_int8();
 }
 
-template<> uint8_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> uint8_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_uint8();
 }
 
-template<> int16_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> int16_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_int16();
 }
 
-template<> uint16_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> uint16_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_uint16();
 }
 
-template<> int32_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> int32_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_int32();
 }
 
-template<> uint32_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> uint32_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_uint32();
 }
 
-template<> int64_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> int64_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_int64();
 }
 
-template<> uint64_t GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> uint64_t GetTrackerValue(SharedTrackerElement e) {
     return e->get_uint64();
 }
 
-template<> float GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> float GetTrackerValue(SharedTrackerElement e) {
     return e->get_float();
 }
 
-template<> double GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> double GetTrackerValue(SharedTrackerElement e) {
     return e->get_double();
 }
 
-template<> mac_addr GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> mac_addr GetTrackerValue(SharedTrackerElement e) {
     return e->get_mac();
 }
 
-template<> TrackerElement::tracked_map *GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> TrackerElement::tracked_map *GetTrackerValue(SharedTrackerElement e) {
     return e->get_map();
 }
 
 template<> TrackerElement::tracked_vector 
-    *GetTrackerValue(shared_ptr<TrackerElement> e) {
+    *GetTrackerValue(SharedTrackerElement e) {
     return e->get_vector();
 }
 
-template<> uuid GetTrackerValue(shared_ptr<TrackerElement> e) {
+template<> uuid GetTrackerValue(SharedTrackerElement e) {
     return e->get_uuid();
 }
 
@@ -1449,7 +1448,7 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
 }
 
 tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id, 
-        shared_ptr<TrackerElement> e __attribute__((unused))) {
+        SharedTrackerElement e __attribute__((unused))) {
 
     globalreg = in_globalreg;
     entrytracker = 
@@ -1465,7 +1464,7 @@ tracker_component::~tracker_component() {
     }
 }
 
-shared_ptr<TrackerElement> tracker_component::clone_type() {
+SharedTrackerElement tracker_component::clone_type() {
     return shared_ptr<TrackerElement>(new tracker_component(globalreg, get_id()));
 }
 
@@ -1477,8 +1476,8 @@ string tracker_component::get_name(int in_id) {
     return globalreg->entrytracker->GetFieldName(in_id);
 }
 
-int tracker_component::RegisterField(string in_name, TrackerType in_type, 
-        string in_desc, shared_ptr<TrackerElement> *in_dest) {
+int tracker_component::RegisterField(std::string in_name, TrackerType in_type, 
+        std::string in_desc, SharedTrackerElement *in_dest) {
     int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
@@ -1488,16 +1487,15 @@ int tracker_component::RegisterField(string in_name, TrackerType in_type,
     return id;
 }
 
-int tracker_component::RegisterField(string in_name, TrackerType in_type, 
-        string in_desc) {
+int tracker_component::RegisterField(std::string in_name, TrackerType in_type, 
+        std::string in_desc) {
     int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
     return id;
 }
 
-int tracker_component::RegisterField(string in_name, 
-        shared_ptr<TrackerElement> in_builder, 
-        string in_desc, shared_ptr<TrackerElement> *in_dest) {
+int tracker_component::RegisterField(std::string in_name, SharedTrackerElement in_builder, 
+        std::string in_desc, SharedTrackerElement *in_dest) {
     int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
@@ -1507,15 +1505,14 @@ int tracker_component::RegisterField(string in_name,
     return id;
 } 
 
-int tracker_component::RegisterComplexField(string in_name, 
-        shared_ptr<TrackerElement> in_builder, 
-        string in_desc) {
+int tracker_component::RegisterComplexField(std::string in_name, 
+        SharedTrackerElement in_builder, std::string in_desc) {
     int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
     in_builder->set_id(id);
     return id;
 }
 
-void tracker_component::reserve_fields(shared_ptr<TrackerElement> e) {
+void tracker_component::reserve_fields(SharedTrackerElement e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         registered_field *rf = registered_fields[i];
 
@@ -1526,10 +1523,10 @@ void tracker_component::reserve_fields(shared_ptr<TrackerElement> e) {
     }
 }
 
-shared_ptr<TrackerElement> 
-    tracker_component::import_or_new(shared_ptr<TrackerElement> e, int i) {
+SharedTrackerElement 
+    tracker_component::import_or_new(SharedTrackerElement e, int i) {
 
-    shared_ptr<TrackerElement> r;
+    SharedTrackerElement r;
 
     // Find the value in the importer element
     if (e != NULL) {
@@ -1550,17 +1547,17 @@ shared_ptr<TrackerElement>
     return r;
 }
 
-shared_ptr<TrackerElement> tracker_component::get_child_path(string in_path) {
-    vector<string> tok = StrTokenize(in_path, "/");
+SharedTrackerElement tracker_component::get_child_path(std::string in_path) {
+    std::vector<std::string> tok = StrTokenize(in_path, "/");
     return get_child_path(tok);
 }
 
-shared_ptr<TrackerElement> 
+SharedTrackerElement 
     tracker_component::get_child_path(std::vector<string> in_path) {
     if (in_path.size() < 1)
         return NULL;
 
-    shared_ptr<TrackerElement> next_elem = NULL;
+    SharedTrackerElement next_elem = NULL;
 
     for (unsigned int x = 0; x < in_path.size(); x++) {
         // Skip empty path element
@@ -1599,7 +1596,7 @@ void TrackerElementSerializer::pre_serialize_path(SharedElementSummary in_summar
         return;
 
     try {
-        for (vector<int>::iterator i = in_summary->resolved_path.begin();
+        for (auto i = in_summary->resolved_path.begin(); 
                 i != in_summary->resolved_path.end(); ++i) {
             inter = inter->get_map_value(*i);
 
@@ -1621,37 +1618,37 @@ TrackerElementSummary::TrackerElementSummary(SharedElementSummary in_c) {
     rename = in_c->rename;
 }
 
-TrackerElementSummary::TrackerElementSummary(string in_path, string in_rename,
-        shared_ptr<EntryTracker> entrytracker) {
+TrackerElementSummary::TrackerElementSummary(std::string in_path, std::string in_rename,
+        std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(StrTokenize(in_path, "/"), in_rename, entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(vector<string> in_path,
-        string in_rename, shared_ptr<EntryTracker> entrytracker) {
+TrackerElementSummary::TrackerElementSummary(std::vector<std::string> in_path,
+        std::string in_rename, std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(in_path, in_rename, entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(string in_path, 
-        shared_ptr<EntryTracker> entrytracker) {
+TrackerElementSummary::TrackerElementSummary(std::string in_path, 
+        std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(StrTokenize(in_path, "/"), "", entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(vector<string> in_path, 
-        shared_ptr<EntryTracker> entrytracker) {
+TrackerElementSummary::TrackerElementSummary(std::vector<std::string> in_path, 
+        std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(in_path, "", entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(vector<int> in_path, string in_rename) {
+TrackerElementSummary::TrackerElementSummary(std::vector<int> in_path, std::string in_rename) {
     resolved_path = in_path;
     rename = in_rename;
 }
 
-TrackerElementSummary::TrackerElementSummary(vector<int> in_path) {
+TrackerElementSummary::TrackerElementSummary(std::vector<int> in_path) {
     resolved_path = in_path;
 }
 
-void TrackerElementSummary::parse_path(vector<string> in_path, string in_rename,
-        shared_ptr<EntryTracker> entrytracker) {
+void TrackerElementSummary::parse_path(std::vector<std::string> in_path, std::string in_rename,
+        std::shared_ptr<EntryTracker> entrytracker) {
 
     if (in_path.size() == 0) {
         return;
@@ -1678,21 +1675,18 @@ void TrackerElementSummary::parse_path(vector<string> in_path, string in_rename,
     }
 }
 
-shared_ptr<TrackerElement> GetTrackerElementPath(string in_path, 
-        SharedTrackerElement elem,
-        shared_ptr<EntryTracker> entrytracker) {
-    return GetTrackerElementPath(StrTokenize(in_path, "/"),
-            elem, entrytracker);
+SharedTrackerElement GetTrackerElementPath(std::string in_path, 
+        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
+    return GetTrackerElementPath(StrTokenize(in_path, "/"), elem, entrytracker);
 }
 
-shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path, 
-        SharedTrackerElement elem,
-        shared_ptr<EntryTracker> entrytracker) {
+SharedTrackerElement GetTrackerElementPath(std::vector<std::string> in_path, 
+        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
 
     if (in_path.size() < 1)
         return NULL;
 
-    shared_ptr<TrackerElement> next_elem = NULL;
+    SharedTrackerElement next_elem = NULL;
 
     for (unsigned int x = 0; x < in_path.size(); x++) {
         // Skip empty path element
@@ -1719,13 +1713,13 @@ shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<string> in_path,
     return next_elem;
 }
 
-shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<int> in_path, 
+SharedTrackerElement GetTrackerElementPath(std::vector<int> in_path, 
         SharedTrackerElement elem) {
 
     if (in_path.size() < 1)
         return NULL;
 
-    shared_ptr<TrackerElement> next_elem = NULL;
+    SharedTrackerElement next_elem = NULL;
 
     for (unsigned int x = 0; x < in_path.size(); x++) {
         int id = in_path[x];
@@ -1748,26 +1742,23 @@ shared_ptr<TrackerElement> GetTrackerElementPath(std::vector<int> in_path,
     return next_elem;
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(string in_path, 
-        SharedTrackerElement elem,
-        shared_ptr<EntryTracker> entrytracker) {
-    return GetTrackerElementMultiPath(StrTokenize(in_path, "/"),
-            elem, entrytracker);
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::string in_path, 
+        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
+    return GetTrackerElementMultiPath(StrTokenize(in_path, "/"), elem, entrytracker);
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string> in_path, 
-        SharedTrackerElement elem,
-        shared_ptr<EntryTracker> entrytracker) {
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<std::string> in_path, 
+        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
 
     std::vector<SharedTrackerElement> ret;
 
     if (in_path.size() < 1)
         return ret;
 
-    shared_ptr<TrackerElement> next_elem = NULL;
+    SharedTrackerElement next_elem = NULL;
 
     bool complex_fulfilled = false;
-    for (vector<string>::iterator x = in_path.begin(); x != in_path.end(); ++x) {
+    for (auto x = in_path.begin(); x != in_path.end(); ++x) {
         // Skip empty path element
         if (x->length() == 0)
             continue;
@@ -1795,13 +1786,12 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string>
             int type = next_elem->get_type();
 
             if (type == TrackerVector) {
-                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
                 TrackerElementVector cn(next_elem);
 
-                for (TrackerElementVector::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (TrackerElementVector::iterator i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, *i, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1810,13 +1800,13 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string>
                 complex_fulfilled = true;
                 break;
             } else if (type == TrackerIntMap) {
-                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
                 TrackerElementIntMap cn(next_elem);
 
                 for (TrackerElementIntMap::iterator i = cn.begin();
                         i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1825,13 +1815,12 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string>
                 complex_fulfilled = true;
                 break;
             } else if (type == TrackerStringMap) {
-                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
                 TrackerElementStringMap cn(next_elem);
 
-                for (TrackerElementStringMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1840,13 +1829,12 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string>
                 complex_fulfilled = true;
                 break;
             } else if (type == TrackerMacMap) {
-                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
                 TrackerElementMacMap cn(next_elem);
 
-                for (TrackerElementMacMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1855,13 +1843,12 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string>
                 complex_fulfilled = true;
                 break;
             } else if (type == TrackerDoubleMap) {
-                std::vector<string> sub_path(std::next(x, 1), in_path.end());
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
                 TrackerElementDoubleMap cn(next_elem);
 
-                for (TrackerElementDoubleMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1887,10 +1874,10 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
     if (in_path.size() < 1)
         return ret;
 
-    shared_ptr<TrackerElement> next_elem = NULL;
+    SharedTrackerElement next_elem = NULL;
 
     bool complex_fulfilled = false;
-    for (vector<int>::iterator x = in_path.begin(); x != in_path.end(); ++x) {
+    for (auto x = in_path.begin(); x != in_path.end(); ++x) {
         int id = *x;
 
         if (id < 0) {
@@ -1918,9 +1905,8 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 
                 TrackerElementVector cn(next_elem);
 
-                for (TrackerElementVector::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, *i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1933,9 +1919,8 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 
                 TrackerElementIntMap cn(next_elem);
 
-                for (TrackerElementIntMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1948,8 +1933,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 
                 TrackerElementStringMap cn(next_elem);
 
-                for (TrackerElementStringMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
                     vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second);
 
@@ -1963,8 +1947,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 
                 TrackerElementMacMap cn(next_elem);
 
-                for (TrackerElementMacMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
                     vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second);
 
@@ -1978,9 +1961,8 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 
                 TrackerElementDoubleMap cn(next_elem);
 
-                for (TrackerElementDoubleMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -1998,9 +1980,8 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
     return ret;
 }
 
-void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
-        SharedTrackerElement in, 
-        vector<SharedElementSummary> in_summarization, 
+void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
+        SharedTrackerElement in, std::vector<SharedElementSummary> in_summarization, 
         SharedTrackerElement &ret_elem, 
         TrackerElementSerializer::rename_map &rename_map) {
 
@@ -2010,8 +1991,7 @@ void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
     if (in_summarization.size() == 0)
         ret_elem = in;
 
-    for (vector<SharedElementSummary>::iterator si = in_summarization.begin();
-            si != in_summarization.end(); ++si) {
+    for (auto si = in_summarization.begin(); si != in_summarization.end(); ++si) {
         fn++;
 
         if ((*si)->resolved_path.size() == 0)
