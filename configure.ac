@@ -838,40 +838,27 @@ if test "$wantpcre" = "yes"; then
 	fi # pcre
 fi
 
-AC_ARG_ENABLE(sqlite3,
-	[  --disable-sqlite3       disable building sqlite3 logging],
-	[case "${enableval}" in
-	  no) wantsql3=no ;;
-	   *) wantsql3=yes ;;
-	 esac],
-	[wantsql3=yes]
-)
+# Check for sqlite3
+sql3l=no
+AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
 
-if test "$wantsql3" = "yes"; then
-	# Check for sqlite3
-	sql3l=no
-	AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
-
-	if test "$sql3l" != "yes"; then
-		AC_MSG_WARN(Failed to find libsqlite3)
-		wantsql3=no
-	fi
-
-	if test "$wantsql3" = "yes"; then
-	sql3h=no
-	AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
-
-	if test "$sql3h" != "yes"; then
-		AC_MSG_WARN(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
-		wantsql3=no
-	fi
-	fi # wantsql3
-
-	if test "$wantsql3" = "yes"; then
-	AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
-	LIBS="$LIBS -lsqlite3"
-	fi # sqlite3
+if test "$sql3l" != "yes"; then
+	AC_MSG_ERROR(Failed to find libsqlite3)
 fi
+
+sql3h=no
+AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
+
+if test "$sql3h" != "yes"; then
+	AC_MSG_ERROR(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
+fi
+
+if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
+AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
+LIBS="$LIBS -lsqlite3"
+else
+    AC_MSG_ERROR(Failed to find sqlite3)
+fi # sqlite3
 
 # Handle airpcap/winpcap on cygwin
 if test "$cygwin" = yes; then
@@ -1423,13 +1410,6 @@ fi
 # else
 # 	echo "no ($HACKRF_MISSING_REASON)";
 # fi
-
-printf "      SQLite3 Database: "
-if test "$wantsql3" = "yes"; then
-	echo "yes"
-else
-	echo "no - some logging will not be available"
-fi
 
 printf "        Built-in Debug: "
 echo $BACKTRACE_WARNING

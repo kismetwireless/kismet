@@ -748,7 +748,6 @@ with_linuxheaders
 enable_linuxwext
 with_pcreheaders
 enable_pcre
-enable_sqlite3
 enable_airpcap
 with_airpcap_devpack
 with_winpcap_devpack
@@ -1414,7 +1413,6 @@ Optional Features:
   --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
   --disable-pcre          disable building pcre components
-  --disable-sqlite3       disable building sqlite3 logging
   --enable-airpcap        enable checking for CACE airpcap
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-pcap          disable libpcap (most sources) capture support
@@ -8418,22 +8416,9 @@ $as_echo "#define HAVE_LIBPCRE 1" >>confdefs.h
 	fi # pcre
 fi
 
-# Check whether --enable-sqlite3 was given.
-if test "${enable_sqlite3+set}" = set; then :
-  enableval=$enable_sqlite3; case "${enableval}" in
-	  no) wantsql3=no ;;
-	   *) wantsql3=yes ;;
-	 esac
-else
-  wantsql3=yes
-
-fi
-
-
-if test "$wantsql3" = "yes"; then
-	# Check for sqlite3
-	sql3l=no
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
+# Check for sqlite3
+sql3l=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
 $as_echo_n "checking for sqlite3_libversion in -lsqlite3... " >&6; }
 if ${ac_cv_lib_sqlite3_sqlite3_libversion+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8476,15 +8461,12 @@ else
 fi
 
 
-	if test "$sql3l" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libsqlite3" >&5
-$as_echo "$as_me: WARNING: Failed to find libsqlite3" >&2;}
-		wantsql3=no
-	fi
+if test "$sql3l" != "yes"; then
+	as_fn_error $? "Failed to find libsqlite3" "$LINENO" 5
+fi
 
-	if test "$wantsql3" = "yes"; then
-	sql3h=no
-	ac_fn_cxx_check_header_mongrel "$LINENO" "sqlite3.h" "ac_cv_header_sqlite3_h" "$ac_includes_default"
+sql3h=no
+ac_fn_cxx_check_header_mongrel "$LINENO" "sqlite3.h" "ac_cv_header_sqlite3_h" "$ac_includes_default"
 if test "x$ac_cv_header_sqlite3_h" = xyes; then :
   sql3h=yes
 else
@@ -8493,20 +8475,18 @@ fi
 
 
 
-	if test "$sql3h" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" >&5
-$as_echo "$as_me: WARNING: Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" >&2;}
-		wantsql3=no
-	fi
-	fi # wantsql3
+if test "$sql3h" != "yes"; then
+	as_fn_error $? "Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" "$LINENO" 5
+fi
 
-	if test "$wantsql3" = "yes"; then
+if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
 
 $as_echo "#define HAVE_LIBSQLITE3 1" >>confdefs.h
 
-	LIBS="$LIBS -lsqlite3"
-	fi # sqlite3
-fi
+LIBS="$LIBS -lsqlite3"
+else
+    as_fn_error $? "Failed to find sqlite3" "$LINENO" 5
+fi # sqlite3
 
 # Handle airpcap/winpcap on cygwin
 if test "$cygwin" = yes; then
@@ -11636,13 +11616,6 @@ fi
 # else
 # 	echo "no ($HACKRF_MISSING_REASON)";
 # fi
-
-printf "      SQLite3 Database: "
-if test "$wantsql3" = "yes"; then
-	echo "yes"
-else
-	echo "no - some logging will not be available"
-fi
 
 printf "        Built-in Debug: "
 echo $BACKTRACE_WARNING
