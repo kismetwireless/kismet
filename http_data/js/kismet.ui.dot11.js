@@ -551,6 +551,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     $.get("/devices/by-key/" + key +
                             "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
                     .done(function(clidata) {
+                        clidata = kismet.sanitizeObject(clidata);
+
                         if (clidata !== '' && clidata !== '""') {
                             alink.text("Client of " + mac + " (" + clidata.slice(1, clidata.length - 1) + ")");
                         }
@@ -583,6 +585,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         $.get("/devices/by-key/" + opts['value'] +
                                 "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
                         .done(function(clidata) {
+                            clidata = kismet.sanitizeObject(clidata);
+
                             if (clidata === '' || clidata === '""') {
                                 opts['container'].html('<i>Unknown</i>');
                             } else {
@@ -726,6 +730,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                         $.get("/devices/by-key/" + clientid + "/device.json")
                         .done(function(clidata) {
+                            clidata = kismet.sanitizeObject(clidata);
+
                             opts['container'].devicedata(clidata, {
                                 id: "clientData",
                                 fields: [
