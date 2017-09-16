@@ -20,13 +20,18 @@ $('<link>')
         href: '/css/kismet.ui.gadgets.css'
     });
 
+// Defined gadgets
 var gadgets = new Array();
 
+// User picked gadgets
 var active_gadgets = new Array();
 
 /* Options for gadgets:
  * id           unique id of gadget
  * priority     priority of gadget order
+ * fields       *array* of fields required by this gadget, merged into the request
+ * defaultenable optional bool, if the gadget is not disabled in the user preferences,
+ *              enable it by default
  * drawfunc     function called for drawing, with arguments:
  *              container - div for the widget
  *              data - data for this row
@@ -45,6 +50,14 @@ exports.AddGadget = function(options) {
 
     if (!('priority' in options)) {
         options.priority = 0;
+    }
+
+    if (!('defaultenable' in options)) {
+        options.defaultenable = false;
+    }
+
+    if (!('fields' in options)) {
+        options.fields = [];
     }
 
     gadgets.push(options);
@@ -67,12 +80,10 @@ exports.UpdateGadgets = function() {
     // Load the saved gadgets
     var saved_gadgets = kismet.getStorage('kismet.base.gadgets', []);
 
+    // Search through the saved gadgets and populate gadgets we know about
     saved_gadgets.every(function(e) {
-        // Malformed setting
+        // Corrupt pref
         if (!('id' in e))
-            return true;
-
-        if (!('visible' in e))
             return true;
 
         // Find the gadget by saved id
@@ -84,30 +95,35 @@ exports.UpdateGadgets = function() {
         if (g === undefined)
             return true;
 
-        // Add to the list
-        newgadgets.push({
-            id: g.id,
-            gadget: g,
-            visible: e.visisble
-        });
+        // Add to the list, cloning the object
+        newgadgets.push(g);
     });
 
-    // Add any unknown gadgets to the list
+    // Add any unknown gadgets to the list and mark their default visibility
+    unknowng = [];
+
     gadgets.every(function(e) {
+        // Look for this ID in our active gadgets
         var g = newgadgets.find(function(ng) {
             return (e.id === ng.id);
         });
 
         if (g === undefined) {
-            newgadgets.push({
-                id: g.id,
-                gadget: g,
-                visisble: true
-            });
+            unknowng.push(e);
         }
     });
 
-    active_gadgets = newgadgets;
+    // Concatenate
+    active_gadgets = newgadgets.concat(unknowng);
+
+    active_gadgets.sort(function(a, b) {
+        if (a.priority < b.priority)
+            return -1;
+        if (a.priority > b.priority)
+            return 1;
+
+        return 0;
+    });
 }
 
 var renderGadgets = function(d, t, r, m) {

@@ -39,7 +39,8 @@ var DeviceRowHighlights = new Array();
  *
  * sTitle: datatable column title
  * name: datatable 'name' field (optional)
- * field: Kismet field path or array pair of field path and name
+ * field: Kismet field path, array pair of field path and name, array of fields,
+ *  or a function returning one of the above.
  * renderfunc: string name of datatable render function, taking DT arguments
  *  (data, type, row, meta), (optional)
  * drawfunc: string name of a draw function, taking arguments:
@@ -97,10 +98,7 @@ exports.AddDeviceColumn = function(id, options) {
 
     // Bypass datatable/jquery pathing
     coldef.mData = function(row, type, set) {
-        if ('sanitize' in options && options['sanitize'] == false)
-            return kismet.ObjectByString(row, f);
-
-        return kismet.sanitizeHTML(kismet.ObjectByString(row, f));
+        return kismet.ObjectByString(row, f);
     }
 
     // Datatable render function
@@ -653,7 +651,11 @@ exports.InitializeDeviceTable = function(element) {
     };
     var postdata = "json=" + JSON.stringify(json);
 
-    element.DataTable( {
+    element
+        .on('xhr.dt', function ( e, settings, json, xhr ) {
+            json = kismet.sanitizeObject(json);
+        } )
+        .DataTable( {
         scrollResize: true,
         scrollY: 200,
         serverSide: true,

@@ -278,13 +278,30 @@ exports.sanitizeHTML = function(s) {
         "'": '&#39;',
         '/': '&#x2F;',
         '`': '&#x60;',
-        '=': '&#x3D;'
+        '=': '&#x3D;',
+
     };
 
     return String(s).replace(/[&<>"'`=\/]/g, function (s) {
             return remap[s];
     });
 }
+
+/* Recurse over a complete object (such as from json), finding all strings,
+ * and escaping them to be 'safe' */
+exports.sanitizeObject = function(o) {
+    if (typeof(o) === 'string') {
+        var s = exports.sanitizeHTML(o);
+        return exports.sanitizeHTML(o);
+    }
+
+    Object.keys(o).forEach(function(key) {
+            o[key] = exports.sanitizeObject(o[key]);
+    });
+
+    return o;
+}
+
 
 return exports;
 
