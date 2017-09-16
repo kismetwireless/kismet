@@ -24,6 +24,8 @@
 
         $.get(state.options.url + "/channels/channels.json")
         .done(function(data) {
+            data = kismet.sanitizeObject(data);
+
             var devtitles = new Array();
             var devnums = new Array();
 

@@ -489,6 +489,8 @@ exports.HealthCheck = function() {
 
     $.get("/system/status.json")
     .done(function(data) {
+        data = kismet.sanitizeObject(data);
+
         if (exports.connection_error) {
             exports.connection_error_panel.close();
         }

@@ -15,6 +15,7 @@ exports.timestamp_usec = 0;
 function update_ts() {
     $.get("/system/timestamp.json")
     .done(function(data) {
+        data = exports.sanitizeObject(data);
         exports.timestamp_sec = data['kismet.system.timestamp.sec'];
         exports.timestamp_usec = data['ksimet.system.timestamp.usec'];
     })

@@ -24,6 +24,8 @@
     var batinfo_refresh = function() {
         $.get("/system/status.json")
         .done(function(data) {
+            data = kismet.sanitizeObject(data);
+
             baticon.removeClass("fa-refresh");
             baticon.removeClass("fa-spin");
             baticon.removeClass("fa-battery-0");

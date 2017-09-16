@@ -129,6 +129,8 @@
     var gps_refresh = function() {
         $.get("/gps/location.json")
         .done(function(data) {
+            data = kismet.sanitizeObject(data);
+
             last_gps = data;
 
             if (last_gps == null ||

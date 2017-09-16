@@ -269,6 +269,8 @@
     var alert_refresh = function(fetchtime = last_time) {
         $.get("/alerts/last-time/" + fetchtime + "/alerts.json")
         .done(function(data) {
+            data = kismet.sanitizeObject(data);
+
             // Update the timestamp
             last_time = data['kismet.alert.timestamp'];
 
