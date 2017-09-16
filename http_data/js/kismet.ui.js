@@ -370,6 +370,8 @@ exports.DeviceDetailWindow = function(key) {
 
             $.get("/devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
+                    fulldata = kismet.sanitizeObject(fulldata);
+
                     panel.headerTitle(fulldata['kismet_device_base_name']);
 
                     var accordion = $('<div />', {
