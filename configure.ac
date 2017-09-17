@@ -838,6 +838,9 @@ if test "$wantpcre" = "yes"; then
 	fi # pcre
 fi
 
+# Don't check for sqlite3 if we're only building datasources
+if test "$caponly" = 0; then
+
 # Check for sqlite3
 sql3l=no
 AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
@@ -845,6 +848,7 @@ AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
 if test "$sql3l" != "yes"; then
 	AC_MSG_ERROR(Failed to find libsqlite3)
 fi
+
 
 sql3h=no
 AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
@@ -859,6 +863,8 @@ LIBS="$LIBS -lsqlite3"
 else
     AC_MSG_ERROR(Failed to find sqlite3)
 fi # sqlite3
+
+fi # caponly
 
 # Handle airpcap/winpcap on cygwin
 if test "$cygwin" = yes; then

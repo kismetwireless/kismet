@@ -8416,6 +8416,9 @@ $as_echo "#define HAVE_LIBPCRE 1" >>confdefs.h
 	fi # pcre
 fi
 
+# Don't check for sqlite3 if we're only building datasources
+if test "$caponly" = 0; then
+
 # Check for sqlite3
 sql3l=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
@@ -8465,6 +8468,7 @@ if test "$sql3l" != "yes"; then
 	as_fn_error $? "Failed to find libsqlite3" "$LINENO" 5
 fi
 
+
 sql3h=no
 ac_fn_cxx_check_header_mongrel "$LINENO" "sqlite3.h" "ac_cv_header_sqlite3_h" "$ac_includes_default"
 if test "x$ac_cv_header_sqlite3_h" = xyes; then :
@@ -8487,6 +8491,8 @@ LIBS="$LIBS -lsqlite3"
 else
     as_fn_error $? "Failed to find sqlite3" "$LINENO" 5
 fi # sqlite3
+
+fi # caponly
 
 # Handle airpcap/winpcap on cygwin
 if test "$cygwin" = yes; then
