@@ -42,7 +42,16 @@ string JsonAdapter::SanitizeString(string in) {
 }
 
 void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
-    SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map) {
+    SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map,
+    bool prettyprint, unsigned int depth) {
+
+    std::string indent;
+    std::string endl;
+    
+    if (prettyprint) {
+        indent = std::string(depth, ' ');
+        endl = "\r\n";
+    }
 
     if (e == NULL) {
         stream << "0";
@@ -136,17 +145,26 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             break;
         case TrackerVector:
             tvec = e->get_vector();
-            stream << "[";
+            stream << endl << indent << "[" << endl;
             for (vec_iter = tvec->begin(); vec_iter != tvec->end(); /* */ ) {
-                JsonAdapter::Pack(globalreg, stream, *vec_iter, name_map);
+                if (prettyprint)
+                    stream << indent;
+
+                JsonAdapter::Pack(globalreg, stream, *vec_iter, name_map,
+                        prettyprint, depth + 1);
+
                 if (++vec_iter != tvec->end())
                     stream << ",";
+
+                stream << endl;
             }
-            stream << "]";
+            stream << indent << "]";
             break;
         case TrackerMap:
             tmap = e->get_map();
-            stream << "{";
+            
+            stream << endl << indent << "{" << endl;
+
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
                 bool named = false;
 
@@ -171,64 +189,102 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
                 tname = SanitizeString(tname);
 
-                stream << "\"" << 
-                    tname <<
-                    "\": ";
-                JsonAdapter::Pack(globalreg, stream, map_iter->second, name_map);
+                if (prettyprint) {
+                    stream << indent << "\"description." << tname << "\": ";
+                    stream << "\"";
+                    stream << SanitizeString(TrackerElement::type_to_string(globalreg->entrytracker->GetFieldType(map_iter->first)));
+                    stream << ", ";
+                    stream << SanitizeString(globalreg->entrytracker->GetFieldDescription(map_iter->first));
+                    stream << "\",";
+                    stream << endl;
+                }
+
+                stream << indent << "\"" << tname << "\": ";
+
+                JsonAdapter::Pack(globalreg, stream, map_iter->second, name_map, 
+                        prettyprint, depth + 1);
+
                 if (++map_iter != tmap->end()) // Increment iter in loop
                     stream << ",";
+
+                stream << std::endl << std::endl;
             }
-            stream << "}";
+            stream << indent << "}";
+
             break;
         case TrackerIntMap:
             tintmap = e->get_intmap();
-            stream << "{";
+
+            stream << endl << indent << "{" << endl;
+
             for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); /* */) {
                 // Integer dictionary keys in json are still quoted as strings
-                stream << "\"" << int_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, int_map_iter->second, name_map);
+                stream << indent << "\"" << int_map_iter->first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, int_map_iter->second, name_map,
+                        prettyprint, depth + 1);
+
                 if (++int_map_iter != tintmap->end()) // Increment iter in loop
                     stream << ",";
+
+                stream << endl;
             }
-            stream << "}";
+            stream << indent << "}";
             break;
         case TrackerMacMap:
             tmacmap = e->get_macmap();
-            stream << "{";
+
+            stream << endl << indent << "{" << endl;
+
             for (mac_map_iter = tmacmap->begin(); 
                     mac_map_iter != tmacmap->end(); /* */) {
                 // Mac keys are strings and we push only the mac not the mask */
-                stream << "\"" << mac_map_iter->first.Mac2String() << "\": ";
-                JsonAdapter::Pack(globalreg, stream, mac_map_iter->second, name_map);
+                stream << indent << "\"" << mac_map_iter->first.Mac2String() << "\": ";
+                JsonAdapter::Pack(globalreg, stream, mac_map_iter->second, name_map,
+                        prettyprint, depth + 1);
+
                 if (++mac_map_iter != tmacmap->end())
                     stream << ",";
+
+                stream << endl;
             }
-            stream << "}";
+            stream << indent << "}";
             break;
         case TrackerStringMap:
             tstringmap = e->get_stringmap();
-            stream << "{";
+
+            stream << endl << indent << "{" << endl;
+
             for (string_map_iter = tstringmap->begin();
                     string_map_iter != tstringmap->end(); /* */) {
-                stream << "\"" << string_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, string_map_iter->second, name_map);
+
+                stream << indent << "\"" << string_map_iter->first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, string_map_iter->second, name_map,
+                        prettyprint, depth + 1);
+
                 if (++string_map_iter != tstringmap->end())
                     stream << ",";
+
+                stream << endl;
             }
-            stream << "}";
+            stream << indent << "}";
             break;
         case TrackerDoubleMap:
             tdoublemap = e->get_doublemap();
-            stream << "{";
+
+            stream << endl << indent << "{" << endl;
+
             for (double_map_iter = tdoublemap->begin();
                     double_map_iter != tdoublemap->end(); /* */) {
                 // Double keys are handled as strings in json
-                stream << "\"" << fixed << double_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map);
+                stream << indent << "\"" << fixed << double_map_iter->first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map,
+                        prettyprint, depth + 1);
                 if (++double_map_iter != tdoublemap->end())
                     stream << ",";
+
+                stream << endl;
             }
-            stream << "}";
+            stream << indent << "}";
             break;
         case TrackerByteArray:
             bytes = e->get_bytearray();

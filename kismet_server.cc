@@ -847,6 +847,7 @@ int main(int argc, char *argv[], char *envp[]) {
     entrytracker->RegisterSerializer("msgpack", shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("json", shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("ekjson", shared_ptr<TrackerElementSerializer>(new EkJsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("prettyjson", shared_ptr<TrackerElementSerializer>(new PrettyJsonAdapter::Serializer(globalregistry)));
 
     // cmd is msgpack, jcmd is json (for now?)
     entrytracker->RegisterSerializer("cmd", shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));

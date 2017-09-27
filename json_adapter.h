@@ -30,8 +30,11 @@
 // BufferHandlerOStreambuf or similar
 namespace JsonAdapter {
 
+// Basic packer with some defaulted options - prettyprint and depth used for
+// recursive indenting and prettifying the output
 void Pack(GlobalRegistry *globalreg, std::ostream &stream, SharedTrackerElement e,
-        TrackerElementSerializer::rename_map *name_map = NULL);
+        TrackerElementSerializer::rename_map *name_map = NULL,
+        bool prettyprint = false, unsigned int depth = 0);
 
 string SanitizeString(string in);
 
@@ -56,8 +59,6 @@ public:
 // which will not require loading the entire object into RAM
 namespace EkJsonAdapter {
 
-string SanitizeString(string in);
-
 class Serializer : public TrackerElementSerializer {
 public:
     Serializer(GlobalRegistry *in_globalreg) :
@@ -78,6 +79,27 @@ public:
             JsonAdapter::Pack(globalreg, stream, in_elem, name_map);
         }
     }
+};
+
+}
+
+// "Pretty" JSON adapter.  This will include metadata about the fields, and format
+// it to be human readable.
+namespace PrettyJsonAdapter {
+
+class Serializer : public TrackerElementSerializer {
+public:
+    Serializer(GlobalRegistry *in_globalreg) :
+        TrackerElementSerializer(in_globalreg) { }
+
+    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+            rename_map *name_map = NULL) {
+        local_locker lock(&mutex);
+
+        // Call the packer in pretty mode
+        JsonAdapter::Pack(globalreg, stream, in_elem, name_map, true, 1);
+    }
+
 };
 
 }
