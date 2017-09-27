@@ -57,7 +57,7 @@
 #include "kis_net_microhttpd.h"
 #include "structured.h"
 #include "devicetracker_httpd_pcap.h"
-#include "kisdatabase.h"
+#include "kis_database.h"
 
 // How big the main vector of components is, if we ever get more than this
 // many tracked components we'll need to expand this but since it ties to
@@ -646,8 +646,10 @@ protected:
     pthread_mutex_t worker_mutex;
 };
 
+#define DEVICETRACKER_DB_VERSION    1
+
 class Devicetracker : public Kis_Net_Httpd_Chain_Stream_Handler,
-    public TimetrackerEvent, public LifetimeGlobal {
+    public TimetrackerEvent, public LifetimeGlobal, public KisDatabase {
 public:
     static std::shared_ptr<Devicetracker> create_devicetracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Devicetracker> mon(new Devicetracker(in_globalreg));
@@ -782,9 +784,6 @@ public:
             vector<SharedElementSummary> summary_vec,
             string in_wrapper_key = "");
 
-    // TODO merge this into a normal serializer call
-    void httpd_xml_device_summary(std::ostream &stream);
-
     // Timetracker event handler
     virtual int timetracker_event(int eventid);
 
@@ -797,6 +796,9 @@ public:
     std::shared_ptr<kis_tracked_rrd<> > get_packets_rrd() {
         return packets_rrd;
     }
+
+    // Database API
+    virtual int Database_UpgradeDB();
 
 protected:
 	void SaveTags();

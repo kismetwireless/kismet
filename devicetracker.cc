@@ -45,7 +45,6 @@
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 #include "msgpack_adapter.h"
-#include "xmlserialize_adapter.h"
 #include "json_adapter.h"
 #include "structured.h"
 #include "kismet_json.h"
@@ -57,7 +56,8 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg) {
+    Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg),
+    KisDatabase(in_globalreg, "devicetracker") {
 
     // Initialize as recursive to allow multiple locks in a single thread
     pthread_mutexattr_t mutexattr;
@@ -153,10 +153,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
-	// Create the global kistxt and kisxml logfiles
-	// new Dumpfile_Devicetracker(globalreg, "kistxt", "text");
-	// new Dumpfile_Devicetracker(globalreg, "kisxml", "xml");
-
 	// Set up the persistent tag conf file
 	// Build the config file
 	conf_save = globalreg->timestamp.tv_sec;
@@ -220,6 +216,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "from working.  This can be re-enabled by setting "
                 "keep_datasource_signal_history=true", MSGFLAG_INFO);
     }
+
+    // Update the database
+    Database_UpgradeDB();
 }
 
 Devicetracker::~Devicetracker() {
@@ -1081,4 +1080,10 @@ void Devicetracker::lock_devicelist() {
 void Devicetracker::unlock_devicelist() {
     pthread_mutex_unlock(&devicelist_mutex);
 }
+
+int Devicetracker::Database_UpgradeDB() {
+
+    return 0;
+}
+
 

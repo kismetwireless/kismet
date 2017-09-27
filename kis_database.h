@@ -63,24 +63,26 @@ protected:
 public:
     virtual ~KisDatabase();
 
-    virtual unsigned int get_db_version();
+    virtual bool Database_Valid();
 
-    // Initialize a new database
-    virtual unsigned int initialize_db() = 0;
+    virtual unsigned int Database_GetDBVersion();
 
     // Upgrade a database which doesn't match our version
-    virtual unsigned int upgrade_db(unsigned int version) = 0;
+    virtual int Database_UpgradeDB() = 0;
 
 protected:
+    virtual bool Database_CreateMasterTable();
+
     // Force-set db version, to be called after upgrading the db or
     // creating a new db
-    virtual bool set_db_version();
+    virtual bool Database_SetDBVersion(unsigned int in_version);
 
     GlobalRegistry *globalreg;
 
     // Module name and target version, filled in by subclasses during initialization
     std::string ds_module_name;
-    unsigned int ds_target_version;
+
+    std::string ds_dbfile;
 
     std::recursive_timed_mutex ds_mutex;
 
