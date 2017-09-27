@@ -78,7 +78,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     device_base_id =
-        entrytracker->RegisterField("kismet.device.base", TrackerMac,
+        entrytracker->RegisterField("kismet.device.base", 
+                std::shared_ptr<kis_tracked_device_base>(new kis_tracked_device_base(globalreg, 0)),
                 "core device record");
     device_list_base_id =
         entrytracker->RegisterField("kismet.device.list",
@@ -89,7 +90,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "list of phys");
 
     phy_entry_id =
-        entrytracker->RegisterField("kismet.phy.entry", TrackerMac,
+        entrytracker->RegisterField("kismet.phy.entry", TrackerMap,
                 "phy entry");
 
     device_summary_base_id =
