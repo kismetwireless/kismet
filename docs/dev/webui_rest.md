@@ -55,6 +55,41 @@ which passes the parameters in the `json=` variable, and the login and password 
 
 More information about each field can be found in the `/system/tracked_fields.html` URI by visiting `http://localhost:2501/system/tracked_fields.html` in your browser.  This will show the field names, descriptions, and data types, for every known entity.
 
+For even more information, almost every REST endpoint can be requested using the `{foo}.prettyjson` format; this JSON output is styled for ease of readability and includes additional metadata to help understand the format; for example:
+
+```
+$ curl http://localhost:2501/system/status.prettyjson
+ {
+ "description.kismet.device.packets_rrd": "string, RRD of total packets seen",
+ "kismet.device.packets_rrd":
+  {
+  "description.kismet.common.rrd.last_time": "uint64_t, last time udpated",
+  "kismet.common.rrd.last_time": 1506473162,
+...
+ "description.kismet.system.battery.percentage": "int32_t, remaining battery percentage",
+ "kismet.system.battery.percentage": 96,
+
+ "description.kismet.system.battery.charging": "string, battery charging state",
+ "kismet.system.battery.charging": "discharging",
+
+ "description.kismet.system.battery.ac": "uint8_t, on AC power",
+ "kismet.system.battery.ac": 0,
+
+ "description.kismet.system.battery.remaining": "uint32_t, battery remaining in seconds",
+ "kismet.system.battery.remaining": 0,
+
+ "description.kismet.system.timestamp.sec": "uint64_t, system timestamp, seconds",
+ "kismet.system.timestamp.sec": 1506473162,
+ }
+}
+```
+
+For each defined field, Kismet will include a metadata field, `description.whatever.field.name`, which gives the type (for instance, uint32_t for a 32bit unsigned int), and the description, for instance 'battery remaining in seconds'.
+
+While the `prettyjson` format is well suited for learning about Kismet and developing tools to interface with the REST API, the `json` format should be used for final code; it is significantly faster than `prettyjson` and is optimized for processing time and space.
+
+`prettyjson` should work with nearly all REST endpoints which return JSON records, but will *NOT* work with `ekjson`-only endpoints (which are relatively rare, and documented accordingly below in the REST docs).
+
 ## Serialization Types
 
 Kismet can export data as several different formats; generally these formats are indicated by the type of endpoint being requested (such as foo.msgpack or foo.json)
@@ -74,6 +109,12 @@ Kismet can export objects in binary msgpack format, which may in some instances 
 Kismet supports ekjson on any REST UI which returns a vector/list/array of results.  The results will be the same as standard JSON, however each item in the list will be a discrete JSON object.
 
 The primary advantage of the ekjson format is the ability to process it *as a stream* instead of as a single giant object - this reduces the client-side memory requirements of searches with a large number of devices drastically.
+
+### PRETTYJSON
+
+"Pretty" JSON is optimized for human readability and includes metadata fields describing what Kismet knows about each field in the JSON response.  For more information, see the previous section, `Exploring the REST system`.
+
+"Pretty" JSON should only be used for learning about Kismet and developing; for actual use of the REST API standard "JSON" or "EKJSON" endpoints should be used as they are significantly faster and optimized.
 
 ## Logins and Sessions
 
