@@ -53,9 +53,11 @@
 
 class KisDatabase {
     // Subclasses must implement a public builder, typically one which returns a
-    // shared pointer instance 
-
+    // shared pointer instance if the database is a standalone instance; if it is
+    // integrated into a poly class it can be built directly via that classes state
+    // system
 protected:
+    // Dictates the file to be opened
     KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name);
 
 public:
