@@ -154,6 +154,31 @@ string EntryTracker::GetFieldName(int in_id) {
     return iter->second->field_name;
 }
 
+string EntryTracker::GetFieldDescription(int in_id) {
+    local_locker lock(&entry_mutex);
+
+    id_itr iter = field_id_map.find(in_id);
+
+    if (iter == field_id_map.end()) {
+        return "untracked field, description not available";
+    }
+
+    return iter->second->field_description;
+}
+
+TrackerType EntryTracker::GetFieldType(int in_id) {
+    local_locker lock(&entry_mutex);
+
+    id_itr iter = field_id_map.find(in_id);
+
+    if (iter == field_id_map.end()) {
+        return TrackerMap;
+    }
+
+    return iter->second->track_type;
+
+}
+
 shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
         TrackerType in_type, string in_desc) {
     local_locker lock(&entry_mutex);

@@ -78,6 +78,8 @@ public:
 
     int GetFieldId(string in_name);
     string GetFieldName(int in_id);
+    string GetFieldDescription(int in_id);
+    TrackerType GetFieldType(int in_id);
 
     // Get a field instance
     // Return: NULL if unknown
