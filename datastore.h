@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DATASTORE_H__
-#define __DATASTORE_H__
+#ifndef __KISDATABASE_H__
+#define __KISDATABASE_H__
 
 #include "config.h"
 
@@ -32,9 +32,10 @@
 
 #include "globalregistry.h"
 
-/* Kismet Datastores
+/* Kismet Databases
  *
- * Each data store is an independent database file.
+ * Each database is an independent database file, for locking and data integrity
+ * simplicity.
  *
  * Each database contains one core table which contains information about
  * the primary module manipulating state, the database version, and the kismet
@@ -44,21 +45,21 @@
  * expected to detect when the codebase is newer than the database file and
  * perform any upgrades necessary.
  *
- * Providers of datastore objects must subclass the datastore and implement an
+ * Providers of database objects must subclass the database and implement an
  * API to abstract the internal SQL commands; callers should not be expected to
  * implement SQL directly.
  *
  */
 
-class Datastore : public LifetimeGlobal {
+class KisDatabase {
     // Subclasses must implement a public builder, typically one which returns a
-    // shared pointer instance
+    // shared pointer instance 
 
-private:
-    Datastore(GlobalRegistry *in_globalreg);
+protected:
+    KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name);
 
 public:
-    virtual ~Datastore();
+    virtual ~KisDatabase();
 
     virtual unsigned int get_db_version();
 
@@ -68,7 +69,11 @@ public:
     // Upgrade a database which doesn't match our version
     virtual unsigned int upgrade_db(unsigned int version) = 0;
 
-private:
+protected:
+    // Force-set db version, to be called after upgrading the db or
+    // creating a new db
+    virtual bool set_db_version();
+
     GlobalRegistry *globalreg;
 
     // Module name and target version, filled in by subclasses during initialization
