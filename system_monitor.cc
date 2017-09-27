@@ -213,13 +213,15 @@ bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
-    if (strcmp(path, "/system/status.msgpack") == 0)
+    std::string stripped = Httpd_StripSuffix(path);
+
+    if (!Httpd_CanSerialize(path))
+        return false;
+
+    if (stripped == "/system/status")
         return true;
-    if (strcmp(path, "/system/status.json") == 0)
-        return true;
-    if (strcmp(path, "/system/timestamp.msgpack") == 0)
-        return true;
-    if (strcmp(path, "/system/timestamp.json") == 0)
+
+    if (stripped == "/system/timestamp")
         return true;
 
     return false;
@@ -239,13 +241,20 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         return;
     }
 
-    if (strcmp(path, "/system/status.msgpack") == 0) {
-        MsgpackAdapter::Pack(globalreg, stream, 
-            static_pointer_cast<Systemmonitor>(globalreg->FetchGlobal("SYSTEM_MONITOR")));
-    } else if (strcmp(path, "/system/status.json") == 0) {
-        JsonAdapter::Pack(globalreg, stream, 
-            static_pointer_cast<Systemmonitor>(globalreg->FetchGlobal("SYSTEM_MONITOR")));
-    } else if (strcmp(path, "/system/timestamp.msgpack") == 0) {
+    std::string stripped = Httpd_StripSuffix(path);
+
+    if (!Httpd_CanSerialize(path))
+        return;
+
+    shared_ptr<EntryTracker> entrytracker =
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+
+    if (stripped == "/system/status") {
+        entrytracker->Serialize(httpd->GetSuffix(path), stream,
+                Globalreg::FetchGlobalAs<Systemmonitor>(globalreg, "SYSTEM_MONITOR"), NULL);
+
+        return;
+    } else if (stripped == "/system/timestamp") {
         SharedTrackerElement tse(new TrackerElement(TrackerMap, 0));
 
         tse->add_map(timestamp_sec);
@@ -257,20 +266,11 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         set_timestamp_sec(now.tv_sec);
         set_timestamp_usec(now.tv_usec);
 
-        MsgpackAdapter::Pack(globalreg, stream, tse);
-    } else if (strcmp(path, "/system/timestamp.json") == 0) {
-        SharedTrackerElement tse(new TrackerElement(TrackerMap, 0));
+        entrytracker->Serialize(httpd->GetSuffix(path), stream, tse, NULL);
 
-        tse->add_map(timestamp_sec);
-        tse->add_map(timestamp_usec);
-
-        struct timeval now;
-        gettimeofday(&now, NULL);
-
-        set_timestamp_sec(now.tv_sec);
-        set_timestamp_usec(now.tv_usec);
-
-        JsonAdapter::Pack(globalreg, stream, tse);
+        return;
+    } else {
+        return;
     }
 }
 
