@@ -181,12 +181,12 @@ public:
 
     virtual bool isArray() {
         exceptIfNull();
-        return (json->value_array.size() != 0);
+        return (json->value.tok_type == JSON_arrstart);
     }
 
     virtual bool isDictionary() {
         exceptIfNull();
-        return (json->value_map.size() != 0);
+        return (json->value.tok_type == JSON_start);
     }
 
     virtual double getNumber() {
@@ -346,7 +346,7 @@ public:
 
     virtual structured_num_map getStructuredNumMap() {
         exceptIfNull();
-        exceptIfNot(isArray(), "dictionary/map");
+        exceptIfNot(isDictionary(), "dictionary/map");
 
         structured_num_map m;
 
