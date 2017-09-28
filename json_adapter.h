@@ -104,5 +104,53 @@ public:
 
 }
 
+// "Storage" JSON adapter.  This adapter is intended to create JSON data suitable for
+// re-importing into Kismet (like for storing state data into a database for future
+// instances).
+//
+// Every record is split into an object containing multiple metadata fields; these
+// fields define the base field name and base field type; for instance a device
+// top-level record would be represented as:
+// {
+//    "objname": "kismet.device.base",
+//    "objtype": "TrackerMap",
+//    "objdata": {
+//       ... device fields
+//     }
+// }
+//
+// Sub-objects inside a map will be represented as:
+// {
+// ...
+//    "kismet.device.base.key": {
+//        "objname": "kismet.device.base.key",
+//        "objtype": "TrackerUInt64",
+//        "objdata": 31777509604288
+//     }
+// ...
+// }
+
+namespace StorageJsonAdapter {
+
+void Pack(GlobalRegistry *globalreg, std::ostream &stream, SharedTrackerElement e,
+        TrackerElementSerializer::rename_map *name_map = NULL);
+
+class Serializer : public TrackerElementSerializer {
+public:
+    Serializer(GlobalRegistry *in_globalreg) :
+        TrackerElementSerializer(in_globalreg) { }
+
+    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+            rename_map *name_map = NULL) {
+        local_locker lock(&mutex);
+
+        // Call the packer in pretty mode
+        Pack(globalreg, stream, in_elem, name_map);
+    }
+
+};
+
+}
+
 
 #endif
