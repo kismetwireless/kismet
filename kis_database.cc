@@ -150,8 +150,29 @@ unsigned int KisDatabase::Database_GetDBVersion() {
         return 0;
 
     unsigned int v = 0;
+    int r;
+    char *sErrMsg = NULL;
 
-    
+    std::string sql = 
+        "SELECT db_version FROM KISMET";
+
+    r = sqlite3_exec(db, sql.c_str(),
+            [] (void *ver, int argc, char **data, char **) -> int {
+                if (argc != 1)
+                    *((unsigned int *) ver) = 0;
+
+                if (sscanf("%u", data[0], (unsigned int *) ver) != 1) 
+                    *((unsigned int *) ver) = 0;
+                return 0; 
+            }, NULL, &sErrMsg);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisDatabase unable to query db_version in" + ds_dbfile + ": " +
+                std::string(sErrMsg), MSGFLAG_ERROR);
+        sqlite3_close(db);
+        db = NULL;
+        return 0;
+    }
 
     return v;
 }
@@ -160,6 +181,35 @@ bool KisDatabase::Database_SetDBVersion(unsigned int version) {
     if (db == NULL)
         return 0;
 
-    return false;
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string sql;
+
+    sql = 
+        "UPDATE KISMET (kismet_version, db_version) VALUES (?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisDatabase unable to generate prepared statement to update master table in " +
+                ds_dbfile, MSGFLAG_ERROR);
+        sqlite3_close(db);
+        db = NULL;
+        return false;
+    }
+
+    std::string kversion = globalreg->version_major + "." + 
+        globalreg->version_minor + "." +
+        globalreg->version_tiny;
+
+    sqlite3_bind_text(stmt, 1, kversion.c_str(), kversion.length(), 0);
+    sqlite3_bind_int(stmt, 2, version);
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return true;
 }
 
