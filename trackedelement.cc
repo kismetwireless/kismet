@@ -1179,6 +1179,9 @@ void TrackerElement::add_map(int f, SharedTrackerElement s) {
 void TrackerElement::add_map(SharedTrackerElement s) {
     except_type_mismatch(TrackerMap);
 
+    if (s == NULL)
+        return;
+
     auto o = dataunion.submap_value->find(s->get_id());
     if (o != dataunion.submap_value->end())
         dataunion.submap_value->erase(o);
@@ -1196,6 +1199,11 @@ void TrackerElement::del_map(int f) {
 }
 
 void TrackerElement::del_map(SharedTrackerElement e) {
+    except_type_mismatch(TrackerMap);
+
+    if (e == NULL)
+        return;
+
     del_map(e->get_id());
 }
 
