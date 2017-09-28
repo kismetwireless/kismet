@@ -364,6 +364,12 @@ public:
         *(dataunion.uuid_value) = v;
     }
 
+    // Coercive set - attempt to fit incoming data into the type (for basic types)
+    // Set string values - usable for strings, macs, UUIDs
+    void coercive_set(std::string in_str);
+    // Set numerical values - usable for all numeric types
+    void coercive_set(double in_num);
+
     size_t size();
 
     vector_iterator vec_begin();

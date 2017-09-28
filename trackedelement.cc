@@ -934,6 +934,85 @@ string TrackerElement::type_to_string(TrackerType t) {
     }
 }
 
+void TrackerElement::coercive_set(std::string in_str) {
+    mac_addr m;
+    uuid u;
+
+    switch (type) {
+        case TrackerString:
+            set(in_str);
+            break;
+        case TrackerMac:
+            m = mac_addr(in_str);
+            if (m.error)
+                throw std::runtime_error("unable to coerce string value to mac address");
+            set(m);
+            break;
+        case TrackerUuid:
+            u = uuid(in_str);
+            if (u.error)
+                throw std::runtime_error("unable to coerce string value to uuid");
+            set(u);
+            break;
+        default:
+            throw std::runtime_error("unable to coerce string value to " + 
+                    type_to_string(type));
+            break;
+    }
+}
+
+void TrackerElement::coercive_set(double in_num) {
+    switch (type) {
+        case TrackerInt8:
+            if (in_num < -128 || in_num > 127)
+                throw std::runtime_error("unable to coerce number to int8, out of range");
+            set((int8_t) in_num);
+            break;
+        case TrackerUInt8:
+            if (in_num < 0 || in_num > 255)
+                throw std::runtime_error("unable to coerce number to uint8, out of range");
+            set((uint8_t) in_num);
+            break;
+        case TrackerInt16:
+            if (in_num < -32768 || in_num > 32767)
+                throw std::runtime_error("unable to coerce number to int16, out of range");
+            set((int16_t) in_num);
+            break;
+        case TrackerUInt16:
+            if (in_num < 0 || in_num > 65535)
+                throw std::runtime_error("unable to coerce number to uint16, out of range");
+            set((uint16_t) in_num);
+            break;
+        case TrackerInt32:
+            if (in_num < -2147483648 || in_num > 2147483647)
+                throw std::runtime_error("unable to coerce number to int32, out of range");
+            set((int32_t) in_num);
+            break;
+        case TrackerUInt32:
+            if (in_num < 0 || in_num > 4294967295)
+                throw std::runtime_error("unable to coerce number to uint32, out of range");
+            set((uint32_t) in_num);
+            break;
+        case TrackerInt64:
+            // Double should fit
+            set((int64_t) in_num);
+            break;
+        case TrackerUInt64:
+            set((uint64_t) in_num);
+            break;
+        case TrackerFloat:
+            set((float) in_num);
+            break;
+        case TrackerDouble:
+            set((double) in_num);
+            break;
+        default: 
+            throw std::runtime_error("unable to coerce numerical value to " + 
+                    type_to_string(type));
+            break;
+    }
+}
+
 void TrackerElement::add_map(int f, SharedTrackerElement s) {
     except_type_mismatch(TrackerMap);
     
