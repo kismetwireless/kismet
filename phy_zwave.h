@@ -78,8 +78,6 @@ protected:
 
 class Kis_Zwave_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
 public:
-    Kis_Zwave_Phy() { }
-
     virtual ~Kis_Zwave_Phy();
 
     Kis_Zwave_Phy(GlobalRegistry *in_globalreg) :

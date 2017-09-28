@@ -391,8 +391,6 @@ protected:
 
 class Kis_RTL433_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
 public:
-    Kis_RTL433_Phy() { }
-
     virtual ~Kis_RTL433_Phy();
 
     Kis_RTL433_Phy(GlobalRegistry *in_globalreg) :

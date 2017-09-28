@@ -960,7 +960,6 @@ class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Han
     public TimetrackerEvent {
 public:
 	// Stub
-	Kis_80211_Phy() { }
 	~Kis_80211_Phy();
 
 	// Inherited functionality
@@ -1030,6 +1029,10 @@ public:
 
     // Timetracker event handler
     virtual int timetracker_event(int eventid);
+
+    // Restore stored dot11 records
+    virtual void LoadPhyStorage(SharedTrackerElement in_storage, 
+            SharedTrackerElement in_device);
 
 protected:
     shared_ptr<Alertracker> alertracker;

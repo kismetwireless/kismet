@@ -101,7 +101,6 @@ protected:
 class Kis_Bluetooth_Phy : public Kis_Phy_Handler {
 public:
 	// Stub
-	Kis_Bluetooth_Phy() { }
 	~Kis_Bluetooth_Phy();
 
 	// Inherited functionality

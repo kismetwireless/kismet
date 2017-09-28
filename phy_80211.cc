@@ -2241,3 +2241,18 @@ int Kis_80211_Phy::timetracker_event(int eventid) {
     return 1;
 }
 
+void Kis_80211_Phy::LoadPhyStorage(SharedTrackerElement in_storage, 
+        SharedTrackerElement in_device) {
+
+    if (in_storage == NULL || in_device == NULL)
+        return;
+
+    // Does the imported record have dot11?
+    auto d11devi = in_storage->find(dot11_device_entry_id);
+
+    // Adopt it into a dot11
+    if (d11devi != in_storage->end()) {
+        shared_ptr<dot11_tracked_device> d11dev(new dot11_tracked_device(globalreg, dot11_device_entry_id, d11devi->second));
+        in_device->add_map(d11dev);
+    }
+}

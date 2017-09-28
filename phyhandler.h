@@ -24,34 +24,14 @@
 #include <stdio.h>
 
 #include "globalregistry.h"
+#include "trackedelement.h"
 
 class Devicetracker;
 
 class kis_tracked_device_base;
 
-/*
-   Handler element for a phy
-   Registered with Devicetracker
-   Devicetracker feeds packets to phyhandlers, no need to register with packet 
-     chain on each
-   Registered phy id is passed from devicetracker
-
- 	Subclasses are expected to:
- 	  Register packet handlers in the packet chain
- 	  Register packet components in the packet chain
- 	  Decode trackable data from a packetsource
- 	  Generate trackable devices in the devicetracker
- 	  Update tracked device common data via the devicetracker
- 	  Provide appropriate network sentences to export non-common tracking data
- 	   for the phy type (ie advertised SSID, etc)
- 	  Provide per-phy filtering (if reasonable)
- 	  Provide per-phy commands (as applicable)
-*/
-
 class Kis_Phy_Handler {
 public:
-	Kis_Phy_Handler() { fprintf(stderr, "fatal oops: kis_phy_handler();\n"); exit(1); }
-
 	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
 	Kis_Phy_Handler(GlobalRegistry *in_globalreg) {
 		globalreg = in_globalreg;
@@ -71,18 +51,23 @@ public:
 		devicetracker = in_tracker;
 	}
 
-	virtual ~Kis_Phy_Handler() {
-		// none
-	}
+	virtual ~Kis_Phy_Handler() { }
 
 	virtual string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
+
+    // Called for all instantiated phys when restoring a network object from
+    // a stored record; This function is expected to inspect the abstract object
+    // tree 'in_storage', generate a proper phy tracked object if the data is present,
+    // and insert it into the device record in in_device
+    virtual void LoadPhyStorage(SharedTrackerElement in_storage, 
+            SharedTrackerElement in_device) { }
 
 protected:
 	GlobalRegistry *globalreg;
 	Devicetracker *devicetracker;
 
-	string phyname;
+    std::string phyname;
 	int phyid;
 };
 
