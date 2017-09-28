@@ -1013,6 +1013,67 @@ void TrackerElement::coercive_set(double in_num) {
     }
 }
 
+void TrackerElement::coercive_set(SharedTrackerElement in_elem) {
+    // Extract the base type then do a coercive set
+    std::string basic_string;
+    double basic_num;
+    bool c_string = false;
+
+    switch (in_elem->type) {
+        case TrackerInt8:
+            basic_num = GetTrackerValue<int8_t>(in_elem);
+            break;
+        case TrackerUInt8:
+            basic_num = GetTrackerValue<uint8_t>(in_elem);
+            break;
+        case TrackerInt16:
+            basic_num = GetTrackerValue<int16_t>(in_elem);
+            break;
+        case TrackerUInt16:
+            basic_num = GetTrackerValue<uint16_t>(in_elem);
+            break;
+        case TrackerInt32:
+            basic_num = GetTrackerValue<int32_t>(in_elem);
+            break;
+        case TrackerUInt32:
+            basic_num = GetTrackerValue<uint32_t>(in_elem);
+            break;
+        case TrackerInt64:
+            basic_num = GetTrackerValue<int64_t>(in_elem);
+            break;
+        case TrackerFloat:
+            basic_num = GetTrackerValue<float>(in_elem);
+            break;
+        case TrackerDouble:
+            basic_num = GetTrackerValue<double>(in_elem);
+            break;
+
+        case TrackerString:
+            basic_string = GetTrackerValue<std::string>(in_elem);
+            c_string = true;
+            break;
+        case TrackerMac:
+            basic_string = GetTrackerValue<mac_addr>(in_elem).Mac2String();
+            c_string = true;
+            break;
+        case TrackerUuid:
+            basic_string = GetTrackerValue<uuid>(in_elem).UUID2String();
+            c_string = true;
+            break;
+
+        default:
+            throw std::runtime_error("could not coerce " +
+                    in_elem->type_to_string(in_elem->type) + " to " + 
+                    type_to_string(type));
+            break;
+    }
+
+    if (c_string)
+        coercive_set(basic_string);
+    else
+        coercive_set(basic_num);
+}
+
 void TrackerElement::add_map(int f, SharedTrackerElement s) {
     except_type_mismatch(TrackerMap);
     

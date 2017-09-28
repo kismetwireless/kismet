@@ -369,6 +369,8 @@ public:
     void coercive_set(std::string in_str);
     // Set numerical values - usable for all numeric types
     void coercive_set(double in_num);
+    // Attempt to coerce one complete item to another
+    void coercive_set(SharedTrackerElement in_elem);
 
     size_t size();
 
@@ -940,6 +942,7 @@ template<> uint64_t GetTrackerValue(SharedTrackerElement e);
 template<> float GetTrackerValue(SharedTrackerElement e);
 template<> double GetTrackerValue(SharedTrackerElement e);
 template<> mac_addr GetTrackerValue(SharedTrackerElement e);
+template<> uuid GetTrackerValue(SharedTrackerElement e);
 template<> map<int, SharedTrackerElement > 
     GetTrackerValue(SharedTrackerElement e);
 template<> vector<SharedTrackerElement > 
