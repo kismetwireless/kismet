@@ -553,7 +553,12 @@ public:
     SharedTrackerElement operator[](int i);
     SharedTrackerElement operator[](mac_addr i);
 
+    // Type to human readable string
     static std::string type_to_string(TrackerType t);
+    // Type to machine readable string
+    static std::string type_to_typestring(TrackerType t);
+    // Machine readable string to type
+    static TrackerType typestring_to_type(std::string s);
 
 protected:
     // Generic coercion exception

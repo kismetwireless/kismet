@@ -934,6 +934,98 @@ string TrackerElement::type_to_string(TrackerType t) {
     }
 }
 
+string TrackerElement::type_to_typestring(TrackerType t) {
+    switch (t) {
+        case TrackerString:
+            return "TrackerString";
+        case TrackerInt8:
+            return "TrackerInt8";
+        case TrackerUInt8:
+            return "TrackerUInt8";
+        case TrackerInt16:
+            return "TrackerInt16";
+        case TrackerUInt16:
+            return "TrackerUInt16";
+        case TrackerInt32:
+            return "TrackerInt32";
+        case TrackerUInt32:
+            return "TrackerUInt32";
+        case TrackerInt64:
+            return "TrackerInt64";
+        case TrackerUInt64:
+            return "TrackerUInt64";
+        case TrackerFloat:
+            return "TrackerFloat";
+        case TrackerDouble:
+            return "TrackerDouble";
+        case TrackerMac:
+            return "TrackerMac";
+        case TrackerVector:
+            return "TrackerVector";
+        case TrackerMap:
+            return "TrackerMap";
+        case TrackerIntMap:
+            return "TrackerIntMap";
+        case TrackerUuid:
+            return "TrackerUuid";
+        case TrackerMacMap:
+            return "TrackerMacMap";
+        case TrackerStringMap:
+            return "TrackerStringMap";
+        case TrackerDoubleMap:
+            return "TrackerDoubleMap";
+        case TrackerByteArray:
+            return "TrackerByteArray";
+        default:
+            return "TrackerUnknown";
+    }
+}
+
+TrackerType TrackerElement::typestring_to_type(std::string s) {
+    if (s == "TrackerString")
+        return TrackerString;
+    if (s == "TrackerInt8")
+        return TrackerInt8;
+    if (s == "TrackerUInt8")
+        return TrackerUInt8;
+    if (s == "TrackerInt16")
+        return TrackerInt16;
+    if (s == "TrackerUInt16")
+        return TrackerUInt16;
+    if (s == "TrackerInt32")
+        return TrackerInt32;
+    if (s == "TrackerUInt32")
+        return TrackerUInt32;
+    if (s == "TrackerInt64")
+        return TrackerInt64;
+    if (s == "TrackerUInt64")
+        return TrackerUInt64;
+    if (s == "TrackerFloat")
+        return TrackerFloat;
+    if (s == "TrackerDouble")
+        return TrackerDouble;
+    if (s == "TrackerMac")
+        return TrackerMac;
+    if (s == "TrackerVector")
+        return TrackerVector;
+    if (s == "TrackerMap")
+        return TrackerMap;
+    if (s == "TrackerIntMap")
+        return TrackerIntMap;
+    if (s == "TrackerUuid")
+        return TrackerUuid;
+    if (s == "TrackerMacMap")
+        return TrackerMacMap;
+    if (s == "TrackerStringMap")
+        return TrackerStringMap;
+    if (s == "TrackerDoubleMap")
+        return TrackerDoubleMap;
+    if (s == "TrackerByteArray")
+        return TrackerByteArray;
+
+    throw std::runtime_error("Unable to interpret tracker type " + s);
+}
+
 void TrackerElement::coercive_set(std::string in_str) {
     mac_addr m;
     uuid u;
