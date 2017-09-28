@@ -269,7 +269,7 @@ public:
     void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
             Packinfo_Sig_Combo *siginfo) {
         TrackerElement::map_iterator seenby_iter;
-        shared_ptr<kis_tracked_seenby_data> seenby;
+        std::shared_ptr<kis_tracked_seenby_data> seenby;
 
         seenby_iter = seenby_map->find(source->get_source_number());
 
@@ -372,17 +372,17 @@ protected:
         RegisterField("kismet.device.base.datasize", TrackerUInt64,
                 "transmitted data in bytes", &datasize);
 
-        shared_ptr<kis_tracked_rrd<> > packets_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
+        std::shared_ptr<kis_tracked_rrd<> > packets_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
         packets_rrd_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.packets.rrd",
                     packets_rrd_builder, "packet rate rrd");
 
-        shared_ptr<kis_tracked_rrd<> > data_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
+        std::shared_ptr<kis_tracked_rrd<> > data_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
         data_rrd_id =
             globalreg->entrytracker->RegisterField("kismet.device.base.datasize.rrd",
                     data_rrd_builder, "packet size rrd");
 
-        shared_ptr<kis_tracked_signal_data> sig_builder(new kis_tracked_signal_data(globalreg, 0));
+        std::shared_ptr<kis_tracked_signal_data> sig_builder(new kis_tracked_signal_data(globalreg, 0));
         signal_data_id =
             RegisterComplexField("kismet.device.base.signal", sig_builder,
                     "signal data");
@@ -406,14 +406,14 @@ protected:
         tag_entry_id =
             RegisterField("kismet.device.base.tag", TrackerString, "arbitrary tag");
 
-        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
+        std::shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
         location_id =
             RegisterComplexField("kismet.device.base.location", loc_builder,
                     "location");
 
         location_cloud_id =
             RegisterComplexField("kismet.device.base.location_cloud", 
-                    shared_ptr<kis_location_history>(new kis_location_history(globalreg, 0)),
+                    std::shared_ptr<kis_location_history>(new kis_location_history(globalreg, 0)),
                     "historic location cloud");
 
         RegisterField("kismet.device.base.seenby", TrackerIntMap,
@@ -424,12 +424,12 @@ protected:
             globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
                     TrackerUInt64, "frequency packet count");
 
-        shared_ptr<kis_tracked_seenby_data> seenby_builder(new kis_tracked_seenby_data(globalreg, 0));
+        std::shared_ptr<kis_tracked_seenby_data> seenby_builder(new kis_tracked_seenby_data(globalreg, 0));
         seenby_val_id =
             RegisterComplexField("kismet.device.base.seenby.data",
                     seenby_builder, "seen-by data");
 
-        shared_ptr<kis_tracked_minute_rrd<> > bin_rrd_builder(new kis_tracked_minute_rrd<>(globalreg, 0));
+        std::shared_ptr<kis_tracked_minute_rrd<> > bin_rrd_builder(new kis_tracked_minute_rrd<>(globalreg, 0));
 
         packet_rrd_bin_250_id =
             RegisterComplexField("kismet.device.base.packet.bin.250", bin_rrd_builder, 
@@ -646,8 +646,6 @@ protected:
     pthread_mutex_t worker_mutex;
 };
 
-#define DEVICETRACKER_DB_VERSION    1
-
 class Devicetracker : public Kis_Net_Httpd_Chain_Stream_Handler,
     public TimetrackerEvent, public LifetimeGlobal, public KisDatabase {
 public:
@@ -673,7 +671,7 @@ public:
 	Kis_Phy_Handler *FetchPhyHandler(uint64_t in_key);
     Kis_Phy_Handler *FetchPhyHandlerByName(string in_name);
 
-    string FetchPhyName(int in_phy);
+    std::string FetchPhyName(int in_phy);
 
 	int FetchNumDevices(int in_phy);
 	int FetchNumPackets(int in_phy);
@@ -773,7 +771,7 @@ public:
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
     void httpd_all_phys(string url, std::ostream &stream, 
-            string in_wrapper_key = "");
+            std::string in_wrapper_key = "");
 
     // Generate a device summary, serialized.  Optionally provide an existing
     // vector to generate a summary of devices matching a given criteria via
@@ -781,8 +779,8 @@ public:
     // the in_wrapper key, which is required for some js libs like datatables
     void httpd_device_summary(string url, std::ostream &stream, 
             shared_ptr<TrackerElementVector> subvec, 
-            vector<SharedElementSummary> summary_vec,
-            string in_wrapper_key = "");
+            std::vector<SharedElementSummary> summary_vec,
+            std::string in_wrapper_key = "");
 
     // Timetracker event handler
     virtual int timetracker_event(int eventid);
@@ -828,7 +826,7 @@ protected:
 
     // Total packet history
     int packets_rrd_id;
-    shared_ptr<kis_tracked_rrd<> > packets_rrd;
+    std::shared_ptr<kis_tracked_rrd<> > packets_rrd;
 
     // Timeout of idle devices
     int device_idle_expiration;
@@ -964,7 +962,7 @@ public:
         tracker = in_tracker;
     }
 
-    devicelist_scope_locker(shared_ptr<Devicetracker> in_tracker) {
+    devicelist_scope_locker(std::shared_ptr<Devicetracker> in_tracker) {
         in_tracker->lock_devicelist();
         sharedtracker = in_tracker;
         tracker = NULL;
@@ -979,7 +977,7 @@ public:
 
 private:
     Devicetracker *tracker;
-    shared_ptr<Devicetracker> sharedtracker;
+    std::shared_ptr<Devicetracker> sharedtracker;
 };
 
 // C++ lambda matcher
@@ -987,25 +985,25 @@ class devicetracker_function_worker : public DevicetrackerFilterWorker {
 public:
     devicetracker_function_worker(GlobalRegistry *in_globalreg,
             function<bool (Devicetracker *, 
-                shared_ptr<kis_tracked_device_base>)> in_mcb,
+                std::shared_ptr<kis_tracked_device_base>)> in_mcb,
             function<void (Devicetracker *, 
-                vector<shared_ptr<kis_tracked_device_base> >)> in_fcb);
+                std::vector<std::shared_ptr<kis_tracked_device_base> >)> in_fcb);
     virtual ~devicetracker_function_worker();
 
     virtual void MatchDevice(Devicetracker *devicetracker,
-            shared_ptr<kis_tracked_device_base> device);
+            std::shared_ptr<kis_tracked_device_base> device);
 
     virtual void Finalize(Devicetracker *devicetracker);
 
 protected:
     GlobalRegistry *globalreg;
 
-    vector<shared_ptr<kis_tracked_device_base> > matched_devices;
+    std::vector<std::shared_ptr<kis_tracked_device_base> > matched_devices;
 
     function<bool (Devicetracker *, 
-            shared_ptr<kis_tracked_device_base>)> mcb;
+            std::shared_ptr<kis_tracked_device_base>)> mcb;
     function<void (Devicetracker *,
-            vector<shared_ptr<kis_tracked_device_base> >)> fcb;
+            std::vector<std::shared_ptr<kis_tracked_device_base> >)> fcb;
 };
 
 // Matching worker to match fields against a string search term
@@ -1019,23 +1017,23 @@ public:
     // in_devvec_object is the object the responses are placed into.
     // in_devvec_object must be a vector object.
     devicetracker_stringmatch_worker(GlobalRegistry *in_globalreg,
-            string in_query,
-            vector<vector<int> > in_paths,
+            std::string in_query,
+            std::vector<std::vector<int> > in_paths,
             SharedTrackerElement in_devvec_object);
 
     virtual ~devicetracker_stringmatch_worker();
 
     virtual void MatchDevice(Devicetracker *devicetracker,
-            shared_ptr<kis_tracked_device_base> device);
+            std::shared_ptr<kis_tracked_device_base> device);
 
     virtual void Finalize(Devicetracker *devicetracker);
 
 protected:
     GlobalRegistry *globalreg;
-    shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<EntryTracker> entrytracker;
 
-    string query;
-    vector<vector<int> > fieldpaths;
+    std::string query;
+    std::vector<vector<int> > fieldpaths;
 
     // Make a macaddr query out of it, too
     uint64_t mac_query_term;
@@ -1063,7 +1061,7 @@ public:
                 pcre_free(study);
         }
 
-        string target;
+        std::string target;
         pcre *re;
         pcre_extra *study;
     };
@@ -1071,7 +1069,7 @@ public:
     // Prepare the worker with a set of filters and the object we fill our
     // results into.  in_devvec_object must be a vector object.
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-            vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
+            std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
             SharedTrackerElement in_devvec_object);
 
     // Shortcut function for building a PCRE from an incoming standard filter
@@ -1092,7 +1090,7 @@ public:
     // in_devvec_object which is expected to be a vector object.
     // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-            string in_target,
+            std::string in_target,
             SharedStructured raw_pcre_vec,
             SharedTrackerElement in_devvec_object);
 
@@ -1101,17 +1099,17 @@ public:
     bool get_error() { return error; }
 
     virtual void MatchDevice(Devicetracker *devicetracker,
-            shared_ptr<kis_tracked_device_base> device);
+            std::shared_ptr<kis_tracked_device_base> device);
 
     virtual void Finalize(Devicetracker *devicetracker);
 
 protected:
     GlobalRegistry *globalreg;
-    shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<EntryTracker> entrytracker;
 
     int pcre_match_id;
 
-    vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > filter_vec;
+    std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter> > filter_vec;
     bool error;
 
     SharedTrackerElement return_dev_vec;
@@ -1127,7 +1125,7 @@ public:
     // Prepare the worker with a set of filters and the object we fill our
     // results into.  in_devvec_object must be a vector object.
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-            vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
+            std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
             SharedTrackerElement in_devvec_object) {
         throw std::runtime_error("Kismet not compiled with PCRE support");
     }
@@ -1139,7 +1137,7 @@ public:
     }
 
     devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-            string in_target,
+            std::string in_target,
             SharedStructured raw_pcre_vec,
             SharedTrackerElement in_devvec_object) {
         throw std::runtime_error("Kismet not compiled with PCRE support");
@@ -1150,7 +1148,7 @@ public:
     bool get_error() { return true; }
 
     virtual void MatchDevice(Devicetracker *devicetracker,
-            shared_ptr<kis_tracked_device_base> device) { };
+            std::shared_ptr<kis_tracked_device_base> device) { };
 
     virtual void Finalize(Devicetracker *devicetracker) { };
 };
