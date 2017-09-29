@@ -5745,7 +5745,7 @@ fi
 done
 
 
-if test "$HAVE_HACKRF_H" -eq 1; then
+if test "$HAVE_HACKRF_H" = 1; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for hackrf_init in -lhackrf" >&5
 $as_echo_n "checking for hackrf_init in -lhackrf... " >&6; }
 if ${ac_cv_lib_hackrf_hackrf_init+:} false; then :
@@ -5793,7 +5793,7 @@ else
     HACKRF_MISSING_REASON="Missing libhackrf/hackrf.h"
 fi
 
-if test "$HAVE_FFTW3_H" -eq 1; then
+if test "$HAVE_FFTW3_H" = 1; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fftw_malloc in -lfftw3" >&5
 $as_echo_n "checking for fftw_malloc in -lfftw3... " >&6; }
 if ${ac_cv_lib_fftw3_fftw_malloc+:} false; then :
@@ -5841,7 +5841,7 @@ else
     HACKRF_MISSING_REASON="missing libfftw3.h"
 fi
 
-if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
+if test "$HAVE_LIBHACKRF" = 1 && test "$HAVE_LIBFFTW3" = 1; then
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5865,7 +5865,7 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-    if test "$hackrfsweep" -eq 1; then
+    if test "$hackrfsweep" = 1; then
 
 $as_echo "#define BUILD_CAPTURE_HACKRF_SWEEP 1" >>confdefs.h
 
@@ -5964,7 +5964,7 @@ if test "x$ac_cv_lib_bfd_bfd_alloc" = xyes; then :
 fi
 
 
-if test "$HAVE_LIBDW" -eq 1; then
+if test "$HAVE_LIBDW" = 1; then
     for ac_header in elfutils/libdw.h elfutils/libdwfl.h dwarf.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -5980,7 +5980,7 @@ done
 
 fi
 
-if test "$HAVE_LIBBFD" -eq 1; then
+if test "$HAVE_LIBBFD" = 1; then
     for ac_header in bfd.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "bfd.h" "ac_cv_header_bfd_h" "$ac_includes_default"
@@ -6025,7 +6025,7 @@ fi
 done
 
 
-if test "$DEF_BW_HAS_UNWIND" -eq 1; then
+if test "$DEF_BW_HAS_UNWIND" = 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
 
 $as_echo "#define BACKWARD_HAS_UNWIND 1" >>confdefs.h
@@ -6034,7 +6034,7 @@ $as_echo "#define BACKWARD_HAS_UNWIND 1" >>confdefs.h
 $as_echo "#define BACKWARD_HAS_BACKTRACE 0" >>confdefs.h
 
     BACKTRACE_OK=1
-elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 1" >>confdefs.h
@@ -6048,19 +6048,19 @@ $as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
 
 fi
 
-if test "$BACKTRACE_OK" -eq 1; then
+if test "$BACKTRACE_OK" = 1; then
     # Libdw is the best support
-    if test "$DEF_BW_HAS_LIBDW" -eq 1; then
+    if test "$DEF_BW_HAS_LIBDW" = 1; then
 
 $as_echo "#define BACKWARD_HAS_DW 1" >>confdefs.h
 
         LIBS="$LIBS -ldw"
-    elif test "$DEF_BW_HAS_BFD" -eq 1; then
+    elif test "$DEF_BW_HAS_BFD" = 1; then
 
 $as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
 
         LIBS="$LIBS -lbfd"
-    elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+    elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
 
@@ -6917,7 +6917,7 @@ $as_echo "$as_me: WARNING: libdl doesn't seem to be needed on this system" >&2;}
 fi
 
 
-if test "$usedl" -eq 1; then
+if test "$usedl" = 1; then
 	LIBS="$LIBS -ldl"
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
 fi
@@ -7600,7 +7600,7 @@ fi
 
 fi
 
-if test "$foundcxxl"x == "x" -a "$caponly" -eq 1; then
+if test "$foundcxxl"x == "x" -a "$caponly" = 1; then
 	as_fn_error $? "Neither uclibc uClibc++ or standard gcc stdc++ libraries found." "$LINENO" 5
 fi
 CC="$oCC"
@@ -7674,9 +7674,9 @@ else
   HAVE_LIBMICROHTTPD=0
 fi
 
-if test "$HAVE_LIBMICROHTTPD" -eq 0 -a "$caponly" -eq 0; then
+if test "$HAVE_LIBMICROHTTPD" = 0 -a "$caponly" = 0; then
     as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
-elif test "$HAVE_LIBMICROHTTPD" -eq 1; then
+elif test "$HAVE_LIBMICROHTTPD" = 1; then
     ac_fn_cxx_check_header_mongrel "$LINENO" "microhttpd.h" "ac_cv_header_microhttpd_h" "$ac_includes_default"
 if test "x$ac_cv_header_microhttpd_h" = xyes; then :
 
@@ -8092,7 +8092,7 @@ else
 fi
 
 
-if test "$wantmutex" -eq 0; then
+if test "$wantmutex" = 0; then
 
 $as_echo "#define DISABLE_MUTEX_TIMEOUT 1" >>confdefs.h
 

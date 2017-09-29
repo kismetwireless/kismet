@@ -243,7 +243,7 @@ AC_CHECK_HEADERS([fftw3.h],
     HAVE_FFTW3_H=1,
     AC_MSG_WARN("Missing fftw3.h from libfftw"))
 
-if test "$HAVE_HACKRF_H" -eq 1; then
+if test "$HAVE_HACKRF_H" = 1; then
     AC_CHECK_LIB([hackrf], [hackrf_init],
 			HAVE_LIBHACKRF=1,
 			 AC_MSG_WARN([libhackrf not available]))
@@ -251,7 +251,7 @@ else
     HACKRF_MISSING_REASON="Missing libhackrf/hackrf.h"
 fi
 
-if test "$HAVE_FFTW3_H" -eq 1; then
+if test "$HAVE_FFTW3_H" = 1; then
     AC_CHECK_LIB([fftw3], [fftw_malloc],
             HAVE_LIBFFTW3=1,
             AC_MSG_WARN([libfftw3 not available]))
@@ -259,14 +259,14 @@ else
     HACKRF_MISSING_REASON="missing libfftw3.h"
 fi
 
-if test "$HAVE_LIBHACKRF" -eq 1 && test "$HAVE_LIBFFTW3" -eq 1; then
+if test "$HAVE_LIBHACKRF" = 1 && test "$HAVE_LIBFFTW3" = 1; then
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     		#include <libhackrf/hackrf.h>
     		]], [[
             int s = SAMPLES_PER_BLOCK;
     		return 0;
     		]])],[hackrfsweep=1],[hackrfsweep=0])
-    if test "$hackrfsweep" -eq 1; then
+    if test "$hackrfsweep" = 1; then
         AC_DEFINE(BUILD_CAPTURE_HACKRF_SWEEP, 1, Able to build hackrf sweep source)
         # BUILD_CAPTURE_HACKRF_SWEEP=1
         # DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_HACKRF_SWEEP)"
@@ -284,11 +284,11 @@ HAVE_LIBBFD=0
 AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
 AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
 
-if test "$HAVE_LIBDW" -eq 1; then
+if test "$HAVE_LIBDW" = 1; then
     AC_CHECK_HEADERS([elfutils/libdw.h elfutils/libdwfl.h dwarf.h], DEF_BW_HAS_LIBDW=1)
 fi
 
-if test "$HAVE_LIBBFD" -eq 1; then
+if test "$HAVE_LIBBFD" = 1; then
     AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
 fi
 
@@ -300,12 +300,12 @@ BACKTRACE_OK=0
 AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
 AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
 
-if test "$DEF_BW_HAS_UNWIND" -eq 1; then
+if test "$DEF_BW_HAS_UNWIND" = 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
     AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
     AC_DEFINE(BACKWARD_HAS_BACKTRACE, 0, no backtrace stack support)
     BACKTRACE_OK=1
-elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
     BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
     AC_DEFINE(BACKWARD_HAS_BACKTRACE, 1, backtrace stack support)
     BACKTRACE_OK=1
@@ -315,15 +315,15 @@ else
     AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
 fi
 
-if test "$BACKTRACE_OK" -eq 1; then
+if test "$BACKTRACE_OK" = 1; then
     # Libdw is the best support
-    if test "$DEF_BW_HAS_LIBDW" -eq 1; then
+    if test "$DEF_BW_HAS_LIBDW" = 1; then
         AC_DEFINE(BACKWARD_HAS_DW, 1, libdl for stack printing)
         LIBS="$LIBS -ldw"
-    elif test "$DEF_BW_HAS_BFD" -eq 1; then
+    elif test "$DEF_BW_HAS_BFD" = 1; then
         AC_DEFINE(BACKWARD_HAS_BFD, 1, libbfd for stack printing)
         LIBS="$LIBS -lbfd"
-    elif test "$DEF_BW_HAS_BACKTRACE" -eq 1; then
+    elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
         AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 1, backtrace stack support)
         BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
     else
@@ -447,7 +447,7 @@ AC_CHECK_LIB([dl], [dlopen],
 			usedl=1,
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
 
-if test "$usedl" -eq 1; then
+if test "$usedl" = 1; then
 	LIBS="$LIBS -ldl"
 	CLIENTCLIBS="$CLIENTCLIBS -ldl"
 fi
@@ -541,7 +541,7 @@ if test "$foundcxxl"x == "x"; then
 				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 fi
 
-if test "$foundcxxl"x == "x" -a "$caponly" -eq 1; then
+if test "$foundcxxl"x == "x" -a "$caponly" = 1; then
 	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
 fi
 CC="$oCC"
@@ -571,9 +571,9 @@ HAVE_LIBMICROHTTPD=0
 AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
              KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
              HAVE_LIBMICROHTTPD=0)
-if test "$HAVE_LIBMICROHTTPD" -eq 0 -a "$caponly" -eq 0; then
+if test "$HAVE_LIBMICROHTTPD" = 0 -a "$caponly" = 0; then
     AC_MSG_ERROR([libmicrohttpd is needed and is not available])
-elif test "$HAVE_LIBMICROHTTPD" -eq 1; then
+elif test "$HAVE_LIBMICROHTTPD" = 1; then
     AC_CHECK_HEADER([microhttpd.h], 
     	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
         AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
@@ -688,7 +688,7 @@ AC_ARG_ENABLE(mutextimeout,
 	[wantmutex=1]
 )
 
-if test "$wantmutex" -eq 0; then
+if test "$wantmutex" = 0; then
     AC_DEFINE(DISABLE_MUTEX_TIMEOUT, 1, [Remove mutex deadlock timeout protection])
 fi
 
