@@ -1235,7 +1235,7 @@ int Devicetracker::load_devices() {
                     kdb->set_key(key);
 
                     // Wipe out the seenby map, temporarily
-                    kdb->get_seenby_map()->clear_intmap();
+                    // kdb->get_seenby_map()->clear_intmap();
 
                     AddDevice(kdb);
                 } catch (const exception e) {

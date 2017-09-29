@@ -482,6 +482,15 @@ protected:
             packet_rrd_bin_jumbo.reset(new kis_tracked_minute_rrd<>(globalreg,
                     packet_rrd_bin_jumbo_id, e->get_map_value(packet_rrd_bin_jumbo_id)));
 
+            // If we're inheriting, it's our responsibility to kick submaps with
+            // complex types as well; since they're not themselves complex objects
+            TrackerElementIntMap seenby(seenby_map);
+            for (auto s = seenby.begin(); s != seenby.end(); ++s) {
+                // Build a proper seenby record for each item in the list
+                std::shared_ptr<kis_tracked_seenby_data> sbd(new kis_tracked_seenby_data(globalreg, seenby_val_id, s->second));
+                // And assign it over the same key
+                s->second = std::static_pointer_cast<TrackerElement>(sbd);
+            }
         } else {
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
 
@@ -499,6 +508,7 @@ protected:
         add_map(packet_rrd_bin_1000_id, packet_rrd_bin_1000);
         add_map(packet_rrd_bin_1500_id, packet_rrd_bin_1500);
         add_map(packet_rrd_bin_jumbo_id, packet_rrd_bin_jumbo);
+
     }
 
     // Unique, meaningless, incremental ID.  Practically, this is the order

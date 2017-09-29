@@ -131,8 +131,9 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
             for (auto i : objdata->getStructuredNumMap()) {
                 SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
 
-                if (re != NULL)
+                if (re != NULL) {
                     elem->add_intmap((int) i.first, re);
+                }
             }
 
             break;
