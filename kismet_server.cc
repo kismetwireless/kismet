@@ -918,7 +918,8 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 
     // Create the device tracker
-    Devicetracker::create_devicetracker(globalregistry);
+    shared_ptr<Devicetracker> devicetracker = 
+        Devicetracker::create_devicetracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
@@ -1040,6 +1041,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Start the http server as the last thing before we start sources
     globalregistry->httpd_server->StartHttpd();
+
+    devicetracker->load_devices();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);

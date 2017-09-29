@@ -174,3 +174,19 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     return 0;
 }
 
+void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage, 
+        SharedTrackerElement in_device) {
+
+    if (in_storage == NULL || in_device == NULL)
+        return;
+
+    // Does the imported record have bt?
+    auto btdevi = in_storage->find(bluetooth_device_entry_id);
+
+    // Adopt it into a dot11
+    if (btdevi != in_storage->end()) {
+        shared_ptr<bluetooth_tracked_device> btdev(new bluetooth_tracked_device(globalreg, bluetooth_device_entry_id, btdevi->second));
+        in_device->add_map(btdev);
+    }
+}
+

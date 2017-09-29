@@ -801,6 +801,9 @@ public:
     // Store all devices to the database
     virtual int store_devices(TrackerElementVector devices);
 
+    // Iterate over all phys and load from the database
+    virtual int load_devices();
+
 protected:
 	void SaveTags();
 
@@ -838,6 +841,9 @@ protected:
     // Maximum number of devices
     unsigned int max_num_devices;
     int max_devices_timer;
+
+    // Timer event for storing devices
+    int device_storage_timer;
 
     // Timestamp for the last time we removed a device
     time_t full_refresh_time;
@@ -880,6 +886,9 @@ protected:
 
 	// Populate the common components of a device
 	int PopulateCommon(std::shared_ptr<kis_tracked_device_base> device, kis_packet *in_pack);
+
+    // Insert a device directly into the records
+    void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
 
     pthread_mutex_t devicelist_mutex;
 
