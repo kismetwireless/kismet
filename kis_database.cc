@@ -161,10 +161,12 @@ unsigned int KisDatabase::Database_GetDBVersion() {
                 if (argc != 1)
                     *((unsigned int *) ver) = 0;
 
-                if (sscanf("%u", data[0], (unsigned int *) ver) != 1) 
+                if (sscanf(data[0], "%u", (unsigned int *) ver) != 1) {
                     *((unsigned int *) ver) = 0;
+                }
+
                 return 0; 
-            }, NULL, &sErrMsg);
+            }, &v, &sErrMsg);
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabase unable to query db_version in" + ds_dbfile + ": " +
@@ -188,13 +190,13 @@ bool KisDatabase::Database_SetDBVersion(unsigned int version) {
     std::string sql;
 
     sql = 
-        "UPDATE KISMET (kismet_version, db_version) VALUES (?, ?)";
+        "UPDATE KISMET SET kismet_version = ?, db_version = ?";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabase unable to generate prepared statement to update master table in " +
-                ds_dbfile, MSGFLAG_ERROR);
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return false;
