@@ -78,19 +78,19 @@ typedef struct {
 } ieee_long_double_t;
 
 // Munge a string to characters safe for calling in a shell
-string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
-string MungeToPrintable(string in_str);
+std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
+std::string MungeToPrintable(std::string in_str);
 
-string StrLower(string in_str);
-string StrUpper(string in_str);
-string StrStrip(string in_str);
-string StrPrintable(string in_str);
-string AlignString(string in_txt, char in_spacer, int in_align, int in_width);
+std::string StrLower(std::string in_str);
+std::string StrUpper(std::string in_str);
+std::string StrStrip(std::string in_str);
+std::string StrPrintable(std::string in_str);
+std::string AlignString(std::string in_txt, char in_spacer, int in_align, int in_width);
 
-string MultiReplaceAll(std::string in, std::string match, std::string repl);
+std::string MultiReplaceAll(std::string in, std::string match, std::string repl);
 
-int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen);
-string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
+int HexStrToUint8(std::string in_str, uint8_t *in_buf, int in_buflen);
+std::string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 
 template<class t> class NtoString {
 public:
@@ -131,37 +131,40 @@ struct opt_pair {
 };
 
 // Generic option handlers
-string FetchOpt(string in_key, vector<opt_pair> *in_vec);
-int FetchOptBoolean(string in_key, vector<opt_pair> *in_vec, int dvalue);
-vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec);
+std::string FetchOpt(std::string in_key, std::vector<opt_pair> *in_vec);
+int FetchOptBoolean(std::string in_key, std::vector<opt_pair> *in_vec, int dvalue);
+std::vector<string> FetchOptVec(std::string in_key, std::vector<opt_pair> *in_vec);
 
 // Quick fetch of strings from a map of options
-string FetchOpt(string in_key, map<string, string> in_map, string dvalue = "");
-int FetchOptBoolean(string in_key, map<string, string> in_map, int dvalue = 0);
+std::string FetchOpt(std::string in_key, std::map<string, std::string> in_map, 
+        std::string dvalue = "");
+int FetchOptBoolean(std::string in_key, std::map<string, std::string> in_map, int dvalue = 0);
 
-int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec);
-void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec);
-void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec);
+int StringToOpts(std::string in_line, std::string in_sep, std::vector<opt_pair> *in_vec);
+void AddOptToOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec);
+void ReplaceAllOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec);
 
 // String compare, 1 true 0 false -1 unknown, or default value as provided
-int StringToBool(string s, int dvalue = -1);
+int StringToBool(std::string s, int dvalue = -1);
 
 // String to integer.  Throws exception if not an integer!
-int StringToInt(string s);
-unsigned int StringToUInt(string s);
+int StringToInt(std::string s);
+unsigned int StringToUInt(std::string s);
 
 // Append to a string, with a delimiter if applicable
-string StringAppend(string s, string a, string d = " ");
+std::string StringAppend(std::string s, std::string a, std::string d = " ");
 
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
-vector<string> StrTokenize(string in_str, string in_split, int return_partial = 1);
-string StrJoin(vector<string> in_content, string in_delim, bool in_first = false);
+std::vector<std::string> StrTokenize(std::string in_str, std::string in_split, 
+        int return_partial = 1);
+std::string StrJoin(std::vector<string> in_content, std::string in_delim, 
+        bool in_first = false);
 
 // 'smart' tokenizeing with start/end positions
 struct smart_word_token {
-    string word;
+    std::string word;
     size_t begin;
     size_t end;
 
@@ -173,28 +176,28 @@ struct smart_word_token {
     }
 };
 
-vector<smart_word_token> BaseStrTokenize(string in_str, 
-										 string in_split, string in_quote);
-vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
+vector<smart_word_token> BaseStrTokenize(std::string in_str, 
+										 string in_split, std::string in_quote);
+vector<smart_word_token> NetStrTokenize(std::string in_str, std::string in_split, 
 										int return_partial = 1);
 
 // Simplified quoted string tokenizer, expects " ' to start at the beginning
 // of the token, no abc"def ghi"
-vector<string> QuoteStrTokenize(string in_str, string in_split);
+vector<string> QuoteStrTokenize(std::string in_str, std::string in_split);
 
-int TokenNullJoin(string *ret_str, const char **in_list);
+int TokenNullJoin(std::string *ret_str, const char **in_list);
 
-string InLineWrap(string in_txt, unsigned int in_hdr_len,
+std::string InLineWrap(std::string in_txt, unsigned int in_hdr_len,
 				  unsigned int in_max_len);
-vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
+vector<string> LineWrap(std::string in_txt, unsigned int in_hdr_len, 
 						unsigned int in_maxlen);
-vector<int> Str2IntVec(string in_text);
+vector<int> Str2IntVec(std::string in_text);
 
 int IsBlank(const char *s);
 
 // Clean up XML and CSV data for output
-string SanitizeXML(string);
-string SanitizeCSV(string);
+std::string SanitizeXML(std::string);
+std::string SanitizeCSV(std::string);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
@@ -236,7 +239,7 @@ typedef struct {
 	string data;
 } _kis_lex_rec;
 
-list<_kis_lex_rec> LexString(string in_line, string& errstr);
+std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr);
 
 #define LAT_CONVERSION_FACTOR 10000000
 #define LON_CONVERSION_FACTOR 10000000
@@ -265,8 +268,8 @@ u_int32_t double_to_ns(double in);
 
 class kis_datachunk;
 int GetLengthTagOffsets(unsigned int init_offset, 
-						kis_datachunk *in_chunk,
-						map<int, vector<int> > *tag_cache_map);
+        kis_datachunk *in_chunk,
+        std::map<int, std::vector<int> > *tag_cache_map);
 
 // Act as a scoped locker on a mutex
 // If possible, use a timed lock and throw a system exception if we can't
@@ -419,7 +422,7 @@ protected:
 };
 
 // Local copy of strerror_r because glibc did such an amazingly poor job of it
-string kis_strerror_r(int errnum);
+std::string kis_strerror_r(int errnum);
 
 // Utility class for doing conditional thread locking; allows one thread to wait
 // indefinitely and another thread to easily unlock it
@@ -504,6 +507,8 @@ struct membuf : std::streambuf {
 
 double ts_to_double(struct timeval ts);
 double ts_now_to_double();
+
+std::string hexstr_to_binstr(const char *hs);
 
 #endif
 

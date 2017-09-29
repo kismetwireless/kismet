@@ -1073,3 +1073,28 @@ double ts_now_to_double() {
     gettimeofday(&ts, NULL);
     return (double) ts.tv_sec + (double) ((double) ts.tv_usec / (double) 1000000);
 }
+
+std::string hexstr_to_binstr(const char *hs) {
+    size_t len = strlen(hs) / 2;
+    size_t p = 0, sp = 0;
+    char t;
+
+    if (strlen(hs) % 2 == 1)
+        len++;
+
+    std::string r("\0", len);
+
+    if (strlen(hs) % 2 == 1) {
+        sscanf(&(hs[0]), "%1hhx", &t);
+        r[0] = t;
+        p = 1;
+        sp = 1;
+    }
+
+    for (/* */; p < len && sp < strlen(hs); p++, sp += 2) {
+        sscanf(&(hs[sp]), "%2hhx", &t);
+        r[p] = t;
+    }
+
+    return r;
+}
