@@ -511,6 +511,16 @@ protected:
         if (e != NULL) {
             location.reset(new kis_tracked_location(globalreg, location_id, 
                     e->get_map_value(location_id)));
+
+            // If we're inheriting, it's our responsibility to kick submaps and vectors with
+            // complex types as well; since they're not themselves complex objects
+            TrackerElementVector dvec(dot11d_vec);
+            for (auto d = dvec.begin(); d != dvec.end(); ++d) {
+                std::shared_ptr<dot11_11d_tracked_range_info> din(new dot11_11d_tracked_range_info(globalreg, dot11d_country_entry_id, *d));
+
+                // And assign it over the same key
+                *d = std::static_pointer_cast<TrackerElement>(din);
+            }
         }
 
         add_map(location_id, location);
@@ -894,6 +904,44 @@ protected:
 
         RegisterField("dot11.device.wpa_present_handshake", TrackerUInt8,
                 "handshake sequences seen (bitmask)", &wpa_present_handshake);
+    }
+
+    virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+
+        if (e != NULL) {
+            // If we're inheriting, it's our responsibility to kick submap and vecs with
+            // complex types as well; since they're not themselves complex objects
+            TrackerElementIntMap m(advertised_ssid_map);
+            for (auto as = m.begin(); as != m.end(); ++as) {
+                std::shared_ptr<dot11_advertised_ssid> assid(new dot11_advertised_ssid(globalreg, advertised_ssid_map_entry_id, as->second));
+                as->second = std::static_pointer_cast<TrackerElement>(assid);
+            }
+
+            m = TrackerElementIntMap(probed_ssid_map);
+            for (auto ps = m.begin(); ps != m.end(); ++ps) {
+                std::shared_ptr<dot11_probed_ssid> pssid(new dot11_probed_ssid(globalreg, probed_ssid_map_entry_id, ps->second));
+                ps->second = std::static_pointer_cast<TrackerElement>(pssid);
+            }
+
+            TrackerElementMacMap mm(client_map);
+            for (auto ci = mm.begin(); ci != mm.end(); ++ci) {
+                std::shared_ptr<dot11_client> cli(new dot11_client(globalreg, client_map_entry_id, ci->second));
+                ci->second = std::static_pointer_cast<TrackerElement>(cli);
+            }
+
+            // We don't have to deal with the client map because it's a map of
+            // simplistic types
+            
+            TrackerElementVector v(wpa_key_vec);
+
+            for (auto k = v.begin(); k != v.end(); ++k) {
+                std::shared_ptr<dot11_tracked_eapol> eap(new dot11_tracked_eapol(globalreg, wpa_key_entry_id, *k));
+                *k = std::static_pointer_cast<TrackerElement>(eap);
+            }
+
+        }
+
     }
 
     SharedTrackerElement type_set;
