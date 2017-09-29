@@ -7,6 +7,7 @@ BLDHOME		= @srcdir@
 CXX			= @CXX@
 CC			= @CC@
 LD			= @CXX@
+CCLD		= @CC@
 
 LDFLAGS		+= @LDFLAGS@
 CFLAGS		+= -Wall -g @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@
