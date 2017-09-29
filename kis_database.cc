@@ -90,6 +90,8 @@ KisDatabase::~KisDatabase() {
 }
 
 bool KisDatabase::Database_CreateMasterTable() {
+    local_locker dblock(&ds_mutex);
+
     std::string sql;
 
     int r;
@@ -121,7 +123,7 @@ bool KisDatabase::Database_CreateMasterTable() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabase unable to generate prepared statement for master table in " +
-                ds_dbfile, MSGFLAG_ERROR);
+                ds_dbfile + ": " + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return false;
@@ -142,10 +144,14 @@ bool KisDatabase::Database_CreateMasterTable() {
 }
 
 bool KisDatabase::Database_Valid() {
+    local_locker dblock(&ds_mutex);
+
     return (db != NULL);
 }
 
 unsigned int KisDatabase::Database_GetDBVersion() {
+    local_locker dblock(&ds_mutex);
+
     if (db == NULL)
         return 0;
 
@@ -180,6 +186,8 @@ unsigned int KisDatabase::Database_GetDBVersion() {
 }
 
 bool KisDatabase::Database_SetDBVersion(unsigned int version) {
+    local_locker dblock(&ds_mutex);
+
     if (db == NULL)
         return 0;
 
