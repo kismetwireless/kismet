@@ -798,6 +798,9 @@ public:
     // Database API
     virtual int Database_UpgradeDB();
 
+    // Store all devices to the database
+    virtual int store_devices(TrackerElementVector devices);
+
 protected:
 	void SaveTags();
 

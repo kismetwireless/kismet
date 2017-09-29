@@ -1030,14 +1030,20 @@ int Devicetracker::Database_UpgradeDB() {
     if (dbv < 1) {
         _MSG("Devicetracker upgrading database to latest code...", MSGFLAG_INFO);
 
+        // We keep the last seen timestamp for automatic culling of the database of
+        // idle device records.
+        //
         // We need to split out the phyname and device mac because key is linked to 
         // the phy *number*, which is *variable* based on the order phys are initialized;
-        // we need to rekey the phys
+        // we need to rekey the phys.
         sql = 
             "CREATE TABLE device_storage ("
+            "first_time INT, "
+            "last_time INT, "
             "phyname TEXT, "
             "devmac TEXT, "
-            "storagejson TEXT)";
+            "storagejson TEXT, "
+            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
 
         r = sqlite3_exec(db, sql.c_str(),
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
@@ -1056,4 +1062,7 @@ int Devicetracker::Database_UpgradeDB() {
     return 0;
 }
 
+int Devicetracker::store_devices(TrackerElementVector devices) {
 
+    return 0;
+}
