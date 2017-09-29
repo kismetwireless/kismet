@@ -1024,9 +1024,33 @@ void Devicetracker::unlock_devicelist() {
 int Devicetracker::Database_UpgradeDB() {
     unsigned int dbv = Database_GetDBVersion();
     std::string sql;
+    int r;
+    char *sErrMsg = NULL;
 
     if (dbv < 1) {
+        _MSG("Devicetracker upgrading database to latest code...", MSGFLAG_INFO);
 
+        // We need to split out the phyname and device mac because key is linked to 
+        // the phy *number*, which is *variable* based on the order phys are initialized;
+        // we need to rekey the phys
+        sql = 
+            "CREATE TABLE device_storage ("
+            "phyname TEXT, "
+            "devmac TEXT, "
+            "storagejson TEXT)";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Devicetracker unable to create device_storage table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        Database_SetDBVersion(1);
     }
 
     return 0;
