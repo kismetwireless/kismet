@@ -168,7 +168,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     if (globalreg->kismet_config->FetchOptBoolean("BETA_PERSISTENT_STORE", false)) {
         device_storage_timer =
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1,
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
                         store_devices(immutable_tracked_vec);
                         return 1;
