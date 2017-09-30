@@ -232,7 +232,6 @@ Wrapper classes are provided for all of the TrackerElement variants:
 * `TrackerElementDoubleMap`
 * `TrackerElementMacMap`
 
-
 #### Accessing from outside the object
 
 It may be necessary to allow access from outside callers.  This is only required for other code directly accessing your object; for exporting your data via the REST interface and other serialization methods, so long as your data is in `TrackerElement` objects it will be handled automatically.
@@ -304,6 +303,60 @@ private:
 ```
 
 Thanks to the C++11 `shared_ptr<>`, the memory used by the wrapper is automatically released when our class is destroyed.
+
+#### Restoring stored maps and vectors
+
+Stored maps and vectors need special care, if they contain complex tracked elements.
+
+As part of the `reserve_fields(...)` function, any vectors, maps, intmaps, stringmaps, doublemaps, or related structures which contain a complex element must rebuild the list as the proper type.
+
+For example, given a vector element defined as:
+
+```c++
+void SomeFoo::register_fields() {
+...
+    // Define a tracked vector
+    RegisterField("foo.example.foo_vec", TrackerVector, "example vector", &foo_vec);
+    
+    // Get the ID for the complex object that will be contained in foo_vec; 'foo_complex'
+    // is a trackercomponent we defined elsewhere
+    // We use the RegisterComplex with an inline builder object.
+    foo_vec_entry_id = RegisterComplexField("foo.example.foo_vec_entry", std::shared_ptr<foo_complex>(new foo_complex(globalreg, 0)), "foo entry");
+    ...
+}
+```
+Then the `reserve_fields(...)` function must include:
+
+```c++
+void SomeFoo::reserve_fields(SharedTrackerElement e) {
+    tracker_component::reserve_fields(e);
+
+    ...
+
+    if (e != NULL) {
+        // Use a TrackerElementVector alias to make it simpler
+        TrackerElementVector v(foo_vec);
+
+        // Currently the vector contains the generic versions of any data that
+        // was loaded from storage; we need to convert them to our complex
+        // type; foo_complex
+        for (auto i = v.begin(); i != v.end(); ++i) {
+            // Generate a foo_complex object, we need to pass it the entry id, and the
+            // generic object in the vector; if it was a map, we'd pass it i->second
+            std::shared_ptr<foo_complex> nc(new foo_complex(globalreg, foo_vec_entry_id, *i));
+
+            // Replace the existing object in the tree with the complex object we
+            // just created; we simply replace the content of the iterator.  If 
+            // this were a map, we'd replace i->second.
+            *i = nc;
+        }
+
+    }
+
+    ...
+```
+
+This needs to be done for any vectors or maps which contain complex types.
 
 ## Including complex sub-components
 

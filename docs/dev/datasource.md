@@ -464,6 +464,29 @@ virtual KisDataSource *build_data_source() {
 A datasource which operates by passing packets should be able to function with no further customization:  Packet data passed via the `PACKET` record will be
 decapsulated and inserted into the packetchain with the proper DLT.
 
+## Handling the PHY
+
+Kismet defines `PhyHandler` objects to handle different physical layer types - for example there are phyhandlers for IEEE802.11, Bluetooth, and so on.
+
+A phy handler is responsible for defining any custom data structures specific to that phy, converting phy-specific data to the common interface so that Kismet can make generic devices for it, providing any additional javascript and web resources, and similar tasks.
+
+## Defining the PHY
+
+Phy handlers are derived from the base `Kis_Phy_Handler` class.
+
+At a minumum a new phy must provide (and override):
+
+* The basic C++ contructor and destructor implementations
+* The create function to build an actual instance of the phy handler
+* A common classifier stage to create common info from the custom packet info
+* A storage loader function to attach any custom data when a device is loaded from storage
+
+## Loading from storage and custom data types
+
+A new phy will almost certainly define a custom tracked data type - `dot11_tracked_device` and `bluetooth_tracked_device` for instance.  As part of defining this custom type, the phy must provide a storage loader function to import stored data into a proper object.
+
+In addition, there are some specific pitfalls when loading custom objects - be sure to check the  "Restoring vector and map objects" section of of the `tracked_component` docs!
+
 ## Handling the DLT
 
 A datasource which is packet-based but does not conform to an existing DLT defined in Kismet will often need to provide its own DLT handler.
