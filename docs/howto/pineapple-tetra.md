@@ -102,8 +102,22 @@ If everything went well, you now have a bunch of packages to copy to your Tetra:
 
 ```
 $ cd bin/ar71xx/packages
-$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-tetra_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk root@172.16.42.1:/tmp
+$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-tetra_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk packages/libsqlite3_3081101-1_ar71xx.ipk root@172.16.42.1:/tmp
 ```
+
+## If you're rebuilding the latest Git
+
+If you have already compiled Kismet and are just trying to update it, you simply need to:
+
+1. Edit the Kismet package Makefile as above, to set the latest git version
+-or-
+2. If the git version is set to `'HEAD'`, you will need to delete the staging and downloaded code.  From your openwrt build dir,
+    ```
+    $ rm -rf build_dir/target-mips_34kc_uClibc-0.9.33.2/kismet-tetra-2017git/
+    $ rm dl/kismet*
+    ```
+3. Run `make menuconfig` to update any dependencies which have changed
+4. Compile normally
 
 ## Install Kismet on the tetra
 
