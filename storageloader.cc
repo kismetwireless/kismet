@@ -53,6 +53,8 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
     SharedTrackerElement elem;
     int elemid;
 
+    std::string hexstr;
+
     if (!d->hasKey("objname"))
         throw std::runtime_error("JSON storage object missing 'objname'");
 
@@ -156,9 +158,11 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
 
             break;
         case TrackerByteArray:
+            hexstr = hexstr_to_binstr(objdata->getString().c_str());
+
+            elem->set_bytearray((uint8_t *) hexstr.data(), hexstr.length());
 
             break;
-
         default:
             throw std::runtime_error("unknown trackerelement type " + objtypestr);
     }
