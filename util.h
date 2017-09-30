@@ -209,6 +209,9 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 // Adler-32 checksum, derived from rsync, adler-32
 uint32_t Adler32Checksum(const char *buf1, size_t len);
 
+// C++ shortcut
+uint32_t Adler32Checksum(std::string buf1);
+
 // Adler-32 incremental checksum, performs a non-contiguous checksum over 
 // multiple records.
 // Caller must set s1 and s2 to 0 for the initial call and provide them for
