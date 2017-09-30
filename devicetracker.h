@@ -187,6 +187,12 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
+    // Simple management of last modified time
+    __Proxy(mod_time, uint64_t, time_t, time_t, mod_time);
+    void update_modtime() {
+        set_mod_time(time(0));
+    }
+
     __Proxy(packets, uint64_t, uint64_t, uint64_t, packets);
     __ProxyIncDec(packets, uint64_t, uint64_t, packets);
 
@@ -351,6 +357,8 @@ protected:
                 "first time seen time_t", &first_time);
         RegisterField("kismet.device.base.last_time", TrackerUInt64,
                 "last time seen time_t", &last_time);
+        RegisterField("kismet.device.base.mod_time", TrackerUInt64,
+                "internal timestamp of last record change", &mod_time);
 
         RegisterField("kismet.device.base.packets.total", TrackerUInt64,
                 "total packets seen of all types", &packets);
@@ -550,7 +558,7 @@ protected:
     SharedTrackerElement basic_crypt_set;
 
     // First and last seen
-    SharedTrackerElement first_time, last_time;
+    SharedTrackerElement first_time, last_time, mod_time;
 
     // Packet counts
     SharedTrackerElement packets, tx_packets, rx_packets,
@@ -903,6 +911,13 @@ protected:
     pthread_mutex_t devicelist_mutex;
 
     std::shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
+
+    // Timestamp of the last time we wrote the device list, if we're storing state
+    time_t last_devicelist_saved;
+
+    // Do we need to update the seenby maps as we load devices?  Set by the DB
+    // upgrade function
+    bool restore_update_seenby;
 };
 
 class kis_tracked_phy : public tracker_component {

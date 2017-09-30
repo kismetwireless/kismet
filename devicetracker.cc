@@ -164,6 +164,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") +
                 "/" + "tag.conf", "", "", 0, 1).c_str());
 
+    last_devicelist_saved = 0;
 
     if (globalreg->kismet_config->FetchOptBoolean("BETA_PERSISTENT_STORE", false)) {
         device_storage_timer =
@@ -585,6 +586,8 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 		in_pack->insert(pack_comp_device, devinfo);
 	}
 
+    // Update the mod data
+    device->update_modtime();
 
     if (device->get_last_time() < in_pack->ts.tv_sec)
         device->set_last_time(in_pack->ts.tv_sec);
@@ -1124,6 +1127,12 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
     }
    
     for (auto d : devices) {
+        std::shared_ptr<kis_tracked_device_base> kdb =
+            std::static_pointer_cast<kis_tracked_device_base>(d);
+
+        if (kdb->get_mod_time() <= last_devicelist_saved)
+            continue;
+
         serialstream.str("");
         sqlite3_reset(stmt);
 
@@ -1131,9 +1140,6 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
         // of the string but it'll do for now
         StorageJsonAdapter::Pack(globalreg, serialstream, d, NULL);
         serialstring = serialstream.str();
-
-        std::shared_ptr<kis_tracked_device_base> kdb =
-            std::static_pointer_cast<kis_tracked_device_base>(d);
 
         macstring = kdb->get_macaddr().Mac2String();
 
@@ -1148,6 +1154,8 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
     }
 
     sqlite3_finalize(stmt);
+
+    last_devicelist_saved = time(0);
 
     return 1;
 }
