@@ -277,7 +277,7 @@ public:
         TrackerElement::map_iterator seenby_iter;
         std::shared_ptr<kis_tracked_seenby_data> seenby;
 
-        seenby_iter = seenby_map->find(source->get_source_number());
+        seenby_iter = seenby_map->find(source->get_source_key());
 
         // Make a new seenby record
         if (seenby_iter == seenby_map->end()) {
@@ -294,7 +294,7 @@ public:
             if (siginfo != NULL)
                 (*(seenby->get_signal_data())) += *siginfo;
 
-            seenby_map->add_intmap(source->get_source_number(), seenby);
+            seenby_map->add_intmap(source->get_source_key(), seenby);
 
         } else {
             seenby = static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);
@@ -914,10 +914,6 @@ protected:
 
     // Timestamp of the last time we wrote the device list, if we're storing state
     time_t last_devicelist_saved;
-
-    // Do we need to update the seenby maps as we load devices?  Set by the DB
-    // upgrade function
-    bool restore_update_seenby;
 };
 
 class kis_tracked_phy : public tracker_component {
