@@ -1038,7 +1038,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
-    datasourcetracker->system_startup();
     websession->activate_config();
 
     // Finalize any plugins which were waiting for other code to load
@@ -1048,6 +1047,8 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->httpd_server->StartHttpd();
 
     devicetracker->load_devices();
+
+    datasourcetracker->system_startup();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);
