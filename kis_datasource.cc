@@ -648,6 +648,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
 
         set_source_uuid(u);
         local_uuid = true;
+        set_source_key(Adler32Checksum(u.UUID2String()));
     }
 
     set_int_source_retry(get_definition_opt_bool("retry", 
@@ -846,6 +847,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
 
         set_source_uuid(nuuid);
+        set_source_key(Adler32Checksum(nuuid.UUID2String()));
     }
 
     // TODO configure channels based on source line, if any; otherwise, copy
@@ -1384,6 +1386,7 @@ void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
     // Only set the local UUID if we don't define one in the sourceline
     if (!local_uuid) {
         set_source_uuid(parsed_uuid);
+        set_source_key(Adler32Checksum(parsed_uuid.UUID2String()));
     }
 }
 
@@ -1857,6 +1860,8 @@ void KisDatasource::register_fields() {
     RegisterField("kismet.datasource.source_number", TrackerUInt64,
             "internal source number per Kismet instance",
             &source_number);
+    RegisterField("kismet.datasource.source_key", TrackerUInt32,
+            "hashed UUID key", &source_key);
 
     RegisterField("kismet.datasource.ipc_binary", TrackerString,
             "capture command", &source_ipc_binary);
