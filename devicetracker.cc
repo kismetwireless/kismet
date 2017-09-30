@@ -1098,6 +1098,10 @@ void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
     tracked_mac_multimap.emplace(device->get_macaddr(), device);
 }
 
+int Devicetracker::store_devices() {
+    return store_devices(immutable_tracked_vec);
+}
+
 int Devicetracker::store_devices(TrackerElementVector devices) {
     local_locker dblock(&ds_mutex);
 

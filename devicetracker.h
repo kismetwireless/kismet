@@ -817,6 +817,8 @@ public:
     virtual int Database_UpgradeDB();
 
     // Store all devices to the database
+    virtual int store_devices();
+    // Store a selection of devices
     virtual int store_devices(TrackerElementVector devices);
 
     // Iterate over all phys and load from the database
