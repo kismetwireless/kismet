@@ -250,11 +250,6 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     if (datasourcetracker != NULL)
         datasourcetracker->system_shutdown();
 
-    shared_ptr<Devicetracker> devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
-    if (devicetracker != NULL)
-        devicetracker->store_devices();
-
     globalregistry->spindown = 1;
 
     // Start a short shutdown cycle for 2 seconds
@@ -308,7 +303,10 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
 
     }
 
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
+    shared_ptr<Devicetracker> devicetracker =
+        Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
+    if (devicetracker != NULL)
+        devicetracker->store_devices();
 
     // Be noisy
     if (globalregistry->fatal_condition) {
@@ -344,6 +342,8 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     }
 
     globalregistry->DeleteLifetimeGlobals();
+
+    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     exit(globalregistry->fatal_condition ? 1 : 0);
 }

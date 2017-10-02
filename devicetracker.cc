@@ -1325,6 +1325,8 @@ int Devicetracker::load_devices() {
     }
 
     for (auto p : phy_handler_map) {
+        unsigned int num_devices = 0;
+
         _MSG("Devicetracker loading stored devices for phy " + p.second->FetchPhyName(),
                 MSGFLAG_INFO);
 
@@ -1394,6 +1396,8 @@ int Devicetracker::load_devices() {
                     kdb->set_key(key);
 
                     AddDevice(kdb);
+
+                    num_devices++;
                 } catch (const exception e) {
                     _MSG("Devicetracker encountered an error loading a stored device, "
                             "unable to unpack stored record: " + string(e.what()), 
@@ -1408,6 +1412,8 @@ int Devicetracker::load_devices() {
                 break;
             }
         }
+
+        _MSG("Loaded " + UIntToString(num_devices) + " devices from storage...", MSGFLAG_INFO);
     }
 
     sqlite3_finalize(stmt);
