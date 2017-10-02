@@ -921,6 +921,9 @@ protected:
     // Timestamp of the last time we wrote the device list, if we're storing state
     time_t last_devicelist_saved;
 
+    std::recursive_timed_mutex storing_mutex;
+    bool devices_storing;
+
     // Do we store devices?
     bool persistent_storage;
 

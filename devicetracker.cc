@@ -194,7 +194,31 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             device_storage_timer =
                 globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                         [this](int) -> int {
-                            store_devices(immutable_tracked_vec);
+                            local_locker l(&storing_mutex);
+
+                            if (devices_storing) {
+                                _MSG("Attempting to save persistent devices, but devices "
+                                        "are still being saved from a previous storage "
+                                        "timer.  It's possible your system is slow, or you "
+                                        "have a very large log of devices.", MSGFLAG_ERROR);
+                                return 1;
+                            }
+
+                            devices_storing = true;
+
+                            // Run the device storage in its own thread
+                            std::thread t([this] {
+                                store_devices(immutable_tracked_vec);
+
+                                {
+                                    local_locker l(&storing_mutex);
+                                    devices_storing = false;
+                                }
+                            });
+
+                            // Detatch the thread, we don't care about it
+                            t.detach();
+
                             return 1;
                         });
 
@@ -1202,8 +1226,14 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
                 sqlite3_reset(stmt);
 
                 // Pack a storage formatted JSON record; unfortunately causing a duplication
-                // of the string but it'll do for now
-                StorageJsonAdapter::Pack(globalreg, *serialstream, d, NULL);
+                // of the string but it'll do for now.  Only lock the device while we're
+                // serializing it.
+                {
+                    local_locker lock(&devicelist_mutex);
+                    StorageJsonAdapter::Pack(globalreg, *serialstream, d, NULL);
+                }
+
+                // Sync the buffers
                 zobuf.pubsync();
                 sbuf.pubsync();
 
@@ -1218,7 +1248,11 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
                 sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
                 sqlite3_bind_text(stmt, 5, serialstring.data(), serialstring.length(), 0);
 
-                sqlite3_step(stmt);
+                // Only lock the database while we're snapshotting it
+                {
+                    local_locker lock(&ds_mutex);
+                    sqlite3_step(stmt);
+                }
 
                 return false;
             }, NULL);
