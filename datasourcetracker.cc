@@ -423,19 +423,6 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
 
     config_defaults->set_remote_cap_timestamp(globalreg->kismet_config->FetchOptBoolean("override_remote_timestamp", true));
 
-    if (listen.length() != 0 && listenport != 0) {
-        _MSG("Launching remote capture server on " + listen + ":" + 
-                UIntToString(listenport), MSGFLAG_INFO);
-        if (ConfigureServer(listenport, 1024, listen, vector<string>()) < 0) {
-            _MSG("Failed to launch remote capture TCP server, check your "
-                    "remote_capture_listen= and remote_capture_port= lines in "
-                    "kismet.conf", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-        }
-    }
-
-    remote_complete_timer = -1;
-
     httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap(globalreg));
 
     // Register js module for UI
@@ -486,6 +473,24 @@ int Datasourcetracker::system_startup() {
 	};
 
     optind = 0;
+
+    // Activate remote capture
+    std::string listen = config_defaults->get_remote_cap_listen();
+    unsigned int listenport = config_defaults->get_remote_cap_port();
+
+    if (config_defaults->get_remote_cap_listen().length() != 0 && 
+            config_defaults->get_remote_cap_port() != 0) {
+        _MSG("Launching remote capture server on " + listen + ":" + 
+                UIntToString(listenport), MSGFLAG_INFO);
+        if (ConfigureServer(listenport, 1024, listen, vector<string>()) < 0) {
+            _MSG("Failed to launch remote capture TCP server, check your "
+                    "remote_capture_listen= and remote_capture_port= lines in "
+                    "kismet.conf", MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+        }
+    }
+
+    remote_complete_timer = -1;
 
     while (1) {
         int r = getopt_long(globalreg->argc, globalreg->argv, "-c:",

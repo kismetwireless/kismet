@@ -914,8 +914,24 @@ protected:
 
     std::shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
 
+    // Load a specific device
+    virtual std::shared_ptr<kis_tracked_device_base> load_device(Kis_Phy_Handler *phy, 
+            mac_addr mac);
+
     // Timestamp of the last time we wrote the device list, if we're storing state
     time_t last_devicelist_saved;
+
+    // Do we store devices?
+    bool persistent_storage;
+
+    // Loading mode
+    enum persistent_mode_e {
+        MODE_ONSTART, MODE_ONDEMAND
+    };
+    persistent_mode_e persistent_mode;
+
+    // Do we use persistent compression when storing
+    bool persistent_compression;
 };
 
 class kis_tracked_phy : public tracker_component {

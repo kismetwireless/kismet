@@ -4,7 +4,8 @@ CONFIGFILES = \
 	kismet.conf \
 	kismet_httpd.conf \
 	kismet_alerts.conf \
-	kismet_memory.conf
+	kismet_memory.conf \
+	kismet_storage.conf
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
@@ -90,10 +91,10 @@ $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) $(DATASOURCE_LIBS)
 
 $(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) FORCE
-	(cd capture_linux_wifi && make)
+	(cd capture_linux_wifi && $(MAKE))
 
 $(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
-	(cd capture_linux_bluetooth && make)
+	(cd capture_linux_bluetooth && $(MAKE))
 
 $(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
@@ -182,6 +183,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@$(MAKE) install_conf_kismet_httpd.conf
 	@$(MAKE) install_conf_kismet_memory.conf
 	@$(MAKE) install_conf_kismet_alerts.conf
+	@$(MAKE) install_conf_kismet_storage.conf
 
 	@echo
 	@echo
@@ -212,6 +214,7 @@ install: $(INSTBINS)
 	@$(MAKE) install_conf_kismet_httpd.conf
 	@$(MAKE) install_conf_kismet_memory.conf
 	@$(MAKE) install_conf_kismet_alerts.conf
+	@$(MAKE) install_conf_kismet_storage.conf
 
 	@echo
 	@echo
@@ -241,6 +244,7 @@ forceconfigs:
 	@$(MAKE) install_force_conf_kismet_httpd.conf
 	@$(MAKE) install_force_conf_kismet_memory.conf
 	@$(MAKE) install_force_conf_kismet_alerts.conf
+	@$(MAKE) install_force_conf_kismet_storage.conf
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
