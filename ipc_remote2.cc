@@ -627,8 +627,8 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
-        pid_t caught_pid = globalreg->sigchild_vec[x].pid;
-        int pid_status = globalreg->sigchild_vec[x].status;
+        pid_t caught_pid = globalreg->sigchild_vec[x]->pid;
+        int pid_status = globalreg->sigchild_vec[x]->status;
 
         dead_remote = remove_ipc(caught_pid);
 

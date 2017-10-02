@@ -228,7 +228,7 @@ public:
 
     // TODO deprecate this with the new ipcremote2 system
 	// Vector of child signals
-	vector<pid_fail> sigchild_vec;
+	vector<std::shared_ptr<pid_fail> > sigchild_vec;
 	
     time_t start_time;
     string servername;
