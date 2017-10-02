@@ -1043,10 +1043,10 @@ int main(int argc, char *argv[], char *envp[]) {
     // Finalize any plugins which were waiting for other code to load
     plugintracker->FinalizePlugins();
 
+    devicetracker->load_devices();
+
     // Start the http server as the last thing before we start sources
     globalregistry->httpd_server->StartHttpd();
-
-    devicetracker->load_devices();
 
     datasourcetracker->system_startup();
 
