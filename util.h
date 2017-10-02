@@ -274,9 +274,14 @@ int GetLengthTagOffsets(unsigned int init_offset,
         kis_datachunk *in_chunk,
         std::map<int, std::vector<int> > *tag_cache_map);
 
+
+// Seconds a lock is allowed to be held before throwing a timeout error
+#define KIS_THREAD_DEADLOCK_TIMEOUT     30
+
 // Act as a scoped locker on a mutex
 // If possible, use a timed lock and throw a system exception if we can't
-// acquire the mutex within 5 seconds, so that we crash instead of hanging
+// acquire the mutex within KIS_THREAD_DEADLOCK_TIMEOUT seconds, so that we 
+// crash instead of hanging
 class local_locker {
 public:
     local_locker(pthread_mutex_t *in) {
@@ -288,10 +293,10 @@ public:
         struct timespec t;
 
         clock_gettime(CLOCK_REALTIME , &t); 
-        t.tv_sec += 5; 
+        t.tv_sec += KIS_THREAD_DEADLOCK_TIMEOUT; 
 
         if (pthread_mutex_timedlock(in, &t) != 0) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
         }
 #else
         pthread_mutex_lock(in);
@@ -305,8 +310,8 @@ public:
 #ifdef DISABLE_MUTEX_TIMEOUT
         cpplock->lock();
 #else
-        if (!cpplock->try_lock_for(std::chrono::seconds(5))) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+        if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
         }
 #endif
     }
@@ -325,10 +330,10 @@ public:
             struct timespec t;
 
             clock_gettime(CLOCK_REALTIME , &t); 
-            t.tv_sec += 5; 
+            t.tv_sec += KIS_THREAD_DEADLOCK_TIMEOUT; 
 
             if (pthread_mutex_timedlock(lock, &t) != 0) {
-                throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+                throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
             }
 #else
             pthread_mutex_lock(lock);
@@ -338,8 +343,8 @@ public:
 #ifdef DISABLE_MUTEX_TIMEOUT
             cpplock->lock();
 #else
-            if (!cpplock->try_lock_for(std::chrono::seconds(5))) {
-                throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+            if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
             }
 #endif
         }
@@ -368,10 +373,10 @@ public:
         struct timespec t;
 
         clock_gettime(CLOCK_REALTIME , &t); 
-        t.tv_sec += 5; \
+        t.tv_sec += KIS_THREAD_DEADLOCK_TIMEOUT; \
 
         if (pthread_mutex_timedlock(in, &t) != 0) {
-            throw(std::runtime_error("mutex not available w/in 5 seconds"));
+            throw(std::runtime_error("mutex not available w/in timeout"));
         }
 #else
         pthread_mutex_lock(in);
@@ -382,8 +387,8 @@ public:
 #ifdef DISABLE_MUTEX_TIMEOUT
         in->lock();
 #else
-        if (!in->try_lock_for(std::chrono::seconds(5))) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in 5 seconds"));
+        if (!in->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
         }
 #endif
     }
