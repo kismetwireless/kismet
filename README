@@ -906,3 +906,4 @@ xx. SIEM support
     at compile time by adding --enable-prelude to any other options passed to
     the configure script:
         $ ./configure --enable-prelude
+
