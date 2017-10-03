@@ -19,7 +19,7 @@
 #ifndef __KISVERSION_H__
 #define __KISVERSION_H__
 
-#define VERSION_MAJOR	"2018"
+#define VERSION_MAJOR	"2017"
 #define VERSION_MINOR	"00"
 #define VERSION_TINY	"DEV"
 
