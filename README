@@ -897,6 +897,66 @@ xx. GPS
 
         gps=virtual:lat=123.4566,lon=40.002,alt=23.45
 
+xx. Storage and Snapshots
+
+    Kismet can remember devices seen from one launch of Kismet to another; this
+    is most useful when running Kismet as a WIDS doing prolonged monitoring, or
+    when running Kismet repeatedly in a similar environment.
+
+    Devices are stored locally to the Kismet server (in the `~/.kismet/` 
+    directory, by default).
+
+    Storing and loading extremely large numbers of devices may be time and
+    resource intensive for Kismet.  For very low-resource systems (such as
+    early-generation Rasperry Pi systems or other small embedded-class devices)
+    it may not be sensible to retain persistent storage.
+
+    Storage is controlled by the `kismet_storage.conf` config file, which includes
+    the several options:
+
+    persistent_state=true|false
+
+        Turn on persistent state / device memory; by default set to `true`; 
+        To prevent Kismet from retaining device records entirely, set this
+        to `false`; if false, all other persistent state options are ignored.
+
+    persistent_load=onstart|ondemand
+
+        Stored devices can be handled two ways: all devices can be loaded into
+        Kismet the first time it launches, or device history can be loaded the
+        first time new data is seen for that device.
+
+        'onstart' will load all device records when Kismet starts; Kismet will
+        display all devices which were previously seen.  Devices will appear 
+        idle until new data is seen.
+
+        'ondemand' will ONLY load a stored device record when Kismet sees 
+        additional data.  Kismet will only display devices which have been seen
+        since this launch, but it will track historical data about those
+        devices (first time seen, previously advertised device names, etc).
+
+    persistent_compression=true|false
+
+        By default, Kismet will compress the device data being stored.  This
+        typically yields a 15-20x space savings (from a typical 30-50K per 
+        device to approximately 2K), and leaving compression enabled is 
+        generally a good idea.
+
+        Users on extremely CPU-limited systems, or in environments with an
+        excessive number of devices (in the thousands) may wish to disable
+        compression to reduce CPU load when snapshotting state.
+
+    persistent_storage_rate=seconds
+
+        The rate at which Kismet snapshots the device list, in seconds.  By
+        default Kismet snapshots the device list every 60 seconds.  This rate
+        can be reduced or expanded, but increasing the rate at which Kismet 
+        saves devices may have a negative effect on CPU requirements.
+
+        Regardless of this setting, Kismet will always snapshot the device 
+        list when exiting (so long as persistent state is enabled, of course).
+
+
 xx. SIEM support
 
     Kismet is natively compatible with the Prelude SIEM event management system
