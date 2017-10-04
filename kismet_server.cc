@@ -214,27 +214,6 @@ int packnum = 0, localdropnum = 0;
 // Ultimate registry of global components
 GlobalRegistry *globalregistry = NULL;
 
-// Catch our interrupt
-void CatchShutdown(int sig) {
-    static bool in_shutdown = false;
-
-    if (in_shutdown)
-        return;
-
-    in_shutdown = true;
-
-    fprintf(stderr, "DEBUG - Catch shutdown on pid %u sig %d\n", getpid(), sig);
-
-    if (sig == 0) {
-        kill(getpid(), SIGTERM);
-        return;
-    }
-
-    globalregistry->spindown = 1;
-
-    return;
-}
-
 void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     // Eat the child signal handler
     signal(SIGCHLD, SIG_DFL);
@@ -346,6 +325,34 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     exit(globalregistry->fatal_condition ? 1 : 0);
+}
+
+
+// Catch our interrupt
+void CatchShutdown(int sig) {
+    static bool in_shutdown = false;
+
+    if (in_shutdown)
+        return;
+
+    in_shutdown = true;
+
+    fprintf(stderr, "DEBUG - Catch shutdown on pid %u sig %d\n", getpid(), sig);
+
+    if (sig == 0) {
+        kill(getpid(), SIGTERM);
+        return;
+    }
+
+    if (!globalregistry->spindown) {
+        globalregistry->spindown = 1;
+
+        shared_ptr<PollableTracker> pollabletracker =
+            Globalreg::FetchGlobalAs<PollableTracker>(globalregistry, "POLLABLETRACKER");
+        SpindownKismet(pollabletracker);
+    }
+
+    return;
 }
 
 void CatchChild(int sig) {
@@ -1014,8 +1021,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set the timer event to flush dumpfiles
     if (data_dump != 0 &&
             globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * data_dump,
-                NULL, 1, 
-                &FlushDatafilesEvent, NULL) < 0) {
+                NULL, 1, &FlushDatafilesEvent, NULL) < 0) {
         globalregistry->messagebus->InjectMessage("Failed to register timer event to "
                 "sync data files for some reason.", 
                 MSGFLAG_FATAL);
@@ -1031,14 +1037,8 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add system monitor 
     Systemmonitor::create_systemmonitor(globalregistry);
 
-    // Blab about starting
-    globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
-                                              MSGFLAG_INFO);
-
     // Set the global silence now that we're set up
     glob_silent = local_silent;
-
-    websession->activate_config();
 
     // Finalize any plugins which were waiting for other code to load
     plugintracker->FinalizePlugins();
@@ -1046,7 +1046,12 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->load_devices();
 
     // Start the http server as the last thing before we start sources
+    websession->activate_config();
     globalregistry->httpd_server->StartHttpd();
+
+    // Blab about starting
+    globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
+            MSGFLAG_INFO);
 
     datasourcetracker->system_startup();
 
@@ -1057,19 +1062,14 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Core loop
     while (1) {
-        if (globalregistry->spindown) {
-            SpindownKismet(pollabletracker);
+        if (globalregistry->spindown || globalregistry->fatal_condition) {
             break;
         }
 
-        if (globalregistry->fatal_condition) {
-            fprintf(stderr, "debug - fatal at start of select()\n");
-            CatchShutdown(-1);
-        }
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         max_fd = pollabletracker->MergePollableFds(&rset, &wset);
-
-        // fprintf(stderr, "debug - maxfd %d\n", max_fd);
 
         tm.tv_sec = 0;
         tm.tv_usec = 100000;
@@ -1083,24 +1083,17 @@ int main(int argc, char *argv[], char *envp[]) {
             }
         }
 
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
         globalregistry->timetracker->Tick();
-
-        // fprintf(stderr, "debug - main poll()\n");
 
         pollabletracker->ProcessPollableSelect(rset, wset);
 
         sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
         if (globalregistry->fatal_condition) {
-            fprintf(stderr, "fatal condition after processpollable\n");
-            CatchShutdown(-1);
+            break;
         }
     }
 
-    CatchShutdown(-1);
+    SpindownKismet(pollabletracker);
 }
 
-// vim: ts=4:sw=4
