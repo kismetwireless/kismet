@@ -614,6 +614,8 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 }
 
 int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
+    local_locker lock(&ipc_locker);
+
     stringstream str;
     IPCRemoteV2 *dead_remote = NULL;
 

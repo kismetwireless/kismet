@@ -164,7 +164,7 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    vector<IPCRemoteV2 *> process_vec;
+    std::vector<IPCRemoteV2 *> process_vec;
 
     int timer_id;
 };

@@ -1066,9 +1066,6 @@ int main(int argc, char *argv[], char *envp[]) {
             break;
         }
 
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
         max_fd = pollabletracker->MergePollableFds(&rset, &wset);
 
         tm.tv_sec = 0;
@@ -1082,6 +1079,9 @@ int main(int argc, char *argv[], char *envp[]) {
                 CatchShutdown(-1);
             }
         }
+
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         globalregistry->timetracker->Tick();
 
