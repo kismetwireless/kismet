@@ -191,6 +191,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                     "every " + UIntToString(storerate) + " seconds and on exit.", 
                     MSGFLAG_INFO);
 
+            devices_storing = false;
+
             device_storage_timer =
                 globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                         [this](int) -> int {
@@ -1259,37 +1261,6 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
 
     MatchOnDevices(&fw, devices);
 
-#if 0
-    for (auto d : devices) {
-        std::shared_ptr<kis_tracked_device_base> kdb =
-            std::static_pointer_cast<kis_tracked_device_base>(d);
-
-        if (kdb->get_mod_time() <= last_devicelist_saved)
-            continue;
-
-        sbuf.str("");
-        sqlite3_reset(stmt);
-
-        // Pack a storage formatted JSON record; unfortunately causing a duplication
-        // of the string but it'll do for now
-        StorageJsonAdapter::Pack(globalreg, *serialstream, d, NULL);
-        sbuf.pubsync();
-
-        serialstring = sbuf.str();
-
-        macstring = kdb->get_macaddr().Mac2String();
-
-        sqlite3_bind_int(stmt, 1, kdb->get_first_time());
-        sqlite3_bind_int(stmt, 2, kdb->get_last_time());
-        sqlite3_bind_text(stmt, 3, kdb->get_phyname().c_str(), 
-                kdb->get_phyname().length(), 0);
-        sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
-        sqlite3_bind_text(stmt, 5, serialstring.c_str(), serialstring.length(), 0);
-
-        sqlite3_step(stmt);
-    }
-#endif
-
     sqlite3_finalize(stmt);
 
     last_devicelist_saved = time(0);
@@ -1413,7 +1384,7 @@ int Devicetracker::load_devices() {
             }
         }
 
-        _MSG("Loaded " + UIntToString(num_devices) + " devices from storage...", MSGFLAG_INFO);
+        _MSG("Loaded " + UIntToString(num_devices) + " " + p.second->FetchPhyName() + " devices from storage...", MSGFLAG_INFO);
     }
 
     sqlite3_finalize(stmt);
