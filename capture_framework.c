@@ -198,7 +198,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     if (ch == NULL)
         return NULL;
 
-    ch->last_ping = 0;
+    ch->last_ping = time(0);
 
     ch->capsource_type = strdup(in_type);
 
@@ -1467,7 +1467,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     }
 
     /* Reset the last ping */
-    caph->last_ping = 0;
+    caph->last_ping = time(0);
 
     /* Reset spindown */
     caph->spindown = 0;
