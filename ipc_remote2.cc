@@ -530,6 +530,14 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
     // It would be more efficient to hijack the signal handler here and
     // use our own timer, but that's a hassle and this only happens during
     // shutdown.  We do a spin on waitpid instead.
+
+    sigset_t mask, oldmask;
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
+
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
     while (1) {
         int pid_status;
         pid_t caught_pid;
@@ -607,6 +615,8 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
             vector_empty = false;
     }
 
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
     if (vector_empty)
         return 0;
 
@@ -614,8 +624,6 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 }
 
 int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
-    local_locker lock(&ipc_locker);
-
     stringstream str;
     IPCRemoteV2 *dead_remote = NULL;
 
