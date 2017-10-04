@@ -13,7 +13,7 @@ exports.load_complete = 0;
 
 kismet_ui.AddDeviceRowHighlight({
     name: "Bluetooth Device",
-    description: "Highlight all Bluetooth deices",
+    description: "Highlight all Bluetooth devices",
     priority: 100,
     defaultcolor: "#b3d1ff",
     defaultenable: false,
