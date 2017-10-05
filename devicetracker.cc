@@ -1332,51 +1332,13 @@ int Devicetracker::load_devices() {
                 rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 1);
                 rowlen = sqlite3_column_bytes(stmt, 1);
 
-                try {
-                    // Decompress the record if necessary
-                    std::stringbuf ibuf;
+                // Adopt it into a device
+                std::shared_ptr<kis_tracked_device_base> kdb =
+                    convert_stored_device(p.second, m, rowstr, rowlen);
 
-                    // Decompression buffer, autodetect compression
-                    zstr::istreambuf izbuf(&ibuf, 1 << 16, true);
-
-                    // Link an istream to the compression buffer
-                    std::istream istream(&izbuf);
-
-                    // Flag exceptions on decompression errors
-                    istream.exceptions(std::ios_base::badbit);
-
-                    // Assign the row string to the strbuf behind the decompression system
-                    ibuf.sputn((const char *) rowstr, rowlen);
-                    ibuf.pubsync();
-
-                    // Get the decompressed record
-                    std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
-
-                    // Read out the structured json
-                    SharedStructured sjson(new StructuredJson(uzbuf));
-
-                    // Process structured object into a shared element
-                    SharedTrackerElement e = 
-                        StorageLoader::storage_to_tracker(entrytracker, sjson);
-
-                    // Adopt it into a device
-                    std::shared_ptr<kis_tracked_device_base> kdb(new kis_tracked_device_base(globalreg, device_base_id, e));
-
-                    // Let the phy adopt any additional fields
-                    p.second->LoadPhyStorage(e, kdb);
-
-                    // Recalculate the key
-                    uint64_t key = DevicetrackerKey::MakeKey(m, p.first);
-                    kdb->set_key(key);
-
+                if (kdb != NULL) {
                     AddDevice(kdb);
-
                     num_devices++;
-                } catch (const exception e) {
-                    _MSG("Devicetracker encountered an error loading a stored device, "
-                            "unable to unpack stored record: " + string(e.what()), 
-                            MSGFLAG_ERROR);
-                    continue;
                 }
             } else if (r == SQLITE_DONE) {
                 break;
@@ -1440,50 +1402,7 @@ shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Handler *
             rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 0);
             rowlen = sqlite3_column_bytes(stmt, 0);
 
-            try {
-                // Decompress the record if necessary
-                std::stringbuf ibuf;
-
-                // Decompression buffer, autodetect compression
-                zstr::istreambuf izbuf(&ibuf, 1 << 16, true);
-
-                // Link an istream to the compression buffer
-                std::istream istream(&izbuf);
-
-                // Flag exceptions on decompression errors
-                istream.exceptions(std::ios_base::badbit);
-
-                // Assign the row string to the strbuf behind the decompression system
-                ibuf.sputn((const char *) rowstr, rowlen);
-                ibuf.pubsync();
-
-                // Get the decompressed record
-                std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
-
-                // Read out the structured json
-                SharedStructured sjson(new StructuredJson(uzbuf));
-
-                // Process structured object into a shared element
-                SharedTrackerElement e = 
-                    StorageLoader::storage_to_tracker(entrytracker, sjson);
-
-                // Adopt it into a device
-                std::shared_ptr<kis_tracked_device_base> kdb(new kis_tracked_device_base(globalreg, device_base_id, e));
-
-                // Let the phy adopt any additional fields
-                in_phy->LoadPhyStorage(e, kdb);
-
-                // Recalculate the key
-                uint64_t key = DevicetrackerKey::MakeKey(in_mac, in_phy->FetchPhyId());
-                kdb->set_key(key);
-
-                return kdb;
-            } catch (const exception e) {
-                _MSG("Devicetracker encountered an error loading a stored device, "
-                        "unable to unpack stored record: " + string(e.what()), 
-                        MSGFLAG_ERROR);
-                break;
-            }
+            return convert_stored_device(in_phy, in_mac, rowstr, rowlen);
         } else if (r == SQLITE_DONE) {
             break;
         } else {
@@ -1498,4 +1417,67 @@ shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Handler *
     return NULL;
 }
 
+std::shared_ptr<kis_tracked_device_base> 
+Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
+        const unsigned char *raw_stored_data, unsigned long stored_len) {
+
+    try {
+        // Decompress the record if necessary
+        std::stringbuf ibuf;
+
+        // Decompression buffer, autodetect compression
+        zstr::istreambuf izbuf(&ibuf, 1 << 16, true);
+
+        // Link an istream to the compression buffer
+        std::istream istream(&izbuf);
+
+        // Flag exceptions on decompression errors
+        istream.exceptions(std::ios_base::badbit);
+
+        // Assign the row string to the strbuf behind the decompression system
+        ibuf.sputn((const char *) raw_stored_data, stored_len);
+        ibuf.pubsync();
+
+        // Get the decompressed record
+        std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
+
+        // Read out the structured json
+        SharedStructured sjson(new StructuredJson(uzbuf));
+
+        // Process structured object into a shared element
+        SharedTrackerElement e = 
+            StorageLoader::storage_to_tracker(entrytracker, sjson);
+
+        // Adopt it into a device
+        std::shared_ptr<kis_tracked_device_base> 
+            kdb(new kis_tracked_device_base(globalreg, device_base_id, e));
+
+        // Let the phy adopt any additional fields
+        phy->LoadPhyStorage(e, kdb);
+
+        // Recalculate the key
+        uint64_t key = DevicetrackerKey::MakeKey(macaddr, phy->FetchPhyId());
+        kdb->set_key(key);
+
+        // Update the manuf in case we added a manuf db
+        if (globalreg->manufdb != NULL)
+            kdb->set_manuf(globalreg->manufdb->LookupOUI(kdb->get_macaddr()));
+
+        return kdb;
+    } catch (const zstr::Exception& e) {
+        _MSG("Unable to decompress stored device data (" + macaddr.Mac2String() + "); the "
+                "stored device will be skipped: " + string(e.what()), MSGFLAG_ERROR);
+        return NULL;
+    } catch (const StructuredDataException& e) {
+        _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
+                "stored device will be skipped: " + string(e.what()), MSGFLAG_ERROR);
+        return NULL;
+    } catch (const exception& e) {
+        _MSG("Unable to load a stored device (" + macaddr.Mac2String() + "); the stored "
+                "device will be skipped: " + string(e.what()), MSGFLAG_ERROR);
+        return NULL;
+    }
+
+    return NULL;
+}
 
