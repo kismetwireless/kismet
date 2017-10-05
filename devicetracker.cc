@@ -194,15 +194,18 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             devices_storing = false;
 
             device_storage_timer =
-                globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+                globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * storerate, 
+                        NULL, 1,
                         [this](int) -> int {
                             local_locker l(&storing_mutex);
 
                             if (devices_storing) {
                                 _MSG("Attempting to save persistent devices, but devices "
                                         "are still being saved from a previous storage "
-                                        "timer.  It's possible your system is slow, or you "
-                                        "have a very large log of devices.", MSGFLAG_ERROR);
+                                        "attempt.  It's possible your system is slow, or you "
+                                        "have a very large log of devices.  Try increasing "
+                                        "the delay in 'persistent_storage_rate' in your "
+                                        "kismet_storage.conf file.", MSGFLAG_ERROR);
                                 return 1;
                             }
 
