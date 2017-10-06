@@ -410,7 +410,7 @@ protected:
                 "number of alerts on this device", &alert);
 
         RegisterField("kismet.device.base.tags", TrackerStringMap,
-                "set of arbitrary tags", &tag_map);
+                "set of arbitrary tags, including user notes", &tag_map);
         tag_entry_id =
             RegisterField("kismet.device.base.tag", TrackerString, "arbitrary tag");
 

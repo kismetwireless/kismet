@@ -157,16 +157,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
-	// Set up the persistent tag conf file
-	// Build the config file
-	conf_save = globalreg->timestamp.tv_sec;
-
-	tag_conf = new ConfigFile(globalreg);
-	tag_conf->ParseConfig(
-            tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") +
-                "/" + "tag.conf", "", "", 0, 1).c_str());
-
-
     if (!globalreg->kismet_config->FetchOptBoolean("persistent_config_present", false)) {
         _MSG("Kismet has recently added persistent device storage; it looks like you "
                 "need to update your Kismet configs; install the latest configs with "
@@ -337,29 +327,6 @@ Devicetracker::~Devicetracker() {
     tracked_mac_multimap.clear();
 
     pthread_mutex_destroy(&devicelist_mutex);
-}
-
-void Devicetracker::SaveTags() {
-	int ret;
-
-    std::string dir =
-		tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir"),
-								"", "", 0, 1);
-
-	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
-
-	if (ret < 0 && errno != EEXIST) {
-        std::string err = std::string(strerror(errno));
-		_MSG("Failed to create Kismet settings directory " + dir + ": " + err,
-			 MSGFLAG_ERROR);
-	}
-
-	ret = tag_conf->SaveConfig(tag_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "tag.conf", "", "", 0, 1).c_str());
-
-	if (ret < 0)
-		_MSG("Could not save tags, check previous error messages (probably "
-			 "no permission to write to the Kismet config directory: " + dir,
-			 MSGFLAG_ERROR);
 }
 
 Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
@@ -831,8 +798,6 @@ int Devicetracker::PopulateCommon(std::shared_ptr<kis_tracked_device_base> devic
     // Set name
     device->set_devicename(device->get_macaddr().Mac2String());
 
-    /* Persistent tag loading removed, will be handled by serializing network in the future */
-
     device->inc_packets();
 
     device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
@@ -1119,8 +1084,6 @@ int Devicetracker::Database_UpgradeDB() {
     char *sErrMsg = NULL;
 
     if (dbv < 1) {
-        _MSG("Devicetracker upgrading database to latest code...", MSGFLAG_INFO);
-
         // We keep the last seen timestamp for automatic culling of the database of
         // idle device records.
         //
@@ -1147,8 +1110,58 @@ int Devicetracker::Database_UpgradeDB() {
             return -1;
         }
 
-        Database_SetDBVersion(1);
     }
+
+    if (dbv < 2) {
+        // Define a simple table for custom device names, and a similar simple table
+        // for notes; we store them outside the device record so that we have an
+        // architecture available for saving them without requiring device snapshotting
+        //
+        // Names and tags are saved in both the custom tables AND the stored device 
+        // record; stored devices retain their internal state, only new devices query
+        // these tables.
+        sql = 
+            "CREATE TABLE device_names ("
+            "phyname TEXT, "
+            "devmac TEXT, "
+            "name TEXT, "
+            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Devicetracker unable to create device_names table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        // Tags are stored as a combination of phy, device, and tag name, and are loaded 
+        // into the tag map
+        sql = 
+            "CREATE TABLE device_tags ("
+            "phyname TEXT, "
+            "devmac TEXT, "
+            "tag TEXT, "
+            "content TEXT, "
+            "UNIQUE(phyname, devmac, tag) ON CONFLICT REPLACE)";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Devicetracker unable to create device_tags table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+    }
+
+    Database_SetDBVersion(2);
 
     return 0;
 }
