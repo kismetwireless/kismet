@@ -706,12 +706,6 @@ public:
     // components due to timeouts / max device cleanup
     void UpdateFullRefresh();
 
-#if 0
-	int SetDeviceTag(mac_addr in_device, string in_data);
-	int ClearDeviceTag(mac_addr in_device);
-	string FetchDeviceTag(mac_addr in_device);
-#endif
-
 	// Look for an existing device record
     std::shared_ptr<kis_tracked_device_base> FetchDevice(uint64_t in_key);
 	std::shared_ptr<kis_tracked_device_base> FetchDevice(mac_addr in_device, 
@@ -738,9 +732,6 @@ public:
 
 	// Common classifier for keeping phy counts
 	int CommonTracker(kis_packet *in_packet);
-
-	// Initiate a logging cycle
-	int LogDevices(std::string in_logclass, std::string in_logtype, FILE *in_logfile);
 
     // Add common into to a device.  If necessary, create the new device.
     //
@@ -774,6 +765,14 @@ public:
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
     shared_ptr<kis_tracked_device_base> UpdateCommonDevice(mac_addr in_mac, int in_phy,
             kis_packet *in_pack, unsigned int in_flags);
+
+    // Set the common name of a device (and log it in the database for future runs)
+    void SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
+            std::string in_username);
+
+    // Set an arbitrary tag (and log it in the database for future runs)
+    void SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev,
+            std::string in_tag, std::string in_content);
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -825,8 +824,6 @@ public:
     virtual int load_devices();
 
 protected:
-	void SaveTags();
-
 	GlobalRegistry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Packetchain> packetchain;
@@ -896,10 +893,6 @@ protected:
 	// Filtering
 	FilterCore *track_filter;
 
-	// Tag records as a config file
-	ConfigFile *tag_conf;
-	time_t conf_save;
-
 	// Registered PHY types
 	int next_phy_id;
     std::map<int, Kis_Phy_Handler *> phy_handler_map;
@@ -940,6 +933,12 @@ protected:
 
     // Do we use persistent compression when storing
     bool persistent_compression;
+
+    // Load stored username
+    void load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev);
+
+    // Load stored tags
+    void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
 };
 
 class kis_tracked_phy : public tracker_component {

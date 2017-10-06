@@ -127,7 +127,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
 
-	conf_save = 0;
 	next_phy_id = 0;
 
 	// Register global packet components used by the device tracker and
@@ -1191,6 +1190,12 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
     if (!persistent_storage)
         return 0;
 
+    if (!Database_Valid()) {
+        _MSG("Unable to snapshot device records!  The database connection to " +
+                ds_dbfile + " is invalid...", MSGFLAG_ERROR);
+        return 0;
+    }
+
     _MSG("Saving device state records...", MSGFLAG_INFO);
 
     std::string sql;
@@ -1293,6 +1298,9 @@ int Devicetracker::load_devices() {
     if (!persistent_storage || persistent_mode != MODE_ONSTART)
         return 0;
 
+    if (!Database_Valid())
+        return 0;
+
     std::string sql;
     std::string phyname;
 
@@ -1376,6 +1384,9 @@ shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Handler *
         mac_addr in_mac) {
 
     if (!persistent_storage || persistent_mode != MODE_ONDEMAND)
+        return NULL;
+
+    if (!Database_Valid())
         return NULL;
 
     // Lock the database; we're doing a single query
@@ -1492,5 +1503,230 @@ Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
     }
 
     return NULL;
+}
+
+void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
+    // Lock the database; we're doing a single query
+    local_locker dblock(&ds_mutex);
+
+    if (!Database_Valid())
+        return;
+
+    std::string sql;
+    std::string macstring = in_dev->get_macaddr().Mac2String();
+    std::string phystring = in_dev->get_phyname();
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    sql = 
+        "SELECT name FROM device_names WHERE phyname = ? AND "
+        "devmac = ?";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database query for stored devicename in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return;
+    }
+
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+
+    while (1) {
+        r = sqlite3_step(stmt);
+
+        if (r == SQLITE_ROW) {
+            const unsigned char *rowstr;
+
+            rowstr = (const unsigned char *) sqlite3_column_text(stmt, 0);
+
+            in_dev->set_username(std::string((const char *) rowstr));
+
+        } else if (r == SQLITE_DONE) {
+            break;
+        } else {
+            _MSG("Devicetracker encountered an error loading stored device username: " + 
+                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            break;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+}
+
+void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev) {
+    // Lock the database; we're doing a single query
+    local_locker dblock(&ds_mutex);
+
+    if (!Database_Valid())
+        return;
+
+    std::string sql;
+    std::string macstring = in_dev->get_macaddr().Mac2String();
+    std::string phystring = in_dev->get_phyname();
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    sql = 
+        "SELECT tag, content FROM device_names WHERE phyname = ? AND "
+        "devmac = ?";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database query for stored devicename in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return;
+    }
+
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+
+    TrackerElementStringMap strmap(in_dev->get_tracker_tag_map());
+
+    while (1) {
+        r = sqlite3_step(stmt);
+
+        if (r == SQLITE_ROW) {
+            const unsigned char *tagstr;
+            const unsigned char *contentstr;
+
+            tagstr = (const unsigned char *) sqlite3_column_text(stmt, 0);
+            contentstr = (const unsigned char *) sqlite3_column_text(stmt, 1);
+
+            SharedTrackerElement tagc(new TrackerElement(TrackerString));
+
+            tagc->set(std::string((const char *) contentstr));
+
+            TrackerElementStringMap::pair 
+                strpair(std::string((const char *) tagstr), tagc);
+
+            strmap.insert(strpair);
+
+        } else if (r == SQLITE_DONE) {
+            break;
+        } else {
+            _MSG("Devicetracker encountered an error loading stored device username: " + 
+                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            break;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+}
+
+void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
+        std::string in_username) {
+
+    in_dev->set_username(in_username);
+
+    if (!Database_Valid()) {
+        _MSG("Unable to store device name to permanent storage, the database connection "
+                "is not available", MSGFLAG_ERROR);
+        return;
+    }
+
+    std::string sql;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string macstring = in_dev->get_macaddr().Mac2String();
+    std::string phystring = in_dev->get_phyname();
+
+    sql = 
+        "INSERT INTO device_names "
+        "(phyname, devmac, name) "
+        "VALUES (?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database insert for device name in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return;
+    }
+ 
+    sqlite3_reset(stmt);
+
+    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+    sqlite3_bind_text(stmt, 3, in_username.c_str(), in_username.length(), 0);
+
+    // Only lock the database while we're inserting
+    {
+        local_locker lock(&ds_mutex);
+        sqlite3_step(stmt);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return;
+}
+
+void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev,
+        std::string in_tag, std::string in_content) {
+
+    SharedTrackerElement e(new TrackerElement(TrackerString));
+    e->set(std::string(in_content));
+    TrackerElementStringMap sm(in_dev->get_tracker_tag_map());
+
+    auto t = sm.find(in_tag);
+    if (t != sm.end())
+        sm.erase(t);
+    sm.insert(TrackerElementStringMap::pair(in_tag, e));
+
+    if (!Database_Valid()) {
+        _MSG("Unable to store device name to permanent storage, the database connection "
+                "is not available", MSGFLAG_ERROR);
+        return;
+    }
+
+    std::string sql;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string macstring = in_dev->get_macaddr().Mac2String();
+    std::string phystring = in_dev->get_phyname();
+
+    sql = 
+        "INSERT INTO device_tags "
+        "(phyname, devmac, tag, content) "
+        "VALUES (?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database insert for device tags in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return;
+    }
+ 
+    sqlite3_reset(stmt);
+
+    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+    sqlite3_bind_text(stmt, 3, in_tag.c_str(), in_tag.length(), 0);
+    sqlite3_bind_text(stmt, 3, in_content.c_str(), in_content.length(), 0);
+
+    // Only lock the database while we're inserting
+    {
+        local_locker lock(&ds_mutex);
+        sqlite3_step(stmt);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return;
 }
 
