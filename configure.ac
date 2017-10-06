@@ -1327,9 +1327,6 @@ else
 	echo "$suidgroup"
 fi
 
-printf "      Terminal Control: "
-echo "$termcontrol";
-
 printf "   Linux WEXT capture : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"
