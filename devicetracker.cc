@@ -1095,7 +1095,7 @@ int Devicetracker::Database_UpgradeDB() {
             "last_time INT, "
             "phyname TEXT, "
             "devmac TEXT, "
-            "storagejson TEXT, "
+            "storagejson BLOB, "
             "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
 
         r = sqlite3_exec(db, sql.c_str(),
