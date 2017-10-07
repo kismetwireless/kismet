@@ -153,6 +153,15 @@ exports.AddDeviceRowHighlight = function(options) {
     }
 
     DeviceRowHighlights.push(options);
+
+    DeviceRowHighlights.sort(function(a, b) {
+        if (a.priority < b.priority)
+            return -1;
+        if (b.priority > a.priorty)
+            return 1;
+
+        return 0;
+    });
 }
 
 /* Return columns from the selected list of column IDs */
@@ -715,9 +724,9 @@ exports.InitializeDeviceTable = function(element) {
                     var rowh = DeviceRowHighlights[r];
 
                     if (rowh['enable']) {
-
                         if (rowh['selector'](this.data())) {
                             $('td', this.node()).css('background-color', rowh['color']);
+                            break;
                         }
                     }
                 }
