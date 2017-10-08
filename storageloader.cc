@@ -55,26 +55,36 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
 
     std::string hexstr;
 
+    if (d->hasKey("on"))
+        objname = d->getKeyAsString("on");
+    else if (d->hasKey("objname"))
+        objname = d->getKeyAsString("objname");
+    else
+        throw std::runtime_error("JSON storage object missing 'on'/'objname'");
+
+    if (d->hasKey("ot"))
+        objtypestr = d->getKeyAsString("ot");
+    else if (d->hasKey("objtype"))
+        objtypestr = d->getKeyAsString("objtype");
+    else
+        throw std::runtime_error("JSON storage object missing 'ot'/'objtype'");
+
+    objtype = TrackerElement::typestring_to_type(objtypestr);
+
+    if (d->hasKey("od"))
+        objdata = d->getStructuredByKey("od");
+    else if (d->hasKey("objdata"))
+        objdata = d->getStructuredByKey("objdata");
+    else
+        throw std::runtime_error("JSON storage object missing 'od'/'objdata'");
+
     if (!d->hasKey("objname"))
         throw std::runtime_error("JSON storage object missing 'objname'");
 
     objname = d->getKeyAsString("objname");
 
-    if (!d->hasKey("objtype"))
-        throw std::runtime_error("JSON storage object missing 'objtype'");
-
-    objtypestr = d->getKeyAsString("objtype");
-
-    objtype = TrackerElement::typestring_to_type(objtypestr);
-
-    if (!d->hasKey("objdata"))
-        throw std::runtime_error("JSON storage object missing 'objdata'");
-
     elemid = entrytracker->GetFieldId(objname);
-
     elem.reset(new TrackerElement(objtype, elemid));
-
-    objdata = d->getStructuredByKey("objdata");
 
     switch (objtype) {
         // Integer types are directly coerced

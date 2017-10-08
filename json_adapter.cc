@@ -363,17 +363,17 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     stream << "{";
 
     // Name metadata; duplicte if we're a nested field object but consistent
-    stream << "\"objname\": \"";
+    stream << "\"on\": \"";
     stream << JsonAdapter::SanitizeString(globalreg->entrytracker->GetFieldName(e->get_id()));
     stream << "\",";
 
     // Type metadata; raw element type
-    stream << "\"objtype\": \"";
+    stream << "\"ot\": \"";
     stream << JsonAdapter::SanitizeString(TrackerElement::type_to_typestring(e->get_type()));
     stream << "\",";
 
     // Actual data blob for object
-    stream << "\"objdata\": ";
+    stream << "\"od\": ";
 
     switch (e->get_type()) {
         case TrackerString:
