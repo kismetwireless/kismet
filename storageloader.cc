@@ -78,11 +78,6 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
     else
         throw std::runtime_error("JSON storage object missing 'od'/'objdata'");
 
-    if (!d->hasKey("objname"))
-        throw std::runtime_error("JSON storage object missing 'objname'");
-
-    objname = d->getKeyAsString("objname");
-
     elemid = entrytracker->GetFieldId(objname);
     elem.reset(new TrackerElement(objtype, elemid));
 
