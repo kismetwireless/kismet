@@ -669,6 +669,7 @@ protected:
 class DevicetrackerStateStore : public KisDatabase {
 public:
     DevicetrackerStateStore(GlobalRegistry *in_globalreg, Devicetracker *in_devicetracker);
+    virtual ~DevicetrackerStateStore() { }
 
     virtual int Database_UpgradeDB();
 
