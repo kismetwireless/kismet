@@ -279,7 +279,7 @@ exports.sanitizeHTML = function(s) {
         "'": '&#39;',
         '`': '&#x60;',
         '=': '&#x3D;',
-
+        '/': '&#x2F;'
     };
 
     return String(s).replace(/[&<>"'`=\/]/g, function (s) {

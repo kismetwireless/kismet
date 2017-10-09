@@ -1169,11 +1169,11 @@ kismet_ui_settings.AddSettingsPane({
                         $('<b>', {
                             class: 'k-b-s-plugin-title',
                         })
-                        .text(pl['kismet.plugin.name'])
+                        .html(pl['kismet.plugin.name'])
                     )
                     .append(
                         $('<span>', { })
-                        .text(pl['kismet.plugin.version'])
+                        .html(pl['kismet.plugin.version'])
                     )
                 )
                 .append(
@@ -1182,11 +1182,11 @@ kismet_ui_settings.AddSettingsPane({
                     })
                     .append(
                         $('<p>', { })
-                        .text(pl['kismet.plugin.description'])
+                        .html(pl['kismet.plugin.description'])
                     )
                     .append(
                         $('<p>', { })
-                        .text(pl['kismet.plugin.author'])
+                        .html(pl['kismet.plugin.author'])
                     )
                     .append(sharedlib)
                 );
@@ -1883,7 +1883,7 @@ exports.FirstTimeCheck = function() {
 kismet_ui.AddDeviceRowHighlight({
     name: "Active",
     description: "Device has been active in the past 10 seconds",
-    priority: 10,
+    priority: 500,
     defaultcolor: "#cee1ff",
     defaultenable: false,
     fields: [
