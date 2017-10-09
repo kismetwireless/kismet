@@ -22,19 +22,23 @@
 #include "globalregistry.h"
 #include "util.h"
 
-KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name) : 
-        ds_module_name(in_module_name) {
+KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name,
+        std::string in_file_path) : ds_module_name(in_module_name) {
 
     globalreg = in_globalreg;
 
     char *sErrMsg = NULL;
 
-    std::string config_dir_path_raw = 
-        globalreg->kismet_config->FetchOpt("configdir");
-    std::string config_dir_path =
-        globalreg->kismet_config->ExpandLogPath(config_dir_path_raw, "", "", 0, 1);
+    if (in_file_path.length() == 0) {
+        std::string config_dir_path_raw = 
+            globalreg->kismet_config->FetchOpt("configdir");
+        std::string config_dir_path =
+            globalreg->kismet_config->ExpandLogPath(config_dir_path_raw, "", "", 0, 1);
 
-    ds_dbfile = config_dir_path + "/" + in_module_name;
+        ds_dbfile = config_dir_path + "/" + in_module_name + ".db3"; 
+    } else {
+        ds_dbfile = in_file_path;
+    }
 
     local_locker lock(&ds_mutex);
 
