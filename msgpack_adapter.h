@@ -63,6 +63,30 @@ void AsStringVector(msgpack::object &obj, std::vector<std::string> &vec);
 
 }
 
+namespace StorageMsgpackAdapter {
+
+void Packer(GlobalRegistry *globalreg, SharedTrackerElement v, 
+        msgpack::packer<std::ostream> &packer,
+        TrackerElementSerializer::rename_map *name_map = NULL);
+
+void Pack(GlobalRegistry *globalreg, std::ostream &stream, 
+        SharedTrackerElement e, 
+        TrackerElementSerializer::rename_map *name_map = NULL);
+
+class Serializer : public TrackerElementSerializer {
+public:
+    Serializer(GlobalRegistry *in_globalreg) :
+        TrackerElementSerializer(in_globalreg) { }
+
+    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+            rename_map *name_map = NULL) {
+        local_locker lock(&mutex);
+        Pack(globalreg, stream, in_elem, name_map);
+    }
+};
+
+}
+
 class StructuredMsgpack : public StructuredData {
 public:
     StructuredMsgpack(string data) : StructuredData(data) {

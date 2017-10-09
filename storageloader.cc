@@ -27,8 +27,6 @@
 #include "globalregistry.h"
 #include "entrytracker.h"
 #include "structured.h"
-#include "kismet_json.h"
-#include "json_adapter.h"
 #include "devicetracker.h"
 
 SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTracker> entrytracker, SharedStructured d) {
@@ -60,14 +58,14 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
     else if (d->hasKey("objname"))
         objname = d->getKeyAsString("objname");
     else
-        throw std::runtime_error("JSON storage object missing 'on'/'objname'");
+        throw std::runtime_error("storage object missing 'on'/'objname'");
 
     if (d->hasKey("ot"))
         objtypestr = d->getKeyAsString("ot");
     else if (d->hasKey("objtype"))
         objtypestr = d->getKeyAsString("objtype");
     else
-        throw std::runtime_error("JSON storage object missing 'ot'/'objtype'");
+        throw std::runtime_error("storage object missing 'ot'/'objtype'");
 
     objtype = TrackerElement::typestring_to_type(objtypestr);
 
@@ -76,7 +74,7 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
     else if (d->hasKey("objdata"))
         objdata = d->getStructuredByKey("objdata");
     else
-        throw std::runtime_error("JSON storage object missing 'od'/'objdata'");
+        throw std::runtime_error("storage object missing 'od'/'objdata'");
 
     elemid = entrytracker->GetFieldId(objname);
     elem.reset(new TrackerElement(objtype, elemid));

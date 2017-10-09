@@ -33,7 +33,6 @@
 /* Storage loaders convert common StructuredData elements to tracked element object trees,
  * which can then be adopted by complete classes.
  *
- * Currently the only supported storage format is 'storagejson'
  */
 
 namespace StorageLoader {

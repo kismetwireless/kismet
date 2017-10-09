@@ -164,6 +164,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         persistent_storage = false;
         persistent_mode = MODE_ONSTART;
         persistent_compression = false;
+        statestore = NULL;
     } else {
         persistent_storage =
             globalreg->kismet_config->FetchOptBoolean("persistent_state", false);
@@ -171,7 +172,10 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         if (!persistent_storage) {
             _MSG("Persistent storage has been disabled.  Kismet will not remember devices "
                     "between launches.", MSGFLAG_INFO);
+            statestore = NULL;
         } else {
+            statestore = new DevicetrackerStateStore(globalreg, this);
+
             unsigned int storerate = 
                 globalreg->kismet_config->FetchOptUInt("persistent_storage_rate", 60);
 
@@ -299,6 +303,11 @@ Devicetracker::~Devicetracker() {
     pthread_mutex_lock(&devicelist_mutex);
 
     store_devices(immutable_tracked_vec);
+
+    if (statestore != NULL) {
+        delete(statestore);
+        statestore = NULL;
+    }
 
     globalreg->devicetracker = NULL;
     globalreg->RemoveGlobal("DEVICE_TRACKER");
@@ -1095,7 +1104,7 @@ int Devicetracker::Database_UpgradeDB() {
             "last_time INT, "
             "phyname TEXT, "
             "devmac TEXT, "
-            "storagejson BLOB, "
+            "storage BLOB, "
             "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
 
         r = sqlite3_exec(db, sql.c_str(),
@@ -1157,10 +1166,25 @@ int Devicetracker::Database_UpgradeDB() {
             db = NULL;
             return -1;
         }
-
     }
 
-    Database_SetDBVersion(2);
+    if (dbv < 3) {
+        sql = 
+            "DROP TABLE device_storage";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Devicetracker unable to drop old storage table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+    }
+
+    Database_SetDBVersion(3);
 
     return 0;
 }
@@ -1190,103 +1214,14 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
     if (!persistent_storage)
         return 0;
 
-    if (!Database_Valid()) {
-        _MSG("Unable to snapshot device records!  The database connection to " +
-                ds_dbfile + " is invalid...", MSGFLAG_ERROR);
+    if (statestore == NULL)
         return 0;
-    }
 
-    _MSG("Saving device state records...", MSGFLAG_INFO);
-
-    std::string sql;
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    std::string serialstring;
-    std::string macstring;
-
-    // Prep the compression buf
-    std::stringbuf sbuf;
-    zstr::ostreambuf zobuf(&sbuf, 1 << 16, true);
-    std::ostream zstream(&zobuf);
-
-    // Standard noncompression buf
-    std::ostream sstream(&sbuf);
-
-    std::ostream *serialstream;
-
-    if (persistent_compression)
-        serialstream = &zstream;
-    else
-        serialstream = &sstream;
-
-    sql = 
-        "INSERT INTO device_storage "
-        "(first_time, last_time, phyname, devmac, storagejson) "
-        "VALUES (?, ?, ?, ?, ?)";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database insert for devices in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return -1;
-    }
- 
-    // Use a function worker to break up the load and insert it into the
-    // database
-    devicetracker_function_worker fw(globalreg,
-            [this, &serialstream, &zobuf, &sbuf, &stmt, &serialstring, &macstring](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
-                std::shared_ptr<kis_tracked_device_base> kdb =
-                    std::static_pointer_cast<kis_tracked_device_base>(d);
-
-                if (kdb->get_mod_time() <= last_devicelist_saved)
-                    return false;
-
-                sbuf.str("");
-                sqlite3_reset(stmt);
-
-                // Pack a storage formatted JSON record; unfortunately causing a duplication
-                // of the string but it'll do for now.  Only lock the device while we're
-                // serializing it.
-                {
-                    local_locker lock(&devicelist_mutex);
-                    StorageJsonAdapter::Pack(globalreg, *serialstream, d, NULL);
-                }
-
-                // Sync the buffers
-                zobuf.pubsync();
-                sbuf.pubsync();
-
-                serialstring = sbuf.str();
-
-                macstring = kdb->get_macaddr().Mac2String();
-
-                sqlite3_bind_int(stmt, 1, kdb->get_first_time());
-                sqlite3_bind_int(stmt, 2, kdb->get_last_time());
-                sqlite3_bind_text(stmt, 3, kdb->get_phyname().c_str(), 
-                        kdb->get_phyname().length(), 0);
-                sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
-                sqlite3_bind_text(stmt, 5, serialstring.data(), serialstring.length(), 0);
-
-                // Only lock the database while we're snapshotting it
-                {
-                    local_locker lock(&ds_mutex);
-                    sqlite3_step(stmt);
-                }
-
-                return false;
-            }, NULL);
-
-    MatchOnDevices(&fw, devices);
-
-    sqlite3_finalize(stmt);
+    int r = statestore->store_devices(devices);
 
     last_devicelist_saved = time(0);
 
-    return 1;
+    return r;
 }
 
 int Devicetracker::load_devices() {
@@ -1295,150 +1230,27 @@ int Devicetracker::load_devices() {
     // be quiet during startup; we don't want a long load process to break the
     // mutex timers
 
-    if (!persistent_storage || persistent_mode != MODE_ONSTART)
+    if (!persistent_storage || persistent_mode != MODE_ONSTART || statestore == NULL)
         return 0;
 
     if (!Database_Valid())
         return 0;
 
-    std::string sql;
-    std::string phyname;
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql = 
-        "SELECT devmac, storagejson FROM device_storage WHERE phyname = ?";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored devices in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return -1;
-    }
-
-    for (auto p : phy_handler_map) {
-        unsigned int num_devices = 0;
-
-        _MSG("Devicetracker loading stored devices for phy " + p.second->FetchPhyName(),
-                MSGFLAG_INFO);
-
-        sqlite3_reset(stmt);
-
-        phyname = p.second->FetchPhyName();
-
-        sqlite3_bind_text(stmt, 1, phyname.c_str(), phyname.length(), 0);
-
-        while (1) {
-            r = sqlite3_step(stmt);
-
-            if (r == SQLITE_ROW) {
-                const unsigned char *rowstr;
-                unsigned long rowlen;
-
-                mac_addr m;
-
-                rowstr = sqlite3_column_text(stmt, 0);
-                m = mac_addr((const char *) rowstr);
-
-                if (m.error) {
-                    _MSG("Devicetracker encountered an error loading a stored device, "
-                            "unable to process mac address; skipping device.",
-                            MSGFLAG_ERROR);
-                    continue;
-                }
-
-                rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 1);
-                rowlen = sqlite3_column_bytes(stmt, 1);
-
-                // Adopt it into a device
-                std::shared_ptr<kis_tracked_device_base> kdb =
-                    convert_stored_device(p.second, m, rowstr, rowlen);
-
-                if (kdb != NULL) {
-                    AddDevice(kdb);
-                    num_devices++;
-                }
-            } else if (r == SQLITE_DONE) {
-                break;
-            } else {
-                _MSG("Devicetracker encountered an error loading stored devices: " + 
-                        string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-                break;
-            }
-        }
-
-        _MSG("Loaded " + UIntToString(num_devices) + " " + p.second->FetchPhyName() + " devices from storage...", MSGFLAG_INFO);
-    }
-
-    sqlite3_finalize(stmt);
-
-    return 1;
+    return statestore->load_devices();
 }
 
 // Attempt to load a single device from the database, return NULL if it wasn't found
 // or if there was an error
-shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Handler *in_phy,
+std::shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Handler *in_phy,
         mac_addr in_mac) {
 
-    if (!persistent_storage || persistent_mode != MODE_ONDEMAND)
+    if (!persistent_storage || persistent_mode != MODE_ONDEMAND || statestore == NULL)
         return NULL;
 
-    if (!Database_Valid())
+    if (!statestore->Database_Valid())
         return NULL;
 
-    // Lock the database; we're doing a single query
-    local_locker dblock(&ds_mutex);
-
-    std::string sql;
-    std::string macstring = in_mac.Mac2String();
-    std::string phystring = in_phy->FetchPhyName();
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql = 
-        "SELECT storagejson FROM device_storage WHERE phyname = ? AND "
-        "devmac = ?";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored device in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return NULL;
-    }
-
-    sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
-
-    while (1) {
-        r = sqlite3_step(stmt);
-
-        if (r == SQLITE_ROW) {
-            const unsigned char *rowstr;
-            unsigned long rowlen;
-
-            rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 0);
-            rowlen = sqlite3_column_bytes(stmt, 0);
-
-            return convert_stored_device(in_phy, in_mac, rowstr, rowlen);
-        } else if (r == SQLITE_DONE) {
-            break;
-        } else {
-            _MSG("Devicetracker encountered an error loading stored device: " + 
-                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            break;
-        }
-    }
-
-    sqlite3_finalize(stmt);
-
-    return NULL;
+    return statestore->load_device(in_phy, in_mac);
 }
 
 std::shared_ptr<kis_tracked_device_base> 
@@ -1465,12 +1277,16 @@ Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
         // Get the decompressed record
         std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
 
+        /*
         // Read out the structured json
         SharedStructured sjson(new StructuredJson(uzbuf));
+        */
+
+        SharedStructured sstructured(new StructuredMsgpack(uzbuf));
 
         // Process structured object into a shared element
         SharedTrackerElement e = 
-            StorageLoader::storage_to_tracker(entrytracker, sjson);
+            StorageLoader::storage_to_tracker(entrytracker, sstructured);
 
         // Adopt it into a device
         std::shared_ptr<kis_tracked_device_base> 
@@ -1730,3 +1546,293 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
     return;
 }
 
+DevicetrackerStateStore::DevicetrackerStateStore(GlobalRegistry *in_globalreg,
+        Devicetracker *in_devicetracker) :
+    KisDatabase(in_globalreg, "devicestate") {
+
+    devicetracker = in_devicetracker;
+
+    // Update the database
+    Database_UpgradeDB();
+}
+
+int DevicetrackerStateStore::Database_UpgradeDB() {
+    local_locker dblock(&ds_mutex);
+
+    unsigned int dbv = Database_GetDBVersion();
+    std::string sql;
+    int r;
+    char *sErrMsg = NULL;
+
+    if (dbv < 1) {
+        // We keep the last seen timestamp for automatic culling of the database of
+        // idle device records.
+        //
+        // We need to split out the phyname and device mac because key is linked to 
+        // the phy *number*, which is *variable* based on the order phys are initialized;
+        // we need to rekey the phys.
+        sql = 
+            "CREATE TABLE device_storage ("
+            "first_time INT, "
+            "last_time INT, "
+            "phyname TEXT, "
+            "devmac TEXT, "
+            "storage BLOB, "
+            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Devicetracker unable to create device_storage table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+    }
+
+    Database_SetDBVersion(1);
+
+    return 0;
+}
+
+int DevicetrackerStateStore::load_devices() {
+    if (!Database_Valid())
+        return 0;
+
+    std::string sql;
+    std::string phyname;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    sql = 
+        "SELECT devmac, storage FROM device_storage WHERE phyname = ?";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database query for stored devices in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return -1;
+    }
+
+    for (auto p : devicetracker->phy_handler_map) {
+        unsigned int num_devices = 0;
+
+        _MSG("Loading known devices for " + p.second->FetchPhyName(),
+                MSGFLAG_INFO);
+
+        sqlite3_reset(stmt);
+
+        phyname = p.second->FetchPhyName();
+
+        sqlite3_bind_text(stmt, 1, phyname.c_str(), phyname.length(), 0);
+
+        while (1) {
+            r = sqlite3_step(stmt);
+
+            if (r == SQLITE_ROW) {
+                const unsigned char *rowstr;
+                unsigned long rowlen;
+
+                mac_addr m;
+
+                rowstr = sqlite3_column_text(stmt, 0);
+                m = mac_addr((const char *) rowstr);
+
+                if (m.error) {
+                    _MSG("Encountered an error loading a stored device, "
+                            "unable to process mac address; skipping device.",
+                            MSGFLAG_ERROR);
+                    continue;
+                }
+
+                rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 1);
+                rowlen = sqlite3_column_bytes(stmt, 1);
+
+                // Adopt it into a device
+                std::shared_ptr<kis_tracked_device_base> kdb =
+                    devicetracker->convert_stored_device(p.second, m, rowstr, rowlen);
+
+                if (kdb != NULL) {
+                    devicetracker->AddDevice(kdb);
+                    num_devices++;
+                }
+            } else if (r == SQLITE_DONE) {
+                break;
+            } else {
+                _MSG("Encountered an error loading stored devices: " + 
+                        string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                break;
+            }
+        }
+
+        _MSG("Loaded " + UIntToString(num_devices) + " " + p.second->FetchPhyName() + 
+                " previous devices from storage...", MSGFLAG_INFO);
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 1;
+}
+
+// Attempt to load a single device from the database, return NULL if it wasn't found
+// or if there was an error
+std::shared_ptr<kis_tracked_device_base> 
+DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
+    if (!Database_Valid())
+        return NULL;
+
+    // Lock the database; we're doing a single query
+    local_locker dblock(&ds_mutex);
+
+    std::string sql;
+    std::string macstring = in_mac.Mac2String();
+    std::string phystring = in_phy->FetchPhyName();
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    sql = 
+        "SELECT storage FROM device_storage WHERE phyname = ? AND "
+        "devmac = ?";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database query for stored device in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return NULL;
+    }
+
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+
+    while (1) {
+        r = sqlite3_step(stmt);
+
+        if (r == SQLITE_ROW) {
+            const unsigned char *rowstr;
+            unsigned long rowlen;
+
+            rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 0);
+            rowlen = sqlite3_column_bytes(stmt, 0);
+
+            return devicetracker->convert_stored_device(in_phy, in_mac, rowstr, rowlen);
+        } else if (r == SQLITE_DONE) {
+            break;
+        } else {
+            _MSG("Encountered an error loading stored device: " + 
+                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            break;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+
+    return NULL;
+}
+
+int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
+    local_locker lock(&ds_mutex);
+
+    if (!Database_Valid()) {
+        _MSG("Unable to snapshot device records!  The database connection to " +
+                ds_dbfile + " is invalid...", MSGFLAG_ERROR);
+        return 0;
+    }
+
+    _MSG("Saving device state records...", MSGFLAG_INFO);
+
+    std::string sql;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string serialstring;
+    std::string macstring;
+
+    // Prep the compression buf
+    std::stringbuf sbuf;
+    zstr::ostreambuf zobuf(&sbuf, 1 << 16, true);
+    std::ostream zstream(&zobuf);
+
+    // Standard noncompression buf
+    std::ostream sstream(&sbuf);
+
+    std::ostream *serialstream;
+
+    if (devicetracker->persistent_compression)
+        serialstream = &zstream;
+    else
+        serialstream = &sstream;
+
+    sql = 
+        "INSERT INTO device_storage "
+        "(first_time, last_time, phyname, devmac, storage) "
+        "VALUES (?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to prepare database insert for devices in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return -1;
+    }
+ 
+    // Use a function worker to break up the load and insert it into the
+    // database
+    devicetracker_function_worker fw(globalreg,
+            [this, &serialstream, &zobuf, &sbuf, &stmt, &serialstring, 
+            &macstring](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                std::shared_ptr<kis_tracked_device_base> kdb =
+                    std::static_pointer_cast<kis_tracked_device_base>(d);
+
+                if (kdb->get_mod_time() <= devicetracker->last_devicelist_saved)
+                    return false;
+
+                sbuf.str("");
+                sqlite3_reset(stmt);
+
+                // Pack a storage formatted blob
+                {
+                    local_locker lock(&(devicetracker->devicelist_mutex));
+                    StorageMsgpackAdapter::Pack(globalreg, *serialstream, d, NULL);
+                }
+
+                // Sync the buffers
+                zobuf.pubsync();
+                sbuf.pubsync();
+
+                serialstring = sbuf.str();
+
+                macstring = kdb->get_macaddr().Mac2String();
+
+                sqlite3_bind_int(stmt, 1, kdb->get_first_time());
+                sqlite3_bind_int(stmt, 2, kdb->get_last_time());
+                sqlite3_bind_text(stmt, 3, kdb->get_phyname().c_str(), 
+                        kdb->get_phyname().length(), 0);
+                sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
+                sqlite3_bind_text(stmt, 5, serialstring.data(), serialstring.length(), 0);
+
+                sqlite3_step(stmt);
+
+                return false;
+            }, NULL);
+
+    // Perform the write as a single transaction
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    devicetracker->MatchOnDevices(&fw, devices);
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+
+    sqlite3_finalize(stmt);
+
+    return 1;
+}
