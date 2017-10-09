@@ -34,7 +34,7 @@ KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_nam
     std::string config_dir_path =
         globalreg->kismet_config->ExpandLogPath(config_dir_path_raw, "", "", 0, 1);
 
-    ds_dbfile = config_dir_path + "/" + in_module_name + ".db3";
+    ds_dbfile = config_dir_path + "/" + in_module_name;
 
     local_locker lock(&ds_mutex);
 
