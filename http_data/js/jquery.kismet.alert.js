@@ -355,19 +355,19 @@
                         $('<span>', {
                             class: "ka-alert-line-date"
                         })
-                        .text(ds)
+                        .html(ds)
                     )
                     .append(
                         $('<span>', {
                             class: "ka-alert-line-type"
                         })
-                        .text(alert_list[x]['kismet.alert.header'])
+                        .html(alert_list[x]['kismet.alert.header'])
                     )
                     .append(
                         $('<div>', {
                             class: "ka-alert-line-text"
                         })
-                        .text(alert_list[x]['kismet.alert.text'])
+                        .html(alert_list[x]['kismet.alert.text'])
                     )
                     .append(
                         $('<div>', {
@@ -377,7 +377,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .text(alert_list[x]['kismet.alert.source_mac'].split('/')[0])
+                            .html(alert_list[x]['kismet.alert.source_mac'])
                         )
                         .append(
                             $('<i>', {
@@ -388,7 +388,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .text(alert_list[x]['kismet.alert.dest_mac'].split('/')[0])
+                            .html(alert_list[x]['kismet.alert.dest_mac'])
                         )
                     )
                 );
