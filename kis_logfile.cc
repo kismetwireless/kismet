@@ -17,6 +17,10 @@
 */
 
 #include "config.h"
+
+#include "globalregistry.h"
+#include "messagebus.h"
+
 #include "kis_logfile.h"
 
 KisLogfile::KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
@@ -46,7 +50,7 @@ int KisLogfile::Database_UpgradeDB() {
 
             "strongest_signal INT, " // Strongest signal
 
-            "min_lat INT, " // Locational bounding rectangle
+            "min_lat INT, " // Normalized locational bounding rectangle
             "min_lon INT, "
             "max_lat INT, "
             "max_lon INT, "
@@ -56,11 +60,138 @@ int KisLogfile::Database_UpgradeDB() {
 
             "bytes_data INT, " // Amount of data seen on device
 
-            "type TEXT" // PHY specific type
+            "type TEXT, " // PHY specific type
 
-            "device BLOB" // Actual device
+            "device BLOB, " // Actual device
             
             "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Kismet log was unable to create devices table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        sql =
+            "CREATE TABLE data ("
+
+            "ts_sec INT, " // Timestamps
+            "ts_usec INT, "
+
+            "phyname TEXT, " // Packet name and phy
+            "devmac TEXT, "
+
+            "lat INT, " // Normalized location
+            "lon INT, "
+
+            "packet_len INT, " // Packet length
+
+            "signal INT, " // Signal level
+
+            "datasource TEXT, " // UUID of data source
+
+            "dlt INT, " // pcap data - datalinktype and packet bin
+            "packet BLOB, "
+
+            "error INT, " // Packet was flagged as invalid
+
+            "json BLOB " // Arbitrary JSON record
+
+            ")";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Kismet log was unable to create data table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        sql =
+            "CREATE TABLE alerts ("
+
+            "ts_sec INT, " // Timestamps
+            "ts_usec INT, "
+
+            "lat INT, " // Normalized location
+            "lon INT, "
+
+            "phyname TEXT, " // Alert phy
+            "header TEXT, " // Alert header/type
+
+            "json BLOB " // Alert JSON record
+
+            ")";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Kismet log was unable to create alerts table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        sql =
+            "CREATE TABLE messages ("
+
+            "ts_sec INT, " // Timestamps
+
+            "lat INT, " // Normalized location
+            "lon INT, "
+
+            "msgtype TEXT, " // Message type
+            
+            "message TEXT " // message
+
+            ")";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Kismet log was unable to create messages table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        sql =
+            "CREATE TABLE snapshot ("
+
+            "ts_sec INT, " // Timestamps
+            "ts_usec INT, "
+
+            "lat INT, " // Normalized location
+            "lon INT, "
+
+            "snaptype TEXT, " // Type of snapshot record
+
+            "json BLOB " // Arbitrary record
+
+            ")";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Kismet log was unable to create messages table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
 
 
     }
