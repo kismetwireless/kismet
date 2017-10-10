@@ -22,12 +22,22 @@
 #include "messagebus.h"
 
 #include "json_adapter.h"
+#include "packetchain.h"
 
 #include "kis_logfile.h"
 
 KisLogfile::KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
     KisDatabase(in_globalreg, "kismetlog", in_logname) {
 
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+
+    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
+    pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
+    pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
+    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
+    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_datasource = packetchain->RegisterPacketComponent("KISDATASRC");
 
     Database_UpgradeDB();
 }
@@ -202,6 +212,8 @@ int KisLogfile::Database_UpgradeDB() {
 }
 
 int KisLogfile::log_devices(TrackerElementVector in_devices) {
+    local_locker lock(&ds_mutex);
+
     std::string sql;
 
     int r;
@@ -217,7 +229,7 @@ int KisLogfile::log_devices(TrackerElementVector in_devices) {
         "(first_time, last_time, phyname, devmac, strongest_signal, "
         "min_lat, min_lon, max_lat, max_lon, "
         "avg_lat, avg_lon, "
-        "bytes_data, type, device "
+        "bytes_data, type, device) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
@@ -230,6 +242,8 @@ int KisLogfile::log_devices(TrackerElementVector in_devices) {
 
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
     for (auto i : in_devices) {
+        sqlite3_reset(stmt);
+
         std::shared_ptr<kis_tracked_device_base> d =
             std::static_pointer_cast<kis_tracked_device_base>(d);
 
@@ -284,3 +298,108 @@ int KisLogfile::log_devices(TrackerElementVector in_devices) {
     return 1;
 }
 
+int KisLogfile::log_packet(kis_packet *in_pack) {
+    local_locker lock(&ds_mutex);
+
+    std::string sql;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string phystring;
+    std::string macstring;
+    std::string sourceuuidstring;
+
+    sql =
+        "INSERT INTO devices "
+        "(ts_sec, ts_usec, phyname, devmac, "
+        "lat, lon, "
+        "packet_len, signal, "
+        "datasource, "
+        "dlt, packet, "
+        "error) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisLogfile unable to prepare database insert for data in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return -1;
+    }
+
+    kis_datachunk *chunk = 
+        (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
+
+    kis_layer1_packinfo *radioinfo = 
+        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
+
+    kis_gps_packinfo *gpsdata =
+        (kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+
+    kis_common_info *common =
+        (kis_common_info *) in_pack->fetch(pack_comp_common);
+
+    kis_tracked_device_info *devinfo =
+        (kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
+
+    packetchain_comp_datasource *datasrc =
+        (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasource);
+
+    if (devinfo != NULL) {
+        macstring = devinfo->devref->get_macaddr().Mac2String();
+        phystring = devinfo->devref->get_phyname();
+    } else {
+        macstring = "00:00:00:00:00:00";
+        phystring = "Unknown";
+    }
+
+    if (datasrc != NULL) {
+        sourceuuidstring = datasrc->ref_source->get_source_uuid().UUID2String();
+    } else {
+        sourceuuidstring = "00000000-0000-0000-0000-000000000000";
+    }
+
+    sqlite3_bind_int(stmt, 1, in_pack->ts.tv_sec);
+    sqlite3_bind_int(stmt, 2, in_pack->ts.tv_usec);
+
+    sqlite3_bind_text(stmt, 3, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
+
+    if (gpsdata != NULL) {
+        sqlite3_bind_int(stmt, 5, gpsdata->lat * 100000);
+        sqlite3_bind_int(stmt, 6, gpsdata->lon * 100000);
+    } else {
+        sqlite3_bind_int(stmt, 5, 0);
+        sqlite3_bind_int(stmt, 6, 0);
+    }
+
+    if (chunk != NULL) {
+        sqlite3_bind_int(stmt, 7, chunk->length);
+    } else {
+        sqlite3_bind_int(stmt, 7, 0);
+    }
+
+    if (radioinfo != NULL) {
+        sqlite3_bind_int(stmt, 8, radioinfo->signal_dbm);
+    } else {
+        sqlite3_bind_int(stmt, 8, 0);
+    }
+
+    sqlite3_bind_text(stmt, 9, sourceuuidstring.c_str(), sourceuuidstring.length(), 0);
+
+    if (chunk != NULL) {
+        sqlite3_bind_int(stmt, 10, chunk->dlt);
+        sqlite3_bind_text(stmt, 11, (const char *) chunk->data, chunk->length, 0);
+    } else {
+        sqlite3_bind_int(stmt, 10, -1);
+        sqlite3_bind_text(stmt, 11, "", 0, 0);
+    }
+
+    sqlite3_step(stmt);
+
+    sqlite3_finalize(stmt);
+
+    return 1;
+}

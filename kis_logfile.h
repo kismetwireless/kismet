@@ -78,9 +78,15 @@ public:
 
     virtual int Database_UpgradeDB();
 
+    // Log a vector of multiple devices, replacing any old device records
     virtual int log_devices(TrackerElementVector in_devices);
 
+    // Log a packet
+    virtual int log_packet(kis_packet *in_packet);
+
 protected:
+    int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata, pack_comp_common,
+        pack_comp_device, pack_comp_datasource;
 
 };
 
