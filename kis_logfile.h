@@ -69,6 +69,7 @@
 
 #include "globalregistry.h"
 #include "kis_database.h"
+#include "devicetracker.h"
 
 class KisLogfile : public KisDatabase {
 public:
@@ -76,6 +77,8 @@ public:
     virtual ~KisLogfile();
 
     virtual int Database_UpgradeDB();
+
+    virtual int log_devices(TrackerElementVector in_devices);
 
 protected:
 

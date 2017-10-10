@@ -21,6 +21,8 @@
 #include "globalregistry.h"
 #include "messagebus.h"
 
+#include "json_adapter.h"
+
 #include "kis_logfile.h"
 
 KisLogfile::KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
@@ -55,8 +57,8 @@ int KisLogfile::Database_UpgradeDB() {
             "max_lat INT, "
             "max_lon INT, "
 
-            "strongest_lat INT, " // Strongest location
-            "strongest_lon INT, "
+            "avg_lat INT, " // Average location
+            "avg_lon INT, "
 
             "bytes_data INT, " // Amount of data seen on device
 
@@ -195,6 +197,89 @@ int KisLogfile::Database_UpgradeDB() {
 
 
     }
+
+    return 1;
+}
+
+int KisLogfile::log_devices(TrackerElementVector in_devices) {
+    std::string sql;
+
+    int r;
+    sqlite3_stmt *stmt = NULL;
+    const char *pz = NULL;
+
+    std::string phystring;
+    std::string macstring;
+    std::string typestring;
+
+    sql =
+        "INSERT INTO devices "
+        "(first_time, last_time, phyname, devmac, strongest_signal, "
+        "min_lat, min_lon, max_lat, max_lon, "
+        "avg_lat, avg_lon, "
+        "bytes_data, type, device "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisLogfile unable to prepare database insert for devices in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        return -1;
+    }
+
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    for (auto i : in_devices) {
+        std::shared_ptr<kis_tracked_device_base> d =
+            std::static_pointer_cast<kis_tracked_device_base>(d);
+
+        phystring = d->get_phyname();
+        macstring = d->get_macaddr().Mac2String();
+        typestring = d->get_type_string();
+
+        sqlite3_bind_int(stmt, 1, d->get_first_time());
+        sqlite3_bind_int(stmt, 2, d->get_last_time());
+        sqlite3_bind_text(stmt, 3, phystring.c_str(), phystring.length(), 0);
+        sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
+        sqlite3_bind_int(stmt, 5, d->get_signal_data()->get_max_signal_dbm());
+
+        if (d->get_tracker_location() != NULL) {
+            sqlite3_bind_int(stmt, 6, 
+                    d->get_location()->get_min_loc()->get_lat() * 100000);
+            sqlite3_bind_int(stmt, 7,
+                    d->get_location()->get_min_loc()->get_lon() * 100000);
+            sqlite3_bind_int(stmt, 8,
+                    d->get_location()->get_max_loc()->get_lat() * 100000);
+            sqlite3_bind_int(stmt, 9,
+                    d->get_location()->get_max_loc()->get_lon() * 100000);
+            sqlite3_bind_int(stmt, 10,
+                    d->get_location()->get_avg_loc()->get_lat() * 100000);
+            sqlite3_bind_int(stmt, 11,
+                    d->get_location()->get_avg_loc()->get_lon() * 100000);
+        } else {
+            // Empty location
+            sqlite3_bind_int(stmt, 6, 0);
+            sqlite3_bind_int(stmt, 7, 0);
+            sqlite3_bind_int(stmt, 8, 0);
+            sqlite3_bind_int(stmt, 9, 0);
+            sqlite3_bind_int(stmt, 10, 0);
+            sqlite3_bind_int(stmt, 11, 0);
+        }
+
+        sqlite3_bind_int(stmt, 12, d->get_datasize());
+        sqlite3_bind_text(stmt, 13, typestring.c_str(), typestring.length(), 0);
+
+        std::stringstream sstr;
+
+        // Serialize the device
+        JsonAdapter::Pack(globalreg, sstr, d, NULL);
+        sqlite3_bind_text(stmt, 14, sstr.str().c_str(), sstr.str().length(), 0);
+
+        sqlite3_step(stmt);
+    }
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+
+    sqlite3_finalize(stmt);
 
     return 1;
 }
