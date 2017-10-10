@@ -397,6 +397,8 @@ int KisLogfile::log_packet(kis_packet *in_pack) {
         sqlite3_bind_text(stmt, 11, "", 0, 0);
     }
 
+    sqlite3_bind_int(stmt, 12, in_pack->error);
+
     sqlite3_step(stmt);
 
     sqlite3_finalize(stmt);
