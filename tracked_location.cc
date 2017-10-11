@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "tracked_location.h"
+#include "gpstracker.h"
 
 kis_tracked_location_triplet::kis_tracked_location_triplet(GlobalRegistry *in_globalreg, 
         int in_id) : tracker_component(in_globalreg, in_id) {
@@ -61,6 +62,18 @@ void kis_tracked_location_triplet::set(double in_lat, double in_lon) {
     gettimeofday(&tv, NULL);
     set_time_sec(tv.tv_sec);
     set_time_usec(tv.tv_usec);
+}
+
+void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
+    set_lat(in_packinfo->lat);
+    set_lon(in_packinfo->lon);
+    set_alt(in_packinfo->alt);
+    set_fix(in_packinfo->fix);
+    set_speed(in_packinfo->speed);
+    set_heading(in_packinfo->heading);
+    set_valid(in_packinfo->fix >= 2);
+    set_time_sec(in_packinfo->tv.tv_sec);
+    set_time_usec(in_packinfo->tv.tv_usec);
 }
 
 kis_tracked_location_triplet& 

@@ -36,6 +36,8 @@
 #include "trackedelement.h"
 #include "entrytracker.h"
 
+class kis_gps_packinfo;
+
 // Component-tracker common GPS element
 class kis_tracked_location_triplet : public tracker_component {
 public:
@@ -60,6 +62,8 @@ public:
     void set(double in_lat, double in_lon, double in_alt, unsigned int in_fix);
 
     void set(double in_lat, double in_lon);
+
+    void set(kis_gps_packinfo *in_packinfo);
 
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in);
 
