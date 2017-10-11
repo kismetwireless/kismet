@@ -34,6 +34,7 @@
 #include "packetchain.h"
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
+#include "kis_gps.h"
 
 #ifdef PRELUDE
 #include <libprelude/prelude.hxx>
@@ -55,10 +56,17 @@ public:
 		tm.tv_usec = 0;
 		channel = "0";
 
+        gps = NULL;
+
 		// We do NOT self-destruct because we get cached in the alertracker
 		// for playbacks.  It's responsible for discarding us
 		self_destruct = 0;
 	}
+
+    virtual ~kis_alert_info() {
+        if (gps != NULL)
+            delete(gps);
+    }
 
     uint64_t device_key;
 
@@ -71,6 +79,8 @@ public:
 	mac_addr other;
 	string channel;
 	string text;
+
+    kis_gps_packinfo *gps;
 };
 
 class kis_alert_component : public packet_component {
@@ -118,6 +128,8 @@ public:
 
     __Proxy(text, string, string, string, text);
 
+    __ProxyTrackable(location, kis_tracked_location_triplet, location);
+
     void from_alert_info(kis_alert_info *info) {
         set_device_key(info->device_key);
         set_header(info->header);
@@ -129,6 +141,7 @@ public:
         set_other_mac(info->other);
         set_channel(info->channel);
         set_text(info->text);
+        location->set(info->gps);
     }
 
 protected:
@@ -167,6 +180,22 @@ protected:
 
         RegisterField("kismet.alert.text", TrackerString,
                 "Alert text", &text);
+
+        location_id = 
+            RegisterComplexField("kismet.alert.location", std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)), "location");
+    }
+
+    virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+
+        if (e != NULL) {
+            location.reset(new kis_tracked_location_triplet(globalreg, location_id, 
+                        e->get_map_value(location_id)));
+        } else {
+            location.reset(new kis_tracked_location_triplet(globalreg, location_id));
+        }
+
+        add_map(location);
     }
 
     SharedTrackerElement device_key;
@@ -180,6 +209,9 @@ protected:
     SharedTrackerElement channel;
     SharedTrackerElement frequency;
     SharedTrackerElement text;
+
+    std::shared_ptr<kis_tracked_location_triplet> location;
+    int location_id;
 };
 
 
