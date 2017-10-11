@@ -58,6 +58,9 @@ KisLogfile::KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
     snapshot_stmt = NULL;
     snapshot_pz = NULL;
 
+    devicetracker =
+        Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DEVICE_TRACKER");
+
     Database_UpgradeDB();
 }
 
@@ -569,7 +572,75 @@ int KisLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
 
     sqlite3_bind_text(data_stmt, 8, json.data(), json.length(), 0);
 
-    sqlite3_step(packet_stmt);
+    sqlite3_step(data_stmt);
+
+    return 1;
+}
+
+int KisLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
+    local_locker lock(&alert_mutex);
+
+    sqlite3_reset(alert_stmt);
+
+    std::string macstring = in_alert->get_transmitter_mac().Mac2String();
+    std::string phystring = devicetracker->FetchPhyName(in_alert->get_phy());
+    std::string headerstring = in_alert->get_header();
+
+    std::stringstream ss;
+    std::string jsonstring;
+
+    // Break the double timestamp into two integers
+    double intpart, fractpart;
+    fractpart = modf(in_alert->get_timestamp(), &intpart);
+
+    sqlite3_bind_int(alert_stmt, 1, intpart);
+    sqlite3_bind_int(alert_stmt, 2, fractpart * 1000000);
+
+    sqlite3_bind_text(alert_stmt, 3, phystring.c_str(), phystring.length(), 0);
+    sqlite3_bind_text(alert_stmt, 4, macstring.c_str(), macstring.length(), 0);
+
+    if (in_alert->get_location()->get_valid()) {
+        sqlite3_bind_int(alert_stmt, 5, in_alert->get_location()->get_lat() * 100000);
+        sqlite3_bind_int(alert_stmt, 6, in_alert->get_location()->get_lon() * 100000);
+    } else {
+        sqlite3_bind_int(alert_stmt, 5, 0);
+        sqlite3_bind_int(alert_stmt, 6, 0);
+    }
+
+    sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), 0);
+
+    JsonAdapter::Pack(globalreg, ss, in_alert, NULL);
+    jsonstring = ss.str();
+
+    sqlite3_bind_text(alert_stmt, 8, jsonstring.data(), jsonstring.length(), 0);
+
+    sqlite3_step(alert_stmt);
+
+    return 1;
+}
+
+int KisLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+        std::string snaptype, std::string json) {
+
+    local_locker lock(&snapshot_mutex);
+
+    sqlite3_reset(snapshot_stmt);
+
+    sqlite3_bind_int(snapshot_stmt, 1, tv.tv_sec);
+    sqlite3_bind_int(snapshot_stmt, 2, tv.tv_usec);
+
+    if (gps != NULL) {
+        sqlite3_bind_int(snapshot_stmt, 3, gps->lat * 100000);
+        sqlite3_bind_int(snapshot_stmt, 4, gps->lon * 100000);
+    } else {
+        sqlite3_bind_int(snapshot_stmt, 3, 0);
+        sqlite3_bind_int(snapshot_stmt, 4, 0);
+    }
+
+    sqlite3_bind_text(snapshot_stmt, 5, snaptype.c_str(), snaptype.length(), 0);
+    sqlite3_bind_text(snapshot_stmt, 6, json.data(), json.length(), 0);
+
+    sqlite3_step(snapshot_stmt);
 
     return 1;
 }

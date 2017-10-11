@@ -96,13 +96,20 @@ public:
             std::string phystring, mac_addr devmac, uuid datasource_uuid, 
             std::string json);
 
-    // Log an alert
-    virtual int log_alert(kis_alert_info *in_alert);
+    // Log an alert; takes a standard tracked_alert element
+    virtual int log_alert(std::shared_ptr<tracked_alert> in_alert);
+
+    // Log snapshotted data; Slightly clunkier API since it has to allow for
+    // entirely generic data
+    virtual int log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+            std::string snaptype, std::string json);
 
 protected:
     // Per-table mutexes to prevent clobbering prepared statements
     std::recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
         alert_mutex, msg_mutex, snapshot_mutex;
+
+    std::shared_ptr<Devicetracker> devicetracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
         pack_comp_device, pack_comp_datasource;
