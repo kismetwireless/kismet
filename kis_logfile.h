@@ -35,17 +35,17 @@
  *              The entire known tracked device object in Kismet will be serialized to
  *              the database.
  *
- * DATA     -   Location-tagged data record which can include raw pcap data in the original
- *              DLT format of the datasource, arbitrary non-pcap data in JSON format,
- *              and similar instant records
- * 
- * ALERTS   -   Alert information from the Kismet WIDS subsystem
+ * PACKET   -   Location-tagged data record which includes raw pcap data in the original
+ *              DLT format of the datasource, suitable for conversion to pcap files
+ *
+ * DATA     -   Arbitrary non-pcap data in JSON format, and similar instant records tied
+ *              to an event or device
  *
  * MESSAGES -   Kismet message text (traditionally shown on the server console and the
  *              'Messages' panel of the UI)
  *
  * SNAPSHOT -   Snapshots of various state types, such as datasource performance, 
- *              channel usage, and other non-packet time-based records
+ *              channel usage, and other non-packet/non-device time-based records
  *
  *
  * Storage notes
@@ -70,6 +70,7 @@
 #include "globalregistry.h"
 #include "kis_database.h"
 #include "devicetracker.h"
+#include "alertracker.h"
 
 class KisLogfile : public KisDatabase {
 public:
@@ -81,13 +82,51 @@ public:
     // Log a vector of multiple devices, replacing any old device records
     virtual int log_devices(TrackerElementVector in_devices);
 
+    // Device logs are non-streaming; we need to know the last time we generated
+    // device logs so that we can update just the logs we need.
+    virtual time_t get_last_device_log_ts() { return last_device_log; }
+
     // Log a packet
     virtual int log_packet(kis_packet *in_packet);
 
+    // Log data that isn't a packet; this is a slightly more clunky API because we 
+    // can't derive the data from the simple packet interface.  GPS may be null,
+    // and other attributes may be empty, if that data is not available
+    virtual int log_data(kis_gps_packinfo *gps, struct timeval tv, 
+            std::string phystring, mac_addr devmac, uuid datasource_uuid, 
+            std::string json);
+
+    // Log an alert
+    virtual int log_alert(kis_alert_info *in_alert);
+
 protected:
-    int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata, pack_comp_common,
+    // Per-table mutexes to prevent clobbering prepared statements
+    std::recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
+        alert_mutex, msg_mutex, snapshot_mutex;
+
+    int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
         pack_comp_device, pack_comp_datasource;
 
+    time_t last_device_log;
+
+    // Prebaked parameterized statements
+    sqlite3_stmt *device_stmt;
+    const char *device_pz;
+
+    sqlite3_stmt *packet_stmt;
+    const char *packet_pz;
+
+    sqlite3_stmt *data_stmt;
+    const char *data_pz;
+    
+    sqlite3_stmt *alert_stmt;
+    const char *alert_pz;
+
+    sqlite3_stmt *msg_stmt;
+    const char *msg_pz;
+    
+    sqlite3_stmt *snapshot_stmt;
+    const char *snapshot_pz;
 };
 
 #endif
