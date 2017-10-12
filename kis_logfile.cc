@@ -26,7 +26,7 @@
 
 #include "kis_logfile.h"
 
-KisLogfile::KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
+KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
     KisDatabase(in_globalreg, "kismetlog", in_logname) {
 
     std::shared_ptr<Packetchain> packetchain =
@@ -64,7 +64,7 @@ KisLogfile::KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
     Database_UpgradeDB();
 }
 
-KisLogfile::~KisLogfile() {
+KisDatabaseLogfile::~KisDatabaseLogfile() {
     local_eol_locker dblock(&ds_mutex);
 
     if (device_stmt != NULL)
@@ -86,7 +86,7 @@ KisLogfile::~KisLogfile() {
         sqlite3_finalize(snapshot_stmt);
 }
 
-int KisLogfile::Database_UpgradeDB() {
+int KisDatabaseLogfile::Database_UpgradeDB() {
     local_locker dblock(&ds_mutex);
 
     unsigned int dbv = Database_GetDBVersion();
@@ -293,7 +293,7 @@ int KisLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisLogfile unable to prepare database insert for devices in " +
+        _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -313,7 +313,7 @@ int KisLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisLogfile unable to prepare database insert for packets in " +
+        _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -332,7 +332,7 @@ int KisLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisLogfile unable to prepare database insert for data in " +
+        _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -350,7 +350,7 @@ int KisLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &alert_stmt, &alert_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisLogfile unable to prepare database insert for alerts in " +
+        _MSG("KisDatabaseLogfile unable to prepare database insert for alerts in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -367,7 +367,7 @@ int KisLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &msg_stmt, &msg_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisLogfile unable to prepare database insert for messages in " +
+        _MSG("KisDatabaseLogfile unable to prepare database insert for messages in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -384,7 +384,7 @@ int KisLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &snapshot_stmt, &snapshot_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisLogfile unable to prepare database insert for snapshots in " +
+        _MSG("KisDatabaseLogfile unable to prepare database insert for snapshots in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -394,7 +394,7 @@ int KisLogfile::Database_UpgradeDB() {
     return 1;
 }
 
-int KisLogfile::log_devices(TrackerElementVector in_devices) {
+int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
     // We avoid using external mutexes here and try to let sqlite3 handle its own
     // internal locking state; we don't want a huge device list write to block packet
     // writes for instance
@@ -463,7 +463,7 @@ int KisLogfile::log_devices(TrackerElementVector in_devices) {
     return 1;
 }
 
-int KisLogfile::log_packet(kis_packet *in_pack) {
+int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     local_locker lock(&packet_mutex);
     
     sqlite3_reset(packet_stmt);
@@ -544,7 +544,7 @@ int KisLogfile::log_packet(kis_packet *in_pack) {
     return 1;
 }
 
-int KisLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
+int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
         std::string phystring, mac_addr devmac, uuid datasource_uuid, 
         std::string json) {
     local_locker lock(&data_mutex);
@@ -577,7 +577,7 @@ int KisLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     return 1;
 }
 
-int KisLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
+int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     local_locker lock(&alert_mutex);
 
     sqlite3_reset(alert_stmt);
@@ -619,7 +619,7 @@ int KisLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     return 1;
 }
 
-int KisLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         std::string snaptype, std::string json) {
 
     local_locker lock(&snapshot_mutex);

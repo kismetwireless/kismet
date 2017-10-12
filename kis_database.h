@@ -57,14 +57,17 @@ class KisDatabase {
     // integrated into a poly class it can be built directly via that classes state
     // system
 protected:
-    // Dictates the file to be opened; if the file path is blank then it will be
-    // opened as a .db3 file under ~/.kismet/, otherwise the provided path will
-    // be used.
-    KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name,
-            std::string in_file_path);
+    // Initialize a database w/ a known module name; opening the database is done with
+    // Database_Open(...)
+    KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name);
 
 public:
     virtual ~KisDatabase();
+
+    // Open the database file and initialize the KISMET table; if in_path is empty,
+    // the database is opened in the local-user settings dir and named according to
+    // the module name
+    virtual bool Database_Open(std::string in_path);
 
     virtual bool Database_Valid();
 

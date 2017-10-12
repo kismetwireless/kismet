@@ -22,11 +22,23 @@
 #include "globalregistry.h"
 #include "util.h"
 
-KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name,
-        std::string in_file_path) : ds_module_name(in_module_name) {
+KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name) :
+        ds_module_name(in_module_name) {
 
     globalreg = in_globalreg;
 
+}
+
+KisDatabase::~KisDatabase() {
+    local_eol_locker lock(&ds_mutex);
+
+    if (db != NULL) {
+        sqlite3_close(db);
+        db = NULL;
+    }
+}
+
+bool KisDatabase::Database_Open(std::string in_file_path) {
     char *sErrMsg = NULL;
 
     if (in_file_path.length() == 0) {
@@ -35,7 +47,7 @@ KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_nam
         std::string config_dir_path =
             globalreg->kismet_config->ExpandLogPath(config_dir_path_raw, "", "", 0, 1);
 
-        ds_dbfile = config_dir_path + "/" + in_module_name + ".db3"; 
+        ds_dbfile = config_dir_path + "/" + ds_module_name + ".db3"; 
     } else {
         ds_dbfile = in_file_path;
     }
@@ -50,7 +62,7 @@ KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_nam
         _MSG("KisDatabase unable to open file " + ds_dbfile + ": " +
                 std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         db = NULL;
-        return;
+        return false;
     }
 
     // Do we have a KISMET table?  If not, this is probably a new database.
@@ -73,24 +85,17 @@ KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_nam
                 std::string(sErrMsg), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
-        return;
+        return false;
     }
 
     // If the table doesn't exist, build it...
     if (!k_t_exists) {
         // Build the master table
         if (!Database_CreateMasterTable())
-            return;
+            return false;
     }
-}
 
-KisDatabase::~KisDatabase() {
-    local_eol_locker lock(&ds_mutex);
-
-    if (db != NULL) {
-        sqlite3_close(db);
-        db = NULL;
-    }
+    return true;
 }
 
 bool KisDatabase::Database_CreateMasterTable() {

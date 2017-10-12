@@ -73,11 +73,14 @@
 #include "kis_database.h"
 #include "devicetracker.h"
 #include "alertracker.h"
+#include "logtracker.h"
 
-class KisLogfile : public KisDatabase {
+class KisDatabaseLogfile : public KisDatabase {
 public:
-    KisLogfile(GlobalRegistry *in_globalreg, std::string in_logname);
-    virtual ~KisLogfile();
+    KisDatabaseLogfile(GlobalRegistry *in_globalreg, std::string in_logname);
+    virtual ~KisDatabaseLogfile();
+
+    virtual bool Log_Open(std::string in_path);
 
     virtual int Database_UpgradeDB();
 

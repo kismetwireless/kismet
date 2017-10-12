@@ -132,11 +132,11 @@ public:
     }
 
     virtual ~KisLogfile() { 
-        local_eol_locker(&log_mutex);
+        local_eol_locker lock(&log_mutex);
 
-        if (streaming_log) {
+        if (builder != NULL && builder->get_stream()) {
             shared_ptr<StreamTracker> streamtracker = 
-                globalreg->FetchGlobalAs<StreamTracker>("STREAMTRACKER");
+                Globalreg::FetchGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
 
             streamtracker->remove_streamer(get_stream_id());
         }
@@ -147,12 +147,22 @@ public:
         return SharedTrackerElement(new KisLogfile(globalreg, get_id(), builder));
     }
 
+    virtual bool Log_Open(std::string in_path) { return false; }
+
+    __ProxyTrackable(builder, KisLogfileBuilder, builder);
+    __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
+    __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
         RegisterField("kismet.logfile.description", TrackerString,
-                "Log description", &log_description);
+                "log description", &log_description);
+        RegisterField("kismet.logfile.path", TrackerString,
+                "filesystem path to log", &log_path);
+        RegisterField("kismet.logfile.open", TrackerUInt8,
+                "log is currently open", &log_open);
 
     }
 
@@ -164,6 +174,8 @@ protected:
     std::recursive_timed_mutex log_mutex;
 
     SharedTrackerElement log_description;
+    SharedTrackerElement log_path;
+    SharedTrackerElement log_open;
 };
 
 class LogTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {

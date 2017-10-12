@@ -60,7 +60,7 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg),
-    KisDatabase(in_globalreg, "devicetracker", "") {
+    KisDatabase(in_globalreg, "devicetracker") {
 
     // Initialize as recursive to allow multiple locks in a single thread
     pthread_mutexattr_t mutexattr;
@@ -295,7 +295,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "keep_datasource_signal_history=true", MSGFLAG_INFO);
     }
 
-    // Update the database
+    // Open and upgrade the DB, default path
+    Database_Open("");
     Database_UpgradeDB();
 }
 
@@ -1548,11 +1549,12 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
 
 DevicetrackerStateStore::DevicetrackerStateStore(GlobalRegistry *in_globalreg,
         Devicetracker *in_devicetracker) :
-    KisDatabase(in_globalreg, "devicestate", "") {
+    KisDatabase(in_globalreg, "devicestate") {
 
     devicetracker = in_devicetracker;
 
-    // Update the database
+    // Open and upgrade the DB, default path
+    Database_Open("");
     Database_UpgradeDB();
 }
 
