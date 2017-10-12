@@ -63,7 +63,7 @@ public:
         KisDatasourceBuilder(in_globalreg, in_id, e) {
 
         register_fields();
-        reserve_fields(NULL);
+        reserve_fields(e);
         initialize();
     }
 
