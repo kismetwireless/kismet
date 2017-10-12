@@ -129,32 +129,38 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	next_phy_id = 0;
 
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+
 	// Register global packet components used by the device tracker and
 	// subsequent parts
 	pack_comp_device = _PCM(PACK_COMP_DEVICE) =
-		globalreg->packetchain->RegisterPacketComponent("DEVICE");
+		packetchain->RegisterPacketComponent("DEVICE");
 
 	pack_comp_common =  _PCM(PACK_COMP_COMMON) =
-		globalreg->packetchain->RegisterPacketComponent("COMMON");
+		packetchain->RegisterPacketComponent("COMMON");
 
 	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) =
-		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
+		packetchain->RegisterPacketComponent("BASICDATA");
 
 	_PCM(PACK_COMP_MANGLEFRAME) =
-		globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
+		packetchain->RegisterPacketComponent("MANGLEDATA");
 
 	pack_comp_radiodata =
-		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+		packetchain->RegisterPacketComponent("RADIODATA");
 
 	pack_comp_gps =
-		globalreg->packetchain->RegisterPacketComponent("GPS");
+		packetchain->RegisterPacketComponent("GPS");
 
 	pack_comp_datasrc = 
-		globalreg->packetchain->RegisterPacketComponent("KISDATASRC");
+		packetchain->RegisterPacketComponent("KISDATASRC");
 
 	// Common tracker, very early in the tracker chain
-	globalreg->packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
+	packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
+
+    std::shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     if (!globalreg->kismet_config->FetchOptBoolean("persistent_config_present", false)) {
         _MSG("Kismet has recently added persistent device storage; it looks like you "
@@ -187,8 +193,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             devices_storing = false;
 
             device_storage_timer =
-                globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * storerate, 
-                        NULL, 1,
+                timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * storerate, NULL, 1,
                         [this](int) -> int {
                             local_locker l(&storing_mutex);
 
@@ -252,8 +257,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 		// Schedule device idle reaping every minute
         device_idle_timer =
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL,
-                1, this);
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
     } else {
         device_idle_timer = -1;
     }
@@ -269,8 +273,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 		// Schedule max device reaping every 5 seconds
 		max_devices_timer =
-			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL,
-				1, this);
+			timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1, this);
 	} else {
 		max_devices_timer = -1;
 	}
@@ -313,12 +316,20 @@ Devicetracker::~Devicetracker() {
     globalreg->devicetracker = NULL;
     globalreg->RemoveGlobal("DEVICE_TRACKER");
 
-	globalreg->packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
-										  CHAINPOS_TRACKER);
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    if (packetchain != NULL) {
+        packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
+                CHAINPOS_TRACKER);
+    }
 
-    globalreg->timetracker->RemoveTimer(device_idle_timer);
-	globalreg->timetracker->RemoveTimer(max_devices_timer);
-    globalreg->timetracker->RemoveTimer(device_storage_timer);
+    std::shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    if (timetracker != NULL) {
+        timetracker->RemoveTimer(device_idle_timer);
+        timetracker->RemoveTimer(max_devices_timer);
+        timetracker->RemoveTimer(device_storage_timer);
+    }
 
     // TODO broken for now
     /*
@@ -326,8 +337,7 @@ Devicetracker::~Devicetracker() {
 		delete track_filter;
     */
 
-    for (map<int, Kis_Phy_Handler *>::iterator p = phy_handler_map.begin();
-            p != phy_handler_map.end(); ++p) {
+    for (auto p = phy_handler_map.begin(); p != phy_handler_map.end(); ++p) {
         delete p->second;
     }
 
