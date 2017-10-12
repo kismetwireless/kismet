@@ -141,7 +141,9 @@ public:
         set_other_mac(info->other);
         set_channel(info->channel);
         set_text(info->text);
-        location->set(info->gps);
+
+        if (info->gps != NULL)
+            location->set(info->gps);
     }
 
 protected:

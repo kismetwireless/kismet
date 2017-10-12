@@ -65,6 +65,9 @@ void kis_tracked_location_triplet::set(double in_lat, double in_lon) {
 }
 
 void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
+    if (in_packinfo == NULL)
+        return;
+
     set_lat(in_packinfo->lat);
     set_lon(in_packinfo->lon);
     set_alt(in_packinfo->alt);
