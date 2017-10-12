@@ -25,10 +25,7 @@ config.guess.dh*
 config.sub.dh*
 
 # built binaries
-kismet_capture
-kismet_client
-kismet_drone
-kismet_server
+kismet
 
 # Plugin stuff
 plugin-*/*.so

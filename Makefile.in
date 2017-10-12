@@ -124,8 +124,8 @@ commoninstall: $(INSTBINS)
 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(PS) $(BIN)/$(PS); 
 
-	# Symlink it to the old name
-	ln -s -f $(BIN)/$(PS) $(BIN)/kismet_server;
+	# Install the alias script
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 kismet_server $(BIN)/kismet_server; 
 
 	mkdir -p $(BIN)/kismet_capture_tools/
 

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "kismet_server is now named just kismet, you may wish to update "
+echo "any scripts still using kismet_server to launch."
+
+sleep 1
+
+exec kismet $*
