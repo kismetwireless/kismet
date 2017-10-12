@@ -75,9 +75,9 @@
 #include "alertracker.h"
 #include "logtracker.h"
 
-class KisDatabaseLogfile : public KisDatabase {
+class KisDatabaseLogfile : public KisLogfile, public KisDatabase {
 public:
-    KisDatabaseLogfile(GlobalRegistry *in_globalreg, std::string in_logname);
+    KisDatabaseLogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder);
     virtual ~KisDatabaseLogfile();
 
     virtual bool Log_Open(std::string in_path);
@@ -140,6 +140,50 @@ protected:
     sqlite3_stmt *snapshot_stmt;
     const char *snapshot_pz;
 };
+
+class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
+public:
+    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
+        KisLogfileBuilder(in_globalreg, in_id) {
+           
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) :
+        KisLogfileBuilder(in_globalreg, in_id, e) {
+
+        register_fields();
+        reserve_fields(e);
+        initialize();
+    }
+
+    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg) :
+        KisLogfileBuilder(in_globalreg, 0) {
+
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    virtual ~KisDatabaseLogfileBuilder() { }
+
+    virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
+        return SharedLogfile(new KisDatabaseLogfile(globalreg, builder));
+    }
+
+    virtual void initialize() {
+        set_log_class("kismet");
+        set_log_name("Kismet Unified Log");
+        set_log_stream(true);
+        set_log_singleton(true);
+        set_log_description("Unified Kismet log containing device, data source, packet, "
+                "alert, and other runtime data");
+    }
+};
+
 
 #endif
 

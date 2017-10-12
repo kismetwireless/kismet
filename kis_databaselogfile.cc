@@ -24,10 +24,12 @@
 #include "json_adapter.h"
 #include "packetchain.h"
 
-#include "kis_logfile.h"
+#include "kis_databaselogfile.h"
 
-KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg, std::string in_logname) :
-    KisDatabase(in_globalreg, "kismetlog", in_logname) {
+KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg, 
+        SharedLogBuilder in_builder) :
+    KisLogfile(in_globalreg, in_builder), 
+    KisDatabase(in_globalreg, "kismetlog") {
 
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
@@ -60,8 +62,6 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg, std::string
 
     devicetracker =
         Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DEVICE_TRACKER");
-
-    Database_UpgradeDB();
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
@@ -84,6 +84,15 @@ KisDatabaseLogfile::~KisDatabaseLogfile() {
 
     if (snapshot_stmt != NULL)
         sqlite3_finalize(snapshot_stmt);
+}
+
+bool KisDatabaseLogfile::Log_Open(std::string in_path) {
+    bool dbr = Database_Open(in_path);
+
+    if (!dbr)
+        return false;
+
+    return Database_UpgradeDB();
 }
 
 int KisDatabaseLogfile::Database_UpgradeDB() {

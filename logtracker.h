@@ -83,29 +83,33 @@ public:
 
     virtual void initialize();
 
-    __Proxy(log_class, string, string, string, log_class);
-    __Proxy(log_name, string, string, string, log_name);
+    __Proxy(log_class, std::string, std::string, std::string, log_class);
+    __Proxy(log_name, std::string, std::string, std::string, log_name);
     __Proxy(stream, uint8_t, bool, bool, stream_log);
     __Proxy(singleton, uint8_t, bool, bool, singleton);
+    __Proxy(log_description, std::string, std::string, std::string, description);
 
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
         RegisterField("kismet.logfile.type.class", TrackerString,
-                "Class/type", &log_class);
+                "class/type", &log_class);
         RegisterField("kismet.logfile.type.name", TrackerString,
-                "Base type name", &log_name);
+                "base type name", &log_name);
         RegisterField("kismet.logfile.type.stream", TrackerUInt8,
-                "Continual streaming", &stream_log);
+                "continual streaming", &stream_log);
         RegisterField("kismet.logfile.type.singleton", TrackerUInt8,
-                "Single-instance of log type permitted", &singleton);
+                "single-instance of log type permitted", &singleton);
+        RegisterField("kismet.logfile.type.description", TrackerString,
+                "base description", &description);
     }
 
     SharedTrackerElement log_class;
     SharedTrackerElement log_name;
     SharedTrackerElement stream_log;
     SharedTrackerElement singleton;
+    SharedTrackerElement description;
 };
 
 // Logfiles written to disk can be 'block' logs (like the device log), or they can be
