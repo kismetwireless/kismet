@@ -21,6 +21,13 @@ include=%E/kismet_memory.conf
 # Include the alert config options
 include=%E/kismet_alerts.conf
 
+# Include the storage options
+include=%E/kismet_storage.conf
+
+# Include logging options
+include=%E/kismet_logging.conf
+
+
 # Where capture binaries are allowed to live; for security reasons capture
 # binaries are only executed from these directories
 capture_binary_path=%B/kismet_capture_tools/
