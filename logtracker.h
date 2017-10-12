@@ -31,10 +31,10 @@
 #include "streamtracker.h"
 
 class KisLogfileBuilder;
-typedef shared_ptr<KisLogfileBuilder> SharedLogBuilder;
+typedef std::shared_ptr<KisLogfileBuilder> SharedLogBuilder;
 
 class KisLogfile;
-typedef shared_ptr<KisLogfile> SharedLogfile;
+typedef std::shared_ptr<KisLogfile> SharedLogfile;
 
 // Logfile builders are responsible for telling the logging tracker what sort of 
 // log we are, the type and default name, if we're a singleton log that can't have multiple
@@ -128,8 +128,8 @@ public:
         reserve_fields(e);
     }
 
-    KisLogfile(GlobalRegistry *in_globalreg, int in_id, SharedLogBuilder in_builder) :
-        tracker_component(in_globalreg, in_id) {
+    KisLogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder) :
+        tracker_component(in_globalreg, 0) {
         register_fields();
         reserve_fields(NULL);
         builder = in_builder;
@@ -139,7 +139,7 @@ public:
         local_eol_locker lock(&log_mutex);
 
         if (builder != NULL && builder->get_stream()) {
-            shared_ptr<StreamTracker> streamtracker = 
+            std::shared_ptr<StreamTracker> streamtracker = 
                 Globalreg::FetchGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
 
             streamtracker->remove_streamer(get_stream_id());
@@ -153,6 +153,7 @@ public:
 
     virtual bool Log_Open(std::string in_path) { return false; }
 
+    __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
     __ProxyTrackable(builder, KisLogfileBuilder, builder);
     __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
     __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
@@ -161,6 +162,8 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
+        RegisterField("kismet.logfile.uuid", TrackerUuid,
+                "unique log id", &log_uuid);
         RegisterField("kismet.logfile.description", TrackerString,
                 "log description", &log_description);
         RegisterField("kismet.logfile.path", TrackerString,
@@ -177,6 +180,8 @@ protected:
 
     std::recursive_timed_mutex log_mutex;
 
+    SharedTrackerElement log_uuid;
+
     SharedTrackerElement log_description;
     SharedTrackerElement log_path;
     SharedTrackerElement log_open;
@@ -184,8 +189,8 @@ protected:
 
 class LogTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
-    static shared_ptr<LogTracker> create_logtracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<LogTracker> mon(new LogTracker(in_globalreg));
+    static std::shared_ptr<LogTracker> create_logtracker(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<LogTracker> mon(new LogTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("LOGTRACKER", mon);
         return mon;
@@ -199,6 +204,16 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
+    // Start up logs once Kismet is up and running, this happens before the
+    // main select() loop in kismet
+    int system_startup();
+
+    // Shut down all logs, this happens as Kismet is terminating
+    void system_shutdown();
+
+    // Register a log type
+    int register_log(SharedLogBuilder in_builder);
+
 private:
     LogTracker(GlobalRegistry *in_globalreg);
 
@@ -208,7 +223,13 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    shared_ptr<StreamTracker> streamtracker;
+    std::shared_ptr<StreamTracker> streamtracker;
+
+    // Vector of prototypes
+    SharedTrackerElement logproto_vec;
+
+    // Vector of logs
+    SharedTrackerElement log_vec;
 
 };
 

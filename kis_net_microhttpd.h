@@ -457,7 +457,6 @@ class Kis_Net_Httpd : public LifetimeGlobal {
 public:
     static shared_ptr<Kis_Net_Httpd> create_httpd(GlobalRegistry *in_globalreg) {
         shared_ptr<Kis_Net_Httpd> mon(new Kis_Net_Httpd(in_globalreg));
-        in_globalreg->httpd_server = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("HTTPD_SERVER", mon);
         return mon;

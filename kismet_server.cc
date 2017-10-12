@@ -1047,7 +1047,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Start the http server as the last thing before we start sources
     websession->activate_config();
-    globalregistry->httpd_server->StartHttpd();
+
+    Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER")->StartHttpd();
 
     // Blab about starting
     globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",

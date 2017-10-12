@@ -42,12 +42,9 @@ GlobalRegistry::GlobalRegistry() {
 	next_ext_ref = 0;
 
 	messagebus = NULL;
-	plugintracker = NULL;
 	packetchain = NULL;
 	alertracker = NULL;
 	timetracker = NULL;
-	kisnetserver = NULL;
-	kisdroneserver = NULL;
 	kismet_config = NULL;
 	builtindissector = NULL;
 	manufdb = NULL;
@@ -86,8 +83,8 @@ GlobalRegistry::GlobalRegistry() {
 }
 
 // External globals -- allow other things to tie structs to us
-int GlobalRegistry::RegisterGlobal(string in_name) {
-	map<string, int>::iterator i;
+int GlobalRegistry::RegisterGlobal(std::string in_name) {
+    std::map<std::string, int>::iterator i;
 
 	if ((i = ext_name_map.find(StrLower(in_name))) != ext_name_map.end())
 		return i->second;
@@ -99,21 +96,21 @@ int GlobalRegistry::RegisterGlobal(string in_name) {
 	return next_ext_ref;
 }
 
-int GlobalRegistry::FetchGlobalRef(string in_name) {
+int GlobalRegistry::FetchGlobalRef(std::string in_name) {
 	if (ext_name_map.find(StrLower(in_name)) == ext_name_map.end())
 		return -1;
 
 	return ext_name_map[StrLower(in_name)];
 }
 
-shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
+std::shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
 		return NULL;
 
 	return ext_data_map[in_ref];
 }
 
-shared_ptr<void> GlobalRegistry::FetchGlobal(string in_name) {
+std::shared_ptr<void> GlobalRegistry::FetchGlobal(std::string in_name) {
 	int ref;
 
 	if ((ref = FetchGlobalRef(in_name)) < 0) {
@@ -123,7 +120,7 @@ shared_ptr<void> GlobalRegistry::FetchGlobal(string in_name) {
 	return ext_data_map[ref];
 }
 
-int GlobalRegistry::InsertGlobal(int in_ref, shared_ptr<void> in_data) {
+int GlobalRegistry::InsertGlobal(int in_ref, std::shared_ptr<void> in_data) {
 	/*
 	if (ext_data_map.find(in_ref) == ext_data_map.end()) {
 		fprintf(stderr, "debug - insertglobal no ref %d\n", in_ref);
@@ -142,13 +139,13 @@ void GlobalRegistry::RemoveGlobal(int in_ref) {
     }
 }
 
-int GlobalRegistry::InsertGlobal(string in_name, shared_ptr<void> in_data) {
+int GlobalRegistry::InsertGlobal(std::string in_name, std::shared_ptr<void> in_data) {
 	int ref = RegisterGlobal(in_name);
 
 	return InsertGlobal(ref, in_data);
 }
 
-void GlobalRegistry::RemoveGlobal(string in_name) {
+void GlobalRegistry::RemoveGlobal(std::string in_name) {
     int ref = FetchGlobalRef(in_name);
     RemoveGlobal(ref);
 }
@@ -167,8 +164,8 @@ int GlobalRegistry::RemoveDumpFile(Dumpfile *in_dump) {
 	return 0;
 }
 
-Dumpfile *GlobalRegistry::FindDumpFileType(string in_type) {
-	string type = StrUpper(in_type);
+Dumpfile *GlobalRegistry::FindDumpFileType(std::string in_type) {
+    std::string type = StrUpper(in_type);
 	for (unsigned int x = 0; x < subsys_dumpfile_vec.size(); x++) {
 		if (StrUpper(subsys_dumpfile_vec[x]->FetchFileType()) == type) {
 			return subsys_dumpfile_vec[x];
@@ -192,13 +189,12 @@ void GlobalRegistry::RemoveUsageFunc(usage_func in_cli) {
     }
 }
 
-void GlobalRegistry::RegisterLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g) {
+void GlobalRegistry::RegisterLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g) {
     lifetime_vec.insert(lifetime_vec.begin(), in_g);
 }
 
-void GlobalRegistry::RemoveLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g) {
-    for (vector<shared_ptr<LifetimeGlobal> >::iterator i = lifetime_vec.begin();
-            i != lifetime_vec.end(); ++i) {
+void GlobalRegistry::RemoveLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g) {
+    for (auto i = lifetime_vec.begin(); i != lifetime_vec.end(); ++i) {
         if (*i == in_g) {
             lifetime_vec.erase(i);
             break;
@@ -207,8 +203,7 @@ void GlobalRegistry::RemoveLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g) {
 }
 
 void GlobalRegistry::DeleteLifetimeGlobals() {
-	for (vector<shared_ptr<LifetimeGlobal> >::iterator i = lifetime_vec.begin();
-			i != lifetime_vec.end(); ++i) {
+	for (auto i = lifetime_vec.begin(); i != lifetime_vec.end(); ++i) {
 		lifetime_vec.erase(i);
 		i = lifetime_vec.begin();
 	}

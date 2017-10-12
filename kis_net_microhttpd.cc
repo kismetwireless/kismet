@@ -200,7 +200,6 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
     pthread_mutex_lock(&controller_mutex);
 
     globalreg->RemoveGlobal("HTTPD_SERVER");
-    globalreg->httpd_server = NULL;
 
     // Wipe out all handlers
     handler_vec.erase(handler_vec.begin(), handler_vec.end());

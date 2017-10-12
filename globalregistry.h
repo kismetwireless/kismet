@@ -198,21 +198,15 @@ public:
     // Globals which should be deprecated in favor of named globals; all code should
     // be migrated to the shared pointer references
 
-	Plugintracker *plugintracker;
-	
 	// New multiphy tracker
 	Devicetracker *devicetracker;
 
     Packetchain *packetchain;
     Alertracker *alertracker;
     Timetracker *timetracker;
-    KisNetFramework *kisnetserver;
-    KisDroneFramework *kisdroneserver;
     ConfigFile *kismet_config;
 	KisBuiltinDissector *builtindissector;
 	Manuf *manufdb;
-
-    Kis_Net_Httpd *httpd_server;
 
 	string log_prefix;
 
@@ -224,19 +218,19 @@ public:
 
     // TODO probably deprecate these with the new logging system
 	// Vector of dumpfiles to close cleanly
-	vector<Dumpfile *> subsys_dumpfile_vec;
+    std::vector<Dumpfile *> subsys_dumpfile_vec;
 
     // TODO deprecate this with the new ipcremote2 system
 	// Vector of child signals
-	vector<std::shared_ptr<pid_fail> > sigchild_vec;
+    std::vector<std::shared_ptr<pid_fail> > sigchild_vec;
 	
     time_t start_time;
     string servername;
 	struct timeval timestamp;
 
-	string homepath;
+    std::string homepath;
 
-	string logname;
+    std::string logname;
 
     // Filter maps for the various filter types
     int filter_tracker;
@@ -275,7 +269,7 @@ public:
 	Dumpfile_Pcap *pcapdump;
 
 	// Critical failure elements
-	vector<critical_fail> critfail_vec;
+    std::vector<critical_fail> critfail_vec;
 
     // Field name tracking
     EntryTracker *entrytracker;
@@ -283,16 +277,16 @@ public:
     GlobalRegistry();
 
     // External globals -- allow other things to tie structs to us
-    int RegisterGlobal(string in_name);
-    int FetchGlobalRef(string in_name);
+    int RegisterGlobal(std::string in_name);
+    int FetchGlobalRef(std::string in_name);
 
-    shared_ptr<void> FetchGlobal(int in_ref);
-	shared_ptr<void> FetchGlobal(string in_name);
+    std::shared_ptr<void> FetchGlobal(int in_ref);
+	std::shared_ptr<void> FetchGlobal(std::string in_name);
 
-    int InsertGlobal(int in_ref, shared_ptr<void> in_data);
-	int InsertGlobal(string in_name, shared_ptr<void> in_data);
+    int InsertGlobal(int in_ref, std::shared_ptr<void> in_data);
+	int InsertGlobal(std::string in_name, std::shared_ptr<void> in_data);
     void RemoveGlobal(int in_ref);
-    void RemoveGlobal(string in_name);
+    void RemoveGlobal(std::string in_name);
 
     // Add a CLI extension
     typedef void (*usage_func)(const char *);
@@ -309,29 +303,40 @@ public:
 	// whatever other conditions we use)
 	int checksum_packets;
 
-    void RegisterLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g);
-    void RemoveLifetimeGlobal(shared_ptr<LifetimeGlobal> in_g);
+    void RegisterLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g);
+    void RemoveLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g);
     void DeleteLifetimeGlobals();
 
 protected:
     // Exernal global references, string to intid
-    map<string, int> ext_name_map;
+    std::map<std::string, int> ext_name_map;
     // External globals
-    map<int, shared_ptr<void> > ext_data_map;
+    std::map<int, std::shared_ptr<void> > ext_data_map;
     int next_ext_ref;
 
-    vector<shared_ptr<LifetimeGlobal> > lifetime_vec;
+    std::vector<std::shared_ptr<LifetimeGlobal> > lifetime_vec;
 };
 
 namespace Globalreg {
-    template<typename T> shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
+    template<typename T> std::shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
             int in_ref) {
-        return static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
+        return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
     }
 
-    template<typename T> shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
-            string in_name) {
-        return static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
+    template<typename T> std::shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
+            std::string in_name) {
+        return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
+    }
+
+    template<typename T> std::shared_ptr<T> FetchMandatoryGlobalAs(GlobalRegistry *in_globalreg, 
+            std::string in_name) {
+        std::shared_ptr<T> r = std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
+
+        if (r == NULL) 
+            throw std::runtime_error(std::string("Unable to find '" + in_name + "' in "
+                        "the global registry, code initialization may be out of order."));
+
+        return r;
     }
 }
 
