@@ -314,19 +314,13 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     entrytracker = 
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
-    if (entrytracker == NULL)
-        throw std::runtime_error("entrytracker not initialized before Datasourcetracker");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
-    timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    if (timetracker == NULL)
-        throw std::runtime_error("timetracker not initialized before Datasourcetracker");
+    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     // Create an alert for source errors
     shared_ptr<Alertracker> alertracker =
-        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-    if (alertracker == NULL)
-        throw std::runtime_error("alertracker not initialized before Datasourcetracker");
+        Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
     alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
     alertracker->ActivateConfiguredAlert("SOURCEERROR",
