@@ -46,11 +46,11 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     bool prettyprint, unsigned int depth) {
 
     std::string indent;
-    std::string endl;
+    std::string ppendl;
     
     if (prettyprint) {
         indent = std::string(depth, ' ');
-        endl = "\r\n";
+        ppendl = "\r\n";
     }
 
     if (e == NULL) {
@@ -145,7 +145,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             break;
         case TrackerVector:
             tvec = e->get_vector();
-            stream << endl << indent << "[" << endl;
+            stream << ppendl << indent << "[" << ppendl;
             for (vec_iter = tvec->begin(); vec_iter != tvec->end(); /* */ ) {
                 if (prettyprint)
                     stream << indent;
@@ -156,14 +156,14 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (++vec_iter != tvec->end())
                     stream << ",";
 
-                stream << endl;
+                stream << ppendl;
             }
             stream << indent << "]";
             break;
         case TrackerMap:
             tmap = e->get_map();
             
-            stream << endl << indent << "{" << endl;
+            stream << ppendl << indent << "{" << ppendl;
 
             for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
                 bool named = false;
@@ -196,7 +196,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                     stream << ", ";
                     stream << SanitizeString(globalreg->entrytracker->GetFieldDescription(map_iter->first));
                     stream << "\",";
-                    stream << endl;
+                    stream << ppendl;
                 }
 
                 stream << indent << "\"" << tname << "\": ";
@@ -207,7 +207,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (++map_iter != tmap->end()) // Increment iter in loop
                     stream << ",";
 
-                stream << std::endl << std::endl;
+                stream << ppendl << ppendl;
             }
             stream << indent << "}";
 
@@ -215,7 +215,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
         case TrackerIntMap:
             tintmap = e->get_intmap();
 
-            stream << endl << indent << "{" << endl;
+            stream << ppendl << indent << "{" << ppendl;
 
             for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); /* */) {
                 // Integer dictionary keys in json are still quoted as strings
@@ -226,14 +226,14 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (++int_map_iter != tintmap->end()) // Increment iter in loop
                     stream << ",";
 
-                stream << endl;
+                stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerMacMap:
             tmacmap = e->get_macmap();
 
-            stream << endl << indent << "{" << endl;
+            stream << ppendl << indent << "{" << ppendl;
 
             for (mac_map_iter = tmacmap->begin(); 
                     mac_map_iter != tmacmap->end(); /* */) {
@@ -245,14 +245,14 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (++mac_map_iter != tmacmap->end())
                     stream << ",";
 
-                stream << endl;
+                stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerStringMap:
             tstringmap = e->get_stringmap();
 
-            stream << endl << indent << "{" << endl;
+            stream << ppendl << indent << "{" << ppendl;
 
             for (string_map_iter = tstringmap->begin();
                     string_map_iter != tstringmap->end(); /* */) {
@@ -264,14 +264,14 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (++string_map_iter != tstringmap->end())
                     stream << ",";
 
-                stream << endl;
+                stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerDoubleMap:
             tdoublemap = e->get_doublemap();
 
-            stream << endl << indent << "{" << endl;
+            stream << ppendl << indent << "{" << ppendl;
 
             for (double_map_iter = tdoublemap->begin();
                     double_map_iter != tdoublemap->end(); /* */) {
@@ -282,7 +282,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (++double_map_iter != tdoublemap->end())
                     stream << ",";
 
-                stream << endl;
+                stream << ppendl;
             }
             stream << indent << "}";
             break;
