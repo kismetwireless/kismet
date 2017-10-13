@@ -162,7 +162,7 @@ void DST_DatasourceProbe::probe_sources(
     vector<SharedDatasourceBuilder> remote_builders;
 
     for (auto i = vec.begin(); i != vec.end(); ++i) {
-        SharedDatasourceBuilder b = static_pointer_cast<KisDatasourceBuilder>(*i);
+        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
 
         if (!b->get_probe_capable())
             continue;
@@ -283,7 +283,7 @@ void DST_DatasourceList::list_sources(
     vector<SharedDatasourceBuilder> remote_builders;
 
     for (auto i = vec.begin(); i != vec.end(); ++i) {
-        SharedDatasourceBuilder b = static_pointer_cast<KisDatasourceBuilder>(*i);
+        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
 
         if (!b->get_list_capable())
             continue;
@@ -359,7 +359,7 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     next_source_num = 0;
 
     config_defaults = 
-        static_pointer_cast<datasourcetracker_defaults>(
+        std::static_pointer_cast<datasourcetracker_defaults>(
                 entrytracker->RegisterAndGetField("kismet.datasourcetracker.defaults", 
                     std::shared_ptr<datasourcetracker_defaults>(new 
                         datasourcetracker_defaults(globalreg, 0)), 
@@ -539,7 +539,7 @@ void Datasourcetracker::system_shutdown() {
     TrackerElementVector dvec(datasource_vec);
 
     for (auto i = dvec.begin(); i != dvec.end(); ++i) {
-        SharedDatasource ds = static_pointer_cast<KisDatasource>(*i);
+        SharedDatasource ds = std::static_pointer_cast<KisDatasource>(*i);
 
         ds->close_source();
     }
@@ -550,7 +550,7 @@ void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
 
     for (unsigned int x = 0; x < datasource_vec->size(); x++) {
         std::shared_ptr<KisDatasource> kds = 
-            static_pointer_cast<KisDatasource>(datasource_vec->get_vector_value(x));
+            std::static_pointer_cast<KisDatasource>(datasource_vec->get_vector_value(x));
         in_worker->handle_datasource(kds);
     }
 
@@ -564,7 +564,7 @@ bool Datasourcetracker::remove_datasource(uuid in_uuid) {
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = dsv.begin(); i != dsv.end(); ++i) {
-        SharedDatasource kds = static_pointer_cast<KisDatasource>(*i);
+        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
 
         if (kds->get_source_uuid() == in_uuid) {
             std::stringstream ss;
@@ -594,7 +594,7 @@ SharedDatasource Datasourcetracker::find_datasource(uuid in_uuid) {
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = dsv.begin(); i != dsv.end(); ++i) {
-        SharedDatasource kds = static_pointer_cast<KisDatasource>(*i);
+        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
 
         if (kds->get_source_uuid() == in_uuid) {
             return kds;
@@ -611,7 +611,7 @@ bool Datasourcetracker::close_datasource(uuid in_uuid) {
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = dsv.begin(); i != dsv.end(); ++i) {
-        SharedDatasource kds = static_pointer_cast<KisDatasource>(*i);
+        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
 
         if (kds->get_source_uuid() == in_uuid) {
             std::stringstream ss;
@@ -636,7 +636,7 @@ int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
     TrackerElementVector vec(proto_vec);
 
     for (auto i = vec.begin(); i != vec.end(); ++i) {
-        SharedDatasourceBuilder b = static_pointer_cast<KisDatasourceBuilder>(*i);
+        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
 
         if (StrLower(b->get_source_type()) == StrLower(in_builder->get_source_type())) {
             _MSG("A datasource driver has already been registered for '" + 
@@ -694,7 +694,7 @@ void Datasourcetracker::open_datasource(std::string in_source,
         TrackerElementVector vec(proto_vec);
 
         for (auto i = vec.begin(); i != vec.end(); ++i) {
-            proto = static_pointer_cast<KisDatasourceBuilder>(*i);
+            proto = std::static_pointer_cast<KisDatasourceBuilder>(*i);
 
             if (StrLower(proto->get_source_type()) == StrLower(type)) {
                 proto_found = true;
@@ -847,7 +847,7 @@ void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)>
         for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
             for (auto s = dsv.begin(); s != dsv.end(); ++s) {
                 SharedDatasource sds =
-                    static_pointer_cast<KisDatasource>(*s);
+                    std::static_pointer_cast<KisDatasource>(*s);
                 if ((*il)->get_interface() == sds->get_source_interface() ||
                         (*il)->get_interface() == sds->get_source_cap_interface()) {
                     (*il)->set_in_use_uuid(sds->get_source_uuid());
@@ -913,7 +913,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
     TrackerElementVector ds_vector(datasource_vec);
 
     for (auto p : ds_vector) {
-        SharedDatasource d = static_pointer_cast<KisDatasource>(p);
+        SharedDatasource d = std::static_pointer_cast<KisDatasource>(p);
 
         if (!d->get_source_builder()->get_remote_capable())
             continue;
@@ -955,7 +955,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
     TrackerElementVector proto_vector(proto_vec);
 
     for (auto p : proto_vector) {
-        SharedDatasourceBuilder b = static_pointer_cast<KisDatasourceBuilder>(p);
+        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(p);
 
         if (!b->get_remote_capable())
             continue;
@@ -1301,7 +1301,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             {
                 local_locker lock(&dst_lock);
                 for (auto i = svec.begin(); i != svec.end(); ++i) {
-                    SharedDatasource dsi = static_pointer_cast<KisDatasource>(*i);
+                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(*i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
@@ -1442,7 +1442,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 TrackerElementVector dsvec(datasource_vec);
                 for (auto i = dsvec.begin(); i != dsvec.end(); ++i) {
-                    SharedDatasource dsi = static_pointer_cast<KisDatasource>(*i);
+                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(*i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
