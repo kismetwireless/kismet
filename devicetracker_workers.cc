@@ -313,17 +313,22 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
 
         for (vector<SharedTrackerElement>::iterator fi = fields.begin();
                 fi != fields.end(); ++fi) {
-            // We can only regex strings
-            if ((*fi)->get_type() != TrackerString)
+            std::string val;
+
+            // Process a few different types
+            if ((*fi)->get_type() == TrackerString)
+                val = GetTrackerValue<string>(*fi);
+            else if ((*fi)->get_type() == TrackerMac)
+                val = GetTrackerValue<mac_addr>(*fi).Mac2String();
+            else if ((*fi)->get_type() == TrackerUuid)
+                val = GetTrackerValue<uuid>(*fi).UUID2String();
+            else
                 continue;
 
             int rc;
             int ovector[128];
 
-            rc = pcre_exec((*i)->re, (*i)->study,
-                    GetTrackerValue<string>(*fi).c_str(),
-                    GetTrackerValue<string>(*fi).length(),
-                    0, 0, ovector, 128);
+            rc = pcre_exec((*i)->re, (*i)->study, val.c_str(), val.length(), 0, 0, ovector, 128);
 
             // Stop matching as soon as we find a hit
             if (rc >= 0) {
