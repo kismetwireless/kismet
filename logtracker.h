@@ -152,6 +152,7 @@ public:
     }
 
     virtual bool Log_Open(std::string in_path) { return false; }
+    virtual void Log_Close() { }
 
     __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
     __ProxyTrackable(builder, KisLogfileBuilder, builder);
@@ -222,6 +223,8 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
+
+    std::recursive_timed_mutex tracker_mutex;
 
     std::shared_ptr<StreamTracker> streamtracker;
 

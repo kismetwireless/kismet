@@ -20,6 +20,7 @@
 
 #include "logtracker.h"
 #include "globalregistry.h"
+#include "messagebus.h"
 
 LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
@@ -40,4 +41,51 @@ LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
                 "Log file");
 
 }
+
+LogTracker::~LogTracker() {
+    local_eol_locker lock(&tracker_mutex);
+
+    globalreg->RemoveGlobal("LOGTRACKER");
+
+    TrackerElementVector v(log_vec);
+
+    for (auto i : v) {
+        SharedLogfile f = std::static_pointer_cast<KisLogfile>(i);
+        f->Log_Close();
+    }
+
+    logproto_vec.reset();
+    log_vec.reset();
+}
+
+int LogTracker::system_startup() {
+    return 0;
+}
+
+void LogTracker::system_shutdown() {
+    return;
+}
+
+int LogTracker::register_log(SharedLogBuilder in_builder) {
+    local_locker lock(&tracker_mutex);
+
+    TrackerElementVector vec(logproto_vec);
+
+    for (auto i : vec) {
+        SharedLogBuilder b = std::static_pointer_cast<KisLogfileBuilder>(i);
+
+        if (StrLower(b->get_log_class()) == StrLower(in_builder->get_log_class())) {
+            _MSG("A logfile driver has already been registered for '" + 
+                    in_builder->get_log_class() + "', cannot register it twice.",
+                    MSGFLAG_ERROR);
+            return -1;
+        }
+    }
+
+    vec.push_back(in_builder);
+
+    return 1;
+}
+
+
 
