@@ -454,7 +454,7 @@ std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaul
     return config_defaults;
 }
 
-int Datasourcetracker::system_startup() {
+void Datasourcetracker::Deferred_Startup() {
     bool used_args = false;
 
     std::vector<std::string> src_vec;
@@ -508,7 +508,7 @@ int Datasourcetracker::system_startup() {
     if (src_vec.size() == 0) {
         _MSG("No data sources defined; Kismet will not capture anything until "
                 "a source is added.", MSGFLAG_INFO);
-        return 1;
+        return;
     }
 
     for (unsigned int i = 0; i < src_vec.size(); i++) {
@@ -530,10 +530,10 @@ int Datasourcetracker::system_startup() {
     }
 
 
-    return 1;
+    return;
 }
 
-void Datasourcetracker::system_shutdown() {
+void Datasourcetracker::Deferred_Shutdown() {
     local_locker lock(&dst_lock);
 
     TrackerElementVector dvec(datasource_vec);

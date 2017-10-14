@@ -23,6 +23,7 @@
 
 #include <unistd.h>
 #include <memory>
+#include <mutex>
 
 #include "util.h"
 #include "macaddr.h"
@@ -162,6 +163,16 @@ public:
 class LifetimeGlobal : public SharedGlobalData {
 public:
     virtual ~LifetimeGlobal() { }
+};
+
+// Stub class for async objects that need to be triggered after the rest of the
+// system has started up, such as the datasourcetracker and the log tracker
+class DeferredStartup {
+public:
+    virtual ~DeferredStartup() { }
+
+    virtual void Deferred_Startup() = 0;
+    virtual void Deferred_Shutdown() = 0;
 };
 
 // Global registry of references to tracker objects and preferences.  This 
@@ -307,14 +318,25 @@ public:
     void RemoveLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g);
     void DeleteLifetimeGlobals();
 
+    void RegisterDeferredGlobal(std::shared_ptr<DeferredStartup> in_d);
+    void RemoveDeferredGlobal(std::shared_ptr<DeferredStartup> in_d);
+    void Start_Deferred();
+    void Shutdown_Deferred();
+
 protected:
+    std::recursive_timed_mutex ext_mutex;
     // Exernal global references, string to intid
     std::map<std::string, int> ext_name_map;
     // External globals
     std::map<int, std::shared_ptr<void> > ext_data_map;
     int next_ext_ref;
 
+    std::recursive_timed_mutex lifetime_mutex;
     std::vector<std::shared_ptr<LifetimeGlobal> > lifetime_vec;
+
+    std::recursive_timed_mutex deferred_mutex;
+    bool deferred_started;
+    std::vector<std::shared_ptr<DeferredStartup> > deferred_vec;
 };
 
 namespace Globalreg {

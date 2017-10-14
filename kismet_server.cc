@@ -224,10 +224,8 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     if (httpd != NULL)
         httpd->StopHttpd();
 
-    shared_ptr<Datasourcetracker> datasourcetracker = 
-        Globalreg::FetchGlobalAs<Datasourcetracker>(globalregistry, "DATASOURCETRACKER");
-    if (datasourcetracker != NULL)
-        datasourcetracker->system_shutdown();
+    // Shutdown everything
+    globalregistry->Shutdown_Deferred();
 
     globalregistry->spindown = 1;
 
@@ -844,7 +842,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Kis_Net_Httpd::create_httpd(globalregistry);
 
     if (globalregistry->fatal_condition)
@@ -907,8 +904,7 @@ int main(int argc, char *argv[], char *envp[]) {
     RestMessageClient::create_messageclient(globalregistry);
 
     // Add login session
-    shared_ptr<Kis_Httpd_Websession> websession = 
-        Kis_Httpd_Websession::create_websession(globalregistry);
+    Kis_Httpd_Websession::create_websession(globalregistry);
 
     // Add module registry
     Kis_Httpd_Registry::create_http_registry(globalregistry);
@@ -1043,18 +1039,18 @@ int main(int argc, char *argv[], char *envp[]) {
     // Finalize any plugins which were waiting for other code to load
     plugintracker->FinalizePlugins();
 
+    // We can't call this as a deferred because we don't want to mix
     devicetracker->load_devices();
-
-    // Start the http server as the last thing before we start sources
-    websession->activate_config();
-
+    
+    _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER")->StartHttpd();
 
     // Blab about starting
     globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
             MSGFLAG_INFO);
 
-    datasourcetracker->system_startup();
+    // Start up any code that needs everything to be loaded
+    globalregistry->Start_Deferred();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);

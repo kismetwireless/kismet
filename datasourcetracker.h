@@ -327,12 +327,13 @@ protected:
 class Datasourcetracker_Httpd_Pcap;
 
 class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
-    public LifetimeGlobal, public TcpServerV2 {
+    public LifetimeGlobal, public DeferredStartup, public TcpServerV2 {
 public:
     static shared_ptr<Datasourcetracker> create_dst(GlobalRegistry *in_globalreg) {
         shared_ptr<Datasourcetracker> mon(new Datasourcetracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("DATASOURCETRACKER", mon);
+        in_globalreg->RegisterDeferredGlobal(mon);
 
         shared_ptr<PollableTracker> pollabletracker = 
             static_pointer_cast<PollableTracker>(in_globalreg->FetchGlobal("POLLABLETRACKER"));
@@ -350,10 +351,10 @@ public:
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
-    int system_startup();
+    virtual void Deferred_Startup();
 
     // Shut down all sources, this happens as kismet is terminating
-    void system_shutdown();
+    virtual void Deferred_Shutdown();
 
     // Add a driver
     int register_datasource(SharedDatasourceBuilder in_builder);

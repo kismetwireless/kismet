@@ -80,10 +80,14 @@ GlobalRegistry::GlobalRegistry() {
 	pcapdump = NULL;
 
 	checksum_packets = 0;
+
+    deferred_started = false;
 }
 
 // External globals -- allow other things to tie structs to us
 int GlobalRegistry::RegisterGlobal(std::string in_name) {
+    local_locker lock(&ext_mutex);
+
     std::map<std::string, int>::iterator i;
 
 	if ((i = ext_name_map.find(StrLower(in_name))) != ext_name_map.end())
@@ -97,6 +101,8 @@ int GlobalRegistry::RegisterGlobal(std::string in_name) {
 }
 
 int GlobalRegistry::FetchGlobalRef(std::string in_name) {
+    local_locker lock(&ext_mutex);
+
 	if (ext_name_map.find(StrLower(in_name)) == ext_name_map.end())
 		return -1;
 
@@ -104,6 +110,8 @@ int GlobalRegistry::FetchGlobalRef(std::string in_name) {
 }
 
 std::shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
+    local_locker lock(&ext_mutex);
+
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
 		return NULL;
 
@@ -111,6 +119,8 @@ std::shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
 }
 
 std::shared_ptr<void> GlobalRegistry::FetchGlobal(std::string in_name) {
+    local_locker lock(&ext_mutex);
+
 	int ref;
 
 	if ((ref = FetchGlobalRef(in_name)) < 0) {
@@ -121,12 +131,7 @@ std::shared_ptr<void> GlobalRegistry::FetchGlobal(std::string in_name) {
 }
 
 int GlobalRegistry::InsertGlobal(int in_ref, std::shared_ptr<void> in_data) {
-	/*
-	if (ext_data_map.find(in_ref) == ext_data_map.end()) {
-		fprintf(stderr, "debug - insertglobal no ref %d\n", in_ref);
-		return -1;
-	}
-	*/
+    local_locker lock(&ext_mutex);
 
 	ext_data_map[in_ref] = in_data;
 
@@ -134,6 +139,8 @@ int GlobalRegistry::InsertGlobal(int in_ref, std::shared_ptr<void> in_data) {
 }
 
 void GlobalRegistry::RemoveGlobal(int in_ref) {
+    local_locker lock(&ext_mutex);
+
     if (ext_data_map.find(in_ref) != ext_data_map.end()) {
         ext_data_map.erase(ext_data_map.find(in_ref));
     }
@@ -190,10 +197,14 @@ void GlobalRegistry::RemoveUsageFunc(usage_func in_cli) {
 }
 
 void GlobalRegistry::RegisterLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g) {
+    local_locker lock(&lifetime_mutex);
+
     lifetime_vec.insert(lifetime_vec.begin(), in_g);
 }
 
 void GlobalRegistry::RemoveLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g) {
+    local_locker lock(&lifetime_mutex);
+
     for (auto i = lifetime_vec.begin(); i != lifetime_vec.end(); ++i) {
         if (*i == in_g) {
             lifetime_vec.erase(i);
@@ -203,11 +214,47 @@ void GlobalRegistry::RemoveLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g) 
 }
 
 void GlobalRegistry::DeleteLifetimeGlobals() {
-	for (auto i = lifetime_vec.begin(); i != lifetime_vec.end(); ++i) {
-		lifetime_vec.erase(i);
-		i = lifetime_vec.begin();
-	}
+    local_locker lock(&lifetime_mutex);
 
     lifetime_vec.clear();
+}
+
+void GlobalRegistry::RegisterDeferredGlobal(std::shared_ptr<DeferredStartup> in_d) {
+    local_locker lock(&deferred_mutex);
+
+    deferred_vec.push_back(in_d);
+
+    if (deferred_started)
+        in_d->Deferred_Startup();
+}
+
+void GlobalRegistry::RemoveDeferredGlobal(std::shared_ptr<DeferredStartup> in_d) {
+    local_locker lock(&deferred_mutex);
+
+    for (auto i = deferred_vec.begin(); i != deferred_vec.end(); ++i) {
+        if ((*i) == in_d) {
+            deferred_vec.erase(i);
+            break;
+        }
+    }
+}
+
+void GlobalRegistry::Start_Deferred() {
+    local_locker lock(&deferred_mutex);
+
+    deferred_started = true;
+    
+    for (auto i : deferred_vec) {
+        i->Deferred_Startup();
+    }
+}
+
+void GlobalRegistry::Shutdown_Deferred() {
+    local_locker lock(&deferred_mutex);
+
+    for (auto i : deferred_vec)
+        i->Deferred_Shutdown();
+
+    deferred_vec.clear();
 }
 
