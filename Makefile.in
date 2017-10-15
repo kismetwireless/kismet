@@ -61,6 +61,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	phy_bluetooth.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
+	logtracker.cc.o \
 	dumpfile.cc.o dumpfile_pcap.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
