@@ -132,8 +132,8 @@ public:
 protected:
     GlobalRegistry *http_globalreg;
 
-    shared_ptr<Kis_Net_Httpd> httpd;
-    shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Kis_Net_Httpd> httpd;
+    std::shared_ptr<EntryTracker> entrytracker;
 
 };
 
