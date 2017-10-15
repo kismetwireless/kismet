@@ -69,7 +69,7 @@ public:
         initialize();
     }
 
-    virtual ~KisLogfileBuilder();
+    virtual ~KisLogfileBuilder() { };
 
     virtual SharedTrackerElement clone_type() {
         return SharedTrackerElement(new KisLogfileBuilder(globalreg, get_id()));
@@ -81,7 +81,7 @@ public:
         return NULL;
     }
 
-    virtual void initialize();
+    virtual void initialize() { };
 
     __Proxy(log_class, std::string, std::string, std::string, log_class);
     __Proxy(log_name, std::string, std::string, std::string, log_name);
@@ -188,11 +188,13 @@ protected:
     SharedTrackerElement log_open;
 };
 
-class LogTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class LogTracker : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler, 
+    public LifetimeGlobal, public DeferredStartup {
 public:
     static std::shared_ptr<LogTracker> create_logtracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<LogTracker> mon(new LogTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
+        in_globalreg->RegisterDeferredGlobal(mon);
         in_globalreg->InsertGlobal("LOGTRACKER", mon);
         return mon;
     }
@@ -205,12 +207,8 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    // Start up logs once Kismet is up and running, this happens before the
-    // main select() loop in kismet
-    int system_startup();
-
-    // Shut down all logs, this happens as Kismet is terminating
-    void system_shutdown();
+    virtual void Deferred_Startup();
+    virtual void Deferred_Shutdown();
 
     // Register a log type
     int register_log(SharedLogBuilder in_builder);
@@ -222,17 +220,30 @@ public:
     virtual ~LogTracker();
 
 protected:
+    virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
+
     GlobalRegistry *globalreg;
 
     std::recursive_timed_mutex tracker_mutex;
 
     std::shared_ptr<StreamTracker> streamtracker;
+    std::shared_ptr<EntryTracker> entrytracker;
 
     // Vector of prototypes
     SharedTrackerElement logproto_vec;
 
     // Vector of logs
     SharedTrackerElement log_vec;
+
+    // Various global config items common to all
+    SharedTrackerElement logging_enabled;
+    SharedTrackerElement log_title;
+    SharedTrackerElement log_prefix;
+    SharedTrackerElement log_types;
+    SharedTrackerElement log_template;
+
+    SharedTrackerElement log_types_vec;
 
 };
 

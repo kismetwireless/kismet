@@ -23,6 +23,7 @@
 #include "messagebus.h"
 
 LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
+    tracker_component(in_globalreg, 0),
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     globalreg = in_globalreg;
@@ -58,11 +59,20 @@ LogTracker::~LogTracker() {
     log_vec.reset();
 }
 
-int LogTracker::system_startup() {
-    return 0;
+void LogTracker::register_fields() { 
+
 }
 
-void LogTracker::system_shutdown() {
+void LogTracker::reserve_fields(SharedTrackerElement e) {
+    tracker_component::reserve_fields(e);
+
+}
+
+void LogTracker::Deferred_Startup() {
+    return;
+}
+
+void LogTracker::Deferred_Shutdown() {
     return;
 }
 
@@ -87,5 +97,15 @@ int LogTracker::register_log(SharedLogBuilder in_builder) {
     return 1;
 }
 
+bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
 
+    return false;
+}
+
+void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream) {
+
+}
 
