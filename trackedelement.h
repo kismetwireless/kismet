@@ -446,7 +446,8 @@ public:
 
     // Set byte array values
     void set_bytearray(uint8_t *d, size_t len);
-    void set_bytearray(shared_ptr<uint8_t> d, size_t len);
+    void set_bytearray(std::shared_ptr<uint8_t> d, size_t len);
+    void set_bytearray(std::string s);
     size_t get_bytearray_size();
     shared_ptr<uint8_t> get_bytearray();
 

@@ -1352,6 +1352,10 @@ void TrackerElement::set_bytearray(shared_ptr<uint8_t> d, size_t len) {
     bytearray_value_len = len;
 }
 
+void TrackerElement::set_bytearray(std::string s) {
+    set_bytearray((uint8_t *) s.data(), s.length());
+}
+
 size_t TrackerElement::get_bytearray_size() {
     except_type_mismatch(TrackerByteArray);
 
