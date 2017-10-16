@@ -1107,7 +1107,8 @@ protected:
     std::shared_ptr<Timetracker> timetracker;
 
     // Checksum of recent packets for duplication filtering
-    uint32_t recent_packet_checksums[64];
+    uint32_t *recent_packet_checksums;
+    size_t recent_packet_checksums_sz;
     unsigned int recent_packet_checksum_pos;
 
     void HandleSSID(shared_ptr<kis_tracked_device_base> basedev, 

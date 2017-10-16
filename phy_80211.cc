@@ -486,7 +486,10 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
     httpregistry->register_js_module("kismet_ui_dot11", "/js/kismet.ui.dot11.js");
 
     // Set up the de-duplication list
-    for (unsigned int x = 0; x < 64; x++) {
+    recent_packet_checksums_sz = 
+        globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 256);
+    recent_packet_checksums = new uint32_t[recent_packet_checksums_sz];
+    for (unsigned int x = 0; x < recent_packet_checksums_sz; x++) {
         recent_packet_checksums[x] = 0;
     }
     recent_packet_checksum_pos = 0;
@@ -509,6 +512,8 @@ Kis_80211_Phy::~Kis_80211_Phy() {
             CHAINPOS_TRACKER);
 
     timetracker->RemoveTimer(device_idle_timer);
+
+    delete[] recent_packet_checksums;
 }
 
 int Kis_80211_Phy::LoadWepkeys() {
