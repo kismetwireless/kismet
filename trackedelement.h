@@ -450,6 +450,7 @@ public:
     void set_bytearray(std::string s);
     size_t get_bytearray_size();
     shared_ptr<uint8_t> get_bytearray();
+    std::string get_bytearray_str();
 
     // Do our best to increment a value
     TrackerElement& operator++(const int);

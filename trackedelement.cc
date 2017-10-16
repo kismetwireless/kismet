@@ -1046,6 +1046,9 @@ void TrackerElement::coercive_set(std::string in_str) {
                 throw std::runtime_error("unable to coerce string value to uuid");
             set(u);
             break;
+        case TrackerByteArray:
+            set_bytearray(in_str);
+            break;
         default:
             throw std::runtime_error("unable to coerce string value to " + 
                     type_to_string(type));
@@ -1362,10 +1365,18 @@ size_t TrackerElement::get_bytearray_size() {
     return bytearray_value_len;
 }
 
-shared_ptr<uint8_t> TrackerElement::get_bytearray() {
+std::shared_ptr<uint8_t> TrackerElement::get_bytearray() {
     except_type_mismatch(TrackerByteArray);
 
     return *(dataunion.bytearray_value);
+}
+
+std::string TrackerElement::get_bytearray_str() {
+    except_type_mismatch(TrackerByteArray);
+
+    uint8_t *ba = dataunion.bytearray_value->get();
+
+    return std::string((const char *) ba, bytearray_value_len);
 }
 
 size_t TrackerElement::size() {
@@ -1447,7 +1458,6 @@ template<> TrackerElement::tracked_vector
 template<> uuid GetTrackerValue(SharedTrackerElement e) {
     return e->get_uuid();
 }
-
 
 bool operator==(TrackerElement &te1, int8_t i) {
     return te1.get_int8() == i;
