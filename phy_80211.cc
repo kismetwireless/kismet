@@ -81,17 +81,20 @@ unsigned int Ieee80211Interval2NSecs(int in_interval) {
 void dot11_tracked_eapol::register_fields() {
     tracker_component::register_fields();
 
-    eapol_time_id = 
-        RegisterField("dot11.eapol.timestamp", TrackerUInt64, 
-                "packet timestamp (second)", &eapol_time);
+    RegisterField("dot11.eapol.timestamp", TrackerUInt64, 
+            "packet timestamp (second)", &eapol_time);
     
-    eapol_dir_id =
-        RegisterField("dot11.eapol.direction", TrackerUInt8,
-                "packet direction (fromds/tods)", &eapol_dir);
+    RegisterField("dot11.eapol.direction", TrackerUInt8,
+            "packet direction (fromds/tods)", &eapol_dir);
 
-    eapol_msg_num_id =
-        RegisterField("dot11.eapol.message_num", TrackerUInt8,
-                "handshake message number", &eapol_msg_num);
+    RegisterField("dot11.eapol.message_num", TrackerUInt8,
+            "handshake message number", &eapol_msg_num);
+
+    RegisterField("dot11.eapol.install", TrackerUInt8,
+            "eapol rsn key install", &eapol_install);
+
+    RegisterField("dot11.eapol.nonce", TrackerByteArray,
+            "eapol rsn nonce", &eapol_nonce);
 
     __RegisterComplexField(kis_tracked_packet, eapol_packet_id,
             "dot11.eapol.packet", "EAPOL handshake");
@@ -384,12 +387,17 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "this could indicate that the gain is too high.  Over-amplified signals "
                 "may miss packets entirely.",
                 phyid);
-    alert_nonce_ref =
+    alert_nonce_zero_ref =
         alertracker->ActivateConfiguredAlert("NONCEDEGRADE",
                 "A WPA handshake with an empty NONCE was observed; this could indicate "
                 "a WPA degradation attack such as the vanhoefm attack against BSD "
                 "(https://github.com/vanhoefm/blackhat17-pocs/tree/master/openbsd)",
                 phyid);
+    alert_nonce_duplicate_ref =
+        alertracker->ActivateConfiguredAlert("NONCEREUSE",
+                "A WPA handshake has attempted to re-use a previous nonce value; this may "
+                "indicate an attack against the WPA keystream such as the vanhoefm "
+                "KRACK attack (https://www.krackattacks.com/)");
 
     // Threshold
     signal_too_loud_threshold = 
@@ -1495,8 +1503,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
     // Look for WPA handshakes
     if (dot11info->type == packet_data) {
-        shared_ptr<dot11_tracked_eapol> eapol =
-            PacketDot11EapolHandshake(in_pack, dot11dev);
+        shared_ptr<dot11_tracked_eapol> eapol = PacketDot11EapolHandshake(in_pack, dot11dev);
 
         if (eapol != NULL) {
             shared_ptr<kis_tracked_device_base> eapolbase =
@@ -1507,6 +1514,38 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                     static_pointer_cast<dot11_tracked_device>(eapolbase->get_map_value(dot11_device_entry_id));
 
                 if (eapoldot11 != NULL) {
+                    // Look for replay attacks
+                    if (eapol->get_eapol_install()) {
+                        TrackerElementVector ev(eapoldot11->get_wpa_nonce_vec());
+
+                        bool dupe_nonce = false;
+
+                        for (auto i : ev) {
+                            if (i->get_bytearray_str() == eapol->get_eapol_nonce()) {
+                                dupe_nonce = true;
+                                break;
+                            }
+                        }
+
+                        if (!dupe_nonce) {
+                            SharedTrackerElement n(new TrackerElement(TrackerByteArray));
+                            n->set_bytearray(eapol->get_eapol_nonce());
+
+                            // Don't store more than 32 nonces for now
+                            if (ev.size() > 32)
+                                ev.erase(ev.begin());
+
+                            ev.push_back(n);
+                        } else {
+                            alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
+                                    dot11info->bssid_mac, dot11info->source_mac, 
+                                    dot11info->dest_mac, dot11info->other_mac,
+                                    commoninfo->channel,
+                                    "WPA EAPOL RSN frame seen with a previously used nonce; "
+                                    "this may indicate a KRACK-style WPA attack");
+                        }
+                    }
+
                     TrackerElementVector vec(eapoldot11->get_wpa_key_vec());
 
                     // Start doing something smart here about eliminating

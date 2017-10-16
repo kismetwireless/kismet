@@ -230,45 +230,51 @@ class dot11_packinfo : public packet_component {
 };
 
 class dot11_tracked_eapol : public tracker_component {
-    public:
-        dot11_tracked_eapol(GlobalRegistry *in_globalreg, int in_id) :
-            tracker_component(in_globalreg, in_id) {
-                register_fields();
-                reserve_fields(NULL);
-            }
-
-        dot11_tracked_eapol(GlobalRegistry *in_globalreg, int in_id,
-                SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+public:
+    dot11_tracked_eapol(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
             register_fields();
-            reserve_fields(e);
+            reserve_fields(NULL);
         }
 
-        virtual SharedTrackerElement clone_type() {
-            return SharedTrackerElement(new dot11_tracked_eapol(globalreg, get_id()));
-        }
+    dot11_tracked_eapol(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
 
-        __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
-        __Proxy(eapol_dir, uint8_t, uint8_t, uint8_t, eapol_dir);
-        __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_tracked_eapol(globalreg, get_id()));
+    }
 
-        __ProxyTrackable(eapol_packet, kis_tracked_packet, eapol_packet);
+    __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
+    __Proxy(eapol_dir, uint8_t, uint8_t, uint8_t, eapol_dir);
+    __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
+    __Proxy(eapol_install, uint8_t, bool, bool, eapol_install);
 
-    protected:
-        virtual void register_fields();
-        virtual void reserve_fields(SharedTrackerElement e);
+    void set_eapol_nonce(std::string in_n) {
+        eapol_nonce->set_bytearray(in_n);
+    }
 
-        int eapol_time_id;
-        SharedTrackerElement eapol_time;
+    std::string get_eapol_nonce() {
+        return eapol_nonce->get_bytearray_str();
+    }
 
-        int eapol_dir_id;
-        SharedTrackerElement eapol_dir;
+    __ProxyTrackable(eapol_packet, kis_tracked_packet, eapol_packet);
 
-        int eapol_msg_num_id;
-        SharedTrackerElement eapol_msg_num;
+protected:
+    virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
 
-        int eapol_packet_id;
-        shared_ptr<kis_tracked_packet> eapol_packet;
+    SharedTrackerElement eapol_time;
+    SharedTrackerElement eapol_dir;
+    SharedTrackerElement eapol_msg_num;
 
+    SharedTrackerElement eapol_install;
+    SharedTrackerElement eapol_nonce;
+
+    shared_ptr<kis_tracked_packet> eapol_packet;
+    int eapol_packet_id;
 };
 
 class dot11_11d_tracked_range_info : public tracker_component {
@@ -815,6 +821,8 @@ class dot11_tracked_device : public tracker_component {
 
         __Proxy(wpa_present_handshake, uint8_t, uint8_t, uint8_t, wpa_present_handshake);
 
+        __ProxyTrackable(wpa_nonce_vec, TrackerElement, wpa_nonce_vec);
+
     protected:
         virtual void register_fields() {
             RegisterField("dot11.device.typeset", TrackerUInt64,
@@ -902,6 +910,9 @@ class dot11_tracked_device : public tracker_component {
             __RegisterComplexField(dot11_tracked_eapol, wpa_key_entry_id, 
                     "dot11.eapol.key", "WPA handshake key");
 
+            RegisterField("dot11.device.wpa_nonce_list", TrackerVector,
+                    "Previous WPA Nonces", &wpa_nonce_vec);
+
             RegisterField("dot11.device.wpa_present_handshake", TrackerUInt8,
                     "handshake sequences seen (bitmask)", &wpa_present_handshake);
         }
@@ -980,6 +991,9 @@ class dot11_tracked_device : public tracker_component {
 
         SharedTrackerElement wpa_key_vec;
         int wpa_key_entry_id;
+
+        SharedTrackerElement wpa_nonce_vec;
+        int wpa_nonce_entry_id;
 
         SharedTrackerElement wpa_present_handshake;
 };
@@ -1142,7 +1156,8 @@ class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Han
             int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
                 alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
                 alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
-                alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_ref;
+                alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
+                alert_nonce_duplicate_ref;
 
             // Are we allowed to send wepkeys to the client (server config)
             int client_wepkey_allowed;
