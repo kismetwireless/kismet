@@ -29,23 +29,10 @@ BufferHandlerGeneric::BufferHandlerGeneric() {
 
     rbuf_notify = NULL;
     wbuf_notify = NULL;
-
-    // Initialize as recursive to allow multiple locks in a single thread
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-
-    pthread_mutex_init(&handler_locker, &mutexattr);
-    pthread_mutex_init(&rbuf_locker, &mutexattr);
-    pthread_mutex_init(&wbuf_locker, &mutexattr);
-    pthread_mutex_init(&r_callback_locker, &mutexattr);
-    pthread_mutex_init(&w_callback_locker, &mutexattr);
 }
 
 BufferHandlerGeneric::~BufferHandlerGeneric() {
     local_eol_locker lock(&handler_locker);
-    local_eol_locker rbblock(&rbuf_locker);
-    local_eol_locker wblock(&wbuf_locker);
     local_eol_locker rclock(&r_callback_locker);
     local_eol_locker wclock(&w_callback_locker);
 
@@ -56,15 +43,9 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
 
     if (write_buffer)
         delete write_buffer;
-
-    pthread_mutex_destroy(&handler_locker);
-    pthread_mutex_destroy(&r_callback_locker);
-    pthread_mutex_destroy(&w_callback_locker);
 }
 
 ssize_t BufferHandlerGeneric::GetReadBufferSize() {
-    local_locker lock(&rbuf_locker);
-
     if (read_buffer)
         return read_buffer->size();
 
@@ -72,8 +53,6 @@ ssize_t BufferHandlerGeneric::GetReadBufferSize() {
 }
 
 ssize_t BufferHandlerGeneric::GetWriteBufferSize() {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer)
         return write_buffer->size();
 
@@ -81,8 +60,6 @@ ssize_t BufferHandlerGeneric::GetWriteBufferSize() {
 }
 
 size_t BufferHandlerGeneric::GetReadBufferUsed() {
-    local_locker lock(&rbuf_locker);
-
     if (read_buffer)
         return read_buffer->used();
 
@@ -90,8 +67,6 @@ size_t BufferHandlerGeneric::GetReadBufferUsed() {
 }
 
 size_t BufferHandlerGeneric::GetWriteBufferUsed() {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer)
         return write_buffer->used();
 
@@ -99,8 +74,6 @@ size_t BufferHandlerGeneric::GetWriteBufferUsed() {
 }
 
 ssize_t BufferHandlerGeneric::GetReadBufferAvailable() {
-    local_locker lock(&rbuf_locker);
-
     if (read_buffer)
         return read_buffer->available();
 
@@ -108,8 +81,6 @@ ssize_t BufferHandlerGeneric::GetReadBufferAvailable() {
 }
 
 ssize_t BufferHandlerGeneric::GetWriteBufferAvailable() {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer)
         return write_buffer->available();
 
@@ -117,8 +88,6 @@ ssize_t BufferHandlerGeneric::GetWriteBufferAvailable() {
 }
 
 ssize_t BufferHandlerGeneric::PeekReadBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&rbuf_locker);
-
     if (in_ptr == NULL)
         return 0;
 
@@ -129,8 +98,6 @@ ssize_t BufferHandlerGeneric::PeekReadBufferData(void **in_ptr, size_t in_sz) {
 }
 
 ssize_t BufferHandlerGeneric::PeekWriteBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer)
         return write_buffer->peek((unsigned char **) in_ptr, in_sz);
 
@@ -138,8 +105,6 @@ ssize_t BufferHandlerGeneric::PeekWriteBufferData(void **in_ptr, size_t in_sz) {
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyPeekReadBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&rbuf_locker);
-
     if (in_ptr == NULL)
         return 0;
 
@@ -150,8 +115,6 @@ ssize_t BufferHandlerGeneric::ZeroCopyPeekReadBufferData(void **in_ptr, size_t i
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer)
         return write_buffer->zero_copy_peek((unsigned char **) in_ptr, in_sz);
 
@@ -159,8 +122,6 @@ ssize_t BufferHandlerGeneric::ZeroCopyPeekWriteBufferData(void **in_ptr, size_t 
 }
 
 void BufferHandlerGeneric::PeekFreeReadBufferData(void *in_ptr) {
-    local_locker lock(&rbuf_locker);
-
     if (read_buffer)
         return read_buffer->peek_free((unsigned char *) in_ptr);
 
@@ -168,8 +129,6 @@ void BufferHandlerGeneric::PeekFreeReadBufferData(void *in_ptr) {
 }
 
 void BufferHandlerGeneric::PeekFreeWriteBufferData(void *in_ptr) {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer)
         return write_buffer->peek_free((unsigned char *) in_ptr);
 
@@ -177,7 +136,6 @@ void BufferHandlerGeneric::PeekFreeWriteBufferData(void *in_ptr) {
 }
 
 size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
-    local_locker lock(&rbuf_locker);
     size_t sz;
 
     if (read_buffer) {
@@ -192,7 +150,6 @@ size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
 }
 
 size_t BufferHandlerGeneric::ConsumeWriteBufferData(size_t in_sz) {
-    local_locker lock(&wbuf_locker);
     size_t sz;
 
     if (write_buffer) {
@@ -211,21 +168,16 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
         bool in_atomic) {
     size_t ret;
 
-    {
-        // Sub-context for locking so we don't lock read-op out
-        local_locker lock(&rbuf_locker);
+    if (!read_buffer)
+        return 0;
 
-        if (!read_buffer)
-            return 0;
+    // Don't write any if we're an atomic complete write; buffers which report
+    // -1 for available size are infinite
+    if (in_atomic && read_buffer->available() >= 0 && 
+            (size_t) read_buffer->available() < in_sz)
+        return 0;
 
-        // Don't write any if we're an atomic complete write; buffers which report
-        // -1 for available size are infinite
-        if (in_atomic && read_buffer->available() >= 0 && 
-                (size_t) read_buffer->available() < in_sz)
-            return 0;
-
-        ret = read_buffer->write((unsigned char *) in_ptr, in_sz);
-    }
+    ret = read_buffer->write((unsigned char *) in_ptr, in_sz);
 
     {
         // Lock just the callback handler because the callback
@@ -246,25 +198,20 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
         bool in_atomic) {
     size_t ret;
 
-    {
-        // Sub-context for locking so we don't lock read-op out
-        local_locker lock(&wbuf_locker);
+    if (!write_buffer) {
+        if (wbuf_notify)
+            wbuf_notify->BufferError("No write buffer connected");
 
-        if (!write_buffer) {
-            if (wbuf_notify)
-                wbuf_notify->BufferError("No write buffer connected");
-
-            return 0;
-        }
-
-        // Don't write any if we're an atomic complete write; buffers which report
-        // -1 for available size are infinite
-        if (in_atomic && write_buffer->available() >= 0 &&
-                (size_t) write_buffer->available() < in_sz)
-            return 0;
-
-        ret = write_buffer->write((unsigned char *) in_ptr, in_sz);
+        return 0;
     }
+
+    // Don't write any if we're an atomic complete write; buffers which report
+    // -1 for available size are infinite
+    if (in_atomic && write_buffer->available() >= 0 &&
+            (size_t) write_buffer->available() < in_sz)
+        return 0;
+
+    ret = write_buffer->write((unsigned char *) in_ptr, in_sz);
 
     {
         // Lock just the callback handler because the callback
@@ -282,8 +229,6 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
 }
 
 ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&rbuf_locker);
-
     if (read_buffer != NULL) {
         return read_buffer->reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -292,8 +237,6 @@ ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz)
 }
 
 ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer != NULL) {
         return write_buffer->reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -302,8 +245,6 @@ ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&rbuf_locker);
-
     if (read_buffer != NULL) {
         return read_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -312,8 +253,6 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size_t in_sz) {
-    local_locker lock(&wbuf_locker);
-
     if (write_buffer != NULL) {
         return write_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -324,12 +263,8 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
 bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
-    {
-        local_locker lock(&rbuf_locker);
-
-        if (read_buffer != NULL) {
-            s = read_buffer->commit((unsigned char *) in_ptr, in_sz);
-        }
+    if (read_buffer != NULL) {
+        s = read_buffer->commit((unsigned char *) in_ptr, in_sz);
     }
 
     {
@@ -349,12 +284,8 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
 bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
-    {
-        local_locker lock(&wbuf_locker);
-
-        if (write_buffer != NULL) {
-            s = write_buffer->commit((unsigned char *) in_ptr, in_sz);
-        }
+    if (write_buffer != NULL) {
+        s = write_buffer->commit((unsigned char *) in_ptr, in_sz);
     }
 
     {

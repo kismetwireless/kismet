@@ -142,9 +142,6 @@ public:
     virtual size_t consume(size_t in_sz) = 0;
 
 protected:
-    // Mutex for all operations on the buffer
-    std::recursive_timed_mutex buffer_locker;
-
     bool write_reserved;
     bool peek_reserved;
 
@@ -296,11 +293,7 @@ protected:
     BufferInterface *wbuf_notify;
     BufferInterface *rbuf_notify;
 
-    pthread_mutex_t handler_locker;
-    pthread_mutex_t rbuf_locker;
-    pthread_mutex_t wbuf_locker;
-    pthread_mutex_t r_callback_locker;
-    pthread_mutex_t w_callback_locker;
+    std::recursive_timed_mutex handler_locker, r_callback_locker, w_callback_locker;
 
     function<void (void)> protoerror_cb;
 

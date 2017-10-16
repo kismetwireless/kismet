@@ -42,7 +42,7 @@ RingbufV2::RingbufV2(size_t in_sz) {
 }
 
 RingbufV2::~RingbufV2() {
-    local_locker lock(&buffer_locker);
+    local_eol_locker lock(&write_mutex);
 
 #ifdef PROFILE_RINGBUFV2
     profile();
@@ -90,28 +90,27 @@ void RingbufV2::profile() {
 #endif
 
 void RingbufV2::clear() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
     start_pos = 0;
     length = 0;
 }
 
 ssize_t RingbufV2::size() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
     return buffer_sz;
 }
 
 size_t RingbufV2::used() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
     return length;
 }
 
 ssize_t RingbufV2::available() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
     return buffer_sz - length;
 }
 
 ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
@@ -167,7 +166,6 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
 }
 
 ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
@@ -201,7 +199,6 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
 }
 
 void RingbufV2::peek_free(unsigned char *in_data) {
-    local_locker lock(&buffer_locker);
     local_unlocker unpeeklock(&peek_mutex);
 
     if (!peek_reserved) {
@@ -217,8 +214,6 @@ void RingbufV2::peek_free(unsigned char *in_data) {
 }
 
 size_t RingbufV2::consume(size_t in_sz) {
-    local_locker lock(&buffer_locker);
-
     // Protect cross-thread
     local_locker peeklock(&peek_mutex);
     local_locker writelock(&write_mutex);
@@ -260,7 +255,6 @@ size_t RingbufV2::consume(size_t in_sz) {
 }
 
 ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_locker writelock(&write_mutex);
 
     if (write_reserved) {
@@ -320,7 +314,6 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
 }
 
 ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker writelock(&write_mutex);
 
     if (write_reserved) {
@@ -358,7 +351,6 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
 }
 
 ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker writelock(&write_mutex);
 
     if (write_reserved) {
@@ -390,7 +382,6 @@ ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
 }
 
 bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_unlocker unwritelock(&write_mutex);
 
     if (!write_reserved) {

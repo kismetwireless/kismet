@@ -45,7 +45,7 @@ Chainbuf::Chainbuf(size_t in_chunk, size_t pre_allocate) {
 }
 
 Chainbuf::~Chainbuf() {
-    local_locker lock(&buffer_locker);
+    local_eol_locker lock(&write_mutex);
 
     // fprintf(stderr, "debug - freeing chainbuf, total size %lu chunks %lu, largest allocation delta %lu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
 
@@ -53,7 +53,7 @@ Chainbuf::~Chainbuf() {
 }
 
 void Chainbuf::clear() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
 
     for (auto x : buff_vec) 
         delete[](x);
@@ -62,19 +62,19 @@ void Chainbuf::clear() {
 }
 
 size_t Chainbuf::used() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
 
     return used_sz;
 }
 
 size_t Chainbuf::total() {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
 
     return total_sz;
 }
 
 ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
+    local_locker lock(&write_mutex);
     local_locker writelock(&write_mutex);
 
     size_t total_written = 0;
@@ -127,7 +127,6 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
 }
 
 ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
@@ -188,7 +187,6 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
 }
 
 ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker peeklock(&peek_mutex);
 
     if (peek_reserved) {
@@ -225,7 +223,6 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
 }
 
 void Chainbuf::peek_free(unsigned char *in_data) {
-    local_locker lock(&buffer_locker);
     local_unlocker unpeeklock(&peek_mutex);
 
     if (!peek_reserved) {
@@ -241,8 +238,6 @@ void Chainbuf::peek_free(unsigned char *in_data) {
 }
 
 size_t Chainbuf::consume(size_t in_sz) {
-    local_locker lock(&buffer_locker);
-
     // Protect against crossthread
     local_locker peeklock(&peek_mutex);
     local_locker writelock(&write_mutex);
@@ -309,7 +304,6 @@ size_t Chainbuf::consume(size_t in_sz) {
 }
 
 ssize_t Chainbuf::reserve(unsigned char **data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_eol_locker writelock(&write_mutex);
 
     if (write_reserved) {
@@ -335,7 +329,6 @@ ssize_t Chainbuf::zero_copy_reserve(unsigned char **data, size_t in_sz) {
 }
 
 bool Chainbuf::commit(unsigned char *data, size_t in_sz) {
-    local_locker lock(&buffer_locker);
     local_unlocker unwritelock(&write_mutex);
 
     if (!write_reserved) {
