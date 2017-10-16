@@ -137,6 +137,11 @@ public:
         return object.type == msgpack::type::MAP;
     }
 
+    virtual bool isBinary() {
+        return object.type == msgpack::type::BIN ||
+            object.type == msgpack::type::STR;
+    }
+
     virtual double getNumber() {
         exceptIfNot(isNumber(), "number");
 
@@ -152,8 +157,21 @@ public:
         return getNumber() != 0;
     }
 
-    virtual string getString() {
+    virtual std::string getString() {
         exceptIfNot(isString(), "string");
+
+        try {
+            return object.as<string>();
+        } catch (const std::exception& e) {
+            throw StructuredDataUnsuitable(e.what());
+        }
+    }
+
+    virtual std::string getBinaryStr() {
+        exceptIfNot(isString() || isBinary(), "binary blob or string");
+
+        if (isString())
+            return getString();
 
         try {
             return object.as<string>();

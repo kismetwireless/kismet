@@ -72,10 +72,12 @@ public:
     virtual bool isString() = 0;
     virtual bool isArray() = 0;
     virtual bool isDictionary() = 0;
+    virtual bool isBinary() = 0;
 
     virtual double getNumber() = 0;
     virtual string getString() = 0;
     virtual bool getBool() = 0;
+    virtual string getBinaryStr() = 0;
 
     // Get vectors of numbers and strings
     virtual number_vec getNumberVec() = 0;

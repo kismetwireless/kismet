@@ -189,6 +189,11 @@ public:
         return (json->value.tok_type == JSON_start);
     }
 
+    // Binary in json is an encoded string
+    virtual bool isBinary() {
+        return isString();
+    }
+
     virtual double getNumber() {
         exceptIfNull();
         exceptIfNot(isNumber(), "number");
@@ -211,6 +216,12 @@ public:
             throw StructuredDataUnparseable(err);
 
         return s;
+    }
+
+    virtual string getBinaryStr() {
+        exceptIfNull();
+        exceptIfNot(isString(), "binary string");
+        return hexstr_to_binstr(JSON_get_string(json, err).c_str());
     }
 
     virtual bool getBool() {
