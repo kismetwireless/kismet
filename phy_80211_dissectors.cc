@@ -2029,6 +2029,18 @@ shared_ptr<dot11_tracked_eapol>
             if (rsnkey->wpa_key_data_length()) {
                 eapol->set_eapol_msg_num(2);
             } else {
+                // Look for attempts to set an empty nonce
+                if (rsnkey->wpa_key_nonce().find_first_not_of(std::string("\x00", 1)) ==
+                        string::npos) {
+                    alertracker->RaiseAlert(alert_nonce_ref, in_pack,
+                            packinfo->bssid_mac, packinfo->source_mac, 
+                            packinfo->dest_mac, packinfo->other_mac,
+                            packinfo->channel,
+                            "WPA EAPOL RSN frame seen with an empty key and zero nonce; "
+                            "this may indicate a WPA degradation attack such as the "
+                            "vanhoefm attack against OpenBSD Wi-Fi supplicants.");
+                }
+
                 eapol->set_eapol_msg_num(4);
             }
         } else if (keyinfo->key_mic() && keyinfo->key_ack() && keyinfo->key_ack()) {

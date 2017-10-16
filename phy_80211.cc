@@ -384,6 +384,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "this could indicate that the gain is too high.  Over-amplified signals "
                 "may miss packets entirely.",
                 phyid);
+    alert_nonce_ref =
+        alertracker->ActivateConfiguredAlert("NONCEDEGRADE",
+                "A WPA handshake with an empty NONCE was observed; this could indicate "
+                "a WPA degradation attack such as the vanhoefm attack against BSD "
+                "(https://github.com/vanhoefm/blackhat17-pocs/tree/master/openbsd)",
+                phyid);
 
     // Threshold
     signal_too_loud_threshold = 
