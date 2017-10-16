@@ -21,6 +21,7 @@
 #include "logtracker.h"
 #include "globalregistry.h"
 #include "messagebus.h"
+#include "configfile.h"
 
 LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
@@ -36,10 +37,13 @@ LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
                 SharedLogBuilder(new KisLogfileBuilder(globalreg, 0)),
                 "Log driver");
 
-    log_vec =
+    logfile_vec =
         entrytracker->RegisterAndGetField("kismet.logtracker.log",
                 SharedLogfile(new KisLogfile(globalreg, 0)),
                 "Log file");
+
+    set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
+    set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
 
 }
 
@@ -48,7 +52,7 @@ LogTracker::~LogTracker() {
 
     globalreg->RemoveGlobal("LOGTRACKER");
 
-    TrackerElementVector v(log_vec);
+    TrackerElementVector v(logfile_vec);
 
     for (auto i : v) {
         SharedLogfile f = std::static_pointer_cast<KisLogfile>(i);
@@ -56,16 +60,36 @@ LogTracker::~LogTracker() {
     }
 
     logproto_vec.reset();
-    log_vec.reset();
+    logfile_vec.reset();
 }
 
 void LogTracker::register_fields() { 
+    RegisterField("kismet.logtracker.drivers", TrackerVector,
+            "supported log types", &logproto_vec);
+    RegisterField("kismet.logtracker.logfiles", TrackerVector,
+            "active log files", &logfile_vec);
 
+    // Normally we'd have to register entity IDs here but we'll never snapshot
+    // the log state so we don't care
+    
+    RegisterField("kismet.logtracker.logging_enabled", TrackerUInt8,
+            "logging enabled", &logging_enabled);
+    RegisterField("kismet.logtracker.title", TrackerString,
+            "session title", &log_title);
+    RegisterField("kismet.logtracker.prefix", TrackerString,
+            "log prefix path", &log_prefix);
+    RegisterField("kismet.logtracker.template", TrackerString,
+            "log name template", &log_template);
+
+    RegisterField("kismet.logtracker.log_types", TrackerVector,
+            "enabled log types", &log_types_vec);
 }
 
 void LogTracker::reserve_fields(SharedTrackerElement e) {
     tracker_component::reserve_fields(e);
 
+    // Normally we'd need to implement vector repair for the complex nested
+    // types in logproto and logfile, but we don't snapshot state so we don't.
 }
 
 void LogTracker::Deferred_Startup() {

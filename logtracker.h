@@ -219,6 +219,11 @@ private:
 public:
     virtual ~LogTracker();
 
+    __ProxyPrivSplit(logging_enabled, uint8_t, bool, bool, logging_enabled);
+    __ProxyPrivSplit(log_title, std::string, std::string, std::string, log_title);
+    __ProxyPrivSplit(log_prefix, std::string, std::string, std::string, log_prefix);
+    __ProxyPrivSplit(log_template, std::string, std::string, std::string, log_template);
+
 protected:
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
@@ -234,13 +239,12 @@ protected:
     SharedTrackerElement logproto_vec;
 
     // Vector of logs
-    SharedTrackerElement log_vec;
+    SharedTrackerElement logfile_vec;
 
     // Various global config items common to all
     SharedTrackerElement logging_enabled;
     SharedTrackerElement log_title;
     SharedTrackerElement log_prefix;
-    SharedTrackerElement log_types;
     SharedTrackerElement log_template;
 
     SharedTrackerElement log_types_vec;
