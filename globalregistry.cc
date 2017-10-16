@@ -23,8 +23,6 @@
 #include "util.h"
 #include "macaddr.h"
 
-#include "dumpfile.h"
-
 GlobalRegistry::GlobalRegistry() { 
 	fatal_condition = 0;
 	spindown = 0;
@@ -76,8 +74,6 @@ GlobalRegistry::GlobalRegistry() {
 
 	for (unsigned int x = 0; x < ALERT_REF_MAX; x++)
 		alertref_map[x] = -1;
-
-	pcapdump = NULL;
 
 	checksum_packets = 0;
 
@@ -159,31 +155,6 @@ int GlobalRegistry::InsertGlobal(std::string in_name, std::shared_ptr<void> in_d
 void GlobalRegistry::RemoveGlobal(std::string in_name) {
     int ref = FetchGlobalRef(in_name);
     RemoveGlobal(ref);
-}
-
-void GlobalRegistry::RegisterDumpFile(Dumpfile *in_dump) {
-	subsys_dumpfile_vec.push_back(in_dump);
-}
-
-int GlobalRegistry::RemoveDumpFile(Dumpfile *in_dump) {
-	for (unsigned int x = 0; x < subsys_dumpfile_vec.size(); x++) {
-		if (subsys_dumpfile_vec[x] == in_dump) {
-			subsys_dumpfile_vec.erase(subsys_dumpfile_vec.begin() + x);
-			return 1;
-		}
-	}
-	return 0;
-}
-
-Dumpfile *GlobalRegistry::FindDumpFileType(std::string in_type) {
-    std::string type = StrUpper(in_type);
-	for (unsigned int x = 0; x < subsys_dumpfile_vec.size(); x++) {
-		if (StrUpper(subsys_dumpfile_vec[x]->FetchFileType()) == type) {
-			return subsys_dumpfile_vec[x];
-		}
-	}
-
-	return NULL;
 }
 
 void GlobalRegistry::RegisterUsageFunc(usage_func in_cli) {

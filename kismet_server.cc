@@ -595,7 +595,6 @@ int main(int argc, char *argv[], char *envp[]) {
     char *configfilename = NULL;
     ConfigFile *conf;
     int option_idx = 0;
-    int data_dump = 0;
     GlobalRegistry *globalreg;
 
     bool debug_mode = false;

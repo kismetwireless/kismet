@@ -49,16 +49,12 @@ class Plugintracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
 class Pollable;
-// Vector of dumpfiles to destroy
-class Dumpfile;
 // ipc system
 class IPCRemote;
 class RootIPCRemote;
 class KisPanelInterface;
 // Manuf db
 class Manuf;
-// Pcap dump (only built-in dumpfile which supports plugin hooks currently)
-class Dumpfile_Pcap;
 // Field name resolver
 class EntryTracker;
 // HTTP server
@@ -221,11 +217,6 @@ public:
 	string revision;
 	string revdate;
 
-    // TODO probably deprecate these with the new logging system
-	// Vector of dumpfiles to close cleanly
-    std::vector<Dumpfile *> subsys_dumpfile_vec;
-
-    // TODO deprecate this with the new ipcremote2 system
 	// Vector of child signals
     pid_t sigchild_vec[1024];
     unsigned int sigchild_vec_pos;
@@ -272,8 +263,6 @@ public:
 
 	unsigned int crc32_table[256];
 
-	Dumpfile_Pcap *pcapdump;
-
 	// Critical failure elements
     std::vector<critical_fail> critfail_vec;
 
@@ -299,11 +288,6 @@ public:
     void RegisterUsageFunc(usage_func in_cli);
     void RemoveUsageFunc(usage_func in_cli);
     vector<usage_func> usage_func_vec;
-
-	// Add a log file
-	void RegisterDumpFile(Dumpfile *in_dump);
-	int RemoveDumpFile(Dumpfile *in_dump);
-	Dumpfile *FindDumpFileType(string in_type);
 
 	// Are we supposed to start checksumming packets?  (ie multiple sources, 
 	// whatever other conditions we use)

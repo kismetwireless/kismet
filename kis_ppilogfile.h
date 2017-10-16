@@ -77,8 +77,6 @@ public:
 	};
 
 protected:
-	Dumpfile_Pcap *parent;
-
 	// Common internal startup
 	void Startup_Dumpfile();
 
