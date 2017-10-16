@@ -63,7 +63,7 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg,
     snapshot_pz = NULL;
 
     devicetracker =
-        Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DEVICE_TRACKER");
+        Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
@@ -101,6 +101,8 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     set_int_log_path(in_path);
     set_int_log_open(true);
+
+    return true;
 }
 
 int KisDatabaseLogfile::Database_UpgradeDB() {

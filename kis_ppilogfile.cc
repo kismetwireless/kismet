@@ -124,58 +124,58 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
     if (ppilog->stream_paused)
         return 1;
 
-	// Grab the mangled frame if we have it, then try to grab up the list of
-	// data types and die if we can't get anything
-	dot11_packinfo *packinfo =
-		(dot11_packinfo *) in_pack->fetch(ppilog->pack_comp_80211);
+    // Grab the mangled frame if we have it, then try to grab up the list of
+    // data types and die if we can't get anything
+    dot11_packinfo *packinfo =
+        (dot11_packinfo *) in_pack->fetch(ppilog->pack_comp_80211);
 
-	// Grab the generic mangled frame
-	kis_datachunk *chunk = 
-		(kis_datachunk *) in_pack->fetch(ppilog->pack_comp_mangleframe);
+    // Grab the generic mangled frame
+    kis_datachunk *chunk = 
+        (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_mangleframe);
 
-	kis_layer1_packinfo *radioinfo =
-		(kis_layer1_packinfo *) in_pack->fetch(ppilog->pack_comp_radiodata);
+    kis_layer1_packinfo *radioinfo =
+        (kis_layer1_packinfo *) in_pack->fetch(ppilog->pack_comp_radiodata);
 
-	kis_gps_packinfo *gpsdata =
-		(kis_gps_packinfo *) in_pack->fetch(ppilog->pack_comp_gps);
+    kis_gps_packinfo *gpsdata =
+        (kis_gps_packinfo *) in_pack->fetch(ppilog->pack_comp_gps);
 
-	kis_packet_checksum *fcsdata =
-		(kis_packet_checksum *) in_pack->fetch(ppilog->pack_comp_checksum);
+    kis_packet_checksum *fcsdata =
+        (kis_packet_checksum *) in_pack->fetch(ppilog->pack_comp_checksum);
 
-	if (ppilog->cbfilter != NULL) {
-		// If we have a filter, grab the data using that
-		chunk = (*(ppilog->cbfilter))(ppilog->globalreg, in_pack, ppilog->cbaux);
-	} else if (chunk == NULL) {
-		// Look for the 802.11 frame
-		if ((chunk = (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_decap)) == NULL) {
+    if (ppilog->cbfilter != NULL) {
+        // If we have a filter, grab the data using that
+        chunk = (*(ppilog->cbfilter))(ppilog->globalreg, in_pack, ppilog->cbaux);
+    } else if (chunk == NULL) {
+        // Look for the 802.11 frame
+        if ((chunk = (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_decap)) == NULL) {
 
-			// Look for any link frame, we'll check the DLT soon
-			chunk = (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_linkframe);
-		}
-	}
-
-	// If after all of that we still didn't find a packet
-	if (chunk == NULL) {
-		return 0;
+            // Look for any link frame, we'll check the DLT soon
+            chunk = (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_linkframe);
+        }
     }
 
-	if (chunk != NULL && chunk->length > MAX_PACKET_LEN) {
-		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
-		return 0;
-	}
+    // If after all of that we still didn't find a packet
+    if (chunk == NULL) {
+        return 0;
+    }
 
-	// Make sure we have the right DLT for simple matching conditions
-	if (ppilog->cbfilter == NULL && chunk->dlt != ppilog->dlt) {
-		return 0;
-	}
+    if (chunk != NULL && chunk->length > MAX_PACKET_LEN) {
+        _MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
+        return 0;
+    }
 
-	int dump_offset = 0;
+    // Make sure we have the right DLT for simple matching conditions
+    if (ppilog->cbfilter == NULL && chunk->dlt != ppilog->dlt) {
+        return 0;
+    }
 
-	unsigned int dump_len = 0;
-	if (chunk != NULL)
-		dump_len += chunk->length;
+    int dump_offset = 0;
 
-	u_char *dump_data = NULL;
+    unsigned int dump_len = 0;
+    if (chunk != NULL)
+        dump_len += chunk->length;
+
+    u_char *dump_data = NULL;
 
     // Assemble the full packet
     ppi_packet_header *ppi_ph;
