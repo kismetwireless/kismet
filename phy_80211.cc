@@ -157,12 +157,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
             CHAINPOS_DECRYPT, -100);
 	packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
             CHAINPOS_LLCDISSECT, -100);
-#if 0
-	packetchain->RegisterHandler(&phydot11_packethook_dot11data, this,
-            CHAINPOS_DATADISSECT, -100);
-	packetchain->RegisterHandler(&phydot11_packethook_dot11string, this,
-            CHAINPOS_DATADISSECT, -99);
-#endif
 
 	packetchain->RegisterHandler(&phydot11_packethook_dot11tracker, this,
 											CHAINPOS_TRACKER, 100);
@@ -489,9 +483,13 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
     // Register js module for UI
     shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_dot11", 
-            "/js/kismet.ui.dot11.js");
+    httpregistry->register_js_module("kismet_ui_dot11", "/js/kismet.ui.dot11.js");
 
+    // Set up the de-duplication list
+    for (unsigned int x = 0; x < 64; x++) {
+        recent_packet_checksums[x] = 0;
+    }
+    recent_packet_checksum_pos = 0;
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
@@ -568,6 +566,10 @@ int Kis_80211_Phy::LoadWepkeys() {
 // of the common info for the system to make a device out of it.
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
+
+    // Don't process errors, blocked, or dupes
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+        return 0;
 
     // Get the 802.11 info
     dot11_packinfo *dot11info = 
@@ -1281,7 +1283,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     devicelist_scope_locker dlocker(devicetracker);
 
 	// We can't do anything w/ it from the packet layer
-	if (in_pack->error || in_pack->filtered) {
+	if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
         // fprintf(stderr, "debug - error packet\n");
 		return 0;
 	}

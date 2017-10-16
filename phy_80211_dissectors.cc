@@ -219,6 +219,22 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
 
+    // Compare the checksum and see if we've recently seen this exact packet
+    uint32_t chunk_csum = Adler32Checksum((const char *) chunk->data, chunk->length);
+
+    for (unsigned int c = 0; c < 64; c++) {
+        if (recent_packet_checksums[c] == 0)
+            break;
+
+        if (recent_packet_checksums[c] == chunk_csum) {
+            in_pack->filtered = 1;
+            in_pack->duplicate = 1;
+            return 0;
+        }
+    }
+
+    recent_packet_checksums[(recent_packet_checksum_pos++ % 64)] = chunk_csum;
+
     // Flat-out dump if it's not big enough to be 80211, don't even bother making a
     // packinfo record for it because we're completely broken
     if (chunk->length < 10) {

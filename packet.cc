@@ -40,6 +40,7 @@ kis_packet::kis_packet(GlobalRegistry *in_globalreg) {
 
 	error = 0;
 	filtered = 0;
+    duplicate = 0;
 
 	// Stock and init the content vector
 	content_vec.resize(MAX_PACKET_COMPONENTS, NULL);

@@ -71,6 +71,9 @@ public:
 	// Have we been filtered for some reason?
 	int filtered;
 
+    // Are we a duplicate?
+    int duplicate;
+
 	// Actual vector of bits in the packet
 	vector<packet_component *> content_vec;
    

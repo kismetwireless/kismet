@@ -1022,192 +1022,197 @@ class dot11_ssid_alert {
         macmap<int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler,
-    public TimetrackerEvent {
-        public:
-            // Stub
-            ~Kis_80211_Phy();
+class Kis_80211_Phy : public Kis_Phy_Handler, 
+    public Kis_Net_Httpd_CPPStream_Handler, public TimetrackerEvent {
 
-            // Inherited functionality
-            Kis_80211_Phy(GlobalRegistry *in_globalreg) :
-                Kis_Phy_Handler(in_globalreg) { };
+public:
+    // Stub
+    ~Kis_80211_Phy();
 
-            // Build a strong version of ourselves
-            virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-                    Devicetracker *in_tracker,
-                    int in_phyid) {
-                return new Kis_80211_Phy(in_globalreg, in_tracker, in_phyid);
-            }
+    // Inherited functionality
+    Kis_80211_Phy(GlobalRegistry *in_globalreg) :
+        Kis_Phy_Handler(in_globalreg) { };
 
-            // Strong constructor
-            Kis_80211_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-                    int in_phyid);
+    // Build a strong version of ourselves
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
+            Devicetracker *in_tracker,
+            int in_phyid) {
+        return new Kis_80211_Phy(in_globalreg, in_tracker, in_phyid);
+    }
 
-            int WPACipherConv(uint8_t cipher_index);
-            int WPAKeyMgtConv(uint8_t mgt_index);
+    // Strong constructor
+    Kis_80211_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
+            int in_phyid);
 
-            // Dot11 decoders, wep decryptors, etc
-            int PacketWepDecryptor(kis_packet *in_pack);
-            int PacketDot11dissector(kis_packet *in_pack);
+    int WPACipherConv(uint8_t cipher_index);
+    int WPAKeyMgtConv(uint8_t mgt_index);
 
-            // Special decoders, not called as part of a chain
+    // Dot11 decoders, wep decryptors, etc
+    int PacketWepDecryptor(kis_packet *in_pack);
+    int PacketDot11dissector(kis_packet *in_pack);
 
-            // Is packet a WPS M3 message?  Used to detect Reaver, etc
-            int PacketDot11WPSM3(kis_packet *in_pack);
+    // Special decoders, not called as part of a chain
 
-            // Is the packet a WPA handshake?  Return an eapol tracker element if so
-            shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack,
-                    shared_ptr<dot11_tracked_device> dot11device);
+    // Is packet a WPS M3 message?  Used to detect Reaver, etc
+    int PacketDot11WPSM3(kis_packet *in_pack);
 
-            // static incase some other component wants to use it
-            static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
-                    kis_datachunk *in_chunk, 
-                    unsigned char *in_key, int in_key_len,
-                    unsigned char *in_id);
+    // Is the packet a WPA handshake?  Return an eapol tracker element if so
+    shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack,
+            shared_ptr<dot11_tracked_device> dot11device);
 
-            // TODO - what do we do with the strings?  Can we make them phy-neutral?
-            // int packet_dot11string_dissector(kis_packet *in_pack);
+    // static incase some other component wants to use it
+    static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
+            kis_datachunk *in_chunk, 
+            unsigned char *in_key, int in_key_len,
+            unsigned char *in_id);
 
-            // 802.11 packet classifier to common for the devicetracker layer
-            static int CommonClassifierDot11(CHAINCALL_PARMS);
+    // TODO - what do we do with the strings?  Can we make them phy-neutral?
+    // int packet_dot11string_dissector(kis_packet *in_pack);
 
-            // Dot11 tracker for building phy-specific elements
-            int TrackerDot11(kis_packet *in_pack);
+    // 802.11 packet classifier to common for the devicetracker layer
+    static int CommonClassifierDot11(CHAINCALL_PARMS);
 
-            int AddFilter(string in_filter);
-            int AddNetcliFilter(string in_filter);
+    // Dot11 tracker for building phy-specific elements
+    int TrackerDot11(kis_packet *in_pack);
 
-            void SetStringExtract(int in_extr);
+    int AddFilter(string in_filter);
+    int AddNetcliFilter(string in_filter);
 
-            void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
+    void SetStringExtract(int in_extr);
 
-            static string CryptToString(uint64_t cryptset);
+    void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
-            // HTTPD API
-            virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    static string CryptToString(uint64_t cryptset);
 
-            virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-                    Kis_Net_Httpd_Connection *connection,
-                    const char *url, const char *method, const char *upload_data,
-                    size_t *upload_data_size, std::stringstream &stream);
+    // HTTPD API
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
-            virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
 
-            // Timetracker event handler
-            virtual int timetracker_event(int eventid);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
-            // Restore stored dot11 records
-            virtual void LoadPhyStorage(SharedTrackerElement in_storage, 
-                    SharedTrackerElement in_device);
+    // Timetracker event handler
+    virtual int timetracker_event(int eventid);
 
-        protected:
-            shared_ptr<Alertracker> alertracker;
-            shared_ptr<Packetchain> packetchain;
-            shared_ptr<Timetracker> timetracker;
+    // Restore stored dot11 records
+    virtual void LoadPhyStorage(SharedTrackerElement in_storage, 
+            SharedTrackerElement in_device);
 
-            void HandleSSID(shared_ptr<kis_tracked_device_base> basedev, 
-                    shared_ptr<dot11_tracked_device> dot11dev,
-                    kis_packet *in_pack,
-                    dot11_packinfo *dot11info,
-                    kis_gps_packinfo *pack_gpsinfo);
+protected:
+    std::shared_ptr<Alertracker> alertracker;
+    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<Timetracker> timetracker;
 
-            void HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev, 
-                    shared_ptr<dot11_tracked_device> dot11dev,
-                    kis_packet *in_pack,
-                    dot11_packinfo *dot11info,
-                    kis_gps_packinfo *pack_gpsinfo);
+    // Checksum of recent packets for duplication filtering
+    uint32_t recent_packet_checksums[64];
+    unsigned int recent_packet_checksum_pos;
 
-            void HandleClient(shared_ptr<kis_tracked_device_base> basedev, 
-                    shared_ptr<dot11_tracked_device> dot11dev,
-                    kis_packet *in_pack,
-                    dot11_packinfo *dot11info,
-                    kis_gps_packinfo *pack_gpsinfo,
-                    kis_data_packinfo *pack_datainfo);
+    void HandleSSID(shared_ptr<kis_tracked_device_base> basedev, 
+            shared_ptr<dot11_tracked_device> dot11dev,
+            kis_packet *in_pack,
+            dot11_packinfo *dot11info,
+            kis_gps_packinfo *pack_gpsinfo);
 
-            void GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
-                    Kis_Net_Httpd_Connection *connection,
-                    std::stringstream &stream);
+    void HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev, 
+            shared_ptr<dot11_tracked_device> dot11dev,
+            kis_packet *in_pack,
+            dot11_packinfo *dot11info,
+            kis_gps_packinfo *pack_gpsinfo);
 
-            int dot11_device_entry_id;
+    void HandleClient(shared_ptr<kis_tracked_device_base> basedev, 
+            shared_ptr<dot11_tracked_device> dot11dev,
+            kis_packet *in_pack,
+            dot11_packinfo *dot11info,
+            kis_gps_packinfo *pack_gpsinfo,
+            kis_data_packinfo *pack_datainfo);
 
-            int LoadWepkeys();
+    void GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
+            Kis_Net_Httpd_Connection *connection,
+            std::stringstream &stream);
 
-            map<mac_addr, string> bssid_cloak_map;
+    int dot11_device_entry_id;
 
-            string ssid_cache_path, ip_cache_path;
-            int ssid_cache_track, ip_cache_track;
+    int LoadWepkeys();
 
-            // Device components
-            int dev_comp_dot11, dev_comp_common;
+    map<mac_addr, string> bssid_cloak_map;
 
-            // Packet components
-            int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
-                pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
-                pack_comp_decap, pack_comp_common, pack_comp_datapayload,
-                pack_comp_gps, pack_comp_l1info;
+    string ssid_cache_path, ip_cache_path;
+    int ssid_cache_track, ip_cache_track;
 
-            // Do we do any data dissection or do we hide it all (legal safety
-            // cutout)
-            int dissect_data;
+    // Device components
+    int dev_comp_dot11, dev_comp_common;
 
-            // Do we pull strings?
-            int dissect_strings, dissect_all_strings;
+    // Packet components
+    int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
+        pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
+        pack_comp_decap, pack_comp_common, pack_comp_datapayload,
+        pack_comp_gps, pack_comp_l1info;
 
-            FilterCore *string_filter;
-            macmap<int> string_nets;
+    // Do we do any data dissection or do we hide it all (legal safety
+    // cutout)
+    int dissect_data;
 
-            // Dissector alert references
-            int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
-                alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
-                alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
-                alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
-                alert_nonce_duplicate_ref;
+    // Do we pull strings?
+    int dissect_strings, dissect_all_strings;
 
-            // Are we allowed to send wepkeys to the client (server config)
-            int client_wepkey_allowed;
-            // Map of wepkeys to BSSID (or bssid masks)
-            macmap<dot11_wep_key *> wepkeys;
+    FilterCore *string_filter;
+    macmap<int> string_nets;
 
-            // Generated WEP identity / base
-            unsigned char wep_identity[256];
+    // Dissector alert references
+    int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
+        alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
+        alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
+        alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
+        alert_nonce_duplicate_ref;
 
-            // Tracker alert references
-            int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
-                alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
-                alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
-                alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
-                alert_l33t_ref, alert_tooloud_ref;
+    // Are we allowed to send wepkeys to the client (server config)
+    int client_wepkey_allowed;
+    // Map of wepkeys to BSSID (or bssid masks)
+    macmap<dot11_wep_key *> wepkeys;
 
-            int signal_too_loud_threshold;
+    // Generated WEP identity / base
+    unsigned char wep_identity[256];
 
-            // Command refs
-            int addfiltercmd_ref, addnetclifiltercmd_ref;
+    // Tracker alert references
+    int alert_chan_ref, alert_dhcpcon_ref, alert_bcastdcon_ref, alert_airjackssid_ref,
+        alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
+        alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
+        alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
+        alert_l33t_ref, alert_tooloud_ref;
 
-            // Filter core for tracker
-            FilterCore *track_filter;
-            // Filter core for network client
-            FilterCore *netcli_filter;
+    int signal_too_loud_threshold;
 
-            int proto_ref_ssid, proto_ref_device, proto_ref_client;
+    // Command refs
+    int addfiltercmd_ref, addnetclifiltercmd_ref;
 
-            // SSID cloak file as a config file
-            ConfigFile *ssid_conf;
-            time_t conf_save;
+    // Filter core for tracker
+    FilterCore *track_filter;
+    // Filter core for network client
+    FilterCore *netcli_filter;
 
-            // probe assoc to owning network
-            map<mac_addr, kis_tracked_device_base *> probe_assoc_map;
+    int proto_ref_ssid, proto_ref_device, proto_ref_client;
 
-            vector<dot11_ssid_alert *> apspoof_vec;
+    // SSID cloak file as a config file
+    ConfigFile *ssid_conf;
+    time_t conf_save;
 
-            // Do we time out components of devices?
-            int device_idle_expiration;
-            int device_idle_timer;
+    // probe assoc to owning network
+    map<mac_addr, kis_tracked_device_base *> probe_assoc_map;
 
-            // Pcap handlers
-            unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;
+    vector<dot11_ssid_alert *> apspoof_vec;
 
-            // Do we process control and phy frames?
-            bool process_ctl_phy;
+    // Do we time out components of devices?
+    int device_idle_expiration;
+    int device_idle_timer;
+
+    // Pcap handlers
+    unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;
+
+    // Do we process control and phy frames?
+    bool process_ctl_phy;
     };
 
 #endif
