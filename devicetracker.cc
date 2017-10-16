@@ -1317,15 +1317,19 @@ Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
         return kdb;
     } catch (const zstr::Exception& e) {
         _MSG("Unable to decompress stored device data (" + macaddr.Mac2String() + "); the "
-                "stored device will be skipped: " + string(e.what()), MSGFLAG_ERROR);
+                "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const StructuredDataException& e) {
         _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
-                "stored device will be skipped: " + string(e.what()), MSGFLAG_ERROR);
+                "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
+        return NULL;
+    } catch (const std::runtime_error&e ) {
+        _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
+                "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const exception& e) {
         _MSG("Unable to load a stored device (" + macaddr.Mac2String() + "); the stored "
-                "device will be skipped: " + string(e.what()), MSGFLAG_ERROR);
+                "device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     }
 
