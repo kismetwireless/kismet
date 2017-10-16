@@ -43,25 +43,25 @@ public:
     int ParseConfig(const char *in_fname);
 	int SaveConfig(const char *in_fname);
 
-    string FetchOpt(string in_key);
-    string FetchOpt_nl(string in_key);
-    vector<string> FetchOptVec(string in_key);
+    std::string FetchOpt(std::string in_key);
+    std::string FetchOpt_nl(std::string in_key);
+    std::vector<std::string> FetchOptVec(std::string in_key);
 
 	// Fetch a true/false t/f value with a default (ie value returned if not
 	// equal to true, or missing.)
-	int FetchOptBoolean(string in_key, int dvalue);
+	int FetchOptBoolean(std::string in_key, int dvalue);
 
     // Fetch an integer option
-    int FetchOptInt(string in_key, int dvalue);
-    unsigned int FetchOptUInt(string in_key, unsigned int dvalue);
+    int FetchOptInt(std::string in_key, int dvalue);
+    unsigned int FetchOptUInt(std::string in_key, unsigned int dvalue);
 
-	int FetchOptDirty(string in_key);
-	void SetOptDirty(string in_key, int in_dirty);
+	int FetchOptDirty(std::string in_key);
+	void SetOptDirty(std::string in_key, int in_dirty);
 
-	void SetOpt(string in_key, string in_val, int in_dirty);
-	void SetOptVec(string in_key, vector<string> in_val, int in_dirty);
+	void SetOpt(std::string in_key, std::string in_val, int in_dirty);
+	void SetOptVec(std::string in_key, vector<std::string> in_val, int in_dirty);
 
-    string ExpandLogPath(string path, string logname, string type, 
+    std::string ExpandLogPath(std::string path, std::string logname, std::string type, 
             int start, int overwrite = 0);
 
 	// Fetches the load-time checksum of the config values.
@@ -74,30 +74,30 @@ protected:
 
     // Internal non-locking versions for use when parsing configs ourselves
     int ParseConfig_nl(const char *in_fname);
-    void ParseOptInclude(const string path);
-    string ExpandLogPath_nl(string path, string logname, string type, 
+    void ParseOptInclude(const std::string path);
+    std::string ExpandLogPath_nl(std::string path, std::string logname, std::string type, 
             int start, int overwrite = 0);
 
-	int FetchOptDirty_nl(string in_key);
-	void SetOptDirty_nl(string in_key, int in_dirty);
+	int FetchOptDirty_nl(std::string in_key);
+	void SetOptDirty_nl(std::string in_key, int in_dirty);
 
-    string filename;
+    std::string filename;
 
     class config_entity {
     public:
-        config_entity(string v, string sf) {
+        config_entity(std::string v, std::string sf) {
             value = v;
             sourcefile = sf;
         }
 
-        string value;
-        string sourcefile;
+        std::string value;
+        std::string sourcefile;
     };
 
-    map<string, vector<config_entity> > config_map;
-	map<string, int> config_map_dirty;
-	uint32_t checksum;
-	string ckstring;
+    std::map<std::string, vector<config_entity> > config_map;
+    std::map<std::string, int> config_map_dirty;
+    uint32_t checksum;
+    std::string ckstring;
 
     pthread_mutex_t config_locker;
 };
