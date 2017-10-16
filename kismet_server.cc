@@ -83,9 +83,6 @@
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
 
-#include "dumpfile.h"
-#include "dumpfile_pcap.h"
-
 #include "ipc_remote2.h"
 
 #include "statealert.h"
@@ -291,14 +288,6 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
                 "CONTINUE.  ***\n");
     }
 
-    // Kill all the logfiles
-    fprintf(stderr, "Shutting down log files...\n");
-    for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
-        delete globalregistry->subsys_dumpfile_vec[x];
-    }
-
-    globalregistry->pcapdump = NULL;
-
     fprintf(stderr, "Shutting down plugins...\n");
     shared_ptr<Plugintracker> plugintracker =
         Globalreg::FetchGlobalAs<Plugintracker>(globalregistry, "PLUGINTRACKER");
@@ -403,34 +392,7 @@ int Usage(char *argv) {
         (*i)(argv);
     }
 
-#if 0
-    printf("\n");
-    KisNetFramework::Usage(argv);
-    printf("\n");
-    Dumpfile::Usage(argv);
-    printf("\n");
-    Packetsourcetracker::Usage(argv);
-    printf("\n");
-#endif
-
     exit(1);
-}
-
-int FlushDatafilesEvent(TIMEEVENT_PARMS) {
-    if (globalreg->subsys_dumpfile_vec.size() == 0)
-        return 1;
-
-    int r = 0;
-
-    for (unsigned int x = 0; x < globalreg->subsys_dumpfile_vec.size(); x++) {
-        if (globalreg->subsys_dumpfile_vec[x]->Flush())
-            r = 1;
-    }
-
-    if (r)
-        _MSG("Saved data files", MSGFLAG_INFO);
-
-    return 1;
 }
 
 void TerminationHandler() {
@@ -991,36 +953,6 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->manufdb = new Manuf(globalregistry);
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
-
-    // Create the dumpfiles.  We don't have to assign the new dumpfile anywhere
-    // because it puts itself in the global vector
-    globalregistry->messagebus->InjectMessage("Registering dumpfiles...",
-                                              MSGFLAG_INFO);
-#ifdef HAVE_LIBPCAP
-    // Pcapdump is special since plugins might hook it
-    globalreg->pcapdump = new Dumpfile_Pcap(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-#endif
-
-    if (conf->FetchOpt("writeinterval") != "") {
-        if (sscanf(conf->FetchOpt("writeinterval").c_str(), "%d", &data_dump) != 1) {
-            data_dump = 0;
-            globalregistry->messagebus->InjectMessage("Failed to parse data write "
-                                                      "interval from config file",
-                                                      MSGFLAG_ERROR);
-        }
-    }
-
-    // Set the timer event to flush dumpfiles
-    if (data_dump != 0 &&
-            globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * data_dump,
-                NULL, 1, &FlushDatafilesEvent, NULL) < 0) {
-        globalregistry->messagebus->InjectMessage("Failed to register timer event to "
-                "sync data files for some reason.", 
-                MSGFLAG_FATAL);
-        CatchShutdown(-1);
-    }
 
     // Start stateful alert systems
     BSSTSStateAlert *bsstsa;
