@@ -192,13 +192,13 @@ int ConfigFile::SaveConfig(const char *in_fname) {
     return 1;
 }
 
-string ConfigFile::FetchOpt(std::string in_key) {
+std::string ConfigFile::FetchOpt(std::string in_key) {
     local_locker lock(&config_locker);
 
     return FetchOpt_nl(in_key);
 }
 
-string ConfigFile::FetchOpt_nl(std::string in_key) {
+std::string ConfigFile::FetchOpt_nl(std::string in_key) {
     auto cmitr = config_map.find(StrLower(in_key));
     // No such key
     if (cmitr == config_map.end())
@@ -331,14 +331,14 @@ void ConfigFile::SetOptVec(std::string in_key,
 // Logfile name to use
 // Logfile type to use
 // Starting number or desired number
-string ConfigFile::ExpandLogPath(std::string path, std::string logname, std::string type,
+std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std::string type,
         int start, int overwrite) {
     local_locker lock(&config_locker);
 
     return ExpandLogPath_nl(path, logname, type, start, overwrite);
 }
 
-string ConfigFile::ExpandLogPath_nl(std::string path, std::string logname, std::string type,
+std::string ConfigFile::ExpandLogPath_nl(std::string path, std::string logname, std::string type,
         int start, int overwrite) {
     // We don't lock
 
