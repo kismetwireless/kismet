@@ -329,7 +329,13 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
         return 0;
     }
 
-    handler->ReserveWriteBufferData((void **) &retbuf, buf_sz);
+    ssize_t r = handler->ReserveWriteBufferData((void **) &retbuf, buf_sz);
+
+    if (r != (ssize_t) buf_sz) {
+        handler->CommitWriteBufferData(NULL, 0);
+        handler->ProtocolError();
+        return -1;
+    }
 
     epb = (pcapng_epb *) retbuf;
 
