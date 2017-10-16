@@ -822,6 +822,7 @@ class dot11_tracked_device : public tracker_component {
         __Proxy(wpa_present_handshake, uint8_t, uint8_t, uint8_t, wpa_present_handshake);
 
         __ProxyTrackable(wpa_nonce_vec, TrackerElement, wpa_nonce_vec);
+        __ProxyTrackable(wpa_anonce_vec, TrackerElement, wpa_anonce_vec);
 
     protected:
         virtual void register_fields() {
@@ -913,6 +914,9 @@ class dot11_tracked_device : public tracker_component {
             RegisterField("dot11.device.wpa_nonce_list", TrackerVector,
                     "Previous WPA Nonces", &wpa_nonce_vec);
 
+            RegisterField("dot11.device.wpa_anonce_list", TrackerVector,
+                    "Previous WPA ANonces", &wpa_anonce_vec);
+
             RegisterField("dot11.device.wpa_present_handshake", TrackerUInt8,
                     "handshake sequences seen (bitmask)", &wpa_present_handshake);
         }
@@ -993,7 +997,7 @@ class dot11_tracked_device : public tracker_component {
         int wpa_key_entry_id;
 
         SharedTrackerElement wpa_nonce_vec;
-        int wpa_nonce_entry_id;
+        SharedTrackerElement wpa_anonce_vec;
 
         SharedTrackerElement wpa_present_handshake;
 };

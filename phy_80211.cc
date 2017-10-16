@@ -1514,11 +1514,12 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                     static_pointer_cast<dot11_tracked_device>(eapolbase->get_map_value(dot11_device_entry_id));
 
                 if (eapoldot11 != NULL) {
+                    bool dupe_nonce = false;
+
                     // Look for replay attacks
                     if (eapol->get_eapol_install()) {
                         TrackerElementVector ev(eapoldot11->get_wpa_nonce_vec());
-
-                        bool dupe_nonce = false;
+                        dupe_nonce = false;
 
                         for (auto i : ev) {
                             if (i->get_bytearray_str() == eapol->get_eapol_nonce()) {
@@ -1532,7 +1533,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                             n->set_bytearray(eapol->get_eapol_nonce());
 
                             // Don't store more than 32 nonces for now
-                            if (ev.size() > 32)
+                            if (ev.size() > 128)
                                 ev.erase(ev.begin());
 
                             ev.push_back(n);
@@ -1542,6 +1543,33 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                                     dot11info->dest_mac, dot11info->other_mac,
                                     commoninfo->channel,
                                     "WPA EAPOL RSN frame seen with a previously used nonce; "
+                                    "this may indicate a KRACK-style WPA attack");
+                        }
+                    } else if (eapol->get_eapol_msg_num() == 1) {
+                        TrackerElementVector eav(eapoldot11->get_wpa_anonce_vec());
+                        dupe_nonce = false;
+
+                        for (auto i : eav) {
+                            if (i->get_bytearray_str() == eapol->get_eapol_nonce()) {
+                                dupe_nonce = true;
+                                break;
+                            }
+                        }
+
+                        if (!dupe_nonce) {
+                            SharedTrackerElement n(new TrackerElement(TrackerByteArray));
+                            n->set_bytearray(eapol->get_eapol_nonce());
+
+                            if (eav.size() > 128)
+                                eav.erase(eav.begin());
+
+                            eav.push_back(n);
+                        } else {
+                            alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
+                                    dot11info->bssid_mac, dot11info->source_mac, 
+                                    dot11info->dest_mac, dot11info->other_mac,
+                                    commoninfo->channel,
+                                    "WPA EAPOL RSN frame seen with a previously used anonce; "
                                     "this may indicate a KRACK-style WPA attack");
                         }
                     }
