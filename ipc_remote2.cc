@@ -636,14 +636,13 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     sigaddset(&mask, SIGCHLD);
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
-    for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
-        pid_t caught_pid = globalreg->sigchild_vec[x]->pid;
-        int pid_status = globalreg->sigchild_vec[x]->status;
+    for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
+        pid_t caught_pid = globalreg->sigchild_vec[x];
 
         dead_remote = remove_ipc(caught_pid);
 
         if (dead_remote != NULL) {
-            dead_remote->notify_killed(WEXITSTATUS(pid_status));
+            dead_remote->notify_killed(0);
             dead_remote->close_ipc();
 
             if (dead_remote->get_tracker_free()) {
@@ -663,7 +662,7 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
 
     }
 
-    globalreg->sigchild_vec.clear();
+    globalreg->sigchild_vec_pos = 0;
 
     sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 

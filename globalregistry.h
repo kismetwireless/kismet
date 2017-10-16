@@ -139,12 +139,6 @@ class Kis_Net_Httpd;
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
 
-// Record how a pid died
-struct pid_fail {
-	pid_t pid;
-	int status;
-};
-
 // Record of how we failed critically.  We want to spin a critfail message out
 // to the client so it can do something intelligent.  A critical fail is something
 // like the root IPC process failing to load, or dropping dead.
@@ -233,7 +227,8 @@ public:
 
     // TODO deprecate this with the new ipcremote2 system
 	// Vector of child signals
-    std::vector<std::shared_ptr<pid_fail> > sigchild_vec;
+    pid_t sigchild_vec[1024];
+    unsigned int sigchild_vec_pos;
 	
     time_t start_time;
     string servername;

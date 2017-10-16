@@ -367,12 +367,7 @@ void CatchChild(int sig) {
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-        std::shared_ptr<pid_fail> frec(new pid_fail());
-
-        frec->pid = pid;
-        frec->status = status;
-
-        globalregistry->sigchild_vec.push_back(frec);
+        globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
     }
 
     sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
