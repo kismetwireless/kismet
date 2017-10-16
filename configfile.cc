@@ -213,6 +213,15 @@ std::string ConfigFile::FetchOpt_nl(std::string in_key) {
     return val;
 }
 
+std::string ConfigFile::FetchOptDfl(std::string in_key, std::string in_dfl) {
+    std::string r = FetchOpt(in_key);
+
+    if (r.length() == 0)
+        return in_dfl;
+
+    return r;
+}
+
 std::vector<std::string> ConfigFile::FetchOptVec(std::string in_key) {
     local_locker lock(&config_locker);
 

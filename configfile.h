@@ -44,6 +44,7 @@ public:
 	int SaveConfig(const char *in_fname);
 
     std::string FetchOpt(std::string in_key);
+    std::string FetchOptDfl(std::string in_key, std::string in_dfl);
     std::string FetchOpt_nl(std::string in_key);
     std::vector<std::string> FetchOptVec(std::string in_key);
 
