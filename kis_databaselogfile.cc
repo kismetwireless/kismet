@@ -94,7 +94,13 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     if (!dbr)
         return false;
 
-    return Database_UpgradeDB();
+    dbr = Database_UpgradeDB();
+
+    if (!dbr)
+        return false;
+
+    set_int_log_path(in_path);
+    set_int_log_open(true);
 }
 
 int KisDatabaseLogfile::Database_UpgradeDB() {

@@ -179,8 +179,8 @@ public:
     virtual void initialize() {
         set_log_class("kismet");
         set_log_name("Kismet Unified Log");
-        set_log_stream(true);
-        set_log_singleton(true);
+        set_stream(true);
+        set_singleton(true);
         set_log_description("Unified Kismet log containing device, data source, packet, "
                 "alert, and other runtime data");
     }
