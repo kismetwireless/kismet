@@ -31,6 +31,8 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg,
     KisLogfile(in_globalreg, in_builder), 
     KisDatabase(in_globalreg, "kismetlog") {
 
+    globalreg = in_globalreg;
+
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
 

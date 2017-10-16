@@ -110,6 +110,8 @@ public:
             std::string snaptype, std::string json);
 
 protected:
+    GlobalRegistry *globalreg;
+
     // Per-table mutexes to prevent clobbering prepared statements
     std::recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
         alert_mutex, msg_mutex, snapshot_mutex;
