@@ -1695,7 +1695,7 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
     globalreg = in_globalreg;
 
     entrytracker = 
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(in_globalreg, "ENTRY_TRACKER");
 
     set_type(TrackerMap);
     set_id(in_id);
@@ -1706,7 +1706,7 @@ tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id,
 
     globalreg = in_globalreg;
     entrytracker = 
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
     set_type(TrackerMap);
     set_id(in_id);

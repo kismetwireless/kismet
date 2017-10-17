@@ -25,25 +25,17 @@
 
 LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
-
-    globalreg = in_globalreg;
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg),
+    globalreg(in_globalreg) {
 
     streamtracker =
         Globalreg::FetchMandatoryGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
 
-    logproto_vec =
-        entrytracker->RegisterAndGetField("kismet.logtracker.driver",
-                SharedLogBuilder(new KisLogfileBuilder(globalreg, 0)),
-                "Log driver");
+    entrytracker =
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
-    logfile_vec =
-        entrytracker->RegisterAndGetField("kismet.logtracker.log",
-                SharedLogfile(new KisLogfile(globalreg, 0)),
-                "Log file");
-
-    set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
-    set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
+    register_fields();
+    reserve_fields(NULL);
 
 }
 
@@ -69,6 +61,16 @@ void LogTracker::register_fields() {
     RegisterField("kismet.logtracker.logfiles", TrackerVector,
             "active log files", &logfile_vec);
 
+    logproto_entry_id =
+        entrytracker->RegisterField("kismet.logtracker.driver",
+                SharedLogBuilder(new KisLogfileBuilder(globalreg, 0)),
+                "Log driver");
+
+    logfile_entry_id =
+        entrytracker->RegisterField("kismet.logtracker.log",
+                SharedLogfile(new KisLogfile(globalreg, 0)),
+                "Log file");
+
     // Normally we'd have to register entity IDs here but we'll never snapshot
     // the log state so we don't care
     
@@ -93,6 +95,8 @@ void LogTracker::reserve_fields(SharedTrackerElement e) {
 }
 
 void LogTracker::Deferred_Startup() {
+    set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
+    set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
     return;
 }
 

@@ -174,8 +174,6 @@ protected:
 
     }
 
-    GlobalRegistry *globalreg;
-
     // Builder/prototype that made us
     SharedLogBuilder builder;
 
@@ -225,10 +223,10 @@ public:
     __ProxyPrivSplit(log_template, std::string, std::string, std::string, log_template);
 
 protected:
+    GlobalRegistry *globalreg;
+
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
-
-    GlobalRegistry *globalreg;
 
     std::recursive_timed_mutex tracker_mutex;
 
@@ -237,9 +235,11 @@ protected:
 
     // Vector of prototypes
     SharedTrackerElement logproto_vec;
+    int logproto_entry_id;
 
     // Vector of logs
     SharedTrackerElement logfile_vec;
+    int logfile_entry_id;
 
     // Various global config items common to all
     SharedTrackerElement logging_enabled;

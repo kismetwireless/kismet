@@ -65,6 +65,10 @@
 #include "datasource_linux_wifi.h"
 #include "datasource_linux_bluetooth.h"
 
+#include "logtracker.h"
+#include "kis_ppilogfile.h"
+#include "kis_databaselogfile.h"
+
 #include "timetracker.h"
 #include "alertracker.h"
 
@@ -920,6 +924,13 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
 #endif
+
+    fprintf(stderr, "debug - globalregistry %p\n", globalregistry);
+    LogTracker::create_logtracker(globalregistry);
+
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPPILogfileBuilder(globalregistry)));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder(globalregistry)));
+
 
     shared_ptr<Plugintracker> plugintracker;
 

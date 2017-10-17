@@ -119,7 +119,7 @@ std::shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
 }
 
 std::shared_ptr<void> GlobalRegistry::FetchGlobal(std::string in_name) {
-    local_locker lock(&ext_mutex);
+    //local_locker lock(&ext_mutex);
 
 	int ref;
 
