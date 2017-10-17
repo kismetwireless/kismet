@@ -1523,8 +1523,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 if (eapoldot11 != NULL) {
                     bool dupe_nonce = false;
 
-                    // Look for replay attacks
-                    if (eapol->get_eapol_install()) {
+                    // Look for replay attacks; only compare non-zero nonces
+                    if (eapol->get_eapol_install() &&
+                            eapol->get_eapol_nonce().find_first_not_of(std::string("\x00", 1)) != string::npos) {
                         TrackerElementVector ev(eapoldot11->get_wpa_nonce_vec());
                         dupe_nonce = false;
 
@@ -1552,7 +1553,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                                     "WPA EAPOL RSN frame seen with a previously used nonce; "
                                     "this may indicate a KRACK-style WPA attack");
                         }
-                    } else if (eapol->get_eapol_msg_num() == 1) {
+                    } else if (eapol->get_eapol_msg_num() == 1 &&
+                            eapol->get_eapol_nonce().find_first_not_of(std::string("\x00", 1)) != string::npos) {
+                        // Don't compare zero nonces
                         TrackerElementVector eav(eapoldot11->get_wpa_anonce_vec());
                         dupe_nonce = false;
 
