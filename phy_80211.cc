@@ -1524,7 +1524,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                     bool dupe_nonce = false;
 
                     // Look for replay attacks; only compare non-zero nonces
-                    if (eapol->get_eapol_install() &&
+                    if (eapol->get_eapol_msg_num() == 3 &&
                             eapol->get_eapol_nonce().find_first_not_of(std::string("\x00", 1)) != string::npos) {
                         TrackerElementVector ev(eapoldot11->get_wpa_nonce_vec());
                         dupe_nonce = false;
