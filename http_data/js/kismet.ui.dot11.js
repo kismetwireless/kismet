@@ -554,7 +554,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         clidata = kismet.sanitizeObject(clidata);
 
                         if (clidata !== '' && clidata !== '""') {
-                            alink.text("Client of " + mac + " (" + clidata.slice(1, clidata.length - 1) + ")");
+                            alink.html("Client of " + mac + " (" + clidata.slice(1, clidata.length - 1) + ")");
                         }
                     });
                 },
