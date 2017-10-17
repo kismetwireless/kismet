@@ -554,7 +554,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         clidata = kismet.sanitizeObject(clidata);
 
                         if (clidata !== '' && clidata !== '""') {
-                            alink.html("Client of " + mac + " (" + clidata.slice(1, clidata.length - 1) + ")");
+                            alink.html("Client of " + mac + " (" + clidata + ")");
                         }
                     });
                 },
@@ -590,7 +590,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             if (clidata === '' || clidata === '""') {
                                 opts['container'].html('<i>Unknown</i>');
                             } else {
-                                opts['container'].html(clidata.slice(1, clidata.length - 1));
+                                opts['container'].html(clidata);
                             }
                         });
                     },
