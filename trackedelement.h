@@ -260,13 +260,14 @@ public:
     }
 
     SharedTrackerElement get_map_value(int fn) {
-        except_type_mismatch(TrackerMap);
+        // Soft-bounce if we're not a map or we cause a lot of problems
+        if (get_type() != TrackerMap)
+            return NULL;
 
         auto i = dataunion.submap_value->find(fn);
 
-        if (i == dataunion.submap_value->end()) {
+        if (i == dataunion.submap_value->end())
             return NULL;
-        }
 
         return i->second;
     }
@@ -1072,6 +1073,12 @@ class tracker_component : public TrackerElement {
         if (cvar != NULL) \
             add_map(std::static_pointer_cast<TrackerElement>(cvar)); \
     }  \
+    virtual SharedTrackerElement get_tracker_##name() { \
+        return std::static_pointer_cast<TrackerElement>(cvar); \
+    } 
+
+// Proxy ONLY the get_tracker_* functions
+#define __ProxyOnlyTrackable(name, ttype, cvar) \
     virtual SharedTrackerElement get_tracker_##name() { \
         return std::static_pointer_cast<TrackerElement>(cvar); \
     } 

@@ -1782,8 +1782,9 @@ SharedTrackerElement
 
     SharedTrackerElement r;
 
-    // Find the value in the importer element
-    if (e != NULL) {
+    // Find the value of any known fields in the importer element; only try
+    // if the imported element is a map
+    if (e != NULL && e->get_type() == TrackerMap) {
         r = e->get_map_value(i);
 
         if (r != NULL) {
