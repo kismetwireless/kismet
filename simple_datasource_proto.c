@@ -189,8 +189,8 @@ simple_cap_proto_kv_t *encode_kv_success(unsigned int success, uint32_t sequence
     snprintf(kv->header.key, 16, "%.16s", "SUCCESS");
     kv->header.obj_sz = htonl(content_sz);
 
-    ((simple_cap_proto_success_t *) kv->object)->success = success;
-    ((simple_cap_proto_success_t *) kv->object)->sequence_number = htonl(sequence);
+    ((simple_cap_proto_success_t *) kv->object)->success = (uint8_t) success;
+    ((simple_cap_proto_success_t *) kv->object)->sequence_number = (uint32_t) htonl(sequence);
 
     return kv;
 }
