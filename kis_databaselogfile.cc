@@ -23,6 +23,7 @@
 
 #include "json_adapter.h"
 #include "packetchain.h"
+#include "kis_datasource.h"
 
 #include "kis_databaselogfile.h"
 
@@ -50,6 +51,9 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg,
     packet_stmt = NULL;
     packet_pz = NULL;
 
+    datasource_stmt = NULL;
+    datasource_pz = NULL;
+
     data_stmt = NULL;
     data_pz = NULL;
 
@@ -74,6 +78,9 @@ KisDatabaseLogfile::~KisDatabaseLogfile() {
 
     if (packet_stmt != NULL)
         sqlite3_finalize(packet_stmt);
+
+    if (datasource_stmt != NULL)
+        sqlite3_finalize(datasource_stmt);
 
     if (data_stmt != NULL)
         sqlite3_finalize(data_stmt);
@@ -209,6 +216,31 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create data table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+
+        sql =
+            "CREATE TABLE datasources ("
+
+            "uuid TEXT, " // Unique ID
+
+            "typestring TEXT, " // Normalized records
+            "definition TEXT, "
+            "name TEXT, "
+            "interface TEXT, "
+
+            "json BLOB, " // Full device dump
+
+            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Kismet log was unable to create alerts table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
             sqlite3_close(db);
             db = NULL;
@@ -352,6 +384,24 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
+                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        sqlite3_close(db);
+        db = NULL;
+        return -1;
+    }
+
+    sql =
+        "INSERT INTO datasources "
+        "(uuid, "
+        "typestring, definition, "
+        "name, interface, "
+        "json) "
+        "VALUES (?, ?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &datasource_stmt, &datasource_pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisDatabaseLogfile unable to prepare database insert for datasources in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -592,6 +642,54 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_bind_text(data_stmt, 8, json.data(), json.length(), 0);
 
     sqlite3_step(data_stmt);
+
+    return 1;
+}
+
+int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) {
+    int r;
+
+    TrackerElementVector v(in_datasource_vec);
+
+    for (auto ds : v) {
+        r = log_datasource(ds);
+
+        if (r < 0)
+            return r;
+    }
+
+    return 1;
+}
+
+int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
+    local_locker lock(&datasource_mutex);
+
+    std::shared_ptr<KisDatasource> ds =
+        std::static_pointer_cast<KisDatasource>(in_datasource);
+
+    sqlite3_reset(datasource_stmt);
+
+    std::string uuidstring = ds->get_source_uuid().UUID2String();
+    std::string typestring = ds->get_source_builder()->get_source_type();
+    std::string defstring = ds->get_source_definition();
+    std::string namestring = ds->get_source_name();
+    std::string intfstring = ds->get_source_interface();
+
+    std::stringstream ss;
+    std::string jsonstring;
+
+    sqlite3_bind_text(datasource_stmt, 1, uuidstring.data(), uuidstring.length(), 0);
+    sqlite3_bind_text(datasource_stmt, 2, typestring.data(), typestring.length(), 0);
+    sqlite3_bind_text(datasource_stmt, 3, defstring.data(), defstring.length(), 0);
+    sqlite3_bind_text(datasource_stmt, 4, namestring.data(), namestring.length(), 0);
+    sqlite3_bind_text(datasource_stmt, 5, intfstring.data(), intfstring.length(), 0);
+
+    JsonAdapter::Pack(globalreg, ss, in_datasource, NULL);
+    jsonstring = ss.str();
+
+    sqlite3_bind_text(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), 0);
+
+    sqlite3_step(datasource_stmt);
 
     return 1;
 }

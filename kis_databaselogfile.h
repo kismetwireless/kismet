@@ -38,6 +38,8 @@
  * PACKET       Location-tagged data record which includes raw pcap data in the original
  *              DLT format of the datasource, suitable for conversion to pcap files
  *
+ * DATASOURCES  List of data sources for logging packet origins
+ *
  * DATA         Arbitrary non-pcap data in JSON format, and similar instant records tied
  *              to an event or device
  *
@@ -101,6 +103,11 @@ public:
             std::string phystring, mac_addr devmac, uuid datasource_uuid, 
             std::string json);
 
+    // Log datasources
+    virtual int log_datasources(SharedTrackerElement in_datasource_vec);
+    // Log a single datasource
+    virtual int log_datasource(SharedTrackerElement in_datasource);
+
     // Log an alert; takes a standard tracked_alert element
     virtual int log_alert(std::shared_ptr<tracked_alert> in_alert);
 
@@ -114,7 +121,7 @@ protected:
 
     // Per-table mutexes to prevent clobbering prepared statements
     std::recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
-        alert_mutex, msg_mutex, snapshot_mutex;
+        alert_mutex, msg_mutex, snapshot_mutex, datasource_mutex;
 
     std::shared_ptr<Devicetracker> devicetracker;
 
@@ -129,6 +136,9 @@ protected:
 
     sqlite3_stmt *packet_stmt;
     const char *packet_pz;
+
+    sqlite3_stmt *datasource_stmt;
+    const char *datasource_pz;
 
     sqlite3_stmt *data_stmt;
     const char *data_pz;
