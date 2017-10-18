@@ -487,7 +487,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
-        globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 256);
+        globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 2048);
     recent_packet_checksums = new uint32_t[recent_packet_checksums_sz];
     for (unsigned int x = 0; x < recent_packet_checksums_sz; x++) {
         recent_packet_checksums[x] = 0;
