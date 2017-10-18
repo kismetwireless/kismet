@@ -249,8 +249,11 @@ public:
 
     __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
     __Proxy(eapol_dir, uint8_t, uint8_t, uint8_t, eapol_dir);
+    __Proxy(eapol_replay_counter, uint64_t, uint64_t, uint64_t, eapol_replay_counter);
     __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
     __Proxy(eapol_install, uint8_t, bool, bool, eapol_install);
+
+    __ProxyOnlyTrackable(eapol_nonce, SharedTrackerElement, eapol_nonce);
 
     void set_eapol_nonce(std::string in_n) {
         eapol_nonce->set_bytearray(in_n);
@@ -268,6 +271,7 @@ protected:
 
     SharedTrackerElement eapol_time;
     SharedTrackerElement eapol_dir;
+    SharedTrackerElement eapol_replay_counter;
     SharedTrackerElement eapol_msg_num;
 
     SharedTrackerElement eapol_install;
@@ -275,6 +279,53 @@ protected:
 
     shared_ptr<kis_tracked_packet> eapol_packet;
     int eapol_packet_id;
+};
+
+class dot11_tracked_nonce : public tracker_component {
+public:
+    dot11_tracked_nonce(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    dot11_tracked_nonce(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_tracked_nonce(globalreg, get_id()));
+    }
+
+    __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
+    __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
+    __Proxy(eapol_install, uint8_t, bool, bool, eapol_install);
+    __Proxy(eapol_replay_counter, uint64_t, uint64_t, uint64_t, eapol_replay_counter);
+
+    void set_eapol_nonce(std::string in_n) {
+        eapol_nonce->set_bytearray(in_n);
+    }
+
+    std::string get_eapol_nonce() {
+        return eapol_nonce->get_bytearray_str();
+    }
+
+    void set_from_eapol(SharedTrackerElement in_tracked_eapol);
+
+protected:
+    virtual void register_fields();
+    virtual void reserve_fields(SharedTrackerElement e);
+
+    SharedTrackerElement eapol_time;
+    SharedTrackerElement eapol_msg_num;
+
+    SharedTrackerElement eapol_install;
+    SharedTrackerElement eapol_nonce;
+
+    SharedTrackerElement eapol_replay_counter;
+
 };
 
 class dot11_11d_tracked_range_info : public tracker_component {
@@ -823,6 +874,9 @@ class dot11_tracked_device : public tracker_component {
 
         __ProxyTrackable(wpa_nonce_vec, TrackerElement, wpa_nonce_vec);
         __ProxyTrackable(wpa_anonce_vec, TrackerElement, wpa_anonce_vec);
+        shared_ptr<dot11_tracked_nonce> create_tracked_nonce() {
+            return static_pointer_cast<dot11_tracked_nonce>(entrytracker->GetTrackedInstance(wpa_nonce_entry_id));
+        }
 
     protected:
         virtual void register_fields() {
@@ -919,6 +973,11 @@ class dot11_tracked_device : public tracker_component {
 
             RegisterField("dot11.device.wpa_present_handshake", TrackerUInt8,
                     "handshake sequences seen (bitmask)", &wpa_present_handshake);
+
+            shared_ptr<dot11_tracked_nonce> nonce_builder(new dot11_tracked_nonce(globalreg, 0));
+            wpa_nonce_entry_id =
+                RegisterComplexField("dot11.device.wpa_nonce", nonce_builder, 
+                        "wpa nonce exchange");
         }
 
         virtual void reserve_fields(SharedTrackerElement e) {
@@ -953,6 +1012,23 @@ class dot11_tracked_device : public tracker_component {
                 for (auto k = v.begin(); k != v.end(); ++k) {
                     std::shared_ptr<dot11_tracked_eapol> eap(new dot11_tracked_eapol(globalreg, wpa_key_entry_id, *k));
                     *k = std::static_pointer_cast<TrackerElement>(eap);
+                }
+
+                // We have to update the nonce and anonce vecs
+                TrackerElementVector nv(wpa_nonce_vec);
+
+                for (auto k = nv.begin(); k != nv.end(); ++k) {
+                    std::shared_ptr<dot11_tracked_nonce> nonce(new dot11_tracked_nonce(globalreg, wpa_nonce_entry_id, *k));
+
+                    *k = std::static_pointer_cast<TrackerElement>(nonce);
+                }
+
+                TrackerElementVector av(wpa_anonce_vec);
+
+                for (auto k = av.begin(); k != av.end(); ++k) {
+                    std::shared_ptr<dot11_tracked_nonce> nonce(new dot11_tracked_nonce(globalreg, wpa_nonce_entry_id, *k));
+
+                    *k = std::static_pointer_cast<TrackerElement>(nonce);
                 }
 
             }
@@ -998,6 +1074,7 @@ class dot11_tracked_device : public tracker_component {
 
         SharedTrackerElement wpa_nonce_vec;
         SharedTrackerElement wpa_anonce_vec;
+        int wpa_nonce_entry_id;
 
         SharedTrackerElement wpa_present_handshake;
 };

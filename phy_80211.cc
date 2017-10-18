@@ -90,6 +90,9 @@ void dot11_tracked_eapol::register_fields() {
     RegisterField("dot11.eapol.message_num", TrackerUInt8,
             "handshake message number", &eapol_msg_num);
 
+    RegisterField("dot11.eapol.replay_counter", TrackerUInt64,
+            "eapol frame replay counter", &eapol_replay_counter);
+
     RegisterField("dot11.eapol.install", TrackerUInt8,
             "eapol rsn key install", &eapol_install);
 
@@ -111,6 +114,40 @@ void dot11_tracked_eapol::reserve_fields(SharedTrackerElement e) {
     }
 
     add_map(eapol_packet);
+}
+
+void dot11_tracked_nonce::register_fields() {
+    tracker_component::register_fields();
+
+    RegisterField("dot11.eapol.nonce.timestamp", TrackerUInt64, 
+            "packet timestamp (second)", &eapol_time);
+    
+    RegisterField("dot11.eapol.nonce.message_num", TrackerUInt8,
+            "handshake message number", &eapol_msg_num);
+
+    RegisterField("dot11.eapol.nonce.replay_counter", TrackerUInt64,
+            "eapol frame replay counter", &eapol_replay_counter);
+
+    RegisterField("dot11.eapol.nonce.install", TrackerUInt8,
+            "eapol rsn key install", &eapol_install);
+
+    RegisterField("dot11.eapol.nonce.nonce", TrackerByteArray,
+            "eapol rsn nonce", &eapol_nonce);
+}
+
+void dot11_tracked_nonce::reserve_fields(SharedTrackerElement e) {
+    tracker_component::reserve_fields(e);
+}
+
+void dot11_tracked_nonce::set_from_eapol(SharedTrackerElement in_tracked_eapol) {
+    std::shared_ptr<dot11_tracked_eapol> e =
+        std::static_pointer_cast<dot11_tracked_eapol>(in_tracked_eapol);
+
+    set_eapol_time(e->get_eapol_time());
+    set_eapol_msg_num(e->get_eapol_msg_num());
+    set_eapol_replay_counter(e->get_eapol_replay_counter());
+    set_eapol_install(e->get_eapol_install());
+    set_eapol_nonce(e->get_eapol_nonce());
 }
 
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
@@ -1582,29 +1619,50 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
                 if (eapoldot11 != NULL) {
                     bool dupe_nonce = false;
+                    bool new_nonce = true;
 
                     // Look for replay attacks; only compare non-zero nonces
                     if (eapol->get_eapol_msg_num() == 3 &&
                             eapol->get_eapol_nonce().find_first_not_of(std::string("\x00", 1)) != string::npos) {
                         TrackerElementVector ev(eapoldot11->get_wpa_nonce_vec());
                         dupe_nonce = false;
+                        new_nonce = true;
 
                         for (auto i : ev) {
-                            if (i->get_bytearray_str() == eapol->get_eapol_nonce()) {
-                                dupe_nonce = true;
+                            std::shared_ptr<dot11_tracked_nonce> nonce =
+                                std::static_pointer_cast<dot11_tracked_nonce>(i);
+
+                            // If the nonce strings match
+                            if (nonce->get_eapol_nonce() == eapol->get_eapol_nonce()) {
+                                new_nonce = false;
+
+                                if (eapol->get_eapol_replay_counter() <=
+                                        nonce->get_eapol_replay_counter()) {
+                                    // Is it an earlier (or equal) replay counter? Then we
+                                    // have a problem
+                                    dupe_nonce = true;
+                                } else {
+                                    // Otherwise increment the replay counter
+                                    nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
+                                }
                                 break;
                             }
                         }
 
                         if (!dupe_nonce) {
-                            SharedTrackerElement n(new TrackerElement(TrackerByteArray));
-                            n->set_bytearray(eapol->get_eapol_nonce());
+                            if (new_nonce) {
+                                fprintf(stderr, "debug - new nonce\n");
+                                std::shared_ptr<dot11_tracked_nonce> n = 
+                                    eapoldot11->create_tracked_nonce();
 
-                            // Limit the size of stored nonces
-                            if (ev.size() > 128)
-                                ev.erase(ev.begin());
+                                n->set_from_eapol(eapol);
 
-                            ev.push_back(n);
+                                // Limit the size of stored nonces
+                                if (ev.size() > 128)
+                                    ev.erase(ev.begin());
+
+                                ev.push_back(n);
+                            }
                         } else {
                             std::stringstream ss;
                             std::string nonce = eapol->get_eapol_nonce();
@@ -1627,22 +1685,42 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                         // Don't compare zero nonces
                         TrackerElementVector eav(eapoldot11->get_wpa_anonce_vec());
                         dupe_nonce = false;
+                        new_nonce = true;
 
                         for (auto i : eav) {
-                            if (i->get_bytearray_str() == eapol->get_eapol_nonce()) {
-                                dupe_nonce = true;
+                            std::shared_ptr<dot11_tracked_nonce> nonce =
+                                std::static_pointer_cast<dot11_tracked_nonce>(i);
+
+                            // If the nonce strings match
+                            if (nonce->get_eapol_nonce() == eapol->get_eapol_nonce()) {
+                                new_nonce = false;
+
+                                if (eapol->get_eapol_replay_counter() <=
+                                        nonce->get_eapol_replay_counter()) {
+                                    // Is it an earlier (or equal) replay counter? Then we
+                                    // have a problem
+                                    dupe_nonce = true;
+                                } else {
+                                    // Otherwise increment the replay counter
+                                    nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
+                                }
                                 break;
                             }
                         }
 
                         if (!dupe_nonce) {
-                            SharedTrackerElement n(new TrackerElement(TrackerByteArray));
-                            n->set_bytearray(eapol->get_eapol_nonce());
+                            if (new_nonce) {
+                                std::shared_ptr<dot11_tracked_nonce> n = 
+                                    eapoldot11->create_tracked_nonce();
 
-                            if (eav.size() > 128)
-                                eav.erase(eav.begin());
+                                n->set_from_eapol(eapol);
 
-                            eav.push_back(n);
+                                // Limit the size of stored nonces
+                                if (eav.size() > 128)
+                                    eav.erase(eav.begin());
+
+                                eav.push_back(n);
+                            }
                         } else {
                             std::stringstream ss;
                             std::string nonce = eapol->get_eapol_nonce();

@@ -2066,6 +2066,7 @@ shared_ptr<dot11_tracked_eapol>
 
         eapol->set_eapol_install(keyinfo->install());
         eapol->set_eapol_nonce(rsnkey->wpa_key_nonce());
+        eapol->set_eapol_replay_counter(rsnkey->replay_counter());
 
         return eapol;
 
