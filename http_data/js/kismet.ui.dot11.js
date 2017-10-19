@@ -392,6 +392,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last Seen",
                     render: kismet_ui.RenderTrimmedTime,
                 },
+                {
+                    field: "dot11.probedssid.dot11r_mobility",
+                    title: "802.11r Mobility",
+                    filterOnZero: true,
+                    help: "The 802.11r standard allows for fast roaming between access points on the same network.  Typically this is found on enterprise-level access points, on a network where multiple APs service the same area.",
+                    render: function(opts) { return "Enabled"; }
+                },
+                {
+                    field: "dot11.probedssid.dot11r_mobility_domain_id",
+                    title: "Mobility Domain",
+                    filterOnZero: true,
+                    help: "The 802.11r standard allows for fast roaming between access points on the same network."
+                },
 
                 ],
             },
@@ -448,6 +461,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Beacon Info",
                     filterOnEmpty: true,
                     help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
+                },
+                {
+                    field: "dot11.advertisedssid.dot11r_mobility",
+                    title: "802.11r Mobility",
+                    filterOnZero: true,
+                    help: "The 802.11r standard allows for fast roaming between access points on the same network.  Typically this is found on enterprise-level access points, on a network where multiple APs service the same area.",
+                    render: function(opts) { return "Enabled"; }
+                },
+                {
+                    field: "dot11.advertisedssid.dot11r_mobility_domain_id",
+                    title: "Mobility Domain",
+                    filterOnZero: true,
+                    help: "The 802.11r standard allows for fast roaming between access points on the same network."
                 },
                 {
                     field: "dot11.advertisedssid.first_time",

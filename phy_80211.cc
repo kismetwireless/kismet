@@ -875,6 +875,11 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
             // Set the type
             ssid->set_ssid_beacon(true);
+
+            // Set the mobility
+            ssid->set_dot11r_mobility(dot11info->dot11r);
+            ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility_domain_id);
+
         } else if (dot11info->subtype == packet_sub_probe_resp) {
             if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
                     dot11info->source_mac) {
@@ -1151,7 +1156,9 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
     shared_ptr<dot11_probed_ssid> probessid = NULL;
     TrackerElement::int_map_iterator ssid_itr;
 
-    if (dot11info->subtype == packet_sub_probe_req) {
+    if (dot11info->subtype == packet_sub_probe_req ||
+            dot11info->subtype == packet_sub_reassociation_req) {
+
         ssid_itr = probemap.find(dot11info->ssid_csum);
 
         if (ssid_itr == probemap.end()) {
@@ -1162,6 +1169,8 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
             probessid->set_ssid(dot11info->ssid);
             probessid->set_ssid_len(dot11info->ssid_len);
             probessid->set_first_time(in_pack->ts.tv_sec);
+        } else {
+            probessid = std::static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
         }
 
         if (probessid != NULL) {
@@ -1174,6 +1183,9 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
                         pack_gpsinfo->alt, pack_gpsinfo->fix);
 
             }
+
+            probessid->set_dot11r_mobility(dot11info->dot11r);
+            probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility_domain_id);
         }
     }
 
@@ -1423,7 +1435,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
     // Handle probe reqs
     if (dot11info->type == packet_management &&
-            dot11info->subtype == packet_sub_probe_req) {
+            (dot11info->subtype == packet_sub_probe_req ||
+             dot11info->subtype == packet_sub_reassociation_req)) {
         HandleProbedSSID(basedev, dot11dev, in_pack, dot11info, pack_gpsinfo);
     }
 

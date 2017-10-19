@@ -148,6 +148,9 @@ class dot11_packinfo : public packet_component {
             wps_device_name = "";
             wps_model_name = "";
             wps_model_number = "";
+
+            dot11r = false;
+            dot11r_mobility_domain_id = 0;
         }
 
         // Corrupt 802.11 frame
@@ -227,6 +230,9 @@ class dot11_packinfo : public packet_component {
         string wps_model_number;
         // There's also the serial number field but we don't care
         // about it because it's almost always bogus.
+        
+        bool dot11r;
+        uint16_t dot11r_mobility_domain_id;
 };
 
 class dot11_tracked_eapol : public tracker_component {
@@ -393,6 +399,10 @@ class dot11_probed_ssid : public tracker_component {
 
         __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
+        __Proxy(dot11r_mobility, uint8_t, bool, bool, dot11r_mobility);
+        __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, 
+                dot11r_mobility_domain_id);
+
     protected:
         virtual void register_fields() {
             RegisterField("dot11.probedssid.ssid", TrackerString,
@@ -408,6 +418,11 @@ class dot11_probed_ssid : public tracker_component {
 
             __RegisterComplexField(kis_tracked_location, location_id, 
                     "dot11.probedssid.location", "location");
+
+            RegisterField("dot11.probedssid.dot11r_mobility", TrackerUInt8,
+                    "advertised dot11r mobility support", &dot11r_mobility);
+            RegisterField("dot11.probedssid.dot11r_mobility_domain_id", TrackerUInt16,
+                    "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
         }
 
         virtual void reserve_fields(SharedTrackerElement e) {
@@ -426,6 +441,9 @@ class dot11_probed_ssid : public tracker_component {
         SharedTrackerElement bssid;
         SharedTrackerElement first_time;
         SharedTrackerElement last_time;
+
+        SharedTrackerElement dot11r_mobility;
+        SharedTrackerElement dot11r_mobility_domain_id;
 
         int location_id;
         shared_ptr<kis_tracked_location> location;
@@ -507,6 +525,10 @@ class dot11_advertised_ssid : public tracker_component {
 
         __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
+        __Proxy(dot11r_mobility, uint8_t, bool, bool, dot11r_mobility);
+        __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, 
+                dot11r_mobility_domain_id);
+
     protected:
         virtual void register_fields() {
             RegisterField("dot11.advertisedssid.ssid", TrackerString,
@@ -560,6 +582,11 @@ class dot11_advertised_ssid : public tracker_component {
 
             __RegisterComplexField(kis_tracked_location, location_id, 
                     "dot11.advertisedssid.location", "location");
+
+            RegisterField("dot11.advertisedssid.dot11r_mobility", TrackerUInt8,
+                    "advertised dot11r mobility support", &dot11r_mobility);
+            RegisterField("dot11.advertisedssid.dot11r_mobility_domain_id", TrackerUInt16,
+                    "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
         }
 
         virtual void reserve_fields(SharedTrackerElement e) {
@@ -597,8 +624,12 @@ class dot11_advertised_ssid : public tracker_component {
         SharedTrackerElement beaconrate;
         SharedTrackerElement beacons_sec;
         SharedTrackerElement ietag_checksum;
+
         SharedTrackerElement dot11d_country;
         SharedTrackerElement dot11d_vec;
+
+        SharedTrackerElement dot11r_mobility;
+        SharedTrackerElement dot11r_mobility_domain_id;
 
         // dot11d vec component reference
         int dot11d_country_entry_id;

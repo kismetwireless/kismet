@@ -40,6 +40,7 @@
 #include "kaitai/kaitaistream.h"
 #include "kaitai_parsers/wpaeap.h"
 #include "kaitai_parsers/ie221.h"
+#include "kaitai_parsers/dot11_ie_54_mobility.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -606,8 +607,14 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
+
             packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &(chunk->data[24]);
+
+            if (fc->subtype == packet_sub_reassociation_req) {
+                packinfo->header_offset += 8;
+            }
+
             if (fixparm->wep) {
                 packinfo->cryptset |= crypt_wep;
             }
@@ -652,7 +659,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         if (fc->subtype == packet_sub_beacon || 
             fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_probe_resp ||
-            fc->subtype == packet_sub_association_resp) {
+            fc->subtype == packet_sub_association_resp ||
+            fc->subtype == packet_sub_reassociation_req) {
 
             if (fc->subtype == packet_sub_beacon)
                 packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
@@ -720,6 +728,30 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 }
             } else {
                 packinfo->ssid_len = 0;
+            }
+
+            // Look for the mobility tag
+            if ((tcitr = tag_cache_map.find(54)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+                membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                        (char *) &(chunk->data[chunk->length]));
+                std::istream tag_stream(&tag_membuf);
+
+                try {
+                    kaitai::kstream ks(&tag_stream);
+                    dot11_ie_54_mobility_t mobility(&ks);
+
+                    packinfo->dot11r = true;
+                    packinfo->dot11r_mobility_domain_id =
+                        mobility.mobility_domain();
+
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "debug - ie54 mobility corrupt\n");
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                }
             }
 
             // Extract the CISCO beacon info
