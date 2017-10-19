@@ -3,11 +3,15 @@
 # decode
 
 meta:
-  id: ieee_80211_ie
+  id: dot11_ie
   endian: be
   
   imports:
-    - ieee_80211_ie_221
+    - dot11_ie_7_country
+    - dot11_ie_11_qbss
+    - dot11_ie_54_mobility
+    - dot11_ie_55_fastbss
+    - dot11_ie_221_vendor
   
 seq:
   - id: tag
@@ -30,11 +34,11 @@ types:
             1: dot11_ie_basicrates
             3: dot11_ie_ds_channel
             5: dot11_ie_tim
-            7: dot11_ie_country
-            11: dot11_ie_qbss
+            7: dot11_ie_7_country
+            11: dot11_ie_11_qbss
             50: dot11_ie_extendedrates
             133: dot11_ie_cisco_ccx1_ckip
-            221: dot11_ie_221
+            221: dot11_ie_221_vendor
             _: dot11_ie_data
 
   # IE 0, SSID
@@ -75,38 +79,7 @@ types:
         type: b7
       - id: multicast
         type: b1
-      
-  # IE 07 802.11d country code; deprecated by the FCC but still used
-  dot11_ie_country:
-    seq:
-      - id: country_code
-        size: 2
-      - id: environment
-        type: u1
-      - id: country_list
-        type: dot11_ie_country_triplet
-        repeat: eos
-        
-  # Channel mapping for dot11d
-  dot11_ie_country_triplet:
-    seq:
-      - id: first_channel
-        type: u1
-      - id: num_channels
-        type: u1
-      - id: max_power
-        type: u1
 
-  # IE 11, QBSS channel usage
-  dot11_ie_qbss:
-    seq:
-      - id: station_count
-        type: u2le
-      - id: channel_utilization
-        type: u1
-      - id: available_admissions
-        type: u2le
-  
   # IE 50, extended data rates
   dot11_ie_extendedrates:
     seq:
@@ -134,5 +107,3 @@ types:
       - id: data
         size-eos: true
 
-      
-      

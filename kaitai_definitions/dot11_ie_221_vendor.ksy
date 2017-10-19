@@ -2,7 +2,7 @@
 # determined by the vendor OUI
 
 meta:
-  id: dot11_ie_221
+  id: dot11_ie_221_vendor
   endian: be
     
 seq:
