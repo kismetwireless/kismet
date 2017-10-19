@@ -40,6 +40,7 @@
 #include "kaitai/kaitaistream.h"
 #include "kaitai_parsers/wpaeap.h"
 #include "kaitai_parsers/ie221.h"
+#include "kaitai_parsers/dot11_ie_11_qbss.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
@@ -728,6 +729,28 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 }
             } else {
                 packinfo->ssid_len = 0;
+            }
+
+            // Look for the qbss tag
+            if ((tcitr = tag_cache_map.find(11)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+                membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                        (char *) &(chunk->data[chunk->length]));
+                std::istream tag_stream(&tag_membuf);
+
+                try {
+                    kaitai::kstream ks(&tag_stream);
+                    std::shared_ptr<dot11_ie_11_qbss_t> qbss(new dot11_ie_11_qbss_t(&ks));
+
+                    packinfo->qbss = qbss;
+
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "debug - ie11 qbss corrupt\n");
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                }
             }
 
             // Look for the mobility tag

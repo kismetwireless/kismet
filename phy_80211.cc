@@ -882,6 +882,17 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                 ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
             }
 
+            // Set QBSS
+            if (dot11info->qbss != NULL) {
+                ssid->set_dot11e_qbss(true);
+                ssid->set_dot11e_qbss_stations(dot11info->qbss->station_count());
+
+                // Percentage is value / max (1 byte, 255)
+                double chperc = (double) ((double) dot11info->qbss->channel_utilization() / 
+                    (double) 255.0f) * 100.0f;
+                ssid->set_dot11e_qbss_channel_load(chperc);
+            }
+
         } else if (dot11info->subtype == packet_sub_probe_resp) {
             if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
                     dot11info->source_mac) {

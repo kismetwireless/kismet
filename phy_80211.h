@@ -532,6 +532,10 @@ class dot11_advertised_ssid : public tracker_component {
         __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, 
                 dot11r_mobility_domain_id);
 
+        __Proxy(dot11e_qbss, uint8_t, bool, bool, dot11e_qbss);
+        __Proxy(dot11e_qbss_stations, uint16_t, uint16_t, uint16_t, dot11e_qbss_stations);
+        __Proxy(dot11e_qbss_channel_load, double, double, double, dot11e_qbss_channel_load);
+
     protected:
         virtual void register_fields() {
             RegisterField("dot11.advertisedssid.ssid", TrackerString,
@@ -590,6 +594,14 @@ class dot11_advertised_ssid : public tracker_component {
                     "advertised dot11r mobility support", &dot11r_mobility);
             RegisterField("dot11.advertisedssid.dot11r_mobility_domain_id", TrackerUInt16,
                     "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
+
+            RegisterField("dot11.advertisedssid.dot11e_qbss", TrackerUInt8,
+                    "SSID advertises 802.11e QBSS", &dot11e_qbss);
+            RegisterField("dot11.advertisedssid.dot11e_qbss_stations", TrackerUInt16,
+                    "802.11e QBSS station count", &dot11e_qbss_stations);
+            RegisterField("dot11.advertisedssid.dot11e_channel_utilization_perc", TrackerDouble,
+                    "802.11e QBSS reported channel utilization, as percentage", 
+                    &dot11e_qbss_channel_load);
         }
 
         virtual void reserve_fields(SharedTrackerElement e) {
@@ -628,14 +640,22 @@ class dot11_advertised_ssid : public tracker_component {
         SharedTrackerElement beacons_sec;
         SharedTrackerElement ietag_checksum;
 
+        // IE tag dot11d country / power restrictions from 802.11d; 
+        // deprecated but still in use
         SharedTrackerElement dot11d_country;
         SharedTrackerElement dot11d_vec;
 
+        // dot11d vec component reference
+        int dot11d_country_entry_id;
+
+        // 802.11r mobility/fast roaming advertisements
         SharedTrackerElement dot11r_mobility;
         SharedTrackerElement dot11r_mobility_domain_id;
 
-        // dot11d vec component reference
-        int dot11d_country_entry_id;
+        // 802.11e QBSS
+        SharedTrackerElement dot11e_qbss;
+        SharedTrackerElement dot11e_qbss_stations;
+        SharedTrackerElement dot11e_qbss_channel_load;
 
         // WPS components
         SharedTrackerElement wps_state;
