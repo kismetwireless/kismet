@@ -877,8 +877,10 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_ssid_beacon(true);
 
             // Set the mobility
-            ssid->set_dot11r_mobility(dot11info->dot11r);
-            ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility_domain_id);
+            if (dot11info->dot11r_mobility != NULL) {
+                ssid->set_dot11r_mobility(true);
+                ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
+            }
 
         } else if (dot11info->subtype == packet_sub_probe_resp) {
             if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
@@ -1184,8 +1186,10 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
 
             }
 
-            probessid->set_dot11r_mobility(dot11info->dot11r);
-            probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility_domain_id);
+            if (dot11info->dot11r_mobility != NULL) {
+                probessid->set_dot11r_mobility(true);
+                probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
+            }
         }
     }
 

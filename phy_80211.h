@@ -46,6 +46,12 @@
 #include "kis_net_microhttpd.h"
 #include "phy_80211_httpd_pcap.h"
 
+#include "kaitai/kaitaistream.h"
+#include "kaitai_parsers/wpaeap.h"
+#include "kaitai_parsers/ie221.h"
+#include "kaitai_parsers/dot11_ie_54_mobility.h"
+#include "kaitai_parsers/dot11_ie_11_qbss.h"
+
 /*
  * 802.11 PHY handlers
  * Uses new devicetracker code
@@ -148,9 +154,6 @@ class dot11_packinfo : public packet_component {
             wps_device_name = "";
             wps_model_name = "";
             wps_model_number = "";
-
-            dot11r = false;
-            dot11r_mobility_domain_id = 0;
         }
 
         // Corrupt 802.11 frame
@@ -189,7 +192,7 @@ class dot11_packinfo : public packet_component {
         int ibss;
 
         // What channel does it report
-        string channel;
+        std::string channel;
 
         // Is this encrypted?
         int encrypted;
@@ -215,24 +218,24 @@ class dot11_packinfo : public packet_component {
         uint32_t ssid_csum;
         uint32_t ietag_csum;
 
-        string dot11d_country;
-        vector<dot11_packinfo_dot11d_entry> dot11d_vec;
+        std::string dot11d_country;
+        std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 
         // WPS information
         uint8_t wps;
         // The field below is useful because some APs use
         // a MAC address with 'Unknown' OUI but will
         // tell their manufacturer in this field:
-        string wps_manuf;
+        std::string wps_manuf;
         // Some APs give out bogus information on these fields
-        string wps_device_name;
-        string wps_model_name;
-        string wps_model_number;
+        std::string wps_device_name;
+        std::string wps_model_name;
+        std::string wps_model_number;
         // There's also the serial number field but we don't care
         // about it because it's almost always bogus.
-        
-        bool dot11r;
-        uint16_t dot11r_mobility_domain_id;
+
+        std::shared_ptr<dot11_ie_54_mobility_t> dot11r_mobility;
+        std::shared_ptr<dot11_ie_11_qbss_t> qbss;
 };
 
 class dot11_tracked_eapol : public tracker_component {

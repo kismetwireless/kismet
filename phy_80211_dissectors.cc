@@ -741,11 +741,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
                 try {
                     kaitai::kstream ks(&tag_stream);
-                    dot11_ie_54_mobility_t mobility(&ks);
+                    std::shared_ptr<dot11_ie_54_mobility_t> mobility(new dot11_ie_54_mobility_t(&ks));
 
-                    packinfo->dot11r = true;
-                    packinfo->dot11r_mobility_domain_id =
-                        mobility.mobility_domain();
+                    packinfo->dot11r_mobility = mobility;
 
                 } catch (const std::exception& e) {
                     fprintf(stderr, "debug - ie54 mobility corrupt\n");
