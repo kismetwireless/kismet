@@ -247,7 +247,7 @@ public:
         return SharedTrackerElement(new dot11_tracked_eapol(globalreg, get_id()));
     }
 
-    __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
+    __Proxy(eapol_time, double, double, double, eapol_time);
     __Proxy(eapol_dir, uint8_t, uint8_t, uint8_t, eapol_dir);
     __Proxy(eapol_replay_counter, uint64_t, uint64_t, uint64_t, eapol_replay_counter);
     __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
@@ -299,7 +299,7 @@ public:
         return SharedTrackerElement(new dot11_tracked_nonce(globalreg, get_id()));
     }
 
-    __Proxy(eapol_time, uint64_t, time_t, time_t, eapol_time);
+    __Proxy(eapol_time, double, double, double, eapol_time);
     __Proxy(eapol_msg_num, uint8_t, uint8_t, uint8_t, eapol_msg_num);
     __Proxy(eapol_install, uint8_t, bool, bool, eapol_install);
     __Proxy(eapol_replay_counter, uint64_t, uint64_t, uint64_t, eapol_replay_counter);

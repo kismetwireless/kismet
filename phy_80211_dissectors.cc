@@ -1945,26 +1945,31 @@ shared_ptr<dot11_tracked_eapol>
     Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack,
             shared_ptr<dot11_tracked_device> dot11dev) {
 
-    if (in_pack->error)
+    if (in_pack->error) {
         return NULL;
+    }
 
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
     if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+                (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
         return NULL;
+    }
 
-    if (packinfo->corrupt)
+    if (packinfo->corrupt) {
         return NULL;
+    }
 
     if (packinfo->type != packet_data || 
-        (packinfo->subtype != packet_sub_data &&
-         packinfo->subtype != packet_sub_data_qos_data))
+            (packinfo->subtype != packet_sub_data &&
+             packinfo->subtype != packet_sub_data_qos_data)) {
         return NULL;
+    }
 
     // If it's encrypted it's not eapol
-    if (packinfo->cryptset)
+    if (packinfo->cryptset) {
         return NULL;
+    }
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
     kis_datachunk *chunk = 
@@ -1978,21 +1983,25 @@ shared_ptr<dot11_tracked_eapol>
     }
 
     // If we don't have a dot11 frame, throw it away
-    if (chunk->dlt != KDLT_IEEE802_11)
+    if (chunk->dlt != KDLT_IEEE802_11) {
         return NULL;
+    }
 
-    if (packinfo->header_offset >= chunk->length)
+    if (packinfo->header_offset >= chunk->length) {
         return NULL;
+    }
 
     unsigned int pos = packinfo->header_offset;
 
     uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
 
-    if (pos + sizeof(eapol_llc) >= chunk->length)
+    if (pos + sizeof(eapol_llc) >= chunk->length) {
         return NULL;
+    }
 
-    if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
+    if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc))) {
         return NULL;
+    }
 
     pos += sizeof(eapol_llc);
 
@@ -2026,10 +2035,11 @@ shared_ptr<dot11_tracked_eapol>
 
         shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
-        eapol->set_eapol_time(in_pack->ts.tv_sec);
+        eapol->set_eapol_time(ts_to_double(in_pack->ts));
         eapol->set_eapol_dir(packinfo->distrib);
 
         shared_ptr<kis_tracked_packet> tp = eapol->get_eapol_packet();
+
         tp->set_ts_sec(in_pack->ts.tv_sec);
         tp->set_ts_usec(in_pack->ts.tv_usec);
 
@@ -2068,9 +2078,11 @@ shared_ptr<dot11_tracked_eapol>
         eapol->set_eapol_nonce(rsnkey->wpa_key_nonce());
         eapol->set_eapol_replay_counter(rsnkey->replay_counter());
 
-        return eapol;
+        // fprintf(stderr, "debug - eapol %u\n", eapol->get_eapol_msg_num());
 
+        return eapol;
     } catch (const std::exception& e) {
+        // fprintf(stderr, "debug - eap exception %s\n", e.what());
         return NULL;
     }
 

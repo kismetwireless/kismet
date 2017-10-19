@@ -81,8 +81,8 @@ unsigned int Ieee80211Interval2NSecs(int in_interval) {
 void dot11_tracked_eapol::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("dot11.eapol.timestamp", TrackerUInt64, 
-            "packet timestamp (second)", &eapol_time);
+    RegisterField("dot11.eapol.timestamp", TrackerDouble, 
+            "packet timestamp (second.usecond)", &eapol_time);
     
     RegisterField("dot11.eapol.direction", TrackerUInt8,
             "packet direction (fromds/tods)", &eapol_dir);
@@ -119,8 +119,8 @@ void dot11_tracked_eapol::reserve_fields(SharedTrackerElement e) {
 void dot11_tracked_nonce::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("dot11.eapol.nonce.timestamp", TrackerUInt64, 
-            "packet timestamp (second)", &eapol_time);
+    RegisterField("dot11.eapol.nonce.timestamp", TrackerDouble, 
+            "packet timestamp (second.usecond)", &eapol_time);
     
     RegisterField("dot11.eapol.nonce.message_num", TrackerUInt8,
             "handshake message number", &eapol_msg_num);
@@ -1549,6 +1549,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     if (dot11info->type == packet_data) {
         shared_ptr<dot11_tracked_eapol> eapol = PacketDot11EapolHandshake(in_pack, dot11dev);
 
+        // fprintf(stderr, "debug - data - eapol %p\n", eapol.get());
+
         if (eapol != NULL) {
             // Look for the AP of the exchange
             shared_ptr<kis_tracked_device_base> eapolbase =
@@ -1557,6 +1559,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             // Look for the target
             shared_ptr<kis_tracked_device_base> targetbase =
                 devicetracker->FetchDevice(dot11info->dest_mac, phyid);
+
+            // fprintf(stderr, "debug - ebase %p tbase %p\n", eapolbase.get(), targetbase.get());
 
             // Look at BSSID records; we care about the handshake counts and want to
             // associate all the entries
@@ -1639,10 +1643,22 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                                 if (eapol->get_eapol_replay_counter() <=
                                         nonce->get_eapol_replay_counter()) {
                                     // Is it an earlier (or equal) replay counter? Then we
-                                    // have a problem
-                                    dupe_nonce = true;
+                                    // have a problem; inspect the retry and timestamp
+                                    if (dot11info->retry) {
+                                        double tdif = 
+                                            eapol->get_eapol_time() - 
+                                            nonce->get_eapol_time();
+
+                                        // Retries should fall w/in this range 
+                                        if (tdif < 0.008f || tdif > -0.008f)
+                                            dupe_nonce = true;
+                                    } else {
+                                        // Otherwise duplicate w/ out retry is immediately bad
+                                        dupe_nonce = true;
+                                    }
                                 } else {
-                                    // Otherwise increment the replay counter
+                                    // Otherwise increment the replay counter we record
+                                    // for this nonce
                                     nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
                                 }
                                 break;
@@ -1651,7 +1667,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
                         if (!dupe_nonce) {
                             if (new_nonce) {
-                                fprintf(stderr, "debug - new nonce\n");
                                 std::shared_ptr<dot11_tracked_nonce> n = 
                                     eapoldot11->create_tracked_nonce();
 
@@ -1698,8 +1713,19 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                                 if (eapol->get_eapol_replay_counter() <=
                                         nonce->get_eapol_replay_counter()) {
                                     // Is it an earlier (or equal) replay counter? Then we
-                                    // have a problem
-                                    dupe_nonce = true;
+                                    // have a problem; inspect the retry and timestamp
+                                    if (dot11info->retry) {
+                                        double tdif = 
+                                            eapol->get_eapol_time() - 
+                                            nonce->get_eapol_time();
+
+                                        // Retries should fall w/in this range 
+                                        if (tdif < 0.008f || tdif > -0.008f)
+                                            dupe_nonce = true;
+                                    } else {
+                                        // Otherwise duplicate w/ out retry is immediately bad
+                                        dupe_nonce = true;
+                                    }
                                 } else {
                                     // Otherwise increment the replay counter
                                     nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
