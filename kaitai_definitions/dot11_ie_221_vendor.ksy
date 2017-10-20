@@ -12,28 +12,21 @@ seq:
 
   # Switch on the vendor OUI as an integer value to break out to specific
   # 221 subpacket types
-  - id: vendor_content
-    type:
-      switch-on: vendor_oui_int
-      cases:
-        _: ieee_221_vendor_tag
+  - id: vendor_tag
+    type: ieee_221_vendor_tag
     
 instances:
-  # 4-byte integer representations of the 3-byte OUI
-  vendor_oui_foo:
-    value: 0x12345600
-
-  # Absolute position of the 3 OUI bytes, pos 0 relative to the start of our stream
+  # Use an absolute position at the start of the stream to get the vendor oui
   vendor_oui_extract:
     type: vendor_oui_bytes
     pos: 0
 
-  # Hack to convert the 3-byte OUI value to an integer we can use in a switch
-  # statement; we can't easily 
+  # Bitshift it into a predictable int
   vendor_oui_int:
-    value: (vendor_oui_extract.oui1 << 8) + (vendor_oui_extract.oui2 << 16) + (vendor_oui_extract.oui3 << 24)
-    
+    value: (vendor_oui_extract.oui1 << 16) + (vendor_oui_extract.oui2 << 8) + (vendor_oui_extract.oui3)
+
 types:
+  # Break the OUI into bytes which we assemble into an int
   vendor_oui_bytes:
     seq:
       - id: oui1
@@ -42,13 +35,10 @@ types:
         type: u1
       - id: oui3
         type: u1
-  
+
   # Generic tag
   ieee_221_vendor_tag:
     seq:
-      - id: vendor_type
-        type: u1
       - id: vendor_data
         size-eos: true
-    
     
