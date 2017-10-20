@@ -54,10 +54,62 @@ public:
 
     virtual ~uav_tracked_telemetry() { }
 
+    __ProxyTrackable(location, kis_tracked_location_triplet, location);
+    __Proxy(yaw, double, double, double, yaw);
+    __Proxy(pitch, double, double, double, pitch);
+    __Proxy(roll, double, double, double, roll);
+    __Proxy(height, double, double, double, height);
+    __Proxy(v_north, double, double, double, v_north);
+    __Proxy(v_east, double, double, double, v_east);
+    __Proxy(v_up, double, double, double, v_up);
+
+    __Proxy(motor_on, uint8_t, bool, bool, motor_on);
+    __Proxy(airborne, uint8_t, bool, bool, airborne);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
+
+        RegisterComplexField("kismet.uav.telemetry.location",
+                std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                "GPS location");
+
+        RegisterField("kismet.uav.telemetry.yaw", TrackerDouble, 
+                "yaw", &yaw);
+        RegisterField("kismet.uav.telemetry.pitch", TrackerDouble, 
+                "pitch", &pitch);
+        RegisterField("kismet.uav.telemetry.roll", TrackerDouble,
+                "roll", &roll);
+
+        RegisterField("kismet.uav.telemetry.height", TrackerDouble,
+                "height above ground", &height);
+        RegisterField("kismet.uav.telemetry.v_north", TrackerDouble,
+                "velocity relative to n/s", &v_north);
+        RegisterField("kismet.uav.telemetry.v_east", TrackerDouble,
+                "velocity relative to e/w", &v_east);
+        RegisterField("kismet.uav.telemetry.v_up", TrackerDouble,
+                "velocity relative to up/down", &v_up);
+
+        RegisterField("kismet.uav.telemetry.motor_on", TrackerUInt8,
+                "device reports motor enabled", &motor_on);
+        RegisterField("kismet.uav.telemetry.airborne", TrackerUInt8,
+                "device reports UAV is airborne", &airborne);
+
     }
+
+    std::shared_ptr<kis_tracked_location_triplet> location;
+
+    SharedTrackerElement yaw;
+    SharedTrackerElement pitch;
+    SharedTrackerElement roll;
+
+    SharedTrackerElement height;
+    SharedTrackerElement v_north;
+    SharedTrackerElement v_east;
+    SharedTrackerElement v_up;
+
+    SharedTrackerElement motor_on;
+    SharedTrackerElement airborne;
 
 };
 
