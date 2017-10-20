@@ -118,8 +118,8 @@ int ConfigFile::ParseConfig(const char *in_fname,
                 ParseOptInclude(ExpandLogPath(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname);
-                config_map[StrLower(directive)].push_back(e);
-                config_map_dirty[StrLower(directive)] = 1;
+                target_map[StrLower(directive)].push_back(e);
+                target_map_dirty[StrLower(directive)] = 1;
             }
         }
     }
