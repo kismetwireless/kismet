@@ -172,6 +172,91 @@ xx. Installing Kismet - Suid vs Normal
     wireless interfaces on the system, but will prevent Kismet from running as
     root.
 
+xx. Configuring Kismet
+
+    Kismet is primarily configured through a set of '.conf' text files.  By
+    default these are installed into '/usr/local/etc/'.  The config files
+    are broken into several smaller files for readability:
+
+        kismet.conf
+            The master config file which loads all other config files and 
+            contains most of the system-wide options.
+
+        kismet_alerts.conf
+            Alert configuration - rules for alert matching, rate limits on
+            alerts, and similar.
+
+        kismet_httpd.conf
+            Webserver configuration for path, access, etc.
+
+        kismet_memory.conf
+            Memory consumption tuning options.  Typically unneeded, but when
+            running Kismet on smaller or embedded systems, memory use can
+            be tuned.
+
+        kismet_storage.conf
+            Storage options for snapshotting the system state, known devices,
+            and so on.
+
+        kismet_logging.conf
+            Logging and export configuration for logfiles.
+
+
+    Configuration files are plain text.  Lines beginning with a '#' are 
+    comments, and are ignored.
+
+    Configuration options all take the form of:
+        option=value
+
+    Some configuration options support repeated definitions, such as the 
+    'source' option which defines a Kismet datasource:
+        source=wlan0
+        source=wlan1
+
+    Kismet supports importing config files.  This is used by Kismet itself to
+    split the config files into more readable versions, but can also be used
+    for including custom options.
+        include=/path/to/file
+            Include a config file.  The file is parsed immediately when this
+            option is seen, and the file MUST exist.  Kismet will produce an
+            error if the file is missing.
+
+        opt_include=/path/to/file
+            Include an OPTIONAL config file.  The file is parsed immediately
+            when this option is seen, but if the file does not exist, Kismet
+            will continue.
+
+        opt_override=/path/to/file
+            Include an OPTIONAL OVERRIDE config file.  This file is loaded
+            at the END of config processing.  Any configuration options found
+            in the override file will REPLACE ANY CONFIGURATION OPTIONS IN THE
+            SYSTEM.
+
+xx. Configuration Override Files - kismet_site.conf
+
+    Most users installing Kismet will likely edit the configuration files
+    directly.  This file is not needed by most users, and can be ignored, however
+    if you are configuring Kismet on multiple systems, this may be useful.
+
+    However, installing Kismet frequently from source (for instance, testing Git)
+    or preparing Kismet server deployments across multiple systems presents other
+    challenges.
+
+    By default, Kismet will look for an optional override file in the default
+    configuration directory (/usr/local/etc by default) named "kismet_site.conf".
+
+    This file is specified as an OVERRIDE FILE.  Any options placed in 
+    kismet_site.conf will REPLACE ANY OPTIONS OF THE SAME NAME.
+
+    This mechanism allows a site configuration to override any default config
+    options, while not making changes to any configuration file installed by
+    Kismet.  This allows new installations of Kismet to replace the config files
+    with impunity while preserving a custom configuration.
+
+    Typical uses of this file might include changing the http data directory,
+    defining sources and memory options, forcing or disabling logging, and so on.
+
+
 xx. Kismet Data Sources
 
     Kismet gets data (which can be packets, devices, or other information) from

@@ -48,7 +48,30 @@ ConfigFile::~ConfigFile() {
 }
 
 int ConfigFile::ParseConfig(const char *in_fname) {
-    return ParseConfig(in_fname, config_map, config_map_dirty);
+    int r;
+
+    r = ParseConfig(in_fname, config_map, config_map_dirty);
+
+    if (r < 0)
+        return r;
+
+    // Check the override vector, warn if there's more than one
+    if (config_override_file_list.size() > 1) {
+        _MSG("More than one override file included; Kismet will process them "
+                "in the order they were defined.", MSGFLAG_INFO);
+    }
+
+    for (auto f : config_override_file_list) {
+        r = ParseOptOverride(f);
+
+        if (r < 0)
+            break;
+
+    }
+
+    config_override_file_list.empty();
+
+    return r;
 }
 
 int ConfigFile::ParseConfig(const char *in_fname,
@@ -111,12 +134,17 @@ int ConfigFile::ParseConfig(const char *in_fname,
                 _MSG(sstream.str(), MSGFLAG_INFO);
                 sstream.str("");
 
-                if (ParseConfig(value.c_str()) < 0) {
+                if (ParseConfig(value.c_str(), target_map, target_map_dirty) < 0) {
                     fclose(configf);
                     return -1;
                 }
             } else if (directive == "opt_include") {
-                ParseOptInclude(ExpandLogPath(value, "", "", 0, 1));
+                if (ParseOptInclude(ExpandLogPath(value, "", "", 0, 1), target_map, 
+                            target_map_dirty) < 0)
+                    return -1;
+            } else if (directive == "opt_override") {
+                // Store the override for parsing at the end
+                config_override_file_list.push_back(ExpandLogPath(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname);
                 target_map[StrLower(directive)].push_back(e);
@@ -130,7 +158,9 @@ int ConfigFile::ParseConfig(const char *in_fname,
     return 1;
 }
 
-void ConfigFile::ParseOptInclude(const std::string path) {
+int ConfigFile::ParseOptInclude(const std::string path,
+        std::map<std::string, std::vector<config_entity> > &target_map,
+        std::map<std::string, int> &target_map_dirty) {
     glob_t globbed;
     size_t i;
     struct stat st;
@@ -151,20 +181,50 @@ void ConfigFile::ParseOptInclude(const std::string path) {
             _MSG(sstream.str(), MSGFLAG_INFO);
             sstream.str("");
 
-            if (ParseConfig(globbed.gl_pathv[i]) < 0) {
-                sstream << "Parsing failed for optional sub-config file: " << globbed.gl_pathv[i];
+            if (ParseConfig(globbed.gl_pathv[i], target_map, target_map_dirty) < 0) {
+                sstream << "Parsing failed for optional sub-config file: " << 
+                    globbed.gl_pathv[i];
                 _MSG(sstream.str(), MSGFLAG_ERROR);
                 sstream.str("");
+                return -1;
             }
         }
     } else {
         sstream << "Optional sub-config file not present: " << path;
         _MSG(sstream.str(), MSGFLAG_INFO);
         sstream.str("");
+        return 0;
     }
 
     globfree(&globbed);
+
+    return 1;
 }
+
+int ConfigFile::ParseOptOverride(const std::string path) {
+    std::map<std::string, std::vector<config_entity> > override_config_map;
+    std::map<std::string, int> override_config_map_dirty;
+    int r;
+
+    _MSG("Loading config override file '" + path + "'", MSGFLAG_INFO);
+
+    // Parse into our submaps
+    r = ParseOptInclude(path, override_config_map, override_config_map_dirty);
+
+    // If we hit a legit error or a missing file, bail
+    if (r <= 0)
+        return r;
+
+    // Clobber any existing values
+    for (auto v : override_config_map) 
+        config_map[v.first] = v.second;
+
+    for (auto d : override_config_map_dirty)
+        config_map_dirty[d.first] = d.second;
+
+    return 1;
+}
+
 
 int ConfigFile::SaveConfig(const char *in_fname) {
     local_locker lock(&config_locker);

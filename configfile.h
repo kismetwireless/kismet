@@ -84,7 +84,14 @@ protected:
 
 	void CalculateChecksum();
 
-    void ParseOptInclude(const std::string path);
+    // Optional included file, don't error if it's not found
+    int ParseOptInclude(const std::string path,
+            std::map<std::string, std::vector<config_entity> > &target_map,
+            std::map<std::string, int> &target_map_dirty);
+
+    // Option included override file, don't error if it's not found; parsed
+    // at the END of the file parse cycle, for each 
+    int ParseOptOverride(const std::string path);
 
     int ParseConfig(const char *in_fname, 
             std::map<std::string, std::vector<config_entity> > &target_map,
@@ -98,7 +105,7 @@ protected:
     std::string ckstring;
 
     // List of config files which are *overriding*
-    std::vector<std::string> config_override_file_lsit;
+    std::vector<std::string> config_override_file_list;
 
     std::recursive_timed_mutex config_locker;
 };
