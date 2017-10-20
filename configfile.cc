@@ -48,6 +48,11 @@ ConfigFile::~ConfigFile() {
 }
 
 int ConfigFile::ParseConfig(const char *in_fname) {
+    return ParseConfig(in_fname, config_map);
+}
+
+int ConfigFile::ParseConfig(const char *in_fname,
+        std::map<std::string, std::vector<config_entity> >& target_map) {
     local_locker lock(&config_locker);
 
     FILE *configf;

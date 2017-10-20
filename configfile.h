@@ -71,12 +71,6 @@ public:
 protected:
 	GlobalRegistry *globalreg;
 
-	void CalculateChecksum();
-
-    void ParseOptInclude(const std::string path);
-
-    std::string filename;
-
     class config_entity {
     public:
         config_entity(std::string v, std::string sf) {
@@ -88,7 +82,16 @@ protected:
         std::string sourcefile;
     };
 
-    std::map<std::string, vector<config_entity> > config_map;
+	void CalculateChecksum();
+
+    void ParseOptInclude(const std::string path);
+
+    int ParseConfig(const char *in_fname, 
+            std::map<std::string, std::vector<config_entity> > &target_map);
+
+    std::string filename;
+
+    std::map<std::string, std::vector<config_entity> > config_map;
     std::map<std::string, int> config_map_dirty;
     uint32_t checksum;
     std::string ckstring;
