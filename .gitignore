@@ -14,7 +14,6 @@ callgrind*
 .depend
 Makefile
 Makefile.inc
-conf/kismet.conf
 scripts/kismet
 aclocal.m4
 autom4te.cache/

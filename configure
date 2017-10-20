@@ -10087,7 +10087,7 @@ CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc conf/kismet.conf packaging/kismet.pc capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -10783,7 +10783,6 @@ do
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "Makefile.inc") CONFIG_FILES="$CONFIG_FILES Makefile.inc" ;;
-    "conf/kismet.conf") CONFIG_FILES="$CONFIG_FILES conf/kismet.conf" ;;
     "packaging/kismet.pc") CONFIG_FILES="$CONFIG_FILES packaging/kismet.pc" ;;
     "capture_linux_bluetooth/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_bluetooth/Makefile" ;;
     "capture_linux_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_wifi/Makefile" ;;
