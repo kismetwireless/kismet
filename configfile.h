@@ -60,7 +60,7 @@ public:
 	void SetOptDirty(std::string in_key, int in_dirty);
 
 	void SetOpt(std::string in_key, std::string in_val, int in_dirty);
-	void SetOptVec(std::string in_key, vector<std::string> in_val, int in_dirty);
+	void SetOptVec(std::string in_key, std::vector<std::string> in_val, int in_dirty);
 
     std::string ExpandLogPath(std::string path, std::string logname, std::string type, 
             int start, int overwrite = 0);
@@ -87,7 +87,8 @@ protected:
     void ParseOptInclude(const std::string path);
 
     int ParseConfig(const char *in_fname, 
-            std::map<std::string, std::vector<config_entity> > &target_map);
+            std::map<std::string, std::vector<config_entity> > &target_map,
+            std::map<std::string, int> &target_map_dirty);
 
     std::string filename;
 
