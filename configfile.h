@@ -73,14 +73,7 @@ protected:
 
 	void CalculateChecksum();
 
-    // Internal non-locking versions for use when parsing configs ourselves
-    int ParseConfig_nl(const char *in_fname);
     void ParseOptInclude(const std::string path);
-    std::string ExpandLogPath_nl(std::string path, std::string logname, std::string type, 
-            int start, int overwrite = 0);
-
-	int FetchOptDirty_nl(std::string in_key);
-	void SetOptDirty_nl(std::string in_key, int in_dirty);
 
     std::string filename;
 
@@ -100,7 +93,10 @@ protected:
     uint32_t checksum;
     std::string ckstring;
 
-    pthread_mutex_t config_locker;
+    // List of config files which are *overriding*
+    std::vector<std::string> config_override_file_lsit;
+
+    std::recursive_timed_mutex config_locker;
 };
 
 #endif

@@ -41,21 +41,14 @@
 ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     checksum = 0;
-
-    pthread_mutex_init(&config_locker, NULL);
 }
 
 ConfigFile::~ConfigFile() {
-    pthread_mutex_destroy(&config_locker);
+    local_eol_locker lock(&config_locker);
 }
 
 int ConfigFile::ParseConfig(const char *in_fname) {
     local_locker lock(&config_locker);
-    return ParseConfig_nl(in_fname);
-}
-
-int ConfigFile::ParseConfig_nl(const char *in_fname) {
-    // We don't lock
 
     FILE *configf;
     char confline[8192];
@@ -106,18 +99,18 @@ int ConfigFile::ParseConfig_nl(const char *in_fname) {
             }
 
             if (directive == "include") {
-                value = ExpandLogPath_nl(value, "", "", 0, 1);
+                value = ExpandLogPath(value, "", "", 0, 1);
 
                 sstream << "Including sub-config file: " << value;
                 _MSG(sstream.str(), MSGFLAG_INFO);
                 sstream.str("");
 
-                if (ParseConfig_nl(value.c_str()) < 0) {
+                if (ParseConfig(value.c_str()) < 0) {
                     fclose(configf);
                     return -1;
                 }
             } else if (directive == "opt_include") {
-                ParseOptInclude(ExpandLogPath_nl(value, "", "", 0, 1));
+                ParseOptInclude(ExpandLogPath(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname);
                 config_map[StrLower(directive)].push_back(e);
@@ -152,7 +145,7 @@ void ConfigFile::ParseOptInclude(const std::string path) {
             _MSG(sstream.str(), MSGFLAG_INFO);
             sstream.str("");
 
-            if (ParseConfig_nl(globbed.gl_pathv[i]) < 0) {
+            if (ParseConfig(globbed.gl_pathv[i]) < 0) {
                 sstream << "Parsing failed for optional sub-config file: " << globbed.gl_pathv[i];
                 _MSG(sstream.str(), MSGFLAG_ERROR);
                 sstream.str("");
@@ -195,10 +188,6 @@ int ConfigFile::SaveConfig(const char *in_fname) {
 std::string ConfigFile::FetchOpt(std::string in_key) {
     local_locker lock(&config_locker);
 
-    return FetchOpt_nl(in_key);
-}
-
-std::string ConfigFile::FetchOpt_nl(std::string in_key) {
     auto cmitr = config_map.find(StrLower(in_key));
     // No such key
     if (cmitr == config_map.end())
@@ -289,24 +278,14 @@ unsigned int ConfigFile::FetchOptUInt(std::string in_key, unsigned int dvalue) {
 
 int ConfigFile::FetchOptDirty(std::string in_key) {
     local_locker lock(&config_locker);
-
-    return FetchOptDirty_nl(in_key);
-}
-
-void ConfigFile::SetOptDirty(std::string in_key, int in_dirty) {
-    local_locker lock(&config_locker);
-
-    return SetOptDirty_nl(in_key, in_dirty);
-}
-
-int ConfigFile::FetchOptDirty_nl(std::string in_key) {
     if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
         return 0;
 
     return config_map_dirty[StrLower(in_key)];
 }
 
-void ConfigFile::SetOptDirty_nl(std::string in_key, int in_dirty) {
+void ConfigFile::SetOptDirty(std::string in_key, int in_dirty) {
+    local_locker lock(&config_locker);
     config_map_dirty[StrLower(in_key)] = in_dirty;
 }
 
@@ -317,7 +296,7 @@ void ConfigFile::SetOpt(std::string in_key, std::string in_val, int in_dirty) {
     config_entity e(in_val, "::dynamic::");
     v.push_back(e);
     config_map[StrLower(in_key)] = v;
-    SetOptDirty_nl(in_key, in_dirty);
+    SetOptDirty(in_key, in_dirty);
 }
 
 void ConfigFile::SetOptVec(std::string in_key, 
@@ -331,7 +310,7 @@ void ConfigFile::SetOptVec(std::string in_key,
     }
 
     config_map[StrLower(in_key)] = cev;
-    SetOptDirty_nl(in_key, in_dirty);
+    SetOptDirty(in_key, in_dirty);
 }
 
 
@@ -343,13 +322,6 @@ void ConfigFile::SetOptVec(std::string in_key,
 std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std::string type,
         int start, int overwrite) {
     local_locker lock(&config_locker);
-
-    return ExpandLogPath_nl(path, logname, type, start, overwrite);
-}
-
-std::string ConfigFile::ExpandLogPath_nl(std::string path, std::string logname, std::string type,
-        int start, int overwrite) {
-    // We don't lock
 
     std::string logtemplate;
     int inc = 0;
@@ -440,7 +412,7 @@ std::string ConfigFile::ExpandLogPath_nl(std::string path, std::string logname, 
             string pfx = globalreg->log_prefix;
 
             if (pfx == "") 
-                pfx = FetchOpt_nl("logprefix");
+                pfx = FetchOpt("logprefix");
 
             if (pfx != "")
                 pfx += "/";
