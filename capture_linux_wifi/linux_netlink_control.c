@@ -140,7 +140,9 @@ int mac80211_connect(const char *interface, void **nl_sock,
 }
 
 void mac80211_disconnect(void *nl_sock) {
+#ifndef HAVE_LINUX_NETLINK
     nl_socket_free(nl_sock);
+#endif
 }
 
 int mac80211_create_monitor_vif(const char *interface, const char *newinterface, 
