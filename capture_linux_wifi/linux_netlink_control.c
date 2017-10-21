@@ -57,22 +57,13 @@
 #define nl_sock nl_handle
 
 static inline struct nl_handle *nl_socket_alloc(void) {
-#ifdef HAVE_LINUX_NETLINK
 	return nl_handle_alloc();
-#else
-    return NULL;
-#endif
 }
 
 static inline void nl_socket_free(struct nl_sock *h) {
-#ifdef HAVE_LINUX_NETLINK
 	nl_handle_destroy(h);
-#else
-    return;
-#endif
 }
 
-#endif
 #endif
 
 unsigned int mac80211_chan_to_freq(unsigned int in_chan) {
@@ -145,6 +136,7 @@ int mac80211_connect(const char *interface, void **nl_sock,
     }
 
     return 0;
+#endif
 }
 
 void mac80211_disconnect(void *nl_sock) {
