@@ -42,6 +42,8 @@
 #include "kaitai_parsers/ie221.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
+#include "kaitai_parsers/dot11_ie_221_vendor.h"
+#include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -988,44 +990,40 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         return 0;
                     }
 
-                    // Look for WMM/WME tags
-                    // Make an in-memory zero-copy stream instance to the packet contents after
-                    // the SNAP/LLC header
-                    membuf tag_221_membuf((char *) &(chunk->data[tag_offset]), 
+                    // Start migrating to the new Kaitai ie_221 parser; this will get replaced
+                    // in the future w/ a full IE parser in kaitai
+                    membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]),
                             (char *) &(chunk->data[chunk->length]));
-                    std::istream eapol_stream(&tag_221_membuf);
+                    std::istream tag_stream(&tag_membuf);
 
                     try {
-                        // Make a kaitai parser and parse with our wpaeap handler
-                        kaitai::kstream ks(&eapol_stream);
-                        ie221_t ie221(&ks);
+                        kaitai::kstream ks(&tag_stream);
+                        std::shared_ptr<dot11_ie_221_vendor_t> vendor(new dot11_ie_221_vendor_t(&ks));
 
-                        if (ie221.vendor_oui() == string("\x00\x50\xf2", 3)) {
-                            if (packinfo->subtype == packet_sub_association_resp &&
-                                    ie221.vendor_type() == 2) {
-                                if (taglen != 24) {
-                                    string al = "IEEE80211 Access Point BSSID " + 
-                                        packinfo->bssid_mac.Mac2String() + " sent association "
-                                        "response with an invalid WMM length; this may "
-                                        "indicate attempts to exploit driver vulnerabilities "
-                                        "such as BroadPwn";
+                        // Match mis-sized WMM
+                        if (vendor->vendor_oui_int() == 0x0050f2 &&
+                                vendor->vendor_oui_type() == 2 &&
+                                taglen != 24) {
 
-                                    alertracker->RaiseAlert(alert_wmm_ref, in_pack, 
-                                            packinfo->bssid_mac, packinfo->source_mac, 
-                                            packinfo->dest_mac, packinfo->other_mac, 
-                                            packinfo->channel, al);
+                            string al = "IEEE80211 Access Point BSSID " + 
+                                packinfo->bssid_mac.Mac2String() + " sent association "
+                                "response with an invalid WMM length; this may "
+                                "indicate attempts to exploit driver vulnerabilities "
+                                "such as BroadPwn";
 
-                                }
-                                // fprintf(stderr, "debug - looks like 221/WMM-WME\n");
-                            }
+                            alertracker->RaiseAlert(alert_wmm_ref, in_pack, 
+                                    packinfo->bssid_mac, packinfo->source_mac, 
+                                    packinfo->dest_mac, packinfo->other_mac, 
+                                    packinfo->channel, al);
+
                         }
-                    } catch (const std::exception& e) {
-                        fprintf(stderr, "debug - 221 wps/wmm corrupt\n");
+
+                    } catch (const std::exception &e) {
+                        fprintf(stderr, "debug - 221 ie tag corrupt\n");
                         packinfo->corrupt = 1;
                         in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     }
 
-                    
                     // Match 221 tag header for WPS
                     if (taglen < sizeof(WPS_SIG))
                         continue;

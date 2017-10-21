@@ -29,167 +29,171 @@ seq:
   # the 221 Vendor-Specific Type
   - id: vendor_type
     type: u1
-  - id: droneid_unk1
+  - id: unk1
     type: u1
-  - id: droneid_unk2
+  - id: unk2
     type: u1
-  - id: droneid_subcommand
+  - id: subcommand
     type: u1
-  - id: droneid_record
+  - id: record
     type:
-      switch-on: droneid_subcommand
+      switch-on: subcommand
       cases:
-        0x10: droneid_flight_reg_info
+        0x10: flight_reg_info
         # Temporarily disabled
-        # 0x11: droneid_flight_purpose
+        # 0x11: flight_purpose
+
+instances:
+    dot11_ie_221_dji_droneid_oui:
+        value: 0x12372600
 
 types:
   # Flight purpose record - user entered data
-  droneid_flight_purpose:
+  flight_purpose:
     seq:
-      - id: droneid_serialnumber
+      - id: serialnumber
         type: strz
         encoding: ASCII
         size: 16
         
-      - id: droneid_len
+      - id: len
         type: u8
       
       # Droneid sets a length but has a fixed size
-      - id: droneid
+      - id: drone_id
         type: strz
         encoding: ASCII
         size: 10
         
-      - id: droneid_purpose_len
+      - id: purpose_len
         type: u8
       
       # Purpose sets a length but has a fixed size
-      - id: droneid_purpose
+      - id: purpose
         type: strz
         encoding: ASCII
         size: 100
 
   # Flight telemetry data
-  droneid_flight_reg_info:
+  flight_reg_info:
     seq:
       # DJI DroneID flight reg info
-      - id: droneid_version
+      - id: version
         type: u1
-      - id: droneid_seq
+      - id: seq
         type: u2
-      - id: droneid_state_info
-        type: droneid_state
-      - id: droneid_serialnumber
+      - id: state_info
+        type: state
+      - id: serialnumber
         type: strz
         encoding: ASCII
         size: 16
-      - id: droneid_raw_lon
+      - id: raw_lon
         type: s4le
-      - id: droneid_raw_lat
+      - id: raw_lat
         type: s4le
-      - id: droneid_altitude
+      - id: altitude
         type: s2
-      - id: droneid_height
+      - id: height
         type: s2
-      - id: droneid_v_north
+      - id: v_north
         type: s2
-      - id: droneid_v_east
+      - id: v_east
         type: s2
-      - id: droneid_v_up
+      - id: v_up
         type: s2
-      - id: droneid_raw_pitch
+      - id: raw_pitch
         type: s2
-      - id: droneid_raw_roll
+      - id: raw_roll
         type: s2
-      - id: droneid_raw_yaw
+      - id: raw_yaw
         type: s2
-      - id: droneid_raw_home_lon
+      - id: raw_home_lon
         type: s4
-      - id: droneid_raw_home_lat
+      - id: raw_home_lat
         type: s4
-      - id: droneid_product_type
+      - id: product_type
         type: u1
-      - id: droneid_uuid_len
+      - id: uuid_len
         type: u1
-      - id: droneid_uuid
+      - id: uuid
         size: 20
     
     instances:
       # Convert from float and radians in one op
-      droneid_lon:
-        value: droneid_raw_lon / 174533.0
+      lon:
+        value: raw_lon / 174533.0
     
-      droneid_lat:
-        value: droneid_raw_lat / 174533.0
+      lat:
+        value: raw_lat / 174533.0
     
-      droneid_home_lon:
-        value: droneid_raw_home_lon / 174533.0
+      home_lon:
+        value: raw_home_lon / 174533.0
     
-      droneid_home_lat:
-        value: droneid_raw_home_lat / 174533.0
+      home_lat:
+        value: raw_home_lat / 174533.0
         
-      droneid_pitch:
-        value: ((droneid_raw_pitch) / 100.0) / 57.296
+      pitch:
+        value: ((raw_pitch) / 100.0) / 57.296
       
-      droneid_roll:
-        value: ((droneid_raw_roll) / 100.0) / 57.296
+      roll:
+        value: ((raw_roll) / 100.0) / 57.296
       
-      droneid_yaw:
-        value: ((droneid_raw_yaw) / 100.0) / 57.296
+      yaw:
+        value: ((raw_yaw) / 100.0) / 57.296
 
-  droneid_state:
+  state:
     seq:
       # 16-bit field in little-endian
     
       # 7 - guess
-      - id: droneid_state_unk_alt_valid
+      - id: unk_alt_valid
         type: b1
       # 6 - guess
-      - id: droneid_state_unk_gps_valid
+      - id: unk_gps_valid
         type: b1
       # 5 - Drone in the air
-      - id: droneid_state_in_air
+      - id: in_air
         type: b1
       # 4 - Props on
-      - id: droneid_state_motor_on
+      - id: motor_on
         type: b1
       # 3 - uuid is configured
-      - id: droneid_state_uuid_set
+      - id: uuid_set
         type: b1
       # 2 - home lat/lon valid
-      - id: droneid_state_homepoint_set
+      - id: homepoint_set
         type: b1
       # 1 - inverse - set true when private mode is disabled
       # If false, we cannot see lat/lon/etc
-      - id: droneid_state_private_disabled
+      - id: private_disabled
         type: b1
       # 0 - Serial # is valid
-      - id: droneid_state_serial_valid
+      - id: serial_valid
         type: b1
         
       # 15
-      - id: droneid_state_unk15
+      - id: unk15
         type: b1
       # 14
-      - id: droneid_state_unk14
+      - id: unk14
         type: b1
       # 13
-      - id: droneid_state_unk13
+      - id: unk13
         type: b1
       # 12
-      - id: droneid_state_unk12
+      - id: unk12
         type: b1
       # 11
-      - id: droneid_state_unk11
+      - id: unk11
         type: b1
       # 10 - Guess that v_up is valid
-      - id: droneid_state_unk_velocity_y_valid
+      - id: unk_velocity_z_valid
         type: b1
       # 9 - Guess that v_east / v_north valid
-      - id: droneid_state_unk_velocity_x_valid
+      - id: unk_velocity_x_valid
         type: b1
       # 8 - Guess that height valid
-      - id: droneid_state_unk_height_valid
+      - id: unk_height_valid
         type: b1
         

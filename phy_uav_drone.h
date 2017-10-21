@@ -23,6 +23,8 @@
 #include "trackedelement.h"
 #include "tracked_location.h"
 
+#include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
+
 /* An abstract model of a UAV (drone/quadcopter/plane) device.
  *
  * A UAV may have multiple communications protocols (bluetooth, wi-fi, RF)
@@ -65,6 +67,37 @@ public:
 
     __Proxy(motor_on, uint8_t, bool, bool, motor_on);
     __Proxy(airborne, uint8_t, bool, bool, airborne);
+
+    void from_droneid_flight_reg(std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_reg_info_t> flight_reg) {
+        if (flight_reg->state_info()->unk_gps_valid()) {
+            location->set(flight_reg->lat(), flight_reg->lon());
+            
+            if (flight_reg->state_info()->unk_alt_valid()) {
+                location->set_alt(flight_reg->altitude());
+                loation->set_fix(3);
+            } else {
+                lcoation->set_fix(2);
+            }
+        }
+
+        set_yaw(flight_reg->yaw());
+        set_pitch(flight_reg->pitch());
+        set_roll(flight_reg->roll());
+
+        if (flight_reg->state_info()->unk_velocity_x_valid()) {
+            set_v_east(flight_reg->v_east());
+            set_v_north(flight_reg->v_north());
+        }
+
+        if (flight_reg->state_info()->unk_velocity_z_valid()) 
+            set_v_up(flight_reg->v_up());
+
+        if (flight_reg->state_info()->unk_height_valid())
+            set_height(flight_reg->height());
+
+        set_motor_on(flight_reg->state_info()->motor_on());
+        set_airborne(flight_reg->state_info()->in_air());
+    }
 
 protected:
     virtual void register_fields() {
@@ -137,10 +170,14 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
+        RegisterField("kismet.uav.manufacturer", TrackerString,
+                "Manufacturer", &uav_manufacturer);
+        RegisterField("kismet.uav.serialnumber", TrackerString,
+                "Serial number", &uav_serialnumber);
+
     }
 
     SharedTrackerElement uav_manufacturer;
-    
     SharedTrackerElement uav_serialnumber;
 
 };

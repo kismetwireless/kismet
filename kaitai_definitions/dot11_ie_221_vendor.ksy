@@ -25,6 +25,11 @@ instances:
   vendor_oui_int:
     value: (vendor_oui_extract.oui1 << 16) + (vendor_oui_extract.oui2 << 8) + (vendor_oui_extract.oui3)
 
+  # Extract the vendor type without consuming it
+  vendor_oui_type:
+    type: u1
+    pos: 3
+
 types:
   # Break the OUI into bytes which we assemble into an int
   vendor_oui_bytes:
