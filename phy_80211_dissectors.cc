@@ -1015,7 +1015,25 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                                     packinfo->bssid_mac, packinfo->source_mac, 
                                     packinfo->dest_mac, packinfo->other_mac, 
                                     packinfo->channel, al);
+                        }
 
+                        // Look for DJI DroneID OUIs
+                        if (vendor->vendor_oui_int() == 0x263712) {
+                            std::stringstream dronestream(vendor->vendor_tag()->vendor_data());
+                            kaitai::kstream kds(&dronestream);
+
+                            std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid(new dot11_ie_221_dji_droneid_t(&kds));
+
+                            packinfo->droneid = droneid;
+
+                            /*
+                            if (droneid->subcommand() == 0x10) {
+                                dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = droneid->record();
+
+                                fprintf(stderr, "debug - drone %s %lf/%lf\n", flightinfo->serialnumber().c_str(), flightinfo->lat(), flightinfo->lon());
+
+                            }
+                            */
                         }
 
                     } catch (const std::exception &e) {

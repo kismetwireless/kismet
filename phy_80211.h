@@ -51,6 +51,7 @@
 #include "kaitai_parsers/ie221.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
+#include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 
 /*
  * 802.11 PHY handlers
@@ -236,6 +237,8 @@ class dot11_packinfo : public packet_component {
 
         std::shared_ptr<dot11_ie_54_mobility_t> dot11r_mobility;
         std::shared_ptr<dot11_ie_11_qbss_t> qbss;
+
+        std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
 };
 
 class dot11_tracked_eapol : public tracker_component {

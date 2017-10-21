@@ -18,7 +18,7 @@
  * Drone ID is a standard packet addition proposed by DJI which includes
  * drone identification and telemetry information.  For Wi-Fi drones, 
  * this is put in an IE tag in the standard IEEE802.11 beacon frames,
- * under the OUI 26:32:12.
+ * under the OUI 26:37:12.
  * 
  * Two packet types can be sent; packets with a subcommand of 0x10
  * include flight telemetry and location, while packets with a subcommand
