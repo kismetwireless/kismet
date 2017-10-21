@@ -111,7 +111,7 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
 int mac80211_connect(const char *interface, void **nl_sock, 
         int *nl80211_id, int *if_index, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
-    snrptinf(errstr, STATUS_MAX,
+    snprintf(errstr, STATUS_MAX,
             "cannot connect to netlink; not compiled with netlink "
             "support.  Check the output of ./configure for more information");
     return -1;
