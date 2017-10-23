@@ -32,7 +32,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg,
     Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
-    phyname = "Z-Wave";
+    SetPhyName("Z-Wave");
 
     packetchain =
         Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");

@@ -132,7 +132,7 @@ void Systemmonitor::reserve_fields(SharedTrackerElement e) {
 int Systemmonitor::timetracker_event(int eventid) {
     local_locker lock(&monitor_mutex);
 
-    int num_devices = devicetracker->FetchNumDevices(KIS_PHY_ANY);
+    int num_devices = devicetracker->FetchNumDevices();
 
     // Grab the devices
     set_devices(num_devices);

@@ -54,6 +54,272 @@
 
 #include "zstr.hpp"
 
+void kis_tracked_device_base::inc_frequency_count(double frequency) {
+    if (frequency <= 0)
+        return;
+
+    TrackerElement::double_map_iterator i = freq_khz_map->double_find(frequency);
+
+    if (i == freq_khz_map->double_end()) {
+        SharedTrackerElement e =
+            globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
+        e->set((uint64_t) 1);
+        freq_khz_map->add_doublemap(frequency, e);
+    } else {
+        (*(i->second))++;
+    }
+}
+
+void kis_tracked_device_base::inc_seenby_count(KisDatasource *source, 
+        time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo) {
+    TrackerElement::map_iterator seenby_iter;
+    std::shared_ptr<kis_tracked_seenby_data> seenby;
+
+    seenby_iter = seenby_map->find(source->get_source_key());
+
+    // Make a new seenby record
+    if (seenby_iter == seenby_map->end()) {
+        seenby.reset(new kis_tracked_seenby_data(globalreg, seenby_val_id));
+
+        seenby->set_src_uuid(source->get_source_uuid());
+        seenby->set_first_time(tv_sec);
+        seenby->set_last_time(tv_sec);
+        seenby->set_num_packets(1);
+
+        if (frequency > 0)
+            seenby->inc_frequency_count(frequency);
+
+        if (siginfo != NULL)
+            (*(seenby->get_signal_data())) += *siginfo;
+
+        seenby_map->add_intmap(source->get_source_key(), seenby);
+
+    } else {
+        seenby = static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);
+
+        seenby->set_last_time(tv_sec);
+        seenby->inc_num_packets();
+
+        if (frequency > 0)
+            seenby->inc_frequency_count(frequency);
+
+        if (siginfo != NULL)
+            (*(seenby->get_signal_data())) += *siginfo;
+    }
+}
+
+void kis_tracked_device_base::register_fields() {
+    tracker_component::register_fields();
+
+    RegisterField("kismet.device.base.key", TrackerKey,
+            "unique device key across phy and server", &key);
+
+    RegisterField("kismet.device.base.macaddr", TrackerMac,
+            "mac address", &macaddr);
+
+    RegisterField("kismet.device.base.phyname", TrackerString,
+            "phy name", &phyname);
+
+    RegisterField("kismet.device.base.name", TrackerString,
+            "printable device name", &devicename);
+
+    RegisterField("kismet.device.base.username", TrackerString,
+            "user name", &username);
+
+    RegisterField("kismet.device.base.type", TrackerString,
+            "printable device type", &type_string);
+
+    RegisterField("kismet.device.base.basic_type_set", TrackerUInt64,
+            "bitset of basic type", &basic_type_set);
+
+    RegisterField("kismet.device.base.crypt", TrackerString,
+            "printable encryption type", &crypt_string);
+
+    RegisterField("kismet.device.base.basic_crypt_set", TrackerUInt64,
+            "bitset of basic encryption", &basic_crypt_set);
+
+    RegisterField("kismet.device.base.first_time", TrackerUInt64,
+            "first time seen time_t", &first_time);
+    RegisterField("kismet.device.base.last_time", TrackerUInt64,
+            "last time seen time_t", &last_time);
+    RegisterField("kismet.device.base.mod_time", TrackerUInt64,
+            "internal timestamp of last record change", &mod_time);
+
+    RegisterField("kismet.device.base.packets.total", TrackerUInt64,
+            "total packets seen of all types", &packets);
+    RegisterField("kismet.device.base.packets.rx", TrackerUInt64,
+            "observed packets sent to device", &rx_packets);
+    RegisterField("kismet.device.base.packets.tx", TrackerUInt64,
+            "observed packets from device", &tx_packets);
+    RegisterField("kismet.device.base.packets.llc", TrackerUInt64,
+            "observed protocol control packets", &llc_packets);
+    RegisterField("kismet.device.base.packets.error", TrackerUInt64,
+            "corrupt/error packets", &error_packets);
+    RegisterField("kismet.device.base.packets.data", TrackerUInt64,
+            "data packets", &data_packets);
+    RegisterField("kismet.device.base.packets.crypt", TrackerUInt64,
+            "data packets using encryption", &crypt_packets);
+    RegisterField("kismet.device.base.packets.filtered", TrackerUInt64,
+            "packets dropped by filter", &filter_packets);
+
+    RegisterField("kismet.device.base.datasize", TrackerUInt64,
+            "transmitted data in bytes", &datasize);
+
+    std::shared_ptr<kis_tracked_rrd<> > packets_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
+    packets_rrd_id =
+        globalreg->entrytracker->RegisterField("kismet.device.base.packets.rrd",
+                packets_rrd_builder, "packet rate rrd");
+
+    std::shared_ptr<kis_tracked_rrd<> > data_rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
+    data_rrd_id =
+        globalreg->entrytracker->RegisterField("kismet.device.base.datasize.rrd",
+                data_rrd_builder, "packet size rrd");
+
+    std::shared_ptr<kis_tracked_signal_data> sig_builder(new kis_tracked_signal_data(globalreg, 0));
+    signal_data_id =
+        RegisterComplexField("kismet.device.base.signal", sig_builder,
+                "signal data");
+
+    RegisterField("kismet.device.base.freq_khz_map", TrackerDoubleMap,
+            "packets seen per frequency (khz)", &freq_khz_map);
+
+    RegisterField("kismet.device.base.channel", TrackerString,
+            "channel (phy specific)", &channel);
+    RegisterField("kismet.device.base.frequency", TrackerDouble,
+            "frequency", &frequency);
+
+    RegisterField("kismet.device.base.manuf", TrackerString,
+            "manufacturer name", &manuf);
+
+    RegisterField("kismet.device.base.num_alerts", TrackerUInt32,
+            "number of alerts on this device", &alert);
+
+    RegisterField("kismet.device.base.tags", TrackerStringMap,
+            "set of arbitrary tags, including user notes", &tag_map);
+    tag_entry_id =
+        RegisterField("kismet.device.base.tag", TrackerString, "arbitrary tag");
+
+    std::shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
+    location_id =
+        RegisterComplexField("kismet.device.base.location", loc_builder,
+                "location");
+
+    location_cloud_id =
+        RegisterComplexField("kismet.device.base.location_cloud", 
+                std::shared_ptr<kis_location_history>(new kis_location_history(globalreg, 0)),
+                "historic location cloud");
+
+    RegisterField("kismet.device.base.seenby", TrackerIntMap,
+            "sources that have seen this device", &seenby_map);
+
+    // Packet count, not actual frequency, so uint64 not double
+    frequency_val_id =
+        globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
+                TrackerUInt64, "frequency packet count");
+
+    std::shared_ptr<kis_tracked_seenby_data> seenby_builder(new kis_tracked_seenby_data(globalreg, 0));
+    seenby_val_id =
+        RegisterComplexField("kismet.device.base.seenby.data",
+                seenby_builder, "seen-by data");
+
+    std::shared_ptr<kis_tracked_minute_rrd<> > bin_rrd_builder(new kis_tracked_minute_rrd<>(globalreg, 0));
+
+    packet_rrd_bin_250_id =
+        RegisterComplexField("kismet.device.base.packet.bin.250", bin_rrd_builder, 
+                "Packets up to 250 bytes");
+    packet_rrd_bin_500_id =
+        RegisterComplexField("kismet.device.base.packet.bin.500", bin_rrd_builder, 
+                "Packets up to 500 bytes");
+    packet_rrd_bin_1000_id =
+        RegisterComplexField("kismet.device.base.packet.bin.1000", bin_rrd_builder, 
+                "Packets up to 1000 bytes");
+    packet_rrd_bin_1500_id =
+        RegisterComplexField("kismet.device.base.packet.bin.1500", bin_rrd_builder, 
+                "Packets up to 1500 bytes");
+    packet_rrd_bin_jumbo_id =
+        RegisterComplexField("kismet.device.base.packet.bin.jumbo", bin_rrd_builder, 
+                "Jumbo packets over 1500 bytes");
+}
+
+void kis_tracked_device_base::reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+
+        if (e != NULL) {
+            // Repair loaded old versions of the ID; this is hugely inefficient but
+            // only happens once, and on loading from older code, so we'll just suck
+            // it up
+            if (key->get_type() == TrackerUInt64) {
+                shared_ptr<Devicetracker> devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+                Kis_Phy_Handler *phy = devicetracker->FetchPhyHandlerByName(get_phyname());
+
+                // Change the type
+                key->set_type(TrackerKey);
+
+                // Generate a new style key
+                TrackedDeviceKey k(globalreg->server_uuid_hash, phy->FetchPhynameHash(),
+                        get_macaddr());
+                set_key(k);
+            }
+
+            signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
+                    e->get_map_value(signal_data_id)));
+
+            location.reset(new kis_tracked_location(globalreg, location_id,
+                    e->get_map_value(location_id)));
+
+            location_cloud.reset(new kis_location_history(globalreg, location_cloud_id,
+                    e->get_map_value(location_cloud_id)));
+
+            packets_rrd.reset(new kis_tracked_rrd<>(globalreg,
+                    packets_rrd_id, e->get_map_value(packets_rrd_id)));
+
+            data_rrd.reset(new kis_tracked_rrd<>(globalreg,
+                    data_rrd_id, e->get_map_value(data_rrd_id)));
+
+            packet_rrd_bin_250.reset(new kis_tracked_minute_rrd<>(globalreg,
+                    packet_rrd_bin_250_id, e->get_map_value(packet_rrd_bin_250_id)));
+
+            packet_rrd_bin_500.reset(new kis_tracked_minute_rrd<>(globalreg,
+                    packet_rrd_bin_500_id, e->get_map_value(packet_rrd_bin_500_id)));
+
+            packet_rrd_bin_1000.reset(new kis_tracked_minute_rrd<>(globalreg,
+                    packet_rrd_bin_1000_id, e->get_map_value(packet_rrd_bin_1000_id)));
+
+            packet_rrd_bin_1500.reset(new kis_tracked_minute_rrd<>(globalreg,
+                    packet_rrd_bin_1500_id, e->get_map_value(packet_rrd_bin_1500_id)));
+
+            packet_rrd_bin_jumbo.reset(new kis_tracked_minute_rrd<>(globalreg,
+                    packet_rrd_bin_jumbo_id, e->get_map_value(packet_rrd_bin_jumbo_id)));
+
+            // If we're inheriting, it's our responsibility to kick submaps with
+            // complex types as well; since they're not themselves complex objects
+            TrackerElementIntMap seenby(seenby_map);
+            for (auto s = seenby.begin(); s != seenby.end(); ++s) {
+                // Build a proper seenby record for each item in the list
+                std::shared_ptr<kis_tracked_seenby_data> sbd(new kis_tracked_seenby_data(globalreg, seenby_val_id, s->second));
+                // And assign it over the same key
+                s->second = std::static_pointer_cast<TrackerElement>(sbd);
+            }
+        } else {
+            signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
+
+            packets_rrd.reset(new kis_tracked_rrd<>(globalreg, packets_rrd_id));
+        }
+
+        // add using known fields b/c we might add null
+        add_map(signal_data_id, signal_data);
+        add_map(location_id, location);
+        add_map(location_cloud_id, location_cloud);
+        add_map(packets_rrd_id, packets_rrd);
+        add_map(data_rrd_id, data_rrd);
+        add_map(packet_rrd_bin_250_id, packet_rrd_bin_250);
+        add_map(packet_rrd_bin_500_id, packet_rrd_bin_500);
+        add_map(packet_rrd_bin_1000_id, packet_rrd_bin_1000);
+        add_map(packet_rrd_bin_1500_id, packet_rrd_bin_1500);
+        add_map(packet_rrd_bin_jumbo_id, packet_rrd_bin_jumbo);
+
+    }
+
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
 }
@@ -357,10 +623,6 @@ Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
 	return i->second;
 }
 
-Kis_Phy_Handler *Devicetracker::FetchPhyHandler(uint64_t in_key) {
-    return FetchPhyHandler(DevicetrackerKey::GetPhy(in_key));
-}
-
 Kis_Phy_Handler *Devicetracker::FetchPhyHandlerByName(std::string in_name) {
     for (auto i = phy_handler_map.begin(); i != phy_handler_map.end(); ++i) {
         if (i->second->FetchPhyName() == in_name) {
@@ -384,78 +646,16 @@ std::string Devicetracker::FetchPhyName(int in_phy) {
     return phyh->FetchPhyName();
 }
 
-int Devicetracker::FetchNumDevices(int in_phy) {
+int Devicetracker::FetchNumDevices() {
     local_locker lock(&devicelist_mutex);
 
-	int r = 0;
-
-	if (in_phy == KIS_PHY_ANY)
-		return tracked_map.size();
-
-	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-		if (DevicetrackerKey::GetPhy(tracked_vec[x]->get_key()) == in_phy)
-			r++;
-	}
-
-	return r;
+    return tracked_map.size();
 }
 
-int Devicetracker::FetchNumPackets(int in_phy) {
-	if (in_phy == KIS_PHY_ANY)
-		return num_packets;
-
-	map<int, int>::iterator i = phy_packets.find(in_phy);
-	if (i != phy_packets.end())
-		return i->second;
-
-	return 0;
+int Devicetracker::FetchNumPackets() {
+    return num_packets;
 }
 
-int Devicetracker::FetchNumDatapackets(int in_phy) {
-	if (in_phy == KIS_PHY_ANY)
-		return num_datapackets;
-
-	map<int, int>::iterator i = phy_datapackets.find(in_phy);
-	if (i != phy_datapackets.end())
-		return i->second;
-
-	return 0;
-}
-
-int Devicetracker::FetchNumCryptpackets(int in_phy) {
-	int r = 0;
-
-	for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-        int phytype = DevicetrackerKey::GetPhy(tracked_vec[x]->get_key());
-		if (phytype == in_phy || in_phy == KIS_PHY_ANY) {
-            r += tracked_vec[x]->get_crypt_packets();
-		}
-	}
-
-	return 0;
-}
-
-int Devicetracker::FetchNumErrorpackets(int in_phy) {
-	if (in_phy == KIS_PHY_ANY)
-		return num_errorpackets;
-
-	map<int, int>::iterator i = phy_errorpackets.find(in_phy);
-	if (i != phy_errorpackets.end())
-		return i->second;
-
-	return 0;
-}
-
-int Devicetracker::FetchNumFilterpackets(int in_phy) {
-	if (in_phy == KIS_PHY_ANY)
-		return num_filterpackets;
-
-	map<int, int>::iterator i = phy_filterpackets.find(in_phy);
-	if (i != phy_errorpackets.end())
-		return i->second;
-
-	return 0;
-}
 
 int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	int num = next_phy_id++;
@@ -480,7 +680,7 @@ void Devicetracker::UpdateFullRefresh() {
     full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
-std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(uint64_t in_key) {
+std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(TrackedDeviceKey in_key) {
     local_locker lock(&devicelist_mutex);
 
 	device_itr i = tracked_map.find(in_key);
@@ -489,11 +689,6 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(uint64_t in_
 		return i->second;
 
 	return NULL;
-}
-
-std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(mac_addr in_device,
-        unsigned int in_phy) {
-	return FetchDevice(DevicetrackerKey::MakeKey(in_device, in_phy));
 }
 
 int Devicetracker::CommonTracker(kis_packet *in_pack) {
@@ -602,7 +797,7 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     Kis_Phy_Handler *phy = NULL;
-    uint64_t key = 0;
+    TrackedDeviceKey key;
 
     if ((phy = FetchPhyHandler(in_phy)) == NULL) {
         sstr << "Got packet for phy id " << in_phy << " but no handler " <<
@@ -610,11 +805,10 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
         _MSG(sstr.str(), MSGFLAG_ERROR);
     }
 
-    key = DevicetrackerKey::MakeKey(in_mac, in_phy);
+    key = TrackedDeviceKey(globalreg->server_uuid_hash, phy->FetchPhynameHash(), in_mac);
 
 	if ((device = FetchDevice(key)) == NULL) {
         device.reset(new kis_tracked_device_base(globalreg, device_base_id));
-
         // Device ID is the size of the vector so a new device always gets put
         // in it's numbered slot
         device->set_kis_internal_id(immutable_tracked_vec.size());
@@ -623,7 +817,7 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
         device->set_macaddr(in_mac);
         device->set_phyname(phy->FetchPhyName());
 
-        tracked_map[device->get_key()] = device;
+        tracked_map[key] = device;
         tracked_vec.push_back(device);
         immutable_tracked_vec.push_back(device);
         tracked_mac_multimap.emplace(in_mac, device);
@@ -997,8 +1191,6 @@ int Devicetracker::timetracker_event(int eventid) {
         tracked_vec.erase(std::remove_if(tracked_vec.begin(), tracked_vec.end(),
                 [&](std::shared_ptr<kis_tracked_device_base> d) {
                     if (ts_now - d->get_last_time() > device_idle_expiration) {
-                        // fprintf(stderr, "debug - forgetting device %s age %lu expiration %d\n", d->get_macaddr().Mac2String().c_str(), globalreg->timestamp.tv_sec - d->get_last_time(), device_idle_expiration);
-                        
                         device_itr mi = tracked_map.find(d->get_key());
                         if (mi != tracked_map.end())
                             tracked_map.erase(mi);
@@ -1305,10 +1497,6 @@ Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
 
         // Let the phy adopt any additional fields
         phy->LoadPhyStorage(e, kdb);
-
-        // Recalculate the key
-        uint64_t key = DevicetrackerKey::MakeKey(macaddr, phy->FetchPhyId());
-        kdb->set_key(key);
 
         // Update the manuf in case we added a manuf db
         if (globalreg->manufdb != NULL)

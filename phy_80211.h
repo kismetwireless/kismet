@@ -696,7 +696,7 @@ class dot11_client : public tracker_component {
         }
 
         __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
-        __Proxy(bssid_key, uint64_t, uint64_t, uint64_t, bssid_key);
+        __Proxy(bssid_key, TrackedDeviceKey, TrackedDeviceKey, TrackedDeviceKey, bssid_key);
         __Proxy(client_type, uint32_t, uint32_t, uint32_t, client_type);
 
         __Proxy(first_time, uint64_t, time_t, time_t, first_time);
@@ -735,7 +735,7 @@ class dot11_client : public tracker_component {
         virtual void register_fields() {
             RegisterField("dot11.client.bssid", TrackerMac,
                     "bssid", &bssid);
-            RegisterField("dot11.client.bssid_key", TrackerUInt64,
+            RegisterField("dot11.client.bssid_key", TrackerKey,
                     "key of BSSID record", &bssid_key);
             RegisterField("dot11.client.first_time", TrackerUInt64,
                     "first time seen", &first_time);
@@ -947,6 +947,7 @@ class dot11_tracked_device : public tracker_component {
             client_map_entry_id =
                 RegisterComplexField("dot11.device.client", client_builder, "client record");
 
+            // Advertised SSIDs keyed by ssid checksum
             RegisterField("dot11.device.advertised_ssid_map", TrackerIntMap,
                     "advertised SSIDs", &advertised_ssid_map);
 
@@ -955,6 +956,7 @@ class dot11_tracked_device : public tracker_component {
                 RegisterComplexField("dot11.device.advertised_ssid",
                         adv_ssid_builder, "advertised ssid");
 
+            // Probed SSIDs keyed by int checksum
             RegisterField("dot11.device.probed_ssid_map", TrackerIntMap,
                     "probed SSIDs", &probed_ssid_map);
 
@@ -968,7 +970,7 @@ class dot11_tracked_device : public tracker_component {
 
             // Key of associated device, indexed by mac address
             associated_client_map_entry_id =
-                RegisterField("dot11.device.associated_client", TrackerUInt64,
+                RegisterField("dot11.device.associated_client", TrackerKey,
                         "associated client");
 
             RegisterField("dot11.device.client_disconnects", TrackerUInt64,

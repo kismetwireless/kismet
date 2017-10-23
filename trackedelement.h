@@ -58,6 +58,56 @@ class TrackerElement;
 
 typedef std::shared_ptr<TrackerElement> SharedTrackerElement;
 
+// Very large key wrapper class, needed for keying devices with per-server/per-phy 
+// but consistent keys.  Components are store in big-endian format internally so that
+// they are consistent across platforms.
+//
+// Values are exported as big endian, hex, [SPKEY]_[DKEY]
+class TrackedDeviceKey {
+public:
+    friend bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
+    friend bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
+    friend ostream& operator<<(ostream& os, const TrackedDeviceKey& k);
+
+    TrackedDeviceKey();
+
+    TrackedDeviceKey(const TrackedDeviceKey& k);
+
+    // Create a key from a server/phy component and device component
+    TrackedDeviceKey(uint64_t in_spkey, uint64_t in_dkey);
+
+    // Create a key from independent components
+    TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey);
+
+    // Create a key from a cached spkey and a mac address
+    TrackedDeviceKey(uint64_t in_spkey, mac_addr in_device);
+
+    // Create a key from a computed hashes and a mac address
+    TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device);
+
+    // Create a key from an incoming string/exported key; this should only happen during
+    // deserialization and rest queries; it's fairly expensive otherwise
+    TrackedDeviceKey(std::string in_keystr);
+
+    std::string as_string() const;
+
+    // Generate a cached phykey component; phyhandlers do this to cache
+    static uint32_t gen_pkey(std::string in_phy);
+
+    // Generate a cached SP key combination
+    static uint64_t gen_spkey(uuid s_uuid, std::string phy);
+
+    bool get_error() { return error; }
+
+protected:
+    uint64_t spkey, dkey;
+    bool error;
+};
+
+bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
+bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
+ostream& operator<<(ostream& os, const TrackedDeviceKey& k);
+
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
 // binary/fast serialization, new types must be added to the end of the list
@@ -103,6 +153,12 @@ enum TrackerType {
 
     // Byte array
     TrackerByteArray = 19,
+
+    // Large key
+    TrackerKey = 20,
+
+    // Key-map (Large keys, 128 bit or higher, using the TrackedKey class)
+    TrackerKeyMap = 21,
 };
 
 class TrackerElement {
@@ -182,6 +238,11 @@ public:
     typedef std::map<double, SharedTrackerElement>::iterator double_map_iterator;
     typedef std::map<double, SharedTrackerElement>::const_iterator double_map_const_iterator;
     typedef std::pair<double, SharedTrackerElement> double_map_pair;
+
+    typedef std::map<TrackedDeviceKey, SharedTrackerElement> tracked_key_map;
+    typedef std::map<TrackedDeviceKey, SharedTrackerElement>::iterator key_map_iterator;
+    typedef std::map<TrackedDeviceKey, SharedTrackerElement>::const_iterator key_map_const_iterator;
+    typedef std::pair<TrackedDeviceKey, SharedTrackerElement> key_map_pair;
 
     // Getter per type, use templated GetTrackerValue() for easy fetch
     std::string get_string() {
@@ -292,6 +353,16 @@ public:
         return dataunion.subdoublemap_value;
     }
 
+    tracked_key_map *get_keymap() {
+        except_type_mismatch(TrackerKeyMap);
+        return dataunion.subkeymap_value;
+    }
+
+    TrackedDeviceKey get_key() {
+        except_type_mismatch(TrackerKey);
+        return *(dataunion.key_value);
+    }
+
     uuid get_uuid() {
         except_type_mismatch(TrackerUuid);
         return *(dataunion.uuid_value);
@@ -363,6 +434,11 @@ public:
         except_type_mismatch(TrackerUuid);
         // uuid has overrided =
         *(dataunion.uuid_value) = v;
+    }
+
+    void set(TrackedDeviceKey k) {
+        except_type_mismatch(TrackerKey);
+        *(dataunion.key_value) = k;
     }
 
     // Coercive set - attempt to fit incoming data into the type (for basic types)
@@ -622,11 +698,16 @@ protected:
         // Index double,element keyed map
         tracked_double_map *subdoublemap_value;
 
+        // Index devicekey,element keyed map
+        tracked_key_map *subkeymap_value;
+
         tracked_vector *subvector_value;
 
         mac_addr *mac_value;
 
         uuid *uuid_value;
+
+        TrackedDeviceKey *key_value;
 
         std::shared_ptr<uint8_t> *bytearray_value;
 
@@ -735,6 +816,55 @@ public:
 
     virtual size_t size() {
         return val->size_map();
+    }
+};
+
+class TrackerElementKeyMap {
+protected:
+    SharedTrackerElement val;
+
+public:
+    TrackerElementKeyMap() {
+        val = NULL;
+    }
+
+    TrackerElementKeyMap(SharedTrackerElement t) {
+        val = t;
+    }
+
+    virtual ~TrackerElementKeyMap() { }
+
+public:
+    typedef TrackerElement::key_map_iterator iterator;
+    typedef TrackerElement::key_map_const_iterator const_iterator;
+    typedef TrackerElement::key_map_pair pair;
+
+    virtual iterator begin() {
+        return val->get_keymap()->begin();
+    }
+
+    virtual iterator end() {
+        return val->get_keymap()->end();
+    }
+
+    virtual iterator find(TrackedDeviceKey k) {
+        return val->get_keymap()->find(k);
+    }
+
+    virtual void insert(pair p) {
+        val->get_keymap()->insert(p);
+    }
+
+    virtual void erase(iterator i) {
+        val->get_keymap()->erase(i);
+    }
+
+    virtual void clear() {
+        return val->get_keymap()->clear();
+    }
+
+    virtual size_t size() {
+        return val->get_keymap()->size();
     }
 };
 
@@ -951,6 +1081,8 @@ template<> float GetTrackerValue(SharedTrackerElement e);
 template<> double GetTrackerValue(SharedTrackerElement e);
 template<> mac_addr GetTrackerValue(SharedTrackerElement e);
 template<> uuid GetTrackerValue(SharedTrackerElement e);
+template<> TrackedDeviceKey GetTrackerValue(SharedTrackerElement e);
+
 template<> std::map<int, SharedTrackerElement > 
     GetTrackerValue(SharedTrackerElement e);
 template<> std::vector<SharedTrackerElement > 

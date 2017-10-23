@@ -86,15 +86,15 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 local_locker lock(&devicelist_mutex);
 
-                uint64_t key = 0;
-                std::stringstream ss(tokenurl[3]);
-                ss >> key;
+                TrackedDeviceKey key(tokenurl[3]);
+
+                if (key.get_error())
+                    return false;
 
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
-                map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
-                    tracked_map.find(key);
+                auto tmi = tracked_map.find(key);
 
                 if (tmi == tracked_map.end())
                     return false;
@@ -184,15 +184,15 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 local_locker lock(&devicelist_mutex);
 
-                uint64_t key = 0;
-                std::stringstream ss(tokenurl[3]);
-                ss >> key;
+                TrackedDeviceKey key(tokenurl[3]);
+
+                if (key.get_error())
+                    return false;
 
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
-                map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
-                    tracked_map.find(key);
+                auto tmi = tracked_map.find(key);
 
                 if (tmi == tracked_map.end())
                     return false;
@@ -399,19 +399,8 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
             local_locker lock(&devicelist_mutex);
 
-            uint64_t key = 0;
-            std::stringstream ss(tokenurl[3]);
-
-            ss >> key;
-
-            /*
-			if (sscanf(tokenurl[3].c_str(), "%lu", &key) != 1) {
-				return;
-            }
-            */
-
-            map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
-                tracked_map.find(key);
+            TrackedDeviceKey key(tokenurl[3]);
+            auto tmi = tracked_map.find(key);
 
             if (tmi == tracked_map.end()) {
                 stream << "Invalid device key";
@@ -696,12 +685,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
-            uint64_t key = 0;
-            std::stringstream ss(tokenurl[3]);
-            ss >> key;
-
-            map<uint64_t, shared_ptr<kis_tracked_device_base> >::iterator tmi =
-                tracked_map.find(key);
+            TrackedDeviceKey key(tokenurl[3]);
+            auto tmi = tracked_map.find(key);
 
             if (tmi == tracked_map.end()) {
                 stream << "Invalid request";

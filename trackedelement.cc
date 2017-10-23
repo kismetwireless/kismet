@@ -27,7 +27,102 @@
 #include "globalregistry.h"
 #include "entrytracker.h"
 
+#include "endian_magic.h"
+
 #include "alphanum.hpp"
+
+TrackedDeviceKey::TrackedDeviceKey() {
+    spkey = 0;
+    dkey = 0;
+    error = true;
+}
+
+TrackedDeviceKey::TrackedDeviceKey(const TrackedDeviceKey& k) {
+    spkey = k.spkey;
+    dkey = k.dkey;
+    error = k.error;
+}
+
+TrackedDeviceKey::TrackedDeviceKey(uint64_t in_spkey, uint64_t in_dkey) {
+    spkey = in_spkey;
+    dkey = in_dkey;
+    error = false;
+}
+
+TrackedDeviceKey::TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey) {
+    spkey = (((uint64_t) in_skey) << 32) | in_pkey;
+    dkey = in_dkey;
+    error = false;
+}
+
+TrackedDeviceKey::TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device) {
+    spkey = (((uint64_t) in_skey) << 32) | in_pkey;
+    dkey = in_device.longmac;
+    error = false;
+}
+
+TrackedDeviceKey::TrackedDeviceKey(uint64_t in_spkey, mac_addr in_device) {
+    spkey = in_spkey;
+    dkey = in_device.longmac;
+    error = false;
+}
+
+TrackedDeviceKey::TrackedDeviceKey(std::string in_keystr) {
+    unsigned long long int k1, k2;
+
+    if (sscanf(in_keystr.c_str(), "%llx_%llx", &k1, &k2) != 2) {
+        error = true;
+        spkey = 0;
+        dkey = 0;
+        return;
+    }
+
+    // Convert from big endian exported format
+    spkey = (uint64_t) kis_ntoh64(k1);
+    dkey = (uint64_t) kis_ntoh64(k2);
+    error = false;
+}
+
+std::string TrackedDeviceKey::as_string() const {
+    std::stringstream ss;
+    ss << *this;
+    return ss.str();
+}
+
+uint32_t TrackedDeviceKey::gen_pkey(std::string phy) {
+    return Adler32Checksum(phy.c_str(), phy.length());
+}
+
+uint64_t TrackedDeviceKey::gen_spkey(uuid s_uuid, std::string phy) {
+    uint64_t uuid32 = Adler32Checksum((const char *) s_uuid.uuid_block, 16);
+    uint64_t phy32 = gen_pkey(phy);
+
+    return (uuid32 << 32) | phy32;
+}
+
+bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
+    if (x.spkey < y.spkey)
+        return true;
+    
+    if (x.dkey < y.dkey)
+        return true;
+
+    return false;
+}
+
+bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
+    return (x.spkey == y.spkey && x.dkey == y.dkey);
+}
+
+ostream& operator<<(ostream& os, const TrackedDeviceKey& k) {
+    ios::fmtflags fflags;
+
+    fflags = os.flags();
+    os << std::uppercase << std::setfill('0') << std::setw(2) <<
+        std::hex << kis_hton64(k.spkey) << "_" << kis_hton64(k.dkey);
+    os.flags(fflags);
+    return os;
+}
 
 void TrackerElement::Initialize() {
     this->type = TrackerUnassigned;
@@ -51,6 +146,7 @@ void TrackerElement::Initialize() {
 
     dataunion.mac_value = NULL;
     dataunion.uuid_value = NULL;
+    dataunion.key_value = NULL;
 
     dataunion.submap_value = NULL;
     dataunion.subintmap_value = NULL;
@@ -60,6 +156,7 @@ void TrackerElement::Initialize() {
     dataunion.subvector_value = NULL;
     dataunion.custom_value = NULL;
     dataunion.bytearray_value = NULL;
+    dataunion.subkeymap_value = NULL;
 
 }
 
@@ -96,6 +193,8 @@ TrackerElement::~TrackerElement() {
         delete(dataunion.mac_value);
     } else if (type == TrackerUuid) {
         delete dataunion.uuid_value;
+    } else if (type == TrackerKey) {
+        delete dataunion.key_value;
     } else if (type == TrackerByteArray) {
         delete dataunion.bytearray_value;
     }
@@ -130,6 +229,9 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerUuid && dataunion.uuid_value != NULL) {
         delete(dataunion.uuid_value);
         dataunion.uuid_value = NULL;
+    } else if (type == TrackerKey && dataunion.key_value != NULL) {
+        delete(dataunion.key_value);
+        dataunion.key_value = NULL;
     } else if (type == TrackerString && dataunion.string_value != NULL) {
         delete(dataunion.string_value);
         dataunion.string_value = NULL;
@@ -157,6 +259,8 @@ void TrackerElement::set_type(TrackerType in_type) {
         dataunion.mac_value = new mac_addr(0);
     } else if (type == TrackerUuid) {
         dataunion.uuid_value = new uuid();
+    } else if (type == TrackerKey) {
+        dataunion.key_value = new TrackedDeviceKey();
     } else if (type == TrackerString) {
         dataunion.string_value = new string();
     } else if (type == TrackerByteArray) {
@@ -921,12 +1025,16 @@ string TrackerElement::type_to_string(TrackerType t) {
             return "map[int, x]";
         case TrackerUuid:
             return "uuid";
+        case TrackerKey:
+            return "devicekey";
         case TrackerMacMap:
             return "map[macaddr, x]";
         case TrackerStringMap:
             return "map[string, x]";
         case TrackerDoubleMap:
             return "map[double, x]";
+        case TrackerKeyMap:
+            return "map[key, x]";
         case TrackerByteArray:
             return "bytearray";
         default:
@@ -968,6 +1076,8 @@ string TrackerElement::type_to_typestring(TrackerType t) {
             return "TrackerIntMap";
         case TrackerUuid:
             return "TrackerUuid";
+        case TrackerKey:
+            return "TrackerKey";
         case TrackerMacMap:
             return "TrackerMacMap";
         case TrackerStringMap:
@@ -976,6 +1086,8 @@ string TrackerElement::type_to_typestring(TrackerType t) {
             return "TrackerDoubleMap";
         case TrackerByteArray:
             return "TrackerByteArray";
+        case TrackerKeyMap:
+            return "TrackerKeyMap";
         default:
             return "TrackerUnknown";
     }
@@ -1014,6 +1126,8 @@ TrackerType TrackerElement::typestring_to_type(std::string s) {
         return TrackerIntMap;
     if (s == "TrackerUuid")
         return TrackerUuid;
+    if (s == "TrackerKey")
+        return TrackerKey;
     if (s == "TrackerMacMap")
         return TrackerMacMap;
     if (s == "TrackerStringMap")
@@ -1022,6 +1136,8 @@ TrackerType TrackerElement::typestring_to_type(std::string s) {
         return TrackerDoubleMap;
     if (s == "TrackerByteArray")
         return TrackerByteArray;
+    if (s == "TrackerKeyMap")
+        return TrackerKeyMap;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1029,6 +1145,7 @@ TrackerType TrackerElement::typestring_to_type(std::string s) {
 void TrackerElement::coercive_set(std::string in_str) {
     mac_addr m;
     uuid u;
+    TrackedDeviceKey k;
 
     switch (type) {
         case TrackerString:
@@ -1045,6 +1162,12 @@ void TrackerElement::coercive_set(std::string in_str) {
             if (u.error)
                 throw std::runtime_error("unable to coerce string value to uuid");
             set(u);
+            break;
+        case TrackerKey:
+            k = TrackedDeviceKey(in_str);
+            if (k.get_error())
+                throw std::runtime_error("unable to coerce string value to key");
+            set(k);
             break;
         case TrackerByteArray:
             set_bytearray(in_str);
@@ -1153,6 +1276,10 @@ void TrackerElement::coercive_set(SharedTrackerElement in_elem) {
             break;
         case TrackerUuid:
             basic_string = GetTrackerValue<uuid>(in_elem).UUID2String();
+            c_string = true;
+            break;
+        case TrackerKey:
+            basic_string = GetTrackerValue<TrackedDeviceKey>(in_elem).as_string();
             c_string = true;
             break;
 
@@ -1457,6 +1584,10 @@ template<> TrackerElement::tracked_vector
 
 template<> uuid GetTrackerValue(SharedTrackerElement e) {
     return e->get_uuid();
+}
+
+template<> TrackedDeviceKey GetTrackerValue(SharedTrackerElement e) {
+    return e->get_key();
 }
 
 bool operator==(TrackerElement &te1, int8_t i) {

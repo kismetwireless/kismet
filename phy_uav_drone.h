@@ -22,6 +22,8 @@
 
 #include "trackedelement.h"
 #include "tracked_location.h"
+#include "phyhandler.h"
+#include "packetchain.h"
 
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 
@@ -74,9 +76,9 @@ public:
             
             if (flight_reg->state_info()->unk_alt_valid()) {
                 location->set_alt(flight_reg->altitude());
-                loation->set_fix(3);
+                location->set_fix(3);
             } else {
-                lcoation->set_fix(2);
+                location->set_fix(2);
             }
         }
 
@@ -165,6 +167,11 @@ public:
 
     virtual ~uav_tracked_device() { }
 
+    __Proxy(uav_manufacturer, std::string, std::string, std::string, uav_manufacturer);
+    __Proxy(uav_serialnumber, std::string, std::string, std::string, uav_serialnumber);
+    
+    __ProxyDynamicTrackable(last_telem_loc, uav_tracked_telemetry, 
+            last_telem_loc, last_telem_loc_id);
 
 protected:
     virtual void register_fields() {
@@ -175,10 +182,65 @@ protected:
         RegisterField("kismet.uav.serialnumber", TrackerString,
                 "Serial number", &uav_serialnumber);
 
+        last_telem_loc_id = 
+            RegisterComplexField("kismet.uav.last_telemetry",
+                std::shared_ptr<uav_tracked_telemetry>(new uav_tracked_telemetry(globalreg, 0)),
+                "Last drone telemetry location");
+
+        // Map generated from the runtime keys of related devices, we'll need to
+        // regenerate this on reserve_fields because the keys may shift
+        RegisterField("kismet.uav.related_devices", TrackerKeyMap,
+                "Related devices which comprise this drone", &sub_device_map);
+    }
+
+    virtual void reserve_fields(SharedTrackerElement e) {
+        if (e != NULL) {
+            last_telem_loc.reset(new uav_tracked_telemetry(globalreg, last_telem_loc_id,
+                        e->get_map_value(last_telem_loc_id)));
+        }
+
+        add_map(last_telem_loc_id, last_telem_loc);
     }
 
     SharedTrackerElement uav_manufacturer;
     SharedTrackerElement uav_serialnumber;
+
+    std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
+    int last_telem_loc_id;
+
+    // Key-linked sub map; We'll need to do special maintenance on this when loading it to
+    // resolve the runtime key indexes.
+    SharedTrackerElement sub_device_map;
+
+};
+
+/* Frankenphy which absorbs other phys */
+class Kis_UAV_Phy : public Kis_Phy_Handler {
+public:
+    virtual ~Kis_UAV_Phy();
+
+    Kis_UAV_Phy(GlobalRegistry *in_globalreg) :
+        Kis_Phy_Handler(in_globalreg) { }
+
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
+            Devicetracker *in_tracker, int in_phyid) {
+        return new Kis_UAV_Phy(in_globalreg, in_tracker, in_phyid);
+    }
+
+    Kis_UAV_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
+            int in_phyid);
+
+    // Common classifier to make new UAV records
+    static int CommonClassifier(CHAINCALL_PARMS);
+
+protected:
+    shared_ptr<Packetchain> packetchain;
+    shared_ptr<EntryTracker> entrytracker;
+
+    /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
+    int pack_comp_common, pack_comp_80211;
+
+    int uav_device_id;
 
 };
 

@@ -46,7 +46,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
     devicetracker = 
         Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
 
-    phyname = "Bluetooth";
+    SetPhyName("Bluetooth");
 
     bluetooth_device_entry_id =
         entrytracker->RegisterField("bluetooth.device", 

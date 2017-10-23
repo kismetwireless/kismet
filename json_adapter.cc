@@ -89,6 +89,8 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     TrackerElement::tracked_double_map *tdoublemap;
     TrackerElement::double_map_iterator double_map_iter;
 
+    TrackerElement::tracked_key_map *tkeymap;
+
     mac_addr mac;
     uuid euuid;
 
@@ -142,6 +144,9 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             euuid = GetTrackerValue<uuid>(e);
             // UUID is quoted as a string value
             stream << "\"" << euuid.UUID2String() << "\"";
+            break;
+        case TrackerKey:
+            stream << "\"" << GetTrackerValue<TrackedDeviceKey>(e).as_string() << "\"";
             break;
         case TrackerVector:
             tvec = e->get_vector();
@@ -286,6 +291,22 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             }
             stream << indent << "}";
             break;
+        case TrackerKeyMap:
+            tkeymap = e->get_keymap();
+
+            stream << ppendl << indent << "{" << ppendl;
+
+            for (auto i = tkeymap->begin(); i != tkeymap->end(); /* */) {
+                // Keymap keys are handled as strings
+                stream << indent << "\"" << i->first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, i->second, name_map,
+                        prettyprint, depth + 1);
+                if (++i != tkeymap->end())
+                    stream << ",";
+                stream << ppendl;
+            }
+            stream << indent << "}";
+            break;
         case TrackerByteArray:
             bytes = e->get_bytearray();
             sz = e->get_bytearray_size();
@@ -349,8 +370,11 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     TrackerElement::tracked_double_map *tdoublemap;
     TrackerElement::double_map_iterator double_map_iter;
 
+    TrackerElement::tracked_key_map *tkeymap;
+
     mac_addr mac;
     uuid euuid;
+    TrackedDeviceKey key;
 
     string tname;
 
@@ -418,6 +442,10 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             euuid = GetTrackerValue<uuid>(e);
             // UUID is quoted as a string value
             stream << "\"" << euuid.UUID2String() << "\"";
+            break;
+        case TrackerKey:
+            key = GetTrackerValue<TrackedDeviceKey>(e);
+            stream << "\"" << key << "\"";
             break;
         case TrackerVector:
             tvec = e->get_vector();
@@ -527,6 +555,20 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 stream << "\"" << fixed << double_map_iter->first << "\": ";
                 StorageJsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map);
                 if (++double_map_iter != tdoublemap->end())
+                    stream << ",";
+            }
+            stream << "}";
+            break;
+        case TrackerKeyMap:
+            tkeymap = e->get_keymap();
+
+            stream << "{";
+
+            for (auto i = tkeymap->begin(); i != tkeymap->end(); /* */) {
+                // Keymap keys are handled as strings
+                stream << "\"" << i->first << "\": ";
+                StorageJsonAdapter::Pack(globalreg, stream, i->second, name_map);
+                if (++i != tkeymap->end())
                     stream << ",";
             }
             stream << "}";

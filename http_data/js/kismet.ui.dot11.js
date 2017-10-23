@@ -330,7 +330,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         }
 
                         var mac = opts['data']['kismet.device.base.macaddr'];
-                        var url = '<a href="/phy/phy80211/by-bssid/' + mac + '/pcap/' +
+                        var key = opts['data']['kismet.device.base.key'];
+                        var url = '<a href="/phy/phy80211/by-key/' + key + '/pcap/' +
                             mac + '-handshake.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>' +
                             warning;
@@ -595,7 +596,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     var tb = $('.expander', opts['container']).simpleexpand();
 
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
-                    var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid').split('/')[0];
+                    var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid');
                     var alink = $('a#' + key, opts['container']);
                     $.get("/devices/by-key/" + key +
                             "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
@@ -613,10 +614,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.bssid_key",
                     title: "Access Point",
                     render: function(opts) {
-                        if (opts['key'] === '')
+                        if (opts['key'] === '') {
                             return "<i>No records for access point</i>";
-                        else
-                            return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View AP Details</a>';
+                        } else {
+                            return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['value'] + '\')">View AP Details</a>';
+                        }
                     }
                 },
                 {
@@ -788,7 +790,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     field: "kismet.device.base.key",
                                     title: "Client Info",
                                     render: function(opts) {
-                                        return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(' + opts['value'] + ')">View Client Details</a>';
+                                        return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['data']['kismet.device.base.key'] + '\')">View Client Details</a>';
                                     }
                                 },
                                 {

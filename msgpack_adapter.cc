@@ -80,6 +80,8 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
     TrackerElement::tracked_double_map *tdoublemap;
     TrackerElement::double_map_iterator double_map_iter;
 
+    TrackerElement::tracked_key_map *tkeymap;
+
     mac_addr mac;
 
     shared_ptr<uint8_t> bytes;
@@ -196,6 +198,14 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                     ++double_map_iter) {
                 o.pack(double_map_iter->first);
                 Packer(globalreg, double_map_iter->second, o, name_map);
+            }
+            break;
+        case TrackerKeyMap:
+            tkeymap = v->get_keymap();
+            o.pack_map(tkeymap->size());
+            for (auto i = tkeymap->begin(); i != tkeymap->end(); ++i) {
+                o.pack(i->first.as_string());
+                Packer(globalreg, i->second, o, name_map);
             }
             break;
         case TrackerByteArray:
@@ -328,6 +338,9 @@ void StorageMsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerEleme
             break;
         case TrackerUuid:
             o.pack(GetTrackerValue<uuid>(v).UUID2String());
+            break;
+        case TrackerKey:
+            o.pack(GetTrackerValue<TrackedDeviceKey>(v).as_string());
             break;
         case TrackerVector:
             // o.pack(*(v->get_vector()));

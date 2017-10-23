@@ -43,9 +43,9 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
         if (tokenurl[4] != "pcap")
             return false;
 
-        uint64_t key = 0;
-        std::stringstream ss(tokenurl[3]);
-        ss >> key;
+        TrackedDeviceKey key(tokenurl[3]);
+        if (key.get_error())
+            return false;
 
         if (devicetracker->FetchDevice(key) == NULL)
             return false;
@@ -94,9 +94,9 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (tokenurl[4] != "pcap")
         return MHD_YES;
 
-    uint64_t key = 0;
-    std::stringstream ss(tokenurl[3]);
-    ss >> key;
+    TrackedDeviceKey key(tokenurl[3]);
+    if (key.get_error())
+        return MHD_YES;
 
     shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
     if (dev == NULL)

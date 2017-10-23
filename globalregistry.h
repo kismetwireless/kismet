@@ -27,6 +27,7 @@
 
 #include "util.h"
 #include "macaddr.h"
+#include "uuid.h"
 
 class GlobalRegistry;
 
@@ -177,8 +178,8 @@ public:
 	char **argv;
 	char **envp;
 
-	// What are we? server, drone, client
-	int kismet_instance;
+    uuid server_uuid;
+    uint64_t server_uuid_hash;
 
 	// getopt-long number for arguments that don't take a short letter
 	// Anything using a getopt long should grab this and increment it

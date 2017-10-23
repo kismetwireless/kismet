@@ -98,6 +98,7 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
             case TrackerString:
             case TrackerMac:
             case TrackerUuid:
+            case TrackerKey:
                 elem->coercive_set(objdata->getString());
                 break;
                 // Map and vector types need to be iteratively processed
@@ -160,6 +161,19 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
                         elem->add_stringmap(i.first, re);
                 }
 
+                break;
+            case TrackerKeyMap:
+                for (auto i : objdata->getStructuredStrMap()) {
+                    TrackedDeviceKey k(i.first);
+                    if (k.get_error())
+                        throw std::runtime_error("unable to process device key in keymap");
+
+                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+
+                    if (re != NULL) {
+                        (*(elem->get_keymap()))[k] = re;
+                    }
+                }
                 break;
             case TrackerByteArray:
                 // hexstr = hexstr_to_binstr(objdata->getString().c_str());

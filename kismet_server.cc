@@ -593,6 +593,45 @@ void ncurses_wrapper_fork() {
 }
 #endif
 
+// Load a UUID
+void Load_Kismet_UUID(GlobalRegistry *globalreg) {
+    // Look for a global override
+    uuid confuuid(globalreg->kismet_config->FetchOpt("server_uuid"));
+
+    if (!confuuid.error) {
+        _MSG("Setting server UUID " + confuuid.UUID2String() + " from kismet.conf "
+                "(or included file)", MSGFLAG_INFO);
+
+        globalreg->server_uuid = confuuid;
+        globalreg->server_uuid_hash = Adler32Checksum((const char *) confuuid.uuid_block, 16);
+        return;
+    }
+
+    // Make a custom config
+    string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
+    string config_dir_path = 
+        globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
+
+    std::string uuidconfpath = config_dir_path + "/" + "kismet_server_id.conf";
+
+    ConfigFile uuidconf(globalreg);
+    uuidconf.ParseConfig(uuidconfpath.c_str());
+
+    // Look for a saved uuid
+    confuuid = uuid(uuidconf.FetchOpt("server_uuid"));
+    if (confuuid.error) {
+        confuuid.GenerateTimeUUID((uint8_t *) "KISMET");
+        _MSG("Generated server UUID " + confuuid.UUID2String() + " and storing in " +
+                uuidconfpath, MSGFLAG_INFO);
+        uuidconf.SetOpt("server_uuid", confuuid.UUID2String(), true);
+        uuidconf.SaveConfig(uuidconfpath.c_str());
+    }
+
+    _MSG("Setting server UUID " + confuuid.UUID2String(), MSGFLAG_INFO);
+    globalreg->server_uuid = confuuid;
+    globalreg->server_uuid_hash = Adler32Checksum((const char *) confuuid.uuid_block, 16);
+}
+
 int main(int argc, char *argv[], char *envp[]) {
     exec_name = argv[0];
     char errstr[STATUS_MAX];
@@ -799,6 +838,8 @@ int main(int argc, char *argv[], char *envp[]) {
         globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
         CatchShutdown(-1);
     }
+
+    Load_Kismet_UUID(globalregistry);
 
     // Make the timetracker
     Timetracker::create_timetracker(globalregistry);

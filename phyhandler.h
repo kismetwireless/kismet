@@ -40,12 +40,11 @@ public:
 		phyname = "NONE";
 	}
 
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-											  Devicetracker *in_tracker,
-											  int in_phyid) = 0;
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
+            Devicetracker *in_tracker, int in_phyid) = 0;
 
-	Kis_Phy_Handler(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-					int in_phyid) {
+    Kis_Phy_Handler(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
+            int in_phyid) {
 		globalreg = in_globalreg;
 		phyid = in_phyid;
 		devicetracker = in_tracker;
@@ -53,8 +52,9 @@ public:
 
 	virtual ~Kis_Phy_Handler() { }
 
-	virtual string FetchPhyName() { return phyname; }
+	virtual std::string FetchPhyName() { return phyname; }
 	virtual int FetchPhyId() { return phyid; }
+    virtual uint32_t FetchPhynameHash() { return phyname_hash; }
 
     // Called for all instantiated phys when restoring a network object from
     // a stored record; This function is expected to inspect the abstract object
@@ -64,10 +64,16 @@ public:
             SharedTrackerElement in_device) { }
 
 protected:
+    virtual void SetPhyName(std::string in_phyname) {
+        phyname = in_phyname;
+        phyname_hash = TrackedDeviceKey::gen_pkey(phyname);
+    }
+
 	GlobalRegistry *globalreg;
 	Devicetracker *devicetracker;
 
     std::string phyname;
+    uint32_t phyname_hash;
 	int phyid;
 };
 

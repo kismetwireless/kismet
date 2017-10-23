@@ -179,7 +179,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	// Initialize the crc tables
 	crc32_init_table_80211(globalreg->crc32_table);
 
-	phyname = "IEEE802.11";
+    SetPhyName("IEEE802.11");
 
     shared_ptr<dot11_tracked_device> dot11_builder(new dot11_tracked_device(globalreg, 0));
     dot11_device_entry_id =
@@ -1326,11 +1326,13 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
     }
 
     // Try to make the back-record of us in the device we're a client OF
-    shared_ptr<kis_tracked_device_base> backdev =
-        devicetracker->FetchDevice(dot11info->bssid_mac, phyid);
-    if (backdev != NULL) {
-        client->set_bssid_key(backdev->get_key());
+    TrackedDeviceKey backkey(globalreg->server_uuid_hash, phyname_hash, dot11info->bssid_mac);
+    shared_ptr<kis_tracked_device_base> backdev = devicetracker->FetchDevice(backkey);
 
+    // Always set a key since keys are now consistent
+    client->set_bssid_key(backkey);
+
+    if (backdev != NULL) {
         shared_ptr<dot11_tracked_device> backdot11 = 
             static_pointer_cast<dot11_tracked_device>(backdev->get_map_value(dot11_device_entry_id));
 
@@ -1581,12 +1583,16 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
         if (eapol != NULL) {
             // Look for the AP of the exchange
+            TrackedDeviceKey eapolkey(globalreg->server_uuid_hash, phyname_hash, 
+                    dot11info->bssid_mac);
             shared_ptr<kis_tracked_device_base> eapolbase =
-                devicetracker->FetchDevice(dot11info->bssid_mac, phyid);
+                devicetracker->FetchDevice(eapolkey);
 
             // Look for the target
+            TrackedDeviceKey targetkey(globalreg->server_uuid_hash, phyname_hash, 
+                    dot11info->dest_mac);
             shared_ptr<kis_tracked_device_base> targetbase =
-                devicetracker->FetchDevice(dot11info->dest_mac, phyid);
+                devicetracker->FetchDevice(targetkey);
 
             // fprintf(stderr, "debug - ebase %p tbase %p\n", eapolbase.get(), targetbase.get());
 
@@ -2067,7 +2073,7 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
         vector<string> tokenurl = StrTokenize(path, "/");
 
         // we care about
-        // /phy/phy80211/by-bssid/[mac]/pcap/[mac]-handshake.pcap
+        // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
         if (tokenurl.size() < 7)
             return false;
 
@@ -2077,11 +2083,11 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
         if (tokenurl[2] != "phy80211")
             return false;
 
-        if (tokenurl[3] != "by-bssid")
+        if (tokenurl[3] != "by-key")
             return false;
 
-        mac_addr dmac(tokenurl[4]);
-        if (dmac.error)
+        TrackedDeviceKey key(tokenurl[4]);
+        if (key.get_error())
             return false;
 
         if (tokenurl[5] != "pcap")
@@ -2093,7 +2099,7 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
 
         // Does it exist?
         devicelist_scope_locker dlocker(devicetracker);
-        if (devicetracker->FetchDevice(dmac, phyid) != NULL)
+        if (devicetracker->FetchDevice(key) != NULL)
             return true;
     }
 
@@ -2217,7 +2223,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     vector<string> tokenurl = StrTokenize(url, "/");
 
-    // /phy/phy80211/by-bssid/[mac]/pcap/[mac]-handshake.pcap
+    // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
     if (tokenurl.size() < 7)
         return;
 
@@ -2227,11 +2233,11 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (tokenurl[2] != "phy80211")
         return;
 
-    if (tokenurl[3] != "by-bssid")
+    if (tokenurl[3] != "by-key")
         return;
 
-    mac_addr dmac(tokenurl[4]);
-    if (dmac.error) {
+    TrackedDeviceKey key(tokenurl[4]);
+    if (key.get_error()) {
         stream << "invalid mac";
         return;
     }
@@ -2247,7 +2253,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     // Does it exist?
     devicelist_scope_locker dlocker(devicetracker);
-    if (devicetracker->FetchDevice(dmac, phyid) == NULL) {
+    if (devicetracker->FetchDevice(key) == NULL) {
         stream << "unknown device";
         return;
     }
@@ -2257,7 +2263,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         // It should exist and we'll handle if it doesn't in the stream
         // handler
         devicelist_scope_locker dlocker(devicetracker);
-        GenerateHandshakePcap(devicetracker->FetchDevice(dmac, phyid), connection, stream);
+        GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
     } else {
         stream << "Login required";
         return;
