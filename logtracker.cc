@@ -99,6 +99,7 @@ void LogTracker::Deferred_Startup() {
     set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
     set_int_log_template(globalreg->kismet_config->FetchOptDfl("log_template", 
                 "%p/%n-%D-%t-%i.%l"));
+    set_int_log_prefix(globalreg->kismet_config->FetchOptDfl("log_prefix", "./"));
 
     std::vector<std::string> types = StrTokenize(globalreg->kismet_config->FetchOpt("log_types"), ",");
 
@@ -116,10 +117,12 @@ void LogTracker::Deferred_Startup() {
     }
 
     TrackerElementVector builders(logproto_vec);
+    TrackerElementVector logfiles(logfile_vec);
 
     for (auto t : v) {
         std::string logtype = GetTrackerValue<std::string>(t);
 
+        // Scan all the builders and find a matching log type, build logfile for it
         for (auto b : builders) {
             std::shared_ptr<KisLogfileBuilder> builder =
                 std::static_pointer_cast<KisLogfileBuilder>(b);
@@ -127,6 +130,27 @@ void LogTracker::Deferred_Startup() {
                 continue;
 
             fprintf(stderr, "debug - matched logtype %s\n", logtype.c_str());
+
+            // Generate the logfile using the builder an giving it the sharedptr
+            // to itself because sharedptrs are funky
+            SharedLogfile lf = builder->build_logfile(builder);
+            lf->set_id(logfile_entry_id);
+
+            logfiles.push_back(lf);
+        }
+    }
+
+    for (auto l : logfiles) {
+        SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
+
+        std::string logpath = 
+            globalreg->kismet_config->ExpandLogPath(get_log_template(), 
+                    get_log_title(),
+                    lf->get_builder()->get_log_class(), 1, 0);
+
+        if (!lf->Log_Open(logpath)) {
+            _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
+                    MSGFLAG_ERROR);
         }
     }
 
@@ -134,6 +158,14 @@ void LogTracker::Deferred_Startup() {
 }
 
 void LogTracker::Deferred_Shutdown() {
+    TrackerElementVector logfiles(logfile_vec);
+
+    for (auto l : logfiles) {
+        SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
+
+        lf->Log_Close();
+    }
+
     return;
 }
 
