@@ -276,12 +276,6 @@ int Packetchain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
 
     pc_link *link = NULL;
     
-    if (in_prio > 1000) {
-        _MSG("Packetchain::RegisterHandler requested priority greater than 1000", 
-			 MSGFLAG_ERROR);
-        return -1;
-    }
-
     // Generate packet, we'll nuke it if it's invalid later
     link = new pc_link;
     link->priority = in_prio;

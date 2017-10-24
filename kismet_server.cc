@@ -86,6 +86,7 @@
 #include "phy_rtl433.h"
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
+#include "phy_uav_drone.h"
 
 #include "ipc_remote2.h"
 
@@ -945,16 +946,17 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Dissector_IPdata(globalregistry);
 
     // Register the base PHYs
-    if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
 
-    if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
 
-    if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
-        CatchShutdown(-1);
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
 
-    if (globalregistry->devicetracker->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry)) < 0 || globalregistry->fatal_condition) 
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
+
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
+
+    if (globalregistry->fatal_condition) 
         CatchShutdown(-1);
 
     // Add the datasources

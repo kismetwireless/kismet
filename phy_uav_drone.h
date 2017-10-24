@@ -174,8 +174,6 @@ public:
     __ProxyDynamicTrackable(last_telem_loc, uav_tracked_telemetry, 
             last_telem_loc, last_telem_loc_id);
 
-    __ProxyOnlyTrackable(sub_device_map, TrackerElelement, sub_device_map);
-
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -189,11 +187,6 @@ protected:
             RegisterComplexField("kismet.uav.last_telemetry",
                 std::shared_ptr<uav_tracked_telemetry>(new uav_tracked_telemetry(globalreg, 0)),
                 "Last drone telemetry location");
-
-        // Map generated from the runtime keys of related devices, we'll need to
-        // regenerate this on reserve_fields because the keys may shift
-        RegisterField("kismet.uav.related_devices", TrackerKeyMap,
-                "Related devices which comprise this drone", &sub_device_map);
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -210,9 +203,6 @@ protected:
 
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
-
-    // Linked devices that comprise this UAV
-    SharedTrackerElement sub_device_map;
 
 };
 
