@@ -154,8 +154,6 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
         }
     }
 
-    fprintf(stderr, "debug - ppi pcap %p\n", chunk);
-
     // If after all of that we still didn't find a packet
     if (chunk == NULL) {
         return 0;
