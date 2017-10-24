@@ -656,7 +656,7 @@ protected:
 
     // Common device interpretation layer
     virtual std::shared_ptr<kis_tracked_device_base> 
-        convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr, 
+        convert_stored_device(mac_addr macaddr, 
                 const unsigned char *raw_stored_data, unsigned long stored_len);
 
     // Timestamp of the last time we wrote the device list, if we're storing state

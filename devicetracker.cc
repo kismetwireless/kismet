@@ -1534,7 +1534,7 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Hand
 }
 
 std::shared_ptr<kis_tracked_device_base> 
-Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
+Devicetracker::convert_stored_device(mac_addr macaddr,
         const unsigned char *raw_stored_data, unsigned long stored_len) {
 
     try {
@@ -1572,8 +1572,9 @@ Devicetracker::convert_stored_device(Kis_Phy_Handler *phy, mac_addr macaddr,
         std::shared_ptr<kis_tracked_device_base> 
             kdb(new kis_tracked_device_base(globalreg, device_base_id, e));
 
-        // Let the phy adopt any additional fields
-        phy->LoadPhyStorage(e, kdb);
+        // Give all the phys a shot at it
+        for (auto p : phy_handler_map)
+            p.second->LoadPhyStorage(kdb);
 
         // Update the manuf in case we added a manuf db
         if (globalreg->manufdb != NULL)
@@ -1911,7 +1912,7 @@ int DevicetrackerStateStore::load_devices() {
     const char *pz = NULL;
 
     sql = 
-        "SELECT devmac, storage FROM device_storage WHERE phyname = ?";
+        "SELECT devmac, storage FROM device_storage";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
@@ -1921,59 +1922,50 @@ int DevicetrackerStateStore::load_devices() {
         return -1;
     }
 
-    for (auto p : devicetracker->phy_handler_map) {
-        unsigned int num_devices = 0;
+    _MSG("Loading stored devices.  This may take some time, depending on the speed of "
+            "your system and the number of stored devices.", MSGFLAG_INFO);
 
-        _MSG("Loading known devices for " + p.second->FetchPhyName(),
-                MSGFLAG_INFO);
+    unsigned int num_devices = 0;
 
-        sqlite3_reset(stmt);
+    sqlite3_reset(stmt);
 
-        phyname = p.second->FetchPhyName();
+    while (1) {
+        r = sqlite3_step(stmt);
 
-        sqlite3_bind_text(stmt, 1, phyname.c_str(), phyname.length(), 0);
+        if (r == SQLITE_ROW) {
+            const unsigned char *rowstr;
+            unsigned long rowlen;
 
-        while (1) {
-            r = sqlite3_step(stmt);
+            mac_addr m;
 
-            if (r == SQLITE_ROW) {
-                const unsigned char *rowstr;
-                unsigned long rowlen;
+            rowstr = sqlite3_column_text(stmt, 0);
+            m = mac_addr((const char *) rowstr);
 
-                mac_addr m;
-
-                rowstr = sqlite3_column_text(stmt, 0);
-                m = mac_addr((const char *) rowstr);
-
-                if (m.error) {
-                    _MSG("Encountered an error loading a stored device, "
-                            "unable to process mac address; skipping device.",
-                            MSGFLAG_ERROR);
-                    continue;
-                }
-
-                rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 1);
-                rowlen = sqlite3_column_bytes(stmt, 1);
-
-                // Adopt it into a device
-                std::shared_ptr<kis_tracked_device_base> kdb =
-                    devicetracker->convert_stored_device(p.second, m, rowstr, rowlen);
-
-                if (kdb != NULL) {
-                    devicetracker->AddDevice(kdb);
-                    num_devices++;
-                }
-            } else if (r == SQLITE_DONE) {
-                break;
-            } else {
-                _MSG("Encountered an error loading stored devices: " + 
-                        string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-                break;
+            if (m.error) {
+                _MSG("Encountered an error loading a stored device, "
+                        "unable to process mac address; skipping device.",
+                        MSGFLAG_ERROR);
+                continue;
             }
-        }
 
-        _MSG("Loaded " + UIntToString(num_devices) + " " + p.second->FetchPhyName() + 
-                " previous devices from storage...", MSGFLAG_INFO);
+            rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 1);
+            rowlen = sqlite3_column_bytes(stmt, 1);
+
+            // Adopt it into a device
+            std::shared_ptr<kis_tracked_device_base> kdb =
+                devicetracker->convert_stored_device(m, rowstr, rowlen);
+
+            if (kdb != NULL) {
+                devicetracker->AddDevice(kdb);
+                num_devices++;
+            }
+        } else if (r == SQLITE_DONE) {
+            break;
+        } else {
+            _MSG("Encountered an error loading stored devices: " + 
+                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            break;
+        }
     }
 
     sqlite3_finalize(stmt);
@@ -2025,7 +2017,7 @@ DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
             rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 0);
             rowlen = sqlite3_column_bytes(stmt, 0);
 
-            return devicetracker->convert_stored_device(in_phy, in_mac, rowstr, rowlen);
+            return devicetracker->convert_stored_device(in_mac, rowstr, rowlen);
         } else if (r == SQLITE_DONE) {
             break;
         } else {

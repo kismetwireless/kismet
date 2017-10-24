@@ -173,6 +173,8 @@ public:
     __ProxyDynamicTrackable(last_telem_loc, uav_tracked_telemetry, 
             last_telem_loc, last_telem_loc_id);
 
+    __ProxyOnlyTrackable(sub_device_map, TrackerElelement, sub_device_map);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -208,8 +210,7 @@ protected:
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
 
-    // Key-linked sub map; We'll need to do special maintenance on this when loading it to
-    // resolve the runtime key indexes.
+    // Linked devices that comprise this UAV
     SharedTrackerElement sub_device_map;
 
 };
