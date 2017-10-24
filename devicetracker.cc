@@ -245,22 +245,6 @@ void kis_tracked_device_base::reserve_fields(SharedTrackerElement e) {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            // Repair loaded old versions of the ID; this is hugely inefficient but
-            // only happens once, and on loading from older code, so we'll just suck
-            // it up
-            if (key->get_type() == TrackerUInt64) {
-                shared_ptr<Devicetracker> devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
-                Kis_Phy_Handler *phy = devicetracker->FetchPhyHandlerByName(get_phyname());
-
-                // Change the type
-                key->set_type(TrackerKey);
-
-                // Generate a new style key
-                TrackedDeviceKey k(globalreg->server_uuid_hash, phy->FetchPhynameHash(),
-                        get_macaddr());
-                set_key(k);
-            }
-
             signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
                     e->get_map_value(signal_data_id)));
 
@@ -1797,7 +1781,27 @@ int DevicetrackerStateStore::Database_UpgradeDB() {
 
     }
 
-    Database_SetDBVersion(1);
+    // Hardcode a table check
+    if (dbv == 1) {
+        _MSG("Purging device state, as it cannot be ported forward into the new key "
+                "architecture, sorry.", MSGFLAG_ERROR);
+
+        sql =
+            "DELETE FROM device_storage";
+
+        r = sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        if (r != SQLITE_OK) {
+            _MSG("Devicetracker unable to clear device_storage table in " + ds_dbfile + ": " +
+                    std::string(sErrMsg), MSGFLAG_ERROR);
+            sqlite3_close(db);
+            db = NULL;
+            return -1;
+        }
+    }
+
+    Database_SetDBVersion(2);
 
     return 0;
 }
