@@ -70,7 +70,7 @@ public:
     __Proxy(motor_on, uint8_t, bool, bool, motor_on);
     __Proxy(airborne, uint8_t, bool, bool, airborne);
 
-    void from_droneid_flight_reg(std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_reg_info_t> flight_reg) {
+    void from_droneid_flight_reg(dot11_ie_221_dji_droneid_t::flight_reg_info_t *flight_reg) {
         if (flight_reg->state_info()->unk_gps_valid()) {
             location->set(flight_reg->lat(), flight_reg->lon());
             
@@ -105,34 +105,49 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        RegisterComplexField("kismet.uav.telemetry.location",
-                std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
-                "GPS location");
+        location_id = 
+            RegisterComplexField("uav.telemetry.location",
+                    std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    "GPS location");
 
-        RegisterField("kismet.uav.telemetry.yaw", TrackerDouble, 
+        RegisterField("uav.telemetry.yaw", TrackerDouble, 
                 "yaw", &yaw);
-        RegisterField("kismet.uav.telemetry.pitch", TrackerDouble, 
+        RegisterField("uav.telemetry.pitch", TrackerDouble, 
                 "pitch", &pitch);
-        RegisterField("kismet.uav.telemetry.roll", TrackerDouble,
+        RegisterField("uav.telemetry.roll", TrackerDouble,
                 "roll", &roll);
 
-        RegisterField("kismet.uav.telemetry.height", TrackerDouble,
+        RegisterField("uav.telemetry.height", TrackerDouble,
                 "height above ground", &height);
-        RegisterField("kismet.uav.telemetry.v_north", TrackerDouble,
+        RegisterField("uav.telemetry.v_north", TrackerDouble,
                 "velocity relative to n/s", &v_north);
-        RegisterField("kismet.uav.telemetry.v_east", TrackerDouble,
+        RegisterField("uav.telemetry.v_east", TrackerDouble,
                 "velocity relative to e/w", &v_east);
-        RegisterField("kismet.uav.telemetry.v_up", TrackerDouble,
+        RegisterField("uav.telemetry.v_up", TrackerDouble,
                 "velocity relative to up/down", &v_up);
 
-        RegisterField("kismet.uav.telemetry.motor_on", TrackerUInt8,
+        RegisterField("uav.telemetry.motor_on", TrackerUInt8,
                 "device reports motor enabled", &motor_on);
-        RegisterField("kismet.uav.telemetry.airborne", TrackerUInt8,
+        RegisterField("uav.telemetry.airborne", TrackerUInt8,
                 "device reports UAV is airborne", &airborne);
 
     }
 
+    virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+
+        if (e != NULL) {
+            location.reset(new kis_tracked_location_triplet(globalreg, location_id,
+                        e->get_map_value(location_id)));
+        } else {
+            location.reset(new kis_tracked_location_triplet(globalreg, location_id));
+        }
+
+        add_map(location);
+    }
+
     std::shared_ptr<kis_tracked_location_triplet> location;
+    int location_id;
 
     SharedTrackerElement yaw;
     SharedTrackerElement pitch;
@@ -174,25 +189,47 @@ public:
     __ProxyDynamicTrackable(last_telem_loc, uav_tracked_telemetry, 
             last_telem_loc, last_telem_loc_id);
 
+    std::shared_ptr<uav_tracked_telemetry> new_telemetry() {
+        return std::shared_ptr<uav_tracked_telemetry>(new uav_tracked_telemetry(globalreg, telem_history_entry_id));
+    }
+
+    __ProxyOnlyTrackable(uav_telem_history, TrackerElement, uav_telem_history);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        RegisterField("kismet.uav.manufacturer", TrackerString,
+        RegisterField("uav.manufacturer", TrackerString,
                 "Manufacturer", &uav_manufacturer);
-        RegisterField("kismet.uav.serialnumber", TrackerString,
+
+        RegisterField("uav.serialnumber", TrackerString,
                 "Serial number", &uav_serialnumber);
 
         last_telem_loc_id = 
-            RegisterComplexField("kismet.uav.last_telemetry",
+            RegisterComplexField("uav.last_telemetry",
                 std::shared_ptr<uav_tracked_telemetry>(new uav_tracked_telemetry(globalreg, 0)),
                 "Last drone telemetry location");
+
+        RegisterField("uav.telemetry_history", TrackerVector,
+                "Previous telemetry location data", &uav_telem_history);
+        telem_history_entry_id =
+            RegisterComplexField("uav.telemetry_entry",
+                    std::shared_ptr<uav_tracked_telemetry>(new uav_tracked_telemetry(globalreg, 0)),
+                    "historical telemetry");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+
         if (e != NULL) {
             last_telem_loc.reset(new uav_tracked_telemetry(globalreg, last_telem_loc_id,
                         e->get_map_value(last_telem_loc_id)));
+
+            TrackerElementVector v(uav_telem_history);
+            for (auto l = v.begin(); l != v.end(); ++l) {
+                std::shared_ptr<uav_tracked_telemetry> telem(new uav_tracked_telemetry(globalreg, telem_history_entry_id, *l));
+                *l = std::static_pointer_cast<TrackerElement>(telem);
+            }
         }
 
         add_map(last_telem_loc_id, last_telem_loc);
@@ -203,6 +240,9 @@ protected:
 
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
+
+    SharedTrackerElement uav_telem_history;
+    int telem_history_entry_id;
 
 };
 

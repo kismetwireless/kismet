@@ -1424,6 +1424,9 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         return 0;
     }
 
+    // Store it in the common info for future use
+    commoninfo->base_device = basedev;
+
     shared_ptr<dot11_tracked_device> dot11dev =
         static_pointer_cast<dot11_tracked_device>(basedev->get_map_value(dot11_device_entry_id));
 

@@ -20,6 +20,7 @@
 #include "config.h"
 
 #include "phy_uav_drone.h"
+#include "phy_80211.h"
 
 Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
@@ -38,7 +39,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         packetchain->RegisterPacketComponent("PHY80211");
 
     uav_device_id =
-        entrytracker->RegisterField("kismet.uav.device",
+        entrytracker->RegisterField("uav.device",
                 std::shared_ptr<uav_tracked_device>(new uav_tracked_device(globalreg, 0)),
                 "UAV device");
 
@@ -68,6 +69,56 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
 }
 
 int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
+    Kis_UAV_Phy *uavphy = (Kis_UAV_Phy *) auxdata;
+
+	kis_common_info *commoninfo =
+		(kis_common_info *) in_pack->fetch(uavphy->pack_comp_common);
+
+    dot11_packinfo *dot11info = 
+        (dot11_packinfo *) in_pack->fetch(uavphy->pack_comp_80211);
+
+    if (commoninfo == NULL || dot11info == NULL)
+        return 1;
+
+    // Try to pull the existing basedev, we don't want to re-parse
+    std::shared_ptr<kis_tracked_device_base> basedev = commoninfo->base_device;
+
+    if (basedev == NULL)
+        return 1;
+
+    if (dot11info->droneid != NULL) {
+        shared_ptr<uav_tracked_device> uavdev = 
+            std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+
+        if (uavdev == NULL) {
+            uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+            basedev->add_map(uavdev);
+        }
+
+        // TODO add alerts for serial # change etc
+        if (dot11info->droneid->subcommand() == 0x10) {
+            dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = 
+                dot11info->droneid->record();
+
+            fprintf(stderr, "debug - drone %s %lf/%lf\n", flightinfo->serialnumber().c_str(), flightinfo->lat(), flightinfo->lon());
+
+            if (flightinfo->state_info()->serial_valid()) {
+                uavdev->set_uav_serialnumber(flightinfo->serialnumber());
+            }
+
+            std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
+            telem->from_droneid_flight_reg(flightinfo);
+
+            uavdev->set_tracker_last_telem_loc(telem);
+
+            TrackerElementVector tvec(uavdev->get_tracker_uav_telem_history());
+            tvec.push_back(telem);
+
+            if (tvec.size() > 128)
+                tvec.erase(tvec.begin());
+        }
+    }
+
     return 1;
 }
 

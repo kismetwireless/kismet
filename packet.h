@@ -247,6 +247,8 @@ enum kis_packet_basictype {
 // Common info
 // Extracted by phy-specific dissectors, used by the common classifier
 // to build phy-neutral devices and tracking records.
+class kis_tracked_device_base;
+
 class kis_common_info : public packet_component {
 public:
 	kis_common_info() {
@@ -279,6 +281,8 @@ public:
 	string channel;
     // Frequency in khz
     double freq_khz;
+
+    std::shared_ptr<kis_tracked_device_base> base_device;
 };
 
 // String reference
