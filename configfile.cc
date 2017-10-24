@@ -396,10 +396,11 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
     logtemplate = path;
 
     for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length();
-            nl = logtemplate.find("%", nl))
-    {
+            nl = logtemplate.find("%", nl)) {
+
         char op = logtemplate[nl+1];
         logtemplate.erase(nl, 2);
+
         if (op == 'n')
             logtemplate.insert(nl, logname);
         else if (op == 'd') {
@@ -478,10 +479,11 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             string pfx = globalreg->log_prefix;
 
             if (pfx == "") 
-                pfx = FetchOpt("logprefix");
+                pfx = FetchOptDfl("log_prefix", "./");
 
-            if (pfx != "")
-                pfx += "/";
+            if (pfx != "") 
+                if (pfx[pfx.length() - 1] != '/')
+                    pfx += "/";
 
             logtemplate.insert(nl, pfx);
         } else if (op == 'S') {
@@ -500,7 +502,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
         if (start == 0) {
             // If we don't have a number we want to use, find the next free
             for (int num = 1; num < 10000; num++) {
-                string copied;
+                std::string copied;
                 struct stat filstat;
 
                 char numstr[6];
@@ -541,7 +543,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             }
         } else {
             // Otherwise find out if this incremental is taken
-            std::string copied;
+            std::string copied = logtemplate;
             struct stat filstat;
             char numstr[5];
             snprintf(numstr, 5, "%d", start);
