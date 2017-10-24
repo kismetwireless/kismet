@@ -803,6 +803,8 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 
         if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
+
+        // fprintf(stderr, "debug - new device from key %s server %X phy %X\n", key.as_string().c_str(), globalreg->server_uuid_hash, in_phy->FetchPhynameHash());
     }
 
     // Tag the packet with the base device

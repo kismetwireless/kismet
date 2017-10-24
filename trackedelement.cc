@@ -101,13 +101,10 @@ uint64_t TrackedDeviceKey::gen_spkey(uuid s_uuid, std::string phy) {
 }
 
 bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
-    if (x.spkey < y.spkey)
-        return true;
-    
-    if (x.dkey < y.dkey)
-        return true;
+    if (x.spkey == y.spkey)
+        return x.dkey < y.dkey;
 
-    return false;
+    return x.spkey < y.spkey;
 }
 
 bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
