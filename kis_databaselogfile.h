@@ -76,6 +76,7 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 #include "logtracker.h"
+#include "packetchain.h"
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
@@ -167,6 +168,8 @@ protected:
     
     sqlite3_stmt *snapshot_stmt;
     const char *snapshot_pz;
+
+    static int packet_handler(CHAINCALL_PARMS);
 };
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {

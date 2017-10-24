@@ -72,6 +72,11 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
 KisDatabaseLogfile::~KisDatabaseLogfile() {
     local_eol_locker dblock(&ds_mutex);
 
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    if (packetchain != NULL) 
+        packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
+
     if (device_stmt != NULL)
         sqlite3_finalize(device_stmt);
 
@@ -107,6 +112,14 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     set_int_log_path(in_path);
     set_int_log_open(true);
+
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+
+	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
+
+	packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
+            CHAINPOS_LOGGING, -100);
 
     return true;
 }
@@ -599,7 +612,7 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
 
     if (chunk != NULL) {
         sqlite3_bind_int(packet_stmt, 10, chunk->dlt);
-        sqlite3_bind_text(packet_stmt, 11, (const char *) chunk->data, chunk->length, 0);
+        sqlite3_bind_blob(packet_stmt, 11, (const char *) chunk->data, chunk->length, 0);
     } else {
         sqlite3_bind_int(packet_stmt, 10, -1);
         sqlite3_bind_text(packet_stmt, 11, "", 0, 0);
@@ -760,3 +773,12 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
 
     return 1;
 }
+
+int KisDatabaseLogfile::packet_handler(CHAINCALL_PARMS) {
+    // Extremely basic shim to our built-in logging
+
+    KisDatabaseLogfile *logfile = (KisDatabaseLogfile *) auxdata;
+
+    return logfile->log_packet(in_pack);
+}
+
