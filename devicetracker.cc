@@ -2023,7 +2023,7 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
                 sqlite3_bind_text(stmt, 3, kdb->get_phyname().c_str(), 
                         kdb->get_phyname().length(), 0);
                 sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
-                sqlite3_bind_text(stmt, 5, serialstring.data(), serialstring.length(), 0);
+                sqlite3_bind_blob(stmt, 5, serialstring.data(), serialstring.length(), 0);
 
                 sqlite3_step(stmt);
 
