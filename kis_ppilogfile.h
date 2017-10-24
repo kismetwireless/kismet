@@ -128,7 +128,7 @@ public:
     }
 
     virtual void initialize() {
-        set_log_class("ppipcap");
+        set_log_class("pcapppi");
         set_log_name("PPI legacy pcap");
         set_stream(true);
         set_singleton(false);

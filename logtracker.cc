@@ -97,6 +97,39 @@ void LogTracker::reserve_fields(SharedTrackerElement e) {
 void LogTracker::Deferred_Startup() {
     set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
     set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
+    set_int_log_template(globalreg->kismet_config->FetchOptDfl("log_template", 
+                "%p/%n-%D-%t-%i.%l"));
+
+    std::vector<std::string> types = StrTokenize(globalreg->kismet_config->FetchOpt("log_types"), ",");
+
+    TrackerElementVector v(log_types_vec);
+
+    for (auto t : types) {
+        SharedTrackerElement e(new TrackerElement(TrackerString, 0));
+        e->set((std::string) t);
+        v.push_back(e);
+    }
+
+    if (!get_logging_enabled()) {
+        _MSG("Logging disabled, not opening any log files.", MSGFLAG_INFO);
+        return;
+    }
+
+    TrackerElementVector builders(logproto_vec);
+
+    for (auto t : v) {
+        std::string logtype = GetTrackerValue<std::string>(t);
+
+        for (auto b : builders) {
+            std::shared_ptr<KisLogfileBuilder> builder =
+                std::static_pointer_cast<KisLogfileBuilder>(b);
+            if (builder->get_log_class() != logtype) 
+                continue;
+
+            fprintf(stderr, "debug - matched logtype %s\n", logtype.c_str());
+        }
+    }
+
     return;
 }
 

@@ -966,7 +966,6 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
 #endif
 
-    fprintf(stderr, "debug - globalregistry %p\n", globalregistry);
     LogTracker::create_logtracker(globalregistry);
 
     Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPPILogfileBuilder(globalregistry)));
