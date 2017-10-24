@@ -51,6 +51,7 @@
 #include "storageloader.h"
 #include "base64.h"
 #include "kis_datasource.h"
+#include "kis_databaselogfile.h"
 
 #include "zstr.hpp"
 
@@ -493,7 +494,52 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         }
     }
 
+    if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", false)) {
+        unsigned int lograte = 
+            globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
+
+        _MSG("Saving devices to the Kismet database log every " + UIntToString(lograte) + 
+                " seconds.", MSGFLAG_INFO);
+
+        databaselog_logging = false;
+
+        databaselog_timer =
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1,
+                [this](int) -> int {
+                    local_locker l(&databaselog_mutex);
+
+                    if (databaselog_logging) {
+                        _MSG("Attempting to log devices, but devices are still being "
+                                "saved from the last logging attempt.  It's possible your "
+                                "system is slow or you have a very large number of devices "
+                                "to log.  Try increasing the delay in 'kis_log_storage_rate' "
+                                "in kismet_logging.conf", MSGFLAG_ERROR);
+                        return 1;
+                    }
+
+                    databaselog_logging = true;
+
+                    // Run the device storage in its own thread
+                    std::thread t([this] {
+                        databaselog_write_devices();
+
+                        {
+                            local_locker l(&databaselog_mutex);
+                            databaselog_logging = false;
+                        }
+                    });
+
+                    // Detatch the thread, we don't care about it
+                    t.detach();
+
+                    return 1;
+                });
+    } else {
+        databaselog_timer = -1;
+    }
+
     last_devicelist_saved = 0;
+    last_database_logged = 0;
 
     // Set up the device timeout
     device_idle_expiration =
@@ -556,7 +602,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 Devicetracker::~Devicetracker() {
     pthread_mutex_lock(&devicelist_mutex);
 
-    store_devices(immutable_tracked_vec);
+    store_all_devices();
+    databaselog_write_all_devices();
 
     if (statestore != NULL) {
         delete(statestore);
@@ -1389,6 +1436,25 @@ void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
 }
 
 int Devicetracker::store_devices() {
+    SharedTrackerElement devs(new TrackerElement(TrackerVector));
+    TrackerElementVector dv(devs);
+
+    // Find anything that has changed
+    for (auto v : immutable_tracked_vec) {
+        std::shared_ptr<kis_tracked_device_base> kdb =
+            std::static_pointer_cast<kis_tracked_device_base>(v);
+        if (kdb->get_mod_time() > last_database_logged)
+            dv.push_back(v);
+    }
+
+    last_devicelist_saved = time(0);
+
+    return store_devices(devs);
+}
+
+int Devicetracker::store_all_devices() {
+    last_devicelist_saved = time(0);
+
     return store_devices(immutable_tracked_vec);
 }
 
@@ -1401,9 +1467,41 @@ int Devicetracker::store_devices(TrackerElementVector devices) {
 
     int r = statestore->store_devices(devices);
 
-    last_devicelist_saved = time(0);
-
     return r;
+}
+
+void Devicetracker::databaselog_write_devices() {
+    SharedTrackerElement devs(new TrackerElement(TrackerVector));
+    TrackerElementVector dv(devs);
+
+    // Find anything that has changed
+    for (auto v : immutable_tracked_vec) {
+        std::shared_ptr<kis_tracked_device_base> kdb =
+            std::static_pointer_cast<kis_tracked_device_base>(v);
+        if (kdb->get_mod_time() > last_database_logged)
+            dv.push_back(v);
+    }
+
+    last_database_logged = time(0);
+
+    databaselog_write_devices(devs);
+}
+
+void Devicetracker::databaselog_write_all_devices() {
+    last_database_logged = time(0);
+
+    databaselog_write_devices(immutable_tracked_vec);
+}
+
+void Devicetracker::databaselog_write_devices(TrackerElementVector vec) {
+    std::shared_ptr<KisDatabaseLogfile> dbf =
+        Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+    
+    if (dbf == NULL)
+        return;
+
+    // Fire off a database log
+    dbf->log_devices(vec);
 }
 
 int Devicetracker::load_devices() {
@@ -1950,8 +2048,6 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
                 ds_dbfile + " is invalid...", MSGFLAG_ERROR);
         return 0;
     }
-
-    _MSG("Saving device state records...", MSGFLAG_INFO);
 
     std::string sql;
 

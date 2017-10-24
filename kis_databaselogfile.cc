@@ -537,7 +537,7 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
         sqlite3_reset(device_stmt);
 
         std::shared_ptr<kis_tracked_device_base> d =
-            std::static_pointer_cast<kis_tracked_device_base>(d);
+            std::static_pointer_cast<kis_tracked_device_base>(i);
 
         phystring = d->get_phyname();
         macstring = d->get_macaddr().Mac2String();
@@ -579,7 +579,8 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
 
         // Serialize the device
         JsonAdapter::Pack(globalreg, sstr, d, NULL);
-        sqlite3_bind_text(device_stmt, 14, sstr.str().c_str(), sstr.str().length(), 0);
+        std::string streamstring = sstr.str();
+        sqlite3_bind_text(device_stmt, 14, streamstring.c_str(), streamstring.length(), 0);
 
         sqlite3_step(device_stmt);
     }

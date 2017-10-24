@@ -225,6 +225,13 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     if (httpd != NULL)
         httpd->StopHttpd();
 
+    shared_ptr<Devicetracker> devicetracker =
+        Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
+    if (devicetracker != NULL) {
+        devicetracker->store_all_devices();
+        devicetracker->databaselog_write_all_devices();
+    }
+
     // Shutdown everything
     globalregistry->Shutdown_Deferred();
 
@@ -280,11 +287,6 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
         }
 
     }
-
-    shared_ptr<Devicetracker> devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
-    if (devicetracker != NULL)
-        devicetracker->store_devices();
 
     // Be noisy
     if (globalregistry->fatal_condition) {

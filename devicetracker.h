@@ -555,8 +555,13 @@ public:
 
     // Store all devices to the database
     virtual int store_devices();
-    // Store a selection of devices
+    virtual int store_all_devices();
     virtual int store_devices(TrackerElementVector devices);
+
+    // Store all devices to the database
+    virtual void databaselog_write_devices();
+    virtual void databaselog_write_all_devices();
+    virtual void databaselog_write_devices(TrackerElementVector devices);
 
     // Iterate over all phys and load from the database
     virtual int load_devices();
@@ -680,6 +685,12 @@ protected:
 
     // Load stored tags
     void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
+
+    // If we log devices to the kismet database...
+    int databaselog_timer;
+    time_t last_database_logged;
+    std::recursive_timed_mutex databaselog_mutex;
+    bool databaselog_logging;
 };
 
 class kis_tracked_phy : public tracker_component {

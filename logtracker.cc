@@ -129,8 +129,6 @@ void LogTracker::Deferred_Startup() {
             if (builder->get_log_class() != logtype) 
                 continue;
 
-            fprintf(stderr, "debug - matched logtype %s\n", logtype.c_str());
-
             // Generate the logfile using the builder an giving it the sharedptr
             // to itself because sharedptrs are funky
             SharedLogfile lf = builder->build_logfile(builder);
