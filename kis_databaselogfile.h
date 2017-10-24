@@ -100,6 +100,7 @@ public:
     }
 
     virtual bool Log_Open(std::string in_path);
+    virtual void Log_Close();
 
     virtual int Database_UpgradeDB();
 
@@ -135,6 +136,9 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
+
+    // Is the database even enabled?
+    bool db_enabled;
 
     // Per-table mutexes to prevent clobbering prepared statements
     std::recursive_timed_mutex device_mutex, packet_mutex, data_mutex,

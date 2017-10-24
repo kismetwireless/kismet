@@ -67,36 +67,14 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
 
     devicetracker =
         Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+
+    db_enabled = false;
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
     local_eol_locker dblock(&ds_mutex);
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-    if (packetchain != NULL) 
-        packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
-
-    if (device_stmt != NULL)
-        sqlite3_finalize(device_stmt);
-
-    if (packet_stmt != NULL)
-        sqlite3_finalize(packet_stmt);
-
-    if (datasource_stmt != NULL)
-        sqlite3_finalize(datasource_stmt);
-
-    if (data_stmt != NULL)
-        sqlite3_finalize(data_stmt);
-
-    if (alert_stmt != NULL)
-        sqlite3_finalize(alert_stmt);
-
-    if (msg_stmt != NULL)
-        sqlite3_finalize(msg_stmt);
-
-    if (snapshot_stmt != NULL)
-        sqlite3_finalize(snapshot_stmt);
+    Log_Close();
 }
 
 bool KisDatabaseLogfile::Log_Open(std::string in_path) {
@@ -121,7 +99,70 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 	packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
             CHAINPOS_LOGGING, -100);
 
+    db_enabled = true;
+
     return true;
+}
+
+void KisDatabaseLogfile::Log_Close() {
+    local_eol_locker dblock(&ds_mutex);
+
+    db_enabled = false;
+
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    if (packetchain != NULL) 
+        packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
+
+    {
+        local_eol_locker lock(&device_mutex);
+        if (device_stmt != NULL)
+            sqlite3_finalize(device_stmt);
+        device_stmt = NULL;
+    }
+
+    {
+        local_eol_locker lock(&packet_mutex);
+        if (packet_stmt != NULL)
+            sqlite3_finalize(packet_stmt);
+        packet_stmt = NULL;
+    }
+
+    {
+        local_eol_locker lock(&datasource_mutex);
+        if (datasource_stmt != NULL)
+            sqlite3_finalize(datasource_stmt);
+        datasource_stmt = NULL;
+    }
+
+    {
+        local_eol_locker lock(&data_mutex);
+        if (data_stmt != NULL)
+            sqlite3_finalize(data_stmt);
+        data_stmt = NULL;
+    }
+
+    { 
+        local_eol_locker lock(&alert_mutex);
+        if (alert_stmt != NULL)
+            sqlite3_finalize(alert_stmt);
+        alert_stmt = NULL;
+    }
+
+    {
+        local_eol_locker lock(&msg_mutex);
+        if (msg_stmt != NULL)
+            sqlite3_finalize(msg_stmt);
+        msg_stmt = NULL;
+    }
+
+    {
+        local_eol_locker lock(&snapshot_mutex);
+        if (snapshot_stmt != NULL)
+            sqlite3_finalize(snapshot_stmt);
+        snapshot_stmt = NULL;
+    }
+
 }
 
 int KisDatabaseLogfile::Database_UpgradeDB() {
@@ -482,6 +523,9 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
     
     local_locker lock(&device_mutex);
 
+    if (!db_enabled)
+        return 0;
+
     std::string sql;
 
     std::string phystring;
@@ -547,6 +591,9 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
 int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     local_locker lock(&packet_mutex);
     
+    if (!db_enabled)
+        return 0;
+
     sqlite3_reset(packet_stmt);
 
     std::string phystring;
@@ -630,6 +677,9 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
         std::string json) {
     local_locker lock(&data_mutex);
 
+    if (!db_enabled)
+        return 0;
+
     sqlite3_reset(data_stmt);
 
     std::string macstring = devmac.Mac2String();
@@ -661,6 +711,9 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
 int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) {
     int r;
 
+    if (!db_enabled)
+        return 0;
+
     TrackerElementVector v(in_datasource_vec);
 
     for (auto ds : v) {
@@ -675,6 +728,9 @@ int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) 
 
 int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
     local_locker lock(&datasource_mutex);
+
+    if (!db_enabled)
+        return 0;
 
     std::shared_ptr<KisDatasource> ds =
         std::static_pointer_cast<KisDatasource>(in_datasource);
@@ -708,6 +764,9 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
 
 int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     local_locker lock(&alert_mutex);
+
+    if (!db_enabled)
+        return 0;
 
     sqlite3_reset(alert_stmt);
 
@@ -752,6 +811,10 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         std::string snaptype, std::string json) {
 
     local_locker lock(&snapshot_mutex);
+
+    if (!db_enabled)
+        return 0;
+
 
     sqlite3_reset(snapshot_stmt);
 
