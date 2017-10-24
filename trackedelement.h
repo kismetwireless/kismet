@@ -1252,8 +1252,10 @@ class tracker_component : public TrackerElement {
         if (cvar != NULL) \
             del_map(std::static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
-        if (cvar != NULL) \
+        if (cvar != NULL) { \
+            cvar->set_id(id); \
             add_map(std::static_pointer_cast<TrackerElement>(cvar)); \
+        } \
     } \
     virtual SharedTrackerElement get_tracker_##name() { \
         return std::static_pointer_cast<TrackerElement>(cvar); \
