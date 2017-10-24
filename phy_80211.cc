@@ -1399,8 +1399,7 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     // We do this early on because we want to track things even if they're unknown
     // or broken.
     shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(commoninfo->device, commoninfo->phyid,
-                in_pack, 
+        devicetracker->UpdateCommonDevice(commoninfo->device, this, in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));

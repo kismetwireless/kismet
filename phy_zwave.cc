@@ -144,8 +144,7 @@ bool Kis_Zwave_Phy::json_to_record(struct JSON_value *json) {
     pack->insert(pack_comp_common, common);
 
     shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common->device, 
-                common->phyid, pack,
+        devicetracker->UpdateCommonDevice(common->device, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY));
 

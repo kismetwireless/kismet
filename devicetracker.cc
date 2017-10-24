@@ -764,7 +764,7 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 // This function handles populating the base common info about a device.
 // Specific info should be populated by the phy handler.
 std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr in_mac,
-        int in_phy, kis_packet *in_pack, unsigned int in_flags) {
+        Kis_Phy_Handler *in_phy, kis_packet *in_pack, unsigned int in_flags) {
 
     local_locker lock(&devicelist_mutex);
 
@@ -780,16 +780,9 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
-    Kis_Phy_Handler *phy = NULL;
     TrackedDeviceKey key;
 
-    if ((phy = FetchPhyHandler(in_phy)) == NULL) {
-        sstr << "Got packet for phy id " << in_phy << " but no handler " <<
-            "found for this phy.";
-        _MSG(sstr.str(), MSGFLAG_ERROR);
-    }
-
-    key = TrackedDeviceKey(globalreg->server_uuid_hash, phy->FetchPhynameHash(), in_mac);
+    key = TrackedDeviceKey(globalreg->server_uuid_hash, in_phy->FetchPhynameHash(), in_mac);
 
 	if ((device = FetchDevice(key)) == NULL) {
         device.reset(new kis_tracked_device_base(globalreg, device_base_id));
@@ -799,7 +792,7 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 
         device->set_key(key);
         device->set_macaddr(in_mac);
-        device->set_phyname(phy->FetchPhyName());
+        device->set_phyname(in_phy->FetchPhyName());
 
         tracked_map[key] = device;
         tracked_vec.push_back(device);

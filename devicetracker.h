@@ -501,8 +501,8 @@ public:
 #define UCD_UPDATE_SEENBY       (1 << 4)
 // Update encryption options
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
-    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(mac_addr in_mac, int in_phy,
-            kis_packet *in_pack, unsigned int in_flags);
+    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(mac_addr in_mac, 
+            Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
 
     // Set the common name of a device (and log it in the database for future runs)
     void SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
