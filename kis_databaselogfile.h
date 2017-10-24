@@ -77,10 +77,26 @@
 #include "alertracker.h"
 #include "logtracker.h"
 
-class KisDatabaseLogfile : public KisLogfile, public KisDatabase {
+// This is a bit of a unique case - because so many things plug into this, it has
+// to exist as a global record; we build it like we do any other global record;
+// then the builder hooks it, sets the internal builder record, and passed it to
+// the logtracker
+class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal {
 public:
-    KisDatabaseLogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder);
+    static std::shared_ptr<KisDatabaseLogfile> 
+        create_kisdatabaselog(GlobalRegistry *in_globalreg) {
+            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile(in_globalreg));
+            in_globalreg->RegisterLifetimeGlobal(mon);
+            in_globalreg->InsertGlobal("DATABASELOG", mon);
+            return mon;
+        }
+
+    KisDatabaseLogfile(GlobalRegistry *in_globalreg);
     virtual ~KisDatabaseLogfile();
+
+    void SetDatabaseBuilder(SharedLogBuilder in_builder) {
+        builder = in_builder;
+    }
 
     virtual bool Log_Open(std::string in_path);
 
@@ -182,8 +198,13 @@ public:
 
     virtual ~KisDatabaseLogfileBuilder() { }
 
+    // Custom builder that fetches the global copy and shoves it back down to the 
+    // logfile system instead
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
-        return SharedLogfile(new KisDatabaseLogfile(globalreg, builder));
+        std::shared_ptr<KisDatabaseLogfile> logfile =
+            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+        logfile->SetDatabaseBuilder(builder);
+        return logfile;
     }
 
     virtual void initialize() {

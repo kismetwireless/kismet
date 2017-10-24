@@ -27,9 +27,8 @@
 
 #include "kis_databaselogfile.h"
 
-KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg, 
-        SharedLogBuilder in_builder) :
-    KisLogfile(in_globalreg, in_builder), 
+KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
+    KisLogfile(in_globalreg, SharedLogBuilder(NULL)), 
     KisDatabase(in_globalreg, "kismetlog") {
 
     globalreg = in_globalreg;
@@ -180,7 +179,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
             "dlt INT, " // pcap data - datalinktype and packet bin
             "packet BLOB, "
 
-            "error INT, " // Packet was flagged as invalid
+            "error INT" // Packet was flagged as invalid
             ")";
 
         r = sqlite3_exec(db, sql.c_str(),
@@ -234,13 +233,13 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
             "json BLOB, " // Full device dump
 
-            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
+            "UNIQUE(uuid) ON CONFLICT REPLACE)";
 
         r = sqlite3_exec(db, sql.c_str(),
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
         if (r != SQLITE_OK) {
-            _MSG("Kismet log was unable to create alerts table in " + ds_dbfile + ": " +
+            _MSG("Kismet log was unable to create datasource table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
             sqlite3_close(db);
             db = NULL;
@@ -445,7 +444,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     sql =
         "INSERT INTO snapshots "
-        "(ts_sec, ts_usec"
+        "(ts_sec, ts_usec, "
         "lat, lon, "
         "snaptype, json) "
         "VALUES (?, ?, ?, ?, ?, ?)";
