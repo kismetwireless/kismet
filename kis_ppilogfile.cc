@@ -32,7 +32,7 @@ KisPPILogfile::KisPPILogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_b
 	globalreg = in_globalreg;
 
 	// Default to dot11
-	dlt = DLT_PPI;
+	dlt = DLT_IEEE802_11;
 
 	cbfilter = NULL;
 	cbaux = NULL;
@@ -53,7 +53,7 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
 
-	dumpfile = pcap_open_dead(dlt, MAX_PACKET_LEN);
+	dumpfile = pcap_open_dead(DLT_PPI, MAX_PACKET_LEN);
 
 	if (dumpfile == NULL) {
 		_MSG("Failed to open pcap dump file '" + in_path + "': " +
@@ -154,6 +154,8 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
         }
     }
 
+    fprintf(stderr, "debug - ppi pcap %p\n", chunk);
+
     // If after all of that we still didn't find a packet
     if (chunk == NULL) {
         return 0;
@@ -161,11 +163,6 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
 
     if (chunk != NULL && chunk->length > MAX_PACKET_LEN) {
         _MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
-        return 0;
-    }
-
-    // Make sure we have the right DLT for simple matching conditions
-    if (ppilog->cbfilter == NULL && chunk->dlt != ppilog->dlt) {
         return 0;
     }
 
