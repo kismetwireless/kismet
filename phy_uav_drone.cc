@@ -52,6 +52,21 @@ Kis_UAV_Phy::~Kis_UAV_Phy() {
 
 }
 
+
+void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
+        SharedTrackerElement in_device) {
+    if (in_storage == NULL || in_device == NULL)
+        return;
+
+    // Does the imported record have UAV?
+    auto devi = in_storage->find(uav_device_id);
+
+    if (devi != in_storage->end()) {
+        shared_ptr<uav_tracked_device> uavdev(new uav_tracked_device(globalreg, uav_device_id, devi->second));
+        in_device->add_map(uavdev);
+    }
+}
+
 int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     return 1;
 }

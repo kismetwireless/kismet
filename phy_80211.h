@@ -1234,7 +1234,8 @@ public:
     virtual int timetracker_event(int eventid);
 
     // Restore stored dot11 records
-    virtual void LoadPhyStorage(SharedTrackerElement in_device);
+    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
+            SharedTrackerElement in_device);
 
 protected:
     std::shared_ptr<Alertracker> alertracker;

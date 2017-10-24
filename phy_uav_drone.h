@@ -148,6 +148,7 @@ protected:
 
 };
 
+/* A 'light' phy which attaches additional records to existing phys */
 class uav_tracked_device : public tracker_component {
 public:
     uav_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
@@ -233,6 +234,10 @@ public:
 
     // Common classifier to make new UAV records
     static int CommonClassifier(CHAINCALL_PARMS);
+
+    // Restore stored UAV records
+    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
+            SharedTrackerElement in_device);
 
 protected:
     shared_ptr<Packetchain> packetchain;

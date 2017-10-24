@@ -1574,7 +1574,7 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
 
         // Give all the phys a shot at it
         for (auto p : phy_handler_map)
-            p.second->LoadPhyStorage(kdb);
+            p.second->LoadPhyStorage(e, kdb);
 
         // Update the manuf in case we added a manuf db
         if (globalreg->manufdb != NULL)
@@ -2085,9 +2085,6 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
             &macstring](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 std::shared_ptr<kis_tracked_device_base> kdb =
                     std::static_pointer_cast<kis_tracked_device_base>(d);
-
-                if (kdb->get_mod_time() <= devicetracker->last_devicelist_saved)
-                    return false;
 
                 sbuf.str("");
                 sqlite3_reset(stmt);

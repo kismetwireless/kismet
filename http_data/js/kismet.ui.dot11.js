@@ -202,10 +202,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: "dot11.device/dot11.device.last_bssid",
                 title: "Last BSSID",
                 filter: function(opts) {
-                    return opts['value'].split('/')[0] !== '00:00:00:00:00:00';
+                    return opts['value'] !== '00:00:00:00:00:00';
                 },
                 render: function(opts) {
-                    return opts['value'].split('/')[0];
+                    return opts['value'];
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
             },
@@ -625,7 +625,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.bssid",
                     title: "BSSID",
                     render: function(opts) {
-                        var ret = opts['value'].split("/")[0];
+                        var ret = opts['value'];
                         return ret;
                     }
                 },
