@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include "getopt.h"
+
 #include "logtracker.h"
 #include "globalregistry.h"
 #include "messagebus.h"
@@ -95,13 +97,70 @@ void LogTracker::reserve_fields(SharedTrackerElement e) {
 }
 
 void LogTracker::Deferred_Startup() {
-    set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
-    set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
+	int option_idx = 0;
+	string retfname;
+
+    // longopts for the packetsourcetracker component
+    static struct option logfile_long_options[] = {
+        { "log-types", required_argument, 0, 'T' },
+        { "log-title", required_argument, 0, 't' },
+        { "log-prefix", required_argument, 0, 'p' },
+        { "no-logging", no_argument, 0, 'n' },
+        { 0, 0, 0, 0 }
+    };
+
+    std::string argtypes, argtitle, argprefix;
+    int arg_enable = -1;
+
+	// Hack the extern getopt index
+	optind = 0;
+
+    while (1) {
+        int r = getopt_long(globalreg->argc, globalreg->argv,
+                "-T:t:np:", 
+                logfile_long_options, &option_idx);
+        switch (r) {
+            case 'T':
+                argtypes = string(optarg);
+                break;
+            case 't':
+                argtitle = string(optarg);
+                break;
+            case 'n':
+                arg_enable = 0;
+                break;
+            case 'p':
+                argprefix = string(optarg);
+                break;
+        }
+    }
+
+    if (arg_enable < 0)
+        set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
+    else
+        set_int_logging_enabled(false);
+
+    if (argtitle.length() == 0)
+        set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
+    else
+        set_int_log_title(argtitle);
+
+    if (argprefix.length() == 0) 
+        set_int_log_prefix(globalreg->kismet_config->FetchOptDfl("log_prefix", "./"));
+    else
+        set_int_log_prefix(argprefix);
+
     set_int_log_template(globalreg->kismet_config->FetchOptDfl("log_template", 
                 "%p/%n-%D-%t-%i.%l"));
-    set_int_log_prefix(globalreg->kismet_config->FetchOptDfl("log_prefix", "./"));
 
-    std::vector<std::string> types = StrTokenize(globalreg->kismet_config->FetchOpt("log_types"), ",");
+
+    std::vector<std::string> types;
+   
+    if (argtypes.length() == 0)
+        types = StrTokenize(globalreg->kismet_config->FetchOpt("log_types"), ",");
+    else
+        types = StrTokenize(argtypes, ",");
+        
 
     TrackerElementVector v(log_types_vec);
 
@@ -112,7 +171,7 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (!get_logging_enabled()) {
-        _MSG("Logging disabled, not opening any log files.", MSGFLAG_INFO);
+        _MSG("Logging disabled, not enabling any log drivers.", MSGFLAG_INFO);
         return;
     }
 
@@ -186,6 +245,14 @@ int LogTracker::register_log(SharedLogBuilder in_builder) {
     vec.push_back(in_builder);
 
     return 1;
+}
+
+void LogTracker::Usage(const char *argv0) {
+    printf(" *** Logging Options ***\n");
+	printf(" -T, --log-types <types>      Override activated log types\n"
+		   " -t, --log-title <title>      Override default log title\n"
+		   " -p, --log-prefix <prefix>    Directory to store log files\n"
+		   " -n, --no-logging             Disable logging entirely\n");
 }
 
 bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {

@@ -211,6 +211,7 @@ public:
     // Register a log type
     int register_log(SharedLogBuilder in_builder);
 
+    static void Usage(const char *argv0);
 private:
     LogTracker(GlobalRegistry *in_globalreg);
 

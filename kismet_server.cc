@@ -393,6 +393,8 @@ int Usage(char *argv) {
            "                               directory instead of the user entry\n"
            );
 
+    LogTracker::Usage(argv);
+
     for (vector<GlobalRegistry::usage_func>::iterator i = 
             globalregistry->usage_func_vec.begin();
             i != globalregistry->usage_func_vec.end(); ++i) {
