@@ -31,6 +31,7 @@
 #include "structured.h"
 #include "kismet_json.h"
 #include "base64.h"
+#include "kis_databaselogfile.h"
 
 Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
@@ -112,8 +113,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 	_ARM(ALERT_REF_KISMET) =
 		RegisterAlert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
-	
-	_MSG("Created alert tracker...", MSGFLAG_INFO);
+    log_alerts = globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
 }
 
 Alertracker::~Alertracker() {
@@ -317,6 +317,16 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	// Send the text info
 	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
 
+    if (log_alerts) {
+        std::shared_ptr<KisDatabaseLogfile> dbf =
+            Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+        if (dbf != NULL) {
+            shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
+            ta->from_alert_info(info);
+            dbf->log_alert(ta);
+        }
+    }
+
 	return 1;
 }
 
@@ -351,6 +361,16 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 
 	// Send the text info
 	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
+
+    if (log_alerts) {
+        std::shared_ptr<KisDatabaseLogfile> dbf =
+            Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+        if (dbf != NULL) {
+            shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
+            ta->from_alert_info(info);
+            dbf->log_alert(ta);
+        }
+    }
 
 	return 1;
 }

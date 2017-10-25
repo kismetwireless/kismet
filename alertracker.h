@@ -440,6 +440,9 @@ protected:
     Prelude::ClientEasy *prelude_client;
 #endif
 
+    // Do we log alerts to the kismet database?
+    bool log_alerts;
+
 };
 
 #endif
