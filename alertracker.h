@@ -346,6 +346,7 @@ private:
     // Raise an Prelude alert (requires prelude support compiled in)
     int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
             mac_addr dest, mac_addr other, string in_channel, string in_text);
+    int RaisePreludeOneShot(std::string in_header, std::string in_text);
 
     // Initialize Prelude Client (requires prelude support compiled in)
     void PreludeInitClient(const char *analyzer_name);
@@ -368,6 +369,9 @@ public:
     int RaiseAlert(int in_ref, kis_packet *in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
                    string in_channel, string in_text);
+
+    // Raise a one-shot communications alert
+    int RaiseOneShot(std::string in_header, std::string in_text, int in_phy);
 
     // parse an alert config string
 	int ParseAlertStr(string alert_str, string *ret_name, 

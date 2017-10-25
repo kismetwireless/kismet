@@ -320,6 +320,41 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	return 1;
 }
 
+int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in_phy) {
+    local_locker lock(&alert_mutex);
+
+	kis_alert_info *info = new kis_alert_info;
+
+	info->header = in_header;
+	info->phy = in_phy;
+	gettimeofday(&(info->tm), NULL);
+
+	info->bssid = mac_addr(0);
+	info->source = mac_addr(0);
+	info->dest  = mac_addr(0);
+	info->other = mac_addr(0);
+
+	info->channel = "";	
+
+	info->text = in_text;
+
+	alert_backlog.push_back(info);
+	if ((int) alert_backlog.size() > num_backlog) {
+		delete alert_backlog[0];
+		alert_backlog.erase(alert_backlog.begin());
+	}
+
+#ifdef PRELUDE
+	// Send alert to Prelude
+	RaisePreludeOneShot(in_header, in_text);
+#endif
+
+	// Send the text info
+	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
+
+	return 1;
+}
+
 int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest,
         mac_addr other, string in_channel, string in_text) {
@@ -365,6 +400,29 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
 
     idmef.set("alert.additional_data(>>).meaning", "in_ref");
     idmef.set("alert.additional_data(-1).data", in_ref);
+
+    prelude_client->sendIDMEF(idmef);
+#endif
+
+    return 0;
+}
+
+int Alertracker::RaisePreludeOneShot(std::string in_header, std::string in_text) {
+#ifdef PRELUDE
+    mac_addr emptymac = mac_addr(0);
+
+    Prelude::IDMEF idmef;
+
+    // Classification
+    idmef.set("alert.classification.text", "Suspicious network detected");
+
+    // Assessment
+    idmef.set("alert.assessment.impact.severity", "high");
+    idmef.set("alert.assessment.impact.completion", "succeeded");
+    idmef.set("alert.assessment.impact.description", in_text);
+
+    idmef.set("alert.additional_data(>>).alert_type", "in_ref");
+    idmef.set("alert.additional_data(-1).data", in_header);
 
     prelude_client->sendIDMEF(idmef);
 #endif
