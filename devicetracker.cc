@@ -418,6 +418,15 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "need to update your Kismet configs; install the latest configs with "
                 "'make forceconfigs' from the Kismet source directory.",
                 MSGFLAG_ERROR);
+
+        shared_ptr<Alertracker> alertracker =
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        alertracker->RaiseOneShot("CONFIGERROR", 
+                "Kismet has recently added persistent device storage; it looks like "
+                "kismet_storage.conf is missing; You should install the latest Kismet "
+                "configs with 'make forceconfigs' from the Kismet source directory, or "
+                "manually reconcile the new configs.", -1);
+
         persistent_storage = false;
         persistent_mode = MODE_ONSTART;
         persistent_compression = false;
