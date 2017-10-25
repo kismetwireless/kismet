@@ -781,7 +781,7 @@ class KismetConnector:
         filtered to alerts since a given timestamp
         """
 
-        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts, ts_usec))
+        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts_sec, ts_usec))
 
         return v[0]
 
