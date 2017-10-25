@@ -99,6 +99,9 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 	packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
             CHAINPOS_LOGGING, -100);
 
+    // Go into memory journal mode; it's less safe but should be much faster
+    sqlite3_exec(db, "PRAGMA journal_mode=memory", NULL, NULL, NULL);
+
     db_enabled = true;
 
     return true;
@@ -844,5 +847,9 @@ int KisDatabaseLogfile::packet_handler(CHAINCALL_PARMS) {
     KisDatabaseLogfile *logfile = (KisDatabaseLogfile *) auxdata;
 
     return logfile->log_packet(in_pack);
+}
+
+void KisDatabaseLogfile::Usage(const char *argv0) {
+
 }
 

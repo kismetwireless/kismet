@@ -134,6 +134,7 @@ public:
     virtual int log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
             std::string snaptype, std::string json);
 
+    static void Usage(const char *argv0);
 protected:
     GlobalRegistry *globalreg;
 
