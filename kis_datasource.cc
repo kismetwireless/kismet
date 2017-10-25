@@ -1962,14 +1962,8 @@ void KisDatasource::handle_source_error() {
                 "to reconnect to resume capture.";
 
             shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-            if (alertracker == NULL) 
-                throw std::runtime_error("Missing alertracker from datasource");
-
-            int aref = alertracker->FindActivatedAlert("SOURCEERROR");
-
-            alertracker->RaiseAlert(aref, NULL, mac_addr(), mac_addr(),
-                    mac_addr(), mac_addr(), "", ss.str());
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
@@ -1985,14 +1979,8 @@ void KisDatasource::handle_source_error() {
                 "closed.";
 
             shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-            if (alertracker == NULL) 
-                throw std::runtime_error("Missing alertracker from datasource");
-
-            int aref = alertracker->FindActivatedAlert("SOURCEERROR");
-
-            alertracker->RaiseAlert(aref, NULL, mac_addr(), mac_addr(),
-                    mac_addr(), mac_addr(), "", ss.str());
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
@@ -2020,14 +2008,8 @@ void KisDatasource::handle_source_error() {
             get_source_retry_attempts() << " failures)";
 
         shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-        if (alertracker == NULL) 
-            throw std::runtime_error("Missing alertracker from datasource");
-
-        int aref = alertracker->FindActivatedAlert("SOURCEERROR");
-
-        alertracker->RaiseAlert(aref, NULL, mac_addr(), mac_addr(),
-                mac_addr(), mac_addr(), "", ss.str());
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
 
@@ -2045,6 +2027,15 @@ void KisDatasource::handle_source_error() {
                         [this](int, bool success, string) {
                             if (!success)
                                 return;
+
+                            std::stringstream ss;
+
+                            ss << "Source " << get_source_name() << " successfully "
+                                "re-opened";
+
+                            shared_ptr<Alertracker> alertracker =
+                                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                            alertracker->RaiseOneShot("SOURCEOPEN", ss.str(), -1);
 
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping

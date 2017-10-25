@@ -24,6 +24,7 @@
 #include "globalregistry.h"
 #include "messagebus.h"
 #include "configfile.h"
+#include "alertracker.h"
 
 LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
@@ -172,6 +173,10 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (!get_logging_enabled()) {
+        shared_ptr<Alertracker> alertracker =
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        alertracker->RaiseOneShot("LOGDISABLED", "Logging has been disabled via the Kismet "
+                "config files or the command line", -1);
         _MSG("Logging disabled, not enabling any log drivers.", MSGFLAG_INFO);
         return;
     }
