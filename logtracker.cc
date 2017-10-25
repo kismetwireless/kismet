@@ -119,6 +119,7 @@ void LogTracker::Deferred_Startup() {
         int r = getopt_long(globalreg->argc, globalreg->argv,
                 "-T:t:np:", 
                 logfile_long_options, &option_idx);
+        if (r < 0) break;
         switch (r) {
             case 'T':
                 argtypes = string(optarg);
