@@ -21,6 +21,7 @@
 
 #include "phy_uav_drone.h"
 #include "phy_80211.h"
+#include "kis_httpd_registry.h"
 
 Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
@@ -47,6 +48,11 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
     // elements already
     packetchain->RegisterHandler(Kis_UAV_Phy::CommonClassifier, 
             this, CHAINPOS_TRACKER, 65535);
+
+    // Register js module for UI
+    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_uav", "/js/kismet.ui.uav.js");
 }
 
 Kis_UAV_Phy::~Kis_UAV_Phy() {
@@ -100,8 +106,6 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
             dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = 
                 dot11info->droneid->record();
 
-            fprintf(stderr, "debug - drone %s %lf/%lf\n", flightinfo->serialnumber().c_str(), flightinfo->lat(), flightinfo->lon());
-
             if (flightinfo->state_info()->serial_valid()) {
                 uavdev->set_uav_serialnumber(flightinfo->serialnumber());
             }
@@ -116,6 +120,14 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
             if (tvec.size() > 128)
                 tvec.erase(tvec.begin());
+
+            uavdev->set_uav_match_type("DroneID");
+
+            // Set the home location
+            if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
+                shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
+                homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
+            }
         }
     }
 

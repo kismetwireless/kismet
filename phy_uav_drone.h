@@ -195,6 +195,10 @@ public:
 
     __ProxyOnlyTrackable(uav_telem_history, TrackerElement, uav_telem_history);
 
+    __Proxy(uav_match_type, std::string, std::string, std::string, uav_match_type);
+
+    __ProxyDynamicTrackable(home_location, kis_tracked_location_triplet, home_location, home_location_id);
+
 protected:
     virtual void register_fields() {
         tracker_component::register_fields();
@@ -216,6 +220,14 @@ protected:
             RegisterComplexField("uav.telemetry_entry",
                     std::shared_ptr<uav_tracked_telemetry>(new uav_tracked_telemetry(globalreg, 0)),
                     "historical telemetry");
+
+        RegisterField("uav.match_type", TrackerString,
+                "Match type (drone characteristics)", &uav_match_type);
+
+        home_location_id = 
+            RegisterComplexField("uav.telemetry.home_location",
+                    std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    "GPS home location");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -230,19 +242,27 @@ protected:
                 std::shared_ptr<uav_tracked_telemetry> telem(new uav_tracked_telemetry(globalreg, telem_history_entry_id, *l));
                 *l = std::static_pointer_cast<TrackerElement>(telem);
             }
+
+            home_location.reset(new kis_tracked_location_triplet(globalreg, home_location_id,
+                        e->get_map_value(home_location_id)));
         }
 
+        add_map(home_location);
         add_map(last_telem_loc_id, last_telem_loc);
     }
 
     SharedTrackerElement uav_manufacturer;
     SharedTrackerElement uav_serialnumber;
+    SharedTrackerElement uav_match_type;
 
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
 
     SharedTrackerElement uav_telem_history;
     int telem_history_entry_id;
+
+    std::shared_ptr<kis_tracked_location_triplet> home_location;
+    int home_location_id;
 
 };
 
