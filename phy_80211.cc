@@ -1680,19 +1680,14 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                                         nonce->get_eapol_replay_counter()) {
 
                                     // Is it an earlier (or equal) replay counter? Then we
-                                    // have a problem; inspect the retry and timestamp
-                                    if (dot11info->retry) {
-                                        double tdif = 
-                                            eapol->get_eapol_time() - 
-                                            nonce->get_eapol_time();
+                                    // have a problem; inspect the timestamp
+                                    double tdif = 
+                                        eapol->get_eapol_time() - 
+                                        nonce->get_eapol_time();
 
-                                        // Retries should fall w/in this range 
-                                        if (tdif > 0.10f || tdif < -0.10f)
-                                            dupe_nonce = true;
-                                    } else {
-                                        // Otherwise duplicate w/ out retry is immediately bad
+                                    // Retries should fall w/in this range 
+                                    if (tdif > 0.10f || tdif < -0.10f)
                                         dupe_nonce = true;
-                                    }
                                 } else {
                                     // Otherwise increment the replay counter we record
                                     // for this nonce
