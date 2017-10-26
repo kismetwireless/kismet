@@ -100,10 +100,6 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 	packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
             CHAINPOS_LOGGING, -100);
 
-    // Go into memory journal mode; it's less safe but should be much faster
-    sqlite3_exec(db, "PRAGMA journal_mode=memory", NULL, NULL, NULL);
-    // sqlite3_exec(db, "PRAGMA locking_mode=EXCLUSIVE", NULL, NULL, NULL);
-
     db_enabled = true;
     
     // Go into transactional mode where we only commit every 10 seconds
