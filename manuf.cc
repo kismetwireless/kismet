@@ -46,7 +46,7 @@ Manuf::Manuf(GlobalRegistry *in_globalreg) {
         }
 
         _MSG("Could not open OUI file '" + fname[x] + "': " +
-             string(strerror(errno)), MSGFLAG_ERROR);
+                string(strerror(errno)), MSGFLAG_INFO);
     }
 
     if (mfile == NULL) {
