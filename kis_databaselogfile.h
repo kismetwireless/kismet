@@ -175,6 +175,11 @@ protected:
     const char *snapshot_pz;
 
     static int packet_handler(CHAINCALL_PARMS);
+
+    // Keep track of our commit cycles; to avoid thrashing the filesystem with
+    // commit state we run a 10 second tranasction commit loop
+    std::recursive_timed_mutex transaction_mutex;
+    int transaction_timer;
 };
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {

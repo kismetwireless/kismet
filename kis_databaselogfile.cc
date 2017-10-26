@@ -69,6 +69,7 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
         Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
 
     db_enabled = false;
+
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
@@ -104,12 +105,42 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     sqlite3_exec(db, "PRAGMA locking_mode=EXCLUSIVE", NULL, NULL, NULL);
 
     db_enabled = true;
+    
+    // Go into transactional mode where we only commit every 10 seconds
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+    std::shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    transaction_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+            [this](int) -> int {
+
+            fprintf(stderr, "debug - committing transaction\n");
+
+            local_locker lock(&transaction_mutex);
+
+            sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+            return 1;
+        });
 
     return true;
 }
 
 void KisDatabaseLogfile::Log_Close() {
     local_eol_locker dblock(&ds_mutex);
+
+    // Kill the timer
+    std::shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    timetracker->RemoveTimer(transaction_timer);
+
+    // End the transaction
+    {
+        local_eol_locker translock(&transaction_mutex);
+        sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    }
 
     db_enabled = false;
 
@@ -536,7 +567,6 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
     std::string macstring;
     std::string typestring;
 
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
     for (auto i : in_devices) {
         sqlite3_reset(device_stmt);
 
@@ -588,7 +618,6 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
 
         sqlite3_step(device_stmt);
     }
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 
     return 1;
 }
