@@ -306,6 +306,8 @@ void Kis_Net_Httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
 }
 
 int Kis_Net_Httpd::StartHttpd() {
+    local_locker lock(&controller_mutex);
+
     if (use_ssl) {
         // If we can't load the SSL key files, crash and burn.  We can't safely
         // degrade to non-ssl when the user is expecting encryption.
@@ -364,19 +366,23 @@ int Kis_Net_Httpd::StartHttpd() {
 
     MHD_set_panic_func(Kis_Net_Httpd::MHD_Panic, this);
 
+    running = true;
+
     _MSG("Started http server on port " + UIntToString(http_port), MSGFLAG_INFO);
 
     return 1;
 }
 
 int Kis_Net_Httpd::StopHttpd() {
-    if (microhttpd != NULL) {
-        // We would want to stop but that seems to have some problems with
-        // thread joining; for now, quiesce it, and we'll kill it when the
-        // process exits, because we never shut down httpd and keep running
-        MHD_quiesce_daemon(microhttpd);
+    local_locker lock(&controller_mutex);
 
-        // MHD_stop_daemon(microhttpd);
+    if (microhttpd != NULL) {
+        // Formerly we quiesced the httpd daemon but that api seemed to have
+        // problems on some builds; now we silence the panic handler and 
+        // shut down the daemon
+        
+        running = false;
+        MHD_stop_daemon(microhttpd);
         return 1;
     }
 
@@ -386,6 +392,14 @@ int Kis_Net_Httpd::StopHttpd() {
 void Kis_Net_Httpd::MHD_Panic(void *cls, const char *file, unsigned int line,
         const char *reason) {
     Kis_Net_Httpd *httpd = (Kis_Net_Httpd *) cls;
+
+    local_locker lock(&(httpd->controller_mutex));
+
+    // Do nothing if we're already closing down
+    if (!httpd->running)
+        return;
+
+    httpd->running = false;
 
     httpd->globalreg->fatal_condition = 1;
     httpd->globalreg->messagebus->InjectMessage("Unable to continue after "
