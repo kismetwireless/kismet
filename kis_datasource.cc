@@ -77,7 +77,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
                 SharedInterface(new KisDatasourceInterface(globalreg, 0)), 
                     "auto-discovered interface");
 
-    last_pong = 0;
+    last_pong = time(0);
 
     quiet_errors = 0;
 
@@ -746,6 +746,7 @@ void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
         send_command_pong();
     } else if (ltype == "pong") {
         last_pong = time(0);
+        // fprintf(stderr, "debug - ping - got pong %lu\n", last_pong);
     } else if (ltype == "data") {
         proto_packet_data(in_kvmap);
     }
@@ -883,7 +884,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         return;
     }
 
-    last_pong = 0;
+    last_pong = time(0);
 
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
@@ -892,10 +893,12 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
             local_locker lock(&source_lock);
             
             if (!get_source_running()) {
-                ping_timer_id = 0;
+                // fprintf(stderr, "debug - ping - %lu source not running in ping timer, stopping\n", time(0));
+                ping_timer_id = -1;
                 return 0;
             }
-            
+           
+            // fprintf(stderr, "debug - ping - %lu\n", time(0));
             send_command_ping();
             return 1;
         });
