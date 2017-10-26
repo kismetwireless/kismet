@@ -115,8 +115,6 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
-            fprintf(stderr, "debug - committing transaction\n");
-
             local_locker lock(&transaction_mutex);
 
             sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
