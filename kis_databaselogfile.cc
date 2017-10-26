@@ -102,7 +102,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     // Go into memory journal mode; it's less safe but should be much faster
     sqlite3_exec(db, "PRAGMA journal_mode=memory", NULL, NULL, NULL);
-    sqlite3_exec(db, "PRAGMA locking_mode=EXCLUSIVE", NULL, NULL, NULL);
+    // sqlite3_exec(db, "PRAGMA locking_mode=EXCLUSIVE", NULL, NULL, NULL);
 
     db_enabled = true;
     
@@ -246,7 +246,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         }
 
         sql =
-            "CREATE TABLE packet ("
+            "CREATE TABLE packets ("
 
             "ts_sec INT, " // Timestamps
             "ts_usec INT, "
@@ -438,7 +438,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     }
 
     sql =
-        "INSERT INTO packet "
+        "INSERT INTO packets "
         "(ts_sec, ts_usec, phyname, devmac, "
         "lat, lon, "
         "packet_len, signal, "
