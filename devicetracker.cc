@@ -1450,6 +1450,9 @@ int Devicetracker::store_devices() {
 
     // Find anything that has changed
     for (auto v : immutable_tracked_vec) {
+        if (v == NULL)
+            continue;
+
         std::shared_ptr<kis_tracked_device_base> kdb =
             std::static_pointer_cast<kis_tracked_device_base>(v);
         if (kdb->get_mod_time() > last_database_logged)
@@ -1485,6 +1488,9 @@ void Devicetracker::databaselog_write_devices() {
 
     // Find anything that has changed
     for (auto v : immutable_tracked_vec) {
+        if (v == NULL)
+            continue;
+
         std::shared_ptr<kis_tracked_device_base> kdb =
             std::static_pointer_cast<kis_tracked_device_base>(v);
         if (kdb->get_mod_time() > last_database_logged)
