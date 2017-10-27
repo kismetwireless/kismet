@@ -273,6 +273,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->channel_hop_list_sz = 0;
     ch->channel_hop_shuffle = 0;
     ch->channel_hop_shuffle_spacing = 1;
+    ch->channel_hop_failure_list = NULL;
+    ch->channel_hop_failure_list_sz = 0;
 
     return ch;
 }
@@ -797,6 +799,8 @@ void *cf_int_chanhop_thread(void *arg) {
     unsigned int wait_usec = 0;
 
     char errstr[STATUS_MAX];
+    
+    int r = 0;
 
     while (1) {
         pthread_mutex_lock(&(caph->handler_lock));
@@ -833,14 +837,39 @@ void *cf_int_chanhop_thread(void *arg) {
         }
 
         errstr[0] = 0;
-        if ((caph->chancontrol_cb)(caph, 0, 
+        if ((r = (caph->chancontrol_cb)(caph, 0, 
                     caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
-                    errstr) < 0) {
+                    errstr)) < 0) {
             cf_send_error(caph, errstr);
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             cf_handler_spindown(caph);
             return NULL;
+        } else if (r == 0) {
+            // fprintf(stderr, "debug - got an error at position %lu\n", hoppos % caph->channel_hop_list_sz);
+
+            // Append to the linked list
+            struct cf_channel_error *err;
+            int err_seen = 0;
+
+            for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+                    err != NULL; err = err->next) {
+                if (err->channel_pos == (hoppos % caph->channel_hop_list_sz)) {
+                    // fprintf(stderr, "debug - already saw an error here\n");
+                    err_seen = 1;
+                    break;
+                }
+            }
+
+            // Only add error positions we haven't seen in error before
+            if (!err_seen) {
+                // fprintf(stderr, "debug - making new error record\n");
+                err = (struct cf_channel_error *) malloc(sizeof(struct cf_channel_error));
+                err->channel_pos = hoppos % caph->channel_hop_list_sz;
+                err->next = (struct cf_channel_error *) caph->channel_hop_failure_list;
+                caph->channel_hop_failure_list = err;
+                caph->channel_hop_failure_list_sz++;
+            }
         }
 
         /* Increment by the shuffle amount */
@@ -849,7 +878,102 @@ void *cf_int_chanhop_thread(void *arg) {
         else
             hoppos++;
 
+        /* If we've gotten back to 0, look at the failed channel list.  This is super
+         * inefficient because it has to do multiple crawls of a linked list, but
+         * it should only happen once per interface to clean out the bogons. */
+        if ((hoppos % caph->channel_hop_list_sz) == 0 &&
+                caph->channel_hop_failure_list_sz != 0) {
+            char **channel_hop_list_new;
+            void **custom_channel_hop_list_new;
+            size_t new_sz;
+            size_t i, ni;
+            struct cf_channel_error *err, *errnext;
+
+            // fprintf(stderr, "debug - hop fail, cleaning up\n");
+
+            /* Safety net */
+            if (caph->channel_hop_failure_list_sz >= caph->channel_hop_list_sz) {
+                // fprintf(stderr, "debug - sending fail\n");
+                snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
+                        "in error state, but there were more error channels (%lu) than "
+                        "assigned channels (%lu), something is wrong internally.",
+                        caph->channel_hop_failure_list_sz,
+                        caph->channel_hop_list_sz);
+                cf_send_error(caph, errstr);
+                caph->hopping_running = 0;
+                pthread_mutex_unlock(&caph->handler_lock);
+                cf_handler_spindown(caph);
+                return NULL;
+            }
+
+            /* shrink the channel list and the custom list, and copy only the 
+             * valid ones, eliminating the bogus ones */
+            new_sz = caph->channel_hop_list_sz - caph->channel_hop_failure_list_sz;
+
+            channel_hop_list_new = (char **) malloc(sizeof(char *) * new_sz);
+            custom_channel_hop_list_new = (void **) malloc(sizeof(void *) * new_sz);
+
+            // fprintf(stderr, "debug - allocating new channel list %lu\n", new_sz);
+
+            for (i = 0, ni = 0; i < caph->channel_hop_list_sz && ni < new_sz; i++) {
+                int err_seen = 0;
+
+                for (err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+                        err != NULL; err = err->next) {
+                    if (err->channel_pos == i) {
+                        err_seen = 1;
+                        break;
+                    }
+                }
+
+                /* If it's in error, free it */
+                if (err_seen) {
+                    // fprintf(stderr, "debug - freeing from %lu\n", i);
+                    free(caph->channel_hop_list[i]);
+                    if (caph->chanfree_cb != NULL) 
+                        (caph->chanfree_cb)(caph->custom_channel_hop_list[i]);
+                    continue;
+                }
+
+                // fprintf(stderr, "debug - copying channel from %lu to %lu\n", i, ni);
+
+                /* Otherwise move the pointer to our new list */
+                channel_hop_list_new[ni] = caph->channel_hop_list[i];
+                custom_channel_hop_list_new[ni] = caph->custom_channel_hop_list[i];
+                ni++;
+            }
+
+            // fprintf(stderr, "debug - nuking old hop list\n");
+            /* Remove the old lists and swap in the new ones */
+            free(caph->channel_hop_list);
+            free(caph->custom_channel_hop_list);
+
+            caph->channel_hop_list = channel_hop_list_new;
+            caph->custom_channel_hop_list = custom_channel_hop_list_new;
+            caph->channel_hop_list_sz = new_sz;
+
+            /* Spam a configresp which should trigger a reconfigure */
+            snprintf(errstr, STATUS_MAX, "Removed %lu channels from the channel list "
+                    "because the source could not tune to them", 
+                    caph->channel_hop_failure_list_sz);
+            cf_send_configresp_chanhop(caph, 0, 1, errstr,
+                    caph->channel_hop_rate, caph->channel_hop_list, caph->channel_hop_list_sz);
+
+
+            // fprintf(stderr, "debug - clearing out old list\n");
+            /* Clear out the old list */
+            err = (struct cf_channel_error *) caph->channel_hop_failure_list;
+            while (err != NULL) {
+                errnext = err->next;
+                free(err);
+                err = errnext;
+            }
+            caph->channel_hop_failure_list = NULL;
+            caph->channel_hop_failure_list_sz = 0;
+        }
+
         pthread_mutex_unlock(&caph->handler_lock);
+
 
     }
 

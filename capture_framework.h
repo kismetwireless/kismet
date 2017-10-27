@@ -162,8 +162,10 @@ typedef void *(*cf_callback_chantranslate)(kis_capture_handler_t *, char *chanst
  * changes via cf_send_message(...)
  *
  * Returns:
- * -1   Error occurred
- *  0   Success
+ * -1   Fatal error occurred
+ *  0   Unable to tune to this channel, exclude it from future channel hopping
+ *      attempts
+ *  1+  Success
  */
 typedef int (*cf_callback_chancontrol)(kis_capture_handler_t *, uint32_t seqno, 
         void *privchan, char *msg);
@@ -307,6 +309,10 @@ struct kis_capture_handler {
     size_t channel_hop_list_sz;
     double channel_hop_rate;
 
+    /* Linked list of failed channel sets so we can flush the channel array out */
+    void *channel_hop_failure_list;
+    size_t channel_hop_failure_list_sz;
+
     /* Do we shuffle?  Do we have a shuffle spacing from the driver? */
     int channel_hop_shuffle;
     unsigned int channel_hop_shuffle_spacing;
@@ -330,6 +336,13 @@ struct cf_params_spectrum {
     uint8_t amp;
     uint64_t if_amp;
     uint64_t baseband_amp;
+};
+
+/* Exceedingly simple linked list structure for errors setting channels 
+ * so we can screen them out */
+struct cf_channel_error {
+    unsigned long channel_pos;
+    struct cf_channel_error *next;
 };
 
 /* Set remote capability flags.

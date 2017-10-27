@@ -573,7 +573,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             }
         }
 
-        return 0;
+        return 1;
     } else {
         /* Otherwise we're using mac80211 which means we need to figure out
          * what kind of channel we're setting */
@@ -621,11 +621,11 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             }
         } else {
             local_wifi->seq_channel_failure = 0;
-            return 0;
+            return 1;
         }
     }
    
-    return 0;
+    return 1;
 }
 
 
