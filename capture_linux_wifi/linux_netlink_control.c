@@ -706,7 +706,7 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
     /* Remove the phyname */
     free(cblock.phyname);
 
-    (*ret_chan_list)[0] = strdup("45");
+    // (*ret_chan_list)[0] = strdup("45");
 
     return (*ret_num_chans);
 #endif
