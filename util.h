@@ -364,6 +364,67 @@ protected:
 
 };
 
+// Locks for the duration of scope, but only locks on demand
+class local_demand_locker {
+public:
+    local_demand_locker(pthread_mutex_t *in) {
+        cpplock = NULL;
+        plock = in;
+    }
+
+    local_demand_locker(std::recursive_timed_mutex *in) {
+        plock = NULL;
+        cpplock = in;
+    }
+
+    void unlock() {
+        if (plock != NULL)
+            pthread_mutex_unlock(plock);
+        else if (cpplock != NULL)
+            cpplock->unlock();
+    }
+
+    void lock() {
+        if (plock != NULL) {
+#if defined(HAVE_PTHREAD_TIMELOCK) && !defined(DISABLE_MUTEX_TIMEOUT)
+            // Only use timeouts if a) they're supported and b) not disabled in configure
+            struct timespec t;
+
+            clock_gettime(CLOCK_REALTIME , &t); 
+            t.tv_sec += KIS_THREAD_DEADLOCK_TIMEOUT; 
+
+            if (pthread_mutex_timedlock(plock, &t) != 0) {
+                throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+            }
+#else
+            pthread_mutex_lock(plock);
+#endif
+
+        } else if (cpplock != NULL) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+            cpplock->lock();
+#else
+            if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+            }
+#endif
+        }
+
+    }
+
+    ~local_demand_locker() {
+        if (plock != NULL)
+            pthread_mutex_unlock(plock);
+        else if (cpplock != NULL)
+            cpplock->unlock();
+    }
+
+protected:
+    pthread_mutex_t *plock;
+    std::recursive_timed_mutex *cpplock;
+
+};
+
 // Act as a scoped locker on a mutex that never expires; used for performing
 // end-of-life mutex maintenance
 class local_eol_locker {
