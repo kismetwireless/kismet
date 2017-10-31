@@ -1605,19 +1605,15 @@ double Datasourcetracker::string_to_rate(std::string in_str, double in_default) 
     }
 }
 
-Datasourcetracker_Httpd_Pcap::Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg) : Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) {
+Datasourcetracker_Httpd_Pcap::Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg) : 
+    Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) {
+
 }
 
 
 bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, 
         const char *method) {
     if (strcmp(method, "GET") == 0) {
-        datasourcetracker =
-            Globalreg::FetchGlobalAs<Datasourcetracker>(http_globalreg, "DATASOURCETRACKER");
-
-        std::shared_ptr<Packetchain> packetchain = 
-            Globalreg::FetchMandatoryGlobalAs<Packetchain>(http_globalreg, "PACKETCHAIN");
-        pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
         // Total pcap of all data; we put it in 2 locations
         if (strcmp(path, "/pcap/all_packets.pcapng") == 0) 
@@ -1625,7 +1621,6 @@ bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path,
 
         if (strcmp(path, "/datasource/pcap/all_sources.pcapng") == 0)
             return true;
-
 
         // Alternately, per-source capture:
         // /datasource/pcap/by-uuid/aa-bb-cc-dd/aa-bb-cc-dd.pcapng
@@ -1642,6 +1637,17 @@ bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path,
 
                     if (u.error) {
                         return false;
+                    }
+
+                    if (datasourcetracker == NULL) {
+                        datasourcetracker =
+                            Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>(http_globalreg, "DATASOURCETRACKER");
+                    }
+
+                    if (packetchain == NULL) {
+                        std::shared_ptr<Packetchain> packetchain = 
+                            Globalreg::FetchMandatoryGlobalAs<Packetchain>(http_globalreg, "PACKETCHAIN");
+                        pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
                     }
 
                     SharedDatasource ds = datasourcetracker->find_datasource(u);
