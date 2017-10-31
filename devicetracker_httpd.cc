@@ -504,8 +504,6 @@ int Devicetracker::Httpd_CreateStreamResponse(
 }
 
 int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-    local_locker lock(&devicelist_mutex);
-
     // Split URL and process
     vector<string> tokenurl = StrTokenize(concls->url, "/");
 
@@ -685,6 +683,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
+            local_locker lock(&devicelist_mutex);
+
             TrackedDeviceKey key(tokenurl[3]);
             auto tmi = tracked_map.find(key);
 
@@ -717,6 +717,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             }
 
         } else if (tokenurl[2] == "summary") {
+            // We don't lock device list up here because we use workers since it
+            // can be a multi-device return
+
             // Wrapper we insert under
             SharedTrackerElement wrapper = NULL;
 
@@ -967,7 +970,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     outdevs->add_vector(simple);
                 }
             } else {
-                // Otherwise we use the complete list
+                // Otherwise we use the complete list; we DO need to scope lock now
+                local_locker lock(&devicelist_mutex);
+
                 //
                 // Check DT ranges
                 if (dt_start >= tracked_vec.size())
@@ -1026,6 +1031,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             return MHD_YES;
 
         } else if (tokenurl[2] == "last-time") {
+            // We don't lock the device list since we use workers
+            
             if (tokenurl.size() < 5) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
@@ -1067,14 +1074,10 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }, NULL);
             MatchOnDevices(&tw);
 
-            // fprintf(stderr, "debug - %lu time devs\n", timedevs->get_vector()->size());
-
             if (regexdata != NULL) {
                 devicetracker_pcre_worker worker(globalreg, regexdata, regexdevs);
                 MatchOnDevices(&worker, timedevs);
-                // fprintf(stderr, "debug - %lu regex devs\n", regexdevs->get_vector()->size());
             } else {
-                // fprintf(stderr, "debug - no regex\n");
                 regexdevs = timedevs;
             }
 
