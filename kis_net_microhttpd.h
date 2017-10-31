@@ -296,10 +296,16 @@ public:
     }
 
     void trigger_error() {
-        local_locker lock(&aux_mutex);
-
+        // Scope so we're done with our mutex by the time we release the conditional
+        // locker
+        local_demand_locker lock(&aux_mutex);
+        lock.lock();
         in_error = true;
+        lock.unlock();
+
+        // Unlock the conditional locker
         cl->unlock("triggered");
+
     }
 
     void set_aux(void *in_aux, 

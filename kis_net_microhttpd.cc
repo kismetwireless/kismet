@@ -1141,25 +1141,26 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
 }
 
 void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
-    {
-        // Protect until we lock
-        local_locker lock(&aux_mutex);
+    // Protect until we lock
+    local_demand_locker lock(&aux_mutex);
 
-        // Immediately return if we have pending data
-        shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
-        if (rbh->GetReadBufferUsed()) {
-            // fprintf(stderr, "debug - going to block but have data\n");
-            return;
-        }
+    // Scope this block
+    lock.lock();
 
-        // Immediately return so we can flush out the buffer before we fail
-        if (get_in_error()) {
-            // fprintf(stderr, "debug - going to block but in error %d\n", get_in_error());
-            return;
-        }
-
-        cl->lock();
+    // Immediately return if we have pending data
+    shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
+    if (rbh->GetReadBufferUsed()) {
+        return;
     }
+
+    // Immediately return so we can flush out the buffer before we fail
+    if (get_in_error()) {
+        return;
+    }
+
+    lock.unlock();
+
+    cl->lock();
 
     // Block outside of the mutex protection
     cl->block_until();
