@@ -84,8 +84,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                local_locker lock(&devicelist_mutex);
-
                 TrackedDeviceKey key(tokenurl[3]);
 
                 if (key.get_error())
@@ -94,9 +92,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
-                auto tmi = tracked_map.find(key);
+                auto tmi = FetchDevice(key);
 
-                if (tmi == tracked_map.end())
+                if (tmi == NULL)
                     return false;
 
                 string target = Httpd_StripSuffix(tokenurl[4]);
@@ -108,7 +106,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                         vector<string>::const_iterator last = tokenurl.end();
                         vector<string> fpath(first, last);
 
-                        if (tmi->second->get_child_path(fpath) == NULL) {
+                        if (tmi->get_child_path(fpath) == NULL) {
                             return false;
                         }
                     }
@@ -118,10 +116,10 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 return false;
             } else if (tokenurl[2] == "by-mac") {
+                local_demand_locker lock(&devicelist_mutex);
+
                 if (tokenurl.size() < 5)
                     return false;
-
-                local_locker lock(&devicelist_mutex);
 
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
@@ -131,6 +129,8 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (mac.error) {
                     return false;
                 }
+
+                lock.lock();
 
                 if (tracked_mac_multimap.count(mac) > 0)
                     return true;
@@ -182,7 +182,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                local_locker lock(&devicelist_mutex);
+                local_demand_locker lock(&devicelist_mutex);
 
                 TrackedDeviceKey key(tokenurl[3]);
 
@@ -192,6 +192,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
+                lock.lock();
                 auto tmi = tracked_map.find(key);
 
                 if (tmi == tracked_map.end())
@@ -210,7 +211,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                local_locker lock(&devicelist_mutex);
+                local_demand_locker lock(&devicelist_mutex);
 
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
@@ -221,6 +222,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
+                lock.lock();
                 if (tracked_mac_multimap.count(mac) > 0)
                     return true;
 
@@ -476,8 +478,6 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return MHD_YES;
-
-            local_locker lock(&devicelist_mutex);
 
             SharedTrackerElement devvec =
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
