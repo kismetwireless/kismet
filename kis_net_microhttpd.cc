@@ -1124,7 +1124,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
 }
 
 Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
-    local_locker lock(&aux_mutex);
+    local_eol_locker lock(&aux_mutex);
 
     if (ringbuf_handler) {
         ringbuf_handler->RemoveWriteBufferInterface();
