@@ -49,19 +49,10 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
 	next_handlerid = 1;
-
-    // Make a recursive mutex that the owning thread can lock multiple times;
-    // If we fall into the error handler we have to be able to handle the shutdown
-    // properly.
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&packetchain_mutex, &mutexattr);
 }
 
 Packetchain::~Packetchain() {
-    fprintf(stderr, "debug - ~packetchain\n");
-    pthread_mutex_lock(&packetchain_mutex);
+    local_eol_locker lock(&packetchain_mutex);
 
     globalreg->RemoveGlobal("PACKETCHAIN");
     globalreg->packetchain = NULL;
@@ -104,7 +95,6 @@ Packetchain::~Packetchain() {
         delete(*i);
     }
 
-    pthread_mutex_destroy(&packetchain_mutex);
 }
 
 int Packetchain::RegisterPacketComponent(string in_component) {

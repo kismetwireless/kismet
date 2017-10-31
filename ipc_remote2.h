@@ -23,7 +23,6 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#include <pthread.h>
 
 #include "globalregistry.h"
 #include "buffer_handler.h"
@@ -92,7 +91,7 @@ public:
     void set_tracker_free(bool in_free);
 
 protected:
-    pthread_mutex_t ipc_locker;
+    std::recursive_timed_mutex ipc_locker;
 
     GlobalRegistry *globalreg;
 
@@ -160,7 +159,7 @@ public:
     virtual int timetracker_event(int event_id);
 
 protected:
-    pthread_mutex_t ipc_locker;
+    std::recursive_timed_mutex ipc_locker;
 
     GlobalRegistry *globalreg;
 

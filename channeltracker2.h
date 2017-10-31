@@ -193,7 +193,7 @@ public:
     int device_decay;
 
 protected:
-    pthread_mutex_t lock;
+    std::recursive_timed_mutex lock;
 
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);

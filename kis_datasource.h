@@ -559,7 +559,7 @@ protected:
 
 
     // Thread
-    pthread_mutex_t source_lock;
+    std::recursive_timed_mutex source_lock;
     std::shared_ptr<Timetracker> timetracker;
 
 

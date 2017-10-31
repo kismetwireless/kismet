@@ -18,8 +18,6 @@
 
 #include "config.h"
 
-#include <pthread.h>
-
 #include "messagebus.h"
 #include "entrytracker.h"
 
@@ -36,16 +34,13 @@ void StdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
-    pthread_mutex_init(&msg_mutex, NULL);
 }
 
 MessageBus::~MessageBus() {
-    pthread_mutex_lock(&msg_mutex);
+    local_eol_locker lock(&msg_mutex);
 
     globalreg->RemoveGlobal("MESSAGEBUS");
     globalreg->messagebus = NULL;
-
-    pthread_mutex_destroy(&msg_mutex);
 }
 
 void MessageBus::InjectMessage(string in_msg, int in_flags) {

@@ -18,8 +18,6 @@
 
 #include "config.h"
 
-#include <pthread.h>
-
 #include "messagebus.h"
 #include "messagebus_restclient.h"
 
@@ -46,21 +44,17 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
         globalreg->entrytracker->RegisterField("kismet.messagebus.message",
                 msg_builder, "Kismet message");
 
-    pthread_mutex_init(&msg_mutex, NULL);
-
 	globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
 }
 
 RestMessageClient::~RestMessageClient() {
-    pthread_mutex_lock(&msg_mutex);
+    local_eol_locker lock(&msg_mutex);
 
     globalreg->messagebus->RemoveClient(this);
 
     globalreg->RemoveGlobal("REST_MSG_CLIENT");
 
     message_vec.clear();
-
-    pthread_mutex_destroy(&msg_mutex);
 }
 
 void RestMessageClient::ProcessMessage(string in_msg, int in_flags) {

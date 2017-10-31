@@ -265,7 +265,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    pthread_mutex_t plugin_lock;
+    std::recursive_timed_mutex plugin_lock;
 
 	GlobalRegistry *globalreg;
 	int plugins_active;

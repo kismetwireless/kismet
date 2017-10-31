@@ -402,7 +402,7 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
-    pthread_mutex_t alert_mutex;
+    std::recursive_timed_mutex alert_mutex;
 
     shared_ptr<Packetchain> packetchain;
     shared_ptr<EntryTracker> entrytracker;

@@ -38,11 +38,6 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 	globalreg = in_globalreg;
 	next_alert_id = 0;
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&alert_mutex, &mutexattr);
-
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
 		exit(1);
@@ -117,7 +112,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 }
 
 Alertracker::~Alertracker() {
-    pthread_mutex_lock(&alert_mutex);
+    local_eol_locker lock(&alert_mutex);
 
     globalreg->RemoveGlobal("ALERTTRACKER");
     globalreg->alertracker = NULL;
@@ -126,8 +121,6 @@ Alertracker::~Alertracker() {
     prelude_deinit();
     delete prelude_client;
 #endif
-
-    pthread_mutex_destroy(&alert_mutex);
 }
 
 void Alertracker::PreludeInitClient(const char *analyzer_name) {

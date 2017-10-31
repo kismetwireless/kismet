@@ -18,8 +18,6 @@
 
 #include "config.h"
 
-#include <pthread.h>
-
 #include "messagebus.h"
 #include "configfile.h"
 #include "kis_httpd_registry.h"
@@ -30,17 +28,11 @@ Kis_Httpd_Registry::Kis_Httpd_Registry(GlobalRegistry *in_globalreg) :
 
     globalreg = in_globalreg;
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&reg_lock, &mutexattr);
-
 }
 
 Kis_Httpd_Registry::~Kis_Httpd_Registry() {
     local_eol_locker lock(&reg_lock);
 
-    pthread_mutex_destroy(&reg_lock);
 }
 
 bool Kis_Httpd_Registry::register_js_module(string in_module, string in_path) {

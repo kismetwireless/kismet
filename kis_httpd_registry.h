@@ -61,7 +61,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    pthread_mutex_t reg_lock;
+    std::recursive_timed_mutex reg_lock;
 
     GlobalRegistry *globalreg;
 

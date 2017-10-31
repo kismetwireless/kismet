@@ -33,11 +33,6 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
         SharedDatasourceBuilder in_builder) :
     tracker_component(in_globalreg, 0) {
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&source_lock, &mutexattr);
-
     globalreg = in_globalreg;
     
     register_fields();
@@ -116,8 +111,6 @@ KisDatasource::~KisDatasource() {
     // We don't call a normal close here because we can't risk double-free
     // or going through commands again - if the source is being deleted, it should
     // be completed!
-
-    pthread_mutex_destroy(&source_lock);
 }
 
 void KisDatasource::list_interfaces(unsigned int in_transaction, 

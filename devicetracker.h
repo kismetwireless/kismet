@@ -31,7 +31,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 
 #include <stdexcept>
 
@@ -379,7 +378,7 @@ public:
     virtual void Finalize(Devicetracker *devicetracker) { }
 
 protected:
-    pthread_mutex_t worker_mutex;
+    std::recursive_timed_mutex worker_mutex;
 };
 
 // Small database helper class for the state store; we need to be able to 
@@ -646,7 +645,7 @@ protected:
     // Insert a device directly into the records
     void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
 
-    pthread_mutex_t devicelist_mutex;
+    std::recursive_timed_mutex devicelist_mutex;
 
     std::shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
 

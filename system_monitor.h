@@ -22,7 +22,6 @@
 #include "config.h"
 
 #include <string>
-#include <pthread.h>
 
 #include "trackedelement.h"
 #include "timetracker.h"
@@ -70,7 +69,7 @@ public:
     virtual int timetracker_event(int eventid);
 
 protected:
-    pthread_mutex_t monitor_mutex;
+    std::recursive_timed_mutex monitor_mutex;
 
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);

@@ -43,13 +43,6 @@ DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg,
 
     timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
-    // Make a recursive mutex that the owning thread can lock multiple times;
-    // Required to allow a timer event to reschedule itself on completion
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&probe_lock, &mutexattr);
-
     definition = in_definition;
     proto_vec = in_protovec;
 
@@ -66,8 +59,6 @@ DST_DatasourceProbe::~DST_DatasourceProbe() {
     for (auto i = probe_vec.begin(); i != probe_vec.end(); ++i) {
         (*i)->close_source();
     }
-
-    pthread_mutex_destroy(&probe_lock);
 }
 
 void DST_DatasourceProbe::cancel() {
@@ -197,13 +188,6 @@ DST_DatasourceList::DST_DatasourceList(GlobalRegistry *in_globalreg,
 
     timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
-    // Make a recursive mutex that the owning thread can lock multiple times;
-    // Required to allow a timer event to reschedule itself on completion
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&list_lock, &mutexattr);
-
     proto_vec = in_protovec;
 
     transaction_id = 0;
@@ -219,8 +203,6 @@ DST_DatasourceList::~DST_DatasourceList() {
     for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
         (*i)->close_source();
     }
-
-    pthread_mutex_destroy(&list_lock);
 }
 
 void DST_DatasourceList::cancel() {
@@ -326,13 +308,6 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     alertracker->ActivateConfiguredAlert("SOURCEERROR",
             "A data source encountered an error.  Depending on the source configuration "
             "Kismet may automatically attempt to re-open the source.");
-
-    // Make a recursive mutex that the owning thread can lock multiple times;
-    // Required to allow a timer event to reschedule itself on completion
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&dst_lock, &mutexattr);
 
     dst_proto_builder =
         entrytracker->RegisterAndGetField("kismet.datasourcetracker.driver", 
@@ -446,8 +421,6 @@ Datasourcetracker::~Datasourcetracker() {
     }
 
     datasource_vec.reset();
-
-    pthread_mutex_destroy(&dst_lock);
 }
 
 std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {

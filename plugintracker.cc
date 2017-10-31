@@ -42,11 +42,6 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&plugin_lock, &mutexattr);
-
     int option_idx = 0;
     int cmdline_disable = 0;
     int config_disable = 0;
@@ -95,8 +90,6 @@ Plugintracker::~Plugintracker() {
 
     // Call the main shutdown, which should kill the vector allocations
     ShutdownPlugins();
-
-    pthread_mutex_destroy(&plugin_lock);
 }
 
 void Plugintracker::Usage(char *name __attribute__((unused))) {

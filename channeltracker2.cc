@@ -55,19 +55,14 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 
     timer_id = 
         globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
-
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&lock, &mutexattr);
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
+    local_eol_locker locker(&lock);
+
     globalreg->timetracker->RemoveTimer(timer_id);
     globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
     globalreg->RemoveGlobal("CHANNEL_TRACKER");
-    fprintf(stderr, "debug - channeltrackerv2 shutting down\n");
-    pthread_mutex_destroy(&lock);
 }
 
 void Channeltracker_V2::register_fields() {

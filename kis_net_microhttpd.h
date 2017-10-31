@@ -29,7 +29,6 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
-#include <pthread.h>
 #include <microhttpd.h>
 #include <memory>
 
@@ -552,7 +551,7 @@ protected:
 
     vector<static_dir> static_dir_vec;
 
-    pthread_mutex_t controller_mutex;
+    std::recursive_timed_mutex controller_mutex;
 
     // Handle the requests and dispatch to controllers
     static int http_request_handler(void *cls, struct MHD_Connection *connection,

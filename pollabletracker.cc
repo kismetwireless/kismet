@@ -21,16 +21,11 @@
 PollableTracker::PollableTracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&pollable_mutex, &mutexattr);
 }
 
 PollableTracker::~PollableTracker() {
     local_eol_locker lock(&pollable_mutex);
 
-    pthread_mutex_destroy(&pollable_mutex);
 }
 
 void PollableTracker::RegisterPollable(shared_ptr<Pollable> in_pollable) {

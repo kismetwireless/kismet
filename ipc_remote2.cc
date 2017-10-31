@@ -34,11 +34,6 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
     globalreg = in_globalreg;
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&ipc_locker, &mutexattr);
-
     pollabletracker =
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 
@@ -69,8 +64,6 @@ IPCRemoteV2::~IPCRemoteV2() {
     // fprintf(stderr, "debug - ~ipcremotev2\n");
 
     close_ipc();
-
-    pthread_mutex_destroy(&ipc_locker);
 }
 
 void IPCRemoteV2::add_path(string in_path) {
@@ -140,7 +133,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     // We can't use a local_locker here because we can't let it unlock
     // inside the child thread, because the mutex doesn't survive across
     // forking
-    pthread_mutex_lock(&ipc_locker);
+    local_eol_locker ilock(&ipc_locker);
 
     // 'in' to the spawned process, write to the server process, 
     // [1] belongs to us, [0] to them
@@ -152,7 +145,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
 #ifdef HAVE_PIPE2
     if (pipe2(inpipepair, O_NONBLOCK) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
         return -1;
     }
 
@@ -160,13 +153,13 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
         return -1;
     }
 #else
     if (pipe(inpipepair) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
         return -1;
     }
     fcntl(inpipepair[0], F_SETFL, fcntl(inpipepair[0], F_GETFL, 0) | O_NONBLOCK);
@@ -176,7 +169,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
         return -1;
     }
     fcntl(outpipepair[0], F_SETFL, fcntl(outpipepair[0], F_GETFL, 0) | O_NONBLOCK);
@@ -197,7 +190,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
 
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
     } else if (child_pid == 0) {
         // We're the child process
       
@@ -278,7 +271,9 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
         remotehandler->add_ipc(this);
     }
 
-    pthread_mutex_unlock(&ipc_locker);
+    {
+        local_unlocker ulock(&ipc_locker);
+    }
 
     // Unmask the child signal now that we're done
     sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
@@ -319,7 +314,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> 
     // We can't use a local_locker here because we can't let it unlock
     // inside the child thread, because the mutex doesn't survive across
     // forking
-    pthread_mutex_lock(&ipc_locker);
+    local_eol_locker elock(&ipc_locker);
 
     // 'in' to the spawned process, [0] belongs to us, [1] to them
     int inpipepair[2];
@@ -328,7 +323,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> 
 
     if (pipe(inpipepair) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
         return -1;
     }
 
@@ -336,13 +331,23 @@ int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> 
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
         return -1;
     }
 
+    // Mask sigchild until we're done and it's in the list
+    sigset_t mask, oldmask;
+
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
+
+    sigaddset(&mask, SIGCHLD);
+
+    sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
-        pthread_mutex_unlock(&ipc_locker);
+        local_unlocker ulock(&ipc_locker);
     } else if (child_pid == 0) {
         // We're the child process
         
@@ -389,7 +394,12 @@ int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> 
         remotehandler->add_ipc(this);
     }
 
-    pthread_mutex_unlock(&ipc_locker);
+    {
+        local_unlocker ulock(&ipc_locker);
+    }
+
+    // Unmask the child signal now that we're done
+    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     return 1;
 }
@@ -454,18 +464,16 @@ void IPCRemoteV2::notify_killed(int in_exit) {
 IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
-    pthread_mutex_init(&ipc_locker, NULL);
-
     timer_id = 
         globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
 }
 
 IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
+    local_eol_locker lock(&ipc_locker);
+
     globalreg->RemoveGlobal("IPCHANDLER");
 
     globalreg->timetracker->RemoveTimer(timer_id);
-
-    pthread_mutex_destroy(&ipc_locker);
 }
 
 void IPCRemoteV2Tracker::add_ipc(IPCRemoteV2 *in_remote) {

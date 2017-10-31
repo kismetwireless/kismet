@@ -24,7 +24,6 @@
 
 #include <string>
 #include <vector>
-#include <pthread.h>
 
 #include "globalregistry.h"
 
@@ -102,7 +101,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    pthread_mutex_t msg_mutex;
+    std::recursive_timed_mutex msg_mutex;
 
     typedef struct {
         MessageClient *client;

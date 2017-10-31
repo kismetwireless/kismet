@@ -24,7 +24,6 @@
 
 #include <string>
 #include <vector>
-#include <pthread.h>
 
 #include "globalregistry.h"
 
@@ -115,7 +114,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    pthread_mutex_t msg_mutex;
+    std::recursive_timed_mutex msg_mutex;
 
     std::vector<shared_ptr<tracked_message> > message_vec;
 

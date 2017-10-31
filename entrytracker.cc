@@ -28,12 +28,6 @@ EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
-    // Initialize as recursive to allow multiple locks in a single thread
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&entry_mutex, &mutexattr);
-
     next_field_num = 1;
 }
 

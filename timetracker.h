@@ -29,8 +29,6 @@
 #include <algorithm>
 #include <string>
 
-#include <pthread.h>
-
 #include <functional>
 
 #include "globalregistry.h"
@@ -118,7 +116,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    pthread_mutex_t time_mutex;
+    std::recursive_timed_mutex time_mutex;
 
     // Nonblocking versions
     int RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,

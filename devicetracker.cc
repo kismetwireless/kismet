@@ -30,7 +30,6 @@
 
 #include <string>
 #include <sstream>
-#include <pthread.h>
 
 #include "globalregistry.h"
 #include "util.h"
@@ -312,12 +311,6 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg),
     KisDatabase(in_globalreg, "devicetracker") {
-
-    // Initialize as recursive to allow multiple locks in a single thread
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&devicelist_mutex, &mutexattr);
 
 	globalreg = in_globalreg;
 
@@ -609,7 +602,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 }
 
 Devicetracker::~Devicetracker() {
-    pthread_mutex_lock(&devicelist_mutex);
+    local_eol_locker lock(&devicelist_mutex);
 
     store_all_devices();
     databaselog_write_all_devices();
@@ -650,8 +643,6 @@ Devicetracker::~Devicetracker() {
     tracked_vec.clear();
     immutable_tracked_vec.clear();
     tracked_mac_multimap.clear();
-
-    pthread_mutex_destroy(&devicelist_mutex);
 }
 
 Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
@@ -1303,22 +1294,11 @@ void Devicetracker::usage(const char *name __attribute__((unused))) {
 }
 
 void Devicetracker::lock_devicelist() {
-#ifdef HAVE_PTHREAD_TIMELOCK
-        struct timespec t;
-
-        clock_gettime(CLOCK_REALTIME , &t); 
-        t.tv_sec += 5; \
-
-        if (pthread_mutex_timedlock(&devicelist_mutex, &t) != 0) {
-            throw(std::runtime_error("mutex not available w/in 5 seconds"));
-        }
-#else
-        pthread_mutex_lock(&devicelist_mutex);
-#endif
+    local_eol_locker lock(&devicelist_mutex);
 }
 
 void Devicetracker::unlock_devicelist() {
-    pthread_mutex_unlock(&devicelist_mutex);
+    local_unlocker unlock(&devicelist_mutex);
 }
 
 int Devicetracker::Database_UpgradeDB() {

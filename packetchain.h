@@ -34,8 +34,6 @@
 #include <map>
 #include <functional>
 
-#include <pthread.h>
-
 #include "globalregistry.h"
 #include "packet.h"
 
@@ -150,7 +148,7 @@ protected:
 	vector<Packetchain::pc_link *> tracker_chain;
     vector<Packetchain::pc_link *> logging_chain;
 
-	pthread_mutex_t packetchain_mutex;
+    std::recursive_timed_mutex packetchain_mutex;
 };
 
 #endif

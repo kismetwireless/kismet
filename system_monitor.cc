@@ -35,12 +35,6 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
-    // Initialize as recursive to allow multiple locks in a single thread
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&monitor_mutex, &mutexattr);
-
     globalreg = in_globalreg;
 
     devicetracker =
@@ -66,10 +60,10 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 }
 
 Systemmonitor::~Systemmonitor() {
-    pthread_mutex_lock(&monitor_mutex);
+    local_eol_locker lock(&monitor_mutex);
+
     globalreg->RemoveGlobal("SYSTEM_MONITOR");
     globalreg->timetracker->RemoveTimer(timer_id);
-    pthread_mutex_destroy(&monitor_mutex);
 }
 
 void Systemmonitor::register_fields() {

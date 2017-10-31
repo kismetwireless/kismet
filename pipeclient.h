@@ -55,7 +55,7 @@ public:
     bool FetchConnected();
 
 protected:
-    pthread_mutex_t pipe_lock;
+    std::recursive_timed_mutex pipe_lock;
 
     GlobalRegistry *globalreg;
     shared_ptr<BufferHandlerGeneric> handler;

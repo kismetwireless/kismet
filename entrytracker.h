@@ -28,8 +28,6 @@
 #include <string>
 #include <map>
 
-#include <pthread.h>
-
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
@@ -104,7 +102,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    pthread_mutex_t entry_mutex;
+    std::recursive_timed_mutex entry_mutex;
 
     int next_field_num;
 

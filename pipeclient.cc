@@ -35,11 +35,6 @@ PipeClient::PipeClient(GlobalRegistry *in_globalreg,
     globalreg = in_globalreg;
     handler = in_rbhandler;
 
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&pipe_lock, &mutexattr);
-
     read_fd = -1;
     write_fd = -1;
 }
@@ -55,8 +50,6 @@ PipeClient::~PipeClient() {
         static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 
     handler.reset();
-
-    pthread_mutex_destroy(&pipe_lock);
 }
 
 int PipeClient::OpenPipes(int rpipe, int wpipe) {

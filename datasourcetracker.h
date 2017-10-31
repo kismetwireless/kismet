@@ -21,7 +21,6 @@
 
 #include "config.h"
 
-#include <pthread.h>
 #include <string>
 #include <vector>
 #include <map>
@@ -112,7 +111,7 @@ public:
     void cancel();
 
 protected:
-    pthread_mutex_t probe_lock;
+    std::recursive_timed_mutex probe_lock;
 
     GlobalRegistry *globalreg;
 
@@ -172,7 +171,7 @@ public:
     void cancel();
 
 protected:
-    pthread_mutex_t list_lock;
+    std::recursive_timed_mutex list_lock;
 
     GlobalRegistry *globalreg;
 
@@ -432,7 +431,7 @@ protected:
     shared_ptr<EntryTracker> entrytracker;
     shared_ptr<Timetracker> timetracker;
 
-    pthread_mutex_t dst_lock;
+    std::recursive_timed_mutex dst_lock;
 
     SharedTrackerElement dst_proto_builder;
     SharedTrackerElement dst_source_builder;

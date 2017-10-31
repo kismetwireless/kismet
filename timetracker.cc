@@ -25,13 +25,6 @@
 Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
-    // Make a recursive mutex that the owning thread can lock multiple times;
-    // Required to allow a timer event to reschedule itself on completion
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&time_mutex, &mutexattr);
-
     next_timer_id = 0;
 
 	globalreg->start_time = time(0);
@@ -39,7 +32,7 @@ Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
 }
 
 Timetracker::~Timetracker() {
-    pthread_mutex_lock(&time_mutex);
+    local_eol_locker lock(&time_mutex);
 
     globalreg->RemoveGlobal("TIMETRACKER");
     globalreg->timetracker = NULL;
@@ -48,8 +41,6 @@ Timetracker::~Timetracker() {
     for (map<int, timer_event *>::iterator x = timer_map.begin();
          x != timer_map.end(); ++x)
         delete x->second;
-
-    pthread_mutex_destroy(&time_mutex);
 }
 
 int Timetracker::Tick() {

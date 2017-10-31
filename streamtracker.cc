@@ -25,12 +25,6 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg), 
     LifetimeGlobal() {
 
-    // Initialize as recursive to allow multiple locks in a single thread
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&mutex, &mutexattr);
-
     globalreg = in_globalreg;
 
     shared_ptr<EntryTracker> entrytracker = 
@@ -48,8 +42,6 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
 
 StreamTracker::~StreamTracker() {
     local_eol_locker lock(&mutex);
-
-    pthread_mutex_destroy(&mutex);
 }
 
 bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {

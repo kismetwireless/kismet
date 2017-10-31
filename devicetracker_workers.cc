@@ -60,12 +60,11 @@ devicetracker_function_worker::devicetracker_function_worker(GlobalRegistry *in_
 
     mcb = in_mcb;
     fcb = in_fcb;
-
-    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_function_worker::~devicetracker_function_worker() {
-    pthread_mutex_destroy(&worker_mutex);
+    local_eol_locker lock(&worker_mutex);
+
 }
 
 void devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
@@ -109,12 +108,10 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistr
     mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
 
     return_dev_vec = in_devvec_object;
-
-    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
-    pthread_mutex_destroy(&worker_mutex);
+    local_eol_locker lock(&worker_mutex);
 }
 
 void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
@@ -172,8 +169,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     pcre_match_id = 
         entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
                 "Index of last matching PCRE comparison");
-
-    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
@@ -232,8 +227,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     pcre_match_id = 
         entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
                 "Index of last matching PCRE comparison");
-
-    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
@@ -288,12 +281,10 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     pcre_match_id = 
         entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
                 "Index of last matching PCRE comparison");
-
-    pthread_mutex_init(&worker_mutex, NULL);
 }
 
 devicetracker_pcre_worker::~devicetracker_pcre_worker() {
-    pthread_mutex_destroy(&worker_mutex);
+    local_eol_locker lock(&worker_mutex);
 }
 
 void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),

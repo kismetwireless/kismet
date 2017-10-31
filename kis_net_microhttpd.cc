@@ -25,7 +25,6 @@
 #include <sstream>
 #include <iomanip>
 #include <stdio.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -54,11 +53,6 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     use_ssl = false;
     cert_pem = NULL;
     cert_key = NULL;
-
-    pthread_mutexattr_t mutexattr;
-    pthread_mutexattr_init(&mutexattr);
-    pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&controller_mutex, &mutexattr);
 
     if (globalreg->kismet_config == NULL) {
         fprintf(stderr, "FATAL OOPS: Kis_Net_Httpd called without kismet_config\n");
@@ -197,7 +191,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
-    pthread_mutex_lock(&controller_mutex);
+    local_eol_locker lock(&controller_mutex);
 
     globalreg->RemoveGlobal("HTTPD_SERVER");
 
@@ -212,8 +206,6 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
     }
 
     session_map.clear();
-
-    pthread_mutex_destroy(&controller_mutex);
 }
 
 void Kis_Net_Httpd::RegisterSessionHandler(shared_ptr<Kis_Httpd_Websession> in_session) {
