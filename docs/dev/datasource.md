@@ -34,6 +34,17 @@ Datasource implementations *may* use other message passing mechanisms, either in
 
 Several top-level packet types and key:value pairs are pre-defined and will be automatically handled by classes derived from the `KisDataSource` driver.
 
+#### CHANNELS (Datasource->Kismet)
+Alert Kismet that the device has changed its channel list. 
+
+This occurs when, for instance, a Wi-Fi card driver communicates that it supports some set of channels, but is unable to actually tune to them.  Sending this message will most likely cause the server to rebalance channel hopping.
+
+KV Pairs:
+* CHANNELS (representing the new *current channel list*, the *supported channel list* remains unchanged)
+
+Responses:
+* NONE
+
 #### CLOSEDEVICE (Kismet->Datasource)
 Close any open device and initiate a shutdown.  Sent to capture binary during source close or server shutdown.
 
