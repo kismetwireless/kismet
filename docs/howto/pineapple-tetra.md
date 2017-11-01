@@ -38,6 +38,18 @@ Firstly, you'll need the Tetra snapshot of OpenWRT.  It's on github at https://g
 $ git clone https://github.com/WiFiPineapple/openwrt-pineapple-tetra.git
 ```
 
+## Fix the OpenWRT download script
+
+Openwrt hasn't been updated in some time; the kernel.org FTP server is now gone.
+
+Edit `scripts/download.pl` in your OpenWRT source and change:
+
+`push @mirrors, "http://ftp.all.kernel.org/pub/$dir";`
+
+to
+
+`push @mirrors, "https://kernel.org/pub/$dir";`
+
 ## Enable the feeds in OpenWRT
 
 Kismet needs a bunch of libraries which are found in the OpenWRT Git Feeds.  You can enable them in the OpenWRT build by:
