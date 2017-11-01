@@ -706,11 +706,11 @@ To match on a single explicit SSID or any ssid ending in 'foo':
 }
 ```
 
-##### /phy/phy80211/by-bssid/[MAC]/pcap/[MAC]-handshake.pcap 
+##### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap
 
 *LOGIN REQUIRED*
 
-Retrieve a pcap file of WPA EAPOL key packets seen by the 802.11 access point with the BSSID `[MAC]`.  If there are no WPA handshake packets, an empty pcap file will be returned.
+Retrieve a pcap file of WPA EAPOL key packets seen by the 802.11 access point specified by `[key]`.  If there are no WPA handshake packets, an empty pcap file will be returned.
 
 This pcap file is not streamed, it is a single pcap of the handshake packets only.
 
