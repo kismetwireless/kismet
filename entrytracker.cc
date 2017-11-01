@@ -307,7 +307,7 @@ void EntryTracker::Httpd_CreateStreamResponse(
 
 void EntryTracker::RegisterSerializer(string in_name, 
         shared_ptr<TrackerElementSerializer> in_ser) {
-    local_locker lock(&entry_mutex);
+    local_locker lock(&serializer_mutex);
     
     string mod_type = StrLower(in_name);
 
@@ -321,7 +321,7 @@ void EntryTracker::RegisterSerializer(string in_name,
 }
 
 void EntryTracker::RemoveSerializer(string in_name) {
-    local_locker lock(&entry_mutex);
+    local_locker lock(&serializer_mutex);
 
     string mod_type = StrLower(in_name);
     serial_itr i = serializer_map.find(in_name);
@@ -332,7 +332,7 @@ void EntryTracker::RemoveSerializer(string in_name) {
 }
 
 bool EntryTracker::CanSerialize(string in_name) {
-    local_locker lock(&entry_mutex);
+    local_locker lock(&serializer_mutex);
 
     string mod_type = StrLower(in_name);
     serial_itr i = serializer_map.find(in_name);
@@ -347,7 +347,7 @@ bool EntryTracker::CanSerialize(string in_name) {
 bool EntryTracker::Serialize(string in_name, std::ostream &stream,
         SharedTrackerElement e,
         TrackerElementSerializer::rename_map *name_map) {
-    local_locker lock(&entry_mutex);
+    local_locker lock(&serializer_mutex);
 
     serial_itr i = serializer_map.find(in_name);
 

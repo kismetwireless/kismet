@@ -103,6 +103,7 @@ protected:
     GlobalRegistry *globalreg;
 
     std::recursive_timed_mutex entry_mutex;
+    std::recursive_timed_mutex serializer_mutex;
 
     int next_field_num;
 
