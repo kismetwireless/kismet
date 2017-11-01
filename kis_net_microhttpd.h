@@ -304,7 +304,7 @@ public:
         lock.unlock();
 
         // Unlock the conditional locker
-        cl->unlock("triggered");
+        cl->unlock(0);
 
     }
 
@@ -339,8 +339,14 @@ public:
     // session)
     void block_until_data();
 
+    // Get the buffer event mutex
+    std::recursive_timed_mutex *get_buffer_event_mutex() {
+        return &buffer_event_mutex;
+    }
+
 public:
     std::recursive_timed_mutex aux_mutex;
+    std::recursive_timed_mutex buffer_event_mutex;
 
     // Stream handler we belong to
     Kis_Net_Httpd_Buffer_Stream_Handler *httpd_stream_handler;
@@ -352,7 +358,7 @@ public:
     shared_ptr<BufferHandlerGeneric> ringbuf_handler;
 
     // Conditional locker while waiting for the stream to have data
-    shared_ptr<conditional_locker<string> > cl;
+    shared_ptr<conditional_locker<int> > cl;
 
     // Are we in error?
     bool in_error;

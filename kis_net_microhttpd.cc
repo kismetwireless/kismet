@@ -1109,7 +1109,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
     aux = in_aux;
     free_aux_cb = in_free_aux;
 
-    cl.reset(new conditional_locker<string>());
+    cl.reset(new conditional_locker<int>());
     cl->lock();
 
     in_error = false;
@@ -1124,7 +1124,14 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
 }
 
 Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
+    // Get out of the lock and flag an error so we end
+    in_error = true;
+    cl->unlock(0);
+
     local_eol_locker lock(&aux_mutex);
+
+    // Lock that the buffer callback has ended!
+    local_eol_locker bclock(&buffer_event_mutex);
 
     if (ringbuf_handler) {
         ringbuf_handler->RemoveWriteBufferInterface();
@@ -1137,7 +1144,7 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
     // fprintf(stderr, "debug - knmh - unlocking %lu\n", in_amt);
-    cl->unlock("data");
+    cl->unlock(1);
 }
 
 void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
@@ -1172,8 +1179,10 @@ Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
 
 ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
-
     Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+
+    // Protect that we have to exit the buffer cb before the stream can be killed
+    local_locker bec_locker(stream_aux->get_buffer_event_mutex());
 
     shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
@@ -1213,9 +1222,7 @@ static void free_buffer_aux_callback(void *cls) {
     Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
     // Wait for the thread to complete
-    if (aux->generator_thread.joinable()) {
-        aux->generator_thread.join();
-    }
+    aux->generator_thread.join();
 
     if (aux->free_aux_cb != NULL) {
         aux->free_aux_cb(aux);
