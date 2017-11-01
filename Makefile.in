@@ -273,6 +273,7 @@ clean:
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
 	@(cd capture_linux_bluetooth; make clean)
+	@(cd capture_linux_wifi; make clean)
 	@(cd msgpack-1.4.1; make clean)
 
 distclean:
