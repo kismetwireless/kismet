@@ -84,8 +84,6 @@ public:
     size_t consume(size_t in_sz);
 
 protected:
-    std::recursive_timed_mutex state_mutex;
-
     size_t chunk_sz;
     bool free_after_read;
 

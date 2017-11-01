@@ -62,13 +62,13 @@ void Chainbuf::clear() {
 }
 
 size_t Chainbuf::used() {
-    local_locker lock(&state_mutex);
+    local_locker lock(&write_mutex);
 
     return used_sz;
 }
 
 size_t Chainbuf::total() {
-    local_locker lock(&state_mutex);
+    local_locker lock(&write_mutex);
 
     return total_sz;
 }
@@ -98,6 +98,11 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
 
         write_offt += w_sz;
 
+        total_written += w_sz;
+
+        used_sz += w_sz;
+        total_sz += w_sz;
+
         // If we got here and we have more data, then we must need another chunk
         if (total_written < in_sz) {
             uint8_t *newchunk = new uint8_t[chunk_sz];
@@ -114,13 +119,6 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
                 alloc_delta = write_block - read_block;
 
             write_offt = 0;
-        }
-
-        {
-            local_locker statelock(&state_mutex);
-            total_written += w_sz;
-            used_sz += w_sz;
-            total_sz += w_sz;
         }
     }
 
@@ -299,10 +297,7 @@ size_t Chainbuf::consume(size_t in_sz) {
     }
 
     // fprintf(stderr, "debug - chainbuf - consumed %lu used %lu\n", consumed_sz, used_sz);
-    {
-        local_locker state_lock(&state_mutex);
-        used_sz -= consumed_sz;
-    }
+    used_sz -= consumed_sz;
     return consumed_sz;
 }
 
