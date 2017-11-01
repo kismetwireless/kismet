@@ -341,9 +341,11 @@ void CatchShutdown(int sig) {
     if (!globalregistry->spindown) {
         globalregistry->spindown = 1;
 
+#if 0
         shared_ptr<PollableTracker> pollabletracker =
             Globalreg::FetchGlobalAs<PollableTracker>(globalregistry, "POLLABLETRACKER");
         SpindownKismet(pollabletracker);
+#endif
     }
 
     return;
@@ -918,9 +920,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add module registry
     Kis_Httpd_Registry::create_http_registry(globalregistry);
 
-    // Add channel tracking
-    Channeltracker_V2::create_channeltracker(globalregistry);
-
     // Create the alert tracker
     Alertracker::create_alertracker(globalregistry);
 
@@ -937,6 +936,9 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the device tracker
     shared_ptr<Devicetracker> devicetracker = 
         Devicetracker::create_devicetracker(globalregistry);
+
+    // Add channel tracking
+    Channeltracker_V2::create_channeltracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
@@ -1075,7 +1077,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
         sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
-        if (globalregistry->fatal_condition) {
+        if (globalregistry->fatal_condition || globalregistry->spindown) {
             break;
         }
     }
