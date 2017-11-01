@@ -291,14 +291,14 @@ public:
     virtual ~Kis_Net_Httpd_Buffer_Stream_Aux();
 
     bool get_in_error() { 
-        local_locker lock(&aux_mutex);
+        local_locker lock(&error_mutex);
         return in_error;
     }
 
     void trigger_error() {
         // Scope so we're done with our mutex by the time we release the conditional
         // locker
-        local_demand_locker lock(&aux_mutex);
+        local_demand_locker lock(&error_mutex);
         lock.lock();
         in_error = true;
         lock.unlock();
@@ -346,6 +346,7 @@ public:
 
 public:
     std::recursive_timed_mutex aux_mutex;
+    std::recursive_timed_mutex error_mutex;
     std::recursive_timed_mutex buffer_event_mutex;
 
     // Stream handler we belong to
