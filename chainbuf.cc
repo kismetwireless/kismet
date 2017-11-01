@@ -62,64 +62,69 @@ void Chainbuf::clear() {
 }
 
 size_t Chainbuf::used() {
-    local_locker lock(&write_mutex);
+    local_locker lock(&size_mutex);
 
-    return used_sz;
+    return pub_used_sz;
 }
 
 size_t Chainbuf::total() {
-    local_locker lock(&write_mutex);
+    local_locker lock(&size_mutex);
 
-    return total_sz;
+    return pub_total_sz;
 }
 
 ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
-    local_locker lock(&write_mutex);
-
     size_t total_written = 0;
 
-    while (total_written < in_sz) {
-        // Available in this chunk
-        size_t free_chunk_sz = chunk_sz - write_offt;
+    {
+        local_locker lock(&write_mutex);
 
-        // Whole buffer or whole chunk
-        size_t w_sz = min(in_sz - total_written, free_chunk_sz);
+        while (total_written < in_sz) {
+            // Available in this chunk
+            size_t free_chunk_sz = chunk_sz - write_offt;
 
-        // fprintf(stderr, "debug - chainbuf - in_sz %lu free in block %lu total written %lu\n", in_sz, free_chunk_sz, total_written);
+            // Whole buffer or whole chunk
+            size_t w_sz = min(in_sz - total_written, free_chunk_sz);
 
-        // fprintf(stderr, "debug - w_sz %lu block %p\n", w_sz, buff_vec[write_block]);
-
-        if (in_data != NULL) {
-            if (w_sz == 1)
-                write_buf[write_offt] = in_data[total_written];
-            else
-                memcpy(write_buf + write_offt, in_data + total_written, w_sz);
-        }
-
-        write_offt += w_sz;
-
-        total_written += w_sz;
-
-        used_sz += w_sz;
-        total_sz += w_sz;
-
-        // If we got here and we have more data, then we must need another chunk
-        if (total_written < in_sz) {
-            uint8_t *newchunk = new uint8_t[chunk_sz];
-            buff_vec.push_back(newchunk);
-            write_block++;
-            write_buf = buff_vec[write_block];
-
-            if (read_buf == NULL) {
-                read_buf = buff_vec[read_block];
+            if (in_data != NULL) {
+                if (w_sz == 1)
+                    write_buf[write_offt] = in_data[total_written];
+                else
+                    memcpy(write_buf + write_offt, in_data + total_written, w_sz);
             }
 
-            // Track the max simultaneously allocated
-            if (write_block - read_block > alloc_delta)
-                alloc_delta = write_block - read_block;
+            write_offt += w_sz;
 
-            write_offt = 0;
+            total_written += w_sz;
+
+            used_sz += w_sz;
+            total_sz += w_sz;
+
+            // If we got here and we have more data, then we must need another chunk
+            if (total_written < in_sz) {
+                uint8_t *newchunk = new uint8_t[chunk_sz];
+                buff_vec.push_back(newchunk);
+                write_block++;
+                write_buf = buff_vec[write_block];
+
+                if (read_buf == NULL) {
+                    read_buf = buff_vec[read_block];
+                }
+
+                // Track the max simultaneously allocated
+                if (write_block - read_block > alloc_delta)
+                    alloc_delta = write_block - read_block;
+
+                write_offt = 0;
+            }
         }
+    }
+
+    {
+        local_locker lock(&size_mutex);
+
+        pub_used_sz = used_sz;
+        pub_total_sz = total_sz;
     }
 
     return total_written;
@@ -237,67 +242,72 @@ void Chainbuf::peek_free(unsigned char *in_data) {
 }
 
 size_t Chainbuf::consume(size_t in_sz) {
-    // Protect against crossthread
-    local_locker writelock(&write_mutex);
-
-    if (peek_reserved) {
-        throw std::runtime_error("chainbuf consume while peeked data pending");
-    }
-
-    if (write_reserved) {
-        throw std::runtime_error("chainbuf consume while write block is reserved");
-    }
-
     ssize_t consumed_sz = 0;
-    int block_offt = 0;
 
-    while (consumed_sz < (ssize_t) in_sz) {
-        ssize_t rd_sz = 0;
+    {
+        // Protect against crossthread
+        local_locker writelock(&write_mutex);
 
-        // If we've wandered out of our block...
-        if (read_block + block_offt >= buff_vec.size())
-            throw std::runtime_error("chainbuf ran out of room in buffer vector "
-                    "during consume");
-
-        // Get either the remaining data, or the remaining chunk
-        rd_sz = min(in_sz - consumed_sz, chunk_sz - read_offt);
-
-        // Jump ahead
-        consumed_sz += rd_sz;
-
-        // Jump the read offset
-        read_offt += rd_sz;
-
-        // fprintf(stderr, "debug - chainbuf - consumed, read_offt %lu\n", read_offt);
-
-        // We've jumped to the next block...
-        if (read_offt >= chunk_sz) {
-            // Universal read offt jumps
-            read_offt = 0;
-
-            // Data consuming block offt jumps
-            block_offt++;
-
-            // Remove the old read block and set the slot to null
-            // fprintf(stderr, "debug - chainbuf read_block freeing %u\n", read_block);
-            delete[](buff_vec[read_block]);
-            buff_vec[read_block] = NULL;
-
-            // Move the global read pointer
-            read_block++;
-
-            if (read_block < buff_vec.size()) 
-                read_buf = buff_vec[read_block];
-            else
-                read_buf = NULL;
-
-            // fprintf(stderr, "debug - chainbuf - moved read_buf to %p\n", read_buf);
+        if (peek_reserved) {
+            throw std::runtime_error("chainbuf consume while peeked data pending");
         }
 
+        if (write_reserved) {
+            throw std::runtime_error("chainbuf consume while write block is reserved");
+        }
+
+        int block_offt = 0;
+
+        while (consumed_sz < (ssize_t) in_sz) {
+            ssize_t rd_sz = 0;
+
+            // If we've wandered out of our block...
+            if (read_block + block_offt >= buff_vec.size())
+                throw std::runtime_error("chainbuf ran out of room in buffer vector "
+                        "during consume");
+
+            // Get either the remaining data, or the remaining chunk
+            rd_sz = min(in_sz - consumed_sz, chunk_sz - read_offt);
+
+            // Jump ahead
+            consumed_sz += rd_sz;
+
+            // Jump the read offset
+            read_offt += rd_sz;
+
+            // We've jumped to the next block...
+            if (read_offt >= chunk_sz) {
+                // Universal read offt jumps
+                read_offt = 0;
+
+                // Data consuming block offt jumps
+                block_offt++;
+
+                // Remove the old read block and set the slot to null
+                delete[](buff_vec[read_block]);
+                buff_vec[read_block] = NULL;
+
+                // Move the global read pointer
+                read_block++;
+
+                if (read_block < buff_vec.size()) 
+                    read_buf = buff_vec[read_block];
+                else
+                    read_buf = NULL;
+            }
+
+        }
+
+        used_sz -= consumed_sz;
     }
 
-    // fprintf(stderr, "debug - chainbuf - consumed %lu used %lu\n", consumed_sz, used_sz);
-    used_sz -= consumed_sz;
+    {
+        local_locker lock(&size_mutex);
+
+        pub_used_sz = used_sz;
+        pub_total_sz = total_sz;
+    }
+
     return consumed_sz;
 }
 
