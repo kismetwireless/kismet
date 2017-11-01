@@ -248,7 +248,10 @@ int Alertracker::PotentialAlert(int in_ref) {
 int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 							mac_addr bssid, mac_addr source, mac_addr dest, 
 							mac_addr other, string in_channel, string in_text) {
-    local_locker lock(&alert_mutex);
+
+    local_demand_locker lock(&alert_mutex);
+
+    alert_mutex.lock();
 
 	map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
 
@@ -259,6 +262,8 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 	if (CheckTimes(arec) != 1)
 		return 0;
+
+    alert_mutex.unlock();
 
 	kis_alert_info *info = new kis_alert_info;
 
@@ -280,11 +285,15 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
     arec->inc_total_sent(1);
     arec->set_time_last(ts_to_double(info->tm));
 
+    alert_mutex.lock();
+
 	alert_backlog.push_back(info);
 	if ((int) alert_backlog.size() > num_backlog) {
 		delete alert_backlog[0];
 		alert_backlog.erase(alert_backlog.begin());
 	}
+
+    alert_mutex.unlock();
 
 	// Try to get the existing alert info
 	if (in_pack != NULL)  {
@@ -324,7 +333,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 }
 
 int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in_phy) {
-    local_locker lock(&alert_mutex);
+    local_demand_locker lock(&alert_mutex);
 
 	kis_alert_info *info = new kis_alert_info;
 
@@ -341,11 +350,13 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 
 	info->text = in_text;
 
+    lock.lock();
 	alert_backlog.push_back(info);
 	if ((int) alert_backlog.size() > num_backlog) {
 		delete alert_backlog[0];
 		alert_backlog.erase(alert_backlog.begin());
 	}
+    lock.unlock();
 
 #ifdef PRELUDE
 	// Send alert to Prelude
