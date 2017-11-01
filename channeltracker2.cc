@@ -37,31 +37,41 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
     register_fields();
     reserve_fields(NULL);
 
-    globalreg->packetchain->RegisterHandler(&PacketChainHandler, this, 
-            CHAINPOS_LOGGING, 0);
+    std::shared_ptr<Packetchain> packetchain = 
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
 
-	pack_comp_device = _PCM(PACK_COMP_DEVICE) =
-		globalreg->packetchain->RegisterPacketComponent("DEVICE");
+    packetchain->RegisterHandler(&PacketChainHandler, this, CHAINPOS_LOGGING, 0);
 
-	pack_comp_common = _PCM(PACK_COMP_COMMON) =
-		globalreg->packetchain->RegisterPacketComponent("COMMON");
+	pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
+	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
+	pack_comp_l1data = globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
-	pack_comp_l1data = 
-		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+    devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
 
     struct timeval trigger_tm;
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    timer_id = 
-        globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+    std::shared_ptr<Timetracker> timetracker =
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+
+    timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
     local_eol_locker locker(&lock);
 
-    globalreg->timetracker->RemoveTimer(timer_id);
-    globalreg->packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
+    std::shared_ptr<Timetracker> timetracker =
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    if (timetracker != NULL)
+        timetracker->RemoveTimer(timer_id);
+
+    std::shared_ptr<Packetchain> packetchain = 
+        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    if (packetchain != NULL)
+        packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
+
     globalreg->RemoveGlobal("CHANNEL_TRACKER");
 }
 
@@ -176,15 +186,18 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
     local_locker locker(&lock);
 
     channeltracker_v2_device_worker worker(globalreg, this);
-    globalreg->devicetracker->MatchOnDevices(&worker);
+    devicetracker->MatchOnDevices(&worker);
 
     // Reschedule
     struct timeval trigger_tm;
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    timer_id = 
-        globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+    std::shared_ptr<Timetracker> timetracker =
+        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    if (timetracker != NULL)
+        timer_id = 
+            timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     return 1;
 }

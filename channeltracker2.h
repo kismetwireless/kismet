@@ -195,6 +195,8 @@ public:
 protected:
     std::recursive_timed_mutex lock;
 
+    std::shared_ptr<Devicetracker> devicetracker;
+
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);
 
