@@ -1154,36 +1154,39 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
     size_t chunk_sz = 50;
 
     while (1) {
-        {
-            // Limited scope lock
-            
-            local_locker lock(&devicelist_mutex);
+        // Limited scope lock
 
-            auto b = vec.begin() + dpos;
-            auto e = b + chunk_sz;
-            bool last_loop = false;
+        local_demand_locker lock(&devicelist_mutex);
 
-            if (e > vec.end()) {
-                e = vec.end();
-                last_loop = true;
-            }
+        auto b = vec.begin() + dpos;
+        auto e = b + chunk_sz;
+        bool last_loop = false;
 
-            // Parallel f-e
-            kismet__for_each(b, e, 
-                    [&](SharedTrackerElement val) {
-                        if (val == NULL)
-                            return;
-                        std::shared_ptr<kis_tracked_device_base> v = 
-                            std::static_pointer_cast<kis_tracked_device_base>(val);
-
-                        worker->MatchDevice(this, v);
-                    });
-
-            if (last_loop)
-                break;
-
-            dpos += chunk_sz;
+        if (e > vec.end()) {
+            e = vec.end();
+            last_loop = true;
         }
+
+        // Parallel for-each while inside a lock
+        
+        lock.lock();
+        
+        kismet__for_each(b, e, 
+                [&](SharedTrackerElement val) {
+                if (val == NULL)
+                return;
+                std::shared_ptr<kis_tracked_device_base> v = 
+                std::static_pointer_cast<kis_tracked_device_base>(val);
+
+                worker->MatchDevice(this, v);
+                });
+
+        lock.unlock();
+
+        if (last_loop)
+            break;
+
+        dpos += chunk_sz;
 
         // We're now unlocked, do a tiny sleep to let another thread grab the lock
         // if it needs to
