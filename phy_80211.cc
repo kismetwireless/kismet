@@ -2093,7 +2093,6 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
             return false;
 
         // Does it exist?
-        devicelist_scope_locker dlocker(devicetracker);
         if (devicetracker->FetchDevice(key) != NULL)
             return true;
     }
