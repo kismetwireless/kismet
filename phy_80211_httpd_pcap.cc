@@ -68,14 +68,13 @@ bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method
 
         // Does it exist?
         TrackedDeviceKey targetkey(http_globalreg->server_uuid_hash, 
-                dot11phy->FetchPhynameHash(), 
-                dmac);
+                dot11phy->FetchPhynameHash(), dmac);
+
         if (devicetracker->FetchDevice(targetkey) != NULL)
             return true;
     }
 
     return false;
-
 }
 
 int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
