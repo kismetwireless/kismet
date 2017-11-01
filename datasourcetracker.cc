@@ -1157,10 +1157,12 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (u.error)
                     return false;
 
-                local_locker lock(&dst_lock);
+                local_demand_locker lock(&dst_lock);
 
+                lock.lock();
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     return false;
+                lock.unlock();
 
                 if (Httpd_StripSuffix(tokenurl[4]) == "source")
                     return true;
