@@ -70,24 +70,21 @@ devicetracker_function_worker::~devicetracker_function_worker() {
 void devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
         shared_ptr<kis_tracked_device_base> device) {
 
-    local_locker lock(&worker_mutex);
-
     if (mcb == NULL)
         return;
 
     if (mcb(devicetracker, device)) {
+        local_locker lock(&worker_mutex);
         matched_devices.push_back(device);
     }
 
 }
 
 void devicetracker_function_worker::Finalize(Devicetracker *devicetracker) {
-    local_locker lock(&worker_mutex);
-
-    if (fcb == NULL)
-        return;
-
-    fcb(devicetracker, matched_devices);
+    if (fcb != NULL) {
+        local_locker lock(&worker_mutex);
+        fcb(devicetracker, matched_devices);
+    }
 }
 
 
