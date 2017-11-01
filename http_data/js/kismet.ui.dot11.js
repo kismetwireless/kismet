@@ -329,10 +329,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             warning = '<br><i style="color: red;">While handshake packets have been seen, no complete handshakes collected.</i>';
                         }
 
-                        var mac = opts['data']['kismet.device.base.macaddr'];
                         var key = opts['data']['kismet.device.base.key'];
                         var url = '<a href="/phy/phy80211/by-key/' + key + '/pcap/' +
-                            mac + '-handshake.pcap">' +
+                            key + '-handshake.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>' +
                             warning;
                         return url;
