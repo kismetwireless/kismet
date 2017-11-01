@@ -370,14 +370,19 @@ public:
     local_demand_locker(pthread_mutex_t *in) {
         cpplock = NULL;
         plock = in;
+        hold_lock = false;
     }
 
     local_demand_locker(std::recursive_timed_mutex *in) {
         plock = NULL;
         cpplock = in;
+        hold_lock = false;
     }
 
     void unlock() {
+        if (!hold_lock)
+            return;
+
         if (plock != NULL)
             pthread_mutex_unlock(plock);
         else if (cpplock != NULL)
@@ -385,6 +390,9 @@ public:
     }
 
     void lock() {
+        if (hold_lock)
+            throw(std::runtime_error("possible deadlock - demand_locker locking while already holding a lock"));
+
         if (plock != NULL) {
 #if defined(HAVE_PTHREAD_TIMELOCK) && !defined(DISABLE_MUTEX_TIMEOUT)
             // Only use timeouts if a) they're supported and b) not disabled in configure
@@ -400,6 +408,8 @@ public:
             pthread_mutex_lock(plock);
 #endif
 
+            hold_lock = true;
+
         } else if (cpplock != NULL) {
 #ifdef DISABLE_MUTEX_TIMEOUT
             cpplock->lock();
@@ -408,20 +418,19 @@ public:
                 throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
             }
 #endif
+            hold_lock = true;
         }
 
     }
 
     ~local_demand_locker() {
-        if (plock != NULL)
-            pthread_mutex_unlock(plock);
-        else if (cpplock != NULL)
-            cpplock->unlock();
+        unlock();
     }
 
 protected:
     pthread_mutex_t *plock;
     std::recursive_timed_mutex *cpplock;
+    bool hold_lock;
 
 };
 
