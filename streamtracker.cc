@@ -45,7 +45,7 @@ StreamTracker::~StreamTracker() {
 }
 
 bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
-    local_locker lock(&mutex);
+    local_demand_locker lock(&mutex);
 
     if (strcmp(method, "GET") != 0) 
         return false;
@@ -77,8 +77,10 @@ bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
     std::stringstream ss(tokenurl[3]);
     ss >> sid;
 
+    lock.lock();
     if (stream_map.find(sid) == stream_map.end())
         return false;
+    lock.unlock();
 
     if (tokenurl[4] == "stream_info")
         return true;
