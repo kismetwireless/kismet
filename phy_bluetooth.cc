@@ -102,8 +102,6 @@ int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
 int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     Kis_Bluetooth_Phy *btphy = (Kis_Bluetooth_Phy *) auxdata;
 
-    devicelist_scope_locker dlocker(btphy->devicetracker);
-
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
 

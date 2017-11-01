@@ -1351,8 +1351,6 @@ static int packetnum = 0;
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     packetnum++;
 
-    devicelist_scope_locker dlocker(devicetracker);
-
 	// We can't do anything w/ it from the packet layer
 	if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
         // fprintf(stderr, "debug - error packet\n");

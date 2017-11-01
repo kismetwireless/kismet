@@ -86,8 +86,6 @@ bool Kis_Zwave_Phy::json_to_record(struct JSON_value *json) {
     double dest_devid;
     double datasize;
 
-    devicelist_scope_locker slocker(devicetracker);
-
     // TODO parse the actual payload
    
     tempstr = JSON_dict_get_string(json, "home_id", err);
