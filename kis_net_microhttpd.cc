@@ -385,8 +385,6 @@ void Kis_Net_Httpd::MHD_Panic(void *cls, const char *file, unsigned int line,
         const char *reason) {
     Kis_Net_Httpd *httpd = (Kis_Net_Httpd *) cls;
 
-    local_locker lock(&(httpd->controller_mutex));
-
     // Do nothing if we're already closing down
     if (!httpd->running)
         return;
@@ -491,18 +489,19 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     
     Kis_Net_Httpd_Handler *handler = NULL;
 
-    {
-        local_locker(&(kishttpd->controller_mutex));
-        /* Find a handler that can handle this path & method */
-        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
-            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
+    local_demand_locker conlock(&(kishttpd->controller_mutex));
 
-            if (h->Httpd_VerifyPath(url, method)) {
-                handler = h;
-                break;
-            }
+    conlock.lock();
+    /* Find a handler that can handle this path & method */
+    for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
+        Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
+
+        if (h->Httpd_VerifyPath(url, method)) {
+            handler = h;
+            break;
         }
     }
+    conlock.unlock();
 
     // If we don't have a connection state, make one
     if (*ptr == NULL) {
@@ -1194,26 +1193,28 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 
     shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
-    // We get called as soon as the webserver has either a) processed our request
-    // or b) sent what we gave it; we need to hold the thread until we
-    // get more data in the buf, so we block until we have data
-    stream_aux->block_until_data();
+    size_t read_sz = 0;
 
     // Read from the buffer; currently we have to force a copy into our existing
     // buffer unfortunately
     unsigned char *zbuf;
 
-    size_t read_sz;
-    read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
+    while (read_sz == 0) {
+        // We get called as soon as the webserver has either a) processed our request
+        // or b) sent what we gave it; we need to hold the thread until we
+        // get more data in the buf, so we block until we have data
+        stream_aux->block_until_data();
 
-    if (read_sz == 0) {
-        rbh->PeekFreeWriteBufferData(zbuf);
+        read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
 
-        if (stream_aux->get_in_error()) {
-            return -1;
+        if (read_sz == 0) {
+            rbh->PeekFreeWriteBufferData(zbuf);
+
+            if (stream_aux->get_in_error()) {
+                // fprintf(stderr, "debug - buffer event %p end of stream\n", stream_aux);
+                return MHD_CONTENT_READER_END_OF_STREAM;
+            }
         }
-
-        return 0;
     }
 
     if (read_sz != 0 && zbuf != NULL && buf != NULL) {
@@ -1229,8 +1230,12 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 static void free_buffer_aux_callback(void *cls) {
     Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
+    // fprintf(stderr, "debug - free aux callback %p\n", cls);
+
     // Wait for the thread to complete
     aux->generator_thread.join();
+
+    // fprintf(stderr, "debug - generator unlocked %p\n", cls);
 
     if (aux->free_aux_cb != NULL) {
         aux->free_aux_cb(aux);
@@ -1286,37 +1291,35 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
         size_t *upload_data_size) {
 
     if (connection->response == NULL) {
-        // Establish a locker to make sure the thread is fully operational
-        shared_ptr<conditional_locker<int> > cl(new conditional_locker<int>());
-        cl->lock();
-
         // No read, default write
         shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
 
         Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
             new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
-
         connection->custom_extension = aux;
+
+        // fprintf(stderr, "debug - made post aux %p\n", aux);
 
         // Call the post complete and populate our stream;
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
-            std::thread([this, cl, aux, connection] {
+            std::thread([this, aux, connection] {
+                // fprintf(stderr, "debug - calling post complete for %p %s\n", aux, connection->url.c_str());
                 int r = Httpd_PostComplete(connection);
-                cl->unlock(1);
 
                 // Trigger 'error' when the function is complete, causing us to finish 
                 // the stream
                 if (r == MHD_YES) {
+                    // fprintf(stderr, "debug - finished with %p %s, triggering error state to close\n", aux, connection->url.c_str());
                     aux->sync();
                     aux->trigger_error();
+                } else {
+                    // fprintf(stderr, "debug - post completed without mdh_yes for %s\n", connection->url.c_str());
                 }
+                // fprintf(stderr, "debug - done with post for %p %s\n", aux, connection->url.c_str());
                 });
-        // aux->generator_thread.detach();
-
-        cl->block_until();
 
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
