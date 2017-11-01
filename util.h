@@ -387,6 +387,8 @@ public:
             pthread_mutex_unlock(plock);
         else if (cpplock != NULL)
             cpplock->unlock();
+
+        hold_lock = false;
     }
 
     void lock() {
