@@ -111,7 +111,7 @@ ssize_t RingbufV2::available() {
 }
 
 ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
-    local_eol_locker peeklock(&peek_mutex);
+    local_eol_locker peeklock(&write_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 peek already locked");
@@ -166,7 +166,7 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
 }
 
 ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
-    local_eol_locker peeklock(&peek_mutex);
+    local_eol_locker peeklock(&write_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 peek already locked");
@@ -199,7 +199,7 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
 }
 
 void RingbufV2::peek_free(unsigned char *in_data) {
-    local_unlocker unpeeklock(&peek_mutex);
+    local_unlocker unpeeklock(&write_mutex);
 
     if (!peek_reserved) {
         throw std::runtime_error("ringbuf v2 peek_free on unlocked buffer");
@@ -215,8 +215,7 @@ void RingbufV2::peek_free(unsigned char *in_data) {
 
 size_t RingbufV2::consume(size_t in_sz) {
     // Protect cross-thread
-    local_locker peeklock(&peek_mutex);
-    local_locker writelock(&write_mutex);
+    local_locker peeklock(&write_mutex);
 
     if (peek_reserved) {
         throw std::runtime_error("ringbuf v2 consume while peeked data pending");
