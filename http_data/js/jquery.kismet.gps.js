@@ -35,6 +35,11 @@
         if (e == null ||
             (e != null && $(e.target).closest('#gpsdialog').length == 0)) {
 
+            if (dialog != null) {
+                dialog.remove();
+                dialog = null;
+            }
+
             // Remove the handler
             $('body').off('click', close_dialog_outside);
 
