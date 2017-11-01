@@ -1260,7 +1260,6 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                     aux->trigger_error();
                 }
                 });
-        // aux->generator_thread.detach();
 
         // Block until the populating thread has launched
         cl->block_until();
