@@ -1151,7 +1151,7 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
     }
     
     size_t dpos = 0;
-    size_t chunk_sz = 50;
+    size_t chunk_sz = 10;
 
     while (1) {
         // Limited scope lock
@@ -1173,8 +1173,9 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
         
         kismet__for_each(b, e, 
                 [&](SharedTrackerElement val) {
+
                 if (val == NULL)
-                return;
+                    return;
                 std::shared_ptr<kis_tracked_device_base> v = 
                 std::static_pointer_cast<kis_tracked_device_base>(val);
 
