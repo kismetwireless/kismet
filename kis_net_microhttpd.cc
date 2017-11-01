@@ -1238,17 +1238,11 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
             new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
-        // Establish a locker to make sure the thread is fully operational
-        shared_ptr<conditional_locker<int> > cl(new conditional_locker<int>());
-        cl->lock();
-
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
-            std::thread([this, cl, aux, httpd, connection, url, method, upload_data, upload_data_size]{
-                cl->unlock(1);
-
+            std::thread([this, aux, httpd, connection, url, method, upload_data, upload_data_size]{
                 int r = 
                     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
                         upload_data_size);
@@ -1261,8 +1255,6 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 }
                 });
 
-        // Block until the populating thread has launched
-        cl->block_until();
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
                     &buffer_event_cb, aux, &free_buffer_aux_callback);
