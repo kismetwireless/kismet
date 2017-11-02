@@ -368,6 +368,9 @@ int Kis_Net_Httpd::StartHttpd() {
 int Kis_Net_Httpd::StopHttpd() {
     local_locker lock(&controller_mutex);
 
+    handler_vec.clear();
+    static_dir_vec.clear();
+
     if (microhttpd != NULL) {
         // Formerly we quiesced the httpd daemon but that api seemed to have
         // problems on some builds; now we silence the panic handler and 
@@ -457,6 +460,9 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     //fprintf(stderr, "debug - HTTP request: '%s' method '%s'\n", url, method); 
     //
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
+
+    if (kishttpd->globalreg->spindown || kishttpd->globalreg->fatal_condition)
+        return MHD_NO;
     
     // Update the session records if one exists
     shared_ptr<Kis_Net_Httpd_Session> s = NULL;
