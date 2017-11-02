@@ -25,6 +25,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include "kis_mutex.h"
 #include "messagebus.h"
 #include "globalregistry.h"
 #include "buffer_handler.h"
@@ -55,7 +56,7 @@ public:
     bool FetchConnected();
 
 protected:
-    std::recursive_timed_mutex pipe_lock;
+    kis_recursive_timed_mutex pipe_lock;
 
     GlobalRegistry *globalreg;
     shared_ptr<BufferHandlerGeneric> handler;
