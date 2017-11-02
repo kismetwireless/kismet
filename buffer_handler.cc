@@ -168,16 +168,21 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
         bool in_atomic) {
     size_t ret;
 
-    if (!read_buffer)
-        return 0;
+    {
+        local_locker hlock(&handler_locker);
 
-    // Don't write any if we're an atomic complete write; buffers which report
-    // -1 for available size are infinite
-    if (in_atomic && read_buffer->available() >= 0 && 
-            (size_t) read_buffer->available() < in_sz)
-        return 0;
+        if (!read_buffer)
+            return 0;
 
-    ret = read_buffer->write((unsigned char *) in_ptr, in_sz);
+        // Don't write any if we're an atomic complete write; buffers which report
+        // -1 for available size are infinite
+        if (in_atomic && read_buffer->available() >= 0 && 
+                (size_t) read_buffer->available() < in_sz)
+            return 0;
+
+        ret = read_buffer->write((unsigned char *) in_ptr, in_sz);
+
+    }
 
     {
         // Lock just the callback handler because the callback
@@ -198,20 +203,24 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
         bool in_atomic) {
     size_t ret;
 
-    if (!write_buffer) {
-        if (wbuf_notify)
-            wbuf_notify->BufferError("No write buffer connected");
+    {
+        local_locker hlock(&handler_locker);
 
-        return 0;
+        if (!write_buffer) {
+            if (wbuf_notify)
+                wbuf_notify->BufferError("No write buffer connected");
+
+            return 0;
+        }
+
+        // Don't write any if we're an atomic complete write; buffers which report
+        // -1 for available size are infinite
+        if (in_atomic && write_buffer->available() >= 0 &&
+                (size_t) write_buffer->available() < in_sz)
+            return 0;
+
+        ret = write_buffer->write((unsigned char *) in_ptr, in_sz);
     }
-
-    // Don't write any if we're an atomic complete write; buffers which report
-    // -1 for available size are infinite
-    if (in_atomic && write_buffer->available() >= 0 &&
-            (size_t) write_buffer->available() < in_sz)
-        return 0;
-
-    ret = write_buffer->write((unsigned char *) in_ptr, in_sz);
 
     {
         // Lock just the callback handler because the callback
@@ -229,6 +238,8 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
 }
 
 ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz) {
+    local_locker hlock(&handler_locker);
+
     if (read_buffer != NULL) {
         return read_buffer->reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -237,6 +248,8 @@ ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz)
 }
 
 ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+    local_locker hlock(&handler_locker);
+
     if (write_buffer != NULL) {
         return write_buffer->reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -245,6 +258,8 @@ ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_t in_sz) {
+    local_locker hlock(&handler_locker);
+
     if (read_buffer != NULL) {
         return read_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -253,6 +268,8 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+    local_locker hlock(&handler_locker);
+
     if (write_buffer != NULL) {
         return write_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
     }
@@ -263,8 +280,12 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
 bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
-    if (read_buffer != NULL) {
-        s = read_buffer->commit((unsigned char *) in_ptr, in_sz);
+    {
+        local_locker hlock(&handler_locker);
+
+        if (read_buffer != NULL) {
+            s = read_buffer->commit((unsigned char *) in_ptr, in_sz);
+        }
     }
 
     {
@@ -284,8 +305,11 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
 bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
-    if (write_buffer != NULL) {
-        s = write_buffer->commit((unsigned char *) in_ptr, in_sz);
+    {
+        local_locker hlock(&handler_locker);
+        if (write_buffer != NULL) {
+            s = write_buffer->commit((unsigned char *) in_ptr, in_sz);
+        }
     }
 
     {
