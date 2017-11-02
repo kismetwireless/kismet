@@ -1194,8 +1194,9 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         char *buf, size_t max) {
     Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
-    // Protect that we have to exit the buffer cb before the stream can be killed
-    local_locker bec_locker(stream_aux->get_buffer_event_mutex());
+    // Protect that we have to exit the buffer cb before the stream can be killed, don't
+    // use an automatic locker because we can't let it time out
+    stream_aux->get_buffer_event_mutex()->lock();
 
     shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
@@ -1218,6 +1219,7 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 
             if (stream_aux->get_in_error()) {
                 // fprintf(stderr, "debug - buffer event %p end of stream\n", stream_aux);
+                stream_aux->get_buffer_event_mutex()->unlock();
                 return MHD_CONTENT_READER_END_OF_STREAM;
             }
         }
@@ -1229,6 +1231,8 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 
     rbh->PeekFreeWriteBufferData(zbuf);
     rbh->ConsumeWriteBufferData(read_sz);
+
+    stream_aux->get_buffer_event_mutex()->unlock();
 
     return (ssize_t) read_sz;
 }
