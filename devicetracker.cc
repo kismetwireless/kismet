@@ -2046,24 +2046,6 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
-    std::string serialstring;
-    std::string macstring;
-
-    // Prep the compression buf
-    std::stringbuf sbuf;
-    zstr::ostreambuf zobuf(&sbuf, 1 << 16, true);
-    std::ostream zstream(&zobuf);
-
-    // Standard noncompression buf
-    std::ostream sstream(&sbuf);
-
-    std::ostream *serialstream;
-
-    if (devicetracker->persistent_compression)
-        serialstream = &zstream;
-    else
-        serialstream = &sstream;
-
     sql = 
         "INSERT INTO device_storage "
         "(first_time, last_time, phyname, devmac, storage) "
@@ -2080,10 +2062,30 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
     // Use a function worker to break up the load and insert it into the
     // database
     devicetracker_function_worker fw(globalreg,
-            [this, &serialstream, &zobuf, &sbuf, &stmt, &serialstring, 
-            &macstring](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+            [this, &stmt] 
+                (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 std::shared_ptr<kis_tracked_device_base> kdb =
                     std::static_pointer_cast<kis_tracked_device_base>(d);
+
+                std::string serialstring;
+                std::string macstring;
+                std::string phystring;
+
+                // Prep the compression buf
+                std::stringbuf sbuf;
+                zstr::ostreambuf zobuf(&sbuf, 1 << 16, true);
+                std::ostream zstream(&zobuf);
+
+                // Standard noncompression buf
+                std::ostream sstream(&sbuf);
+
+                std::ostream *serialstream;
+
+                if (devicetracker->persistent_compression)
+                serialstream = &zstream;
+                else
+                    serialstream = &sstream;
+
 
                 sbuf.str("");
                 sqlite3_reset(stmt);
@@ -2101,11 +2103,11 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
                 serialstring = sbuf.str();
 
                 macstring = kdb->get_macaddr().Mac2String();
+                phystring = kdb->get_phyname();
 
                 sqlite3_bind_int(stmt, 1, kdb->get_first_time());
                 sqlite3_bind_int(stmt, 2, kdb->get_last_time());
-                sqlite3_bind_text(stmt, 3, kdb->get_phyname().c_str(), 
-                        kdb->get_phyname().length(), 0);
+                sqlite3_bind_text(stmt, 3, phystring.c_str(), phystring.length(), 0);
                 sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
                 sqlite3_bind_blob(stmt, 5, serialstring.data(), serialstring.length(), 0);
 
