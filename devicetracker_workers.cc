@@ -162,10 +162,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     error = false;
 
     return_dev_vec = in_devvec_object;
-
-    pcre_match_id = 
-        entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
-                "Index of last matching PCRE comparison");
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
@@ -220,10 +216,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
         filter_vec.push_back(filter);
     }
-
-    pcre_match_id = 
-        entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
-                "Index of last matching PCRE comparison");
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
@@ -274,10 +266,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
         filter_vec.push_back(filter);
     }
-
-    pcre_match_id = 
-        entrytracker->RegisterField("kismet.pcre.match", TrackerUInt32, 
-                "Index of last matching PCRE comparison");
 }
 
 devicetracker_pcre_worker::~devicetracker_pcre_worker() {
@@ -329,12 +317,6 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
 
         if (matched) {
             local_locker lock(&worker_mutex);
-
-            SharedTrackerElement pcre_index(new TrackerElement(TrackerUInt32, pcre_match_id));
-            pcre_index->set((uint32_t) match_idx);
-
-            device->add_map(pcre_index);
-
             return_dev_vec->add_vector(device);
         }
     }
