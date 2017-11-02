@@ -32,6 +32,7 @@
 #include <functional>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 
 // For ubertooth and a few older plugins that compile against both svn and old
 #define KIS_NEW_TIMER_PARM	1
@@ -116,7 +117,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    std::recursive_timed_mutex time_mutex;
+    kis_recursive_timed_mutex time_mutex;
 
     // Nonblocking versions
     int RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,

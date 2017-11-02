@@ -24,13 +24,13 @@
 /* Generic data store based on sqlite3 */
 
 #include <memory>
-#include <mutex>
 #include <string>
 
 #include <stdio.h>
 #include <sqlite3.h>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 
 /* Kismet Databases
  *
@@ -90,7 +90,7 @@ protected:
 
     std::string ds_dbfile;
 
-    std::recursive_timed_mutex ds_mutex;
+    kis_recursive_timed_mutex ds_mutex;
 
     sqlite3 *db;
 };

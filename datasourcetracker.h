@@ -38,6 +38,7 @@
 #include "kis_net_microhttpd.h"
 #include "buffer_handler.h"
 #include "tracked_rrd.h"
+#include "kis_mutex.h"
 
 /* Data source tracker
  *
@@ -111,7 +112,7 @@ public:
     void cancel();
 
 protected:
-    std::recursive_timed_mutex probe_lock;
+    kis_recursive_timed_mutex probe_lock;
 
     GlobalRegistry *globalreg;
 
@@ -171,7 +172,7 @@ public:
     void cancel();
 
 protected:
-    std::recursive_timed_mutex list_lock;
+    kis_recursive_timed_mutex list_lock;
 
     GlobalRegistry *globalreg;
 
@@ -431,7 +432,7 @@ protected:
     shared_ptr<EntryTracker> entrytracker;
     shared_ptr<Timetracker> timetracker;
 
-    std::recursive_timed_mutex dst_lock;
+    kis_recursive_timed_mutex dst_lock;
 
     SharedTrackerElement dst_proto_builder;
     SharedTrackerElement dst_source_builder;

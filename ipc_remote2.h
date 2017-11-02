@@ -25,6 +25,7 @@
 #include <signal.h>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "buffer_handler.h"
 #include "pipeclient.h"
 #include "timetracker.h"
@@ -91,7 +92,7 @@ public:
     void set_tracker_free(bool in_free);
 
 protected:
-    std::recursive_timed_mutex ipc_locker;
+    kis_recursive_timed_mutex ipc_locker;
 
     GlobalRegistry *globalreg;
 
@@ -159,7 +160,7 @@ public:
     virtual int timetracker_event(int event_id);
 
 protected:
-    std::recursive_timed_mutex ipc_locker;
+    kis_recursive_timed_mutex ipc_locker;
 
     GlobalRegistry *globalreg;
 

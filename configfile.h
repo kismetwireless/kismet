@@ -34,6 +34,7 @@
 
 #include "globalregistry.h"
 #include "macaddr.h"
+#include "kis_mutex.h"
 
 class ConfigFile {
 public:
@@ -107,7 +108,7 @@ protected:
     // List of config files which are *overriding*
     std::vector<std::string> config_override_file_list;
 
-    std::recursive_timed_mutex config_locker;
+    kis_recursive_timed_mutex config_locker;
 };
 
 #endif

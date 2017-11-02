@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 
 // Message flags for queuing data
 #define MSGFLAG_NONE    0
@@ -101,7 +102,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    std::recursive_timed_mutex msg_mutex;
+    kis_recursive_timed_mutex msg_mutex;
 
     typedef struct {
         MessageClient *client;

@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "globalregistry.h"
-
+#include "kis_mutex.h"
 #include "messagebus.h"
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
@@ -114,7 +114,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    std::recursive_timed_mutex msg_mutex;
+    kis_recursive_timed_mutex msg_mutex;
 
     std::vector<shared_ptr<tracked_message> > message_vec;
 

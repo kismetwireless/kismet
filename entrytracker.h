@@ -29,6 +29,7 @@
 #include <map>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
 
@@ -102,8 +103,8 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    std::recursive_timed_mutex entry_mutex;
-    std::recursive_timed_mutex serializer_mutex;
+    kis_recursive_timed_mutex entry_mutex;
+    kis_recursive_timed_mutex serializer_mutex;
 
     int next_field_num;
 

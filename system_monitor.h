@@ -23,6 +23,7 @@
 
 #include <string>
 
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "timetracker.h"
 #include "devicetracker_component.h"
@@ -69,7 +70,7 @@ public:
     virtual int timetracker_event(int eventid);
 
 protected:
-    std::recursive_timed_mutex monitor_mutex;
+    kis_recursive_timed_mutex monitor_mutex;
 
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);

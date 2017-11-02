@@ -24,6 +24,7 @@
 #include <functional>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "ipc_remote2.h"
 #include "buffer_handler.h"
 #include "uuid.h"
@@ -559,7 +560,7 @@ protected:
 
 
     // Thread
-    std::recursive_timed_mutex source_lock;
+    kis_recursive_timed_mutex source_lock;
     std::shared_ptr<Timetracker> timetracker;
 
 

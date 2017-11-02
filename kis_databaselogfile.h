@@ -68,10 +68,10 @@
 #include "config.h"
 
 #include <memory>
-#include <mutex>
 #include <string>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "kis_database.h"
 #include "devicetracker.h"
 #include "alertracker.h"
@@ -142,7 +142,7 @@ protected:
     bool db_enabled;
 
     // Per-table mutexes to prevent clobbering prepared statements
-    std::recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
+    kis_recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
         alert_mutex, msg_mutex, snapshot_mutex, datasource_mutex;
 
     std::shared_ptr<Devicetracker> devicetracker;
@@ -178,7 +178,7 @@ protected:
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
     // commit state we run a 10 second tranasction commit loop
-    std::recursive_timed_mutex transaction_mutex;
+    kis_recursive_timed_mutex transaction_mutex;
     int transaction_timer;
 };
 

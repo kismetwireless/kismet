@@ -101,6 +101,7 @@
 #include <dirent.h>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
@@ -265,7 +266,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    std::recursive_timed_mutex plugin_lock;
+    kis_recursive_timed_mutex plugin_lock;
 
 	GlobalRegistry *globalreg;
 	int plugins_active;

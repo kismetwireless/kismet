@@ -29,6 +29,7 @@
 #include <memory>
 
 #include "util.h"
+#include "kis_mutex.h"
 
 class BufferInterface;
 
@@ -146,7 +147,7 @@ protected:
     bool peek_reserved;
 
     // Additional mutex for protecting peek and write reservations across threads
-    std::recursive_timed_mutex peek_mutex, write_mutex;
+    kis_recursive_timed_mutex peek_mutex, write_mutex;
 
 };
 
@@ -293,7 +294,7 @@ protected:
     BufferInterface *wbuf_notify;
     BufferInterface *rbuf_notify;
 
-    std::recursive_timed_mutex handler_locker, r_callback_locker, w_callback_locker;
+    kis_recursive_timed_mutex handler_locker, r_callback_locker, w_callback_locker;
 
     function<void (void)> protoerror_cb;
 

@@ -23,9 +23,9 @@
 
 #include <unistd.h>
 #include <memory>
-#include <mutex>
 
 #include "util.h"
+#include "kis_mutex.h"
 #include "macaddr.h"
 #include "uuid.h"
 
@@ -304,17 +304,17 @@ public:
     void Shutdown_Deferred();
 
 protected:
-    std::recursive_timed_mutex ext_mutex;
+    kis_recursive_timed_mutex ext_mutex;
     // Exernal global references, string to intid
     std::map<std::string, int> ext_name_map;
     // External globals
     std::map<int, std::shared_ptr<void> > ext_data_map;
     int next_ext_ref;
 
-    std::recursive_timed_mutex lifetime_mutex;
+    kis_recursive_timed_mutex lifetime_mutex;
     std::vector<std::shared_ptr<LifetimeGlobal> > lifetime_vec;
 
-    std::recursive_timed_mutex deferred_mutex;
+    kis_recursive_timed_mutex deferred_mutex;
     bool deferred_started;
     std::vector<std::shared_ptr<DeferredStartup> > deferred_vec;
 };

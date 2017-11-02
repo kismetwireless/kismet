@@ -22,11 +22,11 @@
 #include "config.h"
 
 #include <pthread.h>
-#include <mutex>
 
 #include "util.h"
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
@@ -139,7 +139,7 @@ public:
     static double GpsEarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
 protected:
-    std::recursive_timed_mutex gps_mutex;
+    kis_recursive_timed_mutex gps_mutex;
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;

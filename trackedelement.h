@@ -32,6 +32,7 @@
 
 #include <memory>
 
+#include "kis_mutex.h"
 #include "macaddr.h"
 #include "uuid.h"
 
@@ -1416,7 +1417,7 @@ public:
     static void pre_serialize_path(SharedElementSummary in_summary);
 protected:
     GlobalRegistry *globalreg;
-    std::recursive_timed_mutex mutex;
+    kis_recursive_timed_mutex mutex;
 };
 
 // Get an element using path semantics

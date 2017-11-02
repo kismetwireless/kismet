@@ -24,6 +24,7 @@
 #include <memory>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
 #include "devicetracker_component.h"
@@ -227,7 +228,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
    
 protected:
-    std::recursive_timed_mutex mutex;
+    kis_recursive_timed_mutex mutex;
 
     GlobalRegistry *globalreg;
 

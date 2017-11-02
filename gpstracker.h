@@ -21,8 +21,8 @@
 
 #include "config.h"
 
-#include <mutex>
 
+#include "kis_mutex.h"
 #include "packetchain.h"
 #include "globalregistry.h"
 #include "kis_net_microhttpd.h"
@@ -148,7 +148,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    std::recursive_timed_mutex gpsmanager_mutex;
+    kis_recursive_timed_mutex gpsmanager_mutex;
 
     SharedTrackerElement gps_prototypes;
     TrackerElementVector gps_prototypes_vec;

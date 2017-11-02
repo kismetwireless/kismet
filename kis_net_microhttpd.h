@@ -33,6 +33,7 @@
 #include <memory>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "ringbuf2.h"
 #include "chainbuf.h"
@@ -340,14 +341,14 @@ public:
     void block_until_data();
 
     // Get the buffer event mutex
-    std::recursive_timed_mutex *get_buffer_event_mutex() {
+    kis_recursive_timed_mutex *get_buffer_event_mutex() {
         return &buffer_event_mutex;
     }
 
 public:
-    std::recursive_timed_mutex aux_mutex;
-    std::recursive_timed_mutex error_mutex;
-    std::recursive_timed_mutex buffer_event_mutex;
+    kis_recursive_timed_mutex aux_mutex;
+    kis_recursive_timed_mutex error_mutex;
+    kis_recursive_timed_mutex buffer_event_mutex;
 
     // Stream handler we belong to
     Kis_Net_Httpd_Buffer_Stream_Handler *httpd_stream_handler;
@@ -564,7 +565,7 @@ protected:
 
     vector<static_dir> static_dir_vec;
 
-    std::recursive_timed_mutex controller_mutex;
+    kis_recursive_timed_mutex controller_mutex;
 
     // Handle the requests and dispatch to controllers
     static int http_request_handler(void *cls, struct MHD_Connection *connection,

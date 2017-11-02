@@ -25,6 +25,7 @@
 #include <map>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
 #include "devicetracker_component.h"
@@ -193,7 +194,7 @@ public:
     int device_decay;
 
 protected:
-    std::recursive_timed_mutex lock;
+    kis_recursive_timed_mutex lock;
 
     std::shared_ptr<Devicetracker> devicetracker;
 

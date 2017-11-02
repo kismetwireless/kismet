@@ -23,6 +23,7 @@
 
 #include <vector>
 
+#include "kis_mutex.h"
 #include "pollable.h"
 #include "globalregistry.h"
 
@@ -77,7 +78,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    std::recursive_timed_mutex pollable_mutex;
+    kis_recursive_timed_mutex pollable_mutex;
 
     vector<shared_ptr<Pollable> > pollable_vec;
     vector<shared_ptr<Pollable> > add_vec;

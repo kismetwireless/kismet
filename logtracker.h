@@ -22,9 +22,9 @@
 #include "config.h"
 
 #include <memory>
-#include <mutex>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "kis_net_microhttpd.h"
 #include "devicetracker_component.h"
@@ -177,7 +177,7 @@ protected:
     // Builder/prototype that made us
     SharedLogBuilder builder;
 
-    std::recursive_timed_mutex log_mutex;
+    kis_recursive_timed_mutex log_mutex;
 
     SharedTrackerElement log_uuid;
 
@@ -229,7 +229,7 @@ protected:
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
 
-    std::recursive_timed_mutex tracker_mutex;
+    kis_recursive_timed_mutex tracker_mutex;
 
     std::shared_ptr<StreamTracker> streamtracker;
     std::shared_ptr<EntryTracker> entrytracker;

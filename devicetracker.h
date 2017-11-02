@@ -39,6 +39,7 @@
 #endif
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
 #include "packet.h"
@@ -378,7 +379,7 @@ public:
     virtual void Finalize(Devicetracker *devicetracker) { }
 
 protected:
-    std::recursive_timed_mutex worker_mutex;
+    kis_recursive_timed_mutex worker_mutex;
 };
 
 // Small database helper class for the state store; we need to be able to 
@@ -645,7 +646,7 @@ protected:
     // Insert a device directly into the records
     void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
 
-    std::recursive_timed_mutex devicelist_mutex;
+    kis_recursive_timed_mutex devicelist_mutex;
 
     std::shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
 
@@ -661,7 +662,7 @@ protected:
     // Timestamp of the last time we wrote the device list, if we're storing state
     time_t last_devicelist_saved;
 
-    std::recursive_timed_mutex storing_mutex;
+    kis_recursive_timed_mutex storing_mutex;
     bool devices_storing;
 
     // Do we store devices?
@@ -688,7 +689,7 @@ protected:
     // If we log devices to the kismet database...
     int databaselog_timer;
     time_t last_database_logged;
-    std::recursive_timed_mutex databaselog_mutex;
+    kis_recursive_timed_mutex databaselog_mutex;
     bool databaselog_logging;
 };
 

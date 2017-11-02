@@ -35,6 +35,7 @@
 #include <functional>
 
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "packet.h"
 
 // Packet chain progression
@@ -148,7 +149,7 @@ protected:
 	vector<Packetchain::pc_link *> tracker_chain;
     vector<Packetchain::pc_link *> logging_chain;
 
-    std::recursive_timed_mutex packetchain_mutex;
+    kis_recursive_timed_mutex packetchain_mutex;
 };
 
 #endif
