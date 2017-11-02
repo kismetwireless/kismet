@@ -84,8 +84,6 @@ public:
     size_t consume(size_t in_sz);
 
 protected:
-    std::recursive_timed_mutex size_mutex;
-
     size_t chunk_sz;
     bool free_after_read;
 
@@ -100,10 +98,6 @@ protected:
 
     size_t used_sz;
     size_t total_sz;
-
-    // Independent copies under another mutex
-    size_t pub_used_sz;
-    size_t pub_total_sz;
 
     bool free_read, free_commit;
 
