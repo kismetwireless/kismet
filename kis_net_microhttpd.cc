@@ -1137,14 +1137,13 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
 
     cl->unlock(0);
 
-    // Use demand lockers to make sure initialization doesn't lock us
-    // too early
-    local_demand_locker lock(&aux_mutex);
-    lock.lock();
-
     // Lock that the buffer callback has ended!
     local_demand_locker bclock(&buffer_event_mutex);
     bclock.lock();
+
+    // Lock out the interface itself
+    local_demand_locker lock(&aux_mutex);
+    lock.lock();
 
     if (ringbuf_handler) {
         ringbuf_handler->RemoveWriteBufferInterface();
