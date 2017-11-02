@@ -35,7 +35,10 @@
 // Seconds a lock is allowed to be held before throwing a timeout error
 #define KIS_THREAD_DEADLOCK_TIMEOUT     5
 
-#if defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9))
+// Force the custom c++ workaround mutex to always be on; undefine to turn off
+#define ALWAYS_USE_KISMET_MUTEX         1
+
+#if defined (ALWAYS_USE_KISMET_MUTEX) || (defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
 
 class kis_recursive_timed_mutex {
 public:
