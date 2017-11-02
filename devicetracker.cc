@@ -1154,9 +1154,9 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
     size_t chunk_sz = 10;
 
     while (1) {
-        // Limited scope lock
-
         local_demand_locker lock(&devicelist_mutex);
+
+        lock.lock();
 
         auto b = vec.begin() + dpos;
         auto e = b + chunk_sz;
@@ -1169,7 +1169,6 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
 
         // Parallel for-each while inside a lock
         
-        lock.lock();
         
         kismet__for_each(b, e, 
                 [&](SharedTrackerElement val) {
