@@ -35,7 +35,7 @@
 // Seconds a lock is allowed to be held before throwing a timeout error
 #define KIS_THREAD_DEADLOCK_TIMEOUT     5
 
-#if defined (GCC_VERSION_MAJOR) && GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9
+#if defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9))
 
 class kis_recursive_timed_mutex {
 public:
@@ -213,7 +213,7 @@ public:
     }
 
 protected:
-    std::recursive_timed_mutex *cpplock;
+    kis_recursive_timed_mutex *cpplock;
 };
 
 #endif
