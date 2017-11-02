@@ -1267,11 +1267,18 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
             new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
+        // Set up a locker to make sure the thread is up and running
+        conditional_locker<int> cl;
+        cl.lock();
+
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
-            std::thread([this, aux, httpd, connection, url, method, upload_data, upload_data_size]{
+            std::thread([this, &cl, aux, httpd, connection, url, method, upload_data, upload_data_size]{
+                // Unlock the thread as soon as we've spawned it
+                cl.unlock(1);
+
                 int r = 
                     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
                         upload_data_size);
@@ -1283,6 +1290,8 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                     aux->trigger_error();
                 }
                 });
+
+        cl.block_until();
 
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
@@ -1313,22 +1322,26 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
         // connection BEFORE calling our cleanup on our response!
+        //
+        // Set up a locker to make sure the thread is up and running
+        conditional_locker<int> cl;
+        cl.lock();
+
         aux->generator_thread =
-            std::thread([this, aux, connection] {
-                // fprintf(stderr, "debug - calling post complete for %p %s\n", aux, connection->url.c_str());
+            std::thread([this, &cl, aux, connection] {
+                cl.unlock(1);
+
                 int r = Httpd_PostComplete(connection);
 
                 // Trigger 'error' when the function is complete, causing us to finish 
                 // the stream
                 if (r == MHD_YES) {
-                    // fprintf(stderr, "debug - finished with %p %s, triggering error state to close\n", aux, connection->url.c_str());
                     aux->sync();
                     aux->trigger_error();
-                } else {
-                    // fprintf(stderr, "debug - post completed without mdh_yes for %s\n", connection->url.c_str());
                 }
-                // fprintf(stderr, "debug - done with post for %p %s\n", aux, connection->url.c_str());
                 });
+
+        cl.block_until();
 
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
