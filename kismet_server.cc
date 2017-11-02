@@ -324,29 +324,12 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
-    static bool in_shutdown = false;
-
-    if (in_shutdown)
-        return;
-
-    in_shutdown = true;
-
-    fprintf(stderr, "DEBUG - Catch shutdown on pid %u sig %d\n", getpid(), sig);
-
     if (sig == 0) {
         kill(getpid(), SIGTERM);
         return;
     }
 
-    if (!globalregistry->spindown) {
-        globalregistry->spindown = 1;
-
-#if 0
-        shared_ptr<PollableTracker> pollabletracker =
-            Globalreg::FetchGlobalAs<PollableTracker>(globalregistry, "POLLABLETRACKER");
-        SpindownKismet(pollabletracker);
-#endif
-    }
+    globalregistry->spindown = 1;
 
     return;
 }
@@ -441,9 +424,6 @@ void SegVHandler(int sig __attribute__((unused))) {
     signal(SIGCHLD, SIG_DFL);
     signal(SIGSEGV, SIG_DFL);
 
-    std::cout << "Segmentation Fault (SIGSEGV / 11)" << endl;
-
-    // print_stacktrace();
     exit(-11);
 }
 
@@ -452,18 +432,10 @@ vector<string> ncurses_exitbuf;
 
 pid_t ncurses_kismet_pid = 0;
 
+bool ncurses_die = false;
+
 void NcursesKillHandler(int sig __attribute__((unused))) {
-    endwin();
-
-    printf("Kismet server terminated on signal %d.  Last output:\n", sig);
-
-    for (unsigned int x = 0; x < ncurses_exitbuf.size(); x++) {
-        printf("%s", ncurses_exitbuf[x].c_str());
-    }
-
-    printf("Kismet exited.\n");
-
-    exit(1);
+    ncurses_die = true;
 }
 
 // Handle cancel events - kill kismet, and then catch sigchild
@@ -553,11 +525,29 @@ void ncurses_wrapper_fork() {
         sigaddset(&mask, SIGCHLD);
 
         while (1) {
+            if (ncurses_die) {
+                endwin();
+
+                printf("Kismet server terminated.  Last output:\n");
+
+                for (unsigned int x = 0; x < ncurses_exitbuf.size(); x++) {
+                    printf("%s", ncurses_exitbuf[x].c_str());
+                }
+
+                printf("Kismet exited.\n");
+
+                exit(1);
+            }
+
             fd_set rset;
             FD_ZERO(&rset);
             FD_SET(pipefd[0], &rset);
 
-            if (select(pipefd[0] + 1, &rset, NULL, NULL, NULL) < 0) {
+            struct timeval tm;
+            tm.tv_sec = 0;
+            tm.tv_usec = 100000;
+
+            if (select(pipefd[0] + 1, &rset, NULL, NULL, &tm) < 0) {
                 if (errno != EINTR && errno != EAGAIN) {
                     break;
                 }
