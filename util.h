@@ -276,7 +276,7 @@ int GetLengthTagOffsets(unsigned int init_offset,
 
 
 // Seconds a lock is allowed to be held before throwing a timeout error
-#define KIS_THREAD_DEADLOCK_TIMEOUT     30
+#define KIS_THREAD_DEADLOCK_TIMEOUT     5
 
 // Act as a scoped locker on a mutex
 // If possible, use a timed lock and throw a system exception if we can't
@@ -511,12 +511,10 @@ class conditional_locker {
 public:
     conditional_locker() {
         locked = false;
-        cmd_unlocked = false;
     }
 
     conditional_locker(t in_data) {
         locked = false;
-        cmd_unlocked = false;
         data = in_data;
     }
 
@@ -528,7 +526,6 @@ public:
     void lock() {
         std::lock_guard<std::mutex> lk(m);
         locked = true;
-        cmd_unlocked = false;
     }
 
     // Block this thread until another thread calls us and unlocks us, return
@@ -536,17 +533,7 @@ public:
     t block_until() {
         std::unique_lock<std::mutex> lk(m);
 
-        // If we've gotten an explicit unlock (not just initialized) then we're not
-        // going to get unlocked
-        if (cmd_unlocked) 
-            return data;
-
-        cv.wait(lk, [this] { 
-            if (!locked || cmd_unlocked) 
-                return true; 
-                
-            return false; 
-            });
+        while (locked) cv.wait(lk);
 
         return data;
     }
@@ -554,24 +541,16 @@ public:
     // Unlock the conditional, unblocking whatever thread was blocked
     // waiting for us, and passing whatever data we'd like to pass
     void unlock(t in_data) {
-        {
-            std::lock_guard<std::mutex> lg(m);
-            locked = false;
-            cmd_unlocked = true;
-            data = in_data;
-        }
-
-        cv.notify_one();
+        std::unique_lock<std::mutex> lk(m);
+        locked = false;
+        data = in_data;
+        cv.notify_all();
     }
 
     void unlock() {
-        {
-            std::lock_guard<std::mutex> lg(m);
-            locked = false;
-            cmd_unlocked = true;
-        }
-
-        cv.notify_one();
+        std::unique_lock<std::mutex> lk(m);
+        locked = false;
+        cv.notify_all();
     }
 
 
@@ -579,7 +558,6 @@ protected:
     std::mutex m;
     std::condition_variable cv;
     bool locked;
-    bool cmd_unlocked;
     t data;
 };
 
