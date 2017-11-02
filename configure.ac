@@ -148,6 +148,28 @@ else
         AC_MSG_RESULT(none needed)
         ;;
     esac
+
+    # Get the GCC version
+    AX_GCC_VERSION
+
+    GCC_MAJOR=$(echo $GCC_VERSION | cut -s -d'.' -f1)
+    GCC_MINOR=$(echo $GCC_VERSION | cut -s -d'.' -f2)
+    GCC_PATCH=$(echo $GCC_VERSION | cut -s -d'.' -f3)
+
+    if test "$GCC_MAJOR"x == x; then
+        GCC_MAJOR=$GCC_VERSION
+    fi
+    if test "$GCC_MINOR"x == x; then
+        GCC_MINOR=0
+    fi
+    if test "$GCC_PATCH"x == x; then
+        GCC_PATCH=0
+    fi
+
+    AC_DEFINE_UNQUOTED(GCC_VERSION_MAJOR, $GCC_MAJOR, [gcc version])
+    AC_DEFINE_UNQUOTED(GCC_VERSION_MINOR, $GCC_MINOR, [gcc version])
+    AC_DEFINE_UNQUOTED(GCC_VERSION_PATCH, $GCC_PATCH, [gcc version])
+
 fi
 
 AX_CXX_COMPILE_STDCXX_11(, [mandatory])

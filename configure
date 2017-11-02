@@ -674,6 +674,7 @@ GREP
 CXXCPP
 PLUGINLDFLAGS
 HAVE_CXX11
+GCC_VERSION
 CPP
 SET_MAKE
 INSTALL_DATA
@@ -3970,6 +3971,69 @@ $as_echo "#define SYS_CYGWIN 1" >>confdefs.h
 $as_echo "none needed" >&6; }
         ;;
     esac
+
+    # Get the GCC version
+
+  GCC_VERSION=""
+
+  if test "x$GCC" = "xyes"; then :
+
+    if test "x$ax_gcc_version_option" != "xno"; then :
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking gcc version" >&5
+$as_echo_n "checking gcc version... " >&6; }
+if ${ax_cv_gcc_version+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+        ax_cv_gcc_version="`$CC -dumpversion`"
+        if test "x$ax_cv_gcc_version" = "x"; then :
+
+          ax_cv_gcc_version=""
+
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_gcc_version" >&5
+$as_echo "$ax_cv_gcc_version" >&6; }
+      GCC_VERSION=$ax_cv_gcc_version
+
+fi
+
+fi
+
+
+
+    GCC_MAJOR=$(echo $GCC_VERSION | cut -s -d'.' -f1)
+    GCC_MINOR=$(echo $GCC_VERSION | cut -s -d'.' -f2)
+    GCC_PATCH=$(echo $GCC_VERSION | cut -s -d'.' -f3)
+
+    if test "$GCC_MAJOR"x == x; then
+        GCC_MAJOR=$GCC_VERSION
+    fi
+    if test "$GCC_MINOR"x == x; then
+        GCC_MINOR=0
+    fi
+    if test "$GCC_PATCH"x == x; then
+        GCC_PATCH=0
+    fi
+
+
+cat >>confdefs.h <<_ACEOF
+#define GCC_VERSION_MAJOR $GCC_MAJOR
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define GCC_VERSION_MINOR $GCC_MINOR
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define GCC_VERSION_PATCH $GCC_PATCH
+_ACEOF
+
+
 fi
 
 
