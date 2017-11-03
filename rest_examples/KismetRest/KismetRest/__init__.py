@@ -210,18 +210,19 @@ class KismetConnector:
                     decoded_line = line.decode('utf-8')
 
                     obj = json.loads(decoded_line)
-
-                    if callback != None:
-                        if args == None:
-                            args = []
-                        callback(obj, *args)
-                    else:
-                        ret.append(obj)
             except Exception as e:
                 if self.debug:
                     print "Failed to parse JSON: {}, {}, {}".format(r.url, e.message, line)
 
                 raise KismetRequestException("Unable to parse JSON on req {}: {}".format(r.url, e.message), r.status_code)
+
+            # Call the callback outside of the exception eating
+            if callback != None:
+                if args == None:
+                    args = []
+                callback(obj, *args)
+            else:
+                ret.append(obj)
 
         return ret
 
