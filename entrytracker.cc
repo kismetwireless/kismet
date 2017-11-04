@@ -347,15 +347,19 @@ bool EntryTracker::CanSerialize(string in_name) {
 bool EntryTracker::Serialize(string in_name, std::ostream &stream,
         SharedTrackerElement e,
         TrackerElementSerializer::rename_map *name_map) {
-    local_locker lock(&serializer_mutex);
 
+    local_demand_locker lock(&serializer_mutex);
+
+    // Only lock for the scope of the lookup
+    lock.lock();
     serial_itr i = serializer_map.find(in_name);
 
     if (i == serializer_map.end()) {
-        fprintf(stderr, "debug - entrytracker - couldnt find serializer for %s\n", in_name.c_str());
         return false;
     }
+    lock.unlock();
 
+    // Call the serializer
     i->second->serialize(e, stream, name_map);
 
     return true;
