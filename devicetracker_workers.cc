@@ -277,7 +277,6 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
     vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
     bool matched = false;
-    unsigned int match_idx = 0;
 
     // Go through all the filters until we find one that hits
     for (i = filter_vec.begin(); i != filter_vec.end(); ++i) {
@@ -309,7 +308,6 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
             // Stop matching as soon as we find a hit
             if (rc >= 0) {
                 matched = true;
-                match_idx = std::distance(filter_vec.begin(), i);
                 break;
             }
 
