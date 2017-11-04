@@ -913,7 +913,8 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
 
-        // Generate a detached thread for joining the ring buffer
+        // Generate a detached thread for joining the ring buffer; it acts as a blocking
+        // wait for the buffer to be filled
         incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, 
                     in_definition]{
                 merge_target_device->connect_buffer(in_handler, in_definition, NULL);
@@ -1801,9 +1802,7 @@ dst_incoming_remote::~dst_incoming_remote() {
         rbuf_handler->RemoveReadBufferInterface();
 
     // Wait for the thread to finish
-    fprintf(stderr, "debug - waiting for handshake thread\n");
     handshake_thread.join();
-    fprintf(stderr, "debug - handshake done\n");
 }
 
 void dst_incoming_remote::kill() {
