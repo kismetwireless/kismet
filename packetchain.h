@@ -79,8 +79,8 @@ class kis_packet;
 
 class Packetchain : public LifetimeGlobal {
 public:
-    static shared_ptr<Packetchain> create_packetchain(GlobalRegistry *in_globalreg) {
-        shared_ptr<Packetchain> mon(new Packetchain(in_globalreg));
+    static std::shared_ptr<Packetchain> create_packetchain(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<Packetchain> mon(new Packetchain(in_globalreg));
         in_globalreg->packetchain = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("PACKETCHAIN", mon);
@@ -95,9 +95,9 @@ public:
 
     virtual ~Packetchain();
 
-    int RegisterPacketComponent(string in_component);
+    int RegisterPacketComponent(std::string in_component);
     int RemovePacketComponent(int in_id);
-	string FetchPacketComponentName(int in_id);
+    std::string FetchPacketComponentName(int in_id);
 
     // Generate a packet and hand it back
     kis_packet *GeneratePacket();
@@ -111,7 +111,7 @@ public:
     typedef struct {
         int priority;
 		Packetchain::pc_callback callback;
-        function<int (kis_packet *)> l_callback;
+        std::function<int (kis_packet *)> l_callback;
         void *auxdata;
 		int id;
     } pc_link;
@@ -127,27 +127,27 @@ protected:
 
     // Common function for both insertion methods
     int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
-            function<int (kis_packet *)> in_l_cb, 
+            std::function<int (kis_packet *)> in_l_cb, 
             int in_chain, int in_prio);
 
     int next_componentid, next_handlerid;
 
-    map<string, int> component_str_map;
-    map<int, string> component_id_map;
+    std::map<std::string, int> component_str_map;
+    std::map<int, std::string> component_id_map;
 
     // These two chains get called after a packet is generated and
     // before the final destruction, respectively
-    vector<Packetchain::pc_link *> genesis_chain;
-    vector<Packetchain::pc_link *> destruction_chain;
+    std::vector<Packetchain::pc_link *> genesis_chain;
+    std::vector<Packetchain::pc_link *> destruction_chain;
 
     // Core chain components
-    vector<Packetchain::pc_link *> postcap_chain;
-    vector<Packetchain::pc_link *> llcdissect_chain;
-    vector<Packetchain::pc_link *> decrypt_chain;
-    vector<Packetchain::pc_link *> datadissect_chain;
-    vector<Packetchain::pc_link *> classifier_chain;
-	vector<Packetchain::pc_link *> tracker_chain;
-    vector<Packetchain::pc_link *> logging_chain;
+    std::vector<Packetchain::pc_link *> postcap_chain;
+    std::vector<Packetchain::pc_link *> llcdissect_chain;
+    std::vector<Packetchain::pc_link *> decrypt_chain;
+    std::vector<Packetchain::pc_link *> datadissect_chain;
+    std::vector<Packetchain::pc_link *> classifier_chain;
+	std::vector<Packetchain::pc_link *> tracker_chain;
+    std::vector<Packetchain::pc_link *> logging_chain;
 
     kis_recursive_timed_mutex packetchain_mutex;
 };
