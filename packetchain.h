@@ -33,33 +33,46 @@
 #include <vector>
 #include <map>
 #include <functional>
+#include <queue>
+#include <thread>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "packet.h"
 
-// Packet chain progression
-// GENESIS
-//   --> genesis_chain
-//
-// (arbitrary fill-in by whomever generated the packet before injection)
-//
-// POST-CAPTURE
-//
-// DISSECT
-//
-// DECRYPT
-//
-// DATA-DISSECT
-//
-// CLASSIFIER
-//
-// TRACKER
-//
-// LOGGING
-//
-// DESTROY
-//   --> destroy_chain
+
+/* Packets are added to the packet queue from any thread (including the main 
+ * thread).
+ *
+ * They are then processed by the packet consumption thread(s) via the registered
+ * chain handlers.
+ *
+ * Once being inserted into the packet chain, the packet pointer may no longer be
+ * considered valid by the generating thread.
+ *
+ * Packet chain progression
+ * GENESIS
+ *   --> genesis_chain
+ * 
+ * (arbitrary fill-in by whomever generated the packet before injection)
+ * 
+ * POST-CAPTURE
+ * 
+ * DISSECT
+ * 
+ * DECRYPT
+ * 
+ * DATA-DISSECT
+ * 
+ * CLASSIFIER
+ * 
+ * TRACKER
+ * 
+ * LOGGING
+ * 
+ * DESTROY
+ *   --> destroy_chain
+ */
 
 #define CHAINPOS_GENESIS        1
 #define CHAINPOS_POSTCAP        2
@@ -118,12 +131,14 @@ public:
 
     // Register a callback, aux data, a chain to put it in, and the priority 
     int RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
-    int RegisterHandler(function<int (kis_packet *)> in_cb, int in_chain, int in_prio);
+    int RegisterHandler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio);
     int RemoveHandler(pc_callback in_cb, int in_chain);
 	int RemoveHandler(int in_id, int in_chain);
 
 protected:
     GlobalRegistry *globalreg;
+
+    static void packet_queue_processor(Packetchain *packetchain);
 
     // Common function for both insertion methods
     int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
@@ -150,6 +165,12 @@ protected:
     std::vector<Packetchain::pc_link *> logging_chain;
 
     kis_recursive_timed_mutex packetchain_mutex;
+
+    std::thread packet_thread;
+    kis_recursive_timed_mutex packetqueue_mutex;
+    conditional_locker<int> packet_condition;
+    std::queue<kis_packet *> packet_queue;
+    bool packetchain_shutdown;
 };
 
 #endif

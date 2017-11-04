@@ -49,50 +49,65 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
 	next_handlerid = 1;
+
+    // Lock the packet conditional
+    packet_condition.lock();
+
+    packet_thread = std::thread(packet_queue_processor, this);
 }
 
 Packetchain::~Packetchain() {
-    local_eol_locker lock(&packetchain_mutex);
-
-    globalreg->RemoveGlobal("PACKETCHAIN");
-    globalreg->packetchain = NULL;
-
-    vector<Packetchain::pc_link *>::iterator i;
-
-    for (i = genesis_chain.begin(); i != genesis_chain.end(); ++i) {
-        delete(*i);
+    {
+        // Tell the packet thread we're dying and unlock it
+        local_locker qlock(&packetqueue_mutex);
+        packetchain_shutdown = true;
+        packet_condition.unlock();
+        packet_thread.join();
     }
 
-    for (i = destruction_chain.begin(); i != destruction_chain.end(); ++i) {
-        delete(*i);
-    }
+    {
+        local_eol_locker lock(&packetchain_mutex);
 
-    for (i = postcap_chain.begin(); i != postcap_chain.end(); ++i) {
-        delete(*i);
-    }
+        globalreg->RemoveGlobal("PACKETCHAIN");
+        globalreg->packetchain = NULL;
 
-    for (i = llcdissect_chain.begin(); i != llcdissect_chain.end(); ++i) {
-        delete(*i);
-    }
+        vector<Packetchain::pc_link *>::iterator i;
 
-    for (i = decrypt_chain.begin(); i != decrypt_chain.end(); ++i) {
-        delete(*i);
-    }
+        for (i = genesis_chain.begin(); i != genesis_chain.end(); ++i) {
+            delete(*i);
+        }
 
-    for (i = datadissect_chain.begin(); i != datadissect_chain.end(); ++i) {
-        delete(*i);
-    }
+        for (i = destruction_chain.begin(); i != destruction_chain.end(); ++i) {
+            delete(*i);
+        }
 
-    for (i = classifier_chain.begin(); i != classifier_chain.end(); ++i) {
-        delete(*i);
-    }
+        for (i = postcap_chain.begin(); i != postcap_chain.end(); ++i) {
+            delete(*i);
+        }
 
-    for (i = tracker_chain.begin(); i != tracker_chain.end(); ++i) {
-        delete(*i);
-    }
+        for (i = llcdissect_chain.begin(); i != llcdissect_chain.end(); ++i) {
+            delete(*i);
+        }
 
-    for (i = logging_chain.begin(); i != logging_chain.end(); ++i) {
-        delete(*i);
+        for (i = decrypt_chain.begin(); i != decrypt_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = datadissect_chain.begin(); i != datadissect_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = classifier_chain.begin(); i != classifier_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = tracker_chain.begin(); i != tracker_chain.end(); ++i) {
+            delete(*i);
+        }
+
+        for (i = logging_chain.begin(); i != logging_chain.end(); ++i) {
+            delete(*i);
+        }
     }
 
 }
@@ -176,70 +191,101 @@ kis_packet *Packetchain::GeneratePacket() {
     return newpack;
 }
 
-int Packetchain::ProcessPacket(kis_packet *in_pack) {
-    {
-        local_locker lock(&packetchain_mutex);
-        // Run it through every chain vector, ignoring error codes
-        pc_link *pcl;
+void Packetchain::packet_queue_processor(Packetchain *packetchain) {
+    kis_packet *packet = NULL;
+    local_demand_locker queue_lock(&(packetchain->packetqueue_mutex));
+    local_demand_locker chain_lock(&(packetchain->packetchain_mutex));
 
-        for (unsigned int x = 0; x < postcap_chain.size() && 
-                (pcl = postcap_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
+    while (1) {
+        queue_lock.lock();
+
+        // Are we shutting down?
+        if (packetchain->packetchain_shutdown)
+            return;
+      
+        if (packetchain->packet_queue.size() != 0) {
+            // Get the next packet
+            packet = packetchain->packet_queue.front();
+            packetchain->packet_queue.pop();
+
+            // Unlock the queue while we process that packet
+            queue_lock.unlock();
+
+            // Lock the  packet chain itself because we need to have consistent
+            // packet chain vectors
+            
+            for (auto pcl : packetchain->postcap_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            for (auto pcl : packetchain->llcdissect_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            for (auto pcl : packetchain->decrypt_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            for (auto pcl : packetchain->datadissect_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            for (auto pcl : packetchain->classifier_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            for (auto pcl : packetchain->tracker_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            for (auto pcl : packetchain->logging_chain) {
+                if (pcl->callback != NULL)
+                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                else if (pcl->l_callback != NULL)
+                    pcl->l_callback(packet);
+            }
+
+            packetchain->DestroyPacket(packet);
+
+            // re-loop in case we have more packets
+            continue;
+        } else {
+            // We have no packets, lock our conditional until something queues a new packet
+           packetchain->packet_condition.lock();
         }
 
-        for (unsigned int x = 0; x < llcdissect_chain.size() && 
-                (pcl = llcdissect_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
-        }
+        // No packets; fall through to blocking until we have them
+        queue_lock.unlock();
 
-        for (unsigned int x = 0; x < decrypt_chain.size() && 
-                (pcl = decrypt_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
-        }
 
-        for (unsigned int x = 0; x < datadissect_chain.size() && 
-                (pcl = datadissect_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
-        }
-
-        for (unsigned int x = 0; x < classifier_chain.size() && 
-                (pcl = classifier_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
-        }
-
-        for (unsigned int x = 0; x < tracker_chain.size() && 
-                (pcl = tracker_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
-        }
-
-        for (unsigned int x = 0; x < logging_chain.size() && 
-                (pcl = logging_chain[x]); x++) {
-            if (pcl->callback != NULL)
-                (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-            else if (pcl->l_callback != NULL)
-                (pcl->l_callback)(in_pack);
-        }
+        // Block until something pokes the conditional locker
+        packetchain->packet_condition.block_until();
     }
+}
 
-    DestroyPacket(in_pack);
+int Packetchain::ProcessPacket(kis_packet *in_pack) {
+    local_locker qlock(&packetqueue_mutex);
+    packet_queue.push(in_pack);
+
+    packet_condition.unlock();
 
     return 1;
 }
