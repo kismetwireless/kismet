@@ -673,23 +673,23 @@ void Alertracker::Httpd_CreateStreamResponse(
         }
     }
 
+    shared_ptr<TrackerElement> wrapper;
+    shared_ptr<TrackerElement> msgvec(globalreg->entrytracker->GetTrackedInstance(alert_vec_id));
+
+    // If we're doing a time-since, wrap the vector
+    if (wrap) {
+        wrapper.reset(new TrackerElement(TrackerMap));
+        wrapper->add_map(msgvec);
+
+        SharedTrackerElement ts(globalreg->entrytracker->GetTrackedInstance(alert_timestamp_id));
+        ts->set((double) ts_now_to_double());
+        wrapper->add_map(ts);
+    } else {
+        wrapper = msgvec;
+    }
+
     {
         local_locker lock(&alert_mutex);
-
-        shared_ptr<TrackerElement> wrapper;
-        shared_ptr<TrackerElement> msgvec(globalreg->entrytracker->GetTrackedInstance(alert_vec_id));
-
-        // If we're doing a time-since, wrap the vector
-        if (wrap) {
-            wrapper.reset(new TrackerElement(TrackerMap));
-            wrapper->add_map(msgvec);
-
-            SharedTrackerElement ts(globalreg->entrytracker->GetTrackedInstance(alert_timestamp_id));
-            ts->set((double) ts_now_to_double());
-            wrapper->add_map(ts);
-        } else {
-            wrapper = msgvec;
-        }
 
         for (vector<kis_alert_info *>::iterator i = alert_backlog.begin();
                 i != alert_backlog.end(); ++i) {
@@ -699,9 +699,9 @@ void Alertracker::Httpd_CreateStreamResponse(
                 msgvec->add_vector(ta);
             }
         }
-
-        Httpd_Serialize(path, stream, wrapper);
     }
+
+    Httpd_Serialize(path, stream, wrapper);
 }
 
 int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
@@ -718,8 +718,6 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (!httpd->HasValidSession(concls, true)) {
         return -1;
     }
-
-    local_locker lock(&alert_mutex);
 
     SharedStructured structdata;
 
@@ -834,8 +832,6 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             concls->httpcode = 400;
         return 1;
     }
-
-
 
     return 0;
 }
