@@ -60,8 +60,13 @@ define Package/kismet-tetra/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/capture_linux_bluetooth/kismet_cap_linux_bluetooth $(1)/usr/bin/kismet_capture_tools/
 
 	$(INSTALL_DIR) $(1)/etc/kismet/
-	$(INSTALL_CONF) ./files/kismet.conf $(1)/etc/kismet/
-	$(INSTALL_CONF) ./files/kismet_httpd.conf $(1)/etc/kismet/
+	$(INSTALL_CONF) ./files/kismet_site.conf $(1)/etc/kismet/
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet.conf $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_alerts.conf $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_httpd.conf $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_logging.conf $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_memory.conf $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_storage.conf $(1)/etc/kismet
 	cp -Rv $(PKG_BUILD_DIR)/http_data $(1)/etc/kismet/
 endef
 
