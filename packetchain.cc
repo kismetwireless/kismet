@@ -29,6 +29,7 @@
 #include "messagebus.h"
 #include "configfile.h"
 #include "packetchain.h"
+#include "alertracker.h"
 
 class SortLinkPriority {
 public:
@@ -49,6 +50,14 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
 	next_handlerid = 1;
+
+    last_packet_queue_user_warning = 0;
+    last_packet_drop_user_warning = 0;
+
+    packet_queue_warning = 
+        globalreg->kismet_config->FetchOptUInt("packet_log_warning", 1024);
+    packet_queue_drop =
+        globalreg->kismet_config->FetchOptUInt("packet_backlog_limit", 8192);
 
     // Lock the packet conditional
     packet_condition.lock();
@@ -283,6 +292,39 @@ void Packetchain::packet_queue_processor(Packetchain *packetchain) {
 
 int Packetchain::ProcessPacket(kis_packet *in_pack) {
     local_locker qlock(&packetqueue_mutex);
+
+    if (packet_queue.size() > packet_queue_warning) {
+        time_t offt = time(0) - last_packet_queue_user_warning;
+
+        if (offt > 30) {
+            last_packet_queue_user_warning = time(0);
+
+            shared_ptr<Alertracker> alertracker =
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            alertracker->RaiseOneShot("PACKETQUEUE", 
+                    "The packet queue has a backlog of " + IntToString(packet_queue.size()) + 
+                    " packets; if you have multiple data sources it's possible that your "
+                    "system is not fast enough.  Kismet will continue to process "
+                    "packets, this may be a momentary spike in packet load.", -1);
+        }
+    }
+
+    if (packet_queue_drop != 0 && packet_queue.size() > packet_queue_drop) {
+        time_t offt = time(0) - last_packet_drop_user_warning;
+
+        if (offt > 30) {
+            last_packet_drop_user_warning = time(0);
+
+            shared_ptr<Alertracker> alertracker =
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            alertracker->RaiseOneShot("PACKETLOST", 
+                    "Kismet has started to drop packets; the packet queue has a backlog "
+                    "of " + IntToString(packet_queue.size()) + " packets.  Your system "
+                    "may not be fast enough to process the number of packets being seen. "
+                    "You change this behavior in 'kismet_memory.conf'.", -1);
+        }
+    }
+
     packet_queue.push(in_pack);
 
     packet_condition.unlock();

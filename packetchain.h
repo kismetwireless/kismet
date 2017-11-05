@@ -164,13 +164,19 @@ protected:
 	std::vector<Packetchain::pc_link *> tracker_chain;
     std::vector<Packetchain::pc_link *> logging_chain;
 
+    // Whole packet-chain mutex
     kis_recursive_timed_mutex packetchain_mutex;
 
+    // Packet queue management
     std::thread packet_thread;
     kis_recursive_timed_mutex packetqueue_mutex;
     conditional_locker<int> packet_condition;
     std::queue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
+
+    // Warning and discard levels for packet queue being full
+    unsigned int packet_queue_warning, packet_queue_drop;
+    time_t last_packet_queue_user_warning, last_packet_drop_user_warning;
 };
 
 #endif

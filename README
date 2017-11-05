@@ -1040,6 +1040,73 @@ xx. GPS
 
         gps=virtual:lat=123.4566,lon=40.002,alt=23.45
 
+xx. Kismet Memory and Processor Tuning
+
+    Kismet has several options which control how much memory and processing it 
+    uses.  These are found in `kismet_memory.conf`:
+
+    tracker_device_timeout=seconds
+
+        Kismet will forget devices which have been idle for more than the 
+        specified time, in seconds.
+
+        Kismet will also forget links between devices (such as access points and
+        clients) when the device has been idle for more than the specified time.
+
+        This is primarily useful on long-running fixed Kismet installs.
+
+    tracker_max_devices=devices
+
+        Kismet will start forgetting the oldest devices when more than the 
+        specified number of devices are seen.
+
+        There is no terribly efficient way to handle this, so typically, leaving
+        this option unset is the right idea.  Memory use can be tuned over time
+        using the `tracker_device_timeout` option.
+
+    keep_location_cloud_history=true|false
+
+        Kismet can track a 'cloud' style history of locations around a device;
+        Similar to a RRD (round robin database), the precision of the records
+        decreases over time.  
+
+        The location cloud can be useful for plotting devices on a map, but
+        also takes more memory per dvice.
+
+    keep_datasource_signal_history=true|false
+
+        Kismet can keep a record of the signal levels of each device, as seen
+        by each data source.  This is used for tracking signal levels across
+        many sensors, but uses more memory.
+
+    alertbacklog=number
+
+        The number of alerts Kismet saves for displaying to new clients; setting
+        this too low can prevent clients from seeing alerts but saves memory.
+
+        Alerts will still be logged.
+
+    packet_dedup_size=packets
+
+        When using multiple datasources, Kismet keeps a list of the checksums
+        of previous packets; this prevents multiple copies of the same packet
+        triggering alerts.
+
+    packet_backlog_warning=packets
+        
+        Kismet will start raising warnings when the number of packets waiting
+        to be processed is over this number; no action will be taken, but
+        an alert will be generated.
+
+    packet_backlog_limit=packets
+
+        This is a *hard limit*.  If the packet processing thread is not able
+        to process packets fast enough, new packets will be dropped over this
+        limit.
+
+        This can be set to 0; Kismet will never drop packets.  This may 
+        lead to a runaway memory situation, however.
+
 xx. Storage and Snapshots
 
     Kismet can remember devices seen from one launch of Kismet to another; this
