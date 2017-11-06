@@ -537,6 +537,8 @@ class KismetConnector:
         if fields == None:
             if not field == None:
                 field = "/" + field
+            else:
+                field = ""
 
             (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field))
         else:
