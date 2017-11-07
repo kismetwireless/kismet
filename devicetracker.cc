@@ -424,6 +424,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         persistent_mode = MODE_ONSTART;
         persistent_compression = false;
         statestore = NULL;
+        persistent_storage_timeout = 0;
     } else {
         persistent_storage =
             globalreg->kismet_config->FetchOptBoolean("persistent_state", false);
@@ -493,6 +494,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
             persistent_compression = 
                 globalreg->kismet_config->FetchOptBoolean("persistent_compression", true);
+
+            persistent_storage_timeout =
+                globalreg->kismet_config->FetchOptULong("persistent_timeout", 86400);
         }
     }
 
@@ -1514,7 +1518,16 @@ int Devicetracker::load_devices() {
     if (!Database_Valid())
         return 0;
 
-    return statestore->load_devices();
+    int r;
+    
+    r = statestore->load_devices();
+
+    if (r < 0)
+        return r;
+
+    r = statestore->clear_old_devices();
+
+    return r;
 }
 
 // Attempt to load a single device from the database, return NULL if it wasn't found
@@ -1898,6 +1911,69 @@ int DevicetrackerStateStore::Database_UpgradeDB() {
     return 0;
 }
 
+int DevicetrackerStateStore::clear_old_devices() {
+    local_locker dblock(&ds_mutex);
+
+    std::string sql;
+    std::stringstream sqlss;
+    int r;
+    char *sErrMsg = NULL;
+
+    if (!Database_Valid())
+        return 0;
+
+    if (devicetracker->persistent_storage_timeout == 0)
+        return 0;
+
+    sqlss << 
+        "DELETE FROM device_storage WHERE (last_time < " <<
+        time(0) - devicetracker->persistent_storage_timeout << ")";
+    sql = sqlss.str();
+
+
+    r = sqlite3_exec(db, sql.c_str(), NULL, NULL, &sErrMsg);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to delete timed out devices in " + ds_dbfile + ": " +
+                std::string(sErrMsg), MSGFLAG_ERROR);
+        sqlite3_close(db);
+        db = NULL;
+        return -1;
+    }
+
+    return 1;
+}
+
+int DevicetrackerStateStore::clear_all_devices() {
+    local_locker dblock(&ds_mutex);
+
+    std::string sql;
+    std::stringstream sqlss;
+    int r;
+    char *sErrMsg = NULL;
+
+    if (!Database_Valid())
+        return 0;
+
+    if (devicetracker->persistent_storage_timeout == 0)
+        return 0;
+
+    sql = "DELETE FROM device_storage";
+
+    r = sqlite3_exec(db, sql.c_str(), NULL, NULL, &sErrMsg);
+
+    if (r != SQLITE_OK) {
+        _MSG("Devicetracker unable to delete timed out devices in " + ds_dbfile + ": " +
+                std::string(sErrMsg), MSGFLAG_ERROR);
+        sqlite3_close(db);
+        db = NULL;
+        return -1;
+    }
+
+    return 1;
+}
+
+
 int DevicetrackerStateStore::load_devices() {
     if (!Database_Valid())
         return 0;
@@ -1911,6 +1987,16 @@ int DevicetrackerStateStore::load_devices() {
 
     sql = 
         "SELECT devmac, storage FROM device_storage";
+
+    // If we have a timeout, apply that
+    if (devicetracker->persistent_storage_timeout != 0) {
+        std::stringstream timess;
+
+        timess << sql << " WHERE (last_time > " <<
+            time(0) - devicetracker->persistent_storage_timeout << ")";
+        sql = timess.str();
+    }
+
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
@@ -2105,7 +2191,7 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
                 phystring = kdb->get_phyname();
 
                 sqlite3_bind_int(stmt, 1, kdb->get_first_time());
-                sqlite3_bind_int(stmt, 2, kdb->get_last_time());
+                sqlite3_bind_int(stmt, 2, kdb->get_mod_time());
                 sqlite3_bind_text(stmt, 3, phystring.c_str(), phystring.length(), 0);
                 sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
                 sqlite3_bind_blob(stmt, 5, serialstring.data(), serialstring.length(), 0);

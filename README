@@ -1145,6 +1145,17 @@ xx. Storage and Snapshots
         since this launch, but it will track historical data about those
         devices (first time seen, previously advertised device names, etc).
 
+    persistent_timeout=seconds
+
+        Stored devices which have seen no traffic in more time than the timeout, 
+        in seconds, are not loaded and are removed from the storage database.
+        This helps keep the number of devices under control.  This does mean that
+        stopping Kismet and not running it for prolonged periods of time may
+        result in the devices being lost from the storage cache.
+
+        This behavior can be disabled by setting this to 0, however that may 
+        result in very heavy memory usage and very long startup times.
+
     persistent_compression=true|false
 
         By default, Kismet will compress the device data being stored.  This

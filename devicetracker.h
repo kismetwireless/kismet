@@ -397,6 +397,12 @@ public:
     // Iterate over all phys and load from the database
     virtual int load_devices();
 
+    // Clear out devices too old
+    virtual int clear_old_devices();
+
+    // Clear all devices
+    virtual int clear_all_devices();
+
     // Load a specific device
     std::shared_ptr<kis_tracked_device_base> load_device(Kis_Phy_Handler *in_phy,
             mac_addr in_mac);
@@ -667,6 +673,8 @@ protected:
 
     // Do we store devices?
     bool persistent_storage;
+
+    unsigned long persistent_storage_timeout;
 
     // Persistent database (independent of our tags, etc db)
     DevicetrackerStateStore *statestore;
