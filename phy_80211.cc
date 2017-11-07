@@ -429,6 +429,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "A WPA handshake has attempted to re-use a previous nonce value; this may "
                 "indicate an attack against the WPA keystream such as the vanhoefm "
                 "KRACK attack (https://www.krackattacks.com/)");
+    alert_atheros_wmmtspec_ref =
+        alertracker->ActivateConfiguredAlert("WMMTSPEC",
+                "Too many WMMTSPEC options were seen in a probe response; this "
+                "may be triggered by CVE-2017-11013 as described at "
+                "https://pleasestopnamingvulnerabilities.com/");
 
     // Threshold
     signal_too_loud_threshold = 

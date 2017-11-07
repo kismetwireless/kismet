@@ -44,7 +44,8 @@
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_221_vendor.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
-#include "kaitai_parsers/dot11_ie_221_microsoft.h"
+#include "kaitai_parsers/dot11_ie_221_ms_wmm.h"
+#include "kaitai_parsers/dot11_ie_221_ms_wps.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -977,6 +978,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             // Match sub-tags inside 221
             if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+                // Count WMMTSPEC responses
+                unsigned int wmmtspec_responses = 0;
+
                 // For every copy of the 221 tag
                 for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
                     tag_offset = tcitr->second[tagct];
@@ -991,8 +995,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         return 0;
                     }
 
-                    // Start migrating to the new Kaitai ie_221 parser; this will get replaced
-                    // in the future w/ a full IE parser in kaitai
+                    // Split a kaitai parser off for the 221 tag
                     membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]),
                             (char *) &(chunk->data[chunk->length]));
                     std::istream tag_stream(&tag_membuf);
@@ -1019,6 +1022,22 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                                     packinfo->channel, al);
                         }
 
+                        // Count wmmtspec frames; per
+                        // CVE-2017-11013 
+                        // https://pleasestopnamingvulnerabilities.com/
+                        if (fc->subtype == packet_sub_association_resp &&
+                                vendor->vendor_oui_int() == 0x0050f2 &&
+                                vendor->vendor_oui_type() == 2) {
+                            std::stringstream wmmstream(vendor->vendor_tag()->vendor_data());
+                            kaitai::kstream kds(&wmmstream);
+                            dot11_ie_221_ms_wmm_t wmm(&kds);
+
+                            if (wmm.wme_subtype() == 0x02) {
+                                wmmtspec_responses++;
+                            }
+
+                        }
+
                         // Look for DJI DroneID OUIs
                         if (vendor->vendor_oui_int() == 0x263712) {
                             std::stringstream dronestream(vendor->vendor_tag()->vendor_data());
@@ -1027,15 +1046,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                             std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid(new dot11_ie_221_dji_droneid_t(&kds));
 
                             packinfo->droneid = droneid;
-
-                            /*
-                            if (droneid->subcommand() == 0x10) {
-                                dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = droneid->record();
-
-                                fprintf(stderr, "debug - drone %s %lf/%lf\n", flightinfo->serialnumber().c_str(), flightinfo->lat(), flightinfo->lon());
-
-                            }
-                            */
                         }
 
                     } catch (const std::exception &e) {
@@ -1149,6 +1159,20 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                             break; // No more data elements
                         offt += 4 + length;
                     }
+                }
+
+                // Overflow of responses
+                if (wmmtspec_responses > 4) {
+                    string al = "IEEE80211 Access Point BSSID " + 
+                        packinfo->bssid_mac.Mac2String() + " sent association "
+                        "response with more than 4 WMM-TSPEC responses; this "
+                        "may be attempt to exploit embedded Atheros drivers using "
+                        "CVE-2017-11013";
+
+                    alertracker->RaiseAlert(alert_atheros_wmmtspec_ref, in_pack, 
+                            packinfo->bssid_mac, packinfo->source_mac, 
+                            packinfo->dest_mac, packinfo->other_mac, 
+                            packinfo->channel, al);
                 }
             } // WPS
 
