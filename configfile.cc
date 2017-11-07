@@ -330,7 +330,7 @@ unsigned int ConfigFile::FetchOptUInt(std::string in_key, unsigned int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 
-    string v = StrLower(FetchOpt(in_key));
+    string v = FetchOpt(in_key);
     unsigned int r;
 
     try {
@@ -338,6 +338,19 @@ unsigned int ConfigFile::FetchOptUInt(std::string in_key, unsigned int dvalue) {
     } catch (const std::runtime_error e) {
         return dvalue;
     }
+
+    return r;
+}
+
+unsigned long ConfigFile::FetchOptULong(std::string in_key, unsigned long dvalue) {
+    std::string v = FetchOpt(in_key);
+    std::stringstream ss(v);
+    unsigned long r;
+
+    ss >> r;
+
+    if (ss.fail())
+        return dvalue;
 
     return r;
 }

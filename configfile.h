@@ -56,6 +56,7 @@ public:
     // Fetch an integer option
     int FetchOptInt(std::string in_key, int dvalue);
     unsigned int FetchOptUInt(std::string in_key, unsigned int dvalue);
+    unsigned long int FetchOptULong(std::string in_key, unsigned long dvalue);
 
 	int FetchOptDirty(std::string in_key);
 	void SetOptDirty(std::string in_key, int in_dirty);
