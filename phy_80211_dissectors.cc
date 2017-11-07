@@ -44,6 +44,7 @@
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_221_vendor.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
+#include "kaitai_parsers/dot11_ie_221_microsoft.h"
 
 // Handy little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -1001,9 +1002,10 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         std::shared_ptr<dot11_ie_221_vendor_t> vendor(new dot11_ie_221_vendor_t(&ks));
 
                         // Match mis-sized WMM
-                        if (vendor->vendor_oui_int() == 0x0050f2 &&
+                        if (fc->subtype == packet_sub_beacon &&
+                                vendor->vendor_oui_int() == 0x0050f2 &&
                                 vendor->vendor_oui_type() == 2 &&
-                                taglen != 24) {
+                                taglen > 24) {
 
                             string al = "IEEE80211 Access Point BSSID " + 
                                 packinfo->bssid_mac.Mac2String() + " sent association "
