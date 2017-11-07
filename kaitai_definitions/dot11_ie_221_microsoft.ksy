@@ -10,9 +10,15 @@ seq:
     type:
       switch-on: vendor_type
       cases:
+        0x02: vendor_ms_wmm
         0x04: vendor_ms_wps
         
 types:
+  vendor_ms_wmm:
+    seq:
+      - id: wme_subtype
+        type: u1
+
   vendor_ms_wps:
     seq:
       - id: wps_element

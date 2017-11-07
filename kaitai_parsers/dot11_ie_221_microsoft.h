@@ -22,6 +22,7 @@ public:
     class vendor_ms_wps_t;
     class wps_de_state_t;
     class wps_de_vendor_extension_t;
+    class vendor_ms_wmm_t;
     class wps_de_generic_t;
     class wps_de_rfband_t;
     class vendor_data_generic_t;
@@ -141,6 +142,24 @@ public:
         dot11_ie_221_microsoft_t::wps_de_element_t* _parent() const { return m__parent; }
     };
 
+    class vendor_ms_wmm_t : public kaitai::kstruct {
+
+    public:
+
+        vendor_ms_wmm_t(kaitai::kstream* p_io, dot11_ie_221_microsoft_t* p_parent = 0, dot11_ie_221_microsoft_t* p_root = 0);
+        ~vendor_ms_wmm_t();
+
+    private:
+        uint8_t m_wme_subtype;
+        dot11_ie_221_microsoft_t* m__root;
+        dot11_ie_221_microsoft_t* m__parent;
+
+    public:
+        uint8_t wme_subtype() const { return m_wme_subtype; }
+        dot11_ie_221_microsoft_t* _root() const { return m__root; }
+        dot11_ie_221_microsoft_t* _parent() const { return m__parent; }
+    };
+
     class wps_de_generic_t : public kaitai::kstruct {
 
     public:
@@ -254,7 +273,7 @@ public:
 
 private:
     uint8_t m_vendor_type;
-    vendor_ms_wps_t* m_vendor_data;
+    kaitai::kstruct* m_vendor_data;
     dot11_ie_221_microsoft_t* m__root;
     kaitai::kstruct* m__parent;
     std::string m__raw_vendor_data;
@@ -262,7 +281,7 @@ private:
 
 public:
     uint8_t vendor_type() const { return m_vendor_type; }
-    vendor_ms_wps_t* vendor_data() const { return m_vendor_data; }
+    kaitai::kstruct* vendor_data() const { return m_vendor_data; }
     dot11_ie_221_microsoft_t* _root() const { return m__root; }
     kaitai::kstruct* _parent() const { return m__parent; }
     std::string _raw_vendor_data() const { return m__raw_vendor_data; }
