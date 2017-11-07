@@ -1,30 +1,13 @@
 meta:
-  id: dot11_ie_221_microsoft
-  file-extension: dot11_ie_221_microsoft
+  id: dot11_ie_221_ms_wps
+  file-extension: dot11_ie_221_ms_wps
   
 seq:
-  - id: vendor_type
-    type: u1
-  - id: vendor_data
-    size-eos: true
-    type:
-      switch-on: vendor_type
-      cases:
-        0x02: vendor_ms_wmm
-        0x04: vendor_ms_wps
-        
+  - id: wps_element
+    type: wps_de_element
+    repeat: eos
+
 types:
-  vendor_ms_wmm:
-    seq:
-      - id: wme_subtype
-        type: u1
-
-  vendor_ms_wps:
-    seq:
-      - id: wps_element
-        type: wps_de_element
-        repeat: eos
-
   wps_de_element:
     seq:
       - id: wps_de_type

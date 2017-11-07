@@ -40,7 +40,8 @@ KAITAI_PARSERS = \
 	kaitai_parsers/dot11_ie_11_qbss.cc.o \
 	kaitai_parsers/dot11_ie_54_mobility.cc.o \
 	kaitai_parsers/dot11_ie_221_vendor.cc.o \
-	kaitai_parsers/dot11_ie_221_microsoft.cc.o \
+	kaitai_parsers/dot11_ie_221_ms_wps.cc.o \
+	kaitai_parsers/dot11_ie_221_ms_wmm.cc.o \
 	kaitai_parsers/dot11_ie_221_dji_droneid.cc.o
 
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
@@ -333,7 +334,7 @@ kaitai-parsers:
 	@echo "Re-generating the kaitai_struct parsers requires the gpl3 licensed "
 	@echo "kaitai_struct compiler; see http://http://kaitai.io/ for more info!"
 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
-	rename 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp -v -f
+	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

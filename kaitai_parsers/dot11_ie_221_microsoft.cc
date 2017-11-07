@@ -10,6 +10,11 @@ dot11_ie_221_microsoft_t::dot11_ie_221_microsoft_t(kaitai::kstream *p_io, kaitai
     m__root = this;
     m_vendor_type = m__io->read_u1();
     switch (vendor_type()) {
+    case 2:
+        m__raw_vendor_data = m__io->read_bytes_full();
+        m__io__raw_vendor_data = new kaitai::kstream(m__raw_vendor_data);
+        m_vendor_data = new vendor_ms_wmm_t(m__io__raw_vendor_data, this, m__root);
+        break;
     case 4:
         m__raw_vendor_data = m__io->read_bytes_full();
         m__io__raw_vendor_data = new kaitai::kstream(m__raw_vendor_data);
@@ -95,6 +100,15 @@ int8_t dot11_ie_221_microsoft_t::wps_de_vendor_extension_t::wfa_sub_version() {
     m_wfa_sub_version = 0;
     f_wfa_sub_version = true;
     return m_wfa_sub_version;
+}
+
+dot11_ie_221_microsoft_t::vendor_ms_wmm_t::vendor_ms_wmm_t(kaitai::kstream *p_io, dot11_ie_221_microsoft_t *p_parent, dot11_ie_221_microsoft_t *p_root) : kaitai::kstruct(p_io) {
+    m__parent = p_parent;
+    m__root = p_root;
+    m_wme_subtype = m__io->read_u1();
+}
+
+dot11_ie_221_microsoft_t::vendor_ms_wmm_t::~vendor_ms_wmm_t() {
 }
 
 dot11_ie_221_microsoft_t::wps_de_generic_t::wps_de_generic_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_microsoft_t *p_root) : kaitai::kstruct(p_io) {
