@@ -41,6 +41,8 @@
 #include "kaitai_parsers/wpaeap.h"
 #include "kaitai_parsers/ie221.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
+#include "kaitai_parsers/dot11_ie_48_rsn.h"
+#include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_221_vendor.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
@@ -153,6 +155,9 @@ static const uint32_t dot11_wep_crc32_table[256] = {
 int Kis_80211_Phy::WPACipherConv(uint8_t cipher_index) {
     int ret = crypt_wpa;
 
+    // TODO fix cipher methodology for new standards, rewrite basic 
+    // cipher stuff
+
     switch (cipher_index) {
         case 1:
             ret |= crypt_wep40;
@@ -169,6 +174,7 @@ int Kis_80211_Phy::WPACipherConv(uint8_t cipher_index) {
         case 5:
             ret |= crypt_wep104;
             break;
+
         default:
             ret = 0;
             break;
@@ -1291,71 +1297,46 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     }
                 } /* 221 */
 
-                // Match tag 48 RSN WPA2
+                // Tag 48, RSN
                 if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end()) {
-                    for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
-                         tagct++) {
-                        tag_offset = tcitr->second[tagct];
-                        unsigned int tag_orig = tag_offset + 1;
-                        unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
-                        unsigned int offt = 0;
+                    tag_offset = tcitr->second[0];
+                    taglen = (chunk->data[tag_offset] & 0xFF);
 
-                        if (tag_orig + taglen > chunk->length || taglen < 6) {
-                            fprintf(stderr, "debug - wpa2 rsn corrupt, len %u\n", taglen);
-                            packinfo->corrupt = 1;
-                            in_pack->insert(pack_comp_80211, packinfo);
-                            return 0;
-                        }
+                    membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                            (char *) &(chunk->data[chunk->length]));
+                    std::istream tag_stream(&tag_membuf);
 
-                        // Skip version
-                        offt += 2;
+                    try {
+                        kaitai::kstream ks(&tag_stream);
+                        std::shared_ptr<dot11_ie_48_rsn_t> rsn(new dot11_ie_48_rsn_t(&ks));
 
-                        // Match multicast
-                        if (offt + 3 > taglen ||
-                            memcmp(&(chunk->data[tag_orig + offt]), RSN_OUI,
-                                   sizeof(RSN_OUI))) {
-                            fprintf(stderr, "debug - wpa2 multicast corrupt\n");
-                            packinfo->corrupt = 1;
-                            in_pack->insert(pack_comp_80211, packinfo);
-                            return 0;
-                        }
-
+                        // TODO - don't aggregate these in the future
+                        
+                        // Merge the group cipher
                         packinfo->cryptset |= 
-                            WPACipherConv(chunk->data[tag_orig + offt + 3]);
-                        offt += 4;
+                            WPACipherConv(rsn->group_cipher()->cipher_type());
 
-                        // We don't care about unicast number
-                        offt += 2;
-
-                        while (offt + 4 <= taglen) {
-                            if (memcmp(&(chunk->data[tag_orig + offt]), 
-                                      RSN_OUI, sizeof(RSN_OUI)) == 0) {
-                                packinfo->cryptset |= 
-                                    WPACipherConv(chunk->data[tag_orig + offt + 3]);
-                                offt += 4;
-                            } else {
-                                break;
-                            }
+                        // Merge the unicast ciphers
+                        for (auto i : *(rsn->pairwise_ciphers())) {
+                            packinfo->cryptset |= WPACipherConv(i->cipher_type());
                         }
 
-                        // We don't care about authkey number
-                        offt += 2;
-
-                        while (offt + 4 <= taglen) {
-                            if (memcmp(&(chunk->data[tag_orig + offt]), 
-                                      RSN_OUI, sizeof(RSN_OUI)) == 0) {
-                                packinfo->cryptset |= 
-                                    WPAKeyMgtConv(chunk->data[tag_orig + offt + 3]);
-                                offt += 4;
-                            } else {
-                                break;
-                            }
+                        // Merge the authkey types
+                        for (auto i : *(rsn->akm_ciphers())) {
+                            packinfo->cryptset |= WPACipherConv(i->management_type());
                         }
 
-                        // Set version flag
+                        // Set version flag - this is probably wrong but keep it 
+                        // for now
                         packinfo->cryptset |= crypt_version_wpa2;
+
+                    } catch (const std::exception& e) {
+                        fprintf(stderr, "debug - ie48 rsn corrupt\n");
+                        packinfo->corrupt = 1;
+                        in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     }
-                } /* 48 */
+                }
+
             } /* protected frame */
 
         } else if (fc->subtype == packet_sub_deauthentication) {
