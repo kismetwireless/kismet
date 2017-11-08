@@ -49,8 +49,10 @@
 #include "kaitai/kaitaistream.h"
 #include "kaitai_parsers/wpaeap.h"
 #include "kaitai_parsers/ie221.h"
-#include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
+#include "kaitai_parsers/dot11_ie_54_mobility.h"
+#include "kaitai_parsers/dot11_ie_61_ht.h"
+#include "kaitai_parsers/dot11_ie_192_vht_operation.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 
 /*
@@ -235,8 +237,11 @@ class dot11_packinfo : public packet_component {
         // There's also the serial number field but we don't care
         // about it because it's almost always bogus.
 
-        std::shared_ptr<dot11_ie_54_mobility_t> dot11r_mobility;
+        // Direct kaitai structs pulled from the beacon
         std::shared_ptr<dot11_ie_11_qbss_t> qbss;
+        std::shared_ptr<dot11_ie_54_mobility_t> dot11r_mobility;
+        std::shared_ptr<dot11_ie_61_ht_t> dot11ht;
+        std::shared_ptr<dot11_ie_192_vht_operation_t> dot11vht;
 
         std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
 };

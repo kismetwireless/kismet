@@ -44,6 +44,8 @@
 #include "kaitai_parsers/dot11_ie_48_rsn.h"
 #include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
+#include "kaitai_parsers/dot11_ie_61_ht.h"
+#include "kaitai_parsers/dot11_ie_192_vht_operation.h"
 #include "kaitai_parsers/dot11_ie_221_vendor.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 #include "kaitai_parsers/dot11_ie_221_ms_wmm.h"
@@ -757,7 +759,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     packinfo->qbss = qbss;
 
                 } catch (const std::exception& e) {
-                    fprintf(stderr, "debug - ie11 qbss corrupt\n");
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                 }
@@ -779,7 +780,49 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     packinfo->dot11r_mobility = mobility;
 
                 } catch (const std::exception& e) {
-                    fprintf(stderr, "debug - ie54 mobility corrupt\n");
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                }
+            }
+
+            // Look for the HT tag
+            // TODO move the maxrate calc to here too
+            if ((tcitr = tag_cache_map.find(61)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+                membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                        (char *) &(chunk->data[chunk->length]));
+                std::istream tag_stream(&tag_membuf);
+
+                try {
+                    kaitai::kstream ks(&tag_stream);
+                    std::shared_ptr<dot11_ie_61_ht_t> ht(new dot11_ie_61_ht_t(&ks));
+
+                    packinfo->dot11ht = ht;
+
+                } catch (const std::exception& e) {
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                }
+            }
+
+            // Look for the VHT tag
+            if ((tcitr = tag_cache_map.find(192)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+                membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                        (char *) &(chunk->data[chunk->length]));
+                std::istream tag_stream(&tag_membuf);
+
+                try {
+                    kaitai::kstream ks(&tag_stream);
+                    std::shared_ptr<dot11_ie_192_vht_operation_t> vht(new dot11_ie_192_vht_operation_t(&ks));
+
+                    packinfo->dot11vht = vht;
+
+                } catch (const std::exception& e) {
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                 }
