@@ -1325,7 +1325,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
                         // Merge the authkey types
                         for (auto i : *(rsn->akm_ciphers())) {
-                            packinfo->cryptset |= WPACipherConv(i->management_type());
+                            packinfo->cryptset |= WPAKeyMgtConv(i->management_type());
                         }
 
                         // Set version flag - this is probably wrong but keep it 
