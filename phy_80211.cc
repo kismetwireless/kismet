@@ -434,6 +434,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "Too many WMMTSPEC options were seen in a probe response; this "
                 "may be triggered by CVE-2017-11013 as described at "
                 "https://pleasestopnamingvulnerabilities.com/");
+    alert_atheros_rsnloop_ref =
+        alertracker->ActivateConfiguredAlert("RSNLOOP",
+                "Invalid RSN (802.11i) tags in beacon frames can be used to cause "
+                "loops in some Atheros drivers, as described in "
+                "CVE-2017-9714 and https://pleasestopnamingvulnerabilities.com/");
 
     // Threshold
     signal_too_loud_threshold = 

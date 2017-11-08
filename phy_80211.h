@@ -1318,7 +1318,8 @@ protected:
         alert_wepflap_ref, alert_dhcpname_ref, alert_dhcpos_ref, alert_adhoc_ref,
         alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
-        alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref;
+        alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
+        alert_atheros_rsnloop_ref;
 
     int signal_too_loud_threshold;
 

@@ -1306,6 +1306,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                             (char *) &(chunk->data[chunk->length]));
                     std::istream tag_stream(&tag_membuf);
 
+                    bool rsn_invalid = false;
+
                     try {
                         kaitai::kstream ks(&tag_stream);
                         std::shared_ptr<dot11_ie_48_rsn_t> rsn(new dot11_ie_48_rsn_t(&ks));
@@ -1331,9 +1333,43 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                         packinfo->cryptset |= crypt_version_wpa2;
 
                     } catch (const std::exception& e) {
-                        fprintf(stderr, "debug - ie48 rsn corrupt\n");
+                        rsn_invalid = true;
                         packinfo->corrupt = 1;
                         in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    }
+
+                    // Re-parse using the limited RSN object to see if we're 
+                    // getting hit with something that looks like
+                    // https://pleasestopnamingvulnerabilities.com/
+                    // CVE-2017-9714
+                    if (rsn_invalid) {
+                        membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                                (char *) &(chunk->data[chunk->length]));
+                        std::istream tag_stream(&tag_membuf);
+
+                        try {
+                            kaitai::kstream ks(&tag_stream);
+                            std::shared_ptr<dot11_ie_48_rsn_partial_t> rsn(new dot11_ie_48_rsn_partial_t(&ks));
+
+                            if (rsn->pairwise_count() > 1024) {
+                                alertracker->RaiseAlert(alert_atheros_rsnloop_ref, 
+                                        in_pack,
+                                        packinfo->bssid_mac, packinfo->source_mac, 
+                                        packinfo->dest_mac, packinfo->other_mac,
+                                        packinfo->channel,
+                                        "Invalid 802.11i RSN IE seen with extremely "
+                                        "large number of pairwise ciphers; this may "
+                                        "be an attack against Atheros drivers per "
+                                        "CVE-2017-9714 and "
+                                        "https://pleasestopnamingvulnerabilities.com/");
+                            }
+
+                        } catch (const std::exception& e) {
+                            // Do nothing with the secondary error; we already know
+                            // something is wrong we're just trying to extract the
+                            // better errors
+                        }
+
                     }
                 }
 
