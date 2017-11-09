@@ -1027,23 +1027,20 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_crypt_set(dot11info->cryptset);
         }
 
-        if (ssid->get_channel() != dot11info->channel) {
-            if (ssid->get_channel() != dot11info->channel &&
-                    alertracker->PotentialAlert(alert_chan_ref)) {
+        if (ssid->get_channel() != dot11info->channel && 
+                dot11info->channel != "0") {
 
-					string al = "IEEE80211 Access Point BSSID " +
-						basedev->get_macaddr().Mac2String() + " SSID \"" +
-						ssid->get_ssid() + "\" changed advertised channel from " +
-						ssid->get_channel() + " to " + 
-						dot11info->channel + " which may "
-						"indicate AP spoofing/impersonation";
+            string al = "IEEE80211 Access Point BSSID " +
+                basedev->get_macaddr().Mac2String() + " SSID \"" +
+                ssid->get_ssid() + "\" changed advertised channel from " +
+                ssid->get_channel() + " to " + 
+                dot11info->channel + " which may "
+                "indicate AP spoofing/impersonation";
 
-					alertracker->RaiseAlert(alert_chan_ref, in_pack, 
-                            dot11info->bssid_mac, dot11info->source_mac, 
-                            dot11info->dest_mac, dot11info->other_mac, 
-                            dot11info->channel, al);
-            }
-
+            alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, al);
 
             ssid->set_channel(dot11info->channel); 
         }
