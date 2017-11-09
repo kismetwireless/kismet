@@ -21,6 +21,13 @@ public:
     class ht_info_subset_2_t;
     class ht_info_subset_3_t;
 
+    enum secondary_offset_type_t {
+        SECONDARY_OFFSET_TYPE_NO_SECONDARY = 0,
+        SECONDARY_OFFSET_TYPE_SECONDARY_ABOVE = 1,
+        SECONDARY_OFFSET_TYPE_RESERVED = 2,
+        SECONDARY_OFFSET_TYPE_SECONDARY_BELOW = 3
+    };
+
     dot11_ie_61_ht_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_61_ht_t* p_root = 0);
     ~dot11_ie_61_ht_t();
 
@@ -36,7 +43,7 @@ public:
         bool m_psmp_only;
         bool m_rifs;
         bool m_channel_width;
-        uint64_t m_secondary_offset;
+        secondary_offset_type_t m_secondary_offset;
         dot11_ie_61_ht_t* m__root;
         dot11_ie_61_ht_t* m__parent;
 
@@ -45,7 +52,7 @@ public:
         bool psmp_only() const { return m_psmp_only; }
         bool rifs() const { return m_rifs; }
         bool channel_width() const { return m_channel_width; }
-        uint64_t secondary_offset() const { return m_secondary_offset; }
+        secondary_offset_type_t secondary_offset() const { return m_secondary_offset; }
         dot11_ie_61_ht_t* _root() const { return m__root; }
         dot11_ie_61_ht_t* _parent() const { return m__parent; }
     };

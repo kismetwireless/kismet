@@ -457,6 +457,24 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "Wi-Fi networks on 2.4GHz (channels 1 through 14) are required to include a channel in the advertisement because channel overlap makes it impossible to determine the exact channel the access point is transmitting on.  Networks on 5GHz channels are typically not required to include the channel.",
                 },
                 {
+                    field: "dot11.advertisedssid.ht_mode",
+                    title: "HT Mode",
+                    help: "802.11n and 802.11AC networks operate on expanded channels; HT40, HT80 HT160, or HT80+80 (found only on 802.11ac wave2 gear).",
+                    filterOnEmpty: true
+                },
+                {
+                    field: "dot11.advertisedssid.ht_center_1",
+                    title: "HT Freq",
+                    help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded channel.",
+                    filterOnZero: true
+                },
+                {
+                    field: "dot11.advertisedssid.ht_center_2",
+                    title: "HT Freq2",
+                    help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded secondary channel.  Secondary channels are only found on 802.11AC wave-2 80+80 gear.",
+                    filterOnZero: true
+                },
+                {
                     field: "dot11.advertisedssid.beacon_info",
                     title: "Beacon Info",
                     filterOnEmpty: true,

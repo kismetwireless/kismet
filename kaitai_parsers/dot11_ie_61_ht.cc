@@ -28,7 +28,7 @@ dot11_ie_61_ht_t::ht_info_subset_1_t::ht_info_subset_1_t(kaitai::kstream *p_io, 
     m_psmp_only = m__io->read_bits_int(1);
     m_rifs = m__io->read_bits_int(1);
     m_channel_width = m__io->read_bits_int(1);
-    m_secondary_offset = m__io->read_bits_int(2);
+    m_secondary_offset = static_cast<dot11_ie_61_ht_t::secondary_offset_type_t>(m__io->read_bits_int(2));
 }
 
 dot11_ie_61_ht_t::ht_info_subset_1_t::~ht_info_subset_1_t() {

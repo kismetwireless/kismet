@@ -490,7 +490,10 @@ class dot11_advertised_ssid : public tracker_component {
         __Proxy(ssid_beacon, uint8_t, bool, bool, ssid_beacon);
         __Proxy(ssid_probe_response, uint8_t, bool, bool, ssid_probe_response);
 
-        __Proxy(channel, string, string, string, channel);
+        __Proxy(channel, std::string, std::string, std::string, channel);
+        __Proxy(ht_mode, std::string, std::string, std::string, ht_mode);
+        __Proxy(ht_center_1, uint64_t, uint64_t, uint64_t, ht_center_1);
+        __Proxy(ht_center_2, uint64_t, uint64_t, uint64_t, ht_center_2);
 
         __Proxy(first_time, uint64_t, time_t, time_t, first_time);
         __Proxy(last_time, uint64_t, time_t, time_t, last_time);
@@ -555,8 +558,17 @@ class dot11_advertised_ssid : public tracker_component {
             RegisterField("dot11.advertisedssid.probe_response", TrackerUInt8,
                     "ssid advertised via probe response", 
                     &ssid_probe_response);
+
             RegisterField("dot11.advertisedssid.channel", TrackerString,
                     "channel", &channel);
+            RegisterField("dot11.advertisedssid.ht_mode", TrackerString,
+                    "HT (11n or 11ac) mode", &ht_mode);
+            RegisterField("dot11.advertisedssid.ht_center_1", TrackerUInt64,
+                    "HT/VHT Center Frequency (primary)", &ht_center_1);
+            RegisterField("dot11.advertisedssid.ht_center_2", TrackerUInt64,
+                    "HT/VHT Center Frequency (secondary, for 80+80 Wave2)",
+                    &ht_center_2);
+
             RegisterField("dot11.advertisedssid.first_time", TrackerUInt64,
                     "first time seen", &first_time);
             RegisterField("dot11.advertisedssid.last_time", TrackerUInt64,
@@ -610,6 +622,7 @@ class dot11_advertised_ssid : public tracker_component {
             RegisterField("dot11.advertisedssid.dot11e_channel_utilization_perc", TrackerDouble,
                     "802.11e QBSS reported channel utilization, as percentage", 
                     &dot11e_qbss_channel_load);
+
         }
 
         virtual void reserve_fields(SharedTrackerElement e) {
@@ -638,6 +651,9 @@ class dot11_advertised_ssid : public tracker_component {
         SharedTrackerElement ssid_beacon;
         SharedTrackerElement ssid_probe_response;
         SharedTrackerElement channel;
+        SharedTrackerElement ht_mode;
+        SharedTrackerElement ht_center_1;
+        SharedTrackerElement ht_center_2;
         SharedTrackerElement first_time;
         SharedTrackerElement last_time;
         SharedTrackerElement beacon_info;

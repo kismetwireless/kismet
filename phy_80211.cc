@@ -851,7 +851,6 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
             if (ssid->get_last_time() < in_pack->ts.tv_sec)
                 ssid->set_last_time(in_pack->ts.tv_sec);
-            ssid->inc_beacons_sec();
         } else {
             ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
             if (ssid->get_last_time() < in_pack->ts.tv_sec)
@@ -862,6 +861,8 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             // Update the base device records
             dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
             dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+
+            ssid->inc_beacons_sec();
 
             if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
                         ssid->get_ssid() == "AirJack" ) {
@@ -902,6 +903,63 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                     (double) 255.0f) * 100.0f;
                 ssid->set_dot11e_qbss_channel_load(chperc);
             }
+
+            // Do we have HT or VHT data?  I don't think we can have one
+            // without the other
+            if (dot11info->dot11vht != NULL && dot11info->dot11ht != NULL) {
+                // Grab the primary channel from the HT data
+                ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
+
+                if (dot11info->dot11vht->channel_width() ==
+                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80) {
+                    ssid->set_ht_mode("HT40");
+                    ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                    ssid->set_ht_center_2(0);
+                } else if (dot11info->dot11vht->channel_width() ==
+                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_160) {
+                    ssid->set_ht_mode("HT160");
+                    ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                    ssid->set_ht_center_2(0);
+                } else if (dot11info->dot11vht->channel_width() ==
+                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80_80) {
+                    ssid->set_ht_mode("HT80+80");
+                    ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                    ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
+                } else if (dot11info->dot11vht->channel_width() ==
+                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_20_40) {
+                    if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
+                            dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_NO_SECONDARY) {
+                        ssid->set_ht_mode("HT20");
+                    } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
+                            dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_ABOVE) {
+                        ssid->set_ht_mode("HT40+");
+                    } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
+                            dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_BELOW) {
+                        ssid->set_ht_mode("HT40-");
+                    }
+
+                    ssid->set_ht_center_1(0);
+                    ssid->set_ht_center_2(0);
+
+                } 
+            } else if (dot11info->dot11ht != NULL) {
+                // Only HT info no VHT
+                if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
+                        dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_NO_SECONDARY) {
+                    ssid->set_ht_mode("HT20");
+                } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
+                        dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_ABOVE) {
+                    ssid->set_ht_mode("HT40+");
+                } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
+                        dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_BELOW) {
+                    ssid->set_ht_mode("HT40-");
+                }
+
+                ssid->set_ht_center_1(0);
+                ssid->set_ht_center_2(0);
+                ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
+            }
+
 
         } else if (dot11info->subtype == packet_sub_probe_resp) {
             if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 

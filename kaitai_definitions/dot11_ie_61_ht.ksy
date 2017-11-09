@@ -27,6 +27,7 @@ types:
         type: b1
       - id: secondary_offset
         type: b2
+        enum: secondary_offset_type
         
   ht_info_subset_2:
     seq:
@@ -62,4 +63,10 @@ types:
       - id: beacon_id
         type: b1
 
+enums:
+  secondary_offset_type:
+    0x00: no_secondary
+    0x01: secondary_above
+    0x02: reserved
+    0x03: secondary_below
     

@@ -823,6 +823,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     packinfo->dot11vht = vht;
 
                 } catch (const std::exception& e) {
+                    fprintf(stderr, "debug - vht parsing error\n");
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                 }
