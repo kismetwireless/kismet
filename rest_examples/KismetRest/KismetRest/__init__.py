@@ -185,9 +185,35 @@ class KismetConnector:
             if self.debug:
                 print "DEBUG - Failed to save session:", e
 
+    def __process_json_object(self, j, callback, args = None):
+        """
+        __process_json_object(j, callback, args)
+
+        Process a JSON object; could be a single-line ekjson or a complete
+        object
+        """
+
+        try:
+            decoded_line = j.decode('utf-8')
+            obj = json.loads(decoded_line)
+        except Exception as e:
+            if self.debug:
+                print "Failed to parse JSON: {}, {}, {}".format(r.url, e.message, j)
+
+            raise KismetRequestException("Unable to parse JSON on req {}: {}".format(r.url, e.message), r.status_code)
+
+        # Call the callback outside of the exception eating
+        if callback != None:
+            if args == None:
+                args = []
+            callback(obj, *args)
+            return
+        else:
+            return obj
+
     def __process_json_stream(self, r, callback, args = None):
         """
-        __process_json_stream(httpresult, callback)
+        __process_json_stream(httpresult, callback, args)
 
         Process a response as a JSON object stream - this may be an ekjson style
         response with multiple objects or it may be a single traditional JSON
@@ -204,25 +230,9 @@ class KismetConnector:
 
         ret = []
         for line in r.iter_lines():
-            try:
-                # filter out keep-alive new lines
-                if line:
-                    decoded_line = line.decode('utf-8')
-
-                    obj = json.loads(decoded_line)
-            except Exception as e:
-                if self.debug:
-                    print "Failed to parse JSON: {}, {}, {}".format(r.url, e.message, line)
-
-                raise KismetRequestException("Unable to parse JSON on req {}: {}".format(r.url, e.message), r.status_code)
-
-            # Call the callback outside of the exception eating
-            if callback != None:
-                if args == None:
-                    args = []
-                callback(obj, *args)
-            else:
-                ret.append(obj)
+            r = self.__process_json_object(line, callback, args)
+            if ret != None:
+                ret.append(r)
 
         return ret
 
@@ -264,8 +274,11 @@ class KismetConnector:
         # Update our session
         self.__update_session()
 
-        # Process our stream
-        return (r.status_code, self.__process_json_stream(r, callback, cbargs))
+        # Process our stream or object
+        if stream is True:
+            return (r.status_code, self.__process_json_stream(r, callback, cbargs))
+        else:
+            return (r.status_code, [self.__process_json_object(r.content, callback, cbargs)])
 
     def __get_string_url(self, url):
         """
@@ -342,7 +355,10 @@ class KismetConnector:
         self.__update_session()
 
         # Process our stream
-        return (r.status_code, self.__process_json_stream(r, callback, cbargs))
+        if stream is True:
+            return (r.status_code, self.__process_json_stream(r, callback, cbargs))
+        else:
+            return (r.status_code, [self.__process_json_object(r.content, callback, cbargs)])
 
     def __post_string_url(self, url, postdata):
         """
