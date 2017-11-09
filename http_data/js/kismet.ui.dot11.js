@@ -480,25 +480,15 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filterOnEmpty: true,
                     help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
                 },
-
-                {
-                    // Filler title
-                    field: "dot11.advertisedssid.dot11e_qbss",
-                    id: "dot11e_header",
-                    title: '<b class="k_padding_title">Channel QBSS</b>',
-                    filterOnZero: true,
-                    render: function(opts) { return ""; },
-                    help: "802.11e, or QBSS, allows an access point to report statistics about the channel, including the number of connected Wi-Fi devices and the estimated channel usage percentage.  This is typically found on enterprise-class access points.",
-                },
                 {
                     field: "dot11.advertisedssid.dot11e_qbss_stations",
                     title: "Connected Stations",
-                    help: "802.11e / QBSS access points can report the number of stations observed on the channel as part of the channel quality of service.",
+                    help: "Access points which provide 802.11e / QBSS report the number of stations observed on the channel as part of the channel quality of service.",
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_channel_utilization_perc",
                     title: "Channel Utilization",
-                    help: "802.11e / QBSS access points can calculate the estimated channel saturation as part of the channel quality of service.",
+                    help: "Access points which provide 802.11e / QBSS calculate the estimated channel saturation as part of the channel quality of service.",
                     render: function(opts) {
                         return opts['value'].toFixed(2) + '%';
                     },
