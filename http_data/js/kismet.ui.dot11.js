@@ -484,6 +484,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.advertisedssid.dot11e_qbss_stations",
                     title: "Connected Stations",
                     help: "Access points which provide 802.11e / QBSS report the number of stations observed on the channel as part of the channel quality of service.",
+                    filter: function(opts) {
+                        console.log(opts);
+                        return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
+                    }
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_channel_utilization_perc",
@@ -492,6 +496,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     render: function(opts) {
                         return opts['value'].toFixed(2) + '%';
                     },
+                    filter: function(opts) {
+                        return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
+                    }
                 },
                 {
                     field: "dot11.advertisedssid.dot11r_mobility",
