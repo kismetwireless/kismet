@@ -322,6 +322,11 @@ void KisDatasource::close_source() {
     if (!get_source_running())
         return;
 
+    if (ping_timer_id > 0) {
+        timetracker->RemoveTimer(ping_timer_id);
+        ping_timer_id = -1;
+    }
+
     if (ringbuf_handler != NULL) {
         ringbuf_handler->RemoveReadBufferInterface();
         uint32_t seqno = 0;
@@ -1964,6 +1969,11 @@ void KisDatasource::handle_source_error() {
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
+        if (ping_timer_id > 0) {
+            timetracker->RemoveTimer(ping_timer_id);
+            ping_timer_id = -1;
+        }
+
         set_int_source_running(false);
         return;
     }
@@ -1981,13 +1991,22 @@ void KisDatasource::handle_source_error() {
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
+        if (ping_timer_id > 0) {
+            timetracker->RemoveTimer(ping_timer_id);
+            ping_timer_id = -1;
+        }
+
         set_int_source_running(false);
 
         return;
     }
     
-    set_int_source_running(false);
+    if (ping_timer_id > 0) {
+        timetracker->RemoveTimer(ping_timer_id);
+        ping_timer_id = -1;
+    }
 
+    set_int_source_running(false);
 
     // If we already have an error timer, we're thinking about restarting, 
     // be quiet about things; otherwise, talk about restarting, increment the
