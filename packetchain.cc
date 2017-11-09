@@ -59,6 +59,8 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     packet_queue_drop =
         globalreg->kismet_config->FetchOptUInt("packet_backlog_limit", 8192);
 
+    packetchain_shutdown = false;
+
     // Lock the packet conditional
     packet_condition.lock();
 
@@ -277,8 +279,9 @@ void Packetchain::packet_queue_processor(Packetchain *packetchain) {
             // re-loop in case we have more packets
             continue;
         } else {
-            // We have no packets, lock our conditional until something queues a new packet
-           packetchain->packet_condition.lock();
+            // We have no packets, lock our conditional until something queues 
+            // a new packet and fall out of the selector
+            packetchain->packet_condition.lock();
         }
 
         // No packets; fall through to blocking until we have them
