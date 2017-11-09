@@ -19,7 +19,7 @@ def per_device(d):
 
 uri = "http://localhost:2501"
 
-parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge')
+parser = argparse.ArgumentParser(description='Kismet demo code')
 
 parser.add_argument('--uri', action="store", dest="uri")
 

@@ -20,7 +20,7 @@ import time
 # simplified fields our device contains ONLY the macaddr, last beaconed ssid
 # (renamed to simple.last_ssid), and the signal records!
 def per_device(d):
-    print d['kismet.device.base.macaddr'], d['simple.last_ssid'], "pcre", d['kismet.pcre.match']
+    print d['kismet.device.base.macaddr'], d['simple.last_ssid']
     # print d
 
 uri = "http://localhost:2501"
@@ -56,8 +56,6 @@ fields = [
     ['dot11.device/dot11.device.last_beaconed_ssid', 'simple.last_ssid'],
     # Grab the entire signal sub-record
     'kismet.device.base.signal',
-    # Grab the pcre index we matched
-    'kismet.pcre.match',
 ]
 
 kr.smart_device_list(callback = per_device, regex = regex, fields = fields)
