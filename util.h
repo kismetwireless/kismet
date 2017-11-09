@@ -47,6 +47,7 @@
 #include <stdexcept>
 #include <functional>
 #include <thread>
+#include <mutex>
 #include <condition_variable>
 
 #include <sys/time.h>
@@ -301,7 +302,9 @@ public:
     t block_until() {
         std::unique_lock<std::mutex> lk(m);
 
-        while (locked) cv.wait(lk);
+        // Return false if waiting is to be continued, so the inverse of the
+        // lock state
+        cv.wait(lk, [this](){ return !locked; });
 
         return data;
     }
@@ -312,13 +315,15 @@ public:
         std::unique_lock<std::mutex> lk(m);
         locked = false;
         data = in_data;
-        cv.notify_all();
+        lk.unlock();
+        cv.notify_one();
     }
 
     void unlock() {
         std::unique_lock<std::mutex> lk(m);
         locked = false;
-        cv.notify_all();
+        lk.unlock();
+        cv.notify_one();
     }
 
 
