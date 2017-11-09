@@ -1922,7 +1922,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 		string al = "IEEE80211 Access Point BSSID " +
 			basedev->get_macaddr().Mac2String() + " broadcast deauthentication or "
-			"disassociation of all clients, probable denial of service";
+			"disassociation of all clients, AP is shutting down or possible denial "
+            "of service.";
 			
         alertracker->RaiseAlert(alert_bcastdcon_ref, in_pack, 
                 dot11info->bssid_mac, dot11info->source_mac, 
@@ -1930,9 +1931,11 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 dot11info->channel, al);
     }
 
+    /*
     if (basedev->get_type_string().length() == 0) {
         fprintf(stderr, "debug - unclassed device as of packet %d typeset %lu\n", packetnum, basedev->get_basic_type_set());
     }
+    */
 
 
 #if 0
