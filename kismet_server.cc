@@ -691,6 +691,13 @@ int main(int argc, char *argv[], char *envp[]) {
         */
     }
 
+    signal(SIGINT, CatchShutdown);
+    signal(SIGTERM, CatchShutdown);
+    signal(SIGHUP, CatchShutdown);
+    signal(SIGQUIT, CatchShutdown);
+    signal(SIGCHLD, CatchChild);
+    signal(SIGPIPE, SIG_IGN);
+
     // Start filling in key components of the globalregistry
     globalregistry = new GlobalRegistry;
     globalreg = globalregistry;
@@ -1024,14 +1031,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Start up any code that needs everything to be loaded
     globalregistry->Start_Deferred();
-
-    // Catch the interrupt handler to shut down
-    signal(SIGINT, CatchShutdown);
-    signal(SIGTERM, CatchShutdown);
-    signal(SIGHUP, CatchShutdown);
-    signal(SIGQUIT, CatchShutdown);
-    signal(SIGCHLD, CatchChild);
-    signal(SIGPIPE, SIG_IGN);
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);
