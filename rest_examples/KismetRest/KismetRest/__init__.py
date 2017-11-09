@@ -185,9 +185,9 @@ class KismetConnector:
             if self.debug:
                 print "DEBUG - Failed to save session:", e
 
-    def __process_json_object(self, j, callback, args = None):
+    def __process_json_object(self, r, j, callback, args = None):
         """
-        __process_json_object(j, callback, args)
+        __process_json_object(r, j, callback, args)
 
         Process a JSON object; could be a single-line ekjson or a complete
         object
@@ -230,7 +230,7 @@ class KismetConnector:
 
         ret = []
         for line in r.iter_lines():
-            r = self.__process_json_object(line, callback, args)
+            r = self.__process_json_object(r, line, callback, args)
             if ret != None:
                 ret.append(r)
 
@@ -278,7 +278,7 @@ class KismetConnector:
         if stream is True:
             return (r.status_code, self.__process_json_stream(r, callback, cbargs))
         else:
-            return (r.status_code, [self.__process_json_object(r.content, callback, cbargs)])
+            return (r.status_code, [self.__process_json_object(r, r.content, callback, cbargs)])
 
     def __get_string_url(self, url):
         """
@@ -358,7 +358,7 @@ class KismetConnector:
         if stream is True:
             return (r.status_code, self.__process_json_stream(r, callback, cbargs))
         else:
-            return (r.status_code, [self.__process_json_object(r.content, callback, cbargs)])
+            return (r.status_code, [self.__process_json_object(r, r.content, callback, cbargs)])
 
     def __post_string_url(self, url, postdata):
         """
