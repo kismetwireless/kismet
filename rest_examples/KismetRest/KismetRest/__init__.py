@@ -226,7 +226,7 @@ class KismetConnector:
 
         return ret
 
-    def __get_json_url(self, url, callback = None, cbargs = None):
+    def __get_json_url(self, url, callback = None, cbargs = None, stream=True):
         """
         __get_json_url(url, callback) -> [result code, Unpacked Object]
 
@@ -241,7 +241,7 @@ class KismetConnector:
 
         """
         try:
-            r = self.session.get("%s/%s" % (self.host_uri, url), stream=True)
+            r = self.session.get("%s/%s" % (self.host_uri, url), stream=stream)
         except Exception as e:
             if self.debug:
                 print "Failed to get object: ", e
@@ -300,7 +300,7 @@ class KismetConnector:
 
         return r.content
 
-    def __post_json_url(self, url, postdata, callback = None, cbargs = None):
+    def __post_json_url(self, url, postdata, callback = None, cbargs = None, stream=True):
         """
         __post_json_url(url, postdata, callback) -> [result code, Unpacked Object]
 
@@ -318,7 +318,7 @@ class KismetConnector:
                 "json": pd
             }
 
-            r = self.session.post("%s/%s" % (self.host_uri, url), data = fd, stream=True)
+            r = self.session.post("%s/%s" % (self.host_uri, url), data = fd, stream=stream)
         except Exception as e:
             if self.debug:
                 print "Failed to POST object: ", e
@@ -425,7 +425,7 @@ class KismetConnector:
 
         Return fetch the system status
         """
-        (r, status) = self.__get_json_url("system/status.json")
+        (r, status) = self.__get_json_url("system/status.json", stream=False)
 
         return status[0]
 
@@ -453,7 +453,7 @@ class KismetConnector:
         It is strongly recommended that you use smart_device_list(...)
         """
 
-        (r, devices) = self.__get_json_url("devices/all_devices.ekjson", callback, cbargs)
+        (r, devices) = self.__get_json_url("devices/all_devices.ekjson", callback, cbargs, stream=True)
 
         return devices
 
@@ -502,7 +502,7 @@ class KismetConnector:
         if not regex == None:
             cmd["regex"] = regex;
 
-        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback, cbargs)
+        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback, cbargs, stream = True)
 
         # Always return a vector
         return v
@@ -540,13 +540,13 @@ class KismetConnector:
             else:
                 field = ""
 
-            (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field))
+            (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field), stream = False)
         else:
             cmd = {
                 "fields": fields
             }
 
-            (r, v) = self.__post_json_url("devices/by-key/{}/device.json".format(key), cmd)
+            (r, v) = self.__post_json_url("devices/by-key/{}/device.json".format(key), cmd, stream = False)
 
         # Single entity so pop out of the vector
         return v[0]
@@ -564,13 +564,13 @@ class KismetConnector:
         """
 
         if fields == None:
-            (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac))
+            (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac), stream = False)
         else:
             cmd = {
                 "fields": fields
             }
 
-            (r, v) = self.__post_json_url("devices/by-mac/{}/devices.json".format(mac), cmd)
+            (r, v) = self.__post_json_url("devices/by-mac/{}/devices.json".format(mac), cmd, stream = False)
 
         # Single-entity request, pop out vector
         return v[0]
@@ -582,7 +582,7 @@ class KismetConnector:
         Return list of all datasources
         """
 
-        (r, v) = self.__get_json_url("datasource/all_sources.json")
+        (r, v) = self.__get_json_url("datasource/all_sources.json", stream = False)
 
         return v[0]
 
@@ -784,7 +784,7 @@ class KismetConnector:
         filtered to alerts since a given timestamp
         """
 
-        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts_sec, ts_usec))
+        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts_sec, ts_usec), stream = False)
 
         return v[0]
 
