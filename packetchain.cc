@@ -55,7 +55,7 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     last_packet_drop_user_warning = 0;
 
     packet_queue_warning = 
-        globalreg->kismet_config->FetchOptUInt("packet_log_warning", 1024);
+        globalreg->kismet_config->FetchOptUInt("packet_log_warning", 0);
     packet_queue_drop =
         globalreg->kismet_config->FetchOptUInt("packet_backlog_limit", 8192);
 
@@ -296,7 +296,8 @@ void Packetchain::packet_queue_processor(Packetchain *packetchain) {
 int Packetchain::ProcessPacket(kis_packet *in_pack) {
     local_locker qlock(&packetqueue_mutex);
 
-    if (packet_queue.size() > packet_queue_warning) {
+    if (packet_queue.size() > packet_queue_warning &&
+            packet_queue_warning != 0) {
         time_t offt = time(0) - last_packet_queue_user_warning;
 
         if (offt > 30) {

@@ -1098,6 +1098,10 @@ xx. Kismet Memory and Processor Tuning
         to be processed is over this number; no action will be taken, but
         an alert will be generated.
 
+        This can be set to zero to disable these warnings; Kismet defaults to
+        zero.  Disabling these warnings will NOT disable the backlog limit
+        warnings.
+
     packet_backlog_limit=packets
 
         This is a *hard limit*.  If the packet processing thread is not able
