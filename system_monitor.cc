@@ -95,7 +95,7 @@ void Systemmonitor::register_fields() {
         RegisterField("kismet.system.devices.count", TrackerUInt64,
                 "number of devices in devicetracker", &devices);
 
-    shared_ptr<kis_tracked_rrd<> > rrd_builder(new kis_tracked_rrd<>(globalreg, 0));
+    shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > rrd_builder(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0));
 
     mem_rrd_id =
         RegisterComplexField("kismet.system.memory.rrd", rrd_builder, 
@@ -110,13 +110,13 @@ void Systemmonitor::reserve_fields(SharedTrackerElement e) {
     tracker_component::reserve_fields(e);
 
     if (e != NULL) {
-        memory_rrd.reset(new kis_tracked_rrd<>(globalreg, mem_rrd_id,
+        memory_rrd.reset(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, mem_rrd_id,
                     e->get_map_value(mem_rrd_id)));
-        devices_rrd.reset(new kis_tracked_rrd<>(globalreg, devices_rrd_id,
+        devices_rrd.reset(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, devices_rrd_id,
                     e->get_map_value(devices_rrd_id)));
     } else {
-        memory_rrd.reset(new kis_tracked_rrd<>(globalreg, mem_rrd_id));
-        devices_rrd.reset(new kis_tracked_rrd<>(globalreg, devices_rrd_id));
+        memory_rrd.reset(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, mem_rrd_id));
+        devices_rrd.reset(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, devices_rrd_id));
     }
 
     add_map(memory_rrd);

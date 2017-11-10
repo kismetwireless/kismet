@@ -99,13 +99,13 @@ protected:
     SharedTrackerElement memory;
 
     int mem_rrd_id;
-    shared_ptr<kis_tracked_rrd<> > memory_rrd;
+    shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > memory_rrd;
 
     int devices_id;
     SharedTrackerElement devices;
 
     int devices_rrd_id;
-    shared_ptr<kis_tracked_rrd<> > devices_rrd;
+    shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
 
     long mem_per_page;
 };
