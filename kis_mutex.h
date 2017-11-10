@@ -33,7 +33,7 @@
 #include <chrono>
 
 // Seconds a lock is allowed to be held before throwing a timeout error
-#define KIS_THREAD_DEADLOCK_TIMEOUT     5
+#define KIS_THREAD_DEADLOCK_TIMEOUT     30
 
 // Force the custom c++ workaround mutex to always be on; undefine to turn off
 #define ALWAYS_USE_KISMET_MUTEX         1
