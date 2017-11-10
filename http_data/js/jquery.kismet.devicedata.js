@@ -7,22 +7,22 @@
 
         "help": "..." // Help / explanatory text
 
-        // Options will contain AT LEAST
-        // 'key' - current field key
-        // 'data' - current data
-        // 'value' - resolved value
-        // 'basekey' - string key of base in an iteration
-        // 'base' - resolved object base
-        // and may also include
-        // 'index' - iteration index
-        // 'container' - parent container for draw functions
-        // 'sanitize' - sanitize HTML of content, default true
+        Options will contain AT LEAST
+        'key' - current field key
+        'data' - current data
+        'value' - resolved value
+        'basekey' - string key of base in an iteration
+        'base' - resolved object base
+        and may also include
+        'index' - iteration index
+        'container' - parent container for draw functions
+        'sanitize' - sanitize HTML of content, default true
 
-        // Optional function for filtering if we display this entity, returns
-        // boolean for display.  
+        Optional function for filtering if we display this entity, returns
+        boolean for display.  
         "filter": function(opts) { return bool }
 
-        // Optional shortcut filters for common filtering options
+        Optional shortcut filters for common filtering options
         "filterOnEmpty": boolean // Filter this row if the value does not exist,
         or exists, is a string, and is empty ('')
         "filterOnZero": boolean // Filter this row if the value does not exist,
@@ -30,8 +30,8 @@
 
         Subgroups (nested table of a subset of fields)
 
-        // Indicates we have a subgroup.  Title is string, or function
-        // returning a string
+        Indicates we have a subgroup.  Title is string, or function
+        returning a string
         "groupTitle": string | function(opts)
         "fields": [...] // Additional nested fields w/in the subgroup
 
@@ -57,7 +57,16 @@
         // Optional function for
 
         "emtpy": string | function(opts) 
-        // Text to be substituted when there is no value
+        Text to be substituted when there is no value
+       
+        "editable": string
+        Field is editable; when editable is:
+            "single" - Single-line editable field (such as a device name)
+            "multi" - multi-line editable field (such as notes)
+        "editfunc": function
+        Called when editing is saved
+
+        Editing is only available when the user is logged in.
         
     }
 */
@@ -157,10 +166,6 @@
                      typeof(d) === 'string' && d === '0')) {
                 return;
             }
-
-            // We're through using it, sanitize it if we need to
-            if (settings.sanitize && typeof(d) === 'string')
-                d = kismet.sanitizeHTML(d);
 
             // Do we have a sub-group or group list?
             if ('groupTitle' in v) {
