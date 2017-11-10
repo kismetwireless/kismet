@@ -674,14 +674,14 @@ void Alertracker::Httpd_CreateStreamResponse(
     }
 
     shared_ptr<TrackerElement> wrapper;
-    shared_ptr<TrackerElement> msgvec(globalreg->entrytracker->GetTrackedInstance(alert_vec_id));
+    shared_ptr<TrackerElement> msgvec(new TrackerElement(TrackerVector, alert_vec_id));
 
     // If we're doing a time-since, wrap the vector
     if (wrap) {
         wrapper.reset(new TrackerElement(TrackerMap));
         wrapper->add_map(msgvec);
 
-        SharedTrackerElement ts(globalreg->entrytracker->GetTrackedInstance(alert_timestamp_id));
+        SharedTrackerElement ts(new TrackerElement(TrackerDouble, alert_timestamp_id));
         ts->set((double) ts_now_to_double());
         wrapper->add_map(ts);
     } else {
