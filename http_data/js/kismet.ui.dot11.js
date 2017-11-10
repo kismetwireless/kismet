@@ -170,10 +170,10 @@ kismet_ui.AddDeviceRowHighlight({
     defaultcolor: "#99ff99",
     defaultenable: false,
     fields: [
-        'dot11.device'
+        'kismet.device.base.phyname',
     ],
     selector: function(data) {
-        return ('dot11.device' in data && data['dot11.device'] != 0);
+        return ('kismet.device.base.phyname' in data && data['kismet.device.base.phyname'] === 'IEEE802.11');
     }
 });
 
