@@ -84,7 +84,7 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_d
 
 int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_builder, 
         string in_desc) {
-    local_locker lock(&entry_mutex);
+    local_demand_locker lock(&entry_mutex);
 
     string mod_name = StrLower(in_name);
 
@@ -112,14 +112,18 @@ int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_bu
 
     definition->field_description = in_desc;
 
-    field_name_map[mod_name] = definition;
-    field_id_map[definition->field_id] = definition;
-
     // Set the builders ID now that we know it
     definition->builder->set_id(definition->field_id);
 
     // Backprop the ID
     in_builder->set_id(definition->field_id);
+
+    lock.lock();
+
+    field_name_map[mod_name] = definition;
+    field_id_map[definition->field_id] = definition;
+
+    lock.unlock();
 
     return definition->field_id;
 }
@@ -177,8 +181,6 @@ TrackerType EntryTracker::GetFieldType(int in_id) {
 
 shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
         TrackerType in_type, string in_desc) {
-    local_locker lock(&entry_mutex);
-
     int fn = GetFieldId(in_name);
 
     if (fn >= 0) {
@@ -192,8 +194,6 @@ shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name,
 
 shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
         shared_ptr<TrackerElement> in_builder, string in_desc) {
-    local_locker lock(&entry_mutex);
-
     int fn = GetFieldId(in_name);
 
     if (fn >= 0) {
@@ -207,7 +207,9 @@ shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name,
 
 
 shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
-    local_locker lock(&entry_mutex);
+    local_demand_locker lock(&entry_mutex);
+
+    lock.lock();
 
     id_itr iter = field_id_map.find(in_id);
 
@@ -217,7 +219,7 @@ shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
 
     shared_ptr<reserved_field> definition = iter->second;
 
-    definition = iter->second;
+    lock.unlock();
 
     if (definition->builder == NULL)
         return shared_ptr<TrackerElement>(new TrackerElement(definition->track_type, 
@@ -227,9 +229,11 @@ shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
 }
 
 shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(string in_name) {
-    local_locker lock(&entry_mutex);
+    local_demand_locker lock(&entry_mutex);
 
     string mod_name = StrLower(in_name);
+
+    lock.lock();
 
     name_itr iter = field_name_map.find(mod_name);
 
@@ -239,6 +243,8 @@ shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(string in_name) {
     }
 
     shared_ptr<reserved_field> definition = iter->second;
+
+    lock.unlock();
 
     if (definition->builder == NULL)
         return shared_ptr<TrackerElement>(new TrackerElement(definition->track_type, 
