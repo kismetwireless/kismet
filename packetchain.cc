@@ -327,6 +327,9 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
                     "may not be fast enough to process the number of packets being seen. "
                     "You change this behavior in 'kismet_memory.conf'.", -1);
         }
+
+        // Don't queue packets
+        return 1;
     }
 
     packet_queue.push(in_pack);
