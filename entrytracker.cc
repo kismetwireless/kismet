@@ -84,7 +84,7 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_d
 
 int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_builder, 
         string in_desc) {
-    local_demand_locker lock(&entry_mutex);
+    local_locker lock(&entry_mutex);
 
     string mod_name = StrLower(in_name);
 
@@ -112,18 +112,14 @@ int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_bu
 
     definition->field_description = in_desc;
 
+    field_name_map[mod_name] = definition;
+    field_id_map[definition->field_id] = definition;
+
     // Set the builders ID now that we know it
     definition->builder->set_id(definition->field_id);
 
     // Backprop the ID
     in_builder->set_id(definition->field_id);
-
-    lock.lock();
-
-    field_name_map[mod_name] = definition;
-    field_id_map[definition->field_id] = definition;
-
-    lock.unlock();
 
     return definition->field_id;
 }
