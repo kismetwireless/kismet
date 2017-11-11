@@ -148,7 +148,7 @@ protected:
     std::shared_ptr<Devicetracker> devicetracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
-        pack_comp_device, pack_comp_datasource;
+        pack_comp_device, pack_comp_datasource, pack_comp_common;
 
     time_t last_device_log;
 
