@@ -46,7 +46,9 @@ Timetracker::~Timetracker() {
 int Timetracker::Tick() {
     vector<timer_event *> action_timers;
 
-    local_locker lock(&time_mutex);
+    local_demand_locker lock(&time_mutex);
+
+    lock.lock();
 
     // Handle scheduled events
     struct timeval cur_tm;
@@ -56,6 +58,8 @@ int Timetracker::Tick() {
     timer_event *evt;
     int timerid;
 
+    std::vector<int> removed_timers;
+
     for (unsigned int x = 0; x < sorted_timers.size(); x++) {
         evt = sorted_timers[x];
         timerid = evt->timer_id;
@@ -63,10 +67,12 @@ int Timetracker::Tick() {
         if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
             ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && 
 			 (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
-            return 1;
+
+            lock.unlock();
+            break;
 		}
 
-        // fprintf(stderr, "debug - triggering timer %d\n", timerid);
+        lock.unlock();
 
         // Call the function with the given parameters
         int ret = 0;
@@ -92,13 +98,19 @@ int Timetracker::Tick() {
                 evt->trigger_tm.tv_usec %= 1000000L;
             }
 
-            // Re-sort the list
-            stable_sort(sorted_timers.begin(), sorted_timers.end(), 
-						SortTimerEventsTrigger());
         } else {
-            RemoveTimer_nb(timerid);
+            removed_timers.push_back(timerid);
         }
 
+        for (auto x : removed_timers) {
+            RemoveTimer_nb(x);
+        }
+
+        // Re-sort the list
+        lock.lock();
+        stable_sort(sorted_timers.begin(), sorted_timers.end(), 
+                SortTimerEventsTrigger());
+        lock.unlock();
     }
 
     return 1;
