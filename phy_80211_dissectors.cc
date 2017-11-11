@@ -1379,7 +1379,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     } catch (const std::exception& e) {
                         rsn_invalid = true;
                         packinfo->corrupt = 1;
-                        in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     }
 
                     // Re-parse using the limited RSN object to see if we're 
@@ -1413,7 +1412,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                             // something is wrong we're just trying to extract the
                             // better errors
                         }
-
                     }
                 }
 
