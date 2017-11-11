@@ -1415,6 +1415,8 @@ int Devicetracker::Database_UpgradeDB() {
 }
 
 void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
+    local_locker lock(&devicelist_mutex);
+
     if (FetchDevice(device->get_key()) != NULL) {
         _MSG("Devicetracker tried to add device " + device->get_macaddr().Mac2String() + 
                 " which already exists", MSGFLAG_ERROR);
