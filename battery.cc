@@ -283,7 +283,9 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
 
 
     if (last_capacity_unit != -1 && last_capacity == -1) {
-        if (voltage != -1) {
+        if (voltage == 0) {
+            last_capacity = 0;
+        } else if (voltage != -1) {
             last_capacity = last_capacity_unit * 1000L / voltage;
         } else {
             last_capacity = last_capacity_unit;
@@ -291,7 +293,9 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
     }
 
     if (remaining_energy != -1 && remaining_capacity == -1) {
-        if (voltage != -1) {
+        if (voltage == 0) {
+            remaining_capacity = 0;
+        } else if (voltage != -1) {
             remaining_capacity = remaining_energy * 1000 / voltage;
             present_rate = present_rate * 1000 / voltage;
         } else {
@@ -304,7 +308,7 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
     else
         percentage = remaining_capacity * 100 / last_capacity;
 
-    if (present_rate == 0)
+    if (present_rate <= 0)
         seconds_remaining = 0;
     else
         seconds_remaining = 3600 * remaining_capacity / present_rate;
