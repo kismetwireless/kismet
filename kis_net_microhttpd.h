@@ -393,7 +393,7 @@ public:
     const static int CONNECTION_GET = 0;
     const static int CONNECTION_POST = 1;
 
-    Kis_Net_Httpd_Connection() {
+    Kis_Net_Httpd_Connection() : std::mutex() {
         httpcode = 200;
         postprocessor = NULL;
         post_complete = false;
