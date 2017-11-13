@@ -388,7 +388,7 @@ public:
 // Connection data, generated for all requests by the processing system;
 // contains per-handler states, request information, request type, session
 // data if known, POST variables if the standard POST processing is enabled
-class Kis_Net_Httpd_Connection {
+class Kis_Net_Httpd_Connection : public std::mutex {
 public:
     const static int CONNECTION_GET = 0;
     const static int CONNECTION_POST = 1;
