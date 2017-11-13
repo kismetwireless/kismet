@@ -42,6 +42,7 @@ KAITAI_PARSERS = \
 	kaitai_parsers/dot11_ie_48_rsn_partial.cc.o \
 	kaitai_parsers/dot11_ie_54_mobility.cc.o \
 	kaitai_parsers/dot11_ie_61_ht.cc.o \
+	kaitai_parsers/dot11_ie_133_cisco_ccx.cc.o \
 	kaitai_parsers/dot11_ie_192_vht_operation.cc.o \
 	kaitai_parsers/dot11_ie_221_vendor.cc.o \
 	kaitai_parsers/dot11_ie_221_ms_wps.cc.o \
