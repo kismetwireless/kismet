@@ -45,6 +45,7 @@
 #include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_61_ht.h"
+#include "kaitai_parsers/dot11_ie_133_cisco_ccx.h"
 #include "kaitai_parsers/dot11_ie_192_vht_operation.h"
 #include "kaitai_parsers/dot11_ie_221_vendor.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
@@ -802,8 +803,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     packinfo->dot11ht = ht;
 
                 } catch (const std::exception& e) {
-                    packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    // Don't consider unparseable HT a corrupt packet (for now)
                 }
             }
 
@@ -823,9 +823,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     packinfo->dot11vht = vht;
 
                 } catch (const std::exception& e) {
-                    fprintf(stderr, "debug - vht parsing error\n");
-                    packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    // Don't consider this a corrupt packet just because we didn't parse it
                 }
             }
 
@@ -834,15 +832,21 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 tag_offset = tcitr->second[0];
                 taglen = (chunk->data[tag_offset] & 0xFF);
 
-                // Copy and munge the beacon info if it falls w/in our
-                // boundaries
-                if ((tag_offset + 11) < chunk->length && taglen >= 11) {
-                    packinfo->beacon_info = 
-                        MungeToPrintable((char *) &(chunk->data[tag_offset+11]), 
-                                         taglen - 11, 1);
+                membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
+                        (char *) &(chunk->data[chunk->length]));
+                std::istream tag_stream(&tag_membuf);
+
+                try {
+                    kaitai::kstream ks(&tag_stream);
+                    std::shared_ptr<dot11_ie_133_cisco_ccx_t> ccx1(new dot11_ie_133_cisco_ccx_t(&ks));
+
+                    packinfo->beacon_info = MungeToPrintable(ccx1->ap_name());
+
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "debug - ccx error %s\n", e.what());
+                    // Not a datal error
                 }
 
-                // Other conditions on beacon info non-fatal
             }
 
             // Extract the supported rates
