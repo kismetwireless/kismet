@@ -347,7 +347,7 @@ class KismetConnector:
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
-                print "Request failed:", r.status_code
+                print "Request failed:", r.status_code, r.content
 
             raise KismetRequestException("Request failed for POST {} {}".format(url, r.status_code), r.status_code)
 
