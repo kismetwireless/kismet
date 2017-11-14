@@ -39,7 +39,6 @@
 
 #include "kaitai/kaitaistream.h"
 #include "kaitai_parsers/wpaeap.h"
-#include "kaitai_parsers/ie221.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
 #include "kaitai_parsers/dot11_ie_48_rsn.h"
 #include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
