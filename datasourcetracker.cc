@@ -1499,25 +1499,30 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     _MSG("Source '" + ds->get_source_name() + "' setting hopping "
                             "pattern and rate", MSGFLAG_INFO);
 
+                    bool cmd_complete_success = false;
+
                     // Initiate the channel set
                     ds->set_channel_hop(rate, converted_channels, shuffle, 
                             ds->get_source_hop_offset(),
-                            0, [this, cl, concls](unsigned int, bool success, 
+                            0, [this, cl, &cmd_complete_success](unsigned int, bool success, 
                                 std::string reason) {
 
-                                if (success) {
-                                    concls->response_stream << "Success";
-                                    concls->httpcode = 200;
-                                } else {
-                                    concls->response_stream << reason;
-                                    concls->httpcode = 500;
-                                }
-                                
+                                cmd_complete_success = success;
+
                                 cl->unlock(reason);
                             });
 
                     // Block until the open cmd unlocks us
-                    cl->block_until();
+                    std::string reason = cl->block_until();
+
+                    if (cmd_complete_success) {
+                        concls->response_stream << "Success";
+                        concls->httpcode = 200;
+                    } else {
+                        concls->response_stream << reason;
+                        concls->httpcode = 500;
+                    }
+
                     return MHD_YES;
                 }
             } else if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
