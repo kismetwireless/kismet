@@ -413,7 +413,12 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
         void **privchans, size_t chan_sz, double rate, int shuffle, int offset) {
     size_t szi;
 
-    /* fprintf(stderr, "debug - assign hop channels\n"); */
+    /*
+    fprintf(stderr, "debug - assign hop channels\n"); 
+    for (szi = 0; szi < chan_sz; szi++) {
+        fprintf(stderr, "debug - channel %s priv %p\n", stringchans[szi], privchans[szi]);
+    }
+    */
 
     pthread_mutex_lock(&(caph->handler_lock));
 
