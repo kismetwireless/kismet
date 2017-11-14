@@ -449,6 +449,10 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
          * We then need to find the closest number to the skipping distance that
          * is not a factor of the maximum so that we get full coverage.
          */
+
+        if (caph->channel_hop_shuffle_spacing > chan_sz)
+            caph->channel_hop_shuffle_spacing = 1;
+
         while ((chan_sz % (chan_sz / caph->channel_hop_shuffle_spacing)) == 0) {
             if (caph->channel_hop_shuffle_spacing >= chan_sz - 1) {
                 caph->channel_hop_shuffle_spacing = 1;
