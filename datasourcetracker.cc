@@ -1229,28 +1229,28 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         }
 
         // Locker for waiting for the list callback
-        std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
+        std::shared_ptr<conditional_locker<std::vector<SharedInterface> > > cl(new conditional_locker<std::vector<SharedInterface> >());
 
         cl->lock();
 
         // Initiate the open
         list_interfaces(
-                [this, cl, path, &stream](vector<SharedInterface> iflist) {
-                    SharedTrackerElement il(new TrackerElement(TrackerVector));
-                    TrackerElementVector iv(il);
+                [this, cl](vector<SharedInterface> iflist) {
+                    cl->unlock(iflist);
 
-                    for (auto i = iflist.begin(); i != iflist.end(); ++i) {
-                        iv.push_back(*i);
-                    }
-
-                    Httpd_Serialize(path, stream, il);
-
-                    // Unlock the locker so we unblock below
-                    cl->unlock("done");
                 });
 
         // Block until the list cmd unlocks us
-        cl->block_until();
+        std::vector<SharedInterface> iflist = cl->block_until();
+
+        SharedTrackerElement il(new TrackerElement(TrackerVector));
+        TrackerElementVector iv(il);
+
+        for (auto i = iflist.begin(); i != iflist.end(); ++i) {
+            iv.push_back(*i);
+        }
+
+        Httpd_Serialize(path, stream, il);
 
         return;
     }
@@ -1371,25 +1371,33 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             cl->lock();
 
+            bool cmd_complete_success = false;
+
             // Initiate the open
             open_datasource(structdata->getKeyAsString("definition"),
-                    [this, cl, concls](bool success, std::string reason, 
+                    [this, cl, &cmd_complete_success](bool success, std::string reason, 
                         SharedDatasource ds) {
-                        if (success) {
-                            concls->response_stream << 
-                                ds->get_source_uuid().UUID2String();
-                            concls->httpcode = 200;
-                        } else {
-                            concls->response_stream << reason;
-                            concls->httpcode = 500;
-                        }
-                       
+
+                        cmd_complete_success = success;
+
                         // Unlock the locker so we unblock below
-                        cl->unlock(reason);
+                        if (success)
+                            cl->unlock(ds->get_source_uuid().UUID2String());
+                        else
+                            cl->unlock(reason);
                     });
 
             // Block until the open cmd unlocks us
             r = cl->block_until();
+
+            if (cmd_complete_success) {
+                concls->response_stream << r;
+                concls->httpcode = 200;
+            } else {
+                concls->response_stream << r;
+                concls->httpcode = 500;
+            }
+
             return MHD_YES;
         } 
 
@@ -1444,24 +1452,29 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     _MSG("Setting source '" + ds->get_source_name() + "' channel '" +
                             ch + "'", MSGFLAG_INFO);
 
+                    bool cmd_complete_success = false;
+
                     // Initiate the channel set
                     ds->set_channel(ch, 0, 
-                            [this, cl, concls](unsigned int, bool success, 
+                            [this, cl, &cmd_complete_success](unsigned int, bool success, 
                                 std::string reason) {
 
-                                if (success) {
-                                    concls->response_stream << "Success";
-                                    concls->httpcode = 200;
-                                } else {
-                                    concls->response_stream << reason;
-                                    concls->httpcode = 500;
-                                }
-                                
+                                cmd_complete_success = success;
+
                                 cl->unlock(reason);
                             });
 
                     // Block until the open cmd unlocks us
-                    cl->block_until();
+                    std::string reason = cl->block_until();
+
+                    if (cmd_complete_success) {
+                        concls->response_stream << "Success";
+                        concls->httpcode = 200;
+                    } else {
+                        concls->response_stream << reason;
+                        concls->httpcode = 500;
+                    }
+                                
                     return MHD_YES;
 
                 } else {
@@ -1531,25 +1544,32 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 _MSG("Setting source '" + ds->get_source_name() + "' channel hopping", 
                         MSGFLAG_INFO);
 
+                bool cmd_complete_success = false;
+
                 // Set it to channel hop using all the current hop attributes
                 ds->set_channel_hop(ds->get_source_hop_rate(),
                         ds->get_source_hop_vec(),
                         ds->get_source_hop_shuffle(),
                         ds->get_source_hop_offset(), 0,
-                        [this, cl, concls](unsigned int, bool success, 
+                        [this, cl, &cmd_complete_success](unsigned int, bool success, 
                             std::string reason) {
 
-                            if (success) {
-                                concls->response_stream << "Success";
-                                concls->httpcode = 200;
-                            } else {
-                                concls->response_stream << reason;
-                                concls->httpcode = 500;
-                            }
+                            cmd_complete_success = success;
+
                             cl->unlock(reason);
                         });
+
                 // Block until the open cmd unlocks us
-                cl->block_until();
+                std::string reason = cl->block_until();
+
+                if (cmd_complete_success) {
+                    concls->response_stream << "Success";
+                    concls->httpcode = 200;
+                } else {
+                    concls->response_stream << reason;
+                    concls->httpcode = 500;
+                }
+
                 return MHD_YES;
             }
         }
