@@ -1447,12 +1447,12 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         throw std::runtime_error("could not parse channel");
                     }
 
-                    cl->lock();
-
                     _MSG("Setting source '" + ds->get_source_name() + "' channel '" +
                             ch + "'", MSGFLAG_INFO);
 
                     bool cmd_complete_success = false;
+
+                    cl->lock();
 
                     // Initiate the channel set
                     ds->set_channel(ch, 0, 
@@ -1514,6 +1514,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     bool cmd_complete_success = false;
 
+                    cl->lock();
+
                     // Initiate the channel set
                     ds->set_channel_hop(rate, converted_channels, shuffle, 
                             ds->get_source_hop_offset(),
@@ -1539,12 +1541,12 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     return MHD_YES;
                 }
             } else if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
-                cl->lock();
-
                 _MSG("Setting source '" + ds->get_source_name() + "' channel hopping", 
                         MSGFLAG_INFO);
 
                 bool cmd_complete_success = false;
+
+                cl->lock();
 
                 // Set it to channel hop using all the current hop attributes
                 ds->set_channel_hop(ds->get_source_hop_rate(),
