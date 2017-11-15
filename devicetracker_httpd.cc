@@ -264,61 +264,6 @@ void Devicetracker::httpd_all_phys(string path, std::ostream &stream,
     entrytracker->Serialize(httpd->GetSuffix(path), stream, wrapper, NULL);
 }
 
-void Devicetracker::httpd_device_summary(string url, std::ostream &stream, 
-        shared_ptr<TrackerElementVector> subvec, 
-        vector<SharedElementSummary> summary_vec,
-        string in_wrapper_key) {
-
-    local_locker lock(&devicelist_mutex);
-
-    SharedTrackerElement devvec =
-        globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
-
-    TrackerElementSerializer::rename_map rename_map;
-
-    // Wrap the dev vec in a dictionary and change its name
-    SharedTrackerElement wrapper = NULL;
-
-    if (in_wrapper_key != "") {
-        wrapper.reset(new TrackerElement(TrackerMap));
-        wrapper->add_map(devvec);
-        devvec->set_local_name(in_wrapper_key);
-    } else {
-        wrapper = devvec;
-    }
-
-    if (subvec == NULL) {
-        for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-            if (summary_vec.size() == 0) {
-                devvec->add_vector(tracked_vec[x]);
-            } else {
-                SharedTrackerElement simple;
-
-                SummarizeTrackerElement(entrytracker, tracked_vec[x], 
-                        summary_vec, simple, rename_map);
-
-                devvec->add_vector(simple);
-            }
-        }
-    } else {
-        for (TrackerElementVector::const_iterator x = subvec->begin();
-                x != subvec->end(); ++x) {
-            if (summary_vec.size() == 0) {
-                devvec->add_vector(*x);
-            } else {
-                SharedTrackerElement simple;
-
-                SummarizeTrackerElement(entrytracker, *x, 
-                        summary_vec, simple, rename_map);
-
-                devvec->add_vector(simple);
-            }
-        }
-    }
-
-    entrytracker->Serialize(httpd->GetSuffix(url), stream, wrapper, &rename_map);
-}
-
 int Devicetracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
@@ -650,10 +595,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (target == "devices") {
                 SharedTrackerElement devvec(new TrackerElement(TrackerVector));
 
+                std::vector<shared_local_locker> lock_vec;
+
                 auto mmp = tracked_mac_multimap.equal_range(mac);
 
                 for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
                     SharedTrackerElement simple;
+
+                    // Track the locking
+                    lock_vec.push_back(shared_local_locker(new local_locker(&(mmpi->second->device_mutex))));
 
                     SummarizeTrackerElement(entrytracker, mmpi->second, summary_vec,
                             simple, rename_map);
@@ -683,23 +633,24 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
-            local_locker lock(&devicelist_mutex);
-
             TrackedDeviceKey key(tokenurl[3]);
-            auto tmi = tracked_map.find(key);
 
-            if (tmi == tracked_map.end()) {
+            std::shared_ptr<kis_tracked_device_base> dev = FetchDevice(key);
+
+            if (dev == NULL) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
                 return MHD_YES;
             }
+
+            local_locker devlock(&(dev->device_mutex));
 
             string target = Httpd_StripSuffix(tokenurl[4]);
 
             if (target == "device") {
                 SharedTrackerElement simple;
 
-                SummarizeTrackerElement(entrytracker, tmi->second, summary_vec,
+                SummarizeTrackerElement(entrytracker, dev, summary_vec,
                         simple, rename_map);
 
                 entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
@@ -864,6 +815,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 wrapper->add_map(dt_filter_elem);
             }
 
+            // Locks on all the devices we're returning
+            std::vector<shared_local_locker> lock_vec;
+
             if (regexdata != NULL) {
                 // If we're doing a basic regex outside of devicetables
                 // shenanigans...
@@ -873,6 +827,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 devicetracker_pcre_worker worker(globalreg, regexdata, pcredevs);
                 MatchOnDevices(&worker);
+
+                // Lock all the pcre devs
+                for (auto i : pcrevec) {
+                    shared_device_base bd = 
+                        std::static_pointer_cast<kis_tracked_device_base>(i);
+                    lock_vec.push_back(shared_local_locker(new local_locker(&(bd->device_mutex))));
+                }
                 
                 // Check DT ranges
                 if (dt_start >= pcrevec.size())
@@ -907,6 +868,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     ei = pcrevec.begin() + dt_start + dt_length;
 
                 for (vi = pcrevec.begin() + dt_start; vi != ei; ++vi) {
+                    shared_device_base db =
+                        std::static_pointer_cast<kis_tracked_device_base>(*vi);
+
+                    // Track the locking
+                    lock_vec.push_back(shared_local_locker(new local_locker(&(db->device_mutex))));
                     SharedTrackerElement simple;
 
                     SummarizeTrackerElement(entrytracker,
@@ -927,6 +893,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 devicetracker_stringmatch_worker worker(globalreg, dt_search, 
                         dt_search_paths, matchdevs);
                 MatchOnDevices(&worker);
+
+                for (auto i : matchvec) {
+                    shared_device_base bd = 
+                        std::static_pointer_cast<kis_tracked_device_base>(i);
+                    lock_vec.push_back(shared_local_locker(new local_locker(&(bd->device_mutex))));
+                }
 
                 if (dt_order_col >= 0) {
                     kismet__stable_sort(matchvec.begin(), matchvec.end(), 
@@ -1009,6 +981,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 for (vi = tracked_vec.begin() + dt_start; vi != ei; ++vi) {
                     SharedTrackerElement simple;
 
+                    lock_vec.push_back(shared_local_locker(new local_locker(&((*vi)->device_mutex))));
+
                     SummarizeTrackerElement(entrytracker,
                             (*vi), summary_vec,
                             simple, rename_map);
@@ -1084,9 +1058,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Final devices being simplified and sent out
             SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
+            std::vector<shared_local_locker> lock_vec;
             devicetracker_function_worker sw(globalreg, 
-                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, summary_vec, &rename_map, &lock_vec, &outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                         SharedTrackerElement simple;
+                        
+                        // Track the locking
+                        lock_vec.push_back(shared_local_locker(new local_locker(&(d->device_mutex))));
 
                         SummarizeTrackerElement(entrytracker, 
                                 static_pointer_cast<TrackerElement>(d), summary_vec,
