@@ -658,6 +658,54 @@ Closes the stream (ending the log) specified by `[id]`
 
 ## 802.11 Specific
 
+##### POST /phy/phy80211/ssid_regex `/phy/phy80211/ssid_regex.cmd`, `/phy/phy80211/ssid_regex.jcmd`
+
+Retrieve an array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on advertised SSIDs or probe response SSIDs.
+
+This API requires a Kismet server that has been compiled with libpcre support.
+
+Multiple PCRE terms may be supplied.  The response will include devices which match *any* of the supplied terms.
+
+Expects a command dictionary including:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| essid | ["one", "two", "three", ... ] | array of string | Array of PCRE regex filters |
+| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
+
+##### POST /phy/phy80211/probe_regex `/phy/phy80211/probe_regex.cmd`, `/phy/phy80211/probe_regex.jcmd`
+
+*LOGIN _NOT_ REQUIRED*
+
+Retrieve an array of device summaries based on the supplied PCRE-compatible regular expression.  Devices are matched on *requested* SSIDs from probe request fields.
+
+This API requires a Kismet server that has been compiled with libpcre support.
+
+Multiple PCRE terms may be supplied.  The response will include devices which match *any* of the supplied terms.
+
+Expects a command dictionary including:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| essid | ["one", "two", "three" ] | array of string | Array of PCRE regex filters |
+| fields | ["field1", "field2", ..., ["fieldN", "renameN"], ... ] | array of string and string-pairs | Array of fields to be included in the summary.  If this is omitted, the entire device record is transmitted.  Fields may be a single field string, a complex field path string, or a rename pair - when renamed, fields are transmitted as the renamed value |
+
+##### Examples
+
+To match a single SSID, using start-and-end markers,
+```python
+{
+    "essid": [ "^linksys$" ]
+}
+```
+
+To match on a single explicit SSID or any ssid ending in 'foo':
+```python
+{
+    "essid": [ "^single$", ".*foo$" ]
+}
+```
+
 ##### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap
 
 *LOGIN REQUIRED*
