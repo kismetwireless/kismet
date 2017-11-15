@@ -22,6 +22,7 @@
 #include "phy_uav_drone.h"
 #include "phy_80211.h"
 #include "kis_httpd_registry.h"
+#include "devicetracker.h"
 
 Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
@@ -76,6 +77,8 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
 
 int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     Kis_UAV_Phy *uavphy = (Kis_UAV_Phy *) auxdata;
+
+    devicelist_scope_locker listlocker(uavphy->devicetracker);
 
 	kis_common_info *commoninfo =
 		(kis_common_info *) in_pack->fetch(uavphy->pack_comp_common);

@@ -32,6 +32,7 @@
 #include "timetracker.h"
 #include "phy_bluetooth.h"
 #include "kis_httpd_registry.h"
+#include "devicetracker.h"
 
 Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
         int in_phyid) : Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
@@ -73,6 +74,8 @@ Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {
 
 int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
     Kis_Bluetooth_Phy *btphy = (Kis_Bluetooth_Phy *) auxdata;
+
+    devicelist_scope_locker listlock(btphy->devicetracker);
 
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);

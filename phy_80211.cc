@@ -619,6 +619,8 @@ int Kis_80211_Phy::LoadWepkeys() {
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
 
+    devicelist_scope_locker devlist_lock(d11phy->devicetracker);
+
     // Don't process errors, blocked, or dupes
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
@@ -2279,6 +2281,8 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
+    devicelist_scope_locker dlocker(devicetracker);
+
     if (strcmp(method, "GET") != 0) {
         return;
     }
@@ -2314,7 +2318,6 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     }
 
     // Does it exist?
-    devicelist_scope_locker dlocker(devicetracker);
     if (devicetracker->FetchDevice(key) == NULL) {
         stream << "unknown device";
         return;
@@ -2324,7 +2327,6 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (httpd->HasValidSession(connection, true)) {
         // It should exist and we'll handle if it doesn't in the stream
         // handler
-        devicelist_scope_locker dlocker(devicetracker);
         GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
     } else {
         stream << "Login required";
