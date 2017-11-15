@@ -233,9 +233,6 @@ public:
         kis_internal_id = in_id;
     }
 
-    // Protective mutex; anything editing the device should lock this while editing
-    kis_recursive_timed_mutex device_mutex;
-
 protected:
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
