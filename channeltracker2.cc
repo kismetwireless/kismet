@@ -114,8 +114,6 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
 
-    local_locker locker(&lock);
-
     if (strcmp(method, "GET") != 0) {
         return;
     }
@@ -123,6 +121,7 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
     string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/channels/channels") {
+        local_locker locker(&lock);
         shared_ptr<Channeltracker_V2> cv2 = 
             Globalreg::FetchGlobalAs<Channeltracker_V2>(globalreg, "CHANNEL_TRACKER");
         Httpd_Serialize(path, stream, cv2);
