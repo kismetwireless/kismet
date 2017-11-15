@@ -1657,19 +1657,21 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             shared_ptr<kis_tracked_device_base> eapolbase =
                 devicetracker->FetchDevice(eapolkey);
 
+            local_locker eapollock(&(eapolbase->device_mutex));
+
             // Look for the target
             TrackedDeviceKey targetkey(globalreg->server_uuid_hash, phyname_hash, 
                     dot11info->dest_mac);
             shared_ptr<kis_tracked_device_base> targetbase =
                 devicetracker->FetchDevice(targetkey);
 
+            local_locker targetdevlock(&(targetbase->device_mutex));
+
             // fprintf(stderr, "debug - ebase %p tbase %p\n", eapolbase.get(), targetbase.get());
 
             // Look at BSSID records; we care about the handshake counts and want to
             // associate all the entries
             if (eapolbase != NULL) {
-                local_locker eapollock(&(eapolbase->device_mutex));
-
                 shared_ptr<dot11_tracked_device> eapoldot11 = 
                     static_pointer_cast<dot11_tracked_device>(eapolbase->get_map_value(dot11_device_entry_id));
 
@@ -1722,8 +1724,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             // be a client, depending on the direction); we track the EAPOL records per
             // destination MAC address
             if (targetbase != NULL) {
-                local_locker targetdevlock(&(targetbase->device_mutex));
-
                 // Get the dot11 record for the destination device, if we can
                 shared_ptr<dot11_tracked_device> eapoldot11 = 
                     static_pointer_cast<dot11_tracked_device>(targetbase->get_map_value(dot11_device_entry_id));
