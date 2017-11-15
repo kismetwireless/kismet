@@ -1394,6 +1394,8 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
     TrackedDeviceKey backkey(globalreg->server_uuid_hash, phyname_hash, dot11info->bssid_mac);
     shared_ptr<kis_tracked_device_base> backdev = devicetracker->FetchDevice(backkey);
 
+    local_locker backdevlock(&(backdev->device_mutex));
+
     // Always set a key since keys are now consistent
     client->set_bssid_key(backkey);
 
@@ -1466,6 +1468,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+
+    local_locker devlock(&(basedev->device_mutex));
 
 	kis_data_packinfo *pack_datainfo =
 		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
@@ -1653,11 +1657,15 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             shared_ptr<kis_tracked_device_base> eapolbase =
                 devicetracker->FetchDevice(eapolkey);
 
+            local_locker eapollock(&(eapolbase->device_mutex));
+
             // Look for the target
             TrackedDeviceKey targetkey(globalreg->server_uuid_hash, phyname_hash, 
                     dot11info->dest_mac);
             shared_ptr<kis_tracked_device_base> targetbase =
                 devicetracker->FetchDevice(targetkey);
+
+            local_locker targetdevlock(&(targetbase->device_mutex));
 
             // fprintf(stderr, "debug - ebase %p tbase %p\n", eapolbase.get(), targetbase.get());
 
