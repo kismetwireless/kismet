@@ -31,6 +31,7 @@
 
 #include <mutex>
 #include <chrono>
+#include <memory>
 
 // Seconds a lock is allowed to be held before throwing a timeout error
 #define KIS_THREAD_DEADLOCK_TIMEOUT     30
@@ -135,6 +136,8 @@ public:
 protected:
     kis_recursive_timed_mutex *cpplock;
 };
+
+typedef std::shared_ptr<local_locker> shared_local_locker;
 
 // Locks for the duration of scope, but only locks on demand
 class local_demand_locker {

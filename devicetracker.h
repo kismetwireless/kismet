@@ -356,6 +356,8 @@ protected:
     int seenby_val_id;
 };
 
+typedef std::shared_ptr<kis_tracked_device_base> shared_device_base;
+
 // Packinfo references
 class kis_tracked_device_info : public packet_component {
 public:
@@ -535,15 +537,6 @@ public:
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
     void httpd_all_phys(string url, std::ostream &stream, 
-            std::string in_wrapper_key = "");
-
-    // Generate a device summary, serialized.  Optionally provide an existing
-    // vector to generate a summary of devices matching a given criteria via
-    // a worker.  Also optionally, wrap the results in a dictionary named via
-    // the in_wrapper key, which is required for some js libs like datatables
-    void httpd_device_summary(string url, std::ostream &stream, 
-            shared_ptr<TrackerElementVector> subvec, 
-            std::vector<SharedElementSummary> summary_vec,
             std::string in_wrapper_key = "");
 
     // Timetracker event handler

@@ -2129,17 +2129,6 @@ string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 
 
 bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
-    // Always return that the URL exists, but throw an error during post
-    // handling if we don't have PCRE.  Less weird behavior for clients.
-    if (strcmp(method, "POST") == 0) {
-        if (strcmp(path, "/phy/phy80211/ssid_regex.cmd") == 0 ||
-            strcmp(path, "/phy/phy80211/ssid_regex.jcmd") == 0)
-            return true;
-        if (strcmp(path, "/phy/phy80211/probe_regex.cmd") == 0 ||
-            strcmp(path, "/phy/phy80211/probe_regex.jcmd") == 0)
-            return true;
-    }
-
     if (strcmp(method, "GET") == 0) {
         vector<string> tokenurl = StrTokenize(path, "/");
 
@@ -2347,115 +2336,11 @@ int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     string stripped = Httpd_StripSuffix(concls->url);
    
-    if (!Httpd_CanSerialize(concls->url) ||
-            (stripped != "/phy/phy80211/ssid_regex" &&
-             stripped != "/phy/phy80211/probe_regex")) {
+    if (!Httpd_CanSerialize(concls->url)) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
         return 1;
     }
-
-#ifdef HAVE_LIBPCRE
-    // Common API
-    SharedStructured structdata;
-
-    vector<SharedElementSummary> summary_vec;
-
-    // Make sure we can extract the parameters
-    try {
-        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
-        } else if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
-            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
-        } else {
-            // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data");
-        }
-
-        // Look for a vector named 'essid', we need it for the worker
-        SharedStructured essid_list = structdata->getStructuredByKey("essid");
-
-        // Parse the fields, if we have them
-        SharedStructured field_list;
-
-        if (structdata->hasKey("fields"))
-            field_list = structdata->getStructuredByKey("fields");
-
-        if (field_list != NULL) {
-            StructuredData::structured_vec fvec = field_list->getStructuredArray();
-            for (StructuredData::structured_vec::iterator i = fvec.begin(); 
-                    i != fvec.end(); ++i) {
-                if ((*i)->isString()) {
-                    SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
-                                entrytracker));
-                    summary_vec.push_back(s);
-                } else if ((*i)->isArray()) {
-                    StructuredData::string_vec mapvec = (*i)->getStringVec();
-
-                    if (mapvec.size() != 2) {
-                        concls->response_stream << "Invalid request: "
-                            "Expected field, rename";
-                        concls->httpcode = 400;
-                        return 1;
-                    }
-
-                    SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
-                                mapvec[1], entrytracker));
-                    summary_vec.push_back(s);
-                }
-            }
-        }
-
-        // Make a worker instance
-
-        if (stripped == "/phy/phy80211/ssid_regex") {
-            SharedTrackerElement devices(new TrackerElement(TrackerVector));
-            shared_ptr<TrackerElementVector> 
-                devices_vec(new TrackerElementVector(devices));
-
-            devicetracker_pcre_worker worker(globalreg,
-                "dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid",
-                essid_list, devices);
-
-            // Tell devicetracker to do the work
-            devicetracker->MatchOnDevices(&worker);
-
-            devicetracker->httpd_device_summary(concls->url, concls->response_stream,
-                    devices_vec, summary_vec);
-
-        } else if (stripped == "/phy/phy80211/probe_regex") {
-            SharedTrackerElement devices(new TrackerElement(TrackerVector));
-            shared_ptr<TrackerElementVector> 
-                devices_vec(new TrackerElementVector(devices));
-
-            devicetracker_pcre_worker worker(globalreg,
-                "dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid",
-                essid_list, devices);
-
-            // Tell devicetracker to do the work
-            devicetracker->MatchOnDevices(&worker);
-
-            devicetracker->httpd_device_summary(concls->url, concls->response_stream,
-                    devices_vec, summary_vec);
-        }
-
-        return 1;
-    } catch(const std::exception& e) {
-        // Exceptions can be caused by missing fields, or fields which
-        // aren't the format we expected.  Throw it all out with an
-        // error.
-        concls->response_stream << "Invalid request " << e.what();
-        concls->httpcode = 400;
-
-        return 1;
-    }
-
-#else
-    concls->response_stream << "Unable to process: Kismet not compiled with PCRE";
-    concls->httpcode = 501;
-    return 1;
-#endif
 
     // If we didn't handle it and got here, we don't know what it is, throw an
     // error.
