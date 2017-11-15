@@ -1394,12 +1394,12 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
     TrackedDeviceKey backkey(globalreg->server_uuid_hash, phyname_hash, dot11info->bssid_mac);
     shared_ptr<kis_tracked_device_base> backdev = devicetracker->FetchDevice(backkey);
 
+    local_locker backdevlock(&(backdev->device_mutex));
+
     // Always set a key since keys are now consistent
     client->set_bssid_key(backkey);
 
     if (backdev != NULL) {
-        local_locker backdevlock(&(backdev->device_mutex));
-
         shared_ptr<dot11_tracked_device> backdot11 = 
             static_pointer_cast<dot11_tracked_device>(backdev->get_map_value(dot11_device_entry_id));
 
