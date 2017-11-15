@@ -301,8 +301,14 @@ void capture_thread(kis_capture_handler_t *caph) {
             local_pcap->pcapfname, 
             strlen(pcap_errstr) == 0 ? "end of pcapfile reached" : pcap_errstr );
 
-    cf_send_error(caph, errstr);
-    cf_handler_spindown(caph);
+    cf_send_message(caph, errstr, MSGFLAG_INFO);
+
+    /* Instead of dying, spin forever in a sleep loop */
+    while (1) {
+        sleep(1);
+    }
+
+    /* cf_handler_spindown(caph); */
 }
 
 int main(int argc, char *argv[]) {
@@ -323,7 +329,7 @@ int main(int argc, char *argv[]) {
     dup2(fileno(sterr), STDERR_FILENO);
 #endif
 
-    fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid());
+    /* fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid()); */
 
     kis_capture_handler_t *caph = cf_handler_init("pcapfile");
 
