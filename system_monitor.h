@@ -61,6 +61,8 @@ public:
     __Proxy(timestamp_sec, uint64_t, uint64_t, uint64_t, timestamp_sec);
     __Proxy(timestamp_usec, uint64_t, uint64_t, uint64_t, timestamp_usec);
 
+    __Proxy(timestamp_start_sec, uint64_t, time_t, time_t, timestamp_start_sec);
+
     __Proxy(memory, uint64_t, uint64_t, uint64_t, memory);
     __Proxy(devices, uint64_t, uint64_t, uint64_t, devices);
 
@@ -94,6 +96,8 @@ protected:
 
     int timestamp_usec_id;
     SharedTrackerElement timestamp_usec;
+
+    SharedTrackerElement timestamp_start_sec;
 
     int mem_id;
     SharedTrackerElement memory;

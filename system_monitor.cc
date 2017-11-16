@@ -57,6 +57,9 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     // Link the RRD out of the devicetracker
     add_map(devicetracker->get_packets_rrd());
+
+    // Set the startup time
+    set_timestamp_start_sec(time(0));
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -86,6 +89,9 @@ void Systemmonitor::register_fields() {
     timestamp_usec_id =
         RegisterField("kismet.system.timestamp.usec", TrackerUInt64,
                 "system timestamp, usec", &timestamp_usec);
+    
+    RegisterField("kismet.system.timestamp.start_sec", TrackerUInt64,
+            "system startup timestamp, seconds", &timestamp_start_sec);
 
     mem_id = 
         RegisterField("kismet.system.memory.rss", TrackerUInt64,
