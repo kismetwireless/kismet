@@ -39,9 +39,11 @@
 
 #include "kaitai/kaitaistream.h"
 #include "kaitai_parsers/wpaeap.h"
+#include "kaitai_parsers/dot11_action.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
 #include "kaitai_parsers/dot11_ie_48_rsn.h"
 #include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
+#include "kaitai_parsers/dot11_ie_52_rmm_neighbor.h"
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_61_ht.h"
 #include "kaitai_parsers/dot11_ie_133_cisco_ccx.h"
@@ -590,7 +592,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
-
         } else {
             fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
@@ -605,12 +606,69 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         if (fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_disassociation || 
             fc->subtype == packet_sub_authentication || 
-            fc->subtype == packet_sub_deauthentication ||
-            fc->subtype == packet_sub_action) {
+            fc->subtype == packet_sub_deauthentication) {
             // Shortcut handling of probe req, disassoc, auth, deauth since they're
             // not normal management frames
             packinfo->header_offset = 24;
             fixparm = NULL;
+        } else if (fc->subtype == packet_sub_action) {
+            // Action frames have their own structure and a non-traditional
+            // fixed parameters field, handle it all here
+            packinfo->header_offset = 24;
+            fixparm = NULL;
+
+            membuf pack_membuf((char *) &(chunk->data[packinfo->header_offset]), 
+                    (char *) &(chunk->data[chunk->length]));
+            std::istream pack_stream(&pack_membuf);
+
+            std::shared_ptr<dot11_action_t> action;
+
+            try {
+                kaitai::kstream ks(&pack_stream);
+
+                action.reset(new dot11_action_t(&ks));
+            } catch (const std::exception& e) {
+                fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
+                packinfo->corrupt = 1;
+                in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                return 0;
+            }
+
+            // We only care about RMM for wids purposes right now
+            if (action->category_code() == dot11_action_t::CATEGORY_CODE_TYPE_RADIO_MEASUREMENT &&
+                    action->action_frame() != NULL) {
+                for (auto t : *(action->action_frame()->tags())) {
+                    if (t->ie() == 52) {
+                        std::istringstream tag_stream(t->ie_data());
+                       
+                        try {
+                            kaitai::kstream wmkstream(&tag_stream);;
+
+                            dot11_ie_52_rmm_neighbor_t rmm(&wmkstream);
+
+                            if (rmm.channel_number() > 0xE0) {
+                                std::stringstream ss;
+
+                                ss << "IEE80211 Access Point BSSID " <<
+                                    packinfo->bssid_mac.Mac2String() << " reporting an 802.11k " <<
+                                    "neighbor channel of " << rmm.channel_number() << " which is " <<
+                                    "greater than the maximum channel, 224.  This may be an " << 
+                                    "exploit attempt against Broadcom chipsets used in mobile " <<
+                                    "devices.";
+
+                                alertracker->RaiseAlert(alert_11kneighborchan_ref, in_pack, 
+                                        packinfo->bssid_mac, packinfo->source_mac, 
+                                        packinfo->dest_mac, packinfo->other_mac, 
+                                        packinfo->channel, ss.str());
+                            }
+
+                        } catch (const std::exception& e) {
+                            fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
+                        }
+                    }
+                }
+            }
+
         } else {
             // If we're not long enough to have the fixparm and look like a normal
             // mgt header, bail.

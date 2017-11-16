@@ -439,6 +439,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "Invalid RSN (802.11i) tags in beacon frames can be used to cause "
                 "loops in some Atheros drivers, as described in "
                 "CVE-2017-9714 and https://pleasestopnamingvulnerabilities.com/");
+    alert_11kneighborchan_ref =
+        alertracker->ActivateConfiguredAlert("BCOM11KCHAN",
+                "Invalid channels in 802.11k neighbor report frames "
+                "can be used to exploit certain Broadcom HardMAC implementations, typically used "
+                "in mobile devices, as described in "
+                "https://bugs.chromium.org/p/project-zero/issues/detail?id=1289");
 
     // Threshold
     signal_too_loud_threshold = 
