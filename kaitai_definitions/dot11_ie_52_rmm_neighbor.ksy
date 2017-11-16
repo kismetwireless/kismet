@@ -15,6 +15,9 @@ seq:
     type: u1
     
 instances:
+  ie_num:
+    value: 52
+
   bssid_reachability:
     value: "bssid_info & 0x03"
   bssid_security:

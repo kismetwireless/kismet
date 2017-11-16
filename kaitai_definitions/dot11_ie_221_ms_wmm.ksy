@@ -7,3 +7,6 @@ seq:
   - id: wme_subtype
     type: u1
 
+instances:
+  ie_num:
+    value: 221

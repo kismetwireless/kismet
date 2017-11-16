@@ -8,6 +8,7 @@
 dot11_ie_55_fastbss_t::dot11_ie_55_fastbss_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_55_fastbss_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
+    f_ie_num = false;
     m_mic_control = new fastbss_mic_control_t(m__io, this, m__root);
     m_mic = m__io->read_bytes(16);
     m_anonce = m__io->read_bytes(32);
@@ -116,4 +117,12 @@ dot11_ie_55_fastbss_t::fastbss_mic_control_t::fastbss_mic_control_t(kaitai::kstr
 }
 
 dot11_ie_55_fastbss_t::fastbss_mic_control_t::~fastbss_mic_control_t() {
+}
+
+int8_t dot11_ie_55_fastbss_t::ie_num() {
+    if (f_ie_num)
+        return m_ie_num;
+    m_ie_num = 55;
+    f_ie_num = true;
+    return m_ie_num;
 }

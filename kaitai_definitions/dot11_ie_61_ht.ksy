@@ -13,6 +13,10 @@ seq:
     type: ht_info_subset_3
   - id: rx_coding_scheme
     type: u2le
+
+instances:
+  ie_num:
+    value: 61
   
 types:
   ht_info_subset_1:

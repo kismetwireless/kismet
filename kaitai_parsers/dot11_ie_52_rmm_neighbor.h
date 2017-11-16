@@ -61,6 +61,13 @@ public:
     int32_t bssid_capability();
 
 private:
+    bool f_ie_num;
+    int8_t m_ie_num;
+
+public:
+    int8_t ie_num();
+
+private:
     bool f_bssid_reachability;
     int32_t m_bssid_reachability;
 

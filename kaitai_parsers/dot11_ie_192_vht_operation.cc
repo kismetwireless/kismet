@@ -8,6 +8,7 @@
 dot11_ie_192_vht_operation_t::dot11_ie_192_vht_operation_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_192_vht_operation_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
+    f_ie_num = false;
     m_channel_width = static_cast<dot11_ie_192_vht_operation_t::channel_width_t>(m__io->read_u1());
     m_center1 = m__io->read_u1();
     m_center2 = m__io->read_u1();
@@ -32,4 +33,12 @@ dot11_ie_192_vht_operation_t::mcs_map_t::mcs_map_t(kaitai::kstream *p_io, dot11_
 }
 
 dot11_ie_192_vht_operation_t::mcs_map_t::~mcs_map_t() {
+}
+
+uint8_t dot11_ie_192_vht_operation_t::ie_num() {
+    if (f_ie_num)
+        return m_ie_num;
+    m_ie_num = 192;
+    f_ie_num = true;
+    return m_ie_num;
 }

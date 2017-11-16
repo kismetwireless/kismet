@@ -173,6 +173,13 @@ public:
     };
 
 private:
+    bool f_ie_num;
+    int8_t m_ie_num;
+
+public:
+    int8_t ie_num();
+
+private:
     fastbss_mic_control_t* m_mic_control;
     std::string m_mic;
     std::string m_anonce;

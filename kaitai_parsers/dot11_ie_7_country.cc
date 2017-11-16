@@ -8,6 +8,7 @@
 dot11_ie_7_country_t::dot11_ie_7_country_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_7_country_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
+    f_ie_num = false;
     m_country_code = m__io->read_bytes(2);
     m_environment = m__io->read_u1();
     m_country_list = new std::vector<dot11_ie_country_triplet_t*>();
@@ -32,4 +33,12 @@ dot11_ie_7_country_t::dot11_ie_country_triplet_t::dot11_ie_country_triplet_t(kai
 }
 
 dot11_ie_7_country_t::dot11_ie_country_triplet_t::~dot11_ie_country_triplet_t() {
+}
+
+int8_t dot11_ie_7_country_t::ie_num() {
+    if (f_ie_num)
+        return m_ie_num;
+    m_ie_num = 7;
+    f_ie_num = true;
+    return m_ie_num;
 }

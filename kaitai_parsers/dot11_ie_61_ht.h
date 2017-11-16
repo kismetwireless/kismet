@@ -118,6 +118,13 @@ public:
     };
 
 private:
+    bool f_ie_num;
+    int8_t m_ie_num;
+
+public:
+    int8_t ie_num();
+
+private:
     uint8_t m_primary_channel;
     ht_info_subset_1_t* m_info_subset_1;
     ht_info_subset_2_t* m_info_subset_2;

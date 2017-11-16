@@ -22,6 +22,10 @@ seq:
     type: rsn_management
     repeat: expr
     repeat-expr: akm_count
+
+instances:
+  ie_num:
+    value: 48
     
 types:
   rsn_cipher:

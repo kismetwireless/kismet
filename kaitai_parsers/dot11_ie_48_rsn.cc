@@ -8,6 +8,7 @@
 dot11_ie_48_rsn_t::dot11_ie_48_rsn_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_48_rsn_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
+    f_ie_num = false;
     m_rsn_version = m__io->read_u2le();
     m_group_cipher = new rsn_cipher_t(m__io, this, m__root);
     m_pairwise_count = m__io->read_u2le();
@@ -56,4 +57,12 @@ dot11_ie_48_rsn_t::rsn_management_t::rsn_management_t(kaitai::kstream *p_io, dot
 }
 
 dot11_ie_48_rsn_t::rsn_management_t::~rsn_management_t() {
+}
+
+int8_t dot11_ie_48_rsn_t::ie_num() {
+    if (f_ie_num)
+        return m_ie_num;
+    m_ie_num = 48;
+    f_ie_num = true;
+    return m_ie_num;
 }

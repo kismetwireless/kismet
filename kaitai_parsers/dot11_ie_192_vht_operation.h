@@ -62,6 +62,13 @@ public:
     };
 
 private:
+    bool f_ie_num;
+    uint8_t m_ie_num;
+
+public:
+    uint8_t ie_num();
+
+private:
     channel_width_t m_channel_width;
     uint8_t m_center1;
     uint8_t m_center2;

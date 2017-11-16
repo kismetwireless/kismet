@@ -4,9 +4,9 @@
 
 #include <iostream>
 #include <fstream>
-#include "dot11_ie_221_vendor.h"
 #include "dot11_ie_7_country.h"
 #include "dot11_ie_11_qbss.h"
+#include "dot11_ie_221_vendor.h"
 
 dot11_ie_t::dot11_ie_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;

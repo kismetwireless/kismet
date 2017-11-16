@@ -10,6 +10,7 @@ dot11_ie_52_rmm_neighbor_t::dot11_ie_52_rmm_neighbor_t(kaitai::kstream *p_io, ka
     m__root = this;
     f_bssid_mobility_domain = false;
     f_bssid_capability = false;
+    f_ie_num = false;
     f_bssid_reachability = false;
     f_bssid_security = false;
     f_bssid_ht = false;
@@ -50,6 +51,14 @@ int32_t dot11_ie_52_rmm_neighbor_t::bssid_capability() {
     m_bssid_capability = ((bssid_info() & 1008) >> 4);
     f_bssid_capability = true;
     return m_bssid_capability;
+}
+
+int8_t dot11_ie_52_rmm_neighbor_t::ie_num() {
+    if (f_ie_num)
+        return m_ie_num;
+    m_ie_num = 52;
+    f_ie_num = true;
+    return m_ie_num;
 }
 
 int32_t dot11_ie_52_rmm_neighbor_t::bssid_reachability() {
