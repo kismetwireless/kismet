@@ -8,7 +8,6 @@
 dot11_ie_61_ht_t::dot11_ie_61_ht_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_61_ht_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
-    f_ie_num = false;
     m_primary_channel = m__io->read_u1();
     m_info_subset_1 = new ht_info_subset_1_t(m__io, this, m__root);
     m_info_subset_2 = new ht_info_subset_2_t(m__io, this, m__root);
@@ -63,12 +62,4 @@ dot11_ie_61_ht_t::ht_info_subset_3_t::ht_info_subset_3_t(kaitai::kstream *p_io, 
 }
 
 dot11_ie_61_ht_t::ht_info_subset_3_t::~ht_info_subset_3_t() {
-}
-
-int8_t dot11_ie_61_ht_t::ie_num() {
-    if (f_ie_num)
-        return m_ie_num;
-    m_ie_num = 61;
-    f_ie_num = true;
-    return m_ie_num;
 }

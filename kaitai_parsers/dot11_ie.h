@@ -13,9 +13,9 @@
 #if KAITAI_STRUCT_VERSION < 7000L
 #error "Incompatible Kaitai Struct C++/STL API: version 0.7 or later is required"
 #endif
+class dot11_ie_221_vendor_t;
 class dot11_ie_7_country_t;
 class dot11_ie_11_qbss_t;
-class dot11_ie_221_vendor_t;
 
 class dot11_ie_t : public kaitai::kstruct {
 

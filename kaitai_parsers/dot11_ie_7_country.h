@@ -45,13 +45,6 @@ public:
     };
 
 private:
-    bool f_ie_num;
-    int8_t m_ie_num;
-
-public:
-    int8_t ie_num();
-
-private:
     std::string m_country_code;
     uint8_t m_environment;
     std::vector<dot11_ie_country_triplet_t*>* m_country_list;

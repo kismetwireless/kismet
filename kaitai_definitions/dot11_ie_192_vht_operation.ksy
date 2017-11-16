@@ -13,10 +13,6 @@ seq:
   - id: basic_mcs_map
     type: mcs_map
 
-instances:
-  ie_num:
-    value: 192
-
 enums:
   channel_width:
     0x00: ch_20_40

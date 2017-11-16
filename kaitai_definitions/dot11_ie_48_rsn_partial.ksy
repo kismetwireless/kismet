@@ -14,6 +14,3 @@ seq:
   - id: pairwise_count
     type: u2le
     
-instances:
-  ie_num:
-    value: 48

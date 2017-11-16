@@ -15,6 +15,3 @@ seq:
   - id: ccx1_unk2
     size: 3
 
-instances:
-  ie_num:
-    value: 133

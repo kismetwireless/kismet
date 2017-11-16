@@ -13,10 +13,6 @@ seq:
     type: dot11_ie_country_triplet
     repeat: eos
 
-instances:
-  ie_num:
-    value: 7
-
 types:
   dot11_ie_country_triplet:
     seq:

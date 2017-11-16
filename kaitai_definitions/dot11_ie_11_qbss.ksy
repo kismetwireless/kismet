@@ -12,6 +12,3 @@ seq:
   - id: available_admissions
     type: u2le
 
-instances:
-  ie_num:
-    value: 11

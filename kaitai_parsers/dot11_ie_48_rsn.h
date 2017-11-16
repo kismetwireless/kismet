@@ -91,13 +91,6 @@ public:
     };
 
 private:
-    bool f_ie_num;
-    int8_t m_ie_num;
-
-public:
-    int8_t ie_num();
-
-private:
     uint16_t m_rsn_version;
     rsn_cipher_t* m_group_cipher;
     uint16_t m_pairwise_count;

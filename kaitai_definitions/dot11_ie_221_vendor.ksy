@@ -16,9 +16,6 @@ seq:
     type: ieee_221_vendor_tag
     
 instances:
-  ie_num:
-    value: 221
-
   # Use an absolute position at the start of the stream to get the vendor oui
   vendor_oui_extract:
     type: vendor_oui_bytes

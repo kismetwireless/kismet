@@ -8,7 +8,6 @@
 dot11_ie_221_vendor_t::dot11_ie_221_vendor_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_vendor_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
-    f_ie_num = false;
     f_vendor_oui_extract = false;
     f_vendor_oui_int = false;
     f_vendor_oui_type = false;
@@ -41,14 +40,6 @@ dot11_ie_221_vendor_t::ieee_221_vendor_tag_t::ieee_221_vendor_tag_t(kaitai::kstr
 }
 
 dot11_ie_221_vendor_t::ieee_221_vendor_tag_t::~ieee_221_vendor_tag_t() {
-}
-
-uint8_t dot11_ie_221_vendor_t::ie_num() {
-    if (f_ie_num)
-        return m_ie_num;
-    m_ie_num = 221;
-    f_ie_num = true;
-    return m_ie_num;
 }
 
 dot11_ie_221_vendor_t::vendor_oui_bytes_t* dot11_ie_221_vendor_t::vendor_oui_extract() {

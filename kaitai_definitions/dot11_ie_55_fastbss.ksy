@@ -15,10 +15,6 @@ seq:
   - id: subelements
     type: fastbss_subelement
     repeat: eos
-
-instances:
-  ie_num:
-    value: 55
   
 types:
   fastbss_mic_control:

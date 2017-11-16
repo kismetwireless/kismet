@@ -17,7 +17,3 @@ types:
         type: b1
       - id: reserved
         type: b6
-
-instances:
-  ie_num:
-    value: 54

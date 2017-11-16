@@ -64,13 +64,6 @@ public:
     };
 
 private:
-    bool f_ie_num;
-    uint8_t m_ie_num;
-
-public:
-    uint8_t ie_num();
-
-private:
     bool f_vendor_oui_extract;
     vendor_oui_bytes_t* m_vendor_oui_extract;
 
