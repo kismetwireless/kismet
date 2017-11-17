@@ -13,6 +13,12 @@ top_builddir = $(BLDHOME)
 # Set sane values if we don't have the base config
 INSTALL ?= /usr/bin/install
 plugindir ?= $(shell pkg-config --variable=plugindir kismet)
+
+ifeq ("$(plugindir)", "")
+	plugindir := "/usr/local/lib/kismet/"
+	plugingeneric := "1"
+endif
+
 INSTUSR ?= root
 INSTGRP ?= root
 
@@ -30,9 +36,8 @@ $(PLUGOUT):	$(PLUGOBJS)
 	$(LD) $(PLUGINLDFLAGS) $(PLUGOBJS) -o $(PLUGOUT) $(LIBS)
 
 install:	$(PLUGOUT)
-ifeq ("$(plugindir)", "")
+ifeq ("$(plugingeneric)", "1")
 	echo "No kismet install found in pkgconfig, assuming /usr/local"
-	plugindir = "/usr/local/lib/kismet/"
 endif
 
 	mkdir -p $(DESTDIR)/$(plugindir)/$(PLUGIN_NAME)
