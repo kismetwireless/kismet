@@ -910,6 +910,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     outdevs->add_vector(simple);
                 }
             } else {
+                local_locker listlock(&devicelist_mutex);
+
                 // Check DT ranges
                 if (dt_start >= tracked_vec.size())
                     dt_start = 0;
