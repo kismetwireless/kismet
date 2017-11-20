@@ -46,18 +46,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         return;
     }
 
-    // If we have a rename map, find out if we've got a pathed element that needs
-    // to be custom-serialized
-    if (name_map != NULL) {
-        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(v);
-        if (nmi != name_map->end()) {
-            TrackerElementSerializer::pre_serialize_path(nmi->second);
-        } else {
-            v->pre_serialize();
-        } 
-    } else {
-        v->pre_serialize();
-    }
+    SerializerScope s(v, name_map);
 
     o.pack_array(2);
     o.pack((int) v->get_type());
@@ -220,17 +209,6 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         default:
             break;
     }
-
-    if (name_map != NULL) {
-        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(v);
-        if (nmi != name_map->end()) {
-            TrackerElementSerializer::post_serialize_path(nmi->second);
-        } else {
-            v->post_serialize();
-        } 
-    } else {
-        v->post_serialize();
-    }
 }
 
 void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
@@ -257,18 +235,7 @@ void StorageMsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerEleme
         return;
     }
 
-    // If we have a rename map, find out if we've got a pathed element that needs
-    // to be custom-serialized
-    if (name_map != NULL) {
-        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(v);
-        if (nmi != name_map->end()) {
-            TrackerElementSerializer::pre_serialize_path(nmi->second);
-        } else {
-            v->pre_serialize();
-        } 
-    } else {
-        v->pre_serialize();
-    }
+    SerializerScope s(v, name_map);
 
     TrackerElement::tracked_vector *tvec;
     unsigned int x;

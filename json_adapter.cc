@@ -58,18 +58,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
         return;
     }
 
-    // If we have a rename map, find out if we've got a pathed element that needs
-    // to be custom-serialized
-    if (name_map != NULL) {
-        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(e);
-        if (nmi != name_map->end()) {
-            TrackerElementSerializer::pre_serialize_path(nmi->second);
-        } else {
-            e->pre_serialize();
-        } 
-    } else {
-        e->pre_serialize();
-    }
+    SerializerScope s(e, name_map);
 
     TrackerElement::tracked_vector *tvec;
     TrackerElement::vector_iterator vec_iter;
@@ -339,18 +328,7 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
         return;
     }
 
-    // If we have a rename map, find out if we've got a pathed element that needs
-    // to be custom-serialized
-    if (name_map != NULL) {
-        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(e);
-        if (nmi != name_map->end()) {
-            TrackerElementSerializer::pre_serialize_path(nmi->second);
-        } else {
-            e->pre_serialize();
-        } 
-    } else {
-        e->pre_serialize();
-    }
+    SerializerScope s(e, name_map);
 
     TrackerElement::tracked_vector *tvec;
     TrackerElement::vector_iterator vec_iter;
@@ -596,15 +574,4 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
     // Close wrapping object
     stream << "}";
-
-    if (name_map != NULL) {
-        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(e);
-        if (nmi != name_map->end()) {
-            TrackerElementSerializer::post_serialize_path(nmi->second);
-        } else {
-            e->post_serialize();
-        } 
-    } else {
-        e->post_serialize();
-    }
 }

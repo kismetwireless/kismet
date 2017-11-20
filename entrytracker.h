@@ -134,4 +134,41 @@ protected:
 
 };
 
+class SerializerScope {
+public:
+    SerializerScope(SharedTrackerElement e, TrackerElementSerializer::rename_map *name_map) {
+        elem = e;
+        rnmap = name_map;
+
+        if (rnmap != NULL) {
+            auto nmi = rnmap->find(elem);
+            if (nmi != rnmap->end()) {
+                TrackerElementSerializer::pre_serialize_path(nmi->second);
+            } else {
+                elem->pre_serialize();
+            } 
+        } else {
+            elem->pre_serialize();
+        }
+    }
+
+    virtual ~SerializerScope() {
+        if (rnmap != NULL) {
+            auto nmi = rnmap->find(elem);
+            if (nmi != rnmap->end()) {
+                TrackerElementSerializer::post_serialize_path(nmi->second);
+            } else {
+                elem->post_serialize();
+            } 
+        } else {
+            elem->post_serialize();
+        }
+
+    }
+
+protected:
+    SharedTrackerElement elem;
+    TrackerElementSerializer::rename_map *rnmap;
+};
+
 #endif
