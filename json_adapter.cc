@@ -596,4 +596,15 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
     // Close wrapping object
     stream << "}";
+
+    if (name_map != NULL) {
+        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(e);
+        if (nmi != name_map->end()) {
+            TrackerElementSerializer::post_serialize_path(nmi->second);
+        } else {
+            e->post_serialize();
+        } 
+    } else {
+        e->post_serialize();
+    }
 }

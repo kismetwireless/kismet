@@ -220,6 +220,17 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
         default:
             break;
     }
+
+    if (name_map != NULL) {
+        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(v);
+        if (nmi != name_map->end()) {
+            TrackerElementSerializer::post_serialize_path(nmi->second);
+        } else {
+            v->post_serialize();
+        } 
+    } else {
+        v->post_serialize();
+    }
 }
 
 void MsgpackAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,

@@ -1994,6 +1994,33 @@ void TrackerElementSerializer::pre_serialize_path(SharedElementSummary in_summar
     }
 }
 
+void TrackerElementSerializer::post_serialize_path(SharedElementSummary in_summary) {
+
+    // Iterate through the path on this object, calling pre-serialize as
+    // necessary on each object in the summary path
+
+    SharedTrackerElement inter = in_summary->parent_element;
+
+    if (inter == NULL)
+        return;
+
+    try {
+        for (auto i = in_summary->resolved_path.begin(); 
+                i != in_summary->resolved_path.end(); ++i) {
+            inter = inter->get_map_value(*i);
+
+            if (inter == NULL)
+                return;
+
+            inter->post_serialize();
+        }
+    } catch (std::runtime_error c) {
+        // Do nothing if we hit a map error
+        fprintf(stderr, "debug - preser summary error: %s\n", c.what());
+        return;
+    }
+}
+
 TrackerElementSummary::TrackerElementSummary(SharedElementSummary in_c) {
     parent_element = in_c->parent_element;
     resolved_path = in_c->resolved_path;

@@ -191,6 +191,9 @@ public:
     // Called prior to serialization output
     virtual void pre_serialize() { }
 
+    // Called after serialization is completed
+    virtual void post_serialize() { }
+
     int get_id() {
         return tracked_id;
     }
@@ -1415,6 +1418,7 @@ public:
     // paths or updates may not happen in the expected fashion, serializers should
     // call this when necessary
     static void pre_serialize_path(SharedElementSummary in_summary);
+    static void post_serialize_path(SharedElementSummary in_summary);
 protected:
     GlobalRegistry *globalreg;
     kis_recursive_timed_mutex mutex;
