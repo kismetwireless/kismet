@@ -68,7 +68,7 @@ enum ieee_80211_subtype {
 	packet_sub_aruba = 15,
 
     // Phy subtypes
-    packet_sub_vht_ntp = 5,
+    packet_sub_vht_ndp = 5,
     packet_sub_block_ack_req = 8,
     packet_sub_block_ack = 9,
 	packet_sub_pspoll = 10,

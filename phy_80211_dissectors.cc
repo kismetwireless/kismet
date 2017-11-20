@@ -336,7 +336,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 #endif
 
         if (fc->subtype == 5) { 
-            packinfo->subtype = packet_sub_vht_ntp;
+            packinfo->subtype = packet_sub_vht_ndp;
 
             if (addr0 == NULL || addr1 == NULL) {
                 packinfo->corrupt = 1;
@@ -347,7 +347,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
 
-        } if (fc->subtype == 8) {
+        } else if (fc->subtype == 8) {
             packinfo->subtype = packet_sub_block_ack_req;
 
             if (addr0 == NULL || addr1 == NULL) {
