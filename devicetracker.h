@@ -233,6 +233,20 @@ public:
         kis_internal_id = in_id;
     }
 
+    // Lock our device around serialization
+    virtual void pre_serialize() {
+        local_eol_locker lock(&device_mutex);
+    }
+
+    virtual void post_serialize() {
+        local_unlocker unlock(&device_mutex);
+    }
+
+    // Protective per-device mutex, should be managed by pre/post serialization
+    // functions, and by anything modifying the device or any of the per-phy records
+    // inside it
+    kis_recursive_timed_mutex device_mutex;
+
 protected:
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
@@ -532,15 +546,6 @@ public:
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
     void httpd_all_phys(string url, std::ostream &stream, 
-            std::string in_wrapper_key = "");
-
-    // Generate a device summary, serialized.  Optionally provide an existing
-    // vector to generate a summary of devices matching a given criteria via
-    // a worker.  Also optionally, wrap the results in a dictionary named via
-    // the in_wrapper key, which is required for some js libs like datatables
-    void httpd_device_summary(string url, std::ostream &stream, 
-            shared_ptr<TrackerElementVector> subvec, 
-            std::vector<SharedElementSummary> summary_vec,
             std::string in_wrapper_key = "");
 
     // Timetracker event handler

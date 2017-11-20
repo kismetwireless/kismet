@@ -495,19 +495,19 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     
     Kis_Net_Httpd_Handler *handler = NULL;
 
-    local_demand_locker conlock(&(kishttpd->controller_mutex));
+    
+    {
+        local_locker conclock(&(kishttpd->controller_mutex));
+        /* Find a handler that can handle this path & method */
+        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
+            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
 
-    conlock.lock();
-    /* Find a handler that can handle this path & method */
-    for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
-        Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
-
-        if (h->Httpd_VerifyPath(url, method)) {
-            handler = h;
-            break;
+            if (h->Httpd_VerifyPath(url, method)) {
+                handler = h;
+                break;
+            }
         }
     }
-    conlock.unlock();
 
     // If we don't have a connection state, make one
     if (*ptr == NULL) {

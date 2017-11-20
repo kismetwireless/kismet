@@ -785,30 +785,6 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 		}
 	}
 
-    // This is all moved to phys doing smart things
-#if 0
-	// If we dont' have a device mac, don't make a record
-	if (pack_common->device == 0)
-		return 0;
-
-	mac_addr devmac = pack_common->device;
-
-	// If we don't have a usable mac, bail.
-	// TODO maybe change this in the future?  It's kind of phy dependent
-	if (devmac == globalreg->empty_mac)
-		return 0;
-
-	kis_tracked_device_base *device = NULL;
-
-	// Make a new device or fetch an existing one
-	device = BuildDevice(devmac, in_pack);
-
-	if (device == NULL)
-		return 0;
-
-	// Push our common data into it
-	PopulateCommon(device, in_pack);
-#endif
 	return 1;
 }
 
@@ -816,8 +792,6 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 // Specific info should be populated by the phy handler.
 std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr in_mac,
         Kis_Phy_Handler *in_phy, kis_packet *in_pack, unsigned int in_flags) {
-
-    local_locker lock(&devicelist_mutex);
 
     std::stringstream sstr;
 
@@ -845,18 +819,24 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
         device->set_macaddr(in_mac);
         device->set_phyname(in_phy->FetchPhyName());
 
-        tracked_map[key] = device;
-        tracked_vec.push_back(device);
-        immutable_tracked_vec.push_back(device);
-        tracked_mac_multimap.emplace(in_mac, device);
-
         device->set_first_time(in_pack->ts.tv_sec);
 
         if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
 
         // fprintf(stderr, "debug - new device from key %s server %X phy %X\n", key.as_string().c_str(), globalreg->server_uuid_hash, in_phy->FetchPhynameHash());
+        
+        {
+            local_locker devlocker(&devicelist_mutex);
+            tracked_map[key] = device;
+            tracked_vec.push_back(device);
+            immutable_tracked_vec.push_back(device);
+            tracked_mac_multimap.emplace(in_mac, device);
+        }
     }
+
+    // Lock the device itself
+    local_locker devlocker(&(device->device_mutex));
 
     // Tag the packet with the base device
 	kis_tracked_device_info *devinfo =
@@ -998,8 +978,6 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 int Devicetracker::PopulateCommon(std::shared_ptr<kis_tracked_device_base> device, 
         kis_packet *in_pack) {
 
-    local_locker lock(&devicelist_mutex);
-
     kis_common_info *pack_common =
         (kis_common_info *) in_pack->fetch(pack_comp_common);
     kis_layer1_packinfo *pack_l1info =
@@ -1032,8 +1010,8 @@ int Devicetracker::PopulateCommon(std::shared_ptr<kis_tracked_device_base> devic
         in_pack->insert(pack_comp_device, devinfo);
     }
 
-
-    // device->set_first_time(in_pack->ts.tv_sec);
+    // Lock the device itself
+    local_locker devlocker(&(device->device_mutex));
 
     if (globalreg->manufdb != NULL)
         device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
@@ -1126,13 +1104,25 @@ int Devicetracker::PopulateCommon(std::shared_ptr<kis_tracked_device_base> devic
 // Sort based on internal kismet ID
 bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 	std::shared_ptr<kis_tracked_device_base> b) {
-
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
 void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, 
         TrackerElementVector vec, bool batch) {
 
+    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+                std::shared_ptr<kis_tracked_device_base> v = 
+                    std::static_pointer_cast<kis_tracked_device_base>(val);
+
+                // Lock the device itself inside the worker op
+                local_locker devlocker(&(v->device_mutex));
+
+                worker->MatchDevice(this, v);
+            });
+
+    worker->Finalize(this);
+
+#if 0
     // We chunk into blocks of 500 devices and perform the match in 
     // batches; this prevents a single query from running so long that
     // things fall down.  It is slightly less efficient on huge data sets,
@@ -1199,6 +1189,7 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
     }
 
     worker->Finalize(this);
+#endif
 }
 
 void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch) {
@@ -1223,6 +1214,9 @@ int Devicetracker::timetracker_event(int eventid) {
         // Find all eligible devices, remove them from the tracked vec
         tracked_vec.erase(std::remove_if(tracked_vec.begin(), tracked_vec.end(),
                 [&](std::shared_ptr<kis_tracked_device_base> d) {
+                    // Lock the device itself
+                    local_locker devlocker(&(d->device_mutex));
+
                     if (ts_now - d->get_last_time() > device_idle_expiration) {
                         device_itr mi = tracked_map.find(d->get_key());
                         if (mi != tracked_map.end())
@@ -1622,6 +1616,9 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
     if (!Database_Valid())
         return;
 
+    // Lock the device itself
+    local_locker devlocker(&(in_dev->device_mutex));
+
     std::string sql;
     std::string macstring = in_dev->get_macaddr().Mac2String();
     std::string phystring = in_dev->get_phyname();
@@ -1674,6 +1671,9 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
 
     if (!Database_Valid())
         return;
+
+    // Lock the device itself
+    local_locker devlocker(&(in_dev->device_mutex));
 
     std::string sql;
     std::string macstring = in_dev->get_macaddr().Mac2String();
@@ -1735,6 +1735,9 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
 void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
+    // Lock the device itself
+    local_locker devlocker(&(in_dev->device_mutex));
+
     in_dev->set_username(in_username);
 
     if (!Database_Valid()) {
@@ -1784,6 +1787,9 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
 
 void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
+
+    // Lock the device itself
+    local_locker devlocker(&(in_dev->device_mutex));
 
     SharedTrackerElement e(new TrackerElement(TrackerString));
     e->set(std::string(in_content));
@@ -2145,9 +2151,8 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return -1;
     }
- 
-    // Use a function worker to break up the load and insert it into the
-    // database
+
+    // Use a function worker to insert it into the db
     devicetracker_function_worker fw(globalreg,
             [this, &stmt] 
                 (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {

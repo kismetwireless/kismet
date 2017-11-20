@@ -625,8 +625,6 @@ int Kis_80211_Phy::LoadWepkeys() {
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
 
-    devicelist_scope_locker devlist_lock(d11phy->devicetracker);
-
     // Don't process errors, blocked, or dupes
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
@@ -1495,6 +1493,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
         return 0;
     }
 
+    local_locker basedevlocker(&(basedev->device_mutex));
+
     // Store it in the common info for future use
     commoninfo->base_device = basedev;
 
@@ -1658,20 +1658,20 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             // Look for the AP of the exchange
             TrackedDeviceKey eapolkey(globalreg->server_uuid_hash, phyname_hash, 
                     dot11info->bssid_mac);
-            shared_ptr<kis_tracked_device_base> eapolbase =
-                devicetracker->FetchDevice(eapolkey);
+            shared_ptr<kis_tracked_device_base> eapolbase = devicetracker->FetchDevice(eapolkey);
 
             // Look for the target
             TrackedDeviceKey targetkey(globalreg->server_uuid_hash, phyname_hash, 
                     dot11info->dest_mac);
-            shared_ptr<kis_tracked_device_base> targetbase =
-                devicetracker->FetchDevice(targetkey);
+            shared_ptr<kis_tracked_device_base> targetbase = devicetracker->FetchDevice(targetkey);
 
             // fprintf(stderr, "debug - ebase %p tbase %p\n", eapolbase.get(), targetbase.get());
 
             // Look at BSSID records; we care about the handshake counts and want to
             // associate all the entries
             if (eapolbase != NULL) {
+                local_locker eapoldevlocker(&(eapolbase->device_mutex));
+
                 shared_ptr<dot11_tracked_device> eapoldot11 = 
                     static_pointer_cast<dot11_tracked_device>(eapolbase->get_map_value(dot11_device_entry_id));
 
@@ -1724,6 +1724,8 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
             // be a client, depending on the direction); we track the EAPOL records per
             // destination MAC address
             if (targetbase != NULL) {
+                local_locker targetdevlocker(&(targetbase->device_mutex));
+
                 // Get the dot11 record for the destination device, if we can
                 shared_ptr<dot11_tracked_device> eapoldot11 = 
                     static_pointer_cast<dot11_tracked_device>(targetbase->get_map_value(dot11_device_entry_id));
@@ -2129,17 +2131,6 @@ string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 
 
 bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
-    // Always return that the URL exists, but throw an error during post
-    // handling if we don't have PCRE.  Less weird behavior for clients.
-    if (strcmp(method, "POST") == 0) {
-        if (strcmp(path, "/phy/phy80211/ssid_regex.cmd") == 0 ||
-            strcmp(path, "/phy/phy80211/ssid_regex.jcmd") == 0)
-            return true;
-        if (strcmp(path, "/phy/phy80211/probe_regex.cmd") == 0 ||
-            strcmp(path, "/phy/phy80211/probe_regex.jcmd") == 0)
-            return true;
-    }
-
     if (strcmp(method, "GET") == 0) {
         vector<string> tokenurl = StrTokenize(path, "/");
 
@@ -2287,8 +2278,6 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    devicelist_scope_locker dlocker(devicetracker);
-
     if (strcmp(method, "GET") != 0) {
         return;
     }
@@ -2324,7 +2313,9 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     }
 
     // Does it exist?
-    if (devicetracker->FetchDevice(key) == NULL) {
+    auto dev = devicetracker->FetchDevice(key);
+
+    if (dev == NULL) {
         stream << "unknown device";
         return;
     }
@@ -2333,6 +2324,7 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (httpd->HasValidSession(connection, true)) {
         // It should exist and we'll handle if it doesn't in the stream
         // handler
+        local_locker devlocker(&(dev->device_mutex));
         GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
     } else {
         stream << "Login required";
@@ -2346,116 +2338,6 @@ int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     bool handled = false;
 
     string stripped = Httpd_StripSuffix(concls->url);
-   
-    if (!Httpd_CanSerialize(concls->url) ||
-            (stripped != "/phy/phy80211/ssid_regex" &&
-             stripped != "/phy/phy80211/probe_regex")) {
-        concls->response_stream << "Invalid request";
-        concls->httpcode = 400;
-        return 1;
-    }
-
-#ifdef HAVE_LIBPCRE
-    // Common API
-    SharedStructured structdata;
-
-    vector<SharedElementSummary> summary_vec;
-
-    // Make sure we can extract the parameters
-    try {
-        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
-        } else if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
-            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
-        } else {
-            // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data");
-        }
-
-        // Look for a vector named 'essid', we need it for the worker
-        SharedStructured essid_list = structdata->getStructuredByKey("essid");
-
-        // Parse the fields, if we have them
-        SharedStructured field_list;
-
-        if (structdata->hasKey("fields"))
-            field_list = structdata->getStructuredByKey("fields");
-
-        if (field_list != NULL) {
-            StructuredData::structured_vec fvec = field_list->getStructuredArray();
-            for (StructuredData::structured_vec::iterator i = fvec.begin(); 
-                    i != fvec.end(); ++i) {
-                if ((*i)->isString()) {
-                    SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
-                                entrytracker));
-                    summary_vec.push_back(s);
-                } else if ((*i)->isArray()) {
-                    StructuredData::string_vec mapvec = (*i)->getStringVec();
-
-                    if (mapvec.size() != 2) {
-                        concls->response_stream << "Invalid request: "
-                            "Expected field, rename";
-                        concls->httpcode = 400;
-                        return 1;
-                    }
-
-                    SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
-                                mapvec[1], entrytracker));
-                    summary_vec.push_back(s);
-                }
-            }
-        }
-
-        // Make a worker instance
-
-        if (stripped == "/phy/phy80211/ssid_regex") {
-            SharedTrackerElement devices(new TrackerElement(TrackerVector));
-            shared_ptr<TrackerElementVector> 
-                devices_vec(new TrackerElementVector(devices));
-
-            devicetracker_pcre_worker worker(globalreg,
-                "dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid",
-                essid_list, devices);
-
-            // Tell devicetracker to do the work
-            devicetracker->MatchOnDevices(&worker);
-
-            devicetracker->httpd_device_summary(concls->url, concls->response_stream,
-                    devices_vec, summary_vec);
-
-        } else if (stripped == "/phy/phy80211/probe_regex") {
-            SharedTrackerElement devices(new TrackerElement(TrackerVector));
-            shared_ptr<TrackerElementVector> 
-                devices_vec(new TrackerElementVector(devices));
-
-            devicetracker_pcre_worker worker(globalreg,
-                "dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid",
-                essid_list, devices);
-
-            // Tell devicetracker to do the work
-            devicetracker->MatchOnDevices(&worker);
-
-            devicetracker->httpd_device_summary(concls->url, concls->response_stream,
-                    devices_vec, summary_vec);
-        }
-
-        return 1;
-    } catch(const std::exception& e) {
-        // Exceptions can be caused by missing fields, or fields which
-        // aren't the format we expected.  Throw it all out with an
-        // error.
-        concls->response_stream << "Invalid request " << e.what();
-        concls->httpcode = 400;
-
-        return 1;
-    }
-
-#else
-    concls->response_stream << "Unable to process: Kismet not compiled with PCRE";
-    concls->httpcode = 501;
-    return 1;
-#endif
 
     // If we didn't handle it and got here, we don't know what it is, throw an
     // error.

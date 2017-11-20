@@ -116,8 +116,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
 
                 return false;
             } else if (tokenurl[2] == "by-mac") {
-                local_demand_locker lock(&devicelist_mutex);
-
                 if (tokenurl.size() < 5)
                     return false;
 
@@ -130,10 +128,12 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                lock.lock();
+                { 
+                    local_locker devlock(&devicelist_mutex);
 
-                if (tracked_mac_multimap.count(mac) > 0)
-                    return true;
+                    if (tracked_mac_multimap.count(mac) > 0)
+                        return true;
+                }
 
                 return false;
             } else if (tokenurl[2] == "last-time") {
@@ -182,8 +182,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                local_demand_locker lock(&devicelist_mutex);
-
                 TrackedDeviceKey key(tokenurl[3]);
 
                 if (key.get_error())
@@ -192,10 +190,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
-                lock.lock();
-                auto tmi = tracked_map.find(key);
-
-                if (tmi == tracked_map.end())
+                if (FetchDevice(key) == NULL)
                     return false;
 
                 string target = Httpd_StripSuffix(tokenurl[4]);
@@ -211,8 +206,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                local_demand_locker lock(&devicelist_mutex);
-
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
@@ -222,9 +215,11 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                lock.lock();
-                if (tracked_mac_multimap.count(mac) > 0)
-                    return true;
+                {
+                    local_locker listlocker(&devicelist_mutex);
+                    if (tracked_mac_multimap.count(mac) > 0)
+                        return true;
+                }
 
                 return false;
             }
@@ -262,61 +257,6 @@ void Devicetracker::httpd_all_phys(string path, std::ostream &stream,
     }
 
     entrytracker->Serialize(httpd->GetSuffix(path), stream, wrapper, NULL);
-}
-
-void Devicetracker::httpd_device_summary(string url, std::ostream &stream, 
-        shared_ptr<TrackerElementVector> subvec, 
-        vector<SharedElementSummary> summary_vec,
-        string in_wrapper_key) {
-
-    local_locker lock(&devicelist_mutex);
-
-    SharedTrackerElement devvec =
-        globalreg->entrytracker->GetTrackedInstance(device_summary_base_id);
-
-    TrackerElementSerializer::rename_map rename_map;
-
-    // Wrap the dev vec in a dictionary and change its name
-    SharedTrackerElement wrapper = NULL;
-
-    if (in_wrapper_key != "") {
-        wrapper.reset(new TrackerElement(TrackerMap));
-        wrapper->add_map(devvec);
-        devvec->set_local_name(in_wrapper_key);
-    } else {
-        wrapper = devvec;
-    }
-
-    if (subvec == NULL) {
-        for (unsigned int x = 0; x < tracked_vec.size(); x++) {
-            if (summary_vec.size() == 0) {
-                devvec->add_vector(tracked_vec[x]);
-            } else {
-                SharedTrackerElement simple;
-
-                SummarizeTrackerElement(entrytracker, tracked_vec[x], 
-                        summary_vec, simple, rename_map);
-
-                devvec->add_vector(simple);
-            }
-        }
-    } else {
-        for (TrackerElementVector::const_iterator x = subvec->begin();
-                x != subvec->end(); ++x) {
-            if (summary_vec.size() == 0) {
-                devvec->add_vector(*x);
-            } else {
-                SharedTrackerElement simple;
-
-                SummarizeTrackerElement(entrytracker, *x, 
-                        summary_vec, simple, rename_map);
-
-                devvec->add_vector(simple);
-            }
-        }
-    }
-
-    entrytracker->Serialize(httpd->GetSuffix(url), stream, wrapper, &rename_map);
 }
 
 int Devicetracker::Httpd_CreateStreamResponse(
@@ -366,6 +306,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     // per element
                     return false;
                 }, NULL);
+
         MatchOnDevices(&fw);
         return MHD_YES;
     }
@@ -399,12 +340,10 @@ int Devicetracker::Httpd_CreateStreamResponse(
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return MHD_YES;
 
-            local_locker lock(&devicelist_mutex);
-
             TrackedDeviceKey key(tokenurl[3]);
-            auto tmi = tracked_map.find(key);
+            auto dev = FetchDevice(key);
 
-            if (tmi == tracked_map.end()) {
+            if (dev == NULL) {
                 stream << "Invalid device key";
                 return MHD_YES;
             }
@@ -418,7 +357,9 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     vector<string>::const_iterator last = tokenurl.end();
                     vector<string> fpath(first, last);
 
-                    SharedTrackerElement sub = tmi->second->get_child_path(fpath);
+                    local_locker devlocker(&(dev->device_mutex));
+
+                    SharedTrackerElement sub = dev->get_child_path(fpath);
 
                     if (sub == NULL) {
                         return MHD_YES;
@@ -429,8 +370,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     return MHD_YES;
                 }
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                        tmi->second, NULL);
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
 
                 return MHD_YES;
             } else {
@@ -483,7 +423,8 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
 
             devicetracker_function_worker fw(globalreg, 
-                    [this, &stream, devvec, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, &stream, devvec, lastts](Devicetracker *, 
+                        shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
 
@@ -623,7 +564,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
-            local_locker lock(&devicelist_mutex);
+            local_demand_locker lock(&devicelist_mutex);
 
             if (!Httpd_CanSerialize(tokenurl[4])) {
                 stream << "Invalid request";
@@ -639,18 +580,22 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
+            lock.lock();
             if (tracked_mac_multimap.count(mac) == 0) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
                 return MHD_YES;
             }
+            lock.unlock();
 
             string target = Httpd_StripSuffix(tokenurl[4]);
 
             if (target == "devices") {
                 SharedTrackerElement devvec(new TrackerElement(TrackerVector));
 
+                lock.lock();
                 auto mmp = tracked_mac_multimap.equal_range(mac);
+                lock.unlock();
 
                 for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
                     SharedTrackerElement simple;
@@ -683,12 +628,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
 
-            local_locker lock(&devicelist_mutex);
-
             TrackedDeviceKey key(tokenurl[3]);
-            auto tmi = tracked_map.find(key);
 
-            if (tmi == tracked_map.end()) {
+            auto dev = FetchDevice(key);
+
+            if (dev == NULL) {
                 stream << "Invalid request";
                 concls->httpcode = 400;
                 return MHD_YES;
@@ -699,11 +643,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (target == "device") {
                 SharedTrackerElement simple;
 
-                SummarizeTrackerElement(entrytracker, tmi->second, summary_vec,
-                        simple, rename_map);
+                local_locker devlock(&(dev->device_mutex));
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                        simple, &rename_map);
+                SummarizeTrackerElement(entrytracker, dev, summary_vec, simple, rename_map);
+
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, simple, &rename_map);
 
                 return MHD_YES;
             }
@@ -909,9 +853,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 for (vi = pcrevec.begin() + dt_start; vi != ei; ++vi) {
                     SharedTrackerElement simple;
 
-                    SummarizeTrackerElement(entrytracker,
-                            (*vi), summary_vec,
-                            simple, rename_map);
+                    SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
 
                     outdevs->add_vector(simple);
                 }
@@ -963,17 +905,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 for (vi = matchvec.begin() + dt_start; vi != ei; ++vi) {
                     SharedTrackerElement simple;
 
-                    SummarizeTrackerElement(entrytracker,
-                            (*vi), summary_vec,
-                            simple, rename_map);
+                    SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
 
                     outdevs->add_vector(simple);
                 }
             } else {
-                // Otherwise we use the complete list; we DO need to scope lock now
-                local_locker lock(&devicelist_mutex);
-
-                //
                 // Check DT ranges
                 if (dt_start >= tracked_vec.size())
                     dt_start = 0;
