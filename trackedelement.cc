@@ -2128,6 +2128,9 @@ SharedTrackerElement GetTrackerElementPath(std::vector<int> in_path,
     if (in_path.size() < 1)
         return NULL;
 
+    if (elem == NULL)
+        return NULL;
+
     SharedTrackerElement next_elem = NULL;
 
     for (unsigned int x = 0; x < in_path.size(); x++) {
