@@ -100,4 +100,32 @@ Converting to Pcap: kismet_log_to_pcap
         $ ./kismet_log_to_pcap.py --in foo.kismet --outtitle stacked \
             --limit-packets 1000 --min-signal -60 --start-time 'Sep 01 2016'
 
+Converting to JSON: kismet_log_devices_to_json
+
+    JSON is a standard object format which can be interpreted by many 
+    tools.  Internally, the device records are stored as JSON, so this
+    tool simply extracts the JSON and pretty-prints the formatting.
+
+    1. Outputting to a file or stdout
+
+        The JSON can be output to the console/stdout (the default) or
+        sent to a file with `--out`:
+
+        $ ./kismet_log_to_pcap.py --in foo.kismet --out foo.json
+
+    2. Selecting devices based on time
+
+        Device export can be limited to devices which were seen after
+        a specific time:
+
+        $ ./kismet_log_devices_to_json.py --in foo.kismet \
+            --start-time 'Nov 20 2017'
+
+    3. Selecting devices based on signal
+
+        Device export can also be limited to devices which have
+        been seen with a minimum signal level with `--min-signal`:
+
+        $ ./kismet_log_devices_to_json.py --in foo.kismet \
+            --min-signal -40
 
