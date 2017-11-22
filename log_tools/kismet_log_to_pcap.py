@@ -65,6 +65,7 @@ try:
     db = sqlite3.connect(results.infile)
 except Exception as e:
     print "Failed to open kismet logfile: ", e
+    sys.exit(1)
 
 replacements = {}
 select = ""
