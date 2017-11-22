@@ -582,7 +582,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 // Filler title
                 field: "dot11.device/dot11.device.client_map",
                 id: "client_behavior_header",
-                help: "A Wi-Fi device may be a client of multiple networks over time, but can only be actively associated with a single access point at a time.",
+                help: "A Wi-Fi device may be a client of multiple networks over time, but can only be actively associated with a single access point at once.  Clients typically are able to roam between access points with the same name (SSID).",
                 filter: function(opts) {
                     return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
                 },
@@ -728,6 +728,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.ipdata",
                     groupTitle: "IP",
                     filter: function(opts) {
+                        if (kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.ipdata') == 0)
+                            return false;
+
                         return (kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.ipdata/kismet.common.ipdata.address') != 0);
                     },
                     help: "Kismet will attempt to derive the IP ranges in use on a network, either from observed traffic or from DHCP server responses.",
