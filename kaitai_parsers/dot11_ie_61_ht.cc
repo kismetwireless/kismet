@@ -8,58 +8,84 @@
 dot11_ie_61_ht_t::dot11_ie_61_ht_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_61_ht_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
+    f_ht_info_chan_offset_below = false;
+    f_ht_info_chan_offset_none = false;
+    f_ht_info_shortest_psmp = false;
+    f_ht_info_chanwidth = false;
+    f_ht_info_chan_offset_above = false;
+    f_ht_info_chan_offset = false;
+    f_ht_info_psmp_station = false;
+    f_ht_info_rifs = false;
     m_primary_channel = m__io->read_u1();
-    m_info_subset_1 = new ht_info_subset_1_t(m__io, this, m__root);
-    m_info_subset_2 = new ht_info_subset_2_t(m__io, this, m__root);
-    m_info_subset_3 = new ht_info_subset_3_t(m__io, this, m__root);
+    m_info_subset_1 = m__io->read_u1();
+    m_info_subset_2 = m__io->read_u2be();
+    m_info_subset_3 = m__io->read_u2be();
     m_rx_coding_scheme = m__io->read_u2le();
 }
 
 dot11_ie_61_ht_t::~dot11_ie_61_ht_t() {
-    delete m_info_subset_1;
-    delete m_info_subset_2;
-    delete m_info_subset_3;
 }
 
-dot11_ie_61_ht_t::ht_info_subset_1_t::ht_info_subset_1_t(kaitai::kstream *p_io, dot11_ie_61_ht_t *p_parent, dot11_ie_61_ht_t *p_root) : kaitai::kstruct(p_io) {
-    m__parent = p_parent;
-    m__root = p_root;
-    m_ssi = m__io->read_bits_int(3);
-    m_psmp_only = m__io->read_bits_int(1);
-    m_rifs = m__io->read_bits_int(1);
-    m_channel_width = m__io->read_bits_int(1);
-    m_secondary_offset = static_cast<dot11_ie_61_ht_t::secondary_offset_type_t>(m__io->read_bits_int(2));
+bool dot11_ie_61_ht_t::ht_info_chan_offset_below() {
+    if (f_ht_info_chan_offset_below)
+        return m_ht_info_chan_offset_below;
+    m_ht_info_chan_offset_below = (info_subset_1() & 3) == 3;
+    f_ht_info_chan_offset_below = true;
+    return m_ht_info_chan_offset_below;
 }
 
-dot11_ie_61_ht_t::ht_info_subset_1_t::~ht_info_subset_1_t() {
+bool dot11_ie_61_ht_t::ht_info_chan_offset_none() {
+    if (f_ht_info_chan_offset_none)
+        return m_ht_info_chan_offset_none;
+    m_ht_info_chan_offset_none = (info_subset_1() & 3) == 0;
+    f_ht_info_chan_offset_none = true;
+    return m_ht_info_chan_offset_none;
 }
 
-dot11_ie_61_ht_t::ht_info_subset_2_t::ht_info_subset_2_t(kaitai::kstream *p_io, dot11_ie_61_ht_t *p_parent, dot11_ie_61_ht_t *p_root) : kaitai::kstruct(p_io) {
-    m__parent = p_parent;
-    m__root = p_root;
-    m_reserved0 = m__io->read_bits_int(3);
-    m_non_ht_present = m__io->read_bits_int(1);
-    m_tx_burst_limit = m__io->read_bits_int(1);
-    m_non_greenfield_present = m__io->read_bits_int(1);
-    m_operating_mode = m__io->read_bits_int(2);
-    m_reserved1 = m__io->read_bits_int(8);
+int32_t dot11_ie_61_ht_t::ht_info_shortest_psmp() {
+    if (f_ht_info_shortest_psmp)
+        return m_ht_info_shortest_psmp;
+    m_ht_info_shortest_psmp = ((info_subset_1() & 224) >> 5);
+    f_ht_info_shortest_psmp = true;
+    return m_ht_info_shortest_psmp;
 }
 
-dot11_ie_61_ht_t::ht_info_subset_2_t::~ht_info_subset_2_t() {
+int32_t dot11_ie_61_ht_t::ht_info_chanwidth() {
+    if (f_ht_info_chanwidth)
+        return m_ht_info_chanwidth;
+    m_ht_info_chanwidth = (info_subset_1() & 4);
+    f_ht_info_chanwidth = true;
+    return m_ht_info_chanwidth;
 }
 
-dot11_ie_61_ht_t::ht_info_subset_3_t::ht_info_subset_3_t(kaitai::kstream *p_io, dot11_ie_61_ht_t *p_parent, dot11_ie_61_ht_t *p_root) : kaitai::kstruct(p_io) {
-    m__parent = p_parent;
-    m__root = p_root;
-    m_dual_cts_required = m__io->read_bits_int(1);
-    m_dual_beacon_tx = m__io->read_bits_int(1);
-    m_reserved0 = m__io->read_bits_int(6);
-    m_reserved1 = m__io->read_bits_int(4);
-    m_pco_phase = m__io->read_bits_int(1);
-    m_pco_phase_enabled = m__io->read_bits_int(1);
-    m_lsig_txop_protection = m__io->read_bits_int(1);
-    m_beacon_id = m__io->read_bits_int(1);
+bool dot11_ie_61_ht_t::ht_info_chan_offset_above() {
+    if (f_ht_info_chan_offset_above)
+        return m_ht_info_chan_offset_above;
+    m_ht_info_chan_offset_above = (info_subset_1() & 3) == 1;
+    f_ht_info_chan_offset_above = true;
+    return m_ht_info_chan_offset_above;
 }
 
-dot11_ie_61_ht_t::ht_info_subset_3_t::~ht_info_subset_3_t() {
+int32_t dot11_ie_61_ht_t::ht_info_chan_offset() {
+    if (f_ht_info_chan_offset)
+        return m_ht_info_chan_offset;
+    m_ht_info_chan_offset = (info_subset_1() & 3);
+    f_ht_info_chan_offset = true;
+    return m_ht_info_chan_offset;
+}
+
+int32_t dot11_ie_61_ht_t::ht_info_psmp_station() {
+    if (f_ht_info_psmp_station)
+        return m_ht_info_psmp_station;
+    m_ht_info_psmp_station = (info_subset_1() & 16);
+    f_ht_info_psmp_station = true;
+    return m_ht_info_psmp_station;
+}
+
+int32_t dot11_ie_61_ht_t::ht_info_rifs() {
+    if (f_ht_info_rifs)
+        return m_ht_info_rifs;
+    m_ht_info_rifs = (info_subset_1() & 8);
+    f_ht_info_rifs = true;
+    return m_ht_info_rifs;
 }

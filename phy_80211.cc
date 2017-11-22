@@ -933,14 +933,11 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                     ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
                 } else if (dot11info->dot11vht->channel_width() ==
                         dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_20_40) {
-                    if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
-                            dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_NO_SECONDARY) {
+                    if (dot11info->dot11ht->ht_info_chan_offset_none()) {
                         ssid->set_ht_mode("HT20");
-                    } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
-                            dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_ABOVE) {
+                    } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
                         ssid->set_ht_mode("HT40+");
-                    } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
-                            dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_BELOW) {
+                    } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
                         ssid->set_ht_mode("HT40-");
                     }
 
@@ -950,14 +947,11 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                 } 
             } else if (dot11info->dot11ht != NULL) {
                 // Only HT info no VHT
-                if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
-                        dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_NO_SECONDARY) {
+                if (dot11info->dot11ht->ht_info_chan_offset_none()) {
                     ssid->set_ht_mode("HT20");
-                } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
-                        dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_ABOVE) {
+                } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
                     ssid->set_ht_mode("HT40+");
-                } else if (dot11info->dot11ht->info_subset_1()->secondary_offset() ==
-                        dot11_ie_61_ht_t::SECONDARY_OFFSET_TYPE_SECONDARY_BELOW) {
+                } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
                     ssid->set_ht_mode("HT40-");
                 }
 
