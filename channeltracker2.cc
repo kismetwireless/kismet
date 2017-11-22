@@ -155,13 +155,16 @@ public:
         if (device->get_frequency() == 0)
             return;
 
-        map<double, unsigned int>::iterator i =
-            device_count.find(device->get_frequency());
+        {
+            local_locker lock(&workermutex);
 
-        if (i != device_count.end()) {
-            i->second++;
-        } else {
-            device_count.emplace(device->get_frequency(), 1);
+            auto i = device_count.find(device->get_frequency());
+
+            if (i != device_count.end()) {
+                i->second++;
+            } else {
+                device_count.emplace(device->get_frequency(), 1);
+            }
         }
     }
 
@@ -177,6 +180,8 @@ protected:
     map<double, unsigned int> device_count;
 
     time_t stime;
+
+    kis_recursive_timed_mutex workermutex;
 
 };
 
