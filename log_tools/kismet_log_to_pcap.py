@@ -130,10 +130,10 @@ if results.minsignal:
 
     replacements["signal"] = results.minsignal
 
-sql = "SELECT ts_sec, ts_usec, dlt, datasource, packet FROM packets"
+sql = "SELECT ts_sec, ts_usec, dlt, datasource, packet FROM packets WHERE dlt > 0"
 
 if select != "":
-    sql = sql + " WHERE " + select
+    sql = sql + " AND " + select
 
 logf = None
 lognum = 0
