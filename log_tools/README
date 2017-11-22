@@ -24,6 +24,27 @@ About Kismet Logs
         * State snapshots.  Various snapshots of the running system state
           are saved for future processing.
 
+Installing Dependencies
+
+    Currently, the log manipulation tools are written in Python.  You'll need
+    Python itself installed (2.x, the code is untested at the moment under 3.x).
+
+    You'll also need some python modules:
+
+        python-dateutil
+
+    Depending on your distro, you might install a distribution package; For 
+    Ubuntu:
+        $ sudo apt install python-dateutil
+
+    Or you can install via the Python package tool:
+
+        $ pip install python-dateutil
+
+        or
+
+        $ sudo pip install python-dateutil
+
 Converting to Pcap: kismet_log_to_pcap
 
     The first, most common task is to convert the Kismet log to a traditional 
