@@ -540,6 +540,9 @@ xx. Datasource: Linux Wi-Fi
         capture engine; the auto-generated UUID will be consistent as long as
         the MAC address of the capture interface remains the same.
 
+        If you are assigning custom UUIDs, you *must ensure* that every UUID
+        is *unique*.  Each data source must have its own unique identifier.
+
     vif=foo
 
         mac80211-based drivers use multiple virtual interfaces to control 
