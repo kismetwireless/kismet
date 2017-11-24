@@ -762,7 +762,7 @@ exports.DataSources2 = function() {
 
     var content = 
         $('<div>', { 
-            class: 'k-ds-tablediv',
+            class: 'k-ds-contentdiv',
         })
         
     datasource_panel = $.jsPanel({

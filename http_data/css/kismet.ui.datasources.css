@@ -55,6 +55,14 @@ div.k-ds-content {
     padding: 5px;
 }
 
+div.k-ds-contentdiv {
+    overflow-y: auto;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    bottom: 5px;
+    right: 5px;
+}
 
 table.k-ds-table {
     border: 0;
