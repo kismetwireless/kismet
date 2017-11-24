@@ -651,7 +651,36 @@ function update_datasource2(data, state) {
                 });
         }
 
-        // $('#content', sdiv).html(source['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
+       
+        // Find the channel buttons
+        var chanbuttons = $('#chanbuttons', sdiv);
+
+        if (chanbuttons.length == 0) {
+            // Make a new one of all possible channels
+            chanbuttons = $('<div>', {
+                id: 'chanbuttons'
+            });
+
+            for (var c of source['kismet.datasource.channels']) {
+                chanbuttons.append(
+                    $('<button>', {
+                        id: c
+                    }).html(c)
+                );
+            }
+
+            $('button', chanbuttons).button();
+        }
+
+        // Update from current channels
+        $('button', chanbuttons).each(function(i) {
+            var chan = $(this).attr('id');
+
+            if (chan in source['kismet.datasource.hop_channels'])
+                $(this).html('*' + chan);
+            else
+                $(this).html(chan);
+        });
         
         var s = source['kismet.datasource.interface'];
         if (source['kismet.datasource.interface'] !==
@@ -662,6 +691,10 @@ function update_datasource2(data, state) {
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
+
+        // Refresh with the existing button div and/or add it if we're new
+        console.log(chanbuttons);
+        set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
 
         sdiv.accordion("refresh");
     }
