@@ -497,7 +497,67 @@ kismet_ui_sidebar.AddSidebarItem({
 });
 
 function update_datasource2(data, state) {
-    for (var source of data) {
+    var set_row = function(sdiv, id, title, content) {
+        var r = $('tr#' + id, sdiv);
+
+        if (r.length == 0) {
+            r = $('<tr>', { id: id })
+            .append($('<td>'))
+            .append($('<td>'));
+
+            $('.k-ds-table', sdiv).append(r);
+        }
+
+        $('td:eq(0)', r).html(title);
+        $('td:eq(1)', r).html(content);
+    }
+
+    for (var intf of state['kismet_interfaces']) {
+        // Remove probed interfaces we don't have anymore
+        if (intf['kismet.datasource.probed.in_use_uuid'] !== '00000000-0000-0000-0000-000000000000') {
+            state['content'].remove('#intf_' + intf['kismet.datasource.probed.interface']);
+            continue;
+        }
+
+        var idiv = $('#intf_' + intf['kismet.datasource.probed.interface'], state['content']);
+
+        if (idiv.length == 0) {
+            idiv = $('<div>', {
+                id: 'intf_' + intf['kismet.datasource.probed.interface'],
+                class: 'accordion',
+                })
+            .append(
+                $('<h3>', {
+                    id: 'header',
+                    class: 'k-ds-source',
+                    html: "Available Source: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')',
+                })
+            ).append(
+                $('<div>', {
+                    id: 'content',
+                    class: 'k-ds-content',
+                })
+            );
+
+            var table = $('<table>', {
+                class: 'k-ds-table'
+                });
+
+            $('#content', idiv).append(table);
+
+            idiv.accordion({ collapsible: true, active: false });
+
+            state['content'].append(idiv);
+        }
+
+        set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
+        set_row(idiv, 'driver', '<b>Capture Driver</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
+        set_row(idiv, 'description', '<b>Type</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.description']);
+
+        idiv.accordion("refresh");
+    }
+
+    for (var source of state['kismet_sources']) {
         var sdiv = $('#' + source['kismet.datasource.uuid'], state['content']);
 
         if (sdiv.length == 0) {
@@ -575,32 +635,17 @@ function update_datasource2(data, state) {
 
         // $('#content', sdiv).html(source['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
         
-        var set_row = function(id, title, content) {
-            var r = $('tr#' + id, sdiv);
-
-            if (r.length == 0) {
-                r = $('<tr>', { id: id })
-                .append($('<td>'))
-                .append($('<td>'));
-
-                $('.k-ds-table', sdiv).append(r);
-            }
-
-            $('td:eq(0)', r).html(title);
-            $('td:eq(1)', r).html(content);
-        }
-
         var s = source['kismet.datasource.interface'];
         if (source['kismet.datasource.interface'] !==
                 source['kismet.datasource.capture_interface']) {
             s = s + "(" + source['kismet.datasource.capture_interface'] + ")";
         }
 
-        set_row('interface', '<b>Interface</b>', s);
-        set_row('uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
-        set_row('packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
+        set_row(sdiv, 'interface', '<b>Interface</b>', s);
+        set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
+        set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
 
-        $('div.accordion', state['content']).accordion("refresh");
+        sdiv.accordion("refresh");
     }
 }
 
@@ -664,8 +709,13 @@ exports.DataSources2 = function() {
 
     state["panel"] = datasource_panel;
     state["content"] = content;
+    state["kismet_sources"] = [];
+    state["kismet_interfaces"] = [];
 
     datasource_source_refresh(state, function(data) { 
+            update_datasource2(data, state);
+        });
+    datasource_interface_refresh(state, function(data) { 
             update_datasource2(data, state);
         });
 }
@@ -1137,7 +1187,8 @@ exports.DataSources = function() {
 
 /* Get the list of active sources */
 function datasource_source_refresh(state, cb) {
-    clearTimeout(state['datasource_get_tid']);
+    if ('datasource_get_tid' in state)
+        clearTimeout(state['datasource_get_tid']);
 
     $.get("/datasource/all_sources.json")
     .done(function(data) {
@@ -1147,6 +1198,23 @@ function datasource_source_refresh(state, cb) {
     .always(function() {
         state['datasource_get_tid'] = setTimeout(function() {
             datasource_source_refresh(state, cb)
+        }, 1000);
+    });
+}
+
+/* Get the list of potential interfaces */
+function datasource_interface_refresh(state, cb) {
+    if ('datasource_interface_tid' in state) 
+        clearTimeout(state['datasource_interface_tid']);
+
+    $.get("/datasource/list_interfaces.json")
+    .done(function(data) {
+        state['kismet_interfaces'] = data;
+        cb(data);
+    })
+    .always(function() {
+        state['datasource_get_tid'] = setTimeout(function() {
+            datasource_interface_refresh(state, cb)
         }, 1000);
     });
 }
