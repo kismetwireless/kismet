@@ -76,4 +76,19 @@ table.k-ds-table tr td:nth-of-type(1) {
 table.k-ds-table tr td:nth-of-type(2)  {
     width: 100%;
 }
-   
+
+/* System channel flag */
+.enable-chan-system {
+    background: orange !important;
+}
+
+/* User selected */
+.enable-chan-user {
+    background: orange !important;
+}
+
+/* User disabled */
+.disable-chan-user {
+
+}
+

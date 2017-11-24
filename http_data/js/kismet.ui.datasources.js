@@ -508,8 +508,12 @@ function update_datasource2(data, state) {
             $('.k-ds-table', sdiv).append(r);
         }
 
+        /*
         $('td:eq(0)', r).html(title);
         $('td:eq(1)', r).html(content);
+        */
+        $('td:eq(0)', r).replaceWith($('<td>').append(title));
+        $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
 
     // Clean up missing probed interfaces
@@ -524,7 +528,6 @@ function update_datasource2(data, state) {
         }
 
         if (!found) {
-            console.log("didn't find", $(this).attr('id'));
             $(this).remove();
         }
     });
@@ -658,28 +661,73 @@ function update_datasource2(data, state) {
         if (chanbuttons.length == 0) {
             // Make a new one of all possible channels
             chanbuttons = $('<div>', {
-                id: 'chanbuttons'
+                id: 'chanbuttons',
+                uuid: source['kismet.datasource.uuid']
             });
 
             for (var c of source['kismet.datasource.channels']) {
                 chanbuttons.append(
                     $('<button>', {
-                        id: c
+                        id: c,
+                        channel: c,
+                        uuid: source['kismet.datasource.uuid']
                     }).html(c)
+                    .button()
+                    .on('click', function() {
+                        var uuid = $(this).attr('uuid');
+                        var tid = 'tid' + uuid;
+
+                        if ($(this).hasClass('disable-chan-user')) {
+                            $(this).removeClass('disable-chan-user');
+                            $(this).addClass('enable-chan-user');
+                        } else {
+                            $(this).removeClass('enable-chan-user');
+                            $(this).removeClass('enable-chan-system');
+                            $(this).addClass('disable-chan-user');
+                        }
+
+                        if (tid in state) 
+                            clearTimeout(state[tid]);
+
+                        state[tid] = setTimeout(function() {
+                            var chans = [];
+
+                            $('button[uuid=' + uuid + ']', state['content']).each(function(i) {
+                                if ($(this).hasClass('enable-chan-user') ||
+                                        $(this).hasClass('enable-chan-system')) {
+                                    state['refresh' + uuid] = true;
+                                    chans.push($(this).attr('channel'));
+                                }
+                            });
+
+                            var jscmd = {
+                                "cmd": "hop",
+                                "channels": chans,
+                                "uuid": uuid
+                            };
+		            
+                            var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+                            $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json");
+                        }, 2000);
+                    })
                 );
             }
-
-            $('button', chanbuttons).button();
         }
 
         // Update from current channels
-        $('button', chanbuttons).each(function(i) {
-            var chan = $(this).attr('id');
+        var hop_chans = source['kismet.datasource.hop_channels'];
 
-            if (chan in source['kismet.datasource.hop_channels'])
-                $(this).html('*' + chan);
-            else
-                $(this).html(chan);
+        $('button', chanbuttons).each(function(i) {
+            var chan = $(this).attr('channel');
+
+            // Flag the channel if it's found, and not explicitly disabled
+            if (hop_chans.indexOf(chan) != -1 && !($(this).hasClass('disable-chan-user'))) {
+                $(this)
+                    .addClass('enable-chan-system');
+            } else {
+                $(this)
+                    .removeClass('enable-chan-system');
+            }
         });
         
         var s = source['kismet.datasource.interface'];
@@ -693,7 +741,6 @@ function update_datasource2(data, state) {
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
 
         // Refresh with the existing button div and/or add it if we're new
-        console.log(chanbuttons);
         set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
 
         sdiv.accordion("refresh");
