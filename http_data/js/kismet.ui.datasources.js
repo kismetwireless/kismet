@@ -483,6 +483,193 @@ function channelcoverage_display_refresh() {
     channelcoverage_display_tid = setTimeout(channelcoverage_display_refresh, 500);
 }
 
+/* Sidebar:  Data sources (new)
+ *
+ * Data source management panel
+ */
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'datasource_sources2',
+    listTitle: '<i class="fa fa-cogs"></i> Data Sources (new)',
+    priority: -500,
+    clickCallback: function() {
+        exports.DataSources2();
+    },
+});
+
+function update_datasource2(data, state) {
+    for (var source of data) {
+        var sdiv = $('#' + source['kismet.datasource.uuid'], state['content']);
+
+        if (sdiv.length == 0) {
+            sdiv = $('<div>', {
+                id: source['kismet.datasource.uuid'],
+                class: 'accordion',
+                })
+            .append(
+                $('<h3>', {
+                    id: 'header',
+                    class: 'k-ds-source',
+                    html: source['kismet.datasource.name'],
+                })
+                .append(
+                    $('<span>', {
+                        id: 'rrd',
+                        class: 'k-ds-rrd',
+                    })
+                )
+            ).append(
+                $('<div>', {
+                    id: 'content',
+                    class: 'k-ds-content',
+                })
+            );
+
+            var table = $('<table>', {
+                class: 'k-ds-table'
+                });
+
+            $('#content', sdiv).append(table);
+
+            sdiv.accordion({ collapsible: true, active: false });
+
+            state['content'].append(sdiv);
+        }
+
+        if (typeof(source['kismet.datasource.packets_rrd']) !== 'undefined' &&
+                source['kismet.datasource.packets_rrd'] != 0) {
+
+            var simple_rrd =
+                kismet.RecalcRrdData(
+                    source['kismet.datasource.packets_rrd'],
+                    source['kismet.datasource.packets_rrd']['kismet.common.rrd.last_time'],
+                    kismet.RRD_SECOND,
+                    source['kismet.datasource.packets_rrd']['kismet.common.rrd.minute_vec'], {
+                        transform: function(data, opt) {
+                        var slices = 3;
+                        var peak = 0;
+                        var ret = new Array();
+                        
+                        for (var ri = 0; ri < data.length; ri++) {
+                            peak = Math.max(peak, data[ri]);
+                        
+                            if ((ri % slices) == (slices - 1)) {
+                                ret.push(peak);
+                                peak = 0;
+                            }
+                        }
+                        
+                        return ret;
+                    }
+                    });
+
+            // Render the sparkline
+            $('#rrd', sdiv).sparkline(simple_rrd, { 
+                type: "bar",
+                width: 100,
+                height: 12,
+                barColor: '#000000',
+                nullColor: '#000000',
+                zeroColor: '#000000'
+                });
+        }
+
+        // $('#content', sdiv).html(source['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
+        
+        var set_row = function(id, title, content) {
+            var r = $('tr#' + id, sdiv);
+
+            if (r.length == 0) {
+                r = $('<tr>', { id: id })
+                .append($('<td>'))
+                .append($('<td>'));
+
+                $('.k-ds-table', sdiv).append(r);
+            }
+
+            $('td:eq(0)', r).html(title);
+            $('td:eq(1)', r).html(content);
+        }
+
+        var s = source['kismet.datasource.interface'];
+        if (source['kismet.datasource.interface'] !==
+                source['kismet.datasource.capture_interface']) {
+            s = s + "(" + source['kismet.datasource.capture_interface'] + ")";
+        }
+
+        set_row('interface', '<b>Interface</b>', s);
+        set_row('uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
+        set_row('packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
+
+        $('div.accordion', state['content']).accordion("refresh");
+    }
+}
+
+exports.DataSources2 = function() {
+    var w = $(window).width() * 0.95;
+    var h = $(window).height() * 0.75;
+    var offy = 20;
+
+    if ($(window).width() < 450 || $(window).height() < 450) {
+        w = $(window).width() - 5;
+        h = $(window).height() - 5;
+        offy = 0;
+    }
+
+    var state = {};
+
+    var content = 
+        $('<div>', { 
+            class: 'k-ds-tablediv',
+        })
+        
+    datasource_panel = $.jsPanel({
+        id: 'datasources',
+        headerTitle: '<i class="fa fa-cogs" /> Data Sources',
+        headerControls: {
+            iconfont: 'jsglyph',
+            minimize: 'remove',
+            smallify: 'remove',
+        },
+        content: content,
+
+        resizable: {
+            stop: function(event, ui) {
+                $('div.accordion', ui.element).accordion("refresh");
+            }
+        },
+
+        onmaximized: function() {
+            $('div.accordion', this.content).accordion("refresh");
+        },
+
+        onnormalized: function() {
+            $('div.accordion', this.content).accordion("refresh");
+        },
+
+        onclosed: function() {
+            clearTimeout(state['datasource_list_tid']);
+        }
+    })
+    .resize({
+        width: w,
+        height: h
+    })
+    .reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: offy,
+    })
+    .contentResize();
+
+    state["panel"] = datasource_panel;
+    state["content"] = content;
+
+    datasource_source_refresh(state, function(data) { 
+            update_datasource2(data, state);
+        });
+}
+
 /* Sidebar:  Data sources
  *
  * Combination of available data sources & current ones
@@ -878,6 +1065,8 @@ exports.DataSources = function() {
 
     });
 
+    var state = {}
+
     datasource_panel = $.jsPanel({
         id: 'datasources',
         headerTitle: '<i class="fa fa-cogs" /> Data Sources',
@@ -899,7 +1088,7 @@ exports.DataSources = function() {
         },
 
         onclosed: function() {
-            clearTimeout(datasource_list_tid);
+            clearTimeout(state['datasource_list_tid']);
         }
     })
     .on('resize', function() {
@@ -923,12 +1112,10 @@ exports.DataSources = function() {
     })
     .contentResize();
 
-    datasource_source_refresh(function(data) {
+    datasource_source_refresh(state, function(data) {
         var scrollPos = $(".dataTables_scrollBody", content).scrollTop();
 
-        for (var d in kismet_sources) {
-            var s = kismet_sources[d];
-
+        for (var s of state['kismet_sources']) {
             var row = datasource_table.row('#' + s['kismet.datasource.source_number']);
 
             if (typeof(row.data()) === 'undefined') {
@@ -949,17 +1136,17 @@ exports.DataSources = function() {
 }
 
 /* Get the list of active sources */
-function datasource_source_refresh(cb) {
-    clearTimeout(datasource_list_tid);
+function datasource_source_refresh(state, cb) {
+    clearTimeout(state['datasource_get_tid']);
 
     $.get("/datasource/all_sources.json")
     .done(function(data) {
-        kismet_sources = data;
+        state['kismet_sources'] = data;
         cb(data);
     })
     .always(function() {
-        datasource_list_tid = setTimeout(function() {
-            datasource_source_refresh(cb)
+        state['datasource_get_tid'] = setTimeout(function() {
+            datasource_source_refresh(state, cb)
         }, 1000);
     });
 }

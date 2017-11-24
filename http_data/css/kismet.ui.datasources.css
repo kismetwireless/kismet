@@ -37,3 +37,43 @@ i.k-ds-error {
 div.k-ds-details {
     padding: 10px;
 }
+
+div.k-ds-accordion {
+    padding: 5px;
+}
+
+h3.k-ds-source {
+    padding-left: 5px;
+}
+
+span.k-ds-rrd {
+    position: absolute;
+    left: 250px;
+}
+
+div.k-ds-content {
+    padding: 5px;
+}
+
+
+table.k-ds-table {
+    border: 0;
+}
+
+table.k-ds-table b {
+    padding-top: 0.5em;
+}
+
+table.k-ds-table td {
+    vertical-align: top;
+}
+
+table.k-ds-table tr td:nth-of-type(1) {
+    width: 20%;
+    max-width: 100px;
+}
+
+table.k-ds-table tr td:nth-of-type(2)  {
+    width: 100%;
+}
+   
