@@ -512,19 +512,37 @@ function update_datasource2(data, state) {
         $('td:eq(1)', r).html(content);
     }
 
+    // Clean up missing probed interfaces
+    $('.interface', state['content']).each(function(i) {
+        var found = false;
+
+        for (var intf of state['kismet_interfaces']) {
+            if ($(this).attr('id') === intf['kismet.datasource.probed.interface']) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            console.log("didn't find", $(this).attr('id'));
+            $(this).remove();
+        }
+    });
+    
+
     for (var intf of state['kismet_interfaces']) {
         // Remove probed interfaces we don't have anymore
         if (intf['kismet.datasource.probed.in_use_uuid'] !== '00000000-0000-0000-0000-000000000000') {
-            state['content'].remove('#intf_' + intf['kismet.datasource.probed.interface']);
+            $('#' + intf['kismet.datasource.probed.interface'], state['content']).remove();
             continue;
         }
 
-        var idiv = $('#intf_' + intf['kismet.datasource.probed.interface'], state['content']);
+        var idiv = $('#' + intf['kismet.datasource.probed.interface'], state['content']);
 
         if (idiv.length == 0) {
             idiv = $('<div>', {
-                id: 'intf_' + intf['kismet.datasource.probed.interface'],
-                class: 'accordion',
+                id: intf['kismet.datasource.probed.interface'],
+                class: 'accordion interface',
                 })
             .append(
                 $('<h3>', {
@@ -563,7 +581,7 @@ function update_datasource2(data, state) {
         if (sdiv.length == 0) {
             sdiv = $('<div>', {
                 id: source['kismet.datasource.uuid'],
-                class: 'accordion',
+                class: 'accordion source',
                 })
             .append(
                 $('<h3>', {
@@ -1213,7 +1231,7 @@ function datasource_interface_refresh(state, cb) {
         cb(data);
     })
     .always(function() {
-        state['datasource_get_tid'] = setTimeout(function() {
+        state['datasource_interface_tid'] = setTimeout(function() {
             datasource_interface_refresh(state, cb)
         }, 1000);
     });
