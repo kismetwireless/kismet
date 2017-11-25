@@ -512,6 +512,10 @@ function update_datasource2(data, state) {
         $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
 
+    var del_row = function(sdiv, id) {
+        $('#' + id, sdiv).remove();
+    }
+
     // Clean up missing probed interfaces
     $('.interface', state['content']).each(function(i) {
         var found = false;
@@ -755,12 +759,30 @@ function update_datasource2(data, state) {
             s = s + "(" + source['kismet.datasource.capture_interface'] + ")";
         }
 
+        set_row(sdiv, 'name', '<b>Name</b>', source['kismet.datasource.name']);
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
 
+        if (source['kismet.datasource.remote']) 
+            set_row(sdiv, 'remote', '<b>Remote</b>', 'Yes');
+        else
+            del_row(sdiv, 'remote');
+
+        if (source['kismet.datasource.running']) {
+            var running = 'Yes';
+            if (source['kismet.datasource.ipc_pid'])
+                running = running + " (pid " + source['kismet.datasource.ipc_pid'] + ")";
+            set_row(sdiv, 'running', '<b>Running</b>', running);
+        } else {
+            set_row(sdiv, 'running', '<b>Running</b>', 'No');
+        }
+
         // Refresh with the existing button div and/or add it if we're new
-        set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
+        if (source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable'])
+            set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
+        else
+            del_row(sdiv, 'channels');
 
         sdiv.accordion("refresh");
     }
