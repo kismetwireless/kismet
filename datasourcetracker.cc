@@ -62,32 +62,31 @@ DST_DatasourceProbe::~DST_DatasourceProbe() {
 }
 
 void DST_DatasourceProbe::cancel() {
-    // Cancels any running sources and triggers the completion callback
+    {
+        local_locker lock(&probe_lock);
 
-    local_locker lock(&probe_lock);
+        // fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
 
-    // fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
+        cancelled = true;
 
-    cancelled = true;
+        // Cancel any pending timer
+        if (cancel_timer >= 0) {
+            // fprintf(stderr, "debug - dstprobe cancelling completion timer %d\n", cancel_timer);
+            timetracker->RemoveTimer(cancel_timer);
+        }
 
-    // Cancel any pending timer
-    if (cancel_timer >= 0) {
-        // fprintf(stderr, "debug - dstprobe cancelling completion timer %d\n", cancel_timer);
-        timetracker->RemoveTimer(cancel_timer);
+        // Cancel any other competing probing sources; this may trigger the callbacks
+        // which will call the completion function, but we'll ignore them because
+        // we're already cancelled
+        for (auto i = ipc_probe_map.begin(); i != ipc_probe_map.end(); ++i) {
+            i->second->close_source();
+        }
+
+        // We don't delete sources now because we might be inside the loop somehow
+        // and deleting references to ourselves
     }
 
-    // Cancel any other competing probing sources; this may trigger the callbacks
-    // which will call the completion function, but we'll ignore them because
-    // we're already cancelled
-    for (auto i = ipc_probe_map.begin(); i != ipc_probe_map.end(); ++i) {
-        i->second->close_source();
-    }
-
-    // We don't delete sources now because we might be inside the loop somehow
-    // and deleting references to ourselves
-
-    // Call our cb with whatever we know about our builder; null if we didn't 
-    // find something
+    // Unlock just before we call the CB so that we're not callbacked inside a thread lock
     if (probe_cb) 
         probe_cb(source_builder);
 }
@@ -134,8 +133,7 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     }
 }
 
-void DST_DatasourceProbe::probe_sources(
-        function<void (SharedDatasourceBuilder)> in_cb) {
+void DST_DatasourceProbe::probe_sources(function<void (SharedDatasourceBuilder)> in_cb) {
     // Lock while we generate all of the probes; 
     local_locker lock(&probe_lock);
 
@@ -222,8 +220,7 @@ void DST_DatasourceList::cancel() {
         list_cb(listed_sources);
 }
 
-void DST_DatasourceList::complete_list(vector<SharedInterface> in_list, 
-        unsigned int in_transaction) {
+void DST_DatasourceList::complete_list(vector<SharedInterface> in_list, unsigned int in_transaction) {
     local_locker lock(&list_lock);
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them
@@ -238,7 +235,6 @@ void DST_DatasourceList::complete_list(vector<SharedInterface> in_list,
     if (v != ipc_list_map.end()) {
         complete_vec.push_back(v->second);
         ipc_list_map.erase(v);
-    } else {
     }
 
     if (ipc_list_map.size() == 0) {
@@ -247,8 +243,7 @@ void DST_DatasourceList::complete_list(vector<SharedInterface> in_list,
     }
 }
 
-void DST_DatasourceList::list_sources(
-        function<void (vector<SharedInterface>)> in_cb) {
+void DST_DatasourceList::list_sources(function<void (vector<SharedInterface>)> in_cb) {
     local_locker lock(&list_lock);
 
     cancel_timer = 
