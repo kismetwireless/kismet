@@ -508,10 +508,6 @@ function update_datasource2(data, state) {
             $('.k-ds-table', sdiv).append(r);
         }
 
-        /*
-        $('td:eq(0)', r).html(title);
-        $('td:eq(1)', r).html(content);
-        */
         $('td:eq(0)', r).replaceWith($('<td>').append(title));
         $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
@@ -522,6 +518,9 @@ function update_datasource2(data, state) {
 
         for (var intf of state['kismet_interfaces']) {
             if ($(this).attr('id') === intf['kismet.datasource.probed.interface']) {
+                if (intf['kismet.datasource.probed.in_use_uuid'] !== '00000000-0000-0000-0000-000000000000') {
+                    break;
+                }
                 found = true;
                 break;
             }
@@ -532,9 +531,7 @@ function update_datasource2(data, state) {
         }
     });
     
-
     for (var intf of state['kismet_interfaces']) {
-        // Remove probed interfaces we don't have anymore
         if (intf['kismet.datasource.probed.in_use_uuid'] !== '00000000-0000-0000-0000-000000000000') {
             $('#' + intf['kismet.datasource.probed.interface'], state['content']).remove();
             continue;
@@ -574,6 +571,28 @@ function update_datasource2(data, state) {
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
         set_row(idiv, 'driver', '<b>Capture Driver</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
         set_row(idiv, 'description', '<b>Type</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.description']);
+
+        var addbutton = $('#add', idiv);
+        if (addbutton.length == 0) {
+            addbutton = 
+                $('<button>', {
+                    id: 'addbutton',
+                    interface: intf['kismet.datasource.probed.interface'],
+                    intftype: intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'],
+                })
+                .html('Enable Source')
+                .button()
+                .on('click', function() {
+                    var jscmd = {
+                        "definition": $(this).attr('interface') + ':type=' + $(this).attr('intftype')
+                    };
+
+                    var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+                    $.post("/datasource/add_source.cmd", postdata, "json");
+                });
+        }
+
+        set_row(idiv, 'addsource', $('<span>'), addbutton);
 
         idiv.accordion("refresh");
     }
