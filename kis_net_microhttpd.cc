@@ -758,11 +758,13 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
             strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
             MHD_add_response_header(response, "Last-Modified", lastmod);
 
-            string suffix = GetSuffix(url);
+            string suffix = GetSuffix(surl);
             string mime = kishttpd->GetMimeType(suffix);
 
             if (mime != "") {
                 MHD_add_response_header(response, "Content-Type", mime.c_str());
+            } else {
+                MHD_add_response_header(response, "Content-Type", "text/plain");
             }
 
             // Allow any?
@@ -817,6 +819,8 @@ void Kis_Net_Httpd::AppendStandardHeaders(Kis_Net_Httpd *httpd,
 
     if (mime != "") {
         MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
+    } else {
+        MHD_add_response_header(connection->response, "Content-Type", "text/plain");
     }
 
     // If we have an optional filename set, set our disposition type and then
