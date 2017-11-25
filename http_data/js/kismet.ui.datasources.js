@@ -164,7 +164,7 @@ function channelcoverage_backend_refresh() {
 
     $.get("/datasource/all_sources.json")
     .done(function(data) {
-        // Build a list of all devices we haven't seen before and set their 
+        // Build a list of all devices we haven't seen before and set their
         // initial positions to match
         for (var di = 0; di < data.length; di++) {
             if (data[di]['kismet.datasource.running'] == 0) {
@@ -183,7 +183,7 @@ function channelcoverage_backend_refresh() {
                     position: data[di]['kismet.datasource.hop_offset'],
                     skip: data[di]['kismet.datasource.hop_shuffle_skip'],
                 };
-            } 
+            }
 
         }
     })
@@ -289,7 +289,7 @@ function channelcoverage_display_refresh() {
     var ncollator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
     chantitles.sort(ncollator.compare);
 
-    // Create the source datasets for the animated estimated hopping graph, covering all 
+    // Create the source datasets for the animated estimated hopping graph, covering all
     // channels and highlighting the channels we have a UUID in
     var source_datasets = new Array()
 
@@ -471,11 +471,11 @@ function channelcoverage_display_refresh() {
         channelcoverage_chart.data.labels = chantitles;
         channelcoverage_chart.data.yLabels = sourcetitles;
 
-        channelcoverage_chart.options.scales.xAxes[0].ticks.min = 0; 
-        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length; 
+        channelcoverage_chart.options.scales.xAxes[0].ticks.min = 0;
+        channelcoverage_chart.options.scales.xAxes[0].ticks.max = chantitles.length;
 
-        channelcoverage_chart.options.scales.yAxes[0].ticks.min = 0; 
-        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length; 
+        channelcoverage_chart.options.scales.yAxes[0].ticks.min = 0;
+        channelcoverage_chart.options.scales.yAxes[0].ticks.max = sourcetitles.length;
 
         channelcoverage_chart.update(0);
     }
@@ -512,10 +512,6 @@ function update_datasource2(data, state) {
         $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
 
-    var del_row = function(sdiv, id) {
-        $('#' + id, sdiv).remove();
-    }
-
     // Clean up missing probed interfaces
     $('.interface', state['content']).each(function(i) {
         var found = false;
@@ -534,7 +530,7 @@ function update_datasource2(data, state) {
             $(this).remove();
         }
     });
-    
+
     for (var intf of state['kismet_interfaces']) {
         if (intf['kismet.datasource.probed.in_use_uuid'] !== '00000000-0000-0000-0000-000000000000') {
             $('#' + intf['kismet.datasource.probed.interface'], state['content']).remove();
@@ -578,7 +574,7 @@ function update_datasource2(data, state) {
 
         var addbutton = $('#add', idiv);
         if (addbutton.length == 0) {
-            addbutton = 
+            addbutton =
                 $('<button>', {
                     id: 'addbutton',
                     interface: intf['kismet.datasource.probed.interface'],
@@ -652,22 +648,22 @@ function update_datasource2(data, state) {
                         var slices = 3;
                         var peak = 0;
                         var ret = new Array();
-                        
+
                         for (var ri = 0; ri < data.length; ri++) {
                             peak = Math.max(peak, data[ri]);
-                        
+
                             if ((ri % slices) == (slices - 1)) {
                                 ret.push(peak);
                                 peak = 0;
                             }
                         }
-                        
+
                         return ret;
                     }
                     });
 
             // Render the sparkline
-            $('#rrd', sdiv).sparkline(simple_rrd, { 
+            $('#rrd', sdiv).sparkline(simple_rrd, {
                 type: "bar",
                 width: 100,
                 height: 12,
@@ -677,7 +673,6 @@ function update_datasource2(data, state) {
                 });
         }
 
-       
         // Find the channel buttons
         var chanbuttons = $('#chanbuttons', sdiv);
 
@@ -709,7 +704,7 @@ function update_datasource2(data, state) {
                             $(this).addClass('disable-chan-user');
                         }
 
-                        if (tid in state) 
+                        if (tid in state)
                             clearTimeout(state[tid]);
 
                         state[tid] = setTimeout(function() {
@@ -728,7 +723,7 @@ function update_datasource2(data, state) {
                                 "channels": chans,
                                 "uuid": uuid
                             };
-		            
+
                             var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
                             $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json");
                         }, 2000);
@@ -752,37 +747,89 @@ function update_datasource2(data, state) {
                     .removeClass('enable-chan-system');
             }
         });
-        
+
+        var quickopts = $('#quickopts', idiv);
+        if (quickopts.length == 0) {
+          quickopts = $('<div>', {
+              id: 'quickopts',
+              uuid: source['kismet.datasource.uuid']
+          });
+          quickopts.append(
+            $('<button>', {
+              id: "all",
+              uuid: source['kismet.datasource.uuid']
+            }).html("All")
+            .button()
+            .on('click', function(){
+              var uuid = $(this).attr('uuid');
+              var chans = [];
+              $('button[uuid='+ uuid + ']', state['content']).each(function(i) {
+                      //state['refresh' + uuid] = true;
+                      chans.push($(this).attr('channel'));
+              });
+              var jscmd = {
+                  "cmd": "hop",
+                  "channels": chans,
+                  "uuid": uuid
+              };
+              var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+              $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json");
+              console.log(jscmd);
+
+              $('button[uuid=' + uuid + ']', state['content']).each(function(i){
+                    $(this).removeClass('disable-chan-system');
+                    $(this).removeClass('enable-chan-system');
+                    $(this).removeClass('disable-chan-user');
+                    $(this).addClass('enable-chan-user');
+                  })
+              })
+            )
+
+          quickopts.append(
+            $('<button>', {
+              id: "lock",
+              uuid: source['kismet.datasource.uuid']
+            }).html("Lock")
+            .button()
+            .on('click', function(){
+              var uuid = $(this).attr('uuid');
+              var jscmd = {
+                  "cmd": "lock",
+                  "channel": "1",
+                  "uuid": uuid
+              };
+              var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+              $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json");
+              console.log(jscmd);
+
+              $('button[uuid='+ uuid + ']', state['content']).each(function(i) {
+                  // Disable all but the first available channel
+                  if ($(this).attr('channel') == 1) {
+                      $(this).removeClass('disabled-chan-user');
+                      $(this).removeClass('enable-chan-system');
+                      $(this).addClass('enable-chan-user')
+                  } else {
+                      $(this).removeClass('enable-chan-system');
+                      $(this).removeClass('disable-chan-user');
+                  }
+              });
+              })
+            )
+          }
+
         var s = source['kismet.datasource.interface'];
         if (source['kismet.datasource.interface'] !==
                 source['kismet.datasource.capture_interface']) {
             s = s + "(" + source['kismet.datasource.capture_interface'] + ")";
         }
 
-        set_row(sdiv, 'name', '<b>Name</b>', source['kismet.datasource.name']);
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
-
-        if (source['kismet.datasource.remote']) 
-            set_row(sdiv, 'remote', '<b>Remote</b>', 'Yes');
-        else
-            del_row(sdiv, 'remote');
-
-        if (source['kismet.datasource.running']) {
-            var running = 'Yes';
-            if (source['kismet.datasource.ipc_pid'])
-                running = running + " (pid " + source['kismet.datasource.ipc_pid'] + ")";
-            set_row(sdiv, 'running', '<b>Running</b>', running);
-        } else {
-            set_row(sdiv, 'running', '<b>Running</b>', 'No');
-        }
+        set_row(sdiv, 'quickopts', '<b>Quick Options</b>', quickopts);
 
         // Refresh with the existing button div and/or add it if we're new
-        if (source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable'])
-            set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
-        else
-            del_row(sdiv, 'channels');
+        set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
 
         sdiv.accordion("refresh");
     }
@@ -801,11 +848,11 @@ exports.DataSources2 = function() {
 
     var state = {};
 
-    var content = 
-        $('<div>', { 
+    var content =
+        $('<div>', {
             class: 'k-ds-contentdiv',
         })
-        
+
     state['panel'] = $.jsPanel({
         id: 'datasources',
         headerTitle: '<i class="fa fa-cogs" /> Data Sources',
@@ -850,10 +897,10 @@ exports.DataSources2 = function() {
     state["kismet_sources"] = [];
     state["kismet_interfaces"] = [];
 
-    datasource_source_refresh(state, function(data) { 
+    datasource_source_refresh(state, function(data) {
             update_datasource2(data, state);
         });
-    datasource_interface_refresh(state, function(data) { 
+    datasource_interface_refresh(state, function(data) {
             update_datasource2(data, state);
         });
 }
@@ -877,7 +924,7 @@ function datasource_source_refresh(state, cb) {
 
 /* Get the list of potential interfaces */
 function datasource_interface_refresh(state, cb) {
-    if ('datasource_interface_tid' in state) 
+    if ('datasource_interface_tid' in state)
         clearTimeout(state['datasource_interface_tid']);
 
     $.get("/datasource/list_interfaces.json")
