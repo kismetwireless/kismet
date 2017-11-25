@@ -108,9 +108,8 @@ int Plugintracker::ScanPlugins() {
     DIR *plugdir;
 
     if ((plugdir = opendir(plugin_path.c_str())) == NULL) {
-        _MSG("Failed to open primary plugin directory (" + plugin_path +
-                 "): " + strerror(errno),
-             MSGFLAG_ERROR);
+        _MSG("Could not open system plugin directory (" + plugin_path +
+                 "), skipping: " + strerror(errno), MSGFLAG_INFO);
     } else {
         if (ScanDirectory(plugdir, plugin_path) < 0) return -1;
         closedir(plugdir);
@@ -121,16 +120,15 @@ int Plugintracker::ScanPlugins() {
         _MSG(
             "Failed to find a 'configdir' path in the Kismet config file, "
             "ignoring local plugins.",
-            MSGFLAG_ERROR);
+            MSGFLAG_INFO);
         return 0;
     }
 
     plugin_path = globalreg->kismet_config->ExpandLogPath(
         config_path + "/plugins/", "", "", 0, 1);
     if ((plugdir = opendir(plugin_path.c_str())) == NULL) {
-        _MSG("Failed to open user plugin directory (" + plugin_path +
-                 "): " + strerror(errno),
-             MSGFLAG_ERROR);
+        _MSG("Did not find a user plugin directory (" + plugin_path +
+                 "), skipping: " + strerror(errno), MSGFLAG_INFO);
     } else {
         if (ScanDirectory(plugdir, plugin_path) < 0) {
             closedir(plugdir);
@@ -210,8 +208,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
         if ((s = cf.FetchOpt("object")) != "") {
             if (s.find("/") != string::npos) {
                 _MSG("Found path in 'object=' in plugin manifest '" + manifest +
-                        "', object= should define the file name only",
-                        MSGFLAG_ERROR);
+                        "', object= should define the file name only", MSGFLAG_ERROR);
                 continue;
             }
 
@@ -312,8 +309,7 @@ int Plugintracker::ActivatePlugins() {
                         "': Ensure that all plugins have "
                         "been recompiled for the proper version of Kismet, "
                         "especially if you're using a development or git version "
-                        "of Kismet.",
-                        MSGFLAG_ERROR);
+                        "of Kismet.", MSGFLAG_ERROR);
                 continue;
             }
 
@@ -351,8 +347,7 @@ int Plugintracker::ActivatePlugins() {
                         "': Ensure that all plugins have "
                         "been recompiled for the proper version of Kismet, "
                         "especially if you're using a development or git version "
-                        "of Kismet.",
-                        MSGFLAG_ERROR);
+                        "of Kismet.", MSGFLAG_ERROR);
                 continue;
             }
 
