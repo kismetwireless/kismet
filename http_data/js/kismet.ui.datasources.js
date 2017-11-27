@@ -512,6 +512,21 @@ function update_datasource2(data, state) {
         $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
 
+    var top_row = function(sdiv, id, title, content) {
+        var r = $('tr#' + id, sdiv);
+
+        if (r.length == 0) {
+            r = $('<tr>', { id: id })
+            .append($('<td>'))
+            .append($('<td>'));
+
+            $('.k-ds-table', sdiv).prepend(r);
+        }
+
+        $('td:eq(0)', r).replaceWith($('<td>').append(title));
+        $('td:eq(1)', r).replaceWith($('<td>').append(content));
+    }
+
     // Clean up missing probed interfaces
     $('.interface', state['content']).each(function(i) {
         var found = false;
@@ -558,9 +573,13 @@ function update_datasource2(data, state) {
             .append(
                 $('<h3>', {
                     id: 'header',
-                    class: 'k-ds-source',
-                    html: "Available Source: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')',
                 })
+                .append(
+                    $('<span>', {
+                        class: 'k-ds-source',
+                    })
+                    .html("Available Source: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')')
+                )
             ).append(
                 $('<div>', {
                     id: 'content',
@@ -619,9 +638,18 @@ function update_datasource2(data, state) {
             .append(
                 $('<h3>', {
                     id: 'header',
-                    class: 'k-ds-source',
-                    html: source['kismet.datasource.name'],
                 })
+                .append(
+                    $('<span>', {
+                        id: 'error',
+                    })
+                )
+                .append(
+                    $('<span>', {
+                        class: 'k-ds-source',
+                    })
+                    .html(source['kismet.datasource.name'])
+                )
                 .append(
                     $('<span>', {
                         id: 'rrd',
@@ -961,6 +989,15 @@ function update_datasource2(data, state) {
         if (source['kismet.datasource.interface'] !==
                 source['kismet.datasource.capture_interface']) {
             s = s + "(" + source['kismet.datasource.capture_interface'] + ")";
+        }
+
+        if (source['kismet.datasource.error']) {
+            $('#error', sdiv).html('<i class="k-ds-error fa fa-exclamation-circle"></i>');
+            top_row(sdiv, 'error', '<i class="k-ds-error fa fa-exclamation-circle"></i><b>Error</b>',
+                    source['kismet.datasource.error_reason']);
+        } else {
+            $('#error', sdiv).empty();
+            $('tr#error', sdiv).remove();
         }
 
         set_row(sdiv, 'interface', '<b>Interface</b>', s);

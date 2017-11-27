@@ -32,6 +32,8 @@ i.k-ds-warning {
 
 i.k-ds-error {
     color: red;
+    padding-left: 2px;
+    padding-right: 2px;
 }
 
 div.k-ds-details {
@@ -42,13 +44,14 @@ div.k-ds-accordion {
     padding: 5px;
 }
 
-h3.k-ds-source {
+span.k-ds-source {
     padding-left: 5px;
+    display: inline-block;
+    width: 20%;
+    min-width: 200px;
 }
 
 span.k-ds-rrd {
-    position: absolute;
-    left: 250px;
 }
 
 div.k-ds-content {
