@@ -550,6 +550,22 @@ function update_datasource2(data, state) {
         }
     });
 
+    // Clean up missing sources
+    $('.source', state['content']).each(function(i) {
+        var found = false;
+
+        for (var source of state['kismet_sources']) {
+            if ($(this).attr('id') === source['kismet.datasource.uuid']) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            $(this).remove();
+        }
+    });
+
     var defer = false;
 
     // Defer if we're waiting for a system update
