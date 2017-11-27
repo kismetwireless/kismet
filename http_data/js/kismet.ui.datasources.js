@@ -527,6 +527,10 @@ function update_datasource2(data, state) {
         $('td:eq(1)', r).replaceWith($('<td>').append(content));
     }
 
+    // Defer if we're waiting for a command to finish; do NOTHING else
+    if ('defer_command_progress' in state && state['defer_command_progress'])
+        return;
+
     // Clean up missing probed interfaces
     $('.interface', state['content']).each(function(i) {
         var found = false;
@@ -550,10 +554,6 @@ function update_datasource2(data, state) {
 
     // Defer if we're waiting for a system update
     if ('defer_source_update' in state && state['defer_source_update']) 
-        defer = true;
-
-    // Defer if we're waiting for a command to finish
-    if ('defer_command_progress' in state && state['defer_command_progress'])
         defer = true;
 
 
@@ -617,8 +617,14 @@ function update_datasource2(data, state) {
                         "definition": $(this).attr('interface') + ':type=' + $(this).attr('intftype')
                     };
 
+                    state['defer_command_progress'] = true;
+
                     var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                    $.post("/datasource/add_source.cmd", postdata, "json");
+                    $.post("/datasource/add_source.cmd", postdata, "json")
+                    .always(function() {
+                        state['defer_command_progress'] = false;
+                    });
+
                 });
         }
 
@@ -907,6 +913,7 @@ function update_datasource2(data, state) {
             .button()
             .on('click', function(){
               state['defer_source_update'] = true;
+              state['defer_command_progress'] = true;
 
               var uuid = $(this).attr('uuid');
 
@@ -925,7 +932,10 @@ function update_datasource2(data, state) {
               };
 
               var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-              $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json");
+              $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
+              .always(function() {
+                state['defer_command_progress'] = false;
+              });
 
               $('button.chanbutton[uuid='+ uuid + ']', state['content']).each(function(i) {
                   // Disable all but the first available channel
@@ -1003,10 +1013,31 @@ function update_datasource2(data, state) {
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
-        set_row(sdiv, 'chanopts', '<b>Channel Options</b>', quickopts);
 
-        // Refresh with the existing button div and/or add it if we're new
-        set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
+        var rts = "";
+        if (source['kismet.datasource.remote']) {
+            rts = 'Remote sources are not re-opened by Kismet, but will be re-opened when the '
+                'remote source reconnects.';
+        } else if (source['kismet.datasource.retry']) {
+            rts = 'Kismet will try to re-open this source if an error occurs';
+            if (source['kismet.datasource.retry_attempts'] && 
+                    source['kismet.datasource.running'] == 0) {
+                rts = rts + ' (Tried ' + source['kismet.datasource.retry_attempts'] + ' times)';
+            }
+        } else {
+            rts = 'Kismet will not re-open this source';
+        }
+
+        set_row(sdiv, 'retry', '<b>Retry on Error</b>', rts);
+
+        if (source['kismet.datasource.running'] &&
+                source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable']) {
+            set_row(sdiv, 'chanopts', '<b>Channel Options</b>', quickopts);
+            set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
+        } else {
+            $('#trchanopts', sdiv).remove();
+            $('#trchannels', sdiv).remove();
+        }
 
         sdiv.accordion("refresh");
     }
