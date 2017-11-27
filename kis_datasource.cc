@@ -879,6 +879,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     // If the open failed, kill the source
     if (!get_source_running()) {
         trigger_error(msg);
+        set_int_source_error_reason(msg);
         return;
     }
 
@@ -1001,6 +1002,7 @@ void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
 
     if (!get_kv_success(i->second)) {
         trigger_error(msg);
+        set_int_source_error_reason(msg);
     }
 }
 
