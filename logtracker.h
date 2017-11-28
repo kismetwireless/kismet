@@ -204,6 +204,7 @@ public:
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
     virtual void Deferred_Startup();
     virtual void Deferred_Shutdown();

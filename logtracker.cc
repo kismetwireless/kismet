@@ -284,3 +284,8 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
 }
 
+int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+
+    return 0;
+}
+

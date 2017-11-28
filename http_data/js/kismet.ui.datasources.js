@@ -850,6 +850,7 @@ function update_datasource2(data, state) {
 
                         state[tid] = setTimeout(function() {
                             state['defer_command_progress'] = true;
+                            state['defer_source_update'] = true;
 
                             var chans = [];
 
@@ -894,10 +895,11 @@ function update_datasource2(data, state) {
                 .button()
                 .on('click', function() {
                     state['defer_command_progress'] = true;
+                    state['defer_source_update'] = true;
 
                     var uuid = $(this).attr('uuid');
 
-                    $('#pausecmd[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
+                    $('#resumecmd[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
                     $(this).addClass('enable-chan-user');
                     $('#pausetext[uuid=' + uuid + ']', state['content']).show();
 
@@ -917,10 +919,11 @@ function update_datasource2(data, state) {
                 .button()
                 .on('click', function() {
                     state['defer_command_progress'] = true;
+                    state['defer_source_update'] = true;
 
                     var uuid = $(this).attr('uuid');
 
-                    $('#resumecmd[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
+                    $('#pausecmd[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
                     $(this).addClass('enable-chan-user');
                     $('#pausetext[uuid=' + uuid + ']', state['content']).hide();
 
