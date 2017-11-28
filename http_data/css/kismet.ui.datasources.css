@@ -36,6 +36,11 @@ i.k-ds-error {
     padding-right: 2px;
 }
 
+i.k-ds-paused {
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
 div.k-ds-details {
     padding: 10px;
 }

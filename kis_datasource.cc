@@ -1007,6 +1007,14 @@ void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
 }
 
 void KisDatasource::proto_packet_data(KVmap in_kvpairs) {
+    // If we're paused, do nothing
+    {
+        local_locker lock(&source_lock);
+
+        if (get_source_paused())
+            return;
+    }
+
     KVmap::iterator i;
 
     kis_packet *packet = NULL;
@@ -1865,6 +1873,9 @@ void KisDatasource::register_fields() {
             &source_number);
     RegisterField("kismet.datasource.source_key", TrackerUInt32,
             "hashed UUID key", &source_key);
+
+    RegisterField("kismet.datasource.paused", TrackerUInt8,
+            "capture is paused (no packets will be processed from this source)", &source_paused);
 
     RegisterField("kismet.datasource.ipc_binary", TrackerString,
             "capture command", &source_ipc_binary);

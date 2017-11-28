@@ -668,6 +668,11 @@ function update_datasource2(data, state) {
                 )
                 .append(
                     $('<span>', {
+                        id: 'paused',
+                    })
+                )
+                .append(
+                    $('<span>', {
                         class: 'k-ds-source',
                     })
                     .html(source['kismet.datasource.name'])
@@ -874,6 +879,69 @@ function update_datasource2(data, state) {
             }
         }
 
+        var pausediv = $('#pausediv', sdiv);
+        if (pausediv.length == 0) {
+            pausediv = $('<div>', {
+                id: 'pausediv',
+                uuid: source['kismet.datasource.uuid']
+            });
+
+            pausediv.append(
+                $('<button>', {
+                    id: "pausecmd",
+                    uuid: source['kismet.datasource.uuid']
+                }).html('Paused')
+                .button()
+                .on('click', function() {
+                    state['defer_command_progress'] = true;
+
+                    var uuid = $(this).attr('uuid');
+
+                    $('#pausecmd[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
+                    $(this).addClass('enable-chan-user');
+                    $('#pausetext[uuid=' + uuid + ']', state['content']).show();
+
+                    $.get('/datasource/by-uuid/' + uuid + '/pause_source.cmd')
+                    .always(function() {
+                            state['defer_command_progress'] = false;
+                    });
+
+                })
+            );
+
+            pausediv.append(
+                $('<button>', {
+                    id: "resumecmd",
+                    uuid: source['kismet.datasource.uuid']
+                }).html('Running')
+                .button()
+                .on('click', function() {
+                    state['defer_command_progress'] = true;
+
+                    var uuid = $(this).attr('uuid');
+
+                    $('#resumecmd[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
+                    $(this).addClass('enable-chan-user');
+                    $('#pausetext[uuid=' + uuid + ']', state['content']).hide();
+
+                    $.get('/datasource/by-uuid/' + uuid + '/resume_source.cmd')
+                    .always(function() {
+                            state['defer_command_progress'] = false;
+                    });
+
+                })
+            );
+
+            pausediv.append(
+                $('<p>', {
+                    id: 'pausetext',
+                    uuid: source['kismet.datasource.uuid']
+                })
+                .html('Paused sources will not report packets.  Any packets seen by a paused source will be lost.')
+            );
+
+        }
+
         var quickopts = $('#quickopts', sdiv);
         if (quickopts.length == 0) {
           quickopts = $('<div>', {
@@ -975,11 +1043,11 @@ function update_datasource2(data, state) {
 
         if (!defer) {
             if (source['kismet.datasource.hopping']) {
-                $('#hop[uuid=' + uuid + ']', state['content']).addClass('enable-chan-user');
-                $('#lock[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
+                $('#hop', quickopts).addClass('enable-chan-user');
+                $('#lock', quickopts).removeClass('enable-chan-user');
             } else {
-                $('#hop[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
-                $('#lock[uuid=' + uuid + ']', state['content']).addClass('enable-chan-user');
+                $('#hop', quickopts).removeClass('enable-chan-user');
+                $('#lock', quickopts).addClass('enable-chan-user');
             }
 
             $('button.chanbutton', chanbuttons).each(function(i) {
@@ -1008,6 +1076,16 @@ function update_datasource2(data, state) {
                 }
             });
 
+            if (source['kismet.datasource.paused']) {
+                $('#pausecmd', pausediv).addClass('enable-chan-user');
+                $('#resumecmd', pausediv).removeClass('enable-chan-user');
+                $('#pausetext', pausediv).show();
+            } else {
+                $('#pausecmd', pausediv).removeClass('enable-chan-user');
+                $('#resumecmd', pausediv).addClass('enable-chan-user');
+                $('#pausetext', pausediv).hide();
+            }
+
         }
 
         var s = source['kismet.datasource.interface'];
@@ -1024,6 +1102,12 @@ function update_datasource2(data, state) {
         } else {
             $('#error', sdiv).empty();
             $('tr#error', sdiv).remove();
+        }
+
+        if (source['kismet.datasource.paused']) {
+            $('#paused', sdiv).html('<i class="k-ds-paused fa fa-pause-circle"></i>');
+        } else {
+            $('#paused', sdiv).empty();
         }
 
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
@@ -1048,9 +1132,11 @@ function update_datasource2(data, state) {
 
         if (source['kismet.datasource.running'] &&
                 source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable']) {
+            set_row(sdiv, 'pausing', '<b>Active</b>', pausediv);
             set_row(sdiv, 'chanopts', '<b>Channel Options</b>', quickopts);
             set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
         } else {
+            $('#trpausing', sdiv).remove();
             $('#trchanopts', sdiv).remove();
             $('#trchannels', sdiv).remove();
         }

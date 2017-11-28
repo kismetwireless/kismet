@@ -1166,15 +1166,20 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (Httpd_StripSuffix(tokenurl[4]) == "close_source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "disable_source")
+                if (Httpd_StripSuffix(tokenurl[4]) == "open_source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "open_source")
+                if (Httpd_StripSuffix(tokenurl[4]) == "disable_source")
                     return true;
 
                 if (Httpd_StripSuffix(tokenurl[4]) == "enable_source")
                     return true;
 
+                if (Httpd_StripSuffix(tokenurl[4]) == "pause_source")
+                    return true;
+                
+                if (Httpd_StripSuffix(tokenurl[4]) == "resume_source")
+                    return true;
 
                 return true;
             }
@@ -1316,6 +1321,34 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                     return;
                 } else {
                     stream << "Source already open";
+                    connection->httpcode = 500;
+                    return;
+                }
+            }
+
+            if (Httpd_StripSuffix(tokenurl[4]) == "pause_source") {
+                if (!ds->get_source_paused()) {
+                    _MSG("Pausing source '" + ds->get_source_name() + "' from REST "
+                            "interface request.", MSGFLAG_INFO);
+                    ds->set_source_paused(true);
+                    stream << "Pausing source";
+                    return;
+                } else {
+                    stream << "Source already paused";
+                    connection->httpcode = 500;
+                    return;
+                }
+            }
+
+            if (Httpd_StripSuffix(tokenurl[4]) == "resume_source") {
+                if (ds->get_source_paused()) {
+                    _MSG("Resuming source '" + ds->get_source_name() + "' from REST "
+                            "interface request.", MSGFLAG_INFO);
+                    ds->set_source_paused(false);
+                    stream << "Resuming source";
+                    return;
+                } else {
+                    stream << "Source already running";
                     connection->httpcode = 500;
                     return;
                 }

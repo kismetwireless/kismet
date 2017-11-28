@@ -229,6 +229,8 @@ public:
     __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
 
     __Proxy(source_number, uint64_t, uint64_t, uint64_t, source_number);
+
+    __Proxy(source_paused, uint8_t, bool, bool, source_paused);
     
     // Perform a checksum on a packet after it's decapsulated; this is always
     // called; a source should override it and check flags in the source
@@ -475,6 +477,9 @@ protected:
     // unique UUID; it's used inside Kismet for fast mapping for seenby, 
     // etc.  DST maps this to unique UUIDs after an Open
     SharedTrackerElement source_number;
+
+    // Is the source paused?  If so, we throw out packets from it for now
+    SharedTrackerElement source_paused;
 
 
     // Global registry all objects have for coordination

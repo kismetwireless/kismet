@@ -549,6 +549,18 @@ Alias for `close_source`, stops a source (if running) and cancels reconnect atte
 
 Alias for `open_source`, re-opens a defined source.
 
+##### /datasource/by-uuid/[uuid]/pause_source `/datasource/by-uuid/[uuid]/pause_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Pauses a source - the source will remain open, but no packets will be processed.  Any packets received from the source while it is paused will be lost.
+
+##### /datasource/by-uuid/[uuid]/pause_source `/datasource/by-uuid/[uuid]/resume_source.cmd`
+
+*LOGIN REQUIRED*.
+
+Resumes (un-pauses) the specified source.  Packet processing will be resumed, but any packets seen while the source was paused will be lost.
+
 ## GPS
 
 Kismet now supports multiple simultaneous GPS devices, and can select the 'best' quality device based on priority and GPS signal.
