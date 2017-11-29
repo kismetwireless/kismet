@@ -222,6 +222,18 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 }
 
                 return false;
+            } else if (tokenurl[2] == "by-phy") {
+                if (tokenurl.size() < 5)
+                    return false;
+
+                if (!Httpd_CanSerialize(tokenurl[4]))
+                    return false;
+
+                auto p = FetchPhyHandlerByName(tokenurl[3]);
+                if (p != NULL)
+                    return true;
+
+                return false;
             }
         }
     }
@@ -469,7 +481,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
             });
 
-    // All URLs are at least /devices/summary/x or /devices/last-time/ts/x
+    // All URLs are at least /devices/summary/x or /devices/by-foo/y/x
     if (tokenurl.size() < 4) {
         stream << "Invalid request";
         concls->httpcode = 400;
@@ -489,6 +501,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     TrackerElementSerializer::rename_map rename_map;
 
     SharedStructured regexdata;
+
+    time_t post_ts = 0;
 
     try {
         // Decode the base64 msgpack and parse it, or parse the json
@@ -524,8 +538,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     if (mapvec.size() != 2) {
                         // fprintf(stderr, "debug - malformed rename pair\n");
-                        stream << "Invalid request: "
-                            "Expected field, rename";
+                        stream << "Invalid request: Expected field, rename";
                         concls->httpcode = 400;
                         return MHD_YES;
                     }
@@ -542,6 +555,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
         if (structdata->hasKey("regex")) {
             regexdata = structdata->getStructuredByKey("regex");
+        }
+
+        if (structdata->hasKey("last_time")) {
+            int64_t rawt = structdata->getKeyAsNumber("last_time");
+
+            if (rawt < 0)
+                post_ts = time(0) - rawt;
+            else
+                post_ts = rawt;
         }
     } catch(const StructuredDataException e) {
         stream << "Invalid request: ";
@@ -1017,6 +1039,92 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 MatchOnDevices(&worker, timedevs);
             } else {
                 regexdevs = timedevs;
+            }
+
+            // Final devices being simplified and sent out
+            SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
+
+            devicetracker_function_worker sw(globalreg, 
+                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        SharedTrackerElement simple;
+
+                        SummarizeTrackerElement(entrytracker, 
+                                static_pointer_cast<TrackerElement>(d), summary_vec,
+                                simple, rename_map);
+
+                        outdevs->add_vector(simple);
+                        
+                        return false;
+                    }, NULL);
+            MatchOnDevices(&sw, regexdevs);
+
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                    outdevs, &rename_map);
+            return MHD_YES;
+        } else if (tokenurl[2] == "by-phy") {
+            // We don't lock the device list since we use workers
+            if (tokenurl.size() < 5) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            auto phy = FetchPhyHandlerByName(tokenurl[3]);
+
+            if (phy == NULL) {
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            }
+
+            // Rename cache generated during simplification
+            TrackerElementSerializer::rename_map rename_map;
+
+            // List of devices that pass the timestamp filter
+            SharedTrackerElement timedevs(new TrackerElement(TrackerVector));
+
+            // Devices that pass the phy filter
+            SharedTrackerElement phydevs(new TrackerElement(TrackerVector));
+
+            //  List of devices that pass the regex filter
+            SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
+            
+
+            // Filter by time first, it's fast
+                devicetracker_function_worker tw(globalreg, 
+                        [this, &stream, timedevs, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        if (d->get_last_time() <= post_ts)
+                        return false;
+
+                        timedevs->add_vector(d);
+
+                        return false;
+                        }, NULL);
+
+            devicetracker_function_worker pw(globalreg, 
+                    [this, &stream, phydevs, phy](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        if (d->get_phyname() != phy->FetchPhyName())
+                            return false;
+
+                        phydevs->add_vector(d);
+                        
+                        return false;
+                    }, NULL);
+       
+            if (post_ts != 0) {
+                // time-match then phy-match then pass to regex
+                MatchOnDevices(&tw);
+                MatchOnDevices(&pw, timedevs);
+            }  else {
+                // Phy match only
+                MatchOnDevices(&pw);
+            }
+
+            if (regexdata != NULL) {
+                devicetracker_pcre_worker worker(globalreg, regexdata, regexdevs);
+                MatchOnDevices(&worker, phydevs);
+            } else {
+                regexdevs = phydevs;
             }
 
             // Final devices being simplified and sent out

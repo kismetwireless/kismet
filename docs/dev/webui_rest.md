@@ -350,6 +350,18 @@ The command dictionary should be passed as either JSON in the `json` POST variab
 | --- | ----- | ---- | ---- |
 | fields | Field specification | Optional, field specification array listing fields and mappings |
 
+##### POST /devices/by-phy/[PHYNAME]/devices `/devices/by-phy/[PHYNAME]/devices.msgpack`, `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
+
+List of devices, belonging to the phy `PHYNAME`.  The request can be filtered by regex and time, and simplified by the field simplification system.
+
+The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| fields | Field specification | Array | Optional, field specification array listing fields and mappings |
+| regex | Regex specification | Array | Optional, regex specification array listing fields and regex values |
+| last_time | Timestamp or relative timestamp | Integer | Optional, timestamp.  If negative, treated as a relative timestamp (N seconds prior to now), if positive, treated as an absolute unix timestamp.  For example, `'last_time': -60` would return all devices in the past minute. |
+
 ## Phy Handling
 
 A PHY handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A PHY is often, but not always, linked to specific types of hardware and specific packet link types.
