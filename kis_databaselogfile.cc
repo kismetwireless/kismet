@@ -909,3 +909,21 @@ void KisDatabaseLogfile::Usage(const char *argv0) {
 
 }
 
+bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) {
+
+    return false;
+}
+
+int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) {
+
+    return 0;
+}
+
+int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+
+    return 0;
+}
+

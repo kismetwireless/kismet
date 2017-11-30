@@ -82,7 +82,8 @@
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
-class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal {
+class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
+    public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     static std::shared_ptr<KisDatabaseLogfile> 
         create_kisdatabaselog(GlobalRegistry *in_globalreg) {
@@ -135,6 +136,17 @@ public:
             std::string snaptype, std::string json);
 
     static void Usage(const char *argv0);
+
+    // HTTP handlers
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size);
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+
 protected:
     GlobalRegistry *globalreg;
 
