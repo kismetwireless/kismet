@@ -128,6 +128,15 @@ Session IDs are returned in the `KISMET` session cookie.  Clients which interact
 
 Commands are sent via HTTP POST.  Currently, a command should be a base64-encoded msgpack string dictionary containing key:value pairs, sent under the `msgpack` or `json` POST fields.  This may be subject to change as the HTTP interface evolves.
 
+Commands should always be sent using the `x-www-form-encoded` content type; if your API does not do this by default, you may need to specify:
+
+```
+Content-Type: application/x-www-form-urlencoded; charset=utf-8
+```
+
+as part of the requests you send.
+
+
 For instance, a command created in Python might look like:
 
 ```python
