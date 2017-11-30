@@ -115,6 +115,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
             std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
             telem->from_droneid_flight_reg(flightinfo);
+            telem->set_telem_timestamp(ts_to_double(in_pack->ts));
 
             uavdev->set_tracker_last_telem_loc(telem);
 

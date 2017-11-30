@@ -59,6 +59,7 @@ public:
     virtual ~uav_tracked_telemetry() { }
 
     __ProxyTrackable(location, kis_tracked_location_triplet, location);
+    __Proxy(telem_timestamp, double, double, double, telem_ts);
     __Proxy(yaw, double, double, double, yaw);
     __Proxy(pitch, double, double, double, pitch);
     __Proxy(roll, double, double, double, roll);
@@ -110,6 +111,9 @@ protected:
                     std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
                     "GPS location");
 
+        RegisterField("uav.telemetry.timestamp", TrackerDouble,
+                "timetamp (sec.usec)", &telem_ts);
+
         RegisterField("uav.telemetry.yaw", TrackerDouble, 
                 "yaw", &yaw);
         RegisterField("uav.telemetry.pitch", TrackerDouble, 
@@ -148,6 +152,8 @@ protected:
 
     std::shared_ptr<kis_tracked_location_triplet> location;
     int location_id;
+
+    SharedTrackerElement telem_ts;
 
     SharedTrackerElement yaw;
     SharedTrackerElement pitch;
