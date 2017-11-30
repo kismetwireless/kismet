@@ -1133,11 +1133,15 @@ function update_datasource2(data, state) {
 
         set_row(sdiv, 'retry', '<b>Retry on Error</b>', rts);
 
-        if (source['kismet.datasource.running'] &&
-                source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable']) {
+        if (source['kismet.datasource.running']) {
             set_row(sdiv, 'pausing', '<b>Active</b>', pausediv);
-            set_row(sdiv, 'chanopts', '<b>Channel Options</b>', quickopts);
-            set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
+            if (source['kismet.datasource.type_driver']['kismet.datasource.driver.tuning_capable']) {
+                set_row(sdiv, 'chanopts', '<b>Channel Options</b>', quickopts);
+                set_row(sdiv, 'channels', '<b>Channels</b>', chanbuttons);
+            } else {
+                $('#trchanopts', sdiv).remove();
+                $('#trchannels', sdiv).remove();
+            }
         } else {
             $('#trpausing', sdiv).remove();
             $('#trchanopts', sdiv).remove();
