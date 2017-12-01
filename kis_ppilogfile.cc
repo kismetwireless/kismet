@@ -47,6 +47,10 @@ KisPPILogfile::KisPPILogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_b
 }
 
 bool KisPPILogfile::Log_Open(std::string in_path) {
+    local_locker lock(&log_mutex);
+
+    set_int_log_path(in_path);
+
 	dumpfile = NULL;
 	dumper = NULL;
 
@@ -70,6 +74,8 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 	}
 
 	_MSG("Opened pcapdump log file '" + in_path + "'", MSGFLAG_INFO);
+
+    set_int_log_open(true);
 
 	packetchain->RegisterHandler(&KisPPILogfile::packet_handler, this, CHAINPOS_LOGGING, -100);
 

@@ -689,6 +689,18 @@ Returns information about a specific stream, indicated by `[id]`
 
 Closes the stream (ending the log) specified by `[id]`
 
+## Logging
+
+Kismet has a centralized logging architecture which can report what logs are enabled, and what logs are possible.
+
+##### /logging/drivers `/logging/drivers.msgpack`, `/logging/drivers.json`
+
+Return a vector of all possible log drivers.  This provides the logging class/type, description, and other attributes of potential log outputs.
+
+##### /logging/active `/logging/active.msgpack`, `/logging/active.json`
+
+Return a vector of all active log files.
+
 ## 802.11 Specific
 
 ##### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap

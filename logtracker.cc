@@ -273,6 +273,18 @@ void LogTracker::Usage(const char *argv0) {
 }
 
 bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") == 0) {
+        if (!Httpd_CanSerialize(path))
+            return false;
+
+        std::string stripped = Httpd_StripSuffix(path);
+
+        if (stripped == "/logging/drivers")
+            return true;
+
+        if (stripped == "/logging/active")
+            return true;
+    }
 
     return false;
 }
@@ -282,6 +294,17 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) {
 
+    local_locker lock(&tracker_mutex);
+
+    std::string stripped = Httpd_StripSuffix(url);
+
+    if (stripped == "/logging/drivers") {
+        entrytracker->Serialize(httpd->GetSuffix(url), stream, logproto_vec, NULL);
+        return;
+    } else if (stripped == "/logging/active") {
+        entrytracker->Serialize(httpd->GetSuffix(url), stream, logfile_vec, NULL);
+        return;
+    }
 }
 
 int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {

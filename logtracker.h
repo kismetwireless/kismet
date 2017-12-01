@@ -133,6 +133,10 @@ public:
         register_fields();
         reserve_fields(NULL);
         builder = in_builder;
+
+        uuid luuid;
+        luuid.GenerateRandomTimeUUID();
+        set_int_log_uuid(luuid);
     }
 
     virtual ~KisLogfile() { 
@@ -151,13 +155,26 @@ public:
         return SharedTrackerElement(new KisLogfile(globalreg, get_id(), builder));
     }
 
-    virtual bool Log_Open(std::string in_path) { return false; }
-    virtual void Log_Close() { }
+    virtual bool Log_Open(std::string in_path) { 
+        local_locker lock(&log_mutex);
+
+        set_int_log_path(in_path);
+        set_int_log_open(false);
+
+        return false; 
+    }
+
+    virtual void Log_Close() { 
+        local_locker lock(&log_mutex);
+
+        set_int_log_open(false);
+    }
 
     __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
     __ProxyTrackable(builder, KisLogfileBuilder, builder);
     __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
     __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
+    __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);
 
 protected:
     virtual void register_fields() {
