@@ -116,6 +116,91 @@ void dot11_tracked_eapol::reserve_fields(SharedTrackerElement e) {
     add_map(eapol_packet);
 }
 
+void dot11_tracked_ssid_alert::register_fields() {
+    tracker_component::register_fields();
+
+    RegisterField("dot11.ssidalert.name", TrackerString,
+            "Unique name of alert group", &ssid_group_name);
+    RegisterField("dot11.ssidalert.regex", TrackerString,
+            "Matching regex for SSID", &ssid_regex);
+    RegisterField("dot11.ssidalert.allowed_macs", TrackerVector,
+            "Allowed MAC addresses", &allowed_macs_vec);
+
+    allowed_mac_id =
+        RegisterField("dot11.ssidalert.allowed_mac", TrackerMac,
+                "mac address");
+
+}
+
+void dot11_tracked_ssid_alert::set_regex(std::string s) {
+#ifdef HAVE_LIBPCRE
+    local_locker lock(&ssid_mutex);
+
+    const char *compile_error, *study_error;
+    int erroroffset;
+    std::ostringstream errordesc;
+
+    if (ssid_re)
+        pcre_free(ssid_re);
+    if (ssid_study)
+        pcre_free(ssid_study);
+
+    ssid_regex->set(s);
+
+    ssid_re = pcre_compile(s.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+    if (ssid_re == NULL) {
+        errordesc << "Could not parse PCRE: " << compile_error << 
+            "at character " << erroroffset;
+        throw std::runtime_error(errordesc.str());
+    }
+
+    ssid_study = pcre_study(ssid_re, 0, &study_error);
+
+    if (ssid_study == NULL) {
+        errordesc << "Could not parse PCRE, optimization failure: " << study_error;
+        throw std::runtime_error(errordesc.str());
+    } 
+#endif
+}
+
+void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
+    local_locker lock(&ssid_mutex);
+
+    TrackerElementVector v(allowed_macs_vec);
+
+    v.clear();
+
+    for (auto i : mvec) {
+        SharedTrackerElement e(new TrackerElement(TrackerMac, allowed_mac_id));
+        e->set(i);
+
+        v.push_back(e);
+    }
+}
+
+bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
+    local_locker lock(&ssid_mutex);
+
+    int rc;
+    int ovector[128];
+
+    rc = pcre_exec(ssid_re, ssid_study, ssid.c_str(), ssid.length(), 0, 0, ovector, 128);
+
+    if (rc > 0) {
+        TrackerElementVector v(allowed_macs_vec);
+
+        // Look for a mac address which isn't in the allowed list
+        for (auto m : v) {
+            if (m->get_mac() != mac)
+                return true;
+        }
+    }
+
+    return false;
+
+}
+
 void dot11_tracked_nonce::register_fields() {
     tracker_component::register_fields();
 
@@ -146,6 +231,8 @@ void dot11_tracked_nonce::set_from_eapol(SharedTrackerElement in_tracked_eapol) 
     set_eapol_time(e->get_eapol_time());
     set_eapol_msg_num(e->get_eapol_msg_num());
     set_eapol_replay_counter(e->get_eapol_replay_counter());
+
+
     set_eapol_install(e->get_eapol_install());
     set_eapol_nonce(e->get_eapol_nonce());
 }
@@ -229,6 +316,14 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 
     pack_comp_l1info =
         packetchain->RegisterPacketComponent("RADIODATA");
+
+    ssid_regex_vec =
+        entrytracker->RegisterAndGetField("phy80211.ssid_alerts", TrackerVector,
+                "Regex SSID alert configuration");
+    ssid_regex_vec_element_id =
+        entrytracker->RegisterField("phy80211.ssid_alert", 
+                shared_ptr<dot11_tracked_ssid_alert>(new dot11_tracked_ssid_alert(globalreg, 0)),
+                "ssid alert");
 
 	// Register the dissector alerts
 	alert_netstumbler_ref = 
@@ -546,6 +641,69 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
         recent_packet_checksums[x] = 0;
     }
     recent_packet_checksum_pos = 0;
+
+    // Parse the ssid regex options
+    auto apspoof_lines = globalreg->kismet_config->FetchOptVec("apspoof");
+
+    TrackerElementVector apv(ssid_regex_vec);
+
+    for (auto l : apspoof_lines) {
+        size_t cpos = l.find(':');
+        
+        if (cpos == std::string::npos) {
+            _MSG("Invalid 'apspoof' configuration line, expected 'name:ssid=\"...\","  
+                    "validmacs=\"...\" but got '" + l + "'", MSGFLAG_ERROR);
+            continue;
+        }
+
+        std::string name = l.substr(0, cpos);
+
+        std::vector<opt_pair> optvec;
+        StringToOpts(l.substr(cpos + 1, l.length()), ",", &optvec);
+
+        std::string ssid = FetchOpt("ssid", &optvec);
+
+        if (ssid == "") {
+            _MSG("Invalid 'apspoof' configuration line, expected 'name:ssid=\"...\","  
+                    "validmacs=\"...\" but got '" + l + "'", MSGFLAG_ERROR);
+            continue;
+        }
+
+        std::vector<mac_addr> macvec;
+        for (auto m : StrTokenize(FetchOpt("validmacs", &optvec), ",", true)) {
+            mac_addr ma(m);
+
+            if (ma.error) {
+                macvec.clear();
+                break;
+            }
+
+            macvec.push_back(ma);
+        }
+
+        if (macvec.size() == 0) {
+            _MSG("Invalid 'apspoof' configuration line, expected 'name:ssid=\"...\","  
+                    "validmacs=\"...\" but got '" + l + "'", MSGFLAG_ERROR);
+            continue;
+        }
+
+        shared_ptr<dot11_tracked_ssid_alert> 
+            ssida(new dot11_tracked_ssid_alert(globalreg, ssid_regex_vec_element_id));
+
+        try {
+            ssida->set_group_name(name);
+            ssida->set_regex(ssid);
+            ssida->set_allowed_macs(macvec);
+        } catch (std::runtime_error &e) {
+            _MSG("Invalid 'apspoof' configuration line '" + l + "': " + e.what(),
+                    MSGFLAG_ERROR);
+            continue;
+        }
+
+        apv.push_back(ssida);
+
+    }
+
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
@@ -857,6 +1015,38 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
             if (ssid->get_last_time() < in_pack->ts.tv_sec)
                 ssid->set_last_time(in_pack->ts.tv_sec);
+
+            // If we have a new ssid and we can consider raising an alert, do the 
+            // regex compares to see if we trigger apspoof
+            if (dot11info->ssid_len != 0 &&
+                    globalreg->alertracker->PotentialAlert(alert_ssidmatch_ref)) {
+                TrackerElementVector sv(ssid_regex_vec);
+
+                for (auto s : sv) {
+                    std::shared_ptr<dot11_tracked_ssid_alert> sa =
+                        std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
+
+                    if (sa->compare_ssid(dot11info->ssid, dot11info->source_mac)) {
+                        std::string ntype = 
+                            dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
+                            std::string("responding for");
+
+                        string al = "IEEE80211 Unauthorized device (" + 
+                            dot11info->source_mac.Mac2String() + std::string(") ") + ntype + 
+                            " for SSID '" + dot11info->ssid + "', matching APSPOOF "
+                            "rule " + sa->get_group_name() + 
+                            std::string("which may indicate spoofing or impersonation.");
+
+                        globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
+                                dot11info->bssid_mac, 
+                                dot11info->source_mac, 
+                                dot11info->dest_mac, 
+                                dot11info->other_mac, 
+                                dot11info->channel, al);
+                        break;
+                    }
+                }
+            }
         } else {
             ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
             if (ssid->get_last_time() < in_pack->ts.tv_sec)
@@ -1125,101 +1315,6 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                 pack_gpsinfo->alt, pack_gpsinfo->fix);
 
     }
-
-
-    // TODO restore AP spoof protection
-#if 0
-	// If it's a probe response record it in the SSID cache, we only record
-	// one per BSSID for now and only if we have a cloaked SSID on this record.
-	// While we're at it, also figure out if we're responding for SSIDs we've never
-	// been advertising (in a non-cloaked way), that's probably not a good
-	// thing.
-	if (packinfo->type == packet_management &&
-		packinfo->subtype == packet_sub_probe_resp &&
-		(packinfo->ssid_len || packinfo->ssid_blank == 0)) {
-
-		dev = devicetracker->FetchDevice(packinfo->bssid_mac);
-
-		if (dev != NULL) {
-			net = (dot11_device *) dev->fetch(dev_comp_dot11);
-
-			if (net != NULL) {
-				for (map<uint32_t, dot11_ssid *>::iterator asi = 
-					 net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
-
-					// Catch beacon, cloaked situation
-					if (asi->second->type == dot11_ssid_beacon &&
-						asi->second->ssid_cloaked) {
-						// Remember the revealed SSID
-						ssid_conf->SetOpt(packinfo->bssid_mac.Mac2String(), 
-										  packinfo->ssid, 
-										  in_pack->ts.tv_sec);
-					}
-
-				}
-			}
-		}
-	}
-
-	if (packinfo->type == packet_management &&
-		(packinfo->subtype == packet_sub_probe_resp || 
-		 packinfo->subtype == packet_sub_beacon)) {
-
-		// Run it through the AP spoof protection system
-		for (unsigned int x = 0; x < apspoof_vec.size(); x++) {
-			// Shortcut to checking the mac address first, if it's one we 
-			// have then we don't have to do the expensive operation of pcre or
-			// string matching
-			if (apspoof_vec[x]->allow_mac_map.find(packinfo->source_mac) !=
-				apspoof_vec[x]->allow_mac_map.end()) {
-				continue;
-			}
-
-			int match = 0, matched = 0;
-			string match_type;
-
-#ifdef HAVE_LIBPCRE
-			if (apspoof_vec[x]->ssid_re != NULL) {
-				int ovector[128];
-
-				match = (pcre_exec(apspoof_vec[x]->ssid_re, apspoof_vec[x]->ssid_study,
-								   packinfo->ssid.c_str(), packinfo->ssid.length(),
-								   0, 0, ovector, 128) >= 0);
-
-				match_type = "regular expression";
-				matched = 1;
-			}
-#endif
-
-			if (matched == 0) {
-				match = (apspoof_vec[x]->ssid == packinfo->ssid);
-				match_type = "SSID";
-				matched = 1;
-			}
-
-			if (match && globalreg->alertracker->PotentialAlert(alert_adhoc_ref)) {
-				string ntype = 
-					packinfo->subtype == packet_sub_beacon ? string("advertising") :
-					string("responding for");
-
-				string al = "IEEE80211 Unauthorized device (" + 
-					packinfo->source_mac.Mac2String() + string(") ") + ntype + 
-					" for SSID '" + packinfo->ssid + "', matching APSPOOF "
-					"rule " + apspoof_vec[x]->name + string(" with ") + match_type + 
-					string(" which may indicate spoofing or impersonation.");
-
-				globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
-												   packinfo->bssid_mac, 
-												   packinfo->source_mac, 
-												   packinfo->dest_mac, 
-												   packinfo->other_mac, 
-												   packinfo->channel, al);
-				break;
-			}
-		}
-	}
-
-#endif
 
 }
 

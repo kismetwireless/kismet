@@ -344,6 +344,72 @@ protected:
 
 };
 
+class dot11_tracked_ssid_alert : public tracker_component {
+public:
+    dot11_tracked_ssid_alert(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+
+#ifdef HAVE_LIBPCRE
+            ssid_re = NULL;
+            ssid_study = NULL;
+#endif
+
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    dot11_tracked_ssid_alert(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+#ifdef HAVE_LIBCPRE
+        ssid_re = NULL;
+        ssid_study = NULL;
+#endif
+
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual ~dot11_tracked_ssid_alert() {
+#ifdef HAVE_LIBCPRE
+        if (ssid_re != NULL)
+            pcre_free(ssid_re);
+        if (ssid_study != NULL)
+            pcre_free(ssid_study);
+#endif
+    }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new dot11_tracked_ssid_alert(globalreg, get_id()));
+    }
+
+    __Proxy(group_name, std::string, std::string, std::string, ssid_group_name);
+
+    // Control the regex.  MAY THROW std::runtime_error if the regex is invalid
+    __ProxyGet(regex, std::string, std::string, ssid_regex);
+    void set_regex(std::string s);
+
+    __ProxyOnlyTrackable(allowed_macs_vec, SharedTrackerElement, allowed_macs_vec);
+
+    void set_allowed_macs(std::vector<mac_addr> mvec);
+
+    bool compare_ssid(std::string ssid, mac_addr mac);
+
+protected:
+    kis_recursive_timed_mutex ssid_mutex;
+
+    virtual void register_fields();
+
+    SharedTrackerElement ssid_group_name;
+    SharedTrackerElement ssid_regex;
+    SharedTrackerElement allowed_macs_vec;
+    int allowed_mac_id;
+
+#ifdef HAVE_LIBPCRE
+    pcre *ssid_re;
+    pcre_extra *ssid_study;
+#endif
+};
+
 class dot11_11d_tracked_range_info : public tracker_component {
     public:
         dot11_11d_tracked_range_info(GlobalRegistry *in_globalreg, int in_id) :
@@ -1318,6 +1384,10 @@ protected:
     FilterCore *string_filter;
     macmap<int> string_nets;
 
+    // SSID regex filter
+    SharedTrackerElement ssid_regex_vec;
+    int ssid_regex_vec_element_id;
+
     // Dissector alert references
     int alert_netstumbler_ref, alert_nullproberesp_ref, alert_lucenttest_ref,
         alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
@@ -1359,8 +1429,6 @@ protected:
 
     // probe assoc to owning network
     map<mac_addr, kis_tracked_device_base *> probe_assoc_map;
-
-    vector<dot11_ssid_alert *> apspoof_vec;
 
     // Do we time out components of devices?
     int device_idle_expiration;
