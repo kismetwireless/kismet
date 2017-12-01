@@ -637,7 +637,6 @@ void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)),
     }
 
     delete(con_info);
-    *con_cls = NULL;
 }
 
 static ssize_t file_reader(void *cls, uint64_t pos, char *buf, size_t max) {
