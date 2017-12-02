@@ -1035,7 +1035,7 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
                             dot11info->source_mac.Mac2String() + std::string(") ") + ntype + 
                             " for SSID '" + dot11info->ssid + "', matching APSPOOF "
                             "rule " + sa->get_group_name() + 
-                            std::string("which may indicate spoofing or impersonation.");
+                            std::string(" which may indicate spoofing or impersonation.");
 
                         globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
                                 dot11info->bssid_mac, 
