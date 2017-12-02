@@ -561,7 +561,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             int64_t rawt = structdata->getKeyAsNumber("last_time");
 
             if (rawt < 0)
-                post_ts = time(0) - rawt;
+                post_ts = time(0) + rawt;
             else
                 post_ts = rawt;
         }
