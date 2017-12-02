@@ -628,14 +628,18 @@ void Kis_Net_Httpd::http_request_completed(void *cls __attribute__((unused)),
     if (con_info == NULL)
         return;
 
-    // Lock before we shut it down
-    std::lock_guard<std::mutex> lk(con_info->connection_mutex);
+    // Lock and shut it down
+    {
+        std::lock_guard<std::mutex> lk(con_info->connection_mutex);
 
-    if (con_info->connection_type == Kis_Net_Httpd_Connection::CONNECTION_POST) {
-        MHD_destroy_post_processor(con_info->postprocessor);
-        con_info->postprocessor = NULL;
+        if (con_info->connection_type == Kis_Net_Httpd_Connection::CONNECTION_POST) {
+            MHD_destroy_post_processor(con_info->postprocessor);
+            con_info->postprocessor = NULL;
+        }
     }
 
+    // Destroy connection
+    
     delete(con_info);
 }
 
