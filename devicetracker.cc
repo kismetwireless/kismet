@@ -1111,6 +1111,9 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
         TrackerElementVector vec, bool batch) {
 
     kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+                if (val == NULL)
+                    return;
+
                 std::shared_ptr<kis_tracked_device_base> v = 
                     std::static_pointer_cast<kis_tracked_device_base>(val);
 
