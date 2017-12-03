@@ -1,0 +1,16 @@
+[Unit]
+Description=Kismet debug
+ConditionPathExists=/usr/local/bin/kismet_debug
+
+[Service]
+User=kismet
+Group=kismet
+Type=simple
+ExecStart=/usr/local/bin/kismet_debug
+TimeoutSec=0
+SysVStartPriority=99
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

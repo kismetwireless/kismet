@@ -1,0 +1,30 @@
+Kismet Debug Service
+
+# Purpose
+
+    The Kismet debug service runs Kismet, via systemd, in debug mode.  Logs of full
+    thread and backtrace info are stored in /var/log/kismet-debug-[timestamp].log.
+
+# Installing
+
+    You'll need to install two files:
+
+        $ sudo cp kismet_debug /usr/local/bin/
+        $ sudo cp kismet-debug.service /etc/systemd/system/
+
+    If you have installed Kismet to a different prefix, such as /usr, you'll need
+    to adjust the paths accordingly.  You will need to adjust the path in
+    kismet-debug.service as well.
+
+# Activating
+
+    To start Kismet via systemd:
+
+        $ sudo service kismet-debug start
+
+    To start Kismet, with debugging, by default on boot:
+
+        $ sudo systemctl enable kismet-debug
+
+
+
