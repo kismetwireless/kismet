@@ -5,7 +5,7 @@ PLUGIN_NAME ?= dashboard
 KIS_SRC_DIR ?= /usr/src/kismet
 KIS_INC_DIR ?= $(KIS_SRC_DIR)
 
-include $(KIS_SRC_DIR)/Makefile.inc
+-include $(KIS_SRC_DIR)/Makefile.inc
 
 BLDHOME	= .
 top_builddir = $(BLDHOME)
