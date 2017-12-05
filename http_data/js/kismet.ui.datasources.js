@@ -594,7 +594,7 @@ function update_datasource2(data, state) {
                     $('<span>', {
                         class: 'k-ds-source',
                     })
-                    .html("Available Source: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')')
+                    .html("Available Interface: " + intf['kismet.datasource.probed.interface'] + ' (' + intf['kismet.datasource.type_driver']['kismet.datasource.driver.type'] + ')')
                 )
             ).append(
                 $('<div>', {
@@ -967,28 +967,31 @@ function update_datasource2(data, state) {
               $('#hop[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
               $('#lock[uuid=' + uuid + ']', state['content']).addClass('enable-chan-user');
 
+              var firstchanobj = $('button.chanbutton[uuid=' + uuid + ']', state['content']).first();
+
+              var chan = firstchanobj.attr('channel');
+
               var jscmd = {
                   "cmd": "lock",
-                  "channel": "1",
+                  "channel": chan,
                   "uuid": uuid
               };
               var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
               $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
               .always(function() {
                       state['defer_command_progress'] = false;
-            });
+                      });
 
               $('button.chanbutton[uuid='+ uuid + ']', state['content']).each(function(i) {
-                  // Disable all but the first available channel
-                  if ($(this).attr('channel') == 1) {
-                      $(this).removeClass('disabled-chan-user');
-                      $(this).removeClass('enable-chan-system');
-                      $(this).addClass('enable-chan-user')
-                  } else {
                       $(this).removeClass('enable-chan-system');
                       $(this).removeClass('disable-chan-user');
-                  }
               });
+
+              // Disable all but the first available channel
+              firstchanobj.removeClass('disabled-chan-user');
+              firstchanobj.removeClass('enable-chan-system');
+              firstchanobj.addClass('enable-chan-user')
+
               })
             );
 
