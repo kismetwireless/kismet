@@ -816,8 +816,9 @@ void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)>
             for (auto s = dsv.begin(); s != dsv.end(); ++s) {
                 SharedDatasource sds =
                     std::static_pointer_cast<KisDatasource>(*s);
-                if ((*il)->get_interface() == sds->get_source_interface() ||
-                        (*il)->get_interface() == sds->get_source_cap_interface()) {
+                if (!sds->get_source_remote() &&
+                        ((*il)->get_interface() == sds->get_source_interface() ||
+                         (*il)->get_interface() == sds->get_source_cap_interface())) {
                     (*il)->set_in_use_uuid(sds->get_source_uuid());
                     break;
                 }
