@@ -82,7 +82,11 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
     return true;
 }
 
-KisPPILogfile::~KisPPILogfile() {
+void KisPPILogfile::Log_Close() {
+    local_locker lock(&log_mutex);
+
+    set_int_log_open(false);
+
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
     if (packetchain != NULL) 
@@ -100,6 +104,11 @@ KisPPILogfile::~KisPPILogfile() {
 
 	dumper = NULL;
 	dumpfile = NULL;
+
+}
+
+KisPPILogfile::~KisPPILogfile() {
+    Log_Close();
 }
 
 void KisPPILogfile::RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {

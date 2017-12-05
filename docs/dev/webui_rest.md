@@ -1,8 +1,8 @@
-# Extending Kismet - Webserver Endpoints
+# Extending Kismet - REST Web server Endpoints
 
-Kismet uses a REST-like interface on the embedded webserver for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.
+Kismet uses a REST-like interface on the embedded web server for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.
 
-*Broadly speaking*, nearly all endpoints in Kismet should support all loaded output methods.  By default, these are JSON and Msgpack, but additional output serializers may be added in the future or added by plugins.
+*Broadly speaking*, nearly all endpoints in Kismet should support all output and serialization methods.  By default, these are JSON and Msgpack, but additional output serializers may be added in the future or added by plugins.
 
 Data returned by JSON serializers will transform field names to match the path delimiters used in many JS implementations - specifically, all instances of '.' will be transformed to '_'.
 
@@ -46,9 +46,8 @@ $ curl http://localhost:2501/datasource/all_sources.json | python -mjson.tool
 
 Similarly, POST data can be sent via curl; for example to test creating an alert via the dynamic alerts endpoint:
 
-```
-$ curl -d 'json={"name": "JSONALERT", "description": "Dynamic alert added at runtime", "throttle": "10/min", "burst": "1/sec"}' \
-    http://kismet:kismet@localhost:2501/alerts/definitions/define_alert.cmd
+```bash
+$ curl -d 'json={"name": "JSONALERT", "description": "Dynamic alert added at runtime", "throttle": "10/min", "burst": "1/sec"}' http://kismet:kismet@localhost:2501/alerts/definitions/define_alert.cmd
 ```
 
 which passes the parameters in the `json=` variable, and the login and password in the URI (kismet:kismet in this example).
@@ -286,11 +285,11 @@ Additionally, a wrapper may be specified, which indicates a transient dictionary
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| fields | Field specification | field specification array listing fields and mappings |
-| regex | Regex specification | Optional, regular expression filter |
-| wrapper | "foo" | string | Optional, wrapper dictionary to surround the data |
+| Key     | Value               | Type                                     | Desc                                     |
+| ------- | ------------------- | ---------------------------------------- | ---------------------------------------- |
+| fields  | Field specification | field specification array listing fields and mappings |                                          |
+| regex   | Regex specification | Optional, regular expression filter      |                                          |
+| wrapper | "foo"               | string                                   | Optional, wrapper dictionary to surround the data |
 
 ##### /devices/all_devices.ekjson
 
@@ -312,10 +311,10 @@ Optionally, a regex dictionary may be provided to filter the devices returned.
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| fields | Field specification | Optional, field specification array listing fields and mappings |
-| regex | Regex specification | Optional, regular expression filter |
+| Key    | Value               | Type                                     | Desc |
+| ------ | ------------------- | ---------------------------------------- | ---- |
+| fields | Field specification | Optional, field specification array listing fields and mappings |      |
+| regex  | Regex specification | Optional, regular expression filter      |      |
 
 ##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
@@ -337,9 +336,9 @@ Dictionary object of device, simplified by the `fields` argument in accordance t
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| fields | Field specification | Optional, field specification array listing fields and mappings |
+| Key    | Value               | Type                                     | Desc |
+| ------ | ------------------- | ---------------------------------------- | ---- |
+| fields | Field specification | Optional, field specification array listing fields and mappings |      |
 
 ##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey] `/devices/by-key/[DEVICEKEY]/device.msgpack[/path/to/subkey]`, `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
@@ -355,9 +354,9 @@ Dictionary object of device, simplified by the `fields` argument in accordance t
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| fields | Field specification | Optional, field specification array listing fields and mappings |
+| Key    | Value               | Type                                     | Desc |
+| ------ | ------------------- | ---------------------------------------- | ---- |
+| fields | Field specification | Optional, field specification array listing fields and mappings |      |
 
 ##### POST /devices/by-phy/[PHYNAME]/devices `/devices/by-phy/[PHYNAME]/devices.msgpack`, `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
 
@@ -365,10 +364,10 @@ List of devices, belonging to the phy `PHYNAME`.  The request can be filtered by
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| fields | Field specification | Array | Optional, field specification array listing fields and mappings |
-| regex | Regex specification | Array | Optional, regex specification array listing fields and regex values |
+| Key       | Value                           | Type    | Desc                                     |
+| --------- | ------------------------------- | ------- | ---------------------------------------- |
+| fields    | Field specification             | Array   | Optional, field specification array listing fields and mappings |
+| regex     | Regex specification             | Array   | Optional, regex specification array listing fields and regex values |
 | last_time | Timestamp or relative timestamp | Integer | Optional, timestamp.  If negative, treated as a relative timestamp (N seconds prior to now), if positive, treated as an absolute unix timestamp.  For example, `'last_time': -60` would return all devices in the past minute. |
 
 ## Phy Handling
@@ -431,13 +430,13 @@ Define and activate a new alert.  This alert can then be raised via the `raise_a
 
 Expects a command dictionary including:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| name | Alert name | String | Simple alert name/identifier |
-| description | Alert description | String | Alert explanation / definition displayed to the user |
-| phyname | Name of phy type | String | (Optional) name of phy this alert is associated with.  If not provided, alert will apply to all phy types.  If provided, the defined phy *must* be found or the alert will not be defined. |
-| throttle | Alert throttle rate | String | Maximum number of alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day', for example '10/min' |
-| burst | Alert burst rate | String | Maximum number of sequential alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day'.  Alerts will be throttled to this burst rate even when the overall limit has not been hit.  For example, '1/sec' |
+| Key         | Value               | Type   | Desc                                     |
+| ----------- | ------------------- | ------ | ---------------------------------------- |
+| name        | Alert name          | String | Simple alert name/identifier             |
+| description | Alert description   | String | Alert explanation / definition displayed to the user |
+| phyname     | Name of phy type    | String | (Optional) name of phy this alert is associated with.  If not provided, alert will apply to all phy types.  If provided, the defined phy *must* be found or the alert will not be defined. |
+| throttle    | Alert throttle rate | String | Maximum number of alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day', for example '10/min' |
+| burst       | Alert burst rate    | String | Maximum number of sequential alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day'.  Alerts will be throttled to this burst rate even when the overall limit has not been hit.  For example, '1/sec' |
 
 ##### POST /alerts/raise_alert.cmd
 
@@ -447,15 +446,15 @@ Trigger an alert.  This generates a standard Kismet alert of the specified type 
 
 Expects a command dictionary including:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| name | Alert name | String | Alert name/identifier.  Must be a defined alert name. |
-| text | Alert content | String | Human-readable text for alert |
-| bssid | MAC address | String | (optional) MAC address of the BSSID, if Wi-Fi, related to this alert |
-| source | MAC address | String | (optional) MAC address the source device which triggered this alert |
-| dest | MAC address | String | (optional) MAC address of the destination device which triggered this alert |
-| other | MAC address | String | (optional) Related other MAC address of the event which triggered this alert |
-| channel | Channel | String | (optional) Phy-specific channel definition of the event which triggered this alert |
+| Key     | Value         | Type   | Desc                                     |
+| ------- | ------------- | ------ | ---------------------------------------- |
+| name    | Alert name    | String | Alert name/identifier.  Must be a defined alert name. |
+| text    | Alert content | String | Human-readable text for alert            |
+| bssid   | MAC address   | String | (optional) MAC address of the BSSID, if Wi-Fi, related to this alert |
+| source  | MAC address   | String | (optional) MAC address the source device which triggered this alert |
+| dest    | MAC address   | String | (optional) MAC address of the destination device which triggered this alert |
+| other   | MAC address   | String | (optional) Related other MAC address of the event which triggered this alert |
+| channel | Channel       | String | (optional) Phy-specific channel definition of the event which triggered this alert |
 
 ## Channels
 
@@ -515,12 +514,12 @@ Change the channel configuration of the source identified by `[uuid]` - can be u
 
 Expects a command dictionary including:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| channel | Single channel | String | Single channel; This disables channel hopping and sets a specific channel.  Channel format depends on the source. |
-| hoprate | Channel hopping speed | Double | Channel hopping speed, as channels per second.  For timing greater than a second, rate can be calculated with the formula `hoprate = 1 / (6 / N)` where N is the number of hops per minute. |
-| channels | List of channels | Vector of strings | The list of channel strings to use in hopping |
-| shuffle | 0 / 1 | Integer | Treated as boolean, tells the source to shuffle the channel list |
+| Key      | Value                 | Type              | Desc                                     |
+| -------- | --------------------- | ----------------- | ---------------------------------------- |
+| channel  | Single channel        | String            | Single channel; This disables channel hopping and sets a specific channel.  Channel format depends on the source. |
+| hoprate  | Channel hopping speed | Double            | Channel hopping speed, as channels per second.  For timing greater than a second, rate can be calculated with the formula `hoprate = 1 / (6 / N)` where N is the number of hops per minute. |
+| channels | List of channels      | Vector of strings | The list of channel strings to use in hopping |
+| shuffle  | 0 / 1                 | Integer           | Treated as boolean, tells the source to shuffle the channel list |
 
 * If `channel` is present, `hoprate`, `channels`, and `shuffle` should not be included, and will be ignored if present.  The source will be locked to a single channel.
 * If `channel` is not present, the remaining fields may be specified.
@@ -608,12 +607,12 @@ Requires that the Kismet server has the 'web' GPS driver enabled via kismet.conf
 
 Expects a command dictionary including:
 
-| Key | Value | Type | Desc |
-| --- | ----- | ---- | ---- |
-| lat | latitude | double | GPS latitude |
-| lon | longitude | double | GPS longitude |
-| alt | altitude (in Meters) | double | GPS altitude in meters (optional) |
-| spd | speed (kph) | double | Speed in kilometers per hour (optional) |
+| Key  | Value                | Type   | Desc                                    |
+| ---- | -------------------- | ------ | --------------------------------------- |
+| lat  | latitude             | double | GPS latitude                            |
+| lon  | longitude            | double | GPS longitude                           |
+| alt  | altitude (in Meters) | double | GPS altitude in meters (optional)       |
+| spd  | speed (kph)          | double | Speed in kilometers per hour (optional) |
 
 ## Packet Capture
 
@@ -700,6 +699,30 @@ Return a vector of all possible log drivers.  This provides the logging class/ty
 ##### /logging/active `/logging/active.msgpack`, `/logging/active.json`
 
 Return a vector of all active log files.
+
+##### /logging/by-class/[class]/start `/logging/by-class/[class]/start.cmd`, `/logging/by-class/[class]/start.jcmd` 
+
+*LOGIN REQUIRED*
+
+Start a new log file of type `[class]`.  If successful, returns the log object denoting the UUID, path, and other information about the new log.
+
+##### POST /logging/by-class/[class]/start `/logging/by-class/[class]/start.cmd`, `/logging/by-class/[class]/start.jcmd` 
+
+*LOGIN REQUIRED*
+
+Start a new log file of the type `[class]`.  If successful, returns the log object denoting the UUID, path, and other information about the new log.
+
+Expects a command dictionary including:
+
+| Key   | Value     | Type   | Description                              |
+| ----- | --------- | ------ | ---------------------------------------- |
+| title | log title | string | Alternate log title; This is substituted into the logging path in place of the `log_title=` in the Kismet config |
+
+##### /logging/by-uuid/[uuid]/stop `/logging/by-uuid/[uuid]/stop.cmd`, `/logging/by-uuid/[uuid]/stop.jcmd`
+
+*LOGIN REQUIRED*
+
+Stop, and close, the logfile specified by `[uuid]`.  The log file must be open.
 
 ## 802.11 Specific
 

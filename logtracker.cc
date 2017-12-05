@@ -25,6 +25,10 @@
 #include "messagebus.h"
 #include "configfile.h"
 #include "alertracker.h"
+#include "structured.h"
+#include "msgpack_adapter.h"
+#include "kismet_json.h"
+#include "base64.h"
 
 LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
     tracker_component(in_globalreg, 0),
@@ -192,40 +196,11 @@ void LogTracker::Deferred_Startup() {
         return;
     }
 
-    TrackerElementVector builders(logproto_vec);
-    TrackerElementVector logfiles(logfile_vec);
-
+    // Open all of them
     for (auto t : v) {
         std::string logtype = GetTrackerValue<std::string>(t);
 
-        // Scan all the builders and find a matching log type, build logfile for it
-        for (auto b : builders) {
-            std::shared_ptr<KisLogfileBuilder> builder =
-                std::static_pointer_cast<KisLogfileBuilder>(b);
-            if (builder->get_log_class() != logtype) 
-                continue;
-
-            // Generate the logfile using the builder an giving it the sharedptr
-            // to itself because sharedptrs are funky
-            SharedLogfile lf = builder->build_logfile(builder);
-            lf->set_id(logfile_entry_id);
-
-            logfiles.push_back(lf);
-        }
-    }
-
-    for (auto l : logfiles) {
-        SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
-
-        std::string logpath = 
-            globalreg->kismet_config->ExpandLogPath(get_log_template(), 
-                    get_log_title(),
-                    lf->get_builder()->get_log_class(), 1, 0);
-
-        if (!lf->Log_Open(logpath)) {
-            _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
-                    MSGFLAG_ERROR);
-        }
+        open_log(logtype);
     }
 
     return;
@@ -264,6 +239,85 @@ int LogTracker::register_log(SharedLogBuilder in_builder) {
     return 1;
 }
 
+SharedLogfile LogTracker::open_log(std::string in_class) {
+    return open_log(in_class, get_log_title());
+}
+
+SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
+    local_locker lock(&tracker_mutex);
+
+    SharedLogBuilder builder;
+
+    TrackerElementVector lfvec(logproto_vec);
+
+    for (auto lfi : lfvec) {
+        std::shared_ptr<KisLogfileBuilder> lfb =
+            std::static_pointer_cast<KisLogfileBuilder>(lfi);
+
+        if (lfb->get_log_class() == in_class) {
+            builder = lfb;
+            break;
+        }
+    }
+
+    if (builder == NULL)
+        return 0;
+
+    return open_log(builder, in_title);
+}
+
+SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder) {
+    return open_log(in_builder, get_log_title());
+}
+
+SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder, std::string in_title) {
+    local_locker lock(&tracker_mutex);
+
+    if (in_builder == NULL)
+        return NULL;
+
+    TrackerElementVector logfiles(logfile_vec);
+
+    // If it's a singleton, make sure we're the only one
+    if (in_builder->get_singleton()) {
+        for (auto l : logfiles) {
+            SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
+
+            if (lf->get_builder()->get_log_class() == in_builder->get_log_class() &&
+                    lf->get_log_open()) {
+                _MSG("Failed to open " + in_builder->get_log_class() + ", log already "
+                        "open at " + lf->get_log_path(), MSGFLAG_ERROR);
+                return NULL;
+            }
+        }
+    }
+
+    SharedLogfile lf = in_builder->build_logfile(in_builder);
+    lf->set_id(logfile_entry_id);
+
+    std::string logpath = 
+        globalreg->kismet_config->ExpandLogPath(get_log_template(), 
+                in_title,
+                lf->get_builder()->get_log_class(), 1, 0);
+
+    if (!lf->Log_Open(logpath)) {
+        _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
+                MSGFLAG_ERROR);
+    }
+
+    logfiles.push_back(lf);
+
+    return lf;
+}
+
+int LogTracker::close_log(SharedLogfile in_logfile) {
+    local_locker lock(&tracker_mutex);
+
+    in_logfile->Log_Close();
+
+    return 1;
+}
+
 void LogTracker::Usage(const char *argv0) {
     printf(" *** Logging Options ***\n");
 	printf(" -T, --log-types <types>      Override activated log types\n"
@@ -284,6 +338,84 @@ bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
 
         if (stripped == "/logging/active")
             return true;
+
+        std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+
+        // /logging/by-uuid/[foo]/stop 
+
+        if (tokenurl.size() < 4)
+            return false;
+
+        if (tokenurl[1] != "logging")
+            return false;
+
+        if (tokenurl[2] == "by-uuid") {
+            if (tokenurl[4] != "stop")
+                return false;
+
+            uuid u(tokenurl[3]);
+            if (u.error)
+                return false;
+
+            local_locker lock(&tracker_mutex);
+
+            TrackerElementVector fvec(logfile_vec);
+
+            for (auto lfi : fvec) {
+                std::shared_ptr<KisLogfile> lf = std::static_pointer_cast<KisLogfile>(lfi);
+
+                if (lf->get_log_uuid() == u)
+                    return true;
+            }
+        } else if (tokenurl[2] == "by-class") {
+            if (tokenurl[4] != "start")
+                return false;
+
+            local_locker lock(&tracker_mutex);
+
+            TrackerElementVector lfvec(logproto_vec);
+
+            for (auto lfi : lfvec) {
+                std::shared_ptr<KisLogfileBuilder> lfb =
+                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+
+                if (lfb->get_log_class() == tokenurl[3])
+                    return true;
+            }
+        }
+
+    } else if (strcmp(method, "POST") == 0) {
+        if (!Httpd_CanSerialize(path))
+            return false;
+
+        std::string stripped = Httpd_StripSuffix(path);
+
+        std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+
+        // /logging/by-class/[foo]/start + post vars
+
+        if (tokenurl.size() < 4)
+            return false;
+
+        if (tokenurl[1] != "logging")
+            return false;
+
+        if (tokenurl[2] == "by-class") {
+            if (tokenurl[4] != "start")
+                return false;
+
+            local_locker lock(&tracker_mutex);
+
+            TrackerElementVector lfvec(logproto_vec);
+
+            for (auto lfi : lfvec) {
+                std::shared_ptr<KisLogfileBuilder> lfb =
+                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+
+                if (lfb->get_log_class() == tokenurl[3])
+                    return true;
+            }
+        }
     }
 
     return false;
@@ -305,9 +437,182 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         entrytracker->Serialize(httpd->GetSuffix(url), stream, logfile_vec, NULL);
         return;
     }
+
+    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+
+    // /logging/by-uuid/[foo]/stop + post vars
+
+    if (tokenurl.size() < 4)
+        return;
+
+    if (tokenurl[1] != "logging")
+        return;
+
+    try {
+        if (tokenurl[2] == "by-uuid") {
+            uuid u(tokenurl[3]);
+            if (u.error) {
+                throw std::runtime_error("invalid uuid");
+            }
+
+            if (!httpd->HasValidSession(connection)) {
+                connection->httpcode = 503;
+                return;
+            }
+
+            local_locker lock(&tracker_mutex);
+
+            TrackerElementVector fvec(logfile_vec);
+
+            std::shared_ptr<KisLogfile> logfile;
+
+            for (auto lfi : fvec) {
+                std::shared_ptr<KisLogfile> lf = std::static_pointer_cast<KisLogfile>(lfi);
+
+                if (lf->get_log_uuid() == u) {
+                    logfile = lf;
+                    break;
+                }
+            }
+
+            if (logfile == NULL) {
+                throw std::runtime_error("invalid log uuid");
+            }
+
+            _MSG("Closing log file " + logfile->get_log_uuid().UUID2String() + " (" + 
+                    logfile->get_log_path() + ")", MSGFLAG_INFO);
+
+            logfile->Log_Close();
+
+            stream << "OK";
+            return;
+        } else if (tokenurl[2] == "by-class") {
+            local_locker lock(&tracker_mutex);
+
+            TrackerElementVector lfvec(logproto_vec);
+
+            std::shared_ptr<KisLogfileBuilder> builder;
+
+            for (auto lfi : lfvec) {
+                std::shared_ptr<KisLogfileBuilder> lfb =
+                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+
+                if (lfb->get_log_class() == tokenurl[3]) {
+                    builder = lfb;
+                    break;
+                }
+            }
+
+            if (builder == NULL) 
+                throw std::runtime_error("invalid logclass");
+
+            if (tokenurl[4] == "start") {
+                SharedLogfile logf;
+
+                logf = open_log(builder);
+
+                if (logf == NULL) 
+                    throw std::runtime_error("unable to open log");
+
+                entrytracker->Serialize(httpd->GetSuffix(url), stream, logf, NULL);
+
+                return;
+            }
+        } else {
+            throw std::runtime_error("unknown url");
+        }
+    } catch(const exception e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        connection->httpcode = 400;
+        return;
+    }
+
 }
 
 int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    SharedStructured structdata;
+
+    // All the posts require login
+    if (!httpd->HasValidSession(concls, true)) {
+        return MHD_YES;
+    }
+
+    try {
+        // Decode the base64 msgpack and parse it, or parse the json
+        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
+            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
+        } else if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+        } else {
+            throw StructuredDataException("Missing data");
+        }
+    } catch(const StructuredDataException e) {
+        concls->response_stream << "Invalid request: ";
+        concls->response_stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    std::string stripped = Httpd_StripSuffix(concls->url);
+
+    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+
+    // /logging/by-class/[foo]/start + post vars
+
+    if (tokenurl.size() < 4)
+        return false;
+
+    if (tokenurl[1] != "logging")
+        return false;
+
+    try {
+        if (tokenurl[2] == "by-class") {
+            local_locker lock(&tracker_mutex);
+
+            TrackerElementVector lfvec(logproto_vec);
+
+            std::shared_ptr<KisLogfileBuilder> builder;
+
+            for (auto lfi : lfvec) {
+                std::shared_ptr<KisLogfileBuilder> lfb =
+                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+
+                if (lfb->get_log_class() == tokenurl[3]) {
+                    builder = lfb;
+                    break;
+                }
+            }
+
+            if (builder == NULL) 
+                throw std::runtime_error("invalid logclass");
+
+            if (tokenurl[4] == "start") {
+                std::string title = structdata->getKeyAsString("title", "");
+
+                if (title == "")
+                    title = get_log_title();
+
+                SharedLogfile logf;
+
+                logf = open_log(builder, title);
+
+                if (logf == NULL) 
+                    throw std::runtime_error("unable to open log");
+
+                entrytracker->Serialize(httpd->GetSuffix(concls->url),
+                        concls->response_stream, logf, NULL);
+                return MHD_YES;
+            }
+        }
+    } catch(const exception e) {
+        concls->response_stream << "Invalid request: ";
+        concls->response_stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
 
     return 0;
 }

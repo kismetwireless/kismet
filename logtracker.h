@@ -229,6 +229,15 @@ public:
     // Register a log type
     int register_log(SharedLogBuilder in_builder);
 
+    // Open a log
+    SharedLogfile open_log(std::string in_class);
+    SharedLogfile open_log(SharedLogBuilder in_builder);
+    SharedLogfile open_log(std::string in_class, std::string in_title);
+    SharedLogfile open_log(SharedLogBuilder in_builder, std::string in_title);
+
+    // Close a log
+    int close_log(SharedLogfile in_logfile);
+
     static void Usage(const char *argv0);
 private:
     LogTracker(GlobalRegistry *in_globalreg);

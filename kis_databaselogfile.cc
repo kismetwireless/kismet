@@ -124,12 +124,15 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 }
 
 void KisDatabaseLogfile::Log_Close() {
-    local_eol_locker dblock(&ds_mutex);
+    local_locker dblock(&ds_mutex);
+
+    set_int_log_open(false);
 
     // Kill the timer
     std::shared_ptr<Timetracker> timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    timetracker->RemoveTimer(transaction_timer);
+    if (timetracker != NULL)
+        timetracker->RemoveTimer(transaction_timer);
 
     // End the transaction
     {
@@ -192,7 +195,6 @@ void KisDatabaseLogfile::Log_Close() {
             sqlite3_finalize(snapshot_stmt);
         snapshot_stmt = NULL;
     }
-
 }
 
 int KisDatabaseLogfile::Database_UpgradeDB() {
