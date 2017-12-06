@@ -94,4 +94,8 @@ public func corewlan_get_channel_width(intf : String, pos : Int) -> Int
     return channels_width[intf]![pos];
 }
 
+@_silgen_name("corewlan_set_channel(intf : String, channel : Int, width : Int) -> Int
+{
+    return 1;
+}
 

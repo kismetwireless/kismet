@@ -2,6 +2,7 @@ include ../Makefile.inc
 
 MONITOR_OBJS = \
 	../wifi_ht_channels.c.o \
+	../interface_control.c.o \
 	capture_osx_corewlan_wifi.c.o
 
 MONITOR_SWIFT_OBJS = \
