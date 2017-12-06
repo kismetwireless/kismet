@@ -144,16 +144,16 @@ public:
 
     // Count all the devices.  We use a filter worker but 'match' on all
     // and count them into our local map
-    virtual void MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+    virtual bool MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
             shared_ptr<kis_tracked_device_base> device) {
         if (device == NULL)
-            return;
+            return false;
 
         if (device->get_last_time() < stime - channelv2->device_decay)
-            return;
+            return false;
 
         if (device->get_frequency() == 0)
-            return;
+            return false;
 
         {
             local_locker lock(&workermutex);
@@ -166,6 +166,8 @@ public:
                 device_count.emplace(device->get_frequency(), 1);
             }
         }
+
+        return false;
     }
 
     // Send it back to our channel tracker

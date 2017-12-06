@@ -1117,10 +1117,16 @@ void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker,
                 std::shared_ptr<kis_tracked_device_base> v = 
                     std::static_pointer_cast<kis_tracked_device_base>(val);
 
-                // Lock the device itself inside the worker op
-                local_locker devlocker(&(v->device_mutex));
+                bool m;
 
-                worker->MatchDevice(this, v);
+                // Lock the device itself inside the worker op
+                {
+                    local_locker devlocker(&(v->device_mutex));
+                    m = worker->MatchDevice(this, v);
+                }
+
+                if (m) 
+                    worker->MatchedDevice(v);
             });
 
     worker->Finalize(this);
