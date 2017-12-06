@@ -122,9 +122,6 @@ class dot11_packinfo : public packet_component {
             header_offset = 0;
             type = packet_unknown;
             subtype = packet_sub_unknown;
-            mgt_reason_code = 0;
-            ssid_len = 0;
-            ssid_blank = 0;
             source_mac = mac_addr(0);
             dest_mac = mac_addr(0);
             bssid_mac = mac_addr(0);
@@ -138,8 +135,6 @@ class dot11_packinfo : public packet_component {
             ibss = 0;
             channel = "0";
             encrypted = 0;
-            beacon_interval = 0;
-            maxrate = 0;
             timestamp = 0;
             sequence_number = 0;
             frag_number = 0;
@@ -148,14 +143,30 @@ class dot11_packinfo : public packet_component {
             duration = 0;
             datasize = 0;
             qos = 0;
-            ssid_csum = 0;
-            dot11d_country = "";
+
+            // Many of thse will not be available until the IE tags are parsed
             ietag_csum = 0;
+
+            dot11d_country = "";
+
             wps = DOT11_WPS_NO_WPS;
             wps_manuf = "";
             wps_device_name = "";
             wps_model_name = "";
             wps_model_number = "";
+
+            mgt_reason_code = 0;
+
+            ssid_len = 0;
+            ssid_blank = 0;
+            ssid_csum = 0;
+
+            beacon_interval = 0;
+
+            std::vector<int> basic_rates;
+            std::vector<int> extended_rates;
+
+            maxrate = 0;
         }
 
         // Corrupt 802.11 frame
@@ -1271,7 +1282,11 @@ public:
 
     // Dot11 decoders, wep decryptors, etc
     int PacketWepDecryptor(kis_packet *in_pack);
+    // Top-level dissector; decodes basic type and populates the dot11 packet
     int PacketDot11dissector(kis_packet *in_pack);
+    // Expects an existing dot11 packet with the basic type intact, interprets
+    // IE tags to the best of our ability
+    int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
 
     // Special decoders, not called as part of a chain
 

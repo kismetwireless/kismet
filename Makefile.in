@@ -36,6 +36,7 @@ DATASOURCE_BINS = @DATASOURCE_BINS@
 
 KAITAI_PARSERS = \
 	kaitai_parsers/wpaeap.cc.o \
+	kaitai_parsers/dot11_ie.cc.o \
 	kaitai_parsers/dot11_action.cc.o \
 	kaitai_parsers/dot11_ie_7_country.cc.o \
 	kaitai_parsers/dot11_ie_11_qbss.cc.o \
