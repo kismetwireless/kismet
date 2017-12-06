@@ -2452,16 +2452,13 @@ public:
 
     virtual ~phy80211_devicetracker_expire_worker() { }
 
-    // Compare against our PCRE and export msgpack objects if we match
-    virtual void MatchDevice(Devicetracker *devicetracker, 
-            shared_ptr<kis_tracked_device_base> device) {
-
+    virtual bool MatchDevice(Devicetracker *devicetracker, shared_ptr<kis_tracked_device_base> device) {
         shared_ptr<dot11_tracked_device> dot11dev =
             static_pointer_cast<dot11_tracked_device>(device->get_map_value(dot11_device_entry_id));
 
         // Not 802.11?  nothing we can do
         if (dot11dev == NULL) {
-            return;
+            return false;
         }
 
         // Iterate over all the SSID records
@@ -2477,7 +2474,6 @@ public:
             ssid = static_pointer_cast<dot11_advertised_ssid>(int_itr->second);
 
             if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
-                fprintf(stderr, "debug - forgetting dot11ssid %s expiration %d\n", ssid->get_ssid().c_str(), timeout);
                 adv_ssid_map.erase(int_itr);
                 int_itr = adv_ssid_map.begin();
                 devicetracker->UpdateFullRefresh();
@@ -2495,7 +2491,6 @@ public:
             pssid = static_pointer_cast<dot11_probed_ssid>(int_itr->second);
 
             if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
-                fprintf(stderr, "debug - forgetting dot11probessid %s expiration %d\n", pssid->get_ssid().c_str(), timeout);
                 probe_map.erase(int_itr);
                 int_itr = probe_map.begin();
                 devicetracker->UpdateFullRefresh();
@@ -2514,12 +2509,13 @@ public:
             client = static_pointer_cast<dot11_client>(mac_itr->second);
 
             if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
-                fprintf(stderr, "debug - forgetting client link from %s to %s expiration %d\n", device->get_macaddr().Mac2String().c_str(), mac_itr->first.Mac2String().c_str(), timeout);
                 client_map.erase(mac_itr);
                 mac_itr = client_map.begin();
                 devicetracker->UpdateFullRefresh();
             }
         }
+
+        return false;
     }
 
 protected:
