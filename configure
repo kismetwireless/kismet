@@ -10151,7 +10151,7 @@ CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -10850,6 +10850,7 @@ do
     "packaging/kismet.pc") CONFIG_FILES="$CONFIG_FILES packaging/kismet.pc" ;;
     "capture_linux_bluetooth/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_bluetooth/Makefile" ;;
     "capture_linux_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_wifi/Makefile" ;;
+    "capture_osx_corewlan_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_osx_corewlan_wifi/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
