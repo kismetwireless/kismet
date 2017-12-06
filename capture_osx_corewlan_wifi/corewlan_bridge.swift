@@ -26,8 +26,8 @@
 
 
 /* Global copies */
-var channels = [Int]();
-var channels_width = [Int]();
+var channels = [String : [Int]]();
+var channels_width = [String : [Int]]();
 
 var interfaces = [String]();
 
@@ -38,17 +38,25 @@ public func corewlan_init() -> Int
     interfaces.append("en1demo");
     interfaces.append("en3demo");
 
-    channels.append(1);
-    channels.append(2);
-    channels.append(3);
-    channels.append(4);
-    channels.append(5);
+    var chans = [Int]();
 
-    channels_width.append(0);
-    channels_width.append(0);
-    channels_width.append(0);
-    channels_width.append(0);
-    channels_width.append(0);
+    chans.append(1);
+    chans.append(2);
+    chans.append(3);
+    chans.append(4);
+    chans.append(5);
+
+    channels["en1demo"] = chans;
+
+    var wids = [Int]();
+
+    wids.append(0);
+    wids.append(0);
+    wids.append(0);
+    wids.append(0);
+    wids.append(0);
+
+    channels_width["en3demo"] = wids;
 
     return 1;
 }
@@ -69,21 +77,21 @@ public func corewlan_get_interface(pos : Int) -> String
 
 /* Get number of channels */
 @_silgen_name("corewlan_num_channels")
-public func corewlan_get_num_channels() -> Int
+public func corewlan_get_num_channels(intf : String) -> Int
 {
-    return channels.count;
+    return channels[intf]!.count;
 }
 
 @_silgen_name("corewlan_get_channel")
-public func corewlan_get_channel(pos : Int) -> Int
+public func corewlan_get_channel(intf : String, pos : Int) -> Int
 {
-    return channels[pos]
+    return channels[intf]![pos];
 }
 
 @_silgen_name("corewlan_get_channel_width")
-public func corewlan_get_channel_width(pos : Int) -> Int
+public func corewlan_get_channel_width(intf : String, pos : Int) -> Int
 {
-    return channels_width[pos];
+    return channels_width[intf]![pos];
 }
 
 
