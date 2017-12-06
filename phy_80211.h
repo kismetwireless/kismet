@@ -163,10 +163,6 @@ class dot11_packinfo : public packet_component {
 
             beacon_interval = 0;
 
-            std::vector<int> basic_rates;
-            std::vector<int> extended_rates;
-
-            maxrate = 0;
         }
 
         // Corrupt 802.11 frame
@@ -216,8 +212,6 @@ class dot11_packinfo : public packet_component {
         // Some cisco APs seem to fill in this info field
         string beacon_info;
 
-        double maxrate;
-
         uint64_t timestamp;
         int sequence_number;
         int frag_number;
@@ -254,6 +248,9 @@ class dot11_packinfo : public packet_component {
         std::shared_ptr<dot11_ie_192_vht_operation_t> dot11vht;
 
         std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
+
+        std::vector<std::string> basic_rates;
+        std::vector<std::string> extended_rates;
 };
 
 class dot11_tracked_eapol : public tracker_component {

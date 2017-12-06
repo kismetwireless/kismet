@@ -1143,6 +1143,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
     // Track if we've seen some of these tags already
     bool seen_ssid = false;
+    bool seen_basicrates = false;
 
     for (auto ie_tag : *(ietags->tags())) {
         std::stringstream tag_stream(ie_tag->tag_data());
@@ -1182,6 +1183,160 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             continue;
+        }
+
+        // IE 1 Basic Rates
+        if (ie_tag->tag_num() == 1) {
+            if (seen_basicrates) {
+                fprintf(stderr, "debug - seen multiple basicrates?\n");
+            }
+
+            seen_basicrates = true;
+
+            if (ie_tag->tag_data().find("\x75\xEB\x49") != string::npos) {
+                _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
+                        "MSF-style poisoned rate field in beacon for network " +
+                        packinfo->bssid_mac.Mac2String() + ", exploit attempt "
+                        "against D-Link drivers");
+
+                packinfo->corrupt = 1;
+                return -1;
+            }
+
+            std::vector<std::string> basicrates;
+            for (r : ie_tag->tag_data()) {
+                switch (r) {
+                    case 0x02:
+                        basicrates.push_back("1");
+                        break;
+                    case 0x03:
+                        basicrates.push_back("1.5");
+                        break;
+                    case 0x04:
+                        basicrates.push_back("2");
+                        break;
+                    case 0x05:
+                        basicrates.push_back("2.5");
+                        break;
+                    case 0x06:
+                        basicrates.push_back("3");
+                        break;
+                    case 0x09:
+                        basicrates.push_back("4.5");
+                        break;
+                    case 0x0B:
+                        basicrates.push_back("5.5");
+                        break;
+                    case 0x0C:
+                        basicrates.push_back("6");
+                        break;
+                    case 0x12:
+                        basicrates.push_back("9");
+                        break;
+                    case 0x16:
+                        basicrates.push_back("11");
+                        break;
+                    case 0x18:
+                        basicrates.push_back("12");
+                        break;
+                    case 0x1B:
+                        basicrates.push_back("13.5");
+                        break;
+                    case 0x24:
+                        basicrates.push_back("18");
+                        break;
+                    case 0x2C:
+                        basicrates.push_back("22");
+                        break;
+                    case 0x30:
+                        basicrates.push_back("24");
+                        break;
+                    case 0x36:
+                        basicrates.push_back("27");
+                        break;
+                    case 0x42:
+                        basicrates.push_back("33");
+                        break;
+                    case 0x48:
+                        basicrates.push_back("36");
+                        break;
+                    case 0x60:
+                        basicrates.push_back("48");
+                        break;
+                    case 0x6C:
+                        basicrates.push_back("54");
+                        break;
+                    case 0x82:
+                        basicrates.push_back("1(B)");
+                        break;
+                    case 0x83:
+                        basicrates.push_back("1.5(B)");
+                        break;
+                    case 0x84:
+                        basicrates.push_back("2(B)");
+                        break;
+                    case 0x85:
+                        basicrates.push_back("2.5(B)");
+                        break;
+                    case 0x86:
+                        basicrates.push_back("3(B)");
+                        break;
+                    case 0x89:
+                        basicrates.push_back("4.5(B)");
+                        break;
+                    case 0x8B:
+                        basicrates.push_back("5.5(B)");
+                        break;
+                    case 0x8C:
+                        basicrates.push_back("6(B)");
+                        break;
+                    case 0x92:
+                        basicrates.push_back("9(B)");
+                        break;
+                    case 0x96:
+                        basicrates.push_back("11(B)");
+                        break;
+                    case 0x98:
+                        basicrates.push_back("12(B)");
+                        break;
+                    case 0x9B:
+                        basicrates.push_back("13.5(B)");
+                        break;
+                    case 0xA4:
+                        basicrates.push_back("18(B)");
+                        break;
+                    case 0xAC:
+                        basicrates.push_back("22(B)");
+                        break;
+                    case 0xB0:
+                        basicrates.push_back("24(B)");
+                        break;
+                    case 0xB6:
+                        basicrates.push_back("27(B)");
+                        break;
+                    case 0xC2:
+                        basicrates.push_back("33(B)");
+                        break;
+                    case 0xC8:
+                        basicrates.push_back("36(B)");
+                        break;
+                    case 0xE0:
+                        basicrates.push_back("48(B)");
+                        break;
+                    case 0xEC:
+                        basicrates.push_back("54(B)");
+                        break;
+                    case 0xFF:
+                        basicrates.push_back("HT");
+                        break;
+                    default:
+                        basicrates.push_back("UNK");
+                        break;
+                }
+            }
+
+            packinfo->basic_rates = basicrates;
+
         }
 
         // IE 11 QBSS
