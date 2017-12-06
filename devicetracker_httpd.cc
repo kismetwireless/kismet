@@ -1023,12 +1023,18 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             //  List of devices that pass the regex filter
             SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
 
+            kis_recursive_timed_mutex worker_mutex;
+
             devicetracker_function_worker tw(globalreg, 
-                    [this, &stream, timedevs, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, &stream, timedevs, lastts, &worker_mutex](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+
                         if (d->get_last_time() <= lastts)
                             return false;
 
-                        timedevs->add_vector(d);
+                        {
+                            local_locker lock(&worker_mutex);
+                            timedevs->add_vector(d);
+                        }
                         
                         return false;
                     }, NULL);
@@ -1045,14 +1051,17 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
             devicetracker_function_worker sw(globalreg, 
-                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, summary_vec, &rename_map, outdevs, &worker_mutex](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                         SharedTrackerElement simple;
 
                         SummarizeTrackerElement(entrytracker, 
                                 static_pointer_cast<TrackerElement>(d), summary_vec,
                                 simple, rename_map);
 
-                        outdevs->add_vector(simple);
+                        {
+                            local_locker lock(&worker_mutex);
+                            outdevs->add_vector(simple);
+                        }
                         
                         return false;
                     }, NULL);
@@ -1088,25 +1097,34 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             //  List of devices that pass the regex filter
             SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
+
+            kis_recursive_timed_mutex worker_mutex;
             
 
             // Filter by time first, it's fast
                 devicetracker_function_worker tw(globalreg, 
-                        [this, &stream, timedevs, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                        if (d->get_last_time() <= post_ts)
-                        return false;
+                        [this, &stream, timedevs, post_ts, &worker_mutex](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
 
-                        timedevs->add_vector(d);
+                        if (d->get_last_time() <= post_ts)
+                            return false;
+            
+                        {
+                            local_locker lock(&worker_mutex);
+                            timedevs->add_vector(d);
+                        }
 
                         return false;
                         }, NULL);
 
             devicetracker_function_worker pw(globalreg, 
-                    [this, &stream, phydevs, phy](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, &stream, phydevs, phy, &worker_mutex](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_phyname() != phy->FetchPhyName())
                             return false;
 
-                        phydevs->add_vector(d);
+                        {
+                            local_locker lock(&worker_mutex);
+                            phydevs->add_vector(d);
+                        }
                         
                         return false;
                     }, NULL);
@@ -1131,14 +1149,17 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
             devicetracker_function_worker sw(globalreg, 
-                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, summary_vec, &rename_map, outdevs, &worker_mutex](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                         SharedTrackerElement simple;
 
                         SummarizeTrackerElement(entrytracker, 
                                 static_pointer_cast<TrackerElement>(d), summary_vec,
                                 simple, rename_map);
 
-                        outdevs->add_vector(simple);
+                        {
+                            local_locker lock(&worker_mutex);
+                            outdevs->add_vector(simple);
+                        }
                         
                         return false;
                     }, NULL);
