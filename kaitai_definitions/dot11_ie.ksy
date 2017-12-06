@@ -6,7 +6,7 @@ meta:
   endian: be
   
 seq:
-  - id: tag
+  - id: tags
     type: ieee_80211_tag
     repeat: eos
     

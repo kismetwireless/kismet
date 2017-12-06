@@ -45,12 +45,12 @@ public:
     };
 
 private:
-    std::vector<ieee_80211_tag_t*>* m_tag;
+    std::vector<ieee_80211_tag_t*>* m_tags;
     dot11_ie_t* m__root;
     kaitai::kstruct* m__parent;
 
 public:
-    std::vector<ieee_80211_tag_t*>* tag() const { return m_tag; }
+    std::vector<ieee_80211_tag_t*>* tags() const { return m_tags; }
     dot11_ie_t* _root() const { return m__root; }
     kaitai::kstruct* _parent() const { return m__parent; }
 };

@@ -8,17 +8,17 @@
 dot11_ie_t::dot11_ie_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
-    m_tag = new std::vector<ieee_80211_tag_t*>();
+    m_tags = new std::vector<ieee_80211_tag_t*>();
     while (!m__io->is_eof()) {
-        m_tag->push_back(new ieee_80211_tag_t(m__io, this, m__root));
+        m_tags->push_back(new ieee_80211_tag_t(m__io, this, m__root));
     }
 }
 
 dot11_ie_t::~dot11_ie_t() {
-    for (std::vector<ieee_80211_tag_t*>::iterator it = m_tag->begin(); it != m_tag->end(); ++it) {
+    for (std::vector<ieee_80211_tag_t*>::iterator it = m_tags->begin(); it != m_tags->end(); ++it) {
         delete *it;
     }
-    delete m_tag;
+    delete m_tags;
 }
 
 dot11_ie_t::ieee_80211_tag_t::ieee_80211_tag_t(kaitai::kstream *p_io, dot11_ie_t *p_parent, dot11_ie_t *p_root) : kaitai::kstruct(p_io) {
