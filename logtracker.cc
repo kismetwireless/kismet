@@ -196,12 +196,52 @@ void LogTracker::Deferred_Startup() {
         return;
     }
 
+#if 1
+    TrackerElementVector builders(logproto_vec);
+    TrackerElementVector logfiles(logfile_vec);
+
+    for (auto t : v) {
+        std::string logtype = GetTrackerValue<std::string>(t);
+
+        // Scan all the builders and find a matching log type, build logfile for it
+        for (auto b : builders) {
+            std::shared_ptr<KisLogfileBuilder> builder =
+                std::static_pointer_cast<KisLogfileBuilder>(b);
+            if (builder->get_log_class() != logtype)
+                continue;
+
+            // Generate the logfile using the builder an giving it the sharedptr
+            // to itself because sharedptrs are funky
+            SharedLogfile lf = builder->build_logfile(builder);
+            lf->set_id(logfile_entry_id);
+
+            logfiles.push_back(lf);
+        }
+    }
+
+    for (auto l : logfiles) {
+        SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
+
+        std::string logpath =
+            globalreg->kismet_config->ExpandLogPath(get_log_template(),
+                    get_log_title(),
+                    lf->get_builder()->get_log_class(), 1, 0);
+
+        if (!lf->Log_Open(logpath)) {
+            _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
+                    MSGFLAG_ERROR);
+        }
+    }
+#endif
+
+#if 0
     // Open all of them
     for (auto t : v) {
         std::string logtype = GetTrackerValue<std::string>(t);
 
         open_log(logtype);
     }
+#endif
 
     return;
 }
@@ -246,24 +286,23 @@ SharedLogfile LogTracker::open_log(std::string in_class) {
 SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
-    SharedLogBuilder builder;
+    SharedLogBuilder target_builder;
 
-    TrackerElementVector lfvec(logproto_vec);
+    TrackerElementVector builders(logproto_vec);
 
-    for (auto lfi : lfvec) {
-        std::shared_ptr<KisLogfileBuilder> lfb =
-            std::static_pointer_cast<KisLogfileBuilder>(lfi);
+    for (auto b : builders) {
+        std::shared_ptr<KisLogfileBuilder> builder = std::static_pointer_cast<KisLogfileBuilder>(b);
 
-        if (lfb->get_log_class() == in_class) {
-            builder = lfb;
+        if (builder->get_log_class() == in_class) {
+            target_builder = builder;
             break;
         }
     }
 
-    if (builder == NULL)
+    if (target_builder == NULL)
         return 0;
 
-    return open_log(builder, in_title);
+    return open_log(target_builder, in_title);
 }
 
 SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder) {
@@ -294,18 +333,16 @@ SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder, std::string in_t
 
     SharedLogfile lf = in_builder->build_logfile(in_builder);
     lf->set_id(logfile_entry_id);
+    logfiles.push_back(lf);
 
-    std::string logpath = 
-        globalreg->kismet_config->ExpandLogPath(get_log_template(), 
-                in_title,
-                lf->get_builder()->get_log_class(), 1, 0);
+    std::string logpath =
+        globalreg->kismet_config->ExpandLogPath(get_log_template(),
+                in_title, lf->get_builder()->get_log_class(), 1, 0);
 
     if (!lf->Log_Open(logpath)) {
         _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
                 MSGFLAG_ERROR);
     }
-
-    logfiles.push_back(lf);
 
     return lf;
 }
