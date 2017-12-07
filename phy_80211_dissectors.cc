@@ -41,6 +41,7 @@
 #include "kaitai_parsers/wpaeap.h"
 #include "kaitai_parsers/dot11_action.h"
 #include "kaitai_parsers/dot11_ie.h"
+#include "kaitai_parsers/dot11_ie_7_country.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
 #include "kaitai_parsers/dot11_ie_45_ht.h"
 #include "kaitai_parsers/dot11_ie_48_rsn.h"
@@ -1147,6 +1148,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     bool seen_basicrates = false;
     bool seen_extendedrates = false;
     bool seen_mcsrates = false;
+    unsigned int wmmtspec_responses = 0;
 
     for (auto ie_tag : *(ietags->tags())) {
         std::stringstream tag_stream(ie_tag->tag_data());
@@ -1363,6 +1365,41 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
         }
 
+        // IE 3 channel
+        if (ie_tag->tag_num() == 3) {
+            if (ie_tag->tag_data().length() != 1) {
+                fprintf(stderr, "debug - corrupt channel tag\n");
+                packinfo->corrupt = 1;
+                return -1;
+            }
+                
+            packinfo->channel = UIntToString((unsigned int) (ie_tag->tag_data()[0]));
+        }
+
+        // IE 7 802.11d
+        if (ie_tag->tag_num() == 7) {
+            try {
+                std::shared_ptr<dot11_ie_7_country_t> dot11d(new dot11_ie_7_country_t(&ks));
+
+                packinfo->dot11d_country = MungeToPrintable(dot11d->country_code());
+
+                for (auto c : *(dot11d->country_list())) {
+                    dot11_packinfo_dot11d_entry ri;
+
+                    ri.startchan = c->first_channel();
+                    ri.numchan = c->num_channels();
+                    ri.txpower = c->max_power();
+
+                    packinfo->dot11d_vec.push_back(ri);
+                }
+
+            } catch (const std::exception& e) {
+                fprintf(stderr, "debug - corrupt dot11d\n");
+                packinfo->corrupt = 1;
+                return -1;
+            }
+        }
+
         // IE 11 QBSS
         if (ie_tag->tag_num() == 11) {
             try {
@@ -1498,207 +1535,72 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
         }
 
+        if (ie_tag->tag_num() == 221) {
+            try {
+                std::shared_ptr<dot11_ie_221_vendor_t> vendor(new dot11_ie_221_vendor_t(&ks));
 
-    }
+                // Match mis-sized WMM
+                if (packinfo->subtype == packet_sub_beacon &&
+                        vendor->vendor_oui_int() == 0x0050f2 &&
+                        vendor->vendor_oui_type() == 2 &&
+                        ie_tag->tag_data().length() > 24) {
 
-    return 1;
+                    string al = "IEEE80211 Access Point BSSID " + 
+                        packinfo->bssid_mac.Mac2String() + " sent association "
+                        "response with an invalid WMM length; this may "
+                        "indicate attempts to exploit driver vulnerabilities "
+                        "such as BroadPwn";
 
+                    alertracker->RaiseAlert(alert_wmm_ref, in_pack, 
+                            packinfo->bssid_mac, packinfo->source_mac, 
+                            packinfo->dest_mac, packinfo->other_mac, 
+                            packinfo->channel, al);
+                }
+
+                // Count wmmtspec frames; per
+                // CVE-2017-11013 
+                // https://pleasestopnamingvulnerabilities.com/
+                if (packinfo->subtype == packet_sub_association_resp &&
+                        vendor->vendor_oui_int() == 0x0050f2 &&
+                        vendor->vendor_oui_type() == 2) {
+                    std::stringstream wmmstream(vendor->vendor_tag()->vendor_data());
+                    kaitai::kstream kds(&wmmstream);
+                    dot11_ie_221_ms_wmm_t wmm(&kds);
+
+                    if (wmm.wme_subtype() == 0x02) {
+                        wmmtspec_responses++;
+                    }
+
+                }
+
+                // Overflow of responses
+                if (wmmtspec_responses > 4) {
+                    string al = "IEEE80211 Access Point BSSID " + 
+                        packinfo->bssid_mac.Mac2String() + " sent association "
+                        "response with more than 4 WMM-TSPEC responses; this "
+                        "may be attempt to exploit embedded Atheros drivers using "
+                        "CVE-2017-11013";
+
+                    alertracker->RaiseAlert(alert_atheros_wmmtspec_ref, in_pack, 
+                            packinfo->bssid_mac, packinfo->source_mac, 
+                            packinfo->dest_mac, packinfo->other_mac, 
+                            packinfo->channel, al);
+                }
+
+
+                // Look for DJI DroneID OUIs
+                if (vendor->vendor_oui_int() == 0x263712) {
+                    std::stringstream dronestream(vendor->vendor_tag()->vendor_data());
+                    kaitai::kstream kds(&dronestream);
+
+                    std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid(new dot11_ie_221_dji_droneid_t(&kds));
+
+                    packinfo->droneid = droneid;
+                }
+
+                // TODO port WPS to kaitai
 #if 0
-
-
-            // Match HT 802.11n tag
-            if ((tcitr = tag_cache_map.find(45)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                // GetTagOffset returns us on the size byte
-                taglen = (chunk->data[tag_offset] & 0xFF);
-                if (tag_offset + taglen > chunk->length || taglen < 7) {
-                    // We're corrupt, set it and stop processing
-                    fprintf(stderr, "debug - tag 45 HT corrupt\n");
-                    packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                    return 0;
-                }
-                // No need to check tag length from now on.
-                // Extract the capabilities from the next 2 bytes.
-                // Find out if 40 MHz channel width is supported
-                // and "40 MHz intolerant" bit is not set.
-                bool ch40;
-                if (((chunk->data[tag_offset + 1] & 0xFF) & 2) != 0 &&
-                    ((chunk->data[tag_offset + 2] & 0xFF) & 64) == 0)
-                    ch40 = true;
-                else
-                    ch40 = false;
-                // Find out if short GI is supported, taking into account only
-                // the wider channel width supported
-                bool gi400;
-                if (ch40) {
-                    if (((chunk->data[tag_offset + 1] & 0xFF) & 64) != 0)
-                        gi400 = true;
-                    else
-                        gi400 = false;
-                }
-                else { // Supports only 20 MHz
-                    if (((chunk->data[tag_offset + 1] & 0xFF) & 32) != 0)
-                        gi400 = true;
-                    else
-                        gi400 = false;
-                }
-                // Find out the MCS Index
-                // Iterate the 4 bytes of the MCS
-                int mcsindex = -1;
-                for (int i = 4; i < 8; i++) {
-                    int byte = chunk->data[tag_offset + i] & 0xFF;
-                    int pw = 1;
-                    // Iterate each bit of the current byte
-                    while ((byte & pw) != 0 && pw <= 128) {
-                        mcsindex += 1;
-                        pw *= 2;
-                    }
-                    if (pw <= 128) // Found the first unset bit
-                        break;
-                }
-                // Find out the maximum rate
-                double maxrate;
-
-                if (mcsindex < 0 || mcsindex > MCS_MAX) {
-                    maxrate = 0;
-                } else {
-                    if (ch40) {
-                        if (gi400)
-                            maxrate = mcs_table[mcsindex][CH40GI400];
-                        else
-                            maxrate = mcs_table[mcsindex][CH40GI800];
-                    }
-                    else {
-                        if (gi400)
-                            maxrate = mcs_table[mcsindex][CH20GI400];
-                        else
-                            maxrate = mcs_table[mcsindex][CH20GI800];
-                    }
-                }
-                if (packinfo->maxrate < maxrate)
-                    packinfo->maxrate = maxrate;
-            }
-            
-            // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
-            // this tag so we use the hardware channel, assigned at the beginning of 
-            // GetPacketInfo
-            if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                // Extract the channel from the next byte (GetTagOffset returns
-                // us on the size byte)
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-                if (tag_offset + taglen > chunk->length) {
-                    // Otherwise we're corrupt, set it and stop processing
-                    fprintf(stderr, "debug - tag 3 channel corrupt\n");
-                    packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                    return 0;
-                }
-                
-                packinfo->channel = IntToString((int) (chunk->data[tag_offset+1]));
-            }
-
-
-            // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
-            // this tag so we use the hardware channel, assigned at the beginning of 
-            // GetPacketInfo
-            if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                // Extract the channel from the next byte (GetTagOffset returns
-                // us on the size byte)
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-                if (tag_offset + taglen > chunk->length) {
-                    // Otherwise we're corrupt, set it and stop processing
-                    packinfo->corrupt = 1;
-                    in_pack->insert(pack_comp_80211, packinfo);
-                    return 0;
-                }
-                
-                packinfo->channel = IntToString((int) (chunk->data[tag_offset+1]));
-            } // channel
-
-            // Match sub-tags inside 221
-            if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
-                // Count WMMTSPEC responses
-                unsigned int wmmtspec_responses = 0;
-
-                // For every copy of the 221 tag
-                for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
-                    tag_offset = tcitr->second[tagct];
-                    unsigned int tag_orig = tag_offset + 1;
-                    unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
-                    unsigned int offt = 0;
-
-                    if (tag_orig + taglen > chunk->length) {
-                        fprintf(stderr, "debug - 221 wps/wmm corrupt\n");
-                        packinfo->corrupt = 1;
-                        in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                        return 0;
-                    }
-
-                    // Split a kaitai parser off for the 221 tag
-                    membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]),
-                            (char *) &(chunk->data[chunk->length]));
-                    std::istream tag_stream(&tag_membuf);
-
-                    try {
-                        kaitai::kstream ks(&tag_stream);
-                        std::shared_ptr<dot11_ie_221_vendor_t> vendor(new dot11_ie_221_vendor_t(&ks));
-
-                        // Match mis-sized WMM
-                        if (fc->subtype == packet_sub_beacon &&
-                                vendor->vendor_oui_int() == 0x0050f2 &&
-                                vendor->vendor_oui_type() == 2 &&
-                                taglen > 24) {
-
-                            string al = "IEEE80211 Access Point BSSID " + 
-                                packinfo->bssid_mac.Mac2String() + " sent association "
-                                "response with an invalid WMM length; this may "
-                                "indicate attempts to exploit driver vulnerabilities "
-                                "such as BroadPwn";
-
-                            alertracker->RaiseAlert(alert_wmm_ref, in_pack, 
-                                    packinfo->bssid_mac, packinfo->source_mac, 
-                                    packinfo->dest_mac, packinfo->other_mac, 
-                                    packinfo->channel, al);
-                        }
-
-                        // Count wmmtspec frames; per
-                        // CVE-2017-11013 
-                        // https://pleasestopnamingvulnerabilities.com/
-                        if (fc->subtype == packet_sub_association_resp &&
-                                vendor->vendor_oui_int() == 0x0050f2 &&
-                                vendor->vendor_oui_type() == 2) {
-                            std::stringstream wmmstream(vendor->vendor_tag()->vendor_data());
-                            kaitai::kstream kds(&wmmstream);
-                            dot11_ie_221_ms_wmm_t wmm(&kds);
-
-                            if (wmm.wme_subtype() == 0x02) {
-                                wmmtspec_responses++;
-                            }
-
-                        }
-
-                        // Look for DJI DroneID OUIs
-                        if (vendor->vendor_oui_int() == 0x263712) {
-                            std::stringstream dronestream(vendor->vendor_tag()->vendor_data());
-                            kaitai::kstream kds(&dronestream);
-
-                            std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid(new dot11_ie_221_dji_droneid_t(&kds));
-
-                            packinfo->droneid = droneid;
-                        }
-
-                    } catch (const std::exception &e) {
-                        fprintf(stderr, "debug - 221 ie tag corrupt\n");
-                        packinfo->corrupt = 1;
-                        in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                    }
-
-                    // Match 221 tag header for WPS
+            // Match 221 tag header for WPS
                     if (taglen < sizeof(WPS_SIG))
                         continue;
                     
@@ -1804,58 +1706,24 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         offt += 4 + length;
                     }
                 }
-
-                // Overflow of responses
-                if (wmmtspec_responses > 4) {
-                    string al = "IEEE80211 Access Point BSSID " + 
-                        packinfo->bssid_mac.Mac2String() + " sent association "
-                        "response with more than 4 WMM-TSPEC responses; this "
-                        "may be attempt to exploit embedded Atheros drivers using "
-                        "CVE-2017-11013";
-
-                    alertracker->RaiseAlert(alert_atheros_wmmtspec_ref, in_pack, 
-                            packinfo->bssid_mac, packinfo->source_mac, 
-                            packinfo->dest_mac, packinfo->other_mac, 
-                            packinfo->channel, al);
-                }
-            } // WPS
+#endif
 
 
-            // Parse 802.11d tags
-            if ((tcitr = tag_cache_map.find(7)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
 
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-                tag_offset++;
-
-                if (tag_offset + taglen > chunk->length) {
-                    packinfo->corrupt = 1;
-                    fprintf(stderr, "debug - 11d corrupt\n");
-                    in_pack->insert(pack_comp_80211, packinfo);
-                    return 0;
-                }
-            
-                // country tags only valid if 6 bytes or more, ubnt throws
-                // broken ones on some APs
-                if (taglen > 6) {
-                    packinfo->dot11d_country =
-                        MungeToPrintable(string((const char *) 
-                                                &(chunk->data[tag_offset]), 
-                                                0, 3));
-
-                    // We don't have to check taglen since we check that above
-                    for (unsigned int p = 3; p + 3 <= taglen; p += 3) {
-                        dot11_packinfo_dot11d_entry ri;
-
-                        ri.startchan = chunk->data[tag_offset + p];
-                        ri.numchan = chunk->data[tag_offset + p + 1];
-                        ri.txpower = chunk->data[tag_offset + p + 2];
-
-                        packinfo->dot11d_vec.push_back(ri);
-                    }
-                }
+            } catch (const std::exception &e) {
+                fprintf(stderr, "debug - 221 ie tag corrupt\n");
+                packinfo->corrupt = 1;
+                continue;
             }
+        }
+
+    }
+
+    return 1;
+
+#if 0
+
+
 
             // WPA frame matching if we have the privacy bit set
             if ((packinfo->cryptset & crypt_wep)) {
