@@ -1491,6 +1491,70 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
         }
 
+        // IE 48, RSN
+        if (ie_tag->tag_num() == 48) {
+            bool rsn_invalid = false;
+
+            try {
+                std::shared_ptr<dot11_ie_48_rsn_t> rsn(new dot11_ie_48_rsn_t(&ks));
+
+                // TODO - don't aggregate these in the future
+
+                // Merge the group cipher
+                packinfo->cryptset |= 
+                    WPACipherConv(rsn->group_cipher()->cipher_type());
+
+                // Merge the unicast ciphers
+                for (auto i : *(rsn->pairwise_ciphers())) {
+                    packinfo->cryptset |= WPACipherConv(i->cipher_type());
+                }
+
+                // Merge the authkey types
+                for (auto i : *(rsn->akm_ciphers())) {
+                    packinfo->cryptset |= WPAKeyMgtConv(i->management_type());
+                }
+
+                // Set version flag - this is probably wrong but keep it 
+                // for now
+                packinfo->cryptset |= crypt_version_wpa2;
+
+            } catch (const std::exception& e) {
+                rsn_invalid = true;
+                packinfo->corrupt = 1;
+            }
+
+            // Re-parse using the limited RSN object to see if we're 
+            // getting hit with something that looks like
+            // https://pleasestopnamingvulnerabilities.com/
+            // CVE-2017-9714
+            if (rsn_invalid) {
+                std::stringstream rsn_stream(ie_tag->tag_data());
+
+                try {
+                    kaitai::kstream ks(&rsn_stream);
+                    std::shared_ptr<dot11_ie_48_rsn_partial_t> rsn(new dot11_ie_48_rsn_partial_t(&ks));
+
+                    if (rsn->pairwise_count() > 1024) {
+                        alertracker->RaiseAlert(alert_atheros_rsnloop_ref, 
+                                in_pack,
+                                packinfo->bssid_mac, packinfo->source_mac, 
+                                packinfo->dest_mac, packinfo->other_mac,
+                                packinfo->channel,
+                                "Invalid 802.11i RSN IE seen with extremely "
+                                "large number of pairwise ciphers; this may "
+                                "be an attack against Atheros drivers per "
+                                "CVE-2017-9714 and "
+                                "https://pleasestopnamingvulnerabilities.com/");
+                    }
+
+                } catch (const std::exception& e) {
+                    // Do nothing with the secondary error; we already know
+                    // something is wrong we're just trying to extract the
+                    // better errors
+                }
+            }
+        }
+
         // IE 54 Mobility
         if (ie_tag->tag_num() == 54) {
             try {
@@ -1803,79 +1867,6 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     }
                 } /* 221 */
 
-                // Tag 48, RSN
-                if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end()) {
-                    tag_offset = tcitr->second[0];
-                    taglen = (chunk->data[tag_offset] & 0xFF);
-
-                    membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
-                            (char *) &(chunk->data[chunk->length]));
-                    std::istream tag_stream(&tag_membuf);
-
-                    bool rsn_invalid = false;
-
-                    try {
-                        kaitai::kstream ks(&tag_stream);
-                        std::shared_ptr<dot11_ie_48_rsn_t> rsn(new dot11_ie_48_rsn_t(&ks));
-
-                        // TODO - don't aggregate these in the future
-                        
-                        // Merge the group cipher
-                        packinfo->cryptset |= 
-                            WPACipherConv(rsn->group_cipher()->cipher_type());
-
-                        // Merge the unicast ciphers
-                        for (auto i : *(rsn->pairwise_ciphers())) {
-                            packinfo->cryptset |= WPACipherConv(i->cipher_type());
-                        }
-
-                        // Merge the authkey types
-                        for (auto i : *(rsn->akm_ciphers())) {
-                            packinfo->cryptset |= WPAKeyMgtConv(i->management_type());
-                        }
-
-                        // Set version flag - this is probably wrong but keep it 
-                        // for now
-                        packinfo->cryptset |= crypt_version_wpa2;
-
-                    } catch (const std::exception& e) {
-                        rsn_invalid = true;
-                        packinfo->corrupt = 1;
-                    }
-
-                    // Re-parse using the limited RSN object to see if we're 
-                    // getting hit with something that looks like
-                    // https://pleasestopnamingvulnerabilities.com/
-                    // CVE-2017-9714
-                    if (rsn_invalid) {
-                        membuf tag_membuf((char *) &(chunk->data[tag_offset + 1]), 
-                                (char *) &(chunk->data[chunk->length]));
-                        std::istream tag_stream(&tag_membuf);
-
-                        try {
-                            kaitai::kstream ks(&tag_stream);
-                            std::shared_ptr<dot11_ie_48_rsn_partial_t> rsn(new dot11_ie_48_rsn_partial_t(&ks));
-
-                            if (rsn->pairwise_count() > 1024) {
-                                alertracker->RaiseAlert(alert_atheros_rsnloop_ref, 
-                                        in_pack,
-                                        packinfo->bssid_mac, packinfo->source_mac, 
-                                        packinfo->dest_mac, packinfo->other_mac,
-                                        packinfo->channel,
-                                        "Invalid 802.11i RSN IE seen with extremely "
-                                        "large number of pairwise ciphers; this may "
-                                        "be an attack against Atheros drivers per "
-                                        "CVE-2017-9714 and "
-                                        "https://pleasestopnamingvulnerabilities.com/");
-                            }
-
-                        } catch (const std::exception& e) {
-                            // Do nothing with the secondary error; we already know
-                            // something is wrong we're just trying to extract the
-                            // better errors
-                        }
-                    }
-                }
 #endif
 
 
