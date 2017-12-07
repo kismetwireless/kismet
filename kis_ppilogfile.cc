@@ -436,7 +436,10 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
     wh.caplen = wh.len = dump_len;
 
     // Dump it
-    pcap_dump((u_char *) ppilog->dumper, &wh, dump_data);
+    {
+        local_locker lock(&(ppilog->log_mutex));
+        pcap_dump((u_char *) ppilog->dumper, &wh, dump_data);
+    }
 
     delete[] dump_data;
 
