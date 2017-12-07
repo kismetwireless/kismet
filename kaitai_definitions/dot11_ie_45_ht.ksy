@@ -51,7 +51,7 @@ types:
 instances:
   ht_cap_ldpc:
     value: "ht_capabilities & 0x01"
-  ht_cap_40mhz_intolerant:
+  ht_cap_40mhz_channel:
     value: "ht_capabilities & 0x02"
   ht_cap_sm_powersave:
     value: "ht_capabilities & 0x0C"

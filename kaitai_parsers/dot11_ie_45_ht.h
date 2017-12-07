@@ -70,6 +70,13 @@ public:
     };
 
 private:
+    bool f_ht_cap_40mhz_channel;
+    int32_t m_ht_cap_40mhz_channel;
+
+public:
+    int32_t ht_cap_40mhz_channel();
+
+private:
     bool f_ht_cap_dss_40mhz;
     int32_t m_ht_cap_dss_40mhz;
 

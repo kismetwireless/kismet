@@ -8,6 +8,7 @@
 dot11_ie_45_ht_t::dot11_ie_45_ht_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_45_ht_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = this;
+    f_ht_cap_40mhz_channel = false;
     f_ht_cap_dss_40mhz = false;
     f_ht_cap_rx_stbc = false;
     f_ht_cap_max_amsdu_len = false;
@@ -60,6 +61,14 @@ int32_t dot11_ie_45_ht_t::rx_mcs_t::ht_num_streams() {
     m_ht_num_streams = (((((rx_mcs_b0() != 0) ? (1) : (0)) + ((rx_mcs_b1() != 0) ? (1) : (0))) + ((rx_mcs_b2() != 0) ? (1) : (0))) + ((rx_mcs_b3() != 0) ? (1) : (0)));
     f_ht_num_streams = true;
     return m_ht_num_streams;
+}
+
+int32_t dot11_ie_45_ht_t::ht_cap_40mhz_channel() {
+    if (f_ht_cap_40mhz_channel)
+        return m_ht_cap_40mhz_channel;
+    m_ht_cap_40mhz_channel = (ht_capabilities() & 2);
+    f_ht_cap_40mhz_channel = true;
+    return m_ht_cap_40mhz_channel;
 }
 
 int32_t dot11_ie_45_ht_t::ht_cap_dss_40mhz() {
