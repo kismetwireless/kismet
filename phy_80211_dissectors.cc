@@ -42,6 +42,7 @@
 #include "kaitai_parsers/dot11_action.h"
 #include "kaitai_parsers/dot11_ie.h"
 #include "kaitai_parsers/dot11_ie_11_qbss.h"
+#include "kaitai_parsers/dot11_ie_45_ht.h"
 #include "kaitai_parsers/dot11_ie_48_rsn.h"
 #include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
 #include "kaitai_parsers/dot11_ie_52_rmm_neighbor.h"
@@ -1144,6 +1145,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     // Track if we've seen some of these tags already
     bool seen_ssid = false;
     bool seen_basicrates = false;
+    bool seen_extendedrates = false;
+    bool seen_mcsrates = false;
 
     for (auto ie_tag : *(ietags->tags())) {
         std::stringstream tag_stream(ie_tag->tag_data());
@@ -1186,12 +1189,23 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
         // IE 1 Basic Rates
-        if (ie_tag->tag_num() == 1) {
-            if (seen_basicrates) {
-                fprintf(stderr, "debug - seen multiple basicrates?\n");
+        // IE 50 Extended Rates
+        if (ie_tag->tag_num() == 1 || ie_tag->tag_num() == 50) {
+            if (ie_tag->tag_num() == 1) {
+                if (seen_basicrates) {
+                    fprintf(stderr, "debug - seen multiple basicrates?\n");
+                }
+
+                seen_basicrates = true;
             }
 
-            seen_basicrates = true;
+            if (ie_tag->tag_num() == 50) {
+                if (seen_extendedrates) {
+                    fprintf(stderr, "debug - seen multiple extendedrates?\n");
+                }
+
+                seen_extendedrates = true;
+            }
 
             if (ie_tag->tag_data().find("\x75\xEB\x49") != string::npos) {
                 _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
@@ -1204,135 +1218,145 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             std::vector<std::string> basicrates;
-            for (r : ie_tag->tag_data()) {
+            for (uint8_t r : ie_tag->tag_data()) {
+                std::string rate;
+
                 switch (r) {
                     case 0x02:
-                        basicrates.push_back("1");
+                        rate = "1";
                         break;
                     case 0x03:
-                        basicrates.push_back("1.5");
+                        rate = "1.5";
                         break;
                     case 0x04:
-                        basicrates.push_back("2");
+                        rate = "2";
                         break;
                     case 0x05:
-                        basicrates.push_back("2.5");
+                        rate = "2.5";
                         break;
                     case 0x06:
-                        basicrates.push_back("3");
+                        rate = "3";
                         break;
                     case 0x09:
-                        basicrates.push_back("4.5");
+                        rate = "4.5";
                         break;
                     case 0x0B:
-                        basicrates.push_back("5.5");
+                        rate = "5.5";
                         break;
                     case 0x0C:
-                        basicrates.push_back("6");
+                        rate = "6";
                         break;
                     case 0x12:
-                        basicrates.push_back("9");
+                        rate = "9";
                         break;
                     case 0x16:
-                        basicrates.push_back("11");
+                        rate = "11";
                         break;
                     case 0x18:
-                        basicrates.push_back("12");
+                        rate = "12";
                         break;
                     case 0x1B:
-                        basicrates.push_back("13.5");
+                        rate = "13.5";
                         break;
                     case 0x24:
-                        basicrates.push_back("18");
+                        rate = "18";
                         break;
                     case 0x2C:
-                        basicrates.push_back("22");
+                        rate = "22";
                         break;
                     case 0x30:
-                        basicrates.push_back("24");
+                        rate = "24";
                         break;
                     case 0x36:
-                        basicrates.push_back("27");
+                        rate = "27";
                         break;
                     case 0x42:
-                        basicrates.push_back("33");
+                        rate = "33";
                         break;
                     case 0x48:
-                        basicrates.push_back("36");
+                        rate = "36";
                         break;
                     case 0x60:
-                        basicrates.push_back("48");
+                        rate = "48";
                         break;
                     case 0x6C:
-                        basicrates.push_back("54");
+                        rate = "54";
                         break;
                     case 0x82:
-                        basicrates.push_back("1(B)");
+                        rate = "1B";
                         break;
                     case 0x83:
-                        basicrates.push_back("1.5(B)");
+                        rate = "1.5B";
                         break;
                     case 0x84:
-                        basicrates.push_back("2(B)");
+                        rate = "2B";
                         break;
                     case 0x85:
-                        basicrates.push_back("2.5(B)");
+                        rate = "2.5B";
                         break;
                     case 0x86:
-                        basicrates.push_back("3(B)");
+                        rate = "3B";
                         break;
                     case 0x89:
-                        basicrates.push_back("4.5(B)");
+                        rate = "4.5B";
                         break;
                     case 0x8B:
-                        basicrates.push_back("5.5(B)");
+                        rate = "5.5B";
                         break;
                     case 0x8C:
-                        basicrates.push_back("6(B)");
+                        rate = "6B";
                         break;
                     case 0x92:
-                        basicrates.push_back("9(B)");
+                        rate = "9B";
                         break;
                     case 0x96:
-                        basicrates.push_back("11(B)");
+                        rate = "11B";
                         break;
                     case 0x98:
-                        basicrates.push_back("12(B)");
+                        rate = "12B";
                         break;
                     case 0x9B:
-                        basicrates.push_back("13.5(B)");
+                        rate = "13.5B";
                         break;
                     case 0xA4:
-                        basicrates.push_back("18(B)");
+                        rate = "18B";
                         break;
                     case 0xAC:
-                        basicrates.push_back("22(B)");
+                        rate = "22B";
                         break;
                     case 0xB0:
-                        basicrates.push_back("24(B)");
+                        rate = "24B";
                         break;
                     case 0xB6:
-                        basicrates.push_back("27(B)");
+                        rate = "27B";
                         break;
                     case 0xC2:
-                        basicrates.push_back("33(B)");
+                        rate = "33B";
                         break;
                     case 0xC8:
-                        basicrates.push_back("36(B)");
+                        rate = "36B";
                         break;
                     case 0xE0:
-                        basicrates.push_back("48(B)");
+                        rate = "48B";
                         break;
                     case 0xEC:
-                        basicrates.push_back("54(B)");
+                        rate = "54B";
                         break;
                     case 0xFF:
-                        basicrates.push_back("HT");
+                        rate = "HT";
                         break;
                     default:
-                        basicrates.push_back("UNK");
+                        rate = "UNK";
                         break;
                 }
+
+                double m;
+                if (sscanf(rate.c_str(), "%lf", &m) == 1) {
+                    if (packinfo->maxrate < m)
+                        packinfo->maxrate = m;
+                }
+
+                basicrates.push_back(rate);
             }
 
             packinfo->basic_rates = basicrates;
@@ -1351,6 +1375,83 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             continue;
+        }
+
+        if (ie_tag->tag_num() == 45) {
+            if (seen_mcsrates) {
+                fprintf(stderr, "debug - duplicate ie45 mcs rates\n");
+            } 
+
+            seen_mcsrates = true;
+
+            std::vector<std::string> mcsrates;
+
+            try {
+                std::shared_ptr<dot11_ie_45_ht_t> ht(new dot11_ie_45_ht_t(&ks));
+
+                std::stringstream mcsstream;
+
+                // See if we support 40mhz channels and aren't 40mhz intolerant
+                bool ch40 = (ht->ht_cap_40mhz_channel() && !ht->ht_cap_40mhz_intolerant());
+
+                bool gi20 = ht->ht_cap_20mhz_shortgi();
+                bool gi40 = ht->ht_cap_40mhz_shortgi();
+
+                uint8_t mcs_byte;
+                uint8_t mcs_offt = 0;
+
+                for (int x = 0; x < 4; x++) {
+                    mcs_byte = ht->mcs()->rx_mcs()[x];
+                    for (int i = 0; i < 8; i++) {
+                        if (mcs_byte & (1 << i)) {
+                            int mcsindex = mcs_offt + i;
+                            if (mcsindex < 0 || mcsindex > MCS_MAX) 
+                                continue;
+
+                            if (mcsindex == 32) {
+                                if (ch40) {
+                                    mcsstream.str("");
+                                    mcsstream << "MCS" << mcsindex << "(" <<
+                                        "HTDUP" << ")";
+                                    mcsrates.push_back(mcsstream.str());
+                                }
+
+                                continue;
+                            }
+
+                            double rate;
+
+                            mcsstream.str("");
+                            mcsstream << "MCS" << mcsindex;
+
+                            if (ch40 && gi40) {
+                                rate = mcs_table[mcsindex][CH40GI400];
+                            } else if (ch40) {
+                                rate = mcs_table[mcsindex][CH40GI800];
+                            } else if (gi20) {
+                                rate = mcs_table[mcsindex][CH20GI400];
+                            } else {
+                                rate = mcs_table[mcsindex][CH20GI800];
+                            }
+
+                            if (packinfo->maxrate < rate)
+                                packinfo->maxrate = rate;
+
+                            mcsrates.push_back(mcsstream.str());
+                        }
+                    }
+
+                    mcs_offt += 8;
+                }
+
+            } catch (const std::exception& e) {
+                fprintf(stderr, "debug -corrupt HT\n");
+                packinfo->corrupt = 1;
+                return -1;
+            }
+
+            packinfo->mcs_rates = mcsrates;
+
         }
 
         // IE 54 Mobility
@@ -1404,72 +1505,6 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
 #if 0
 
-            // Extract the supported rates
-            if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-                if (tag_offset + taglen > chunk->length) {
-                    fprintf(stderr, "debug - corrupt tag offset supported rates\n");
-                    // Otherwise we're corrupt, set it and stop processing
-                    packinfo->corrupt = 1;
-                    in_pack->insert(pack_comp_80211, packinfo);
-                    return 0;
-                }
-
-                for (unsigned int t = 0; t < tcitr->second.size(); t++) {
-                    int moffset = tcitr->second[t];
-
-                    if ((chunk->data[moffset] & 0xFF) == 75 &&
-                        memcmp(&(chunk->data[moffset + 1]), "\xEB\x49", 2) == 0) {
-
-                        _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
-                               "MSF-style poisoned rate field in beacon for network " +
-                               packinfo->bssid_mac.Mac2String() + ", exploit attempt "
-                               "against D-Link drivers");
-
-                        packinfo->corrupt = 1;
-                        in_pack->insert(pack_comp_80211, packinfo);
-                        return 0;
-                    }
-                }
-
-                for (unsigned int x = 0; x < taglen; x++) {
-                    if (packinfo->maxrate < 
-                        (chunk->data[tag_offset+1+x] & 0x7F) * 0.5)
-                        packinfo->maxrate = 
-                            (chunk->data[tag_offset+1+x] & 0x7F) * 0.5;
-                }
-            }
-
-            // And the extended supported rates
-            if ((tcitr = tag_cache_map.find(50)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second[0];
-                taglen = (chunk->data[tag_offset] & 0xFF);
-
-                if (tag_offset + taglen > chunk->length) {
-                    // Otherwise we're corrupt, set it and stop processing
-                    fprintf(stderr, "debug - extended rates corrupt\n");
-                    packinfo->corrupt = 1;
-                    in_pack->insert(pack_comp_80211, packinfo);
-                    return 0;
-                }
-
-                for (unsigned int x = 0; x < taglen; x++) {
-                    if (packinfo->maxrate < 
-                        (chunk->data[tag_offset+1+x] & 0x7F) * 0.5)
-                        packinfo->maxrate = 
-                            (chunk->data[tag_offset+1+x] & 0x7F) * 0.5;
-                }
-            }
-
-            /*
-            // If beacons don't have a SSID and a basicrate then we consider them
-            // corrupt
-            if (found_ssid_tag == 0 || found_rate_tag == 0) {
-                packinfo->corrupt = 1;
-            }
-            */
 
             // Match HT 802.11n tag
             if ((tcitr = tag_cache_map.find(45)) != tag_cache_map.end()) {

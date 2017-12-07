@@ -40,6 +40,7 @@ KAITAI_PARSERS = \
 	kaitai_parsers/dot11_action.cc.o \
 	kaitai_parsers/dot11_ie_7_country.cc.o \
 	kaitai_parsers/dot11_ie_11_qbss.cc.o \
+	kaitai_parsers/dot11_ie_45_ht.cc.o \
 	kaitai_parsers/dot11_ie_48_rsn.cc.o \
 	kaitai_parsers/dot11_ie_48_rsn_partial.cc.o \
 	kaitai_parsers/dot11_ie_52_rmm_neighbor.cc.o \

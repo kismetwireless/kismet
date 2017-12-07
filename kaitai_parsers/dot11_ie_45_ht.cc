@@ -25,8 +25,8 @@ dot11_ie_45_ht_t::dot11_ie_45_ht_t(kaitai::kstream *p_io, kaitai::kstruct *p_par
     m_ht_capabilities = m__io->read_u2le();
     m_ampdu = m__io->read_u1();
     m_mcs = new rx_mcs_t(m__io, this, m__root);
-    m_ht_extended_caps = m__io->read_u2le();
-    m_txbf_caps = m__io->read_u4le();
+    m_ht_extended_caps = m__io->read_u2be();
+    m_txbf_caps = m__io->read_u4be();
     m_asel_caps = m__io->read_u1();
 }
 
@@ -37,30 +37,12 @@ dot11_ie_45_ht_t::~dot11_ie_45_ht_t() {
 dot11_ie_45_ht_t::rx_mcs_t::rx_mcs_t(kaitai::kstream *p_io, dot11_ie_45_ht_t *p_parent, dot11_ie_45_ht_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
-    f_ht_num_streams = false;
-    m_rx_mcs_b0 = m__io->read_u1();
-    m_rx_mcs_b1 = m__io->read_u1();
-    m_rx_mcs_b2 = m__io->read_u1();
-    m_rx_mcs_b3 = m__io->read_u1();
-    m_rx_mcs_b4 = m__io->read_u1();
-    m_rx_mcs_b5 = m__io->read_u1();
-    m_rx_mcs_b6 = m__io->read_u1();
-    m_rx_mcs_b7 = m__io->read_u1();
-    m_rx_mcs_b8 = m__io->read_u1();
-    m_rx_mcs_b9 = m__io->read_u1();
+    m_rx_mcs = m__io->read_bytes(10);
     m_supported_data_rate = m__io->read_u2le();
-    m_txflags = m__io->read_u1();
+    m_txflags = m__io->read_u4be();
 }
 
 dot11_ie_45_ht_t::rx_mcs_t::~rx_mcs_t() {
-}
-
-int32_t dot11_ie_45_ht_t::rx_mcs_t::ht_num_streams() {
-    if (f_ht_num_streams)
-        return m_ht_num_streams;
-    m_ht_num_streams = (((((rx_mcs_b0() != 0) ? (1) : (0)) + ((rx_mcs_b1() != 0) ? (1) : (0))) + ((rx_mcs_b2() != 0) ? (1) : (0))) + ((rx_mcs_b3() != 0) ? (1) : (0)));
-    f_ht_num_streams = true;
-    return m_ht_num_streams;
 }
 
 int32_t dot11_ie_45_ht_t::ht_cap_40mhz_channel() {

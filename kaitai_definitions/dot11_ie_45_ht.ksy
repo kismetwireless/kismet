@@ -10,44 +10,22 @@ seq:
   - id: mcs
     type: rx_mcs
   - id: ht_extended_caps
-    type: u2le
+    type: u2be
   - id: txbf_caps
-    type: u4le
+    type: u4be
   - id: asel_caps
     type: u1
     
 types:
   rx_mcs:
     seq:
-      - id: rx_mcs_b0
-        type: u1
-      - id: rx_mcs_b1
-        type: u1
-      - id: rx_mcs_b2
-        type: u1
-      - id: rx_mcs_b3
-        type: u1
-      - id: rx_mcs_b4
-        type: u1
-      - id: rx_mcs_b5
-        type: u1
-      - id: rx_mcs_b6
-        type: u1
-      - id: rx_mcs_b7
-        type: u1
-      - id: rx_mcs_b8
-        type: u1
-      - id: rx_mcs_b9
-        type: u1
+      - id: rx_mcs
+        size: 10
       - id: supported_data_rate
         type: u2le
       - id: txflags
-        type: u1
-    instances:
-      ht_num_streams:
-        value: "(rx_mcs_b0 != 0 ? 1 : 0) + (rx_mcs_b1 != 0 ? 1 : 0) + (rx_mcs_b2 != 0 ? 1 : 0) + (rx_mcs_b3 != 0 ? 1 : 0)"
+        type: u4be
 
-        
 instances:
   ht_cap_ldpc:
     value: "ht_capabilities & 0x01"

@@ -30,41 +30,16 @@ public:
         ~rx_mcs_t();
 
     private:
-        bool f_ht_num_streams;
-        int32_t m_ht_num_streams;
-
-    public:
-        int32_t ht_num_streams();
-
-    private:
-        uint8_t m_rx_mcs_b0;
-        uint8_t m_rx_mcs_b1;
-        uint8_t m_rx_mcs_b2;
-        uint8_t m_rx_mcs_b3;
-        uint8_t m_rx_mcs_b4;
-        uint8_t m_rx_mcs_b5;
-        uint8_t m_rx_mcs_b6;
-        uint8_t m_rx_mcs_b7;
-        uint8_t m_rx_mcs_b8;
-        uint8_t m_rx_mcs_b9;
+        std::string m_rx_mcs;
         uint16_t m_supported_data_rate;
-        uint8_t m_txflags;
+        uint32_t m_txflags;
         dot11_ie_45_ht_t* m__root;
         dot11_ie_45_ht_t* m__parent;
 
     public:
-        uint8_t rx_mcs_b0() const { return m_rx_mcs_b0; }
-        uint8_t rx_mcs_b1() const { return m_rx_mcs_b1; }
-        uint8_t rx_mcs_b2() const { return m_rx_mcs_b2; }
-        uint8_t rx_mcs_b3() const { return m_rx_mcs_b3; }
-        uint8_t rx_mcs_b4() const { return m_rx_mcs_b4; }
-        uint8_t rx_mcs_b5() const { return m_rx_mcs_b5; }
-        uint8_t rx_mcs_b6() const { return m_rx_mcs_b6; }
-        uint8_t rx_mcs_b7() const { return m_rx_mcs_b7; }
-        uint8_t rx_mcs_b8() const { return m_rx_mcs_b8; }
-        uint8_t rx_mcs_b9() const { return m_rx_mcs_b9; }
+        std::string rx_mcs() const { return m_rx_mcs; }
         uint16_t supported_data_rate() const { return m_supported_data_rate; }
-        uint8_t txflags() const { return m_txflags; }
+        uint32_t txflags() const { return m_txflags; }
         dot11_ie_45_ht_t* _root() const { return m__root; }
         dot11_ie_45_ht_t* _parent() const { return m__parent; }
     };

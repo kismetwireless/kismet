@@ -249,8 +249,10 @@ class dot11_packinfo : public packet_component {
 
         std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
 
+        double maxrate;
         std::vector<std::string> basic_rates;
         std::vector<std::string> extended_rates;
+        std::vector<std::string> mcs_rates;
 };
 
 class dot11_tracked_eapol : public tracker_component {
