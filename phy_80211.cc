@@ -69,6 +69,8 @@ extern "C" {
 #endif
 }
 
+static int packetnum = 0;
+
 // Convert the beacon interval to # of packets per second
 unsigned int Ieee80211Interval2NSecs(int in_interval) {
 	double interval_per_sec;
@@ -1235,46 +1237,46 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_channel(dot11info->channel); 
         }
 
-        if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
-            fprintf(stderr, "debug - dot11phy:HandleSSID %s dot11d country changed\n", basedev->get_macaddr().Mac2String().c_str());
+        // Only process dot11 from beacons
+        if (dot11info->subtype == packet_sub_beacon) {
+            bool dot11dmismatch = false;
 
-            ssid->set_dot11d_country(dot11info->dot11d_country);
-
-            // TODO raise alert
-        }
-
-        bool dot11dmismatch = false;
-
-        TrackerElementVector dot11dvec(ssid->get_dot11d_vec());
-        for (unsigned int vc = 0; 
-                vc < dot11dvec.size() && vc < dot11info->dot11d_vec.size(); vc++) {
-            shared_ptr<dot11_11d_tracked_range_info> ri =
-                static_pointer_cast<dot11_11d_tracked_range_info>(dot11dvec[vc]);
-
-            if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
-                    ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
-                    ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
+            if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
+                ssid->set_dot11d_country(dot11info->dot11d_country);
                 dot11dmismatch = true;
-                break;
             }
 
-        }
+            TrackerElementVector dot11dvec(ssid->get_dot11d_vec());
+            for (unsigned int vc = 0; 
+                    vc < dot11dvec.size() && vc < dot11info->dot11d_vec.size(); vc++) {
+                shared_ptr<dot11_11d_tracked_range_info> ri =
+                    static_pointer_cast<dot11_11d_tracked_range_info>(dot11dvec[vc]);
 
-        if (dot11dmismatch) {
-            ssid->set_dot11d_vec(dot11info->dot11d_vec);
+                if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
+                        ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
+                        ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
+                    dot11dmismatch = true;
+                    break;
+                }
 
-            if (alertracker->PotentialAlert(alert_dot11d_ref)) {
+            }
 
-					string al = "IEEE80211 Access Point BSSID " +
-						basedev->get_macaddr().Mac2String() + " SSID \"" +
-						ssid->get_ssid() + "\" advertised conflicting 802.11d "
+            if (dot11dmismatch) {
+                ssid->set_dot11d_vec(dot11info->dot11d_vec);
+
+                if (alertracker->PotentialAlert(alert_dot11d_ref)) {
+
+                    string al = "IEEE80211 Access Point BSSID " +
+                        basedev->get_macaddr().Mac2String() + " SSID \"" +
+                        ssid->get_ssid() + "\" advertised conflicting 802.11d "
                         "information which may indicate AP spoofing/impersonation";
 
-					alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
+                    alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
                             dot11info->bssid_mac, dot11info->source_mac, 
                             dot11info->dest_mac, dot11info->other_mac, 
                             dot11info->channel, al);
 
+                }
             }
         }
 
@@ -1505,8 +1507,6 @@ void Kis_80211_Phy::HandleClient(shared_ptr<kis_tracked_device_base> basedev,
         }
     }
 }
-
-static int packetnum = 0;
 
 int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
     packetnum++;
