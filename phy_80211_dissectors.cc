@@ -1362,7 +1362,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             packinfo->basic_rates = basicrates;
-
+            continue;
         }
 
         // IE 3 channel
@@ -1373,7 +1373,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 return -1;
             }
                 
-            packinfo->channel = UIntToString((unsigned int) (ie_tag->tag_data()[0]));
+            packinfo->channel = UIntToString((uint8_t) (ie_tag->tag_data()[0]));
+            continue;
         }
 
         // IE 7 802.11d
@@ -1394,10 +1395,12 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 }
 
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - corrupt dot11d\n");
-                packinfo->corrupt = 1;
-                return -1;
+                // Corrupt dot11 isn't a fatal condition
+                // fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
+                continue;
             }
+
+            continue;
         }
 
         // IE 11 QBSS
@@ -1488,7 +1491,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             packinfo->mcs_rates = mcsrates;
-
+            continue;
         }
 
         // IE 48, RSN
@@ -1564,6 +1567,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 packinfo->corrupt = 1;
                 return -1;
             }
+            continue;
         }
 
         // IE 61 HT
@@ -1576,6 +1580,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 // Don't consider unparseable HT a corrupt packet (for now)
                 continue;
             }
+
+            continue;
         }
 
         // IE 133 CISCO CCX
@@ -1587,6 +1593,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 fprintf(stderr, "debug - ccx error %s\n", e.what());
                 continue;
             }
+
+            continue;
         }
 
         // IE 192 VHT
@@ -1595,8 +1603,11 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 std::shared_ptr<dot11_ie_192_vht_operation_t> vht(new dot11_ie_192_vht_operation_t(&ks));
                 packinfo->dot11vht = vht;
             } catch (const std::exception& e) {
+                fprintf(stderr, "debug - vht error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
             }
+
+            continue;
         }
 
         if (ie_tag->tag_num() == 221) {
@@ -1777,8 +1788,10 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             } catch (const std::exception &e) {
                 fprintf(stderr, "debug - 221 ie tag corrupt\n");
                 packinfo->corrupt = 1;
-                continue;
+                return -1;
             }
+
+        continue;
         }
 
     }
