@@ -979,11 +979,24 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         return;
     }
 
-    // If we've processed an identical ssid, don't waste time parsing again
-    if (dot11dev->get_last_ie_csum() == dot11info->ietag_csum) 
-        return;
+    // If we've processed an identical ssid, don't waste time parsing again, just tweak
+    // the few fields we need to update
+    if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
+        ssid = dot11dev->get_last_adv_ssid();
 
-    dot11dev->set_last_ie_csum(dot11info->ietag_csum);
+        if (ssid != NULL) {
+            if (ssid->get_last_time() < in_pack->ts.tv_sec)
+                ssid->set_last_time(in_pack->ts.tv_sec);
+
+            if (dot11info->subtype == packet_sub_beacon) {
+                ssid->inc_beacons_sec();
+            }
+        }
+
+        return;
+    }
+
+    dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
     // If we fail parsing...
     if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
@@ -1066,6 +1079,8 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         if (ssid->get_last_time() < in_pack->ts.tv_sec)
             ssid->set_last_time(in_pack->ts.tv_sec);
     }
+
+    dot11dev->set_last_adv_ssid(ssid);
 
     if (ssid->get_ietag_checksum() == dot11info->ietag_csum)
         return;
@@ -2473,6 +2488,11 @@ public:
             ssid = static_pointer_cast<dot11_advertised_ssid>(int_itr->second);
 
             if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
+                if (dot11dev->get_last_adv_ssid() == ssid) {
+                    dot11dev->set_last_adv_ssid(NULL);
+                    dot11dev->set_last_adv_ie_csum(0);
+                }
+
                 adv_ssid_map.erase(int_itr);
                 int_itr = adv_ssid_map.begin();
                 devicetracker->UpdateFullRefresh();
