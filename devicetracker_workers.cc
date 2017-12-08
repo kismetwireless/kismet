@@ -122,9 +122,11 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
                         mac_query_term_len);
         }
 
-        return matched;
+        if (matched)
+            return true;
     }
 
+    return false;
 }
 
 void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
@@ -287,8 +289,11 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
 
         }
 
-        return matched;
+        if (matched)
+            return true;
     }
+
+    return false;
 }
 
 void devicetracker_pcre_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
