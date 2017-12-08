@@ -942,6 +942,7 @@ class dot11_tracked_device : public tracker_component {
     public:
         dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
             tracker_component(in_globalreg, in_id) { 
+                last_ie_csum = 0;
                 register_fields();
                 reserve_fields(NULL);
             }
@@ -953,6 +954,7 @@ class dot11_tracked_device : public tracker_component {
         dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id, 
                 SharedTrackerElement e) :
             tracker_component(in_globalreg, in_id) {
+                last_ie_csum = 0;
                 register_fields();
                 reserve_fields(e);
             }
@@ -1030,6 +1032,9 @@ class dot11_tracked_device : public tracker_component {
         shared_ptr<dot11_tracked_nonce> create_tracked_nonce() {
             return static_pointer_cast<dot11_tracked_nonce>(entrytracker->GetTrackedInstance(wpa_nonce_entry_id));
         }
+
+        uint32_t get_last_ie_csum() { return last_ie_csum; }
+        void set_last_ie_csum(uint32_t csum) { last_ie_csum = csum; }
 
     protected:
         virtual void register_fields() {
@@ -1232,6 +1237,9 @@ class dot11_tracked_device : public tracker_component {
         int wpa_nonce_entry_id;
 
         SharedTrackerElement wpa_present_handshake;
+
+        // Un-exposed internal tracking options
+        uint32_t last_ie_csum;
 };
 
 class dot11_ssid_alert {

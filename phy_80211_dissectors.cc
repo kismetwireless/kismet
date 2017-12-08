@@ -740,9 +740,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 Adler32Checksum((const char *) (chunk->data + packinfo->header_offset),
                                 chunk->length - packinfo->header_offset);
 
-            if (PacketDot11IEdissector(in_pack, packinfo) < 0)
-                return 0;
-
         } else if (fc->subtype == packet_sub_deauthentication) {
             if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
                 packinfo->mgt_reason_code > 45) {

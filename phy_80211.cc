@@ -979,166 +979,156 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         return;
     }
 
-    if (dot11info->subtype == packet_sub_beacon ||
-            dot11info->subtype == packet_sub_probe_resp) {
-        ssid_itr = adv_ssid_map->find((int32_t) dot11info->ssid_csum);
+    // If we've processed an identical ssid, don't waste time parsing again
+    if (dot11dev->get_last_ie_csum() == dot11info->ietag_csum) 
+        return;
 
-        if (ssid_itr == adv_ssid_map->end()) {
-            ssid = dot11dev->new_advertised_ssid();
-            adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
+    dot11dev->set_last_ie_csum(dot11info->ietag_csum);
 
-            ssid->set_crypt_set(dot11info->cryptset);
-            ssid->set_first_time(in_pack->ts.tv_sec);
-            ssid->set_ietag_checksum(dot11info->ietag_csum);
-            ssid->set_channel(dot11info->channel);
+    // If we fail parsing...
+    if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
+        return;
+    }
 
-            ssid->set_dot11d_country(dot11info->dot11d_country);
-            ssid->set_dot11d_vec(dot11info->dot11d_vec);
+    if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_req) {
+        return;
+    }
 
-            // TODO handle loading SSID from the stored file
-            ssid->set_ssid(dot11info->ssid);
-            if (dot11info->ssid_len == 0 || dot11info->ssid_blank) {
-                ssid->set_ssid_cloaked(true);
-            }
-            ssid->set_ssid_len(dot11info->ssid_len);
+    ssid_itr = adv_ssid_map->find((int32_t) dot11info->ssid_csum);
 
-            ssid->set_crypt_set(dot11info->cryptset);
+    if (ssid_itr == adv_ssid_map->end()) {
+        // fprintf(stderr, "debug - packet %d new ssid - type %d %s\n", packetnum, dot11info->subtype, dot11info->ssid.c_str());
+        ssid = dot11dev->new_advertised_ssid();
+        adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
 
-            ssid->set_beacon_info(dot11info->beacon_info);
+        ssid->set_crypt_set(dot11info->cryptset);
+        ssid->set_first_time(in_pack->ts.tv_sec);
 
-            ssid->set_wps_state(dot11info->wps);
-            ssid->set_wps_manuf(dot11info->wps_manuf);
-            ssid->set_wps_model_name(dot11info->wps_model_name);
-            ssid->set_wps_model_number(dot11info->wps_model_number);
+        // TODO handle loading SSID from the stored file
+        ssid->set_ssid(dot11info->ssid);
+        if (dot11info->ssid_len == 0 || dot11info->ssid_blank) 
+            ssid->set_ssid_cloaked(true);
+        ssid->set_ssid_len(dot11info->ssid_len);
 
-            // Do we not know the basedev manuf?
-            if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
-                basedev->set_manuf(dot11info->wps_manuf);
+        if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
+                ssid->get_ssid() == "AirJack" ) {
 
-            if (ssid->get_last_time() < in_pack->ts.tv_sec)
-                ssid->set_last_time(in_pack->ts.tv_sec);
+            string al = "IEEE80211 Access Point BSSID " +
+                basedev->get_macaddr().Mac2String() + " broadcasting SSID "
+                "\"AirJack\" which implies an attempt to disrupt "
+                "networks.";
 
-            // If we have a new ssid and we can consider raising an alert, do the 
-            // regex compares to see if we trigger apspoof
-            if (dot11info->ssid_len != 0 &&
-                    globalreg->alertracker->PotentialAlert(alert_ssidmatch_ref)) {
-                TrackerElementVector sv(ssid_regex_vec);
-
-                for (auto s : sv) {
-                    std::shared_ptr<dot11_tracked_ssid_alert> sa =
-                        std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
-
-                    if (sa->compare_ssid(dot11info->ssid, dot11info->source_mac)) {
-                        std::string ntype = 
-                            dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
-                            std::string("responding for");
-
-                        string al = "IEEE80211 Unauthorized device (" + 
-                            dot11info->source_mac.Mac2String() + std::string(") ") + ntype + 
-                            " for SSID '" + dot11info->ssid + "', matching APSPOOF "
-                            "rule " + sa->get_group_name() + 
-                            std::string(" which may indicate spoofing or impersonation.");
-
-                        globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
-                                dot11info->bssid_mac, 
-                                dot11info->source_mac, 
-                                dot11info->dest_mac, 
-                                dot11info->other_mac, 
-                                dot11info->channel, al);
-                        break;
-                    }
-                }
-            }
-        } else {
-            ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
-            if (ssid->get_last_time() < in_pack->ts.tv_sec)
-                ssid->set_last_time(in_pack->ts.tv_sec);
+            alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, al);
         }
 
-        if (dot11info->subtype == packet_sub_beacon) {
-            // Update the base device records
-            dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
-            dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+        if (ssid->get_ssid() != "") {
+            basedev->set_devicename(ssid->get_ssid());
+        } else {
+            basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        }
 
-            ssid->inc_beacons_sec();
+        // If we have a new ssid and we can consider raising an alert, do the 
+        // regex compares to see if we trigger apspoof
+        if (dot11info->ssid_len != 0 &&
+                globalreg->alertracker->PotentialAlert(alert_ssidmatch_ref)) {
+            TrackerElementVector sv(ssid_regex_vec);
 
-            if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
-                        ssid->get_ssid() == "AirJack" ) {
+            for (auto s : sv) {
+                std::shared_ptr<dot11_tracked_ssid_alert> sa =
+                    std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
 
-                string al = "IEEE80211 Access Point BSSID " +
-                    basedev->get_macaddr().Mac2String() + " broadcasting SSID "
-                    "\"AirJack\" which implies an attempt to disrupt "
-                    "networks.";
+                if (sa->compare_ssid(dot11info->ssid, dot11info->source_mac)) {
+                    std::string ntype = 
+                        dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
+                        std::string("responding for");
 
-                alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
-                        dot11info->bssid_mac, dot11info->source_mac, 
-                        dot11info->dest_mac, dot11info->other_mac, 
-                        dot11info->channel, al);
+                    string al = "IEEE80211 Unauthorized device (" + 
+                        dot11info->source_mac.Mac2String() + std::string(") ") + ntype + 
+                        " for SSID '" + dot11info->ssid + "', matching APSPOOF "
+                        "rule " + sa->get_group_name() + 
+                        std::string(" which may indicate spoofing or impersonation.");
+
+                    globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
+                            dot11info->bssid_mac, 
+                            dot11info->source_mac, 
+                            dot11info->dest_mac, 
+                            dot11info->other_mac, 
+                            dot11info->channel, al);
+                    break;
+                }
             }
+        }
+    } else {
+        ssid = static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
+        if (ssid->get_last_time() < in_pack->ts.tv_sec)
+            ssid->set_last_time(in_pack->ts.tv_sec);
+    }
 
-            if (ssid->get_ssid() != "") {
-                basedev->set_devicename(ssid->get_ssid());
-            } else {
-                basedev->set_devicename(basedev->get_macaddr().Mac2String());
-            }
+    if (ssid->get_ietag_checksum() == dot11info->ietag_csum)
+        return;
 
-            // Set the type
-            ssid->set_ssid_beacon(true);
+    ssid->set_ietag_checksum(dot11info->ietag_csum);
 
-            // Set the mobility
-            if (dot11info->dot11r_mobility != NULL) {
-                ssid->set_dot11r_mobility(true);
-                ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
-            }
+    if (dot11info->subtype == packet_sub_beacon) {
+        // Update the base device records
+        dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
+        dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
 
-            // Set QBSS
-            if (dot11info->qbss != NULL) {
-                ssid->set_dot11e_qbss(true);
-                ssid->set_dot11e_qbss_stations(dot11info->qbss->station_count());
+        if (ssid->get_last_time() < in_pack->ts.tv_sec)
+            ssid->set_last_time(in_pack->ts.tv_sec);
 
-                // Percentage is value / max (1 byte, 255)
-                double chperc = (double) ((double) dot11info->qbss->channel_utilization() / 
+        ssid->inc_beacons_sec();
+
+        // Set the type
+        ssid->set_ssid_beacon(true);
+
+        // Update beacon info, if any
+        if (dot11info->beacon_info.length() > 0) 
+            ssid->set_beacon_info(dot11info->beacon_info);
+
+        // Set the mobility
+        if (dot11info->dot11r_mobility != NULL) {
+            ssid->set_dot11r_mobility(true);
+            ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
+        }
+
+        // Set QBSS
+        if (dot11info->qbss != NULL) {
+            ssid->set_dot11e_qbss(true);
+            ssid->set_dot11e_qbss_stations(dot11info->qbss->station_count());
+
+            // Percentage is value / max (1 byte, 255)
+            double chperc = (double) ((double) dot11info->qbss->channel_utilization() / 
                     (double) 255.0f) * 100.0f;
-                ssid->set_dot11e_qbss_channel_load(chperc);
-            }
+            ssid->set_dot11e_qbss_channel_load(chperc);
+        }
 
-            // Do we have HT or VHT data?  I don't think we can have one
-            // without the other
-            if (dot11info->dot11vht != NULL && dot11info->dot11ht != NULL) {
-                // Grab the primary channel from the HT data
-                ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
+        // Do we have HT or VHT data?  I don't think we can have one
+        // without the other
+        if (dot11info->dot11vht != NULL && dot11info->dot11ht != NULL) {
+            // Grab the primary channel from the HT data
+            ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
 
-                if (dot11info->dot11vht->channel_width() ==
-                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80) {
-                    ssid->set_ht_mode("HT40");
-                    ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
-                    ssid->set_ht_center_2(0);
-                } else if (dot11info->dot11vht->channel_width() ==
-                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_160) {
-                    ssid->set_ht_mode("HT160");
-                    ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
-                    ssid->set_ht_center_2(0);
-                } else if (dot11info->dot11vht->channel_width() ==
-                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80_80) {
-                    ssid->set_ht_mode("HT80+80");
-                    ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
-                    ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
-                } else if (dot11info->dot11vht->channel_width() ==
-                        dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_20_40) {
-                    if (dot11info->dot11ht->ht_info_chan_offset_none()) {
-                        ssid->set_ht_mode("HT20");
-                    } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
-                        ssid->set_ht_mode("HT40+");
-                    } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
-                        ssid->set_ht_mode("HT40-");
-                    }
-
-                    ssid->set_ht_center_1(0);
-                    ssid->set_ht_center_2(0);
-
-                } 
-            } else if (dot11info->dot11ht != NULL) {
-                // Only HT info no VHT
+            if (dot11info->dot11vht->channel_width() ==
+                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80) {
+                ssid->set_ht_mode("HT40");
+                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                ssid->set_ht_center_2(0);
+            } else if (dot11info->dot11vht->channel_width() ==
+                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_160) {
+                ssid->set_ht_mode("HT160");
+                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                ssid->set_ht_center_2(0);
+            } else if (dot11info->dot11vht->channel_width() ==
+                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80_80) {
+                ssid->set_ht_mode("HT80+80");
+                ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
+                ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
+            } else if (dot11info->dot11vht->channel_width() ==
+                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_20_40) {
                 if (dot11info->dot11ht->ht_info_chan_offset_none()) {
                     ssid->set_ht_mode("HT20");
                 } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
@@ -1149,167 +1139,171 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
                 ssid->set_ht_center_1(0);
                 ssid->set_ht_center_2(0);
-                ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
+
+            } 
+        } else if (dot11info->dot11ht != NULL) {
+            // Only HT info no VHT
+            if (dot11info->dot11ht->ht_info_chan_offset_none()) {
+                ssid->set_ht_mode("HT20");
+            } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {
+                ssid->set_ht_mode("HT40+");
+            } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
+                ssid->set_ht_mode("HT40-");
             }
 
-
-        } else if (dot11info->subtype == packet_sub_probe_resp) {
-            if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
-                    dot11info->source_mac) {
-
-                if (alertracker->PotentialAlert(alert_l33t_ref)) {
-                    string al = "IEEE80211 probe response from OUI 00:13:37 seen, "
-                        "which typically implies a Karma AP impersonation attack.";
-
-                    alertracker->RaiseAlert(alert_l33t_ref, in_pack, 
-                            dot11info->bssid_mac, dot11info->source_mac, 
-                            dot11info->dest_mac, dot11info->other_mac, 
-                            dot11info->channel, al);
-                }
-
-            }
-
-            ssid->set_ssid_probe_response(true);
-            dot11dev->set_last_probed_ssid(ssid->get_ssid());
-            dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
+            ssid->set_ht_center_1(0);
+            ssid->set_ht_center_2(0);
+            ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
         }
+
+
+    } else if (dot11info->subtype == packet_sub_probe_resp) {
+        if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
+                dot11info->source_mac) {
+
+            if (alertracker->PotentialAlert(alert_l33t_ref)) {
+                string al = "IEEE80211 probe response from OUI 00:13:37 seen, "
+                    "which typically implies a Karma AP impersonation attack.";
+
+                alertracker->RaiseAlert(alert_l33t_ref, in_pack, 
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac, 
+                        dot11info->channel, al);
+            }
+
+        }
+
+        ssid->set_ssid_probe_response(true);
+        dot11dev->set_last_probed_ssid(ssid->get_ssid());
+        dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
     }
 
-    // TODO alert on change on SSID IE tags?
-    if (ssid->get_ietag_checksum() != dot11info->ietag_csum) {
-        // fprintf(stderr, "debug - dot11phy:HandleSSID %s ietag checksum changed\n", basedev->get_macaddr().Mac2String().c_str());
-
-        // Things to check:
-        // dot11d values
-        // channel
-        // WPS
-        // Cryptset
-        
-
-        if (ssid->get_crypt_set() != dot11info->cryptset) {
-            if (ssid->get_crypt_set() && dot11info->cryptset == crypt_none &&
-                    alertracker->PotentialAlert(alert_wepflap_ref)) {
-
-                string al = "IEEE80211 Access Point BSSID " +
-                    basedev->get_macaddr().Mac2String() + " SSID \"" +
-                    ssid->get_ssid() + "\" changed advertised encryption from " +
-                    CryptToString(ssid->get_crypt_set()) + " to Open which may "
-                    "indicate AP spoofing/impersonation";
-
-                alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
-                        dot11info->bssid_mac, dot11info->source_mac, 
-                        dot11info->dest_mac, dot11info->other_mac, 
-                        dot11info->channel, al);
-            } else if (ssid->get_crypt_set() != dot11info->cryptset &&
-                    alertracker->PotentialAlert(alert_cryptchange_ref)) {
-
-                string al = "IEEE80211 Access Point BSSID " +
-                    basedev->get_macaddr().Mac2String() + " SSID \"" +
-                    ssid->get_ssid() + "\" changed advertised encryption from " +
-                    CryptToString(ssid->get_crypt_set()) + " to " + 
-                    CryptToString(dot11info->cryptset) + " which may indicate "
-                    "AP spoofing/impersonation";
-
-                alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
-                        dot11info->bssid_mac, dot11info->source_mac, 
-                        dot11info->dest_mac, dot11info->other_mac, 
-                        dot11info->channel, al);
-            }
-
-            ssid->set_crypt_set(dot11info->cryptset);
-        }
-
-        if (ssid->get_channel() != dot11info->channel && 
-                dot11info->channel != "0") {
+    if (ssid->get_crypt_set() != dot11info->cryptset) {
+        if (ssid->get_crypt_set() && dot11info->cryptset == crypt_none &&
+                alertracker->PotentialAlert(alert_wepflap_ref)) {
 
             string al = "IEEE80211 Access Point BSSID " +
                 basedev->get_macaddr().Mac2String() + " SSID \"" +
-                ssid->get_ssid() + "\" changed advertised channel from " +
-                ssid->get_channel() + " to " + 
-                dot11info->channel + " which may "
+                ssid->get_ssid() + "\" changed advertised encryption from " +
+                CryptToString(ssid->get_crypt_set()) + " to Open which may "
                 "indicate AP spoofing/impersonation";
 
-            alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+            alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
+        } else if (ssid->get_crypt_set() != dot11info->cryptset &&
+                alertracker->PotentialAlert(alert_cryptchange_ref)) {
 
-            ssid->set_channel(dot11info->channel); 
+            string al = "IEEE80211 Access Point BSSID " +
+                basedev->get_macaddr().Mac2String() + " SSID \"" +
+                ssid->get_ssid() + "\" changed advertised encryption from " +
+                CryptToString(ssid->get_crypt_set()) + " to " + 
+                CryptToString(dot11info->cryptset) + " which may indicate "
+                "AP spoofing/impersonation";
+
+            alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, al);
         }
 
-        // Only process dot11 from beacons
-        if (dot11info->subtype == packet_sub_beacon) {
-            bool dot11dmismatch = false;
+        ssid->set_crypt_set(dot11info->cryptset);
+    }
 
-            if (ssid->get_dot11d_country() != dot11info->dot11d_country) {
-                ssid->set_dot11d_country(dot11info->dot11d_country);
+    if (ssid->get_channel().length() > 0 &&
+            ssid->get_channel() != dot11info->channel && dot11info->channel != "0") {
+        string al = "IEEE80211 Access Point BSSID " +
+            basedev->get_macaddr().Mac2String() + " SSID \"" +
+            ssid->get_ssid() + "\" changed advertised channel from " +
+            ssid->get_channel() + " to " + 
+            dot11info->channel + " which may "
+            "indicate AP spoofing/impersonation";
+
+        alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+                dot11info->bssid_mac, dot11info->source_mac, 
+                dot11info->dest_mac, dot11info->other_mac, 
+                dot11info->channel, al);
+
+        ssid->set_channel(dot11info->channel); 
+    }
+
+    // Only process dot11 from beacons
+    if (dot11info->subtype == packet_sub_beacon) {
+        bool dot11dmismatch = false;
+
+        if (ssid->get_dot11d_country().length() > 0 &&
+                ssid->get_dot11d_country() != dot11info->dot11d_country) {
+            dot11dmismatch = true;
+        }
+
+        TrackerElementVector dot11dvec(ssid->get_dot11d_vec());
+        for (unsigned int vc = 0; 
+                vc < dot11dvec.size() && vc < dot11info->dot11d_vec.size(); vc++) {
+            shared_ptr<dot11_11d_tracked_range_info> ri =
+                static_pointer_cast<dot11_11d_tracked_range_info>(dot11dvec[vc]);
+
+            if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
+                    ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
+                    ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
                 dot11dmismatch = true;
+                break;
             }
-
-            TrackerElementVector dot11dvec(ssid->get_dot11d_vec());
-            for (unsigned int vc = 0; 
-                    vc < dot11dvec.size() && vc < dot11info->dot11d_vec.size(); vc++) {
-                shared_ptr<dot11_11d_tracked_range_info> ri =
-                    static_pointer_cast<dot11_11d_tracked_range_info>(dot11dvec[vc]);
-
-                if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
-                        ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
-                        ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
-                    dot11dmismatch = true;
-                    break;
-                }
-
-            }
-
-            if (dot11dmismatch) {
-                ssid->set_dot11d_vec(dot11info->dot11d_vec);
-
-                if (alertracker->PotentialAlert(alert_dot11d_ref)) {
-
-                    string al = "IEEE80211 Access Point BSSID " +
-                        basedev->get_macaddr().Mac2String() + " SSID \"" +
-                        ssid->get_ssid() + "\" advertised conflicting 802.11d "
-                        "information which may indicate AP spoofing/impersonation";
-
-                    alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
-                            dot11info->bssid_mac, dot11info->source_mac, 
-                            dot11info->dest_mac, dot11info->other_mac, 
-                            dot11info->channel, al);
-
-                }
-            }
-        }
-
-        if (ssid->get_wps_state() != dot11info->wps) {
-            ssid->set_wps_state(dot11info->wps);
 
         }
 
-        if (dot11info->beacon_interval && ssid->get_beaconrate() != 
-                Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
+        if (dot11dmismatch) {
+            if (alertracker->PotentialAlert(alert_dot11d_ref)) {
 
-            if (ssid->get_beaconrate() != 0 && 
-                    alertracker->PotentialAlert(alert_beaconrate_ref)) {
                 string al = "IEEE80211 Access Point BSSID " +
                     basedev->get_macaddr().Mac2String() + " SSID \"" +
-                    ssid->get_ssid() + "\" changed beacon rate from " +
-                    IntToString(ssid->get_beaconrate()) + " to " + 
-                    IntToString(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
-                    " which may indicate AP spoofing/impersonation";
+                    ssid->get_ssid() + "\" advertised conflicting 802.11d "
+                    "information which may indicate AP spoofing/impersonation";
 
-                alertracker->RaiseAlert(alert_beaconrate_ref, in_pack, 
+                alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac, 
                         dot11info->channel, al);
-            }
 
-            ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+            }
         }
 
-        ssid->set_maxrate(dot11info->maxrate);
+        ssid->set_dot11d_country(dot11info->dot11d_country);
+        ssid->set_dot11d_vec(dot11info->dot11d_vec);
 
-        ssid->set_ietag_checksum(dot11info->ietag_csum);
     }
+
+    ssid->set_wps_state(dot11info->wps);
+    ssid->set_wps_manuf(dot11info->wps_manuf);
+    ssid->set_wps_model_name(dot11info->wps_model_name);
+    ssid->set_wps_model_number(dot11info->wps_model_number);
+
+    // Do we not know the basedev manuf?
+    if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
+        basedev->set_manuf(dot11info->wps_manuf);
+
+    if (dot11info->beacon_interval && ssid->get_beaconrate() != 
+            Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
+
+        if (ssid->get_beaconrate() != 0 && 
+                alertracker->PotentialAlert(alert_beaconrate_ref)) {
+            string al = "IEEE80211 Access Point BSSID " +
+                basedev->get_macaddr().Mac2String() + " SSID \"" +
+                ssid->get_ssid() + "\" changed beacon rate from " +
+                IntToString(ssid->get_beaconrate()) + " to " + 
+                IntToString(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
+                " which may indicate AP spoofing/impersonation";
+
+            alertracker->RaiseAlert(alert_beaconrate_ref, in_pack, 
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, al);
+        }
+
+        ssid->set_beaconrate(Ieee80211Interval2NSecs(dot11info->beacon_interval));
+    }
+
+    ssid->set_maxrate(dot11info->maxrate);
 
     // Add the location data, if any
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
@@ -1330,6 +1324,11 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
 
     shared_ptr<dot11_probed_ssid> probessid = NULL;
     TrackerElement::int_map_iterator ssid_itr;
+
+    // Always re-parse the IEs on a probe
+    if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
+        return;
+    }
 
     if (dot11info->subtype == packet_sub_probe_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
