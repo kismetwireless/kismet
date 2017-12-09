@@ -39,7 +39,7 @@ var interfaces = [String]();
 public func corewlan_init() -> Int
 {
     /* There is almost certainly a smarter way to do this, but we are
-       not swift programmers */
+       not swift programmers.  Patches definitely welcome. */
     if #available(OSX 10.10, *) {
         let wf = CWWiFiClient()
             let interfs = [wf!.interfaces()]
@@ -55,8 +55,7 @@ public func corewlan_init() -> Int
                     var iwidths = [Int]();
                     for (_, chanblob) in enumchans{
                         for channel in chanblob! {
-                            print(channel)
-                                ichans.append(channel.channelNumber)
+				ichans.append(channel.channelNumber)
                                 iwidths.append(channel.channelWidth.rawValue)
                         }
                     }
@@ -80,9 +79,9 @@ public func corewlan_num_interfaces() -> Int
 
 /* Get a single interface */
 @_silgen_name("corewlan_get_interface")
-public func corewlan_get_interface(pos : Int) -> String
+public func corewlan_get_interface(pos : Int) -> UnsafePointer<Int8>
 {
-    return interfaces[pos];
+    return UnsafePointer<Int8>(strdup(interfaces[pos]));
 }
 
 /* Get number of channels */
