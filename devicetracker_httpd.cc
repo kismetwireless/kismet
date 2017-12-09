@@ -431,8 +431,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return MHD_YES;
 
-            SharedTrackerElement devvec =
-                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+            SharedTrackerElement devvec;
 
             devicetracker_function_worker fw(globalreg, 
                     [this, &stream, devvec, lastts](Devicetracker *, 
@@ -440,11 +439,10 @@ int Devicetracker::Httpd_CreateStreamResponse(
                         if (d->get_last_time() <= lastts)
                             return false;
 
-                        devvec->add_vector(d);
-                        
-                        return false;
+                        return true;
                     }, NULL);
             MatchOnDevices(&fw);
+            devvec = fw.GetMatchedDevices();
 
             entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
@@ -833,12 +831,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (regexdata != NULL) {
                 // If we're doing a basic regex outside of devicetables
                 // shenanigans...
-                SharedTrackerElement pcredevs =
-                    globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-                TrackerElementVector pcrevec(pcredevs);
-
-                devicetracker_pcre_worker worker(globalreg, regexdata, pcredevs);
+                devicetracker_pcre_worker worker(globalreg, regexdata);
                 MatchOnDevices(&worker);
+
+                SharedTrackerElement pcredevs = worker.GetMatchedDevices();
+                TrackerElementVector pcrevec(pcredevs);
                 
                 // Check DT ranges
                 if (dt_start >= pcrevec.size())
@@ -884,13 +881,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // so go through every device and do a search on every element
                 // which we have flagged as searchable, and which is a string or
                 // mac which we can treat as a string.
-                SharedTrackerElement matchdevs =
-                    globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-                TrackerElementVector matchvec(matchdevs);
 
                 devicetracker_stringmatch_worker worker(globalreg, dt_search, 
-                        dt_search_paths, matchdevs);
+                        dt_search_paths);
                 MatchOnDevices(&worker);
+
+                SharedTrackerElement matchdevs = worker.GetMatchedDevices();
+                TrackerElementVector matchvec(matchdevs);
 
                 if (dt_order_col >= 0) {
                     kismet__stable_sort(matchvec.begin(), matchvec.end(), 
@@ -1018,25 +1015,26 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             TrackerElementSerializer::rename_map rename_map;
         
             // List of devices that pass the timestamp filter
-            SharedTrackerElement timedevs(new TrackerElement(TrackerVector));
+            SharedTrackerElement timedevs;
             
             //  List of devices that pass the regex filter
             SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
 
             devicetracker_function_worker tw(globalreg, 
-                    [this, &stream, timedevs, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                    [this, &stream, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+
                         if (d->get_last_time() <= lastts)
                             return false;
 
-                        timedevs->add_vector(d);
-                        
-                        return false;
+                        return true;
                     }, NULL);
             MatchOnDevices(&tw);
+            timedevs = tw.GetMatchedDevices();
 
             if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata, regexdevs);
+                devicetracker_pcre_worker worker(globalreg, regexdata);
                 MatchOnDevices(&worker, timedevs);
+                regexdevs = worker.GetMatchedDevices();
             } else {
                 regexdevs = timedevs;
             }
@@ -1044,22 +1042,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Final devices being simplified and sent out
             SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
-            devicetracker_function_worker sw(globalreg, 
-                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                        SharedTrackerElement simple;
+            TrackerElementVector regexdevs_vec(regexdevs);
+            for (auto rei : regexdevs_vec) {
+                std::shared_ptr<kis_tracked_device_base> rd = 
+                    std::static_pointer_cast<kis_tracked_device_base>(rei);
 
-                        SummarizeTrackerElement(entrytracker, 
-                                static_pointer_cast<TrackerElement>(d), summary_vec,
-                                simple, rename_map);
+                local_locker lock(&rd->device_mutex);
 
-                        outdevs->add_vector(simple);
-                        
-                        return false;
-                    }, NULL);
-            MatchOnDevices(&sw, regexdevs);
+                SharedTrackerElement simple;
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                    outdevs, &rename_map);
+                SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
+
+                outdevs->add_vector(simple);
+            }
+
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, &rename_map);
             return MHD_YES;
         } else if (tokenurl[2] == "by-phy") {
             // We don't lock the device list since we use workers
@@ -1081,48 +1078,49 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             TrackerElementSerializer::rename_map rename_map;
 
             // List of devices that pass the timestamp filter
-            SharedTrackerElement timedevs(new TrackerElement(TrackerVector));
+            SharedTrackerElement timedevs;
 
             // Devices that pass the phy filter
-            SharedTrackerElement phydevs(new TrackerElement(TrackerVector));
+            SharedTrackerElement phydevs;
 
             //  List of devices that pass the regex filter
-            SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
-            
+            SharedTrackerElement regexdevs;
+
 
             // Filter by time first, it's fast
-                devicetracker_function_worker tw(globalreg, 
-                        [this, &stream, timedevs, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                        if (d->get_last_time() <= post_ts)
-                        return false;
+            devicetracker_function_worker tw(globalreg, 
+                    [this, &stream, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
 
-                        timedevs->add_vector(d);
-
+                    if (d->get_last_time() <= post_ts)
                         return false;
-                        }, NULL);
+       
+                    return true;
+                    }, NULL);
 
             devicetracker_function_worker pw(globalreg, 
                     [this, &stream, phydevs, phy](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_phyname() != phy->FetchPhyName())
                             return false;
 
-                        phydevs->add_vector(d);
-                        
-                        return false;
+                        return true;
                     }, NULL);
        
             if (post_ts != 0) {
                 // time-match then phy-match then pass to regex
                 MatchOnDevices(&tw);
+                timedevs = tw.GetMatchedDevices();
                 MatchOnDevices(&pw, timedevs);
+                phydevs = pw.GetMatchedDevices();
             }  else {
                 // Phy match only
                 MatchOnDevices(&pw);
+                phydevs = pw.GetMatchedDevices();
             }
 
             if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata, regexdevs);
+                devicetracker_pcre_worker worker(globalreg, regexdata);
                 MatchOnDevices(&worker, phydevs);
+                regexdevs = worker.GetMatchedDevices();
             } else {
                 regexdevs = phydevs;
             }
@@ -1130,22 +1128,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // Final devices being simplified and sent out
             SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
-            devicetracker_function_worker sw(globalreg, 
-                    [this, summary_vec, &rename_map, outdevs](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                        SharedTrackerElement simple;
+            TrackerElementVector regexdevs_vec(regexdevs);
+            for (auto rei : regexdevs_vec) {
+                std::shared_ptr<kis_tracked_device_base> rd = 
+                    std::static_pointer_cast<kis_tracked_device_base>(rei);
 
-                        SummarizeTrackerElement(entrytracker, 
-                                static_pointer_cast<TrackerElement>(d), summary_vec,
-                                simple, rename_map);
+                local_locker lock(&rd->device_mutex);
 
-                        outdevs->add_vector(simple);
-                        
-                        return false;
-                    }, NULL);
-            MatchOnDevices(&sw, regexdevs);
+                SharedTrackerElement simple;
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                    outdevs, &rename_map);
+                SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
+
+                outdevs->add_vector(simple);
+            }
+
+            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, &rename_map);
             return MHD_YES;
         }
     }

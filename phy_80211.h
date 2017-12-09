@@ -122,9 +122,6 @@ class dot11_packinfo : public packet_component {
             header_offset = 0;
             type = packet_unknown;
             subtype = packet_sub_unknown;
-            mgt_reason_code = 0;
-            ssid_len = 0;
-            ssid_blank = 0;
             source_mac = mac_addr(0);
             dest_mac = mac_addr(0);
             bssid_mac = mac_addr(0);
@@ -138,8 +135,6 @@ class dot11_packinfo : public packet_component {
             ibss = 0;
             channel = "0";
             encrypted = 0;
-            beacon_interval = 0;
-            maxrate = 0;
             timestamp = 0;
             sequence_number = 0;
             frag_number = 0;
@@ -148,14 +143,26 @@ class dot11_packinfo : public packet_component {
             duration = 0;
             datasize = 0;
             qos = 0;
-            ssid_csum = 0;
-            dot11d_country = "";
+
+            // Many of thse will not be available until the IE tags are parsed
             ietag_csum = 0;
+
+            dot11d_country = "";
+
             wps = DOT11_WPS_NO_WPS;
             wps_manuf = "";
             wps_device_name = "";
             wps_model_name = "";
             wps_model_number = "";
+
+            mgt_reason_code = 0;
+
+            ssid_len = 0;
+            ssid_blank = 0;
+            ssid_csum = 0;
+
+            beacon_interval = 0;
+
         }
 
         // Corrupt 802.11 frame
@@ -205,8 +212,6 @@ class dot11_packinfo : public packet_component {
         // Some cisco APs seem to fill in this info field
         string beacon_info;
 
-        double maxrate;
-
         uint64_t timestamp;
         int sequence_number;
         int frag_number;
@@ -243,6 +248,16 @@ class dot11_packinfo : public packet_component {
         std::shared_ptr<dot11_ie_192_vht_operation_t> dot11vht;
 
         std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
+
+        double maxrate;
+        // 11g rates
+        std::vector<std::string> basic_rates;
+        std::vector<std::string> extended_rates;
+
+        // 11n MCS rates
+        std::vector<std::string> mcs_rates;
+
+        // VHT isn't specially enumerated, it just factors into max speed
 };
 
 class dot11_tracked_eapol : public tracker_component {
@@ -932,6 +947,7 @@ class dot11_tracked_device : public tracker_component {
     public:
         dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
             tracker_component(in_globalreg, in_id) { 
+                last_adv_ie_csum = 0;
                 register_fields();
                 reserve_fields(NULL);
             }
@@ -943,6 +959,7 @@ class dot11_tracked_device : public tracker_component {
         dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id, 
                 SharedTrackerElement e) :
             tracker_component(in_globalreg, in_id) {
+                last_adv_ie_csum = 0;
                 register_fields();
                 reserve_fields(e);
             }
@@ -1019,6 +1036,15 @@ class dot11_tracked_device : public tracker_component {
         __ProxyTrackable(wpa_anonce_vec, TrackerElement, wpa_anonce_vec);
         shared_ptr<dot11_tracked_nonce> create_tracked_nonce() {
             return static_pointer_cast<dot11_tracked_nonce>(entrytracker->GetTrackedInstance(wpa_nonce_entry_id));
+        }
+
+        uint32_t get_last_adv_ie_csum() { return last_adv_ie_csum; }
+        void set_last_adv_ie_csum(uint32_t csum) { last_adv_ie_csum = csum; }
+        std::shared_ptr<dot11_advertised_ssid> get_last_adv_ssid() {
+            return last_adv_ssid;
+        }
+        void set_last_adv_ssid(std::shared_ptr<dot11_advertised_ssid> adv_ssid) {
+            last_adv_ssid = adv_ssid;
         }
 
     protected:
@@ -1222,6 +1248,10 @@ class dot11_tracked_device : public tracker_component {
         int wpa_nonce_entry_id;
 
         SharedTrackerElement wpa_present_handshake;
+
+        // Un-exposed internal tracking options
+        uint32_t last_adv_ie_csum;
+        std::shared_ptr<dot11_advertised_ssid> last_adv_ssid;
 };
 
 class dot11_ssid_alert {
@@ -1271,7 +1301,11 @@ public:
 
     // Dot11 decoders, wep decryptors, etc
     int PacketWepDecryptor(kis_packet *in_pack);
+    // Top-level dissector; decodes basic type and populates the dot11 packet
     int PacketDot11dissector(kis_packet *in_pack);
+    // Expects an existing dot11 packet with the basic type intact, interprets
+    // IE tags to the best of our ability
+    int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
 
     // Special decoders, not called as part of a chain
 

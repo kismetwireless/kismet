@@ -53,8 +53,7 @@
 
 devicetracker_function_worker::devicetracker_function_worker(GlobalRegistry *in_globalreg,
         function<bool (Devicetracker *, shared_ptr<kis_tracked_device_base>)> in_mcb,
-        function<void (Devicetracker *,
-            vector<shared_ptr<kis_tracked_device_base> >)> in_fcb) {
+        function<void (Devicetracker *)> in_fcb) {
 
     globalreg = in_globalreg;
 
@@ -63,35 +62,27 @@ devicetracker_function_worker::devicetracker_function_worker(GlobalRegistry *in_
 }
 
 devicetracker_function_worker::~devicetracker_function_worker() {
-    local_eol_locker lock(&worker_mutex);
-
 }
 
-void devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
+bool devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
         shared_ptr<kis_tracked_device_base> device) {
 
     if (mcb == NULL)
-        return;
+        return false;
 
-    if (mcb(devicetracker, device)) {
-        local_locker lock(&worker_mutex);
-        matched_devices.push_back(device);
-    }
-
+    return mcb(devicetracker, device);
 }
 
 void devicetracker_function_worker::Finalize(Devicetracker *devicetracker) {
     if (fcb != NULL) {
-        local_locker lock(&worker_mutex);
-        fcb(devicetracker, matched_devices);
+        fcb(devicetracker);
     }
 }
 
 
 devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistry *in_globalreg,
         string in_query,
-        vector<vector<int> > in_paths,
-        SharedTrackerElement in_devvec_object) {
+        vector<vector<int> > in_paths) {
 
     globalreg = in_globalreg;
 
@@ -103,15 +94,12 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistr
 
     // Preemptively try to compute a mac address partial search term
     mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
-
-    return_dev_vec = in_devvec_object;
 }
 
 devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
-    local_eol_locker lock(&worker_mutex);
 }
 
-void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
     vector<vector<int> >::iterator i;
 
@@ -134,13 +122,11 @@ void devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
                         mac_query_term_len);
         }
 
-        if (matched) {
-            local_locker lock(&worker_mutex);
-            return_dev_vec->add_vector(device);
-            break;
-        }
+        if (matched)
+            return true;
     }
 
+    return false;
 }
 
 void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
@@ -150,8 +136,7 @@ void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __a
 #ifdef HAVE_LIBPCRE
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-        vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec,
-        SharedTrackerElement in_devvec_object) {
+        vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec) {
 
     globalreg = in_globalreg;
 
@@ -160,13 +145,10 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
     filter_vec = in_filter_vec;
     error = false;
-
-    return_dev_vec = in_devvec_object;
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-        SharedStructured raw_pcre_vec,
-        SharedTrackerElement in_devvec_object) {
+        SharedStructured raw_pcre_vec) {
 
     globalreg = in_globalreg;
 
@@ -174,8 +156,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     error = false;
-
-    return_dev_vec = in_devvec_object;
 
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
@@ -220,8 +200,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
         string in_target,
-        SharedStructured raw_pcre_vec,
-        SharedTrackerElement in_devvec_object) {
+        SharedStructured raw_pcre_vec) {
 
     globalreg = in_globalreg;
 
@@ -229,8 +208,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     error = false;
-
-    return_dev_vec = in_devvec_object;
 
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
@@ -269,10 +246,9 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 }
 
 devicetracker_pcre_worker::~devicetracker_pcre_worker() {
-    local_eol_locker lock(&worker_mutex);
 }
 
-void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
     vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
@@ -313,12 +289,11 @@ void devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
 
         }
 
-        if (matched) {
-            local_locker lock(&worker_mutex);
-            return_dev_vec->add_vector(device);
-        }
+        if (matched)
+            return true;
     }
 
+    return false;
 }
 
 void devicetracker_pcre_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
