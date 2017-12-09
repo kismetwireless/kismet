@@ -64,6 +64,7 @@
 #include "datasource_pcapfile.h"
 #include "datasource_linux_wifi.h"
 #include "datasource_linux_bluetooth.h"
+#include "datasource_osx_corewlan_wifi.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
