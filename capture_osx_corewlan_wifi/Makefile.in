@@ -18,7 +18,7 @@ SWIFTMODULE ?= "osx_corewlan"
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(MONITOR_SWIFT_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(SWIFTC) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
+		$(SWIFTC) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(MONITOR_SWIFT_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)

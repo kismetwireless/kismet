@@ -60,9 +60,10 @@
 /* Swift bridge functions */
 int corewlan_init();
 int corewlan_num_interfaces();
-int corewlan_get_interface(int pos);
+const char* corewlan_get_interface(int pos);
 int corewlan_num_channels(const char *intf);
 int corewlan_get_channel(const char *intf, int pos);
+int corewlan_get_channel_width(const char *intf, int pos);
 int corewlan_set_channel(const char *intf, int channel, int width);
 
 #define MAX_PACKET_LEN  8192
@@ -127,7 +128,6 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     char parsetype[16];
     char mod;
     int r;
-    unsigned int ci;
     char errstr[STATUS_MAX];
 
     /* Match HT40+ and HT40- */
@@ -162,7 +162,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     memset(ret_localchan, 0, sizeof(local_channel_t));
 
     if (r == 1) {
-        (ret_localchan)->channel = parsechan;
+        ret_localchan->channel = parsechan;
+        ret_localchan->width = DARWIN_CHANWIDTH_20MHZ;
         return ret_localchan;
     }
 
@@ -170,19 +171,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         (ret_localchan)->channel = parsechan;
 
         if (strcasecmp(parsetype, "vht80") == 0) {
-            snprintf(errstr, STATUS_MAX, "requested channel %u as a "
-                    "VHT80 channel; currently we cannot tune VHT channels on OSX",
-                    parsechan);
-            cf_send_message(caph, errstr, MSGFLAG_ERROR);
-            free(ret_localchan);
-            return NULL;
+            ret_localchan->width = DARWIN_CHANWDITH_80MHZ;
         } else if (strcasecmp(parsetype, "vht160") == 0) {
-            snprintf(errstr, STATUS_MAX, "requested channel %u as a "
-                    "VHT80 channel; currently we cannot tune VHT channels on OSX",
-                    parsechan);
-            cf_send_message(caph, errstr, MSGFLAG_ERROR);
-            free(ret_localchan);
-            return NULL;
+            ret_localchan->width = DARWIN_CHANWIDTH_160MHZ;
         } else {
             /* otherwise return it as a basic channel; we don't know what to do */
             snprintf(errstr, STATUS_MAX, "unable to parse attributes on channel "
@@ -199,22 +190,27 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
  * 'chanstr' should hold at least STATUS_MAX characters; we'll never use
  * that many but it lets us do some cheaty stuff and re-use errstrs */
 void local_channel_to_str(local_channel_t *chan, char *chanstr) {
-    /* Right now we only handle basic channels on OSX */
-
     /* Basic channel with no HT/VHT */
-    if (chan->width == 0) {
-        snprintf(chanstr, STATUS_MAX, "%u", chan->channel);
+    switch (chan->width) {
+        case DARWIN_CHANWIDTH_UNKNOWN:
+        case DARWIN_CHANWIDTH_20MHZ:
+        case DARWIN_CHANWIDTH_40MHZ:
+            snprintf(chanstr, STATUS_MAX, "%u", chan->channel);
+            break;
+        case DARWIN_CHANWDITH_80MHZ:
+            snprintf(chanstr, STATUS_MAX, "%uVHT80", chan->channel);
+            break;
+        case DARWIN_CHANWIDTH_160MHZ:
+            snprintf(chanstr, STATUS_MAX, "%uVHT160", chan->channel);
+            break;
     }
 }
 
 int populate_chanlist(char *interface, char *msg, char ***chanlist, 
         size_t *chanlist_sz) {
-    int ret;
-    unsigned int *iw_chanlist;
-    unsigned int chan_sz;
     char conv_chan[16];
-    int num_chans;
-    int ci, c;
+    int base_num_chans, num_chans;
+    int ci, c, cpos;
 
     num_chans = corewlan_num_channels(interface);
 
@@ -225,13 +221,98 @@ int populate_chanlist(char *interface, char *msg, char ***chanlist,
         return -1;
     }
 
+    base_num_chans = num_chans;
+
+    /* Derive channel widths from here */
+    for (ci = 0; ci < base_num_chans; ci++) {
+        c = corewlan_get_channel(interface, ci);
+
+        switch (corewlan_get_channel_width(interface, ci)) {
+            case DARWIN_CHANWIDTH_UNKNOWN:
+            case DARWIN_CHANWIDTH_20MHZ:
+                break;
+            case DARWIN_CHANWIDTH_40MHZ:
+                /* 40mhz - we don't know how to set 40+/40-, skip for now */
+                break;
+            case DARWIN_CHANWDITH_80MHZ:
+                /* 80mhz - we know how to set this, so add a channel for 80
+                   If we supported 40, we'd have to calculate if we were adding
+                   ht40+/- for this channel via the wifi channels table too. */
+
+                /* Make sure we can set ht80 */
+                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
+                        num_chans++;
+                    }
+                }
+
+                break;
+            case DARWIN_CHANWIDTH_160MHZ:
+                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
+                    /* Make sure we can set 160 */
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT160) {
+                        num_chans++;
+                    }
+
+                    /* Are we also a HT80? */
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
+                        num_chans++;
+                    }
+                }
+                break;
+        }
+    }
+
+    /* Now we build our list and do it all again */
     *chanlist = (char **) malloc(sizeof(char) * num_chans);
+    *chanlist_sz = num_chans;
+
+    cpos = 0;
     
-    for (ci = 0; ci < num_chans; ci++) {
+    for (ci = 0; ci < base_num_chans; ci++) {
         c = corewlan_get_channel(interface, ci);
 
         snprintf(conv_chan, 16, "%u", c);
-        (*chanlist)[ci] = strdup(conv_chan);
+        (*chanlist)[cpos++] = strdup(conv_chan);
+
+        switch (corewlan_get_channel_width(interface, ci)) {
+            case DARWIN_CHANWIDTH_UNKNOWN:
+            case DARWIN_CHANWIDTH_20MHZ:
+                break;
+            case DARWIN_CHANWIDTH_40MHZ:
+                /* 40mhz - we don't know how to set 40+/40-, skip for now */
+                break;
+            case DARWIN_CHANWDITH_80MHZ:
+                /* 80mhz - we know how to set this, so add a channel for 80
+                   If we supported 40, we'd have to calculate if we were adding
+                   ht40+/- for this channel via the wifi channels table too. */
+
+                /* Make sure we can set ht80 */
+                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
+                        snprintf(conv_chan, 16, "%uVHT80", c);
+                        (*chanlist)[cpos++] = strdup(conv_chan);
+                    }
+                }
+
+                break;
+            case DARWIN_CHANWIDTH_160MHZ:
+                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
+                    /* Make sure we can set 160 */
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT160) {
+                        snprintf(conv_chan, 16, "%uVHT160", c);
+                        (*chanlist)[cpos++] = strdup(conv_chan);
+                    }
+
+                    /* Are we also a HT80? */
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
+                        snprintf(conv_chan, 16, "%uVHT80", c);
+                        (*chanlist)[cpos++] = strdup(conv_chan);
+                    }
+                }
+                break;
+        }
+
     }
 
     return 1;
@@ -250,7 +331,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
 
-    if (corewlan_set_channel(local_wifi->interface, channel->channel, 0) < 0) {
+    if (corewlan_set_channel(local_wifi->interface, channel->channel, channel->width) < 0) {
         local_channel_to_str(channel, chanstr);
         snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
                 chanstr, errstr);
@@ -326,10 +407,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     uint8_t hwaddr[6];
 
     char errstr[STATUS_MAX];
-    char errstr2[STATUS_MAX];
     char pcap_errstr[PCAP_ERRBUF_SIZE] = "";
-
-    char ifnam[IFNAMSIZ];
 
     *uuid = NULL;
     *dlt = 0;
@@ -337,13 +415,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_interface = cf_params_interface_new();
     *ret_spectrum = NULL;
 
-    int mode;
-
     int ret;
-
-    char regdom[5];
-
-    char driver[32] = "";
 
     char *localchanstr = NULL;
     local_channel_t *localchan = NULL;
@@ -468,72 +540,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *msg, char ***interfaces, char ***flags) {
-    DIR *devdir;
-    struct dirent *devfile;
-    char errstr[STATUS_MAX];
+    int num_corewlan_devs = corewlan_num_interfaces();
+    int di;
 
-    /* Basic list of devices */
-    typedef struct wifi_list {
-        char *device;
-        char *flags;
-        struct wifi_list *next;
-    } wifi_list_t; 
-
-    wifi_list_t *devs = NULL;
-    size_t num_devs = 0;
-
-    unsigned int i;
-
-    if ((devdir = opendir("/sys/class/net/")) == NULL) {
-        /* fprintf(stderr, "debug - no /sys/class/net dir?\n"); */
-
-        /* Not an error, just nothing to do */
-        *interfaces = NULL;
-        *flags = NULL;
+    if (num_corewlan_devs <= 0) 
         return 0;
+
+    *interfaces = (char **) malloc(sizeof(char *) * num_corewlan_devs);
+    *flags = (char **) malloc(sizeof(char *) * num_corewlan_devs);
+
+    for (di = 0; di < num_corewlan_devs; di++) {
+        (*interfaces)[di] = strdup(corewlan_get_interface(di));
+        (*flags)[di] = NULL;
     }
 
-    /* Look at the files in the sys dir and see if they're wi-fi */
-    while ((devfile = readdir(devdir)) != NULL) {
-        /* if we can get the current channel with simple iwconfig ioctls
-         * it's definitely a wifi device; even mac80211 devices respond 
-         * to it */
-        int mode;
-        if (iwconfig_get_mode(devfile->d_name, errstr, &mode) >= 0) {
-            wifi_list_t *d = (wifi_list_t *) malloc(sizeof(wifi_list_t));
-            num_devs++;
-            d->device = strdup(devfile->d_name);
-            d->flags = NULL;
-            d->next = devs;
-            devs = d;
-        }
-    }
-
-    closedir(devdir);
-
-    if (num_devs == 0) {
-        *interfaces = NULL;
-        *flags = NULL;
-        return 0;
-    }
-
-    *interfaces = (char **) malloc(sizeof(char *) * num_devs);
-    *flags = (char **) malloc(sizeof(char *) * num_devs);
-
-    i = 0;
-
-    while (devs != NULL) {
-        wifi_list_t *td = devs->next;
-        (*interfaces)[i] = devs->device;
-        (*flags)[i] = devs->flags;
-
-        free(devs);
-        devs = td;
-
-        i++;
-    }
-
-    return num_devs;
+    return num_corewlan_devs;
 }
 
 void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
@@ -606,19 +627,8 @@ int main(int argc, char *argv[]) {
         .cap_interface = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
-        .use_mac80211_vif = 1,
-        .use_mac80211_channels = 1,
-        .mac80211_socket = NULL,
         .seq_channel_failure = 0,
-        .reset_nm_management = 0,
     };
-
-#ifdef HAVE_LIBNM
-    NMClient *nmclient = NULL;
-    const GPtrArray *nmdevices;
-    GError *nmerror = NULL;
-    int i;
-#endif
 
 #if 0
     /* Remap stderr so we can log debugging to a file */
@@ -628,9 +638,7 @@ int main(int argc, char *argv[]) {
     dup2(fileno(sterr), STDOUT_FILENO);
 #endif
 
-    /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
-
-    kis_capture_handler_t *caph = cf_handler_init("linuxwifi");
+    kis_capture_handler_t *caph = cf_handler_init("osxcorewlanwifi");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
@@ -671,6 +679,7 @@ int main(int argc, char *argv[]) {
     /* Support remote capture by launching the remote loop */
     cf_handler_remote_capture(caph);
 
+#if 0
     /* Jail our ns */
     if (cf_jail_filesystem(caph) < 1) {
         fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
@@ -680,36 +689,9 @@ int main(int argc, char *argv[]) {
     if (cf_drop_most_caps(caph) < 1) {
         fprintf(stderr, "DEBUG - Didn't drop some privs\n");
     }
+#endif
 
     cf_handler_loop(caph);
-
-    /* We're done - try to reset the networkmanager awareness of the interface */
-
-#ifdef HAVE_LIBNM
-    if (local_wifi.reset_nm_management) {
-        nmclient = nm_client_new(NULL, &nmerror);
-
-        if (nmclient != NULL) {
-            if (nm_client_get_nm_running(nmclient)) {
-                nmdevices = nm_client_get_devices(nmclient);
-
-                if (nmdevices != NULL) {
-                    for (i = 0; i < nmdevices->len; i++) {
-                        const NMDevice *d = g_ptr_array_index(nmdevices, i);
-
-                        if (strcmp(nm_device_get_iface((NMDevice *) d), 
-                                    local_wifi.interface) == 0) {
-                            nm_device_set_managed((NMDevice *) d, 1);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            g_object_unref(nmclient);
-        }
-    }
-#endif
 
     cf_handler_free(caph);
 
