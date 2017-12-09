@@ -4,29 +4,30 @@ Kismet is capable of running on OSX systems, however, currently, it is _not_ cap
 
 ## Building Kismet
 
-Kismet should build on OSX directly, but requires some libraries be installed.  The easiest way to get the libraries is via MacPorts using the `port` tool:
+Kismet should build on OSX directly, but requires some libraries be installed.  The easiest way to get the libraries is via MacPorts using the `port` tool.
 
-```
-# Make a source dir (optional)
-$ mkdir src
+1. Install MacPorts from the Macports website - https://www.macports.org
 
-# Install libraries via macports
-$ sudo port install libmicrohttpd
+2. Make a source dir for Kismet (optional, but recommended)
+   `$ mkdir src`
 
-# Get the Kismet code
-$ cd src
-$ git clone https://www.kismetwireless.net/git/kismet.git
+3. Get the Kismet code
 
-# Configure kismet
-$ ./configure
+   `$ git clone https://www.kismetwireless.net/git/kismet.git`
 
-# Build
-$ make
+4. Install the needed libraries via ports; When prompted to install other necessary libraries, of course say `yes`:
+   `$ sudo port install libmicrohttpd`
+   `$ sudo port install pcre`
 
-# Install - generally it's best to do 'make suidinstall', but currently there are no binaries for capture using root on OSX
-$ sudo make suidinstall
+5. Configure Kismet.  You'll need to pass some options to tell the OSX compilers where to find the libraries and headers installed by Ports:
+   `$ CFLAGS="-I/opt/local/include" LDFLAGS="-L/opt/local/lib" CPPFLAGS="-I/opt/local/include" ./configure`
 
-```
+6. Compile Kismet
+   `$ make`
+
+7. Install Kismet
+   `$ make suidinstall`
+
 
 ## Configuring Kismet
 
