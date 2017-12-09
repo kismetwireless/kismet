@@ -250,9 +250,14 @@ class dot11_packinfo : public packet_component {
         std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
 
         double maxrate;
+        // 11g rates
         std::vector<std::string> basic_rates;
         std::vector<std::string> extended_rates;
+
+        // 11n MCS rates
         std::vector<std::string> mcs_rates;
+
+        // VHT isn't specially enumerated, it just factors into max speed
 };
 
 class dot11_tracked_eapol : public tracker_component {

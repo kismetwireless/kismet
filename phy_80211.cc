@@ -1129,7 +1129,7 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
             if (dot11info->dot11vht->channel_width() ==
                     dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80) {
-                ssid->set_ht_mode("HT40");
+                ssid->set_ht_mode("HT80");
                 ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
                 ssid->set_ht_center_2(0);
             } else if (dot11info->dot11vht->channel_width() ==

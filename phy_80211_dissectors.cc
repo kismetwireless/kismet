@@ -50,6 +50,7 @@
 #include "kaitai_parsers/dot11_ie_54_mobility.h"
 #include "kaitai_parsers/dot11_ie_61_ht.h"
 #include "kaitai_parsers/dot11_ie_133_cisco_ccx.h"
+#include "kaitai_parsers/dot11_ie_191_vht_capabilities.h"
 #include "kaitai_parsers/dot11_ie_192_vht_operation.h"
 #include "kaitai_parsers/dot11_ie_221_vendor.h"
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
@@ -101,6 +102,65 @@ const double mcs_table[][4] = {
     {0, 0, 6.0, 6.7},
 };
 const int MCS_MAX = 32;
+
+// Indexed by VHT MCS index; contains base rates + extended vht
+// rates ordered as 0-9 per stream
+
+const int CH80GI800 = 4;
+const int CH80GI400 = 5;
+const int CH160GI800 = 6;
+const int CH160GI400 = 7;
+
+const double vht_mcs_table[][8] {
+    // Stream 0 0-9
+    {6.5, 7.2, 13.5, 15, 29.3, 32.5, 58.5, 65}, 
+    {13, 14.4, 27, 30, 58.5, 65, 117, 130}, 
+    {19.5, 21.7, 40.5, 45, 87.8, 97.5, 175.5, 195}, 
+    {26, 28.9, 54, 60, 117, 130, 234, 260}, 
+    {39, 43.3, 81, 90, 175.5, 195, 351, 390}, 
+    {52, 57.8, 108, 120, 234, 260, 468, 520}, 
+    {58.5, 65, 121.5, 135, 263.3, 292.5, 526.5, 585}, 
+    {65, 72.2, 135, 150, 292.5, 325, 585, 650}, 
+    {78, 86.7, 162, 180, 351, 390, 702, 780},
+    {0, 0, 180, 200, 390, 433.3, 780, 866.7},
+
+    // Stream 1 0-9
+    {13, 14.4, 27, 30, 58.5, 65, 117, 130}, 
+    {26, 28.9, 54, 60, 117, 130, 234, 260}, 
+    {39, 43.3, 81, 90, 175.5, 195, 351, 390}, 
+    {52, 57.8, 108, 120, 234, 260, 468, 520}, 
+    {78, 86.7, 162, 180, 351, 390, 702, 780}, 
+    {104, 115.6, 216, 240, 468, 520, 936, 1040}, 
+    {117, 130, 243, 270, 526.5, 585, 1053, 1170}, 
+    {130, 144.4, 270, 300, 585, 650, 1170, 1300}, 
+    {156, 173.3, 324, 360, 702, 780, 1404, 1560},
+    {0, 0, 360, 400, 780, 866.7, 1560, 1733.3 },
+
+    // Stream 3, 0-9
+    {19.5, 21.7, 40.5, 45, 87.8, 97.5, 175.5, 195}, 
+    {39, 43.3, 81, 90, 175.5, 195, 351, 390}, 
+    {58.5, 65, 121.5, 135, 263.3, 292.5, 526.5, 585}, 
+    {78, 86.7, 162, 180, 351, 390, 702, 780}, 
+    {117, 130, 243, 270, 526.5, 585, 1053, 1170}, 
+    {156, 173.3, 324, 360, 702, 780, 1404, 1560}, 
+    {175.5, 195, 364.5, 405, 0, 0, 1579.5, 1755}, 
+    {195, 216.7, 405, 450, 877.5, 975, 1755, 1950}, 
+    {234, 260, 486, 540, 1053, 1170, 2106, 2340},
+    {260, 288.9, 540, 600, 1170, 1300, 0, 0},
+
+    // Stream 4, 0-9
+    {26, 28.8, 54, 60, 117, 130, 234, 260}, 
+    {52, 57.6, 108, 120, 234, 260, 468, 520}, 
+    {78, 86.8, 162, 180, 351, 390, 702, 780}, 
+    {104, 115.6, 216, 240, 468, 520, 936, 1040}, 
+    {156, 173.2, 324, 360, 702, 780, 1404, 1560}, 
+    {208, 231.2, 432, 480, 936, 1040, 1872, 2080}, 
+    {234, 260, 486, 540, 1053, 1170, 2106, 2340}, 
+    {260, 288.8, 540, 600, 1170, 1300, 2340, 2600}, 
+    {312, 346.7, 648, 720, 1404, 1560, 2808, 3120},
+    {0, 0, 720, 800, 1560, 1733.3, 3120, 3466.7}
+};
+const int VHT_MCS_MAX = 40;
 
 // CRC32 index for verifying WEP - cribbed from ethereal
 static const uint32_t dot11_wep_crc32_table[256] = {
@@ -1594,13 +1654,90 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             continue;
         }
 
-        // IE 192 VHT
+        // IE 191 VHT Capabilities
+        if (ie_tag->tag_num() == 191) {
+            try {
+                std::shared_ptr<dot11_ie_191_vht_capabilities_t> vhtc(new dot11_ie_191_vht_capabilities_t(&ks));
+
+                bool gi80 = vhtc->vht_cap_80mhz_shortgi();
+                bool gi160 = vhtc->vht_cap_160mhz_shortgi();
+                bool supp160 = vhtc->vht_cap_160mhz_supported();
+
+                int stream = -1;
+                unsigned int mcs = 0;
+                unsigned int gi = 0;
+
+                if (supp160) {
+                    if (gi160) {
+                        gi = CH160GI400;
+                    } else {
+                        gi = CH160GI800;
+                    }
+                } else {
+                    if (gi80) {
+                        gi = CH80GI400;
+                    } else {
+                        gi = CH80GI800;
+                    }
+                }
+
+                // Count back from stream 4 looking for the highest MCS setting
+                if (vhtc->rx_mcs_s4() == 2) {
+                    stream = 3;
+                    mcs = 9;
+                } else if (vhtc->rx_mcs_s4() == 1) {
+                    stream = 3;
+                    mcs = 7;
+                } else if (vhtc->rx_mcs_s3() == 2) {
+                    stream = 2;
+                    mcs = 9;
+                } else if (vhtc->rx_mcs_s3() == 1) {
+                    stream = 2;
+                    mcs = 7;
+                } else if (vhtc->rx_mcs_s2() == 2) {
+                    stream = 1;
+                    mcs = 9;
+                } else if (vhtc->rx_mcs_s2() == 1) {
+                    stream = 1;
+                    mcs = 7;
+                } else if (vhtc->rx_mcs_s1() == 2) {
+                    stream = 0;
+                    mcs = 9;
+                } else if (vhtc->rx_mcs_s1() == 1) {
+                    stream = 0;
+                    mcs = 7;
+                }
+
+                // What?  Invalid steam index
+                if (stream < 0 || stream > 3) {
+                    continue;
+                }
+
+                // Get the index
+                int mcsofft = (stream * 10) + mcs;
+                if (mcsofft < 0 || mcsofft > VHT_MCS_MAX)
+                    continue;
+
+                double speed = vht_mcs_table[mcsofft][gi];
+
+                if (packinfo->maxrate < speed)
+                    packinfo->maxrate = speed;
+
+            } catch (const std::exception& e) {
+                fprintf(stderr, "debug - vht 191 error %s\n", e.what());
+                // Don't consider this a corrupt packet just because we didn't parse it
+
+            }
+        }
+
+
+        // IE 192 VHT Operation
         if (ie_tag->tag_num() == 192) {
             try {
                 std::shared_ptr<dot11_ie_192_vht_operation_t> vht(new dot11_ie_192_vht_operation_t(&ks));
                 packinfo->dot11vht = vht;
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - vht error %s\n", e.what());
+                fprintf(stderr, "debug - vht 192 error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
             }
 
