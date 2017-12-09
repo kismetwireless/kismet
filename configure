@@ -3807,6 +3807,12 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
+BUILD_CAPTURE_LINUX_WIFI=0
+BUILD_CAPTURE_LINUX_BLUETOOTH=0
+BUILD_CAPTURE_PCAPFILE=0
+BUILD_CAPTURE_HACKRF_SWEEP=0
+BUILD_CAPTURE_OSX_COREWLAN=0
+
 # Liberated from ethereal's configure.in
 #
 # Add any platform-specific compiler flags needed.
@@ -9163,6 +9169,7 @@ $as_echo "no" >&6; }
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
     BUILD_CAPTURE_PCAPFILE=1
 
+    BUILD_CAPTURE_LINUX_WIFI=0
     if test "$linux" = "yes"; then
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
         BUILD_CAPTURE_LINUX_WIFI=1
