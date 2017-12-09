@@ -24,6 +24,9 @@
 
    */
 
+import Cocoa
+import CoreFoundation
+import CoreWLAN
 
 /* Global copies */
 var channels = [String : [Int]]();
@@ -35,30 +38,37 @@ var interfaces = [String]();
 @_silgen_name("corewlan_init")
 public func corewlan_init() -> Int
 {
-    interfaces.append("en1demo");
-    interfaces.append("en3demo");
+    /* There is almost certainly a smarter way to do this, but we are
+       not swift programmers */
+    if #available(OSX 10.10, *) {
+        let wf = CWWiFiClient()
+            let interfs = [wf!.interfaces()]
+            let interfenum = interfs.enumerated()
 
-    var chans = [Int]();
+            for (_, intfs) in interfenum {
+                for intf in intfs! {
+                    let intname = intf.interfaceName!
+                        interfaces.append(intname)
+                        let chans = [intf.supportedWLANChannels()]
+                        let enumchans = chans.enumerated()
+                        var ichans = [Int]();
+                    var iwidths = [Int]();
+                    for (_, chanblob) in enumchans{
+                        for channel in chanblob! {
+                            print(channel)
+                                ichans.append(channel.channelNumber)
+                                iwidths.append(channel.channelWidth.rawValue)
+                        }
+                    }
+                    channels[intname] = ichans
+                        channels_width[intname] = iwidths
+                }
+            }
+        return 1;
+    } else {
+        return -1;
+    }
 
-    chans.append(1);
-    chans.append(2);
-    chans.append(3);
-    chans.append(4);
-    chans.append(5);
-
-    channels["en1demo"] = chans;
-
-    var wids = [Int]();
-
-    wids.append(0);
-    wids.append(0);
-    wids.append(0);
-    wids.append(0);
-    wids.append(0);
-
-    channels_width["en3demo"] = wids;
-
-    return 1;
 }
 
 /* How many interfaces do we have? */

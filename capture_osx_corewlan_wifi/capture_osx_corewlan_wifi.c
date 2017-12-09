@@ -102,8 +102,8 @@ typedef struct {
  * XXVHT80-YY   Channel/frequency XX, VHT 80MHz channel, upper pair specified
  * XXVHT160-YY  Channel/frequency XX, VHT 160MHz channel, upper pair specified
  *
- * We're not sure yet how to talk these formats in OSX; more development to come;
- * for now, only basic channels are handled.
+ * We're not sure yet how to talk all these formats in OSX; more development to come;
+ * for now, we do our best
  *
  */
 
@@ -137,12 +137,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
         memset(ret_localchan, 0, sizeof(local_channel_t));
 
+        /* We set the width and let OSX figure it out */
         (ret_localchan)->channel = parsechan;
-
-        /* otherwise return it as a basic channel; we don't know what to do */
-        snprintf(errstr, STATUS_MAX, "Currently unable to handle HT/VHT attributes "
-                "on channels in OSX, treating as standard non-HT channel.");
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        (ret_localchan)->width = DARWIN_CHANWIDTH_40MHZ;
 
         return ret_localchan;
     }
@@ -209,8 +206,8 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
 int populate_chanlist(char *interface, char *msg, char ***chanlist, 
         size_t *chanlist_sz) {
     char conv_chan[16];
-    int base_num_chans, num_chans;
-    int ci, c, cpos;
+    int num_chans;
+    int ci, c;
 
     num_chans = corewlan_num_channels(interface);
 
@@ -221,98 +218,39 @@ int populate_chanlist(char *interface, char *msg, char ***chanlist,
         return -1;
     }
 
-    base_num_chans = num_chans;
-
-    /* Derive channel widths from here */
-    for (ci = 0; ci < base_num_chans; ci++) {
-        c = corewlan_get_channel(interface, ci);
-
-        switch (corewlan_get_channel_width(interface, ci)) {
-            case DARWIN_CHANWIDTH_UNKNOWN:
-            case DARWIN_CHANWIDTH_20MHZ:
-                break;
-            case DARWIN_CHANWIDTH_40MHZ:
-                /* 40mhz - we don't know how to set 40+/40-, skip for now */
-                break;
-            case DARWIN_CHANWDITH_80MHZ:
-                /* 80mhz - we know how to set this, so add a channel for 80
-                   If we supported 40, we'd have to calculate if we were adding
-                   ht40+/- for this channel via the wifi channels table too. */
-
-                /* Make sure we can set ht80 */
-                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
-                        num_chans++;
-                    }
-                }
-
-                break;
-            case DARWIN_CHANWIDTH_160MHZ:
-                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
-                    /* Make sure we can set 160 */
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT160) {
-                        num_chans++;
-                    }
-
-                    /* Are we also a HT80? */
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
-                        num_chans++;
-                    }
-                }
-                break;
-        }
-    }
-
     /* Now we build our list and do it all again */
     *chanlist = (char **) malloc(sizeof(char) * num_chans);
     *chanlist_sz = num_chans;
-
-    cpos = 0;
     
-    for (ci = 0; ci < base_num_chans; ci++) {
+    for (ci = 0; ci < num_chans; ci++) {
         c = corewlan_get_channel(interface, ci);
-
-        snprintf(conv_chan, 16, "%u", c);
-        (*chanlist)[cpos++] = strdup(conv_chan);
 
         switch (corewlan_get_channel_width(interface, ci)) {
             case DARWIN_CHANWIDTH_UNKNOWN:
             case DARWIN_CHANWIDTH_20MHZ:
+                snprintf(conv_chan, 16, "%u", c);
+                (*chanlist)[ci] = strdup(conv_chan);
                 break;
             case DARWIN_CHANWIDTH_40MHZ:
-                /* 40mhz - we don't know how to set 40+/40-, skip for now */
-                break;
-            case DARWIN_CHANWDITH_80MHZ:
-                /* 80mhz - we know how to set this, so add a channel for 80
-                   If we supported 40, we'd have to calculate if we were adding
-                   ht40+/- for this channel via the wifi channels table too. */
-
                 /* Make sure we can set ht80 */
                 if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
-                        snprintf(conv_chan, 16, "%uVHT80", c);
-                        (*chanlist)[cpos++] = strdup(conv_chan);
+                    if (wifi_ht_channels[c].flags & WIFI_HT_HT40MINUS) {
+                        snprintf(conv_chan, 16, "%uHT40-", c);
+                    } else {
+                        snprintf(conv_chan, 16, "%uHT40+", c);
                     }
+
+                    (*chanlist)[ci] = strdup(conv_chan);
                 }
 
+                break;
+            case DARWIN_CHANWDITH_80MHZ:
+                snprintf(conv_chan, 16, "%uVHT80", c);
                 break;
             case DARWIN_CHANWIDTH_160MHZ:
-                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
-                    /* Make sure we can set 160 */
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT160) {
-                        snprintf(conv_chan, 16, "%uVHT160", c);
-                        (*chanlist)[cpos++] = strdup(conv_chan);
-                    }
-
-                    /* Are we also a HT80? */
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT80) {
-                        snprintf(conv_chan, 16, "%uVHT80", c);
-                        (*chanlist)[cpos++] = strdup(conv_chan);
-                    }
-                }
+                snprintf(conv_chan, 16, "%uVHT160", c);
                 break;
         }
-
     }
 
     return 1;
@@ -643,6 +581,12 @@ int main(int argc, char *argv[]) {
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
                 "is very low on RAM or something is wrong.\n");
+        return -1;
+    }
+
+    /* Initialize the corewlan system */
+    if (corewlan_init() <= 0) {
+        fprintf(stderr, "FATAL: Could not communicate to corewlan\n");
         return -1;
     }
 
