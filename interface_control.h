@@ -84,29 +84,6 @@ int ifconfig_interface_down(const char *in_dev, char *errstr);
  */
 int ifconfig_get_hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
 
-/* Sets the current HW address of the device.  Interface must be down to set the
- * MAC address.
- *
- * Mac address must be 6 bytes.
- *
- * errstr must be allocated by the caller and able to hold STATUS_MAX characters.
- *
- * Returns:
- * -1   Error
- *  0   Success
- */
-int ifconfig_set_hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr);
-
-/* Sets the MTU.  The interface must be down to set the MTU.
- *
- * errstr must be allocated by the caller and be able to hold STATUS_MAX characters.
- *
- * Returns:
- * -1   Error
- *  0   Success
- */
-int ifconfig_set_mtu(const char *in_dev, char *errstr, uint16_t in_mtu);
-
 /* Definitions from ethtool-2 */
 #define ETHTOOL_BUSINFO_LEN	32
 struct ethtool_drvinfo {

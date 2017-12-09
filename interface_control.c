@@ -28,6 +28,16 @@
 #include <unistd.h>
 #include <strings.h>
 
+#ifdef SYS_DARWIN
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#endif
+
 int ifconfig_set_flags(const char *in_dev, char *errstr, int flags) {
 #ifndef SYS_CYGWIN
     struct ifreq ifr;
@@ -229,59 +239,38 @@ int ifconfig_get_hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
     return 0;
 }
 
-int ifconfig_set_hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr) {
-    struct ifreq ifr;
-    int skfd;
+#endif
 
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, 
-                "failed to connect to interface '%s' to set HW addr: %s",
-                in_dev, strerror(errno));
-        return errno; 
+
+#ifdef SYS_DARWIN
+int ifconfig_get_hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
+    struct ifaddrs *if_addrs = NULL;
+    struct ifaddrs *if_addr = NULL;
+    int got_mac = 0;
+
+    if (getifaddrs(&if_addrs) == 0) {    
+        for (if_addr = if_addrs; if_addr != NULL; if_addr = if_addr->ifa_next) {
+            if (strcmp(if_addr->ifa_name, in_dev) == 0) {
+                if (if_addr->ifa_addr != NULL && if_addr->ifa_addr->sa_family == AF_LINK) {
+                    struct sockaddr_dl* sdl = (struct sockaddr_dl *)if_addr->ifa_addr;
+                    if (sdl->sdl_alen == 6) {
+                        memcpy(ret_hwaddr, LLADDR(sdl), sdl->sdl_alen);
+                        got_mac = 1;
+                    }
+                }
+            }
+        }
+
+        freeifaddrs(if_addrs);
+        if_addrs = NULL;
     }
 
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-    memcpy(ifr.ifr_hwaddr.sa_data, in_hwaddr, 6);
-    ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
-     
-    if (ioctl(skfd, SIOCSIFHWADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, 
-                "failed to set hw addr on interface '%s': %s",
-                 in_dev, strerror(errno));
-        close(skfd);
-        return errno;
-    }
+    if (got_mac)
+        return 0;
 
-    close(skfd);
+    snprintf(errstr, STATUS_MAX, "failed to get hw address from interface %s", in_dev);
+    return -1;
 
-    return 0;
 }
-
-int ifconfig_set_mtu(const char *in_dev, char *errstr, uint16_t in_mtu) {
-    struct ifreq ifr;
-    int skfd;
-
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, 
-                "failed to connect to interface '%s' to set MTU: %s",
-                in_dev, strerror(errno));
-        return -1;
-    }
-
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-    ifr.ifr_mtu = in_mtu;
-    if (ioctl(skfd, SIOCSIFMTU, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, 
-                "failed to set MTU on interface '%s': %s",
-                 in_dev, strerror(errno));
-        close(skfd);
-        return -1;
-    }
-
-    close(skfd);
-
-    return 0;
-}
-
 #endif
 
