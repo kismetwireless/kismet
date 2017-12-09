@@ -116,7 +116,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [40] = { 
         .chan = 40, 
         .freq = 5200, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [42] = { 
         /* Not typically exposed in linux as directly tunable; paired with
@@ -128,7 +128,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [44] = { 
         .chan = 44, 
         .freq = 5220, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS 
     },
     [46] = { 
         /* Not typically exposed */
@@ -139,7 +139,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [48] = { 
         .chan = 48, 
         .freq = 5240, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [50] = { 
         /* Not typically exposed */
@@ -151,8 +151,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
         /* primary channel for AC80 58 */
         .chan = 52, 
         .freq = 5260, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS |
-            WIFI_HT_HT80,
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT80,
         .freq80 = 5290
     },
     [54] = { 
@@ -164,7 +163,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [56] = { 
         .chan = 56, 
         .freq = 5280, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [58] = { 
         /* Not typically exposed */
@@ -175,7 +174,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [60] = { 
         .chan = 60, 
         .freq = 5300, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS 
     },
     [62] = { 
         /* Not typically exposed */
@@ -192,8 +191,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
         /* Control channel for AC80 106 and AC160 114 */
         .chan = 100, 
         .freq = 5500, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS |
-            WIFI_HT_HT80 | WIFI_HT_HT160,
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT80 | WIFI_HT_HT160,
         .freq80 = 5530,
         .freq160 = 5570
     },
@@ -206,7 +204,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [104] = { 
         .chan = 104, 
         .freq = 5520,
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [106] = { 
         /* Not typically exposed */
@@ -217,7 +215,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [108] = { 
         .chan = 108, 
         .freq = 5540, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS 
     },
     [110] = { 
         /* Not typically exposed */
@@ -228,7 +226,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [112] = { 
         .chan = 112, 
         .freq = 5560, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [114] = { 
         /* Not typically exposed */
@@ -240,8 +238,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
         /* Control for AC80 122 */
         .chan = 116, 
         .freq = 5580, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS |
-            WIFI_HT_HT80,
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT80,
         .freq80 = 5610
     },
     [118] = { 
@@ -253,7 +250,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [120] = { 
         .chan = 120, 
         .freq = 5600, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [122] = { 
         /* Not typically exposed */
@@ -264,7 +261,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [124] = { 
         .chan = 124, 
         .freq = 5620, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS 
     },
     [126] = { 
         /* Not typically exposed */
@@ -275,14 +272,13 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [128] = { 
         .chan = 128, 
         .freq = 5640, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [132] = { 
         /* Control for AC80 138 */
         .chan = 132, 
         .freq = 5660, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS |
-            WIFI_HT_HT80,
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT80,
         .freq80 = 5690,
     },
     [134] = { 
@@ -294,7 +290,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [136] = { 
         .chan = 136, 
         .freq = 5680, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [138] = { 
         /* Not typically exposed */
@@ -335,7 +331,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [153] = { 
         .chan = 153, 
         .freq = 5765, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [155] = { 
         /* Not typically exposed */
@@ -346,7 +342,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [157] = { 
         .chan = 157, 
         .freq = 5785, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS 
     },
     [159] = { 
         /* Not typically exposed */
@@ -357,7 +353,7 @@ wifi_channel wifi_ht_channels[MAX_WIFI_HT_CHANNEL + 1] = {
     [161] = { 
         .chan = 161, 
         .freq = 5805, 
-        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40PLUS | WIFI_HT_HT40MINUS 
+        .flags = WIFI_WIDTH_20MHZ | WIFI_HT_HT40MINUS 
     },
     [165] = { 
         .chan = 165, 
