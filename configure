@@ -622,6 +622,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+BUILD_CAPTURE_OSX_COREWLAN
 BUILD_CAPTURE_LINUX_BLUETOOTH
 BUILD_CAPTURE_HACKRF_SWEEP
 BUILD_CAPTURE_LINUX_WIFI
@@ -10062,9 +10063,11 @@ fi
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
+    BUILD_CAPTURE_OSX_COREWLAN=1
 else
 	suidgroup="kismet"
 fi
+
 
 # Check whether --with-suidgroup was given.
 if test "${with_suidgroup+set}" = set; then :
@@ -10148,6 +10151,7 @@ sharedatadir=${sharedatadir}
 
 
 CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
+
 
 
 
@@ -11614,14 +11618,6 @@ else
 	echo "no"
 fi
 printf "        Prelude  SIEM : $wantprelude\n"
-printf "   OSX/Darwin capture : "
-if test "$darwin" = "yes"; then
-	echo "yes"
-elif test "$darwin" != "yes"; then
-	echo "n/a (only OSX/Darwin)"
-else
-	echo "no"
-fi
 printf "   PCRE Regex Filters : "
 if test "$wantpcre" = "yes"; then
 	echo "yes"
@@ -11656,6 +11652,15 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no";
+fi
+
+printf "   OSX/Darwin capture : "
+if test "$darwin" = "yes"; then
+	echo "yes"
+elif test "$darwin" != "yes"; then
+	echo "n/a (only OSX/Darwin)"
+else
+	echo "no"
 fi
 
 printf "         Linux Netlink: "

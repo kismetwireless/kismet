@@ -1257,9 +1257,11 @@ fi
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
+    BUILD_CAPTURE_OSX_COREWLAN=1
 else
 	suidgroup="kismet"
 fi
+
 AC_ARG_WITH(suidgroup,
 	[  --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process ],
 	[
@@ -1335,6 +1337,7 @@ AC_SUBST(BUILD_CAPTURE_PCAPFILE)
 AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
 AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
+AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1366,14 +1369,6 @@ else
 	echo "no"
 fi
 printf "        Prelude  SIEM : $wantprelude\n"
-printf "   OSX/Darwin capture : "
-if test "$darwin" = "yes"; then
-	echo "yes"
-elif test "$darwin" != "yes"; then
-	echo "n/a (only OSX/Darwin)"
-else
-	echo "no"
-fi
 printf "   PCRE Regex Filters : "
 if test "$wantpcre" = "yes"; then
 	echo "yes"
@@ -1408,6 +1403,15 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no";
+fi
+
+printf "   OSX/Darwin capture : "
+if test "$darwin" = "yes"; then
+	echo "yes"
+elif test "$darwin" != "yes"; then
+	echo "n/a (only OSX/Darwin)"
+else
+	echo "no"
 fi
 
 printf "         Linux Netlink: "

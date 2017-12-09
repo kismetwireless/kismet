@@ -31,6 +31,9 @@ BUILD_CAPTURE_HACKRF_SWEEP = @BUILD_CAPTURE_HACKRF_SWEEP@
 CAPTURE_LINUX_BLUETOOTH = capture_linux_bluetooth/kismet_cap_linux_bluetooth
 BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 
+CAPTURE_OSX_COREWLAN = capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
+BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -114,6 +117,9 @@ $(CAPTURE_LINUX_WIFI):	$(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_bluetooth && $(MAKE))
 
+$(CAPTURE_OSX_COREWLAN): $(DATSOURCE_COMMON_A) FORCE
+	(cd capture_osx_corewlan_wifi && $(MAKE))
+
 $(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
 
@@ -133,6 +139,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_OSX_COREWLAN) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_OSX_COREWLAN)`; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -156,6 +166,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) $(CAPTURE_OSX_COREWLAN) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_OSX_COREWLAN)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \
@@ -285,6 +299,7 @@ clean:
 	@-rm -f $(DATASOURCE_BINS)
 	@(cd capture_linux_bluetooth; make clean)
 	@(cd capture_linux_wifi; make clean)
+	@(cd capture_osx_corewlan_wifi; make clean)
 	@(cd msgpack-1.4.1; make clean)
 
 distclean:
