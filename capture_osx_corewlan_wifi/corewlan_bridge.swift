@@ -29,9 +29,8 @@ import CoreFoundation
 import CoreWLAN
 
 /* Global copies */
-var channels = [String : [Int]]();
-var channels_width = [String : [Int]]();
-
+var channels = [String : [CWChannel]]();
+var native_interfaces = [String : CWInterface]();
 var interfaces = [String]();
 
 /* Enumerate the corewlan items and put them in our local variables */
@@ -48,19 +47,18 @@ public func corewlan_init() -> Int
             for (_, intfs) in interfenum {
                 for intf in intfs! {
                     let intname = intf.interfaceName!
-                        interfaces.append(intname)
-                        let chans = [intf.supportedWLANChannels()]
-                        let enumchans = chans.enumerated()
-                        var ichans = [Int]();
-                    var iwidths = [Int]();
+                    interfaces.append(intname)
+		            native_interfaces[intname] = intf
+                    let chans = [intf.supportedWLANChannels()]
+                    let enumchans = chans.enumerated()
+
+                    var ichans = [CWChannel]();
                     for (_, chanblob) in enumchans{
                         for channel in chanblob! {
-				ichans.append(channel.channelNumber)
-                                iwidths.append(channel.channelWidth.rawValue)
+				            ichans.append(channel)
                         }
                     }
                     channels[intname] = ichans
-                        channels_width[intname] = iwidths
                 }
             }
         return 1;
@@ -94,18 +92,39 @@ public func corewlan_get_num_channels(intf : String) -> Int
 @_silgen_name("corewlan_get_channel")
 public func corewlan_get_channel(intf : String, pos : Int) -> Int
 {
-    return channels[intf]![pos];
+    return channels[intf]![pos].channelNumber;
 }
 
 @_silgen_name("corewlan_get_channel_width")
 public func corewlan_get_channel_width(intf : String, pos : Int) -> Int
 {
-    return channels_width[intf]![pos];
+    return channels[intf]![pos].channelWidth.rawValue;
+}
+
+@_silgen_name("corewlan_find_channel")
+public func corewlan_find_channel(intf : String, channel : Int, width : Int) -> Int
+{
+    for (index, c) in channels[intf]!.enumerated() {
+        if (c.channelNumber == channel && c.channelWidth.rawValue == width) {
+            return index;
+        }
+    }
+
+    return -1;
 }
 
 @_silgen_name("corewlan_set_channel")
-public func corewlan_set_channel(intf : String, channel : Int, width : Int) -> Int
+public func corewlan_set_channel(intf : String, pos : Int) -> Int
 {
+	let cwintf = native_interfaces[intf]!
+	let cwchannel = channels[intf]![pos]
+	let r = try?(cwintf.setWLANChannel(cwchannel))
+
+    if (r == nil) {
+        return -1;
+    }
+
     return 1;
 }
+
 

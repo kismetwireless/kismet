@@ -64,7 +64,8 @@ const char* corewlan_get_interface(int pos);
 int corewlan_num_channels(const char *intf);
 int corewlan_get_channel(const char *intf, int pos);
 int corewlan_get_channel_width(const char *intf, int pos);
-int corewlan_set_channel(const char *intf, int channel, int width);
+int corewlan_find_channel(const char *intf, int channel, int width);
+int corewlan_set_channel(const char *intf, int pos);
 
 #define MAX_PACKET_LEN  8192
 
@@ -108,32 +109,43 @@ typedef struct {
  */
 
 /* Local interpretation of a channel; this lets us parse the string definitions
- * into a faster non-parsed version, once. */
+ * into a faster non-parsed version, once. For OSX we need to track the original
+ * channel object in swift because we can't reconstitute it */
 typedef struct {
     unsigned int channel;
     unsigned int width;
+    int pos;
 } local_channel_t;
 
 #define DARWIN_CHANWIDTH_UNKNOWN    0
 #define DARWIN_CHANWIDTH_20MHZ      1
 #define DARWIN_CHANWIDTH_40MHZ      2
-#define DARWIN_CHANWDITH_80MHZ      3
+#define DARWIN_CHANWIDTH_80MHZ      3
 #define DARWIN_CHANWIDTH_160MHZ    4
 
 /* Convert a string into a local interpretation; allocate ret_localchan.
  */
 void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
-    local_channel_t *ret_localchan;
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
+    local_channel_t *ret_localchan = NULL;
     unsigned int parsechan, parse_center1;
     char parsetype[16];
     char mod;
-    int r;
+    int r, pos;
     char errstr[STATUS_MAX];
 
     /* Match HT40+ and HT40- */
     r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
     if (r == 2) {
+        pos = corewlan_find_channel(local_wifi->interface, parsechan, DARWIN_CHANWIDTH_40MHZ);
+
+        if (pos < 0) {
+            snprintf(errstr, STATUS_MAX, "unable to find supported channel %s", chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            return NULL;
+        }
+
         ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
         memset(ret_localchan, 0, sizeof(local_channel_t));
 
@@ -155,27 +167,60 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         return NULL;
     }
 
-    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-    memset(ret_localchan, 0, sizeof(local_channel_t));
-
     if (r == 1) {
+        pos = corewlan_find_channel(local_wifi->interface, parsechan, DARWIN_CHANWIDTH_20MHZ);
+
+        if (pos < 0) {
+            snprintf(errstr, STATUS_MAX, "unable to find supported channel %s", chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            return NULL;
+        }
+
+        ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+        memset(ret_localchan, 0, sizeof(local_channel_t));
+
         ret_localchan->channel = parsechan;
         ret_localchan->width = DARWIN_CHANWIDTH_20MHZ;
+        ret_localchan->pos = pos;
+
         return ret_localchan;
     }
 
     if (r >= 2) {
-        (ret_localchan)->channel = parsechan;
+        ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+        memset(ret_localchan, 0, sizeof(local_channel_t));
+
+        ret_localchan->channel = parsechan;
 
         if (strcasecmp(parsetype, "vht80") == 0) {
-            ret_localchan->width = DARWIN_CHANWDITH_80MHZ;
+            pos = corewlan_find_channel(local_wifi->interface, parsechan, DARWIN_CHANWIDTH_80MHZ);
+
+            if (pos < 0) {
+                free(ret_localchan);
+                snprintf(errstr, STATUS_MAX, "unable to find supported channel %s", chanstr);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                return NULL;
+            }
+
+            ret_localchan->width = DARWIN_CHANWIDTH_80MHZ;
+            ret_localchan->pos = pos;
         } else if (strcasecmp(parsetype, "vht160") == 0) {
+            pos = corewlan_find_channel(local_wifi->interface, parsechan, DARWIN_CHANWIDTH_80MHZ);
+
+            if (pos < 0) {
+                free(ret_localchan);
+                snprintf(errstr, STATUS_MAX, "unable to find supported channel %s", chanstr);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                return NULL;
+            }
+
             ret_localchan->width = DARWIN_CHANWIDTH_160MHZ;
+            ret_localchan->pos = pos;
         } else {
-            /* otherwise return it as a basic channel; we don't know what to do */
-            snprintf(errstr, STATUS_MAX, "unable to parse attributes on channel "
-                    "'%s', treating as standard non-HT channel.", chanstr);
-            cf_send_message(caph, errstr, MSGFLAG_INFO);
+            free(ret_localchan);
+            snprintf(errstr, STATUS_MAX, "unable to parse channel %s", chanstr);
+            cf_send_message(caph, errstr, MSGFLAG_ERROR);
+            return NULL;
         }
 
     }
@@ -194,7 +239,7 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
         case DARWIN_CHANWIDTH_40MHZ:
             snprintf(chanstr, STATUS_MAX, "%u", chan->channel);
             break;
-        case DARWIN_CHANWDITH_80MHZ:
+        case DARWIN_CHANWIDTH_80MHZ:
             snprintf(chanstr, STATUS_MAX, "%uVHT80", chan->channel);
             break;
         case DARWIN_CHANWIDTH_160MHZ:
@@ -244,7 +289,7 @@ int populate_chanlist(char *interface, char *msg, char ***chanlist,
                 }
 
                 break;
-            case DARWIN_CHANWDITH_80MHZ:
+            case DARWIN_CHANWIDTH_80MHZ:
                 snprintf(conv_chan, 16, "%uVHT80", c);
                 break;
             case DARWIN_CHANWIDTH_160MHZ:
@@ -269,7 +314,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
 
-    if (corewlan_set_channel(local_wifi->interface, channel->channel, channel->width) < 0) {
+    if (corewlan_set_channel(local_wifi->interface, channel->pos) < 0) {
         local_channel_to_str(channel, chanstr);
         snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
                 chanstr, errstr);
