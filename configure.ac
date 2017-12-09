@@ -1454,21 +1454,6 @@ if test "$havepkgconfig" = "no"; then
 	echo "configure."
 fi
 
-if test "`echo $host_os | grep linux`" = ""; then
-	echo
-	echo "Configuration complete.  You are not running a linux-based system,"
-	echo "you will likely need to use 'gmake' instead of 'make'."
-	echo "Run 'gmake' followed by 'gmake install' to compile and install Kismet"
-else
-	verminor=`uname -r | cut -d '.' -f 2`
-	# Stupid redhat
-	vertiny=`uname -r | cut -d '.' -f 3 | cut -f 1 -d-`
-
-	echo
-	echo "Configuration complete.  You can now run 'make' to compile kismet, "
-    echo "followed by 'make install' or 'make suidinstall' to install it."
-fi
-
 if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
 	echo
     echo "*** WARNING ***"
