@@ -184,6 +184,7 @@ void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
 bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
     local_locker lock(&ssid_mutex);
 
+#ifdef HAVE_LIBPCRE
     int rc;
     int ovector[128];
 
@@ -198,6 +199,7 @@ bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
                 return true;
         }
     }
+#endif
 
     return false;
 
