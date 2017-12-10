@@ -963,6 +963,9 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
 #endif
+#ifdef HAVE_OSX_COREWLAN_DATASOURCE
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder(globalregistry)));
+#endif
 
     // Create the database logger as a global because it's a special case
     KisDatabaseLogfile::create_kisdatabaselog(globalregistry);

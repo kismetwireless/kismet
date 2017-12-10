@@ -84,7 +84,7 @@ public func corewlan_get_interface(pos : Int) -> UnsafePointer<Int8>
 
 /* Get number of channels */
 @_silgen_name("corewlan_num_channels")
-public func corewlan_get_num_channels(intf : String) -> Int
+public func corewlan_num_channels(intf : String) -> Int
 {
     return channels[intf]!.count;
 }
