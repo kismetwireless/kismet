@@ -85,6 +85,13 @@ public:
     uint8_t vendor_oui_type();
 
 private:
+    bool f_vendor_sub_type;
+    uint8_t m_vendor_sub_type;
+
+public:
+    uint8_t vendor_sub_type();
+
+private:
     std::string m_vendor_oui;
     ieee_221_vendor_tag_t* m_vendor_tag;
     dot11_ie_221_vendor_t* m__root;

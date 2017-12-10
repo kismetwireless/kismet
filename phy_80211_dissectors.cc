@@ -1807,6 +1807,14 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     packinfo->droneid = droneid;
                 }
 
+                if (vendor->vendor_oui_int() == 0x0050f2 && vendor->vendor_sub_type() == 0x04) {
+                    std::stringstream wpsstream(vendor->vendor_tag()->vendor_data());
+                    kaitai::kstream wpss(&wpsstream);
+
+                    std::shared_ptr<dot11_ie_221_ms_wps_t> wps(new dot11_ie_221_ms_wps_t(&wpss));
+
+                }
+
                 // TODO port WPS to kaitai
 #if 0
             // Match 221 tag header for WPS

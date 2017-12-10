@@ -11,6 +11,7 @@ dot11_ie_221_vendor_t::dot11_ie_221_vendor_t(kaitai::kstream *p_io, kaitai::kstr
     f_vendor_oui_extract = false;
     f_vendor_oui_int = false;
     f_vendor_oui_type = false;
+    f_vendor_sub_type = false;
     m_vendor_oui = m__io->read_bytes(3);
     m_vendor_tag = new ieee_221_vendor_tag_t(m__io, this, m__root);
 }
@@ -70,4 +71,15 @@ uint8_t dot11_ie_221_vendor_t::vendor_oui_type() {
     m__io->seek(_pos);
     f_vendor_oui_type = true;
     return m_vendor_oui_type;
+}
+
+uint8_t dot11_ie_221_vendor_t::vendor_sub_type() {
+    if (f_vendor_sub_type)
+        return m_vendor_sub_type;
+    std::streampos _pos = m__io->pos();
+    m__io->seek(4);
+    m_vendor_sub_type = m__io->read_u1();
+    m__io->seek(_pos);
+    f_vendor_sub_type = true;
+    return m_vendor_sub_type;
 }

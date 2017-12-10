@@ -26,6 +26,8 @@ public:
     class vendor_data_generic_t;
     class wps_de_element_t;
     class wps_de_ap_setup_t;
+    class wps_de_primary_type_t;
+    class wps_de_rawstr_t;
 
     dot11_ie_221_ms_wps_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
     ~dot11_ie_221_ms_wps_t();
@@ -185,11 +187,17 @@ public:
     public:
 
         enum wps_de_types_t {
+            WPS_DE_TYPES_WPS_DE_TYPE_DEVICE_NAME = 4113,
+            WPS_DE_TYPES_WPS_DE_TYPE_MANUF = 4129,
+            WPS_DE_TYPES_WPS_DE_TYPE_MODEL = 4131,
+            WPS_DE_TYPES_WPS_DE_TYPE_MODEL_NUM = 4132,
             WPS_DE_TYPES_WPS_DE_TYPE_RFBANDS = 4156,
+            WPS_DE_TYPES_WPS_DE_TYPE_SERIAL = 4162,
             WPS_DE_TYPES_WPS_DE_TYPE_STATE = 4164,
             WPS_DE_TYPES_WPS_DE_TYPE_UUID_E = 4167,
             WPS_DE_TYPES_WPS_DE_TYPE_VENDOR_EXTENSION = 4169,
             WPS_DE_TYPES_WPS_DE_TYPE_VERSION = 4170,
+            WPS_DE_TYPES_WPS_DE_TYPE_PRIMARY_TYPE = 4180,
             WPS_DE_TYPES_WPS_DE_TYPE_AP_SETUP = 4183
         };
 
@@ -232,6 +240,60 @@ public:
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
         dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
     };
+
+    class wps_de_primary_type_t : public kaitai::kstruct {
+
+    public:
+
+        wps_de_primary_type_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        ~wps_de_primary_type_t();
+
+    private:
+        uint16_t m_category;
+        uint32_t m_typedata;
+        uint16_t m_subcategory;
+        dot11_ie_221_ms_wps_t* m__root;
+        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+
+    public:
+        uint16_t category() const { return m_category; }
+        uint32_t typedata() const { return m_typedata; }
+        uint16_t subcategory() const { return m_subcategory; }
+        dot11_ie_221_ms_wps_t* _root() const { return m__root; }
+        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+    };
+
+    class wps_de_rawstr_t : public kaitai::kstruct {
+
+    public:
+
+        wps_de_rawstr_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        ~wps_de_rawstr_t();
+
+    private:
+        std::string m_raw_str;
+        dot11_ie_221_ms_wps_t* m__root;
+        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+
+    public:
+        std::string raw_str() const { return m_raw_str; }
+        dot11_ie_221_ms_wps_t* _root() const { return m__root; }
+        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+    };
+
+private:
+    bool f_ms_wps_oui;
+    int32_t m_ms_wps_oui;
+
+public:
+    int32_t ms_wps_oui();
+
+private:
+    bool f_ms_wps_subtype;
+    int8_t m_ms_wps_subtype;
+
+public:
+    int8_t ms_wps_subtype();
 
 private:
     std::vector<wps_de_element_t*>* m_wps_element;
