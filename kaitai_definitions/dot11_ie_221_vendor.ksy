@@ -30,11 +30,6 @@ instances:
     type: u1
     pos: 3
 
-  # Extract the vendor subtype without consuming it
-  vendor_sub_type:
-    type: u1
-    pos: 4
-
 types:
   # Break the OUI into bytes which we assemble into an int
   vendor_oui_bytes:

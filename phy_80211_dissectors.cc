@@ -1807,11 +1807,33 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     packinfo->droneid = droneid;
                 }
 
-                if (vendor->vendor_oui_int() == 0x0050f2 && vendor->vendor_sub_type() == 0x04) {
+                // Look for WPS MS
+                if (vendor->vendor_oui_int() == 0x0050f2 && vendor->vendor_oui_type() == 0x04) {
                     std::stringstream wpsstream(vendor->vendor_tag()->vendor_data());
                     kaitai::kstream wpss(&wpsstream);
 
                     std::shared_ptr<dot11_ie_221_ms_wps_t> wps(new dot11_ie_221_ms_wps_t(&wpss));
+
+                    for (auto wpselem : *(wps->wps_element())) {
+                        if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_STATE) {
+                            dot11_ie_221_ms_wps_t::wps_de_state_t *state = (dot11_ie_221_ms_wps_t::wps_de_state_t *) wpselem->wps_de_content();
+
+                            if (state->wps_state_configured()) {
+                                packinfo->wps |= DOT11_WPS_CONFIGURED;
+                            } else {
+                                packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
+                            }
+                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_DEVICE_NAME) {
+                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            packinfo->wps_device_name = MungeToPrintable(str->raw_str());
+                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL) {
+                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            packinfo->wps_model_name = MungeToPrintable(str->raw_str());
+                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL_NUM) {
+                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            packinfo->wps_model_number = MungeToPrintable(str->raw_str());
+                        }
+                    }
 
                 }
 
@@ -1820,33 +1842,6 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             // Match 221 tag header for WPS
                     if (taglen < sizeof(WPS_SIG))
                         continue;
-                    
-                    if (memcmp(&(chunk->data[tag_orig + offt]), WPS_SIG, 
-                                sizeof(WPS_SIG)))
-                        continue;
-                    
-                    // Go to the beginning of the first data element
-                    offt += sizeof(WPS_SIG); 
-                    
-                    // Iterate through the data elements
-                    for (;;) {
-                        // Check if we have the type and length (2 bytes each)
-                        if (offt + 4 > taglen) {
-                            fprintf(stderr, "debug - wps length corrupt\n");
-                            packinfo->corrupt = 1;
-                            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                            return 0;
-                        }
-                        uint16_t type = 
-                            kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt])));
-                        uint16_t length = 
-                            kis_ntoh16(kis_extract16(&(chunk->data[tag_orig + offt + 2])));
-                        if (offt + 4 + length > taglen) {
-                            fprintf(stderr, "debug - wps typelength corrupt\n");
-                            packinfo->corrupt = 1;
-                            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                            return 0;
-                        }
 
                         switch (type) {
                             case 0x1044: { // State
@@ -1928,7 +1923,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
 
             } catch (const std::exception &e) {
-                fprintf(stderr, "debug - 221 ie tag corrupt\n");
+                fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
                 packinfo->corrupt = 1;
                 return -1;
             }
