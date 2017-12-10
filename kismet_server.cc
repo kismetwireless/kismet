@@ -963,7 +963,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
 #endif
-#ifdef HAVE_OSX_COREWLAN_DATASOURCE
+#ifdef HAVE_OSX_COREWLAN_WIFI_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder(globalregistry)));
 #endif
 
