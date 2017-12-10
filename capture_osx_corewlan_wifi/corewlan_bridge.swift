@@ -29,50 +29,65 @@ import CoreFoundation
 import CoreWLAN
 
 /* Global copies */
-var channels = [String : [CWChannel]]();
-var native_interfaces = [String : CWInterface]();
+var channels = [CWChannel]();
+var native_interface = CWInterface();
 var interfaces = [String]();
 
 /* Enumerate the corewlan items and put them in our local variables */
 @_silgen_name("corewlan_init")
-public func corewlan_init() -> Int
+public func corewlan_init(in_ifname : UnsafePointer<UInt8>) -> Int
 {
+    let ifname = String(cString: in_ifname)
+
+print(ifname)
     /* There is almost certainly a smarter way to do this, but we are
        not swift programmers.  Patches definitely welcome. */
     if #available(OSX 10.10, *) {
         let wf = CWWiFiClient()
-            let interfs = [wf!.interfaces()]
-            let interfenum = interfs.enumerated()
+        let interfs = [wf!.interfaces()]
+        let interfenum = interfs.enumerated()
 
-            for (_, intfs) in interfenum {
-                for intf in intfs! {
-                    let intname = intf.interfaceName!
-                    interfaces.append(intname)
-		            native_interfaces[intname] = intf
+        for (_, intfs) in interfenum {
+            for intf in intfs! {
+                let intname = intf.interfaceName!
+                if (intname == ifname) {
+                    native_interface = intf;
                     let chans = [intf.supportedWLANChannels()]
                     let enumchans = chans.enumerated()
 
-                    var ichans = [CWChannel]();
                     for (_, chanblob) in enumchans{
                         for channel in chanblob! {
-				            ichans.append(channel)
+                            channels.append(channel)
                         }
                     }
-                    channels[intname] = ichans
                 }
             }
+        }
         return 1;
     } else {
         return -1;
     }
-
 }
 
 /* How many interfaces do we have? */
 @_silgen_name("corewlan_num_interfaces")
 public func corewlan_num_interfaces() -> Int
 {
-    return interfaces.count;
+    if #available(OSX 10.10, *) {
+        let wf = CWWiFiClient()
+        let interfs = [wf!.interfaces()]
+        let interfenum = interfs.enumerated()
+
+        for (_, intfs) in interfenum {
+            for intf in intfs! {
+                let intname = intf.interfaceName!
+                interfaces.append(intname);
+            }
+        }
+        return interfaces.count;
+    } else {
+        return -1;
+    }
 }
 
 /* Get a single interface */
@@ -84,27 +99,27 @@ public func corewlan_get_interface(pos : Int) -> UnsafePointer<Int8>
 
 /* Get number of channels */
 @_silgen_name("corewlan_num_channels")
-public func corewlan_num_channels(intf : String) -> Int
+public func corewlan_num_channels() -> Int
 {
-    return channels[intf]!.count;
+    return channels.count;
 }
 
 @_silgen_name("corewlan_get_channel")
-public func corewlan_get_channel(intf : String, pos : Int) -> Int
+public func corewlan_get_channel(pos : Int) -> Int
 {
-    return channels[intf]![pos].channelNumber;
+    return channels[pos].channelNumber;
 }
 
 @_silgen_name("corewlan_get_channel_width")
-public func corewlan_get_channel_width(intf : String, pos : Int) -> Int
+public func corewlan_get_channel_width(pos : Int) -> Int
 {
-    return channels[intf]![pos].channelWidth.rawValue;
+    return channels[pos].channelWidth.rawValue;
 }
 
 @_silgen_name("corewlan_find_channel")
-public func corewlan_find_channel(intf : String, channel : Int, width : Int) -> Int
+public func corewlan_find_channel(channel : Int, width : Int) -> Int
 {
-    for (index, c) in channels[intf]!.enumerated() {
+    for (index, c) in channels.enumerated() {
         if (c.channelNumber == channel && c.channelWidth.rawValue == width) {
             return index;
         }
@@ -114,11 +129,10 @@ public func corewlan_find_channel(intf : String, channel : Int, width : Int) -> 
 }
 
 @_silgen_name("corewlan_set_channel")
-public func corewlan_set_channel(intf : String, pos : Int) -> Int
+public func corewlan_set_channel(pos : Int) -> Int
 {
-	let cwintf = native_interfaces[intf]!
-	let cwchannel = channels[intf]![pos]
-	let r = try?(cwintf.setWLANChannel(cwchannel))
+	let cwchannel = channels[pos]
+	let r = try?(native_interface.setWLANChannel(cwchannel))
 
     if (r == nil) {
         return -1;
