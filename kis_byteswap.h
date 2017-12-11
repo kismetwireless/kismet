@@ -23,18 +23,16 @@
 
 #ifndef SYS_DARWIN
 #include <byteswap.h>
-#else
+#elif defined(__APPLE__)
 
-#define bswap_16(value) \
-    ((((value) & 0xff) << 8) | ((value) >> 8))
+#define __BYTE_ORDER __BYTE_ORDER__
+#define __LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
+#define __BIG_ENDIAN __ORDER_BIG_ENDIAN__
 
-#define bswap_32(value) \
-    (((uint32_t)bswap_16((uint16_t)((value) & 0xffff)) << 16) | \
-    (uint32_t)bswap_16((uint16_t)((value) >> 16)))
-
-#define bswap_64(value) \
-    (((uint64_t)bswap_32((uint32_t)((value) & 0xffffffff)) << 32) | \
-    (uint64_t)bswap_32((uint32_t)((value) >> 32)))
+#include <libkern/OSByteOrder.h>
+#define bswap_16 OSSwapInt16
+#define bswap_32 OSSwapInt32
+#define bswap_64 OSSwapInt64
 
 #endif
 
