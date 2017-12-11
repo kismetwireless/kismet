@@ -142,4 +142,18 @@ int linux_getsysdrvattr(const char *in_dev, const char *in_attr);
 
 #endif
 
+#ifdef SYS_DARWIN
+/* Fetches the current HW address of the device and copies it to ret_hwaddr.
+ * ret_hwaddr must be allocated by the caller and be able to hold 6 bytes.
+ * Only the first 6 bytes of the interface will be copied.
+ *
+ * Errstr must be allocated by the caller and be able to hold STATUS_MAX characters.
+ *
+ * Returns:
+ * -1   Error
+ *  0   Success
+ */
+int ifconfig_get_hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
+#endif
+
 #endif
