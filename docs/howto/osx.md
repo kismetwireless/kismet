@@ -29,59 +29,17 @@ Kismet should build on OSX directly, but requires some libraries be installed.  
    `$ make suidinstall`
 
 
-## Configuring Kismet
+`make suidinstall` will install the Kismet helpers as suid-root, executeable by users in the `staff` group in OSX.
 
-To work with OSX, Kismet needs to have remote capture enabled.  Remote capture can either be enabled on all listening interfaces, or enabled locally and a tunneling tool, such as `stunnel` or `ssh` with port forwarding, can be used to expose the remote capture interface.
+## Configuring and Running Kismet
 
-### Enabling remote capture
+Kismet supports both local capture (from CoreWLAN / Apple wireless devices) and remote capture (from embedded Linux devices, etc, over the network).
 
-Remote capture should ONLY be enabled on systems on a private network; any system able to connect to the server will be able to send data.
+Kismet will (currently) work *only* with Wi-Fi devices supported by the built-in Apple drivers; it will *not* work with USB devices; They use vendor drivers which do not support monitor mode or provide control APIs.
 
-To enable remote capture beyond localhost:
+Kismet will list the available Wi-Fi sources in the `Datasources` panel of the UI, or can be run from the command line:
 
-1.  Edit `/usr/local/etc/kismet.conf`
-2.  Change the `remote_capture_listen` variable from `127.0.0.1` to `0.0.0.0`:
-
-```
-remote_capture_listen=0.0.0.0
-remote_capture_port=3501
-```
-
-Then, start Kismet.
-
-On the system that will capture data, launch the remote capture process:
-
-For instance,
-
-```
-$ sudo /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi --connect osx-system-address:3501 --source wlan0:name=some-remote-wlan0
-```
-
-or
-
-```
-$ sudo /usr/local/bin/kismet_capture_tools/kismet_cap_linux_bluetooth --connect osx-system-address:3501 --source hci0:name=some-remote-hci0
-```
-
-### Using SSH tunnels
-
-From the system that will capture packets, SSH into your OSX system using port forwarding:
-
-```
-$ ssh someuser@192.168.1.2 -L 3501:localhost:3501
-```
-
-Then launch the capture tool pointing at the port forward:
-
-```
-$ sudo /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi --connect localhost:3501 --source wlan0:name=some-remote-wlan0
-```
-
-or
-
-```
-$ sudo /usr/local/bin/kismet_capture_tools/kismet_cap_linux_bluetooth --connect localhost:3501 --source hci0:name=some-remote-hci0
-```
+`$ kismet -c en1`
 
 ## Connect to kismet
 
