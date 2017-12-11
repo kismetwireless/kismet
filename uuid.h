@@ -124,8 +124,10 @@ public:
 	string UUID2String() const {
 		char ids[38];
 		snprintf(ids, 38, "%08x-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
-				 (unsigned int) *time_low, *time_mid, *time_hi, *clock_seq,
-				 node[0], node[1], node[2], node[3], node[4], node[5]);
+                (unsigned int) *time_low, *time_mid, *time_hi, *clock_seq,
+                (unsigned short) node[0], (unsigned short) node[1],
+                (unsigned short) node[2], (unsigned short) node[3],
+                (unsigned short) node[4], (unsigned short) node[5]);
 		return string(ids);
 	}
 
