@@ -18,7 +18,7 @@
 
 /* capture_osx_corewlan_wifi
  *
- * Capture binary, written in a combination of pure c and swift
+ * Capture binary, written in a combination of pure c and objective c
  *
  * This talks to the corewlan API to get the available interfaces
  *
@@ -57,18 +57,17 @@
 
 #include "../wifi_ht_channels.h"
 
-/* Swift bridge functions */
-int corewlan_init(const char *intf);
-int corewlan_num_interfaces();
-const char* corewlan_get_interface(int pos);
-
-int corewlan_num_channels();
-int corewlan_get_channel(int pos);
-int corewlan_get_channel_width(int pos);
-int corewlan_find_channel(int channel, int width);
-int corewlan_set_channel(int pos);
+#import <Foundation/Foundation.h>
+#import <CoreWLAN/CoreWLAN.h>
 
 #define MAX_PACKET_LEN  8192
+
+@interface CoreWLANHolder : NSObject 
+@property (retain) CWInterface *interface;
+@property (retain) NSArray<CWChannel *> *channels;
+@end
+@implementation CoreWLANHolder
+@end
 
 /* State tracking, put in userdata */
 typedef struct {
@@ -83,7 +82,44 @@ typedef struct {
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
 
+    CoreWLANHolder *cw_holder;
+
 } local_wifi_t;
+
+int corewlan_find_channel(local_wifi_t *localwifi, int channel, int width) {
+    int len = [[localwifi->cw_holder channels] count];
+    int i;
+
+    for (i = 0; i < len; i++) {
+        CWChannel *c = [localwifi->cw_holder channels][i];
+
+        if ([c channelNumber] == channel && [c channelWidth] == width) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int corewlan_set_channel(local_wifi_t *local_wifi, int pos) {
+    CWChannel *c = [local_wifi->cw_holder channels][pos];
+    CWInterface *i = [local_wifi->cw_holder interface];
+    NSError *anyerror;
+    BOOL r;
+
+    if (c == NULL) {
+        return -1;
+    }
+
+    r = [i setWLANChannel:c
+            error: &anyerror];
+
+    if (!r) {
+        return -1;
+    }
+
+    return 1;
+}
 
 /*
  * Wi-Fi can use multiple channel widths and encodings which need to be
@@ -139,7 +175,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
     if (r == 2) {
-        pos = corewlan_find_channel(parsechan, DARWIN_CHANWIDTH_40MHZ);
+        pos = corewlan_find_channel(local_wifi, parsechan, DARWIN_CHANWIDTH_40MHZ);
 
         if (pos < 0) {
             snprintf(errstr, STATUS_MAX, "unable to find supported channel %s", chanstr);
@@ -169,7 +205,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     }
 
     if (r == 1) {
-        pos = corewlan_find_channel(parsechan, DARWIN_CHANWIDTH_20MHZ);
+        pos = corewlan_find_channel(local_wifi, parsechan, DARWIN_CHANWIDTH_20MHZ);
 
         if (pos < 0) {
             snprintf(errstr, STATUS_MAX, "unable to find supported channel %s", chanstr);
@@ -194,7 +230,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         ret_localchan->channel = parsechan;
 
         if (strcasecmp(parsetype, "vht80") == 0) {
-            pos = corewlan_find_channel(parsechan, DARWIN_CHANWIDTH_80MHZ);
+            pos = corewlan_find_channel(local_wifi, parsechan, DARWIN_CHANWIDTH_80MHZ);
 
             if (pos < 0) {
                 free(ret_localchan);
@@ -206,7 +242,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
             ret_localchan->width = DARWIN_CHANWIDTH_80MHZ;
             ret_localchan->pos = pos;
         } else if (strcasecmp(parsetype, "vht160") == 0) {
-            pos = corewlan_find_channel(parsechan, DARWIN_CHANWIDTH_80MHZ);
+            pos = corewlan_find_channel(local_wifi, parsechan, DARWIN_CHANWIDTH_80MHZ);
 
             if (pos < 0) {
                 free(ret_localchan);
@@ -249,16 +285,15 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     }
 }
 
-int populate_chanlist(char *interface, char *msg, char ***chanlist, 
+int populate_chanlist(local_wifi_t *local_wifi, char *interface, char *msg, char ***chanlist, 
         size_t *chanlist_sz) {
     char conv_chan[16];
     int num_chans;
-    int ci, c;
+    CWChannel *c;
+    int ci;
 
-printf("going to look for num of channels on '%s'\n", interface);
-
-    num_chans = corewlan_num_channels(interface);
-printf("got %d channels\n", num_chans);
+    [local_wifi->cw_holder setChannels:[[[local_wifi->cw_holder interface] supportedWLANChannels] allObjects]];
+    num_chans = [[local_wifi->cw_holder channels] count];
 
     if (num_chans <= 0) {
         *chanlist = NULL;
@@ -268,37 +303,42 @@ printf("got %d channels\n", num_chans);
     }
 
     /* Now we build our list and do it all again */
-    *chanlist = (char **) malloc(sizeof(char) * num_chans);
+    *chanlist = (char **) malloc(sizeof(char *) * num_chans);
     *chanlist_sz = num_chans;
 
-    
     for (ci = 0; ci < num_chans; ci++) {
-        c = corewlan_get_channel(ci);
+        c = [local_wifi->cw_holder channels][ci];
 
-        switch (corewlan_get_channel_width(ci)) {
+        switch ([c channelWidth]) {
             case DARWIN_CHANWIDTH_UNKNOWN:
             case DARWIN_CHANWIDTH_20MHZ:
-                snprintf(conv_chan, 16, "%u", c);
+                snprintf(conv_chan, 16, "%ld", [c channelNumber]);
                 (*chanlist)[ci] = strdup(conv_chan);
                 break;
             case DARWIN_CHANWIDTH_40MHZ:
                 /* Make sure we can set ht80 */
-                if (c > 0 && c < MAX_WIFI_HT_CHANNEL) {
-                    if (wifi_ht_channels[c].flags & WIFI_HT_HT40MINUS) {
-                        snprintf(conv_chan, 16, "%uHT40-", c);
+                if ([c channelNumber] > 0 && [c channelNumber] < MAX_WIFI_HT_CHANNEL) {
+                    if (wifi_ht_channels[[c channelNumber]].flags & WIFI_HT_HT40MINUS) {
+                        snprintf(conv_chan, 16, "%ldHT40-", [c channelNumber]);
                     } else {
-                        snprintf(conv_chan, 16, "%uHT40+", c);
+                        snprintf(conv_chan, 16, "%ldHT40+", [c channelNumber]);
                     }
 
                     (*chanlist)[ci] = strdup(conv_chan);
                 }
-
+                (*chanlist)[ci] = strdup(conv_chan);
                 break;
             case DARWIN_CHANWIDTH_80MHZ:
-                snprintf(conv_chan, 16, "%uVHT80", c);
+                snprintf(conv_chan, 16, "%ldVHT80", [c channelNumber]);
+                (*chanlist)[ci] = strdup(conv_chan);
                 break;
             case DARWIN_CHANWIDTH_160MHZ:
-                snprintf(conv_chan, 16, "%uVHT160", c);
+                snprintf(conv_chan, 16, "%ldVHT160", [c channelNumber]);
+                (*chanlist)[ci] = strdup(conv_chan);
+                break;
+            default:
+                printf("unknown channel\n");
+                (*chanlist)[ci] = NULL;
                 break;
         }
     }
@@ -319,7 +359,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
 
-    if (corewlan_set_channel(channel->pos) < 0) {
+    if (corewlan_set_channel(local_wifi, channel->pos) < 0) {
         local_channel_to_str(channel, chanstr);
         snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
                 chanstr, errstr);
@@ -339,16 +379,21 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, simple_cap_proto_frame_t *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
-    int ret;
+    int ret, i;
     char errstr[STATUS_MAX];
+    int found_interface = 0;
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
     uint8_t hwaddr[6];
+
+    NSArray<CWInterface *> *cw_interfaces =
+        [[CWWiFiClient sharedWiFiClient] interfaces];
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -357,7 +402,16 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
-    if (corewlan_init(interface) < 0) {
+    /* Look for the interface */
+    for (i = 0; i < [cw_interfaces count]; i++) {
+        if (strcmp([[cw_interfaces[i] interfaceName] UTF8String], interface) == 0) {
+            [local_wifi->cw_holder setInterface:cw_interfaces[i]];
+            found_interface = 1;
+            break;
+        }
+    }
+
+    if (!found_interface) {
         free(interface);
         return 0;
     }
@@ -368,7 +422,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    ret = populate_chanlist(interface, errstr, &((*ret_interface)->channels),
+    ret = populate_chanlist(local_wifi, interface, errstr, &((*ret_interface)->channels),
             &((*ret_interface)->channels_len));
 
     free(interface);
@@ -384,6 +438,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
             hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
     *uuid = strdup(errstr);
+
+    printf("probe returned\n");
+
     return 1;
 }
 
@@ -408,10 +465,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_interface = cf_params_interface_new();
     *ret_spectrum = NULL;
 
-    int ret;
+    int ret, i, found_interface = 0;
 
     char *localchanstr = NULL;
     local_channel_t *localchan = NULL;
+
+    NSArray<CWInterface *> *cw_interfaces =
+        [[CWWiFiClient sharedWiFiClient] interfaces];
 
     /* Clean up any existing local state on open; we can get re-opened if we're a 
      * remote source */
@@ -439,10 +499,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_wifi->interface = strndup(placeholder, placeholder_len);
 
-    /* Initialize the corewlan system */
-    if (corewlan_init(local_wifi->interface) <= 0) {
-		snprintf(msg, STATUS_MAX, "Unable to initialize the OSX Corewlan system");
-		return -1;
+    /* Look for the interface */
+    for (i = 0; i < [cw_interfaces count]; i++) {
+        if (strcmp([[cw_interfaces[i] interfaceName] UTF8String], local_wifi->interface) == 0) {
+            [local_wifi->cw_holder setInterface:cw_interfaces[i]];
+            found_interface = 1;
+            break;
+        }
+    }
+
+    if (!found_interface) {
+        snprintf(msg, STATUS_MAX, "Unable to find interface %s via the OSX CoreWLAN system",
+            local_wifi->interface);
+        return -1;
     }
 
     /* get the mac address; this should be standard for anything */
@@ -461,7 +530,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
     *uuid = strdup(errstr);
 
-
     local_wifi->cap_interface = strdup(local_wifi->interface);
 
     /* Bring up the cap interface no matter what */
@@ -472,8 +540,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    ret = populate_chanlist(local_wifi->cap_interface, errstr, 
+    ret = populate_chanlist(local_wifi, local_wifi->cap_interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
+
     if (ret < 0) {
         snprintf(msg, STATUS_MAX, "Could not get list of channels from capture "
                 "interface '%s' on '%s': %s", local_wifi->cap_interface,
@@ -481,9 +550,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    [[local_wifi->cw_holder interface] disassociate];
+
     /* Open the pcap */
-    local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
-            MAX_PACKET_LEN, 1, 1000, pcap_errstr);
+    local_wifi->pd = pcap_create(local_wifi->cap_interface, pcap_errstr);
 
     if (local_wifi->pd == NULL || strlen(pcap_errstr) != 0) {
         snprintf(msg, STATUS_MAX, "Could not open capture interface '%s' on '%s' "
@@ -492,11 +562,28 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    if (pcap_can_set_rfmon(local_wifi->pd)) {
+        printf("think we can set monitor\n");
+    } else {
+        printf("don't think we can set monitor\n");
+    }
+
+
     if (pcap_set_rfmon(local_wifi->pd, 1) < 0) {
+        printf("set rfmon failed\n");
+/*
         snprintf(msg, STATUS_MAX, 
                 "Could not enable monitor mode on interface '%s'",
                 local_wifi->interface);
+        return -1;
+*/
     }
+
+    pcap_set_promisc(local_wifi->pd, 1);
+    pcap_set_snaplen(local_wifi->pd, MAX_PACKET_LEN);
+    pcap_set_timeout(local_wifi->pd, 1000);
+
+    pcap_activate(local_wifi->pd);
 
     local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
     *dlt = local_wifi->datalink_type;
@@ -539,10 +626,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *msg, char ***interfaces, char ***flags) {
+
+    NSArray<CWInterface *> *cw_interfaces = 
+        [[CWWiFiClient sharedWiFiClient] interfaces];
+
     int num_corewlan_devs;
     int di;
 
-	num_corewlan_devs = corewlan_num_interfaces();
+	num_corewlan_devs = [cw_interfaces count];
 
     if (num_corewlan_devs <= 0) 
         return 0;
@@ -551,7 +642,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     *flags = (char **) malloc(sizeof(char *) * num_corewlan_devs);
 
     for (di = 0; di < num_corewlan_devs; di++) {
-        (*interfaces)[di] = strdup(corewlan_get_interface(di));
+        (*interfaces)[di] = strdup([[cw_interfaces[di] interfaceName] UTF8String]);
         (*flags)[di] = NULL;
     }
 
@@ -563,8 +654,6 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
-
-    /* fprintf(stderr, "debug - pcap_dispatch - got packet %u\n", header->caplen); */
 
     /* Try repeatedly to send the packet; go into a thread wait state if
      * the write buffer is full & we'll be woken up as soon as it flushes
@@ -613,8 +702,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     if (ifret < 0 || !(ifflags & IFF_UP)) {
         snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' no longer appears to be up; "
                 "This can happen when it is unplugged, or another service like DHCP or "
-                "NetworKManager has taken over and shut it down on us.", 
-                local_wifi->cap_interface);
+                "has taken over and shut it down on us.", local_wifi->cap_interface);
         cf_send_error(caph, errstr);
     }
 
@@ -629,9 +717,8 @@ int main(int argc, char *argv[]) {
         .datalink_type = -1,
         .override_dlt = -1,
         .seq_channel_failure = 0,
+        .cw_holder = NULL
     };
-
-	fprintf(stderr, "debug - cap osx\n");
 
 #if 0
     /* Remap stderr so we can log debugging to a file */
@@ -640,6 +727,11 @@ int main(int argc, char *argv[]) {
     dup2(fileno(sterr), STDERR_FILENO);
     dup2(fileno(sterr), STDOUT_FILENO);
 #endif
+
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init]; 
+
+    CoreWLANHolder *holder = [CoreWLANHolder alloc];
+    local_wifi.cw_holder = holder;
 
     kis_capture_handler_t *caph = cf_handler_init("osxcorewlanwifi");
 
@@ -697,6 +789,10 @@ int main(int argc, char *argv[]) {
     cf_handler_loop(caph);
 
     cf_handler_free(caph);
+
+    printf("exiting\n");
+
+    [pool drain];
 
     return 1;
 }

@@ -2,23 +2,22 @@ include ../Makefile.inc
 
 MONITOR_OBJS = \
 	../wifi_ht_channels.c.o \
-	../interface_control.c.o \
-	capture_osx_corewlan_wifi.c.o
+	../interface_control.c.o 
 
-MONITOR_SWIFT_OBJS = \
-	corewlan_bridge.swift.o
+MONITOR_OBJC_OBJS = \
+	capture_osx_corewlan_wifi.m.o
 
 MONITOR_BIN = kismet_cap_osx_corewlan_wifi
 
 PCAPLIBS=@pcaplnk@
 
-SWIFTC ?= swiftc
-SWIFTMODULE ?= "osx_corewlan"
+CLANG=clang
+FRAMEWORKS=-framework Foundation -framework CoreWLAN
 
 all: $(MONITOR_BIN)
 
-$(MONITOR_BIN):	$(MONITOR_OBJS) $(MONITOR_SWIFT_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(SWIFTC) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(MONITOR_SWIFT_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(MONITOR_OBJC_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CLANG) $(FRAMEWORKS) -o $(MONITOR_BIN) $(MONITOR_OBJS) $(MONITOR_OBJC_OBJS) ../libkismetdatasource.a $(PCAPLIBS) $(NMLIBS) $(NETLINKLIBS) $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)
@@ -32,8 +31,8 @@ clean:
 %.c.d:	%.c
 	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
-%.swift.o: %.swift
-	$(SWIFTC) -emit-object -parse-as-library -module-name $(SWIFTMODULE) $*.swift -o $@
+%.m.o: %.m
+	$(CLANG) -c $(FRAMEWORKS) $*.m -o $@
 
 .PRECIOUS: %.c.d
 
