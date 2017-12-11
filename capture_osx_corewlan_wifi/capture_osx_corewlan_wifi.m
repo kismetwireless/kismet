@@ -790,8 +790,6 @@ int main(int argc, char *argv[]) {
 
     cf_handler_free(caph);
 
-    printf("exiting\n");
-
     [pool drain];
 
     return 1;
