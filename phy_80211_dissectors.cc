@@ -1826,109 +1826,28 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_DEVICE_NAME) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_device_name = MungeToPrintable(str->raw_str());
+                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MANUF) {
+                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            packinfo->wps_manuf = MungeToPrintable(str->raw_str());
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_model_name = MungeToPrintable(str->raw_str());
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL_NUM) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_model_number = MungeToPrintable(str->raw_str());
+                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_SERIAL) {
+                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            packinfo->wps_serial_number = MungeToPrintable(str->raw_str());
                         }
                     }
-
                 }
-
-                // TODO port WPS to kaitai
-#if 0
-            // Match 221 tag header for WPS
-                    if (taglen < sizeof(WPS_SIG))
-                        continue;
-
-                        switch (type) {
-                            case 0x1044: { // State
-                                // Assume length == 1
-                                uint8_t state = chunk->data[tag_orig + offt + 4];
-                                switch (state) {
-                                    case 0x01:
-                                        packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
-                                        break;
-                                    case 0x02:
-                                        packinfo->wps |= DOT11_WPS_CONFIGURED;
-                                        break;
-                                }
-                                break;
-                            }
-                            case 0x1057: // AP Setup Locked
-                                // Assume length == 1
-                                if (chunk->data[tag_orig + offt + 4] == 0x01)
-                                    packinfo->wps |= DOT11_WPS_LOCKED;
-                                break;
-                            case 0x1011: { // Device name
-                                char *cstr = new char[length + 1];
-                                for (int i = 0; i < length; i++)
-                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
-                                cstr[length] = 0x00;
-                                packinfo->wps_device_name = cstr;
-                                delete[] cstr;
-                                break;
-                            }
-                            case 0x1021: { // Manufacturer
-                                char *cstr = new char[length + 1];
-                                for (int i = 0; i < length; i++)
-                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
-                                cstr[length] = 0x00;
-                                packinfo->wps_manuf = cstr;
-                                delete[] cstr;
-                                break;
-                            }
-                            case 0x1023: { // Model name
-                                char *cstr = new char[length + 1];
-                                for (int i = 0; i < length; i++)
-                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
-                                cstr[length] = 0x00;
-                                packinfo->wps_model_name = cstr;
-                                delete[] cstr;
-                                break;
-                            }
-                            case 0x1024: { // Model number
-                                char *cstr = new char[length + 1];
-                                for (int i = 0; i < length; i++)
-                                    cstr[i] = chunk->data[tag_orig + offt + 4 + i];
-                                cstr[length] = 0x00;
-                                packinfo->wps_model_number = cstr;
-                                delete[] cstr;
-                                break;
-                            }
-                            // We ignore these fields for now
-                            case 0x1008: // Configuration methods
-                            case 0x1012: // Device password ID
-                            case 0x103B: // Response type
-                            case 0x103C: // RF bands
-                            case 0x1041: // Selected registrar
-                            case 0x1042: // Serial number
-                            case 0x1047: // UUID enrollee
-                            case 0x1049: // Vendor extension
-                            case 0x104A: // Version
-                            case 0x1053: // Selected registrar configuration methods
-                            case 0x1054: // Primary device type
-                            default:
-                                break;
-                        }
-                        if (offt + 4 + length >= taglen)
-                            break; // No more data elements
-                        offt += 4 + length;
-                    }
-                }
-#endif
-
-
-
             } catch (const std::exception &e) {
                 fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
                 packinfo->corrupt = 1;
                 return -1;
             }
 
-        continue;
+            continue;
         }
 
     }

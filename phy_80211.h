@@ -154,6 +154,7 @@ class dot11_packinfo : public packet_component {
             wps_device_name = "";
             wps_model_name = "";
             wps_model_number = "";
+            wps_serial_number = "";
 
             mgt_reason_code = 0;
 
@@ -238,8 +239,7 @@ class dot11_packinfo : public packet_component {
         std::string wps_device_name;
         std::string wps_model_name;
         std::string wps_model_number;
-        // There's also the serial number field but we don't care
-        // about it because it's almost always bogus.
+        std::string wps_serial_number;
 
         // Direct kaitai structs pulled from the beacon
         std::shared_ptr<dot11_ie_11_qbss_t> qbss;
@@ -616,6 +616,7 @@ class dot11_advertised_ssid : public tracker_component {
         __Proxy(wps_device_name, string, string, string, wps_device_name);
         __Proxy(wps_model_name, string, string, string, wps_model_name);
         __Proxy(wps_model_number, string, string, string, wps_model_number);
+        __Proxy(wps_serial_number, std::string, std::string, std::string, wps_serial_number);
 
         __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
@@ -686,6 +687,8 @@ class dot11_advertised_ssid : public tracker_component {
                     "wps model name", &wps_model_name);
             RegisterField("dot11.advertisedssid.wps_model_number", TrackerString,
                     "wps model number", &wps_model_number);
+            RegisterField("dot11.advertisedssid.wps_serial_number", TrackerString,
+                    "wps serial number", &wps_serial_number);
 
             __RegisterComplexField(kis_tracked_location, location_id, 
                     "dot11.advertisedssid.location", "location");
@@ -767,6 +770,7 @@ class dot11_advertised_ssid : public tracker_component {
         SharedTrackerElement wps_device_name;
         SharedTrackerElement wps_model_name;
         SharedTrackerElement wps_model_number;
+        SharedTrackerElement wps_serial_number;
 
         int location_id;
         shared_ptr<kis_tracked_location> location;

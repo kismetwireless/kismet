@@ -547,35 +547,35 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.wps_manuf",
-                    groupTitle: "WPS",
-                    id: "dot11_wps_group",
+                    title: "WPS Manufacturer",
                     filterOnEmpty: true,
-                    help: "WPS, or Wireless Protected Setup, is a mechanism for configuring clients without entering the complete WPA key.  It is susceptible to several attacks and should be, if possible, disabled.",
-
-                    fields: [
-                    {
-                        field: "dot11.advertisedssid.wps_manuf",
-                        title: "WPS Manufacturer"
-                    },
-                    {
-                        field: "dot11.advertisedssid.wps_device_name",
-                        title: "WPS Device",
-                        filterOnEmpty: true,
-                    },
-                    {
-                        field: "dot11.advertisedssid.wps_model_name",
-                        title: "WPS Model",
-                        filterOnEmpty: true,
-                    },
-                    {
-                        field: "dot11.advertisedssid.wps_model_number",
-                        title: "WPS Model #",
-                        filterOnEmpty: true,
-                    }
-                    ]
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device manufacturer in the WPS advertisements.  WPS is not recommended due to security flaws."
                 },
-
-                ]
+                {
+                    field: "dot11.advertisedssid.wps_device_name",
+                    title: "WPS Device",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device name in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_model_name",
+                    title: "WPS Model",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific device model name in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_model_number",
+                    title: "WPS Model #",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific model number in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_serial_number",
+                    title: "WPS Serial #",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
+                }
+            ],
             },
 
             {

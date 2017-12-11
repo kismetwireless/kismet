@@ -981,6 +981,10 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         return;
     }
 
+    if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_resp) {
+        return;
+    }
+
     // If we've processed an identical ssid, don't waste time parsing again, just tweak
     // the few fields we need to update
     if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
@@ -1002,10 +1006,6 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
     // If we fail parsing...
     if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
-        return;
-    }
-
-    if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_req) {
         return;
     }
 
@@ -1083,9 +1083,6 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
     }
 
     dot11dev->set_last_adv_ssid(ssid);
-
-    if (ssid->get_ietag_checksum() == dot11info->ietag_csum)
-        return;
 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
@@ -1291,9 +1288,15 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
     }
 
     ssid->set_wps_state(dot11info->wps);
-    ssid->set_wps_manuf(dot11info->wps_manuf);
-    ssid->set_wps_model_name(dot11info->wps_model_name);
-    ssid->set_wps_model_number(dot11info->wps_model_number);
+    if (dot11info->wps_manuf != "")
+        ssid->set_wps_manuf(dot11info->wps_manuf);
+    if (dot11info->wps_model_name != "") {
+        ssid->set_wps_model_name(dot11info->wps_model_name);
+    }
+    if (dot11info->wps_model_number != "") 
+        ssid->set_wps_model_number(dot11info->wps_model_number);
+    if (dot11info->wps_serial_number != "")
+        ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
     // Do we not know the basedev manuf?
     if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
