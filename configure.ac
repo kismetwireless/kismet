@@ -1258,6 +1258,7 @@ fi
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
     BUILD_CAPTURE_OSX_COREWLAN=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_OSX_COREWLAN)"
 else
 	suidgroup="kismet"
 fi
