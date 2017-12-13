@@ -249,25 +249,47 @@ enum kis_packet_basictype {
 // to build phy-neutral devices and tracking records.
 class kis_tracked_device_base;
 
-class kis_common_info : public packet_component {
-public:
-	kis_common_info() {
-		self_destruct = 1;
-		type = packet_basic_unknown;
-		phyid = 0;
-		error = 0;
-		datasize = 0;
-		channel = "0";
-        freq_khz = 0;
-		basic_crypt_set = 0;
-		source = mac_addr(0);
-		dest = mac_addr(0);
-		device = mac_addr(0);
-        transmitter = mac_addr(0);
-	}
+enum kis_packet_direction {
+    packet_direction_unknown = 0,
 
-	mac_addr source, dest, device, transmitter;
+    // From device
+    packet_direction_from = 1,
+
+    // To device
+    packet_direction_to = 2,
+
+    // Intra-carrier (WDS for instance)
+    packet_direction_carrier = 3
+};
+
+// Common info item which is aggregated into a packet under 
+// the packet_info_map type
+class kis_common_info {
+public:
+    kis_common_info() {
+        type = packet_basic_unknown;
+        direction = packet_direction_unknown;
+
+        phyid = 0;
+        error = 0;
+        datasize = 0;
+        channel = "0";
+        freq_khz = 0;
+        basic_crypt_set = 0;
+
+        device = mac_addr(0);
+
+        source = mac_addr(0);
+        dest = mac_addr(0);
+        network = mac_addr(0);
+        carrier = mac_addr(0);
+    }
+
+	mac_addr source, dest, network, device, carrier;
+
 	kis_packet_basictype type;
+    kis_packet_direction direction;
+
 	int phyid;
 	// Some sort of phy-level error 
 	int error;
@@ -283,6 +305,15 @@ public:
     double freq_khz;
 
     std::shared_ptr<kis_tracked_device_base> base_device;
+};
+
+class kis_packet_info_map : public packet_component {
+public:
+    kis_packet_info_map() {
+        self_destruct = 1;
+    }
+
+    std::map<mac_addr, std::shared_ptr<kis_common_info> > info_map;
 };
 
 // String reference

@@ -140,6 +140,25 @@ public:
     __Proxy(basic_type_set, uint64_t, uint64_t, uint64_t, basic_type_set);
     __ProxyBitset(basic_type_set, uint64_t, basic_type_set);
 
+    // Set the type string if any of the matching set are found
+    void set_type_string_if(std::string in_type, uint64_t if_set) {
+        if (get_basic_type_set() & if_set) 
+            set_type_string(in_type);
+    }
+
+    // Set the type string if only the matching set is found
+    void set_type_string_ifonly(std::string in_type, uint64_t if_set) {
+        if (get_basic_type_set() == if_set)
+            set_type_string(in_type);
+    }
+
+    // Set the type string if the matching set is NOT found
+    void set_type_string_ifnot(std::string in_type, uint64_t if_set) {
+        if (!(get_basic_type_set() & if_set))
+            set_type_string(in_type);
+    }
+
+
     __Proxy(crypt_string, std::string, std::string, std::string, crypt_string);
 
     __Proxy(basic_crypt_set, uint64_t, uint64_t, uint64_t, basic_crypt_set);
@@ -538,7 +557,8 @@ public:
 #define UCD_UPDATE_SEENBY       (1 << 4)
 // Update encryption options
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
-    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(mac_addr in_mac, 
+    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(
+            std::shared_ptr<kis_common_info> pack_common,
             Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
 
     // Set the common name of a device (and log it in the database for future runs)

@@ -1371,24 +1371,36 @@ protected:
     size_t recent_packet_checksums_sz;
     unsigned int recent_packet_checksum_pos;
 
+    // Handle advertised SSIDs
     void HandleSSID(shared_ptr<kis_tracked_device_base> basedev, 
             shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo);
 
+    // Handle probed SSIDs
     void HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev, 
             shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo);
 
-    void HandleClient(shared_ptr<kis_tracked_device_base> basedev, 
-            shared_ptr<dot11_tracked_device> dot11dev,
+    // Map a device as a client of an acceess point, fill in any data in the
+    // per-client records
+    void ProcessClient(std::shared_ptr<kis_tracked_device_base> bssiddev,
+            std::shared_ptr<dot11_tracked_device> bssiddot11,
+            std::shared_ptr<kis_tracked_device_base> clientdev,
+            std::shared_ptr<dot11_tracked_device> clientdot11,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
             kis_gps_packinfo *pack_gpsinfo,
             kis_data_packinfo *pack_datainfo);
+
+    void ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
+            std::shared_ptr<dot11_tracked_device> bssid_dot11,
+            std::shared_ptr<kis_tracked_device_base> dest_dev,
+            std::shared_ptr<dot11_tracked_device> dest_dot11,
+            dot11_packinfo *dot11info);
 
     void GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
             Kis_Net_Httpd_Connection *connection,

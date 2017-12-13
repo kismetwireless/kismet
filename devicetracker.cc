@@ -788,12 +788,20 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	return 1;
 }
 
-// This function handles populating the base common info about a device.
-// Specific info should be populated by the phy handler.
-std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_addr in_mac,
-        Kis_Phy_Handler *in_phy, kis_packet *in_pack, unsigned int in_flags) {
+// This function handles populating the base common info about a device, transforming a 
+// kis_common_info record into a full kis_tracked_device_base (or updating an existing
+// kis_tracked_device_base record); 
+//
+// Because a phy can create multiple devices from a single packet (such as WiFi creating
+// the access point, source, and destination devices), only the specific common device 
+// being passed will be updated.
+std::shared_ptr<kis_tracked_device_base> 
+    Devicetracker::UpdateCommonDevice(std::shared_ptr<kis_common_info> pack_common, 
+            Kis_Phy_Handler *in_phy, kis_packet *in_pack, unsigned int in_flags) {
 
     std::stringstream sstr;
+
+    bool new_device = false;
 
 	kis_layer1_packinfo *pack_l1info =
 		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
@@ -801,13 +809,12 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
 		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 	packetchain_comp_datasource *pack_datasrc =
 		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
-	kis_common_info *pack_common =
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     TrackedDeviceKey key;
 
-    key = TrackedDeviceKey(globalreg->server_uuid_hash, in_phy->FetchPhynameHash(), in_mac);
+    key = TrackedDeviceKey(globalreg->server_uuid_hash, in_phy->FetchPhynameHash(), 
+            pack_common->device);
 
 	if ((device = FetchDevice(key)) == NULL) {
         device.reset(new kis_tracked_device_base(globalreg, device_base_id));
@@ -816,7 +823,7 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
         device->set_kis_internal_id(immutable_tracked_vec.size());
 
         device->set_key(key);
-        device->set_macaddr(in_mac);
+        device->set_macaddr(pack_common->device);
         device->set_phyname(in_phy->FetchPhyName());
 
         device->set_first_time(in_pack->ts.tv_sec);
@@ -824,18 +831,11 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
         if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
 
-        // fprintf(stderr, "debug - new device from key %s server %X phy %X\n", key.as_string().c_str(), globalreg->server_uuid_hash, in_phy->FetchPhynameHash());
-        
-        {
-            local_locker devlocker(&devicelist_mutex);
-            tracked_map[key] = device;
-            tracked_vec.push_back(device);
-            immutable_tracked_vec.push_back(device);
-            tracked_mac_multimap.emplace(in_mac, device);
-        }
+        new_device = true;
+
     }
 
-    // Lock the device itself
+    // Lock the device itself for updating, now that it's part of the list
     local_locker devlocker(&(device->device_mutex));
 
     // Tag the packet with the base device
@@ -971,6 +971,15 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::UpdateCommonDevice(mac_a
         if (sc != NULL)
             delete(sc);
 	}
+
+    // Add the new device at the end once we've populated it
+    if (new_device) {
+        local_locker devlocker(&devicelist_mutex);
+        tracked_map[key] = device;
+        tracked_vec.push_back(device);
+        immutable_tracked_vec.push_back(device);
+        tracked_mac_multimap.emplace(pack_common->device, device);
+    }
 
     return device;
 }
