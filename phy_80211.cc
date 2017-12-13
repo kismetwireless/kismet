@@ -1476,6 +1476,35 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 source_dot11->inc_datasize_retry(dot11info->datasize);
             }
 
+            // Look for WPS floods
+            wps = PacketDot11WPSM3(in_pack);
+            if (wps) {
+                // if we're w/in time of the last one, update, otherwise clear
+                if (globalreg->timestamp.tv_sec - 
+                        dot11dev->get_wps_m3_last() > (60 * 5))
+                    source_dot11->set_wps_m3_count(1);
+                else
+                    source_dot11->inc_wps_m3_count(1);
+
+                source_dot11->set_wps_m3_last(globalreg->timestamp.tv_sec);
+
+                if (source_dot11->get_wps_m3_count() > 5) {
+                    if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
+                        string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
+                            dot11info->bssid_mac.Mac2String() +
+                            ") sending excessive number of WPS messages which may "
+                            "indicate a WPS brute force attack such as Reaver";
+
+                        alertracker->RaiseAlert(alert_wpsbrute_ref, 
+                                in_pack, 
+                                dot11info->bssid_mac, dot11info->source_mac, 
+                                dot11info->dest_mac, dot11info->other_mac, 
+                                ssidchan, al);
+                    }
+
+                    source_dot11->set_wps_m3_count(1);
+                }
+            }
         }
 
         if (dest_dev != NULL) {
@@ -1556,8 +1585,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             }
         }
 
-        // Map clients
         if (bssid_dev != NULL) {
+            // Map clients
             if (source_dev != NULL)
                 ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11,
                         dot11info, pack_gpsinfo, pack_datainfo);
@@ -1565,6 +1594,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             if (dest_dev != NULL)
                 ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         dot11info, pack_gpsinfo, pack_datainfo);
+
+            // Handle WPA
+            if (dest_dev != NULL)
+                ProcessWPAHandshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
+                        in_pack, dot11info);
+
         }
 
         if (other_dev != NULL) {
@@ -2373,9 +2408,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
 
 
    
-    // Look for WPA handshakes
-    if (dot11info->type == packet_data) {
-    }
 
 	if (dot11info->type == packet_data &&
 		dot11info->source_mac == dot11info->bssid_mac) {
@@ -2394,35 +2426,6 @@ int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
                 break;
             }
         }
-
-        wps = PacketDot11WPSM3(in_pack);
-
-        if (wps) {
-            // if we're w/in time of the last one, update, otherwise clear
-            if (globalreg->timestamp.tv_sec - 
-                    dot11dev->get_wps_m3_last() > (60 * 5))
-                dot11dev->set_wps_m3_count(1);
-            else
-                dot11dev->inc_wps_m3_count(1);
-
-            dot11dev->set_wps_m3_last(globalreg->timestamp.tv_sec);
-
-            if (dot11dev->get_wps_m3_count() > 5) {
-                if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
-                    string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
-                        dot11info->bssid_mac.Mac2String() +
-                        ") sending excessive number of WPS messages which may "
-                        "indicate a WPS brute force attack such as Reaver";
-
-                    alertracker->RaiseAlert(alert_wpsbrute_ref, 
-                            in_pack, 
-                            dot11info->bssid_mac, dot11info->source_mac, 
-                            dot11info->dest_mac, dot11info->other_mac, 
-                            ssidchan, al);
-                }
-
-                dot11dev->set_wps_m3_count(1);
-            }
         }
     }
 

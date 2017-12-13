@@ -1400,7 +1400,7 @@ protected:
             std::shared_ptr<dot11_tracked_device> bssid_dot11,
             std::shared_ptr<kis_tracked_device_base> dest_dev,
             std::shared_ptr<dot11_tracked_device> dest_dot11,
-            dot11_packinfo *dot11info);
+            kis_packet *in_pack, dot11_packinfo *dot11info);
 
     void GenerateHandshakePcap(shared_ptr<kis_tracked_device_base> dev, 
             Kis_Net_Httpd_Connection *connection,
