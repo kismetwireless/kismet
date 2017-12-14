@@ -833,14 +833,14 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     }
 
 	kis_gps_packinfo *pack_gpsinfo =
-		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+		(kis_gps_packinfo *) in_pack->fetch(d11phy->pack_comp_gps);
 
 	kis_data_packinfo *pack_datainfo =
-		(kis_data_packinfo *) in_pack->fetch(pack_comp_basicdata);
+		(kis_data_packinfo *) in_pack->fetch(d11phy->pack_comp_basicdata);
 
     // Make the mac address->common info map
     kis_packet_info_map *im = 
-        in_pack->fetch(d11phy->pack_comp_common);
+        (kis_packet_info_map *) in_pack->fetch(d11phy->pack_comp_common);
 
     if (im == NULL) {
         im = new kis_packet_info_map();
@@ -895,10 +895,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 bssid_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[bssid_ci->device] = bssid_ci;
+            im->info_map[bssid_ci->device] = bssid_ci;
 
             bssid_dev =
-                devicetracker->UpdateCommonDevice(dest_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -933,10 +933,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 source_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[source_ci->device] = source_ci;
+            im->info_map[source_ci->device] = source_ci;
 
             source_dev =
-                devicetracker->UpdateCommonDevice(source_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(source_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -973,10 +973,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[dest_ci->device] = dest_ci;
+            im->info_map[dest_ci->device] = dest_ci;
 
             dest_dev =
-                devicetracker->UpdateCommonDevice(dest_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -988,7 +988,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker bssidlocker(&(bssid_dev->device_mutex));
 
             bssid_dot11 =
-                static_pointer_cast<dot11_tracked_device>(bssid_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(bssid_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (bssid_dot11 == NULL) {
@@ -996,7 +996,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     bssid_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                bssid_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                bssid_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
             }
 
@@ -1015,8 +1015,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             }
 
             if (dot11info->subtype == packet_sub_beacon ||
-                    dot11dev->packet_sub_probe_resp) {
-                HandleSSID(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
+                    dot11info->subtype == packet_sub_probe_resp) {
+                d11phy->HandleSSID(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
             }
         }
 
@@ -1024,7 +1024,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker sourcelocker(&(source_dev->device_mutex));
 
             source_dot11 =
-                static_pointer_cast<dot11_tracked_device>(source_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(source_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (source_dot11 == NULL) {
@@ -1032,7 +1032,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     source_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                source_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                source_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
             }
 
@@ -1044,7 +1044,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (dot11info->subtype == packet_sub_probe_req ||
                     dot11info->subtype == packet_sub_reassociation_req) {
-                HandleProbedSSID(basedev, source_dot11, in_pack, dot11info, pack_gpsinfo);
+                d11phy->HandleProbedSSID(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
             }
         }
 
@@ -1052,7 +1052,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker destlocker(&(dest_dev->device_mutex));
 
             dest_dot11 =
-                static_pointer_cast<dot11_tracked_device>(dest_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(dest_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (dest_dot11 == NULL) {
@@ -1060,7 +1060,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     dest_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                dest_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(dest_dot11, dest_dev);
             }
 
@@ -1075,25 +1075,25 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // Now we've instantiated and mapped all the possible devices and dot11 devices; now
             // populate the per-client records for any which have mgmt communication
             if (source_dev != NULL)
-                ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (dest_dev != NULL)
-                ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             // alerts on broadcast deauths
             if  ((dot11info->subtype == packet_sub_disassociation ||
                         dot11info->subtype == packet_sub_deauthentication) &&
                     dot11info->dest_mac == globalreg->broadcast_mac &&
-                    alertracker->PotentialAlert(alert_bcastdcon_ref)) {
+                    d11phy->alertracker->PotentialAlert(d11phy->alert_bcastdcon_ref)) {
 
                 string al = "IEEE80211 Access Point BSSID " +
                     bssid_dev->get_macaddr().Mac2String() + " broadcast deauthentication or "
                     "disassociation of all clients; Either the  AP is shutting down or there "
                     "is a possible denial of service.";
 
-                alertracker->RaiseAlert(alert_bcastdcon_ref, in_pack, 
+                d11phy->alertracker->RaiseAlert(d11phy->alert_bcastdcon_ref, in_pack, 
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac, 
                         dot11info->channel, al);
@@ -1120,10 +1120,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             source_ci->channel = dot11info->channel;
             source_ci->datasize = dot11info->datasize;
 
-            im[source_ci->device] = source_ci;
+            im->info_map[source_ci->device] = source_ci;
 
             source_dev =
-                devicetracker->UpdateCommonDevice(source_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(source_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -1160,10 +1160,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
                 }
 
-                im[dest_ci->device] = dest_ci;
+                im->info_map[dest_ci->device] = dest_ci;
 
                 dest_dev =
-                    devicetracker->UpdateCommonDevice(dest_ci, this, in_pack, 
+                    d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
                             (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                              UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                              UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -1244,10 +1244,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 bssid_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[bssid_ci->device] = bssid_ci;
+            im->info_map[bssid_ci->device] = bssid_ci;
 
             bssid_dev =
-                devicetracker->UpdateCommonDevice(dest_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -1282,10 +1282,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 source_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[source_ci->device] = source_ci;
+            im->info_map[source_ci->device] = source_ci;
 
             source_dev =
-                devicetracker->UpdateCommonDevice(source_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(source_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -1322,10 +1322,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[dest_ci->device] = dest_ci;
+            im->info_map[dest_ci->device] = dest_ci;
 
             dest_dev =
-                devicetracker->UpdateCommonDevice(dest_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -1363,10 +1363,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 other_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
             }
 
-            im[dest_ci->device] = dest_ci;
+            im->info_map[dest_ci->device] = dest_ci;
 
             other_dev =
-                devicetracker->UpdateCommonDevice(other_ci, this, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(other_ci, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
@@ -1378,7 +1378,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker bssidlocker(&(bssid_dev->device_mutex));
 
             bssid_dot11 =
-                static_pointer_cast<dot11_tracked_device>(bssid_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(bssid_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (bssid_dot11 == NULL) {
@@ -1386,25 +1386,25 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     bssid_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                bssid_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                bssid_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
             }
 
-            if (packinfo->ess) {
+            if (dot11info->ess) {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
                 bssid_dev->set_type_string("Wi-Fi AP");
 
                 // Throw alert if device changes between bss and adhoc
-                if (bssid_dev->bitcheck_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
-                        !bssid_dev->bitcheck_type_set(DOT11_DEVICE_TYPE_BEACON_AP) &&
-                        alertracker->PotentialAlert(alert_adhoc_ref)) {
+                if (bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
+                        !bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_BEACON_AP) &&
+                        d11phy->alertracker->PotentialAlert(d11phy->alert_adhoc_ref)) {
                     string al = "IEEE80211 Network BSSID " + 
                         dot11info->bssid_mac.Mac2String() + 
                         " previously advertised as AP network, now advertising as "
                         "Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
 
-                    alertracker->RaiseAlert(alert_adhoc_ref, in_pack,
+                    d11phy->alertracker->RaiseAlert(d11phy->alert_adhoc_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
                             dot11info->dest_mac, dot11info->other_mac,
                             dot11info->channel, al);
@@ -1434,7 +1434,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker sourcelocker(&(source_dev->device_mutex));
 
             source_dot11 =
-                static_pointer_cast<dot11_tracked_device>(source_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(source_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (source_dot11 == NULL) {
@@ -1442,7 +1442,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     source_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                source_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                source_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
             }
 
@@ -1477,11 +1477,11 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             }
 
             // Look for WPS floods
-            wps = PacketDot11WPSM3(in_pack);
+            int wps = d11phy->PacketDot11WPSM3(in_pack);
+
             if (wps) {
                 // if we're w/in time of the last one, update, otherwise clear
-                if (globalreg->timestamp.tv_sec - 
-                        dot11dev->get_wps_m3_last() > (60 * 5))
+                if (globalreg->timestamp.tv_sec - source_dot11->get_wps_m3_last() > (60 * 5))
                     source_dot11->set_wps_m3_count(1);
                 else
                     source_dot11->inc_wps_m3_count(1);
@@ -1489,17 +1489,16 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 source_dot11->set_wps_m3_last(globalreg->timestamp.tv_sec);
 
                 if (source_dot11->get_wps_m3_count() > 5) {
-                    if (alertracker->PotentialAlert(alert_wpsbrute_ref)) {
-                        string al = "IEEE80211 AP '" + ssidtxt + "' (" + 
-                            dot11info->bssid_mac.Mac2String() +
-                            ") sending excessive number of WPS messages which may "
+                    if (d11phy->alertracker->PotentialAlert(d11phy->alert_wpsbrute_ref)) {
+                        string al = "IEEE80211 AP " + dot11info->bssid_mac.Mac2String() +
+                            " sending excessive number of WPS messages which may "
                             "indicate a WPS brute force attack such as Reaver";
 
-                        alertracker->RaiseAlert(alert_wpsbrute_ref, 
+                        d11phy->alertracker->RaiseAlert(d11phy->alert_wpsbrute_ref, 
                                 in_pack, 
                                 dot11info->bssid_mac, dot11info->source_mac, 
                                 dot11info->dest_mac, dot11info->other_mac, 
-                                ssidchan, al);
+                                dot11info->channel, al);
                     }
 
                     source_dot11->set_wps_m3_count(1);
@@ -1511,15 +1510,15 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker destlocker(&(dest_dev->device_mutex));
 
             dest_dot11 =
-                static_pointer_cast<dot11_tracked_device>(dest_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(dest_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (dest_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    commoninfo->device.Mac2String() << " packet " << packetnum;
+                    dest_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                dest_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(dest_dot11, dest_dev);
             }
 
@@ -1558,20 +1557,20 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             local_locker otherlocker(&(other_dev->device_mutex));
 
             other_dot11 =
-                static_pointer_cast<dot11_tracked_device>(other_dev->get_map_value(dot11_device_entry_id));
+                static_pointer_cast<dot11_tracked_device>(other_dev->get_map_value(d11phy->dot11_device_entry_id));
             stringstream newdevstr;
 
             if (other_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    commoninfo->device.Mac2String() << " packet " << packetnum;
+                    other_ci->device.Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
-                dest_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
+                dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(dest_dot11, other_dev);
             }
 
             other_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
-            other_dev->set_type("Wi-Fi WDS AP");
+            other_dev->set_type_string("Wi-Fi WDS AP");
 
             other_dot11->inc_datasize(dot11info->datasize);
 
@@ -1588,32 +1587,32 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (bssid_dev != NULL) {
             // Map clients
             if (source_dev != NULL)
-                ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (dest_dev != NULL)
-                ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             // Handle WPA
             if (dest_dev != NULL)
-                ProcessWPAHandshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
+                d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         in_pack, dot11info);
 
         }
 
         if (other_dev != NULL) {
             if (bssid_dev != NULL)
-                ProcessClient(other_dev, other_dot11, bssid_dev, bssid_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(other_dev, other_dot11, bssid_dev, bssid_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (source_dev != NULL)
-                ProcessClient(other_dev, other_dot11, source_dev, source_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(other_dev, other_dot11, source_dev, source_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (dest_dev != NULL)
-                ProcessClient(other_dev, other_dot11, dest_dev, dest_dot11,
-                        dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessClient(other_dev, other_dot11, dest_dev, dest_dot11, 
+                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
         }
     }
 
@@ -2086,6 +2085,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
         std::shared_ptr<dot11_tracked_device> bssiddot11,
         std::shared_ptr<kis_tracked_device_base> clientdev,
         std::shared_ptr<dot11_tracked_device> clientdot11,
+        kis_packet *in_pack, 
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo,
         kis_data_packinfo *pack_datainfo) {
@@ -2094,21 +2094,21 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
     local_locker clientlock(&(clientdev->device_mutex));
 
     // Create and map the client behavior record for this BSSID
-    TrackerElementMacMap client_map(clientdev->get_client_map());
+    TrackerElementMacMap client_map(clientdot11->get_client_map());
     std::shared_ptr<dot11_client> client_record;
 
     auto cmi = client_map.find(bssiddev->get_macaddr());
     bool new_client_record = false;
 
     if (cmi == client_map.end()) {
-        client_record = clientdev->new_client();
+        client_record = clientdot11->new_client();
         TrackerElement::mac_map_pair cp(bssiddev->get_macaddr(), client_record);
         client_map.insert(cp);
         new_client_record = true;
     }
 
     if (new_client_record) {
-        client_record->set_bssid(bssid_dev->get_macaddr());
+        client_record->set_bssid(bssiddev->get_macaddr());
         client_record->set_first_time(in_pack->ts.tv_sec);
     }
 
@@ -2194,13 +2194,13 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
     }
 
     // Update the forward map to the bssid
-    client->set_bssid_key(bssiddev->get_key());
+    client_record->set_bssid_key(bssiddev->get_key());
 
     // Update the backwards map to the client
     if (bssiddot11->get_associated_client_map()->mac_find(clientdev->get_macaddr()) ==
-            bssiddot11->get_associated_client_map()->end()) {
+            bssiddot11->get_associated_client_map()->mac_end()) {
         bssiddot11->get_associated_client_map()->add_macmap(clientdev->get_macaddr(),
-                clientdev->get_key());
+                clientdev->get_tracker_key());
     }
 }
 
@@ -2211,7 +2211,7 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
         kis_packet *in_pack,
         dot11_packinfo *dot11info) {
 
-    shared_ptr<dot11_tracked_eapol> eapol = PacketDot11EapolHandshake(in_pack, dot11dev);
+    shared_ptr<dot11_tracked_eapol> eapol = PacketDot11EapolHandshake(in_pack, bssid_dot11);
 
     if (eapol == NULL)
         return;
@@ -2400,150 +2400,6 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
                     ss.str() + ")");
         }
     }
-}
-
-int Kis_80211_Phy::TrackerDot11(kis_packet *in_pack) {
-    packetnum++;
-
-
-
-   
-
-	if (dot11info->type == packet_data &&
-		dot11info->source_mac == dot11info->bssid_mac) {
-		int wps = 0;
-		string ssidchan = "0";
-		string ssidtxt = "<Unknown>";
-        TrackerElementIntMap ssidmap(dot11dev->get_advertised_ssid_map());
-
-        for (TrackerElementIntMap::iterator si = ssidmap.begin();
-                si != ssidmap.end(); ++si) {
-            shared_ptr<dot11_advertised_ssid> ssid = 
-                static_pointer_cast<dot11_advertised_ssid>(si->second);
-            if (ssid->get_crypt_set() & crypt_wps) {
-                ssidchan = ssid->get_channel();
-                ssidtxt = ssid->get_ssid();
-                break;
-            }
-        }
-        }
-    }
-
-    /*
-    if (basedev->get_type_string().length() == 0) {
-        fprintf(stderr, "debug - unclassed device as of packet %d typeset %lu\n", packetnum, basedev->get_basic_type_set());
-    }
-    */
-
-
-#if 0
-
-
-	if (ssid_new) {
-		string printssid;
-		string printssidext;
-		string printcrypt;
-		string printtype;
-		string printdev;
-		string printchan;
-		string printmanuf;
-
-		printssid = ssid->ssid;
-
-		if (ssid->ssid_len == 0 || ssid->ssid == "") {
-			if (ssid->type == dot11_ssid_probereq)  {
-				printssid = "<Broadcast>";
-				printssidext = " (probing for any SSID)";
-			} else {
-				printssid = "<Hidden SSID>";
-			}
-		}
-
-		// commondev->name = printssid;
-
-		if (ssid->ssid_cloaked) {
-			printssidext = " (cloaked)";
-		}
-
-		if (ssid->type == dot11_ssid_beacon) {
-			// commondev->name = printssid;
-
-			printtype = "AP";
-
-			if (ssid->cryptset) {
-				printcrypt = "encrypted (" + CryptToString(ssid->cryptset) + ")";
-			} else {
-				printcrypt = "unencrypted";
-			}
-
-			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
-
-			printchan = ", channel " + IntToString(ssid->channel);
-		} else if (ssid->type == dot11_ssid_probereq) {
-			printtype = "probing client";
-			
-			if (ssid->cryptset)
-				printcrypt = "encrypted";
-			else
-				printcrypt = "unencrypted";
-
-			printdev = "client " + dot11info->source_mac.Mac2String();
-		} else if (ssid->type == dot11_ssid_proberesp) {
-			printtype = "responding AP";
-
-			if (ssid->cryptset)
-				printcrypt = "encrypted";
-			else
-				printcrypt = "unencrypted";
-
-			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
-		} else {
-			printtype = "unknown " + IntToString(ssid->type);
-			printdev = "BSSID " + dot11info->bssid_mac.Mac2String();
-		}
-
-		if (commondev->manuf != "")
-			printmanuf = " (" + commondev->manuf + ")";
-
-		_MSG("Detected new 802.11 " + printtype + " SSID \"" + printssid + "\"" + 
-			 printssidext + ", " + printdev + printmanuf + ", " + printcrypt + 
-			 printchan,
-			 MSGFLAG_INFO);
-
-	} else if (net_new) {
-		// If we didn't find a new SSID, and we found a network, talk about that
-		string printcrypt;
-
-		if (dot11info->cryptset)
-			printcrypt = "encrypted";
-		else
-			printcrypt = "unencrypted";
-
-		_MSG("Detected new 802.11 network BSSID " + dot11info->bssid_mac.Mac2String() +
-			 ", " + printcrypt + ", no beacons seen yet", MSGFLAG_INFO);
-	}
-
-	if (dot11info->type == packet_management &&
-		(dot11info->subtype == packet_sub_disassociation ||
-		 dot11info->subtype == packet_sub_deauthentication) &&
-		dot11info->dest_mac == globalreg->broadcast_mac &&
-		globalreg->alertracker->PotentialAlert(alert_bcastdcon_ref) &&
-		apdev != NULL) {
-
-		string al = "IEEE80211 Access Point BSSID " +
-			apdev->key.Mac2String() + " broadcast deauthentication or "
-			"disassociation of all clients, probable denial of service";
-			
-		globalreg->alertracker->RaiseAlert(alert_bcastdcon_ref, in_pack, 
-										   dot11info->bssid_mac, 
-										   dot11info->source_mac, 
-										   dot11info->dest_mac, 
-										   dot11info->other_mac, 
-										   dot11info->channel, al);
-	}
-#endif
-
-	return 1;
 }
 
 string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
