@@ -783,12 +783,20 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     // Get the 802.11 info
     dot11_packinfo *dot11info = 
         (dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
+    if (dot11info == NULL)
+        return 0;
+
+    kis_common_info *commoninfo = 
+        (kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
+
+    if (commoninfo == NULL) {
+        fprintf(stderr, "debug - packet made it to dot11 classifier with dot11info but no common info\n");
+        return 0;
+    }
 
 	kis_layer1_packinfo *pack_l1info =
 		(kis_layer1_packinfo *) in_pack->fetch(d11phy->pack_comp_l1info);
 
-    if (dot11info == NULL)
-        return 0;
 
     if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold
             && pack_l1info->signal_dbm < 0 && 
@@ -838,21 +846,6 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 	kis_data_packinfo *pack_datainfo =
 		(kis_data_packinfo *) in_pack->fetch(d11phy->pack_comp_basicdata);
 
-    // Make the mac address->common info map
-    kis_packet_info_map *im = 
-        (kis_packet_info_map *) in_pack->fetch(d11phy->pack_comp_common);
-
-    if (im == NULL) {
-        im = new kis_packet_info_map();
-        in_pack->insert(d11phy->pack_comp_common, im);
-    }
-
-    // Info blocks for each device referenced in the packet
-    std::shared_ptr<kis_common_info> source_ci;
-    std::shared_ptr<kis_common_info> dest_ci;
-    std::shared_ptr<kis_common_info> bssid_ci;
-    std::shared_ptr<kis_common_info> other_ci;
-
     std::shared_ptr<kis_tracked_device_base> source_dev;
     std::shared_ptr<kis_tracked_device_base> dest_dev;
     std::shared_ptr<kis_tracked_device_base> bssid_dev;
@@ -871,117 +864,35 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (dot11info->bssid_mac != globalreg->empty_mac && 
                 dot11info->bssid_mac != globalreg->broadcast_mac) {
 
-            bssid_ci.reset(new kis_common_info());
-
-            bssid_ci->device = dot11info->bssid_mac;
-
-            bssid_ci->source = dot11info->source_mac;
-            bssid_ci->dest = dot11info->dest_mac;
-            bssid_ci->network = dot11info->bssid_mac;
-
-            bssid_ci->type = packet_basic_mgmt;
-
-            bssid_ci->phyid = d11phy->phyid;
-            bssid_ci->channel = dot11info->channel;
-            bssid_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                bssid_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                bssid_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                bssid_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[bssid_ci->device] = bssid_ci;
-
             bssid_dev =
-                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                        dot11info->bssid_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            bssid_ci->base_device = bssid_dev;
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
                 dot11info->source_mac != globalreg->empty_mac && 
                 dot11info->source_mac != globalreg->broadcast_mac) {
-            source_ci.reset(new kis_common_info());
-
-            source_ci->device = dot11info->source_mac;
-
-            source_ci->source = dot11info->source_mac;
-            source_ci->dest = dot11info->dest_mac;
-            source_ci->network = dot11info->bssid_mac;
-
-            source_ci->type = packet_basic_mgmt;
-
-            source_ci->phyid = d11phy->phyid;
-            source_ci->channel = dot11info->channel;
-            source_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                source_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                source_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                source_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[source_ci->device] = source_ci;
-
             source_dev =
-                d11phy->devicetracker->UpdateCommonDevice(source_ci, d11phy, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                        dot11info->source_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            source_ci->base_device = source_dev;
         }
 
         if (dot11info->dest_mac != dot11info->source_mac &&
                 dot11info->dest_mac != dot11info->bssid_mac &&
                 dot11info->dest_mac != globalreg->empty_mac && 
                 dot11info->dest_mac != globalreg->broadcast_mac) {
-
-            dest_ci.reset(new kis_common_info());
-
-            dest_ci->device = dot11info->dest_mac;
-
-            dest_ci->source = dot11info->source_mac;
-            dest_ci->dest = dot11info->dest_mac;
-            dest_ci->network = dot11info->bssid_mac;
-
-            dest_ci->type = packet_basic_mgmt;
-
-            dest_ci->phyid = d11phy->phyid;
-            dest_ci->channel = dot11info->channel;
-            dest_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                dest_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[dest_ci->device] = dest_ci;
-
             dest_dev =
-                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                        dot11info->dest_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            dest_ci->base_device = dest_dev;
         }
 
         if (bssid_dev != NULL) {
@@ -993,7 +904,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (bssid_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    bssid_ci->device.Mac2String() << " packet " << packetnum;
+                    bssid_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 bssid_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
@@ -1029,7 +940,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (source_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    source_ci->device.Mac2String() << " packet " << packetnum;
+                    source_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 source_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
@@ -1057,7 +968,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (dest_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    dest_ci->device.Mac2String() << " packet " << packetnum;
+                    dest_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
@@ -1103,234 +1014,41 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         // Phy packets are so often bogus that we just ignore them for now; if we enable
         // creating devices from them, even on good cards like the ath9k we get a flood of
         // garbage
-#if 0
-        if (dot11info->source_mac != globalreg->empty_mac && 
-                dot11info->source_mac != globalreg->broadcast_mac) {
-            source_ci.reset(new kis_common_info());
-
-            source_ci->device = dot11info->source_mac;
-
-            source_ci->source = dot11info->source_mac;
-            source_ci->dest = dot11info->dest_mac;
-            source_ci->network = dot11info->bssid_mac;
-
-            source_ci->type = packet_basic_phy;
-
-            source_ci->phyid = d11phy->phyid;
-            source_ci->channel = dot11info->channel;
-            source_ci->datasize = dot11info->datasize;
-
-            im->info_map[source_ci->device] = source_ci;
-
-            source_dev =
-                d11phy->devicetracker->UpdateCommonDevice(source_ci, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            source_ci->base_device = source_dev;
-        }
-
-        if (dot11info->subtype == packet_sub_ack || dot11info->subtype == packet_sub_cts) {{
-            // map some phys as a device since we know they're being talked to
-            if (dot11info->dest_mac != dot11info->source_mac &&
-                    dot11info->dest_mac != globalreg->empty_mac && 
-                    dot11info->dest_mac != globalreg->broadcast_mac) {
-                dest_ci.reset(new kis_common_info());
-
-                dest_ci->device = dot11info->dest_mac;
-
-                dest_ci->source = dot11info->source_mac;
-                dest_ci->dest = dot11info->dest_mac;
-                dest_ci->network = dot11info->bssid_mac;
-
-                dest_ci->type = packet_basic_phy;
-
-                dest_ci->phyid = d11phy->phyid;
-                dest_ci->channel = dot11info->channel;
-                dest_ci->datasize = dot11info->datasize;
-
-                if (dot11info->cryptset)
-                    dest_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-                // Fill in basic l2 and l3 encryption
-                if (dot11info->cryptset & crypt_l2_mask) {
-                    dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-                } if (dot11info->cryptset & crypt_l3_mask) {
-                    dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-                }
-
-                im->info_map[dest_ci->device] = dest_ci;
-
-                dest_dev =
-                    d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
-                            (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                             UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                             UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-                dest_ci->base_device = dest_dev;
-            }
-        }
-
-        if (source_dev != NULL) {
-            local_locker sourcelocker(&(source_dev->device_mutex));
-
-            source_dot11 =
-                static_pointer_cast<dot11_tracked_device>(source_dev->get_map_value(dot11_device_entry_id));
-            stringstream newdevstr;
-
-            if (source_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    source_ci->device.Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
-
-                source_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
-                dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
-            }
-        }
-
-        if (dest_dev != NULL) {
-            local_locker destlocker(&(dest_dev->device_mutex));
-
-            dest_dot11 =
-                static_pointer_cast<dot11_tracked_device>(dest_dev->get_map_value(dot11_device_entry_id));
-            stringstream newdevstr;
-
-            if (dest_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    dest_ci->device.Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
-
-                dest_dot11.reset(new dot11_tracked_device(globalreg, dot11_device_entry_id));
-                dot11_tracked_device::attach_base_parent(dest_dot11, dest_dev);
-            }
-
-            // Phy to a known device mac, we know it's a wifi device
-            dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-
-            // If we're /only/ a client, set the type name and device name
-            if (dest_dev->get_basic_type_set() == KIS_DEVICE_BASICTYPE_CLIENT) {
-                dest_dev->set_type_string("Wi-Fi Client");
-                dest_dev->set_devicename(dest_dev->get_macaddr().Mac2String());
-            }
-        }
-#endif
-
+        //
+        // If we WERE going to process them, it would go here, and we'd start lookign for 
+        // source and dest where we could find them
     } else if (dot11info->type == packet_data) {
         if (dot11info->bssid_mac != globalreg->empty_mac && 
                 dot11info->bssid_mac != globalreg->broadcast_mac) {
-
-            bssid_ci.reset(new kis_common_info());
-
-            bssid_ci->device = dot11info->bssid_mac;
-
-            bssid_ci->source = dot11info->source_mac;
-            bssid_ci->dest = dot11info->dest_mac;
-            bssid_ci->network = dot11info->bssid_mac;
-
-            bssid_ci->type = packet_basic_data;
-
-            bssid_ci->phyid = d11phy->phyid;
-            bssid_ci->channel = dot11info->channel;
-            bssid_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                bssid_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                bssid_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                bssid_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[bssid_ci->device] = bssid_ci;
-
             bssid_dev =
-                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                        dot11info->bssid_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            bssid_ci->base_device = bssid_dev;
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
                 dot11info->source_mac != globalreg->empty_mac && 
                 dot11info->source_mac != globalreg->broadcast_mac) {
-            source_ci.reset(new kis_common_info());
-
-            source_ci->device = dot11info->source_mac;
-
-            source_ci->source = dot11info->source_mac;
-            source_ci->dest = dot11info->dest_mac;
-            source_ci->network = dot11info->bssid_mac;
-
-            source_ci->type = packet_basic_data;
-
-            source_ci->phyid = d11phy->phyid;
-            source_ci->channel = dot11info->channel;
-            source_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                source_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                source_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                source_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[source_ci->device] = source_ci;
-
             source_dev =
-                d11phy->devicetracker->UpdateCommonDevice(source_ci, d11phy, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                        dot11info->source_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            source_ci->base_device = source_dev;
         }
 
         if (dot11info->dest_mac != dot11info->source_mac &&
                 dot11info->dest_mac != dot11info->bssid_mac &&
                 dot11info->dest_mac != globalreg->empty_mac && 
                 dot11info->dest_mac != globalreg->broadcast_mac) {
-
-            dest_ci.reset(new kis_common_info());
-
-            dest_ci->device = dot11info->dest_mac;
-
-            dest_ci->source = dot11info->source_mac;
-            dest_ci->dest = dot11info->dest_mac;
-            dest_ci->network = dot11info->bssid_mac;
-
-            dest_ci->type = packet_basic_data;
-
-            dest_ci->phyid = d11phy->phyid;
-            dest_ci->channel = dot11info->channel;
-            dest_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                dest_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                dest_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[dest_ci->device] = dest_ci;
-
+            // Don't update signal or location for destination
             dest_dev =
-                d11phy->devicetracker->UpdateCommonDevice(dest_ci, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo,
+                        dot11info->dest_mac, d11phy, in_pack, 
+                        (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            dest_ci->base_device = dest_dev;
         }
 
         if (dot11info->other_mac != dot11info->source_mac &&
@@ -1338,40 +1056,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->other_mac != dot11info->bssid_mac &&
                 dot11info->other_mac != globalreg->empty_mac && 
                 dot11info->other_mac != globalreg->broadcast_mac) {
-
-            other_ci.reset(new kis_common_info());
-
-            other_ci->device = dot11info->other_mac;
-
-            other_ci->source = dot11info->source_mac;
-            other_ci->dest = dot11info->dest_mac;
-            other_ci->network = dot11info->bssid_mac;
-
-            dest_ci->type = packet_basic_data;
-
-            dest_ci->phyid = d11phy->phyid;
-            dest_ci->channel = dot11info->channel;
-            dest_ci->datasize = dot11info->datasize;
-
-            if (dot11info->cryptset)
-                other_ci->basic_crypt_set = KIS_DEVICE_BASICCRYPT_ENCRYPTED;
-
-            // Fill in basic l2 and l3 encryption
-            if (dot11info->cryptset & crypt_l2_mask) {
-                other_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L2;
-            } if (dot11info->cryptset & crypt_l3_mask) {
-                other_ci->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_L3;
-            }
-
-            im->info_map[dest_ci->device] = dest_ci;
-
             other_dev =
-                d11phy->devicetracker->UpdateCommonDevice(other_ci, d11phy, in_pack, 
+                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                        dot11info->other_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
-
-            other_ci->base_device = other_dev;
         }
 
         if (bssid_dev != NULL) {
@@ -1383,7 +1073,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (bssid_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    bssid_ci->device.Mac2String() << " packet " << packetnum;
+                    bssid_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 bssid_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
@@ -1439,7 +1129,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (source_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    source_ci->device.Mac2String() << " packet " << packetnum;
+                    source_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 source_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
@@ -1515,7 +1205,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (dest_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    dest_ci->device.Mac2String() << " packet " << packetnum;
+                    dest_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
@@ -1562,7 +1252,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (other_dot11 == NULL) {
                 newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    other_ci->device.Mac2String() << " packet " << packetnum;
+                    other_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
                 dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));

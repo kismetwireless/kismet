@@ -39,6 +39,8 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
 		packetchain->RegisterPacketComponent("COMMON");
     pack_comp_80211 =
         packetchain->RegisterPacketComponent("PHY80211");
+    pack_comp_device =
+        packetchain->RegisterPacketComponent("DEVICE");
 
     uav_device_id =
         entrytracker->RegisterField("uav.device",
@@ -86,51 +88,60 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     dot11_packinfo *dot11info = 
         (dot11_packinfo *) in_pack->fetch(uavphy->pack_comp_80211);
 
+	kis_tracked_device_info *devinfo =
+		(kis_tracked_device_info *) in_pack->fetch(uavphy->pack_comp_device);
+
+	if (devinfo == NULL) {
+        return 1;
+	}
+
     if (commoninfo == NULL || dot11info == NULL)
         return 1;
 
     // Try to pull the existing basedev, we don't want to re-parse
-    std::shared_ptr<kis_tracked_device_base> basedev = commoninfo->base_device;
+    for (auto di : devinfo->devrefs) {
+        std::shared_ptr<kis_tracked_device_base> basedev = di.second;
 
-    if (basedev == NULL)
-        return 1;
+        if (basedev == NULL)
+            return 1;
 
-    if (dot11info->droneid != NULL) {
-        shared_ptr<uav_tracked_device> uavdev = 
-            std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+        if (dot11info->droneid != NULL) {
+            shared_ptr<uav_tracked_device> uavdev = 
+                std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
-        if (uavdev == NULL) {
-            uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-            basedev->add_map(uavdev);
-        }
-
-        // TODO add alerts for serial # change etc
-        if (dot11info->droneid->subcommand() == 0x10) {
-            dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = 
-                dot11info->droneid->record();
-
-            if (flightinfo->state_info()->serial_valid()) {
-                uavdev->set_uav_serialnumber(flightinfo->serialnumber());
+            if (uavdev == NULL) {
+                uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+                basedev->add_map(uavdev);
             }
 
-            std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
-            telem->from_droneid_flight_reg(flightinfo);
-            telem->set_telem_timestamp(ts_to_double(in_pack->ts));
+            // TODO add alerts for serial # change etc
+            if (dot11info->droneid->subcommand() == 0x10) {
+                dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = 
+                    dot11info->droneid->record();
 
-            uavdev->set_tracker_last_telem_loc(telem);
+                if (flightinfo->state_info()->serial_valid()) {
+                    uavdev->set_uav_serialnumber(flightinfo->serialnumber());
+                }
 
-            TrackerElementVector tvec(uavdev->get_tracker_uav_telem_history());
-            tvec.push_back(telem);
+                std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
+                telem->from_droneid_flight_reg(flightinfo);
+                telem->set_telem_timestamp(ts_to_double(in_pack->ts));
 
-            if (tvec.size() > 128)
-                tvec.erase(tvec.begin());
+                uavdev->set_tracker_last_telem_loc(telem);
 
-            uavdev->set_uav_match_type("DroneID");
+                TrackerElementVector tvec(uavdev->get_tracker_uav_telem_history());
+                tvec.push_back(telem);
 
-            // Set the home location
-            if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
-                shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
-                homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
+                if (tvec.size() > 128)
+                    tvec.erase(tvec.begin());
+
+                uavdev->set_uav_match_type("DroneID");
+
+                // Set the home location
+                if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
+                    shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
+                    homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
+                }
             }
         }
     }

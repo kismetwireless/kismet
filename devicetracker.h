@@ -391,10 +391,9 @@ class kis_tracked_device_info : public packet_component {
 public:
 	kis_tracked_device_info() {
 		self_destruct = 1;
-		devref = NULL;
 	}
 
-    std::shared_ptr<kis_tracked_device_base> devref;
+    std::map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;
 };
 
 // Filter-handler class.  Subclassed by a filter supplicant to be passed to the
@@ -529,6 +528,10 @@ public:
 
     // Add common into to a device.  If necessary, create the new device.
     //
+    // The specified mac is used to create the device; for phys with multiple devices
+    // per packet (such as dot11), this is uses to specify which address the
+    // device is linked to
+    //
     // This will update location, signal, manufacturer, and seenby values.
     // It will NOT update packet count, data size, or encryption options:  The
     // Phy handler should update those values itself.
@@ -557,9 +560,8 @@ public:
 #define UCD_UPDATE_SEENBY       (1 << 4)
 // Update encryption options
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
-    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(
-            std::shared_ptr<kis_common_info> pack_common,
-            Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
+    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
+            mac_addr in_mac, Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
 
     // Set the common name of a device (and log it in the database for future runs)
     void SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,

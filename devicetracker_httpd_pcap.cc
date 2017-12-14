@@ -121,8 +121,9 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                     return false;
                 }
 
-                if (devinfo->devref->get_key() == key) {
-                    return true;
+                for (auto dri : devinfo->devrefs) {
+                    if (dri.second->get_key() == key)
+                        return true;
                 }
 
                 return false;

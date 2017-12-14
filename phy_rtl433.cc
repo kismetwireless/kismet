@@ -158,12 +158,12 @@ bool Kis_RTL433_Phy::json_to_rtl(struct JSON_value *json) {
 
     common->freq_khz = 433920;
     common->source = rtlmac;
-    common->device = rtlmac;
+    common->transmitter = rtlmac;
 
     pack->insert(pack_comp_common, common);
 
     shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common->device, this, pack,
+        devicetracker->UpdateCommonDevice(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY));
 

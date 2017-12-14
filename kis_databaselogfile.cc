@@ -652,22 +652,22 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     kis_gps_packinfo *gpsdata =
         (kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
 
-    kis_tracked_device_info *devinfo =
-        (kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
-
     kis_common_info *commoninfo =
         (kis_common_info *) in_pack->fetch(pack_comp_common);
 
     packetchain_comp_datasource *datasrc =
         (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasource);
 
-    if (devinfo != NULL) {
-        phystring = devinfo->devref->get_phyname();
-        keystring = devinfo->devref->get_key().as_string();
-    } else {
-        keystring = "0";
+    Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandler(commoninfo->phyid);
+
+    if (phyh == NULL)
         phystring = "Unknown";
-    }
+    else
+        phystring = phyh->FetchPhyName();
+
+
+    // Packets are no longer a 1:1 with a device
+    keystring = "0";
 
     if (commoninfo != NULL) {
         macstring = commoninfo->source.Mac2String();

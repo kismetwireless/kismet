@@ -130,8 +130,8 @@ class Kis_Net_Httpd;
 #define _ALERT(x, y, z, a)	globalreg->alertracker->RaiseAlert((x), (y), \
 	(z)->bssid_mac, (z)->source_mac, (z)->dest_mac, (z)->other_mac, \
 	(z)->channel, (a))
-#define _COMMONALERT(t, p, c, a)  globalreg->alertracker->RaiseAlert((t), (p), \
-	(c)->device, (c)->source, (c)->dest, mac_addr(0), (c)->channel, (a))
+#define _COMMONALERT(t, p, c, b, a)  globalreg->alertracker->RaiseAlert((t), (p), \
+	(b), (c)->source, (c)->dest, mac_addr(0), (c)->channel, (a))
 
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))

@@ -95,7 +95,6 @@ int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
     ci->type = packet_basic_mgmt;
     ci->source = btpi->address;
     ci->transmitter = btpi->address;
-    ci->device = btpi->address;
     ci->channel = "FHSS";
     ci->freq_khz = 2400000;
 
@@ -117,7 +116,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
         return 0;
 
     shared_ptr<kis_tracked_device_base> basedev =
-        btphy->devicetracker->UpdateCommonDevice(ci->device, btphy, in_pack, 
+        btphy->devicetracker->UpdateCommonDevice(ci, ci->source, btphy, in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));

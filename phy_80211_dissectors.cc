@@ -321,6 +321,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         return 0;
     }
 
+	kis_layer1_packinfo *pack_l1info =
+		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_l1info);
+
     kis_common_info *common = 
         (kis_common_info *) in_pack->fetch(pack_comp_common);
 
@@ -330,14 +333,17 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     }
 
     common->phyid = phyid;
+    common->freq_khz = pack_l1info->freq_khz;
 
     packinfo = new dot11_packinfo;
 
     frame_control *fc = (frame_control *) chunk->data;
 
     // Inherit the FC privacy flag
-    if (fc->wep)
+    if (fc->wep) {
         packinfo->cryptset |= crypt_wep;
+        common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+    }
 
     uint16_t duration = 0;
 
@@ -385,18 +391,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     // Shortcut PHYs here because they're shorter than normal packets
     if (fc->type == packet_phy) {
         packinfo->type = packet_phy;
-
         common->type = packet_basic_phy;
-
-#if 0
-        // Throw away large phy packets just like we throw away large management.
-        // Phy stuff is all really small, so we set the limit smaller.
-        if (chunk->length > 128) {
-            packinfo->corrupt = 1;
-            in_pack->insert(pack_comp_80211, packinfo);
-            return 0;
-        }
-#endif
 
         if (fc->subtype == 5) { 
             packinfo->subtype = packet_sub_vht_ndp;
@@ -496,6 +491,13 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_unknown;
         }
 
+        // Fill in the common addressing before we bail on a phy
+        common->source = packinfo->source_mac;
+        common->dest = packinfo->dest_mac;
+        common->network = packinfo->bssid_mac;
+        common->transmitter = packinfo->other_mac;
+        common->type = packet_basic_data;
+
         // Nothing more to do if we get a phy
         in_pack->insert(pack_comp_80211, packinfo);
         return 1;
@@ -521,6 +523,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     // Rip apart management frames
     if (fc->type == packet_management) {
         packinfo->type = packet_management;
+        common->type = packet_basic_mgmt;
 
         packinfo->distrib = distrib_unknown;
 
@@ -657,12 +660,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_unknown;
         }
 
-        // add management addr packet
-        common->source = packinfo->source_mac;
-        common->dest = packinfo->dest_mac;
-        common->device = packinfo->bssid_mac;
-        common->type = packet_basic_mgmt;
-
         if (fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_disassociation || 
             fc->subtype == packet_sub_authentication || 
@@ -748,6 +745,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             if (fixparm->wep) {
                 packinfo->cryptset |= crypt_wep;
+                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             }
 
             // Set the transmitter info
@@ -820,8 +818,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             }
         }
 
-    } else if (fc->type == 2) {
+    } else if (fc->type == packet_data) {
         packinfo->type = packet_data;
+        common->type = packet_basic_data;
 
         // Collect the subtypes - we probably want to do something better with thse
         // in the future
@@ -954,13 +953,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             break;
         }
 
-        // add data addr packet
-        common->source = packinfo->source_mac;
-        common->dest = packinfo->dest_mac;
-        common->device = packinfo->bssid_mac;
-        common->type = packet_basic_data;
-
-
         // WEP/Protected on data frames means encrypted, not WEP, sometimes
         if (fc->wep) {
             bool alt_crypt = false;
@@ -969,15 +961,19 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             if (packinfo->header_offset + 2 < chunk->length) {
                 if (chunk->data[packinfo->header_offset + 2] == 0) {
                     packinfo->cryptset |= crypt_aes_ccm;
+                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
                 }  else if (chunk->data[packinfo->header_offset + 1] & 0x20) {
                     packinfo->cryptset |= crypt_tkip;
+                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
                 }
             }  
         
-            if (!alt_crypt)
+            if (!alt_crypt) {
                 packinfo->cryptset |= crypt_wep;
+                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+            }
         }
 
         int datasize = chunk->length - packinfo->header_offset;
@@ -1056,6 +1052,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                                             FORTRESS_SIGNATURE,
                        sizeof(FORTRESS_SIGNATURE)) == 0) {
                 packinfo->cryptset |= crypt_fortress;
+                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             }
 
             // Dot1x frames
@@ -1103,6 +1100,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 }
 
                 packinfo->cryptset |= crypt_eap;
+                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 switch (eap_type) {
                     case EAP_TYPE_LEAP:
                         datainfo->field1 = eap_code;
@@ -1155,6 +1153,13 @@ eap_end:
         packinfo->corrupt = 1;
     }
 
+    // Populate the common addressing
+    common->source = packinfo->source_mac;
+    common->dest = packinfo->dest_mac;
+    common->network = packinfo->bssid_mac;
+    common->transmitter = packinfo->other_mac;
+    common->type = packet_basic_data;
+
     in_pack->insert(pack_comp_80211, packinfo);
 
     return 1;
@@ -1199,6 +1204,9 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         packinfo->corrupt = 1;
         return -1;
     }
+
+    kis_common_info *common = 
+        (kis_common_info *) in_pack->fetch(pack_comp_common);
 
     // Track if we've seen some of these tags already
     bool seen_ssid = false;
@@ -1577,6 +1585,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 // Set version flag - this is probably wrong but keep it 
                 // for now
                 packinfo->cryptset |= crypt_version_wpa2;
+
+                common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
 
             } catch (const std::exception& e) {
                 rsn_invalid = true;

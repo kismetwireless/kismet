@@ -300,7 +300,7 @@ protected:
     shared_ptr<EntryTracker> entrytracker;
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
-    int pack_comp_common, pack_comp_80211;
+    int pack_comp_common, pack_comp_80211, pack_comp_device;
 
     int uav_device_id;
 

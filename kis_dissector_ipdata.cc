@@ -486,12 +486,13 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 											  6);
 
 					if (clmac != common->source) {
-						_COMMONALERT(alert_dhcpclient_ref, in_pack, common, 
-							 string("DHCP request from ") +
-							 common->source.Mac2String() + 
-							 string(" doesn't match DHCP DISCOVER client id ") +
-							 clmac.Mac2String() + string(" which can indicate "
-														 "a DHCP spoofing attack"));
+                        _COMMONALERT(alert_dhcpclient_ref, in_pack, common, 
+                                common->network,
+                                string("DHCP request from ") +
+                                common->source.Mac2String() + 
+                                string(" doesn't match DHCP DISCOVER client id ") +
+                                clmac.Mac2String() + string(" which can indicate "
+                                    "a DHCP spoofing attack"));
 					}
 				}
 			}

@@ -264,9 +264,11 @@ enum kis_packet_direction {
 
 // Common info item which is aggregated into a packet under 
 // the packet_info_map type
-class kis_common_info {
+class kis_common_info : public packet_component {
 public:
     kis_common_info() {
+        self_destruct = 1;
+
         type = packet_basic_unknown;
         direction = packet_direction_unknown;
 
@@ -277,15 +279,18 @@ public:
         freq_khz = 0;
         basic_crypt_set = 0;
 
-        device = mac_addr(0);
-
         source = mac_addr(0);
         dest = mac_addr(0);
         network = mac_addr(0);
-        carrier = mac_addr(0);
+        transmitter = mac_addr(0);
     }
 
-	mac_addr source, dest, network, device, carrier;
+    // Source - origin of packet
+    // Destination - dest of packet
+    // Network - Associated network device (such as ap bssid)
+    // Transmitter - Independent transmitter, if not source or network
+    // (wifi wds for instance)
+	mac_addr source, dest, network, transmitter;
 
 	kis_packet_basictype type;
     kis_packet_direction direction;
@@ -303,17 +308,6 @@ public:
 	string channel;
     // Frequency in khz
     double freq_khz;
-
-    std::shared_ptr<kis_tracked_device_base> base_device;
-};
-
-class kis_packet_info_map : public packet_component {
-public:
-    kis_packet_info_map() {
-        self_destruct = 1;
-    }
-
-    std::map<mac_addr, std::shared_ptr<kis_common_info> > info_map;
 };
 
 // String reference
