@@ -774,6 +774,8 @@ int Kis_80211_Phy::LoadWepkeys() {
 // Common classifier responsible for generating the common devices & mapping wifi packets
 // to those devices
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
+    packetnum++;
+
     Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
 
     // Don't process errors, blocked, or dupes
@@ -1795,6 +1797,9 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
         TrackerElement::mac_map_pair cp(bssiddev->get_macaddr(), client_record);
         client_map.insert(cp);
         new_client_record = true;
+    } else {
+        client_record = 
+            std::static_pointer_cast<dot11_client>(cmi->second);
     }
 
     if (new_client_record) {
@@ -1817,7 +1822,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
             client_record->inc_datasize_retry(dot11info->datasize);
         }
 
-        if (pack_datainfo->proto == proto_eap) {
+        if (pack_datainfo != NULL && pack_datainfo->proto == proto_eap) {
             if (pack_datainfo->auxstring != "") {
                 client_record->set_eap_identity(pack_datainfo->auxstring);
             }
