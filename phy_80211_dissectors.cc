@@ -321,16 +321,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         return 0;
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
-
-    if (common == NULL) {
-        common = new kis_common_info;
-        in_pack->insert(pack_comp_common, common);
-    }
-
-    common->phyid = phyid;
-
     packinfo = new dot11_packinfo;
 
     frame_control *fc = (frame_control *) chunk->data;
@@ -385,8 +375,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     // Shortcut PHYs here because they're shorter than normal packets
     if (fc->type == packet_phy) {
         packinfo->type = packet_phy;
-
-        common->type = packet_basic_phy;
 
 #if 0
         // Throw away large phy packets just like we throw away large management.
@@ -656,12 +644,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
         }
-
-        // add management addr packet
-        common->source = packinfo->source_mac;
-        common->dest = packinfo->dest_mac;
-        common->device = packinfo->bssid_mac;
-        common->type = packet_basic_mgmt;
 
         if (fc->subtype == packet_sub_probe_req || 
             fc->subtype == packet_sub_disassociation || 
@@ -954,13 +936,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             break;
         }
 
-        // add data addr packet
-        common->source = packinfo->source_mac;
-        common->dest = packinfo->dest_mac;
-        common->device = packinfo->bssid_mac;
-        common->type = packet_basic_data;
-
-
         // WEP/Protected on data frames means encrypted, not WEP, sometimes
         if (fc->wep) {
             bool alt_crypt = false;
@@ -983,7 +958,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         int datasize = chunk->length - packinfo->header_offset;
         if (datasize > 0) {
             packinfo->datasize = datasize;
-            common->datasize = datasize;
         }
 
         if (packinfo->cryptset == 0 && dissect_data) {
