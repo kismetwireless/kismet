@@ -668,6 +668,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.client.last_time",
                     title: "Last Connected",
+                    render: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.client.datasize",
