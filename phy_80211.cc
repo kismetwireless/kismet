@@ -1290,15 +1290,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
-            if (dest_dev != NULL)
+            if (dest_dev != NULL) {
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-
-            // Handle WPA
-            if (dest_dev != NULL)
                 d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         in_pack, dot11info);
-
+            }
         }
 
         if (other_dev != NULL) {
@@ -1482,14 +1479,15 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
+    // Update the base device records
+    dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
+    dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+
+    if (ssid->get_last_time() < in_pack->ts.tv_sec)
+        ssid->set_last_time(in_pack->ts.tv_sec);
+
+
     if (dot11info->subtype == packet_sub_beacon) {
-        // Update the base device records
-        dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
-        dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
-
-        if (ssid->get_last_time() < in_pack->ts.tv_sec)
-            ssid->set_last_time(in_pack->ts.tv_sec);
-
         ssid->inc_beacons_sec();
 
         // Set the type
@@ -1584,8 +1582,6 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
         }
 
         ssid->set_ssid_probe_response(true);
-        dot11dev->set_last_probed_ssid(ssid->get_ssid());
-        dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
     }
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
@@ -1751,7 +1747,7 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
 
         ssid_itr = probemap.find(dot11info->ssid_csum);
 
-        if (ssid_itr == probemap.end()) {
+        if (ssid_itr == probemap.end() || ssid_itr->second == NULL) {
             probessid = dot11dev->new_probed_ssid();
             TrackerElement::int_map_pair p(dot11info->ssid_csum, probessid);
             probemap.insert(p);
@@ -1763,22 +1759,23 @@ void Kis_80211_Phy::HandleProbedSSID(shared_ptr<kis_tracked_device_base> basedev
             probessid = std::static_pointer_cast<dot11_probed_ssid>(ssid_itr->second);
         }
 
-        if (probessid != NULL) {
-            if (probessid->get_last_time() < in_pack->ts.tv_sec)
-                probessid->set_last_time(in_pack->ts.tv_sec);
+        if (probessid->get_last_time() < in_pack->ts.tv_sec)
+            probessid->set_last_time(in_pack->ts.tv_sec);
 
-            // Add the location data, if any
-            if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
-                probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                        pack_gpsinfo->alt, pack_gpsinfo->fix);
+        // Add the location data, if any
+        if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+            probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->fix);
 
-            }
-
-            if (dot11info->dot11r_mobility != NULL) {
-                probessid->set_dot11r_mobility(true);
-                probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
-            }
         }
+
+        if (dot11info->dot11r_mobility != NULL) {
+            probessid->set_dot11r_mobility(true);
+            probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
+        }
+
+        dot11dev->set_last_probed_ssid(probessid->get_ssid());
+        dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
     }
 
 }
