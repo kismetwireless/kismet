@@ -57,9 +57,6 @@
 #include "kaitai_parsers/dot11_ie_221_ms_wmm.h"
 #include "kaitai_parsers/dot11_ie_221_ms_wps.h"
 
-// Handy little global so that it only has to do the ascii->mac_addr transform once
-mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
-
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
 const int CH20GI400 = 1;
@@ -404,6 +401,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 8) {
             packinfo->subtype = packet_sub_block_ack_req;
@@ -416,6 +415,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 9) {
             packinfo->subtype = packet_sub_block_ack;
@@ -439,6 +440,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
@@ -451,6 +454,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_cts;
@@ -462,9 +467,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            
-            // Kluge into source mac so we can resolve the device
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 13) {
             packinfo->subtype = packet_sub_ack;
@@ -476,19 +481,34 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             }
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-
-            // Kluge into source mac so we can resolve the device
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 14) {
             packinfo->subtype = packet_sub_cf_end;
 
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->source_mac = mac_addr(0);
+            packinfo->dest_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
+
         } else if (fc->subtype == 15) {
             packinfo->subtype = packet_sub_cf_end_ack;
+
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->source_mac = mac_addr(0);
+            packinfo->dest_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
 
         } else {
             fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
+
+            packinfo->bssid_mac = mac_addr(0);
+            packinfo->source_mac = mac_addr(0);
+            packinfo->dest_mac = mac_addr(0);
+            packinfo->other_mac = mac_addr(0);
         }
 
         // Fill in the common addressing before we bail on a phy
@@ -598,7 +618,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             // If beacons aren't do a broadcast destination, consider them corrupt.
-            if (packinfo->dest_mac != broadcast_mac) {
+            if (packinfo->dest_mac != globalreg->broadcast_mac) {
                 fprintf(stderr, "debug - dest mac not broadcast\n");
                 packinfo->corrupt = 1;
             }

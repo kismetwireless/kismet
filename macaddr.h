@@ -214,6 +214,11 @@ struct mac_addr {
         return false;
     }
 
+    // bitwise-and
+    inline bool bitwise_and(const mac_addr& op) const {
+        return (longmac & op.longmac);
+    }
+
     // Masked MAC compare
     inline bool operator== (const mac_addr& op) const {
         if (longmask < op.longmask)

@@ -63,6 +63,7 @@ GlobalRegistry::GlobalRegistry() {
 	filter_export_dest_invert = -1;
 
 	broadcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
+    multicast_mac = mac_addr("01:00:00:00:00:00");
 	empty_mac = mac_addr(0);
 
 	alert_backlog = 0;

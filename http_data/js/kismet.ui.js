@@ -212,8 +212,10 @@ exports.GetDeviceColumns = function(showall = false) {
         for (var dci in DeviceColumns) {
             var dc = DeviceColumns[dci];
 
+            /*
             if (!dc.user_selectable)
                 continue;
+                */
 
             var rc = ret.find(function(e, i, a) {
                 if (e.kismetId === dc.kismetId)

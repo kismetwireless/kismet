@@ -109,7 +109,17 @@ exports.drawPackets = function(dyncolumn, table, row) {
 kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
     field: 'kismet.device.base.name',
-    description: 'Device name'
+    description: 'Device name',
+    renderfunc: function(d, t, r, m) {
+        if (d.length == 0) {
+            console.log("returning mac");
+            console.log(r);
+            return r['kismet.device.base.macaddr'];
+        } else {
+            console.log("returning name");
+            return d;
+        }
+    }
 });
 
 kismet_ui.AddDeviceColumn('column_type', {
@@ -210,6 +220,16 @@ kismet_ui.AddDeviceColumn('column_device_key_hidden', {
     field: 'kismet.device.base.key',
     searchable: false,
     orderable: false,
+    visible: false,
+    selectable: false,
+});
+
+// Hidden col for mac address, searchable
+kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
+    sTitle: 'MAC',
+    field: 'kismet.device.base.macaddr',
+    searchable: true,
+    orderable: true,
     visible: false,
     selectable: false,
 });

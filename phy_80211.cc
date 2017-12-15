@@ -876,7 +876,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
                 dot11info->source_mac != globalreg->empty_mac && 
-                dot11info->source_mac != globalreg->broadcast_mac) {
+                !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
             source_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->source_mac, d11phy, in_pack, 
@@ -888,7 +888,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (dot11info->dest_mac != dot11info->source_mac &&
                 dot11info->dest_mac != dot11info->bssid_mac &&
                 dot11info->dest_mac != globalreg->empty_mac && 
-                dot11info->dest_mac != globalreg->broadcast_mac) {
+                !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
             dest_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->dest_mac, d11phy, in_pack, 
@@ -905,7 +905,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             stringstream newdevstr;
 
             if (bssid_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
+                newdevstr << "Detected new 802.11 Wi-Fi access point " << 
                     bssid_dev->get_macaddr().Mac2String() << " packet " << packetnum;
                 _MSG(newdevstr.str(), MSGFLAG_INFO);
 
@@ -1032,7 +1032,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
                 dot11info->source_mac != globalreg->empty_mac && 
-                dot11info->source_mac != globalreg->broadcast_mac) {
+                !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
             source_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->source_mac, d11phy, in_pack, 
@@ -1044,7 +1044,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (dot11info->dest_mac != dot11info->source_mac &&
                 dot11info->dest_mac != dot11info->bssid_mac &&
                 dot11info->dest_mac != globalreg->empty_mac && 
-                dot11info->dest_mac != globalreg->broadcast_mac) {
+                !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
             // Don't update signal or location for destination
             dest_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo,
@@ -1057,7 +1057,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->other_mac != dot11info->dest_mac &&
                 dot11info->other_mac != dot11info->bssid_mac &&
                 dot11info->other_mac != globalreg->empty_mac && 
-                dot11info->other_mac != globalreg->broadcast_mac) {
+                !(dot11info->other_mac.bitwise_and(globalreg->multicast_mac)) ) {
             other_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->other_mac, d11phy, in_pack, 
@@ -1082,7 +1082,11 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
             }
 
-            if (dot11info->ess) {
+            if (dot11info->distrib == distrib_adhoc) {
+                // Otherwise, we're some sort of adhoc device
+                bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
+            } else if (dot11info->ess) {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
                 bssid_dev->set_type_string("Wi-Fi AP");
@@ -1101,10 +1105,6 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                             dot11info->dest_mac, dot11info->other_mac,
                             dot11info->channel, al);
                 }
-            } else {
-                // Otherwise, we're some sort of adhoc device
-                bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
             }
 
             bssid_dot11->inc_datasize(dot11info->datasize);
@@ -1143,8 +1143,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             if (dot11info->distrib == distrib_inter) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-                source_dev->set_type_string_ifonly("Wi-Fi WDS/Adhoc",
+                source_dev->set_type_string_ifonly("Wi-Fi WDS",
                         KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
+            } else if (dot11info->distrib == distrib_adhoc) {
+                // Otherwise, we're some sort of adhoc device
+                source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+                source_dev->set_type_string("Wi-Fi Ad-Hoc");
             } else if (dot11info->ess) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
 
@@ -1219,8 +1223,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             if (dot11info->distrib == distrib_inter) {
                 dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-                dest_dev->set_type_string_ifonly("Wi-Fi WDS/Adhoc",
+                dest_dev->set_type_string_ifonly("Wi-Fi WDS",
                         KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
+            } else if (dot11info->distrib == distrib_adhoc) {
+                // Otherwise, we're some sort of adhoc device
+                dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+                dest_dev->set_type_string("Wi-Fi Ad-Hoc");
             } else if (dot11info->ess) {
                 dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
 
