@@ -156,7 +156,7 @@ kismet_ui.AddDeviceColumn('column_channel', {
             return d;
         } else if ('kismet.device.base.frequency' in r &&
             r['kismet.device.base_frequency'] != 0) {
-            return kismet.HumanReadableFrequency(r['kismet.device.base.frequency']);
+                return kismet_ui.GetPhyConvertedChannel(r['kismet.device.base.phyname'], r['kismet.device.base.frequency']);
         } else {
             return "<i>n/a</i>";
         }
@@ -224,12 +224,22 @@ kismet_ui.AddDeviceColumn('column_device_key_hidden', {
     selectable: false,
 });
 
+// HIdden for phy to always turn it on
+kismet_ui.AddDeviceColumn('column_phy_hidden', {
+    sTitle: 'Phy',
+    field: 'kismet.device.base.phyname',
+    searchable: true,
+    visible: false,
+    orderable: false,
+    selectable: false,
+});
+
 // Hidden col for mac address, searchable
 kismet_ui.AddDeviceColumn('column_device_mac_hidden', {
     sTitle: 'MAC',
     field: 'kismet.device.base.macaddr',
     searchable: true,
-    orderable: true,
+    orderable: false,
     visible: false,
     selectable: false,
 });
@@ -248,6 +258,15 @@ kismet_ui.AddDeviceColumn('column_device_mac', {
 });
 
 // Hidden column for computing freq in the absence of channel
+kismet_ui.AddDeviceColumn('column_frequency_hidden', {
+    sTitle: 'Frequency',
+    field: 'kismet.device.base.frequency',
+    searchable: false,
+    visible: false,
+    orderable: false,
+    selectable: false,
+});
+
 kismet_ui.AddDeviceColumn('column_frequency', {
     sTitle: 'Frequency',
     field: 'kismet.device.base.frequency',

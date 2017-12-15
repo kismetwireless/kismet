@@ -124,7 +124,7 @@ exports.CryptToHumanReadable = function(cryptset) {
     return ret.join(" ");
 };
 
-kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
+kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
     in_freq = parseInt(in_freq / 1000);
 
     if (in_freq == 2484)
@@ -138,7 +138,7 @@ kismet_ui.AddChannelList("Wi-Fi (802.11)", function(in_freq) {
     else if (in_freq >= 58320 && in_freq <= 64800)
         return (in_freq - 56160) / 2160;
     else
-        return in_freq;
+        return kismet.HumanReadableFrequency(in_freq);
 });
 
 /* Highlight WPA handshakes */

@@ -464,18 +464,38 @@ exports.RenderHumanSize = function(opts) {
 // Central location to register channel conversion lists.  Conversion can
 // be a function or a fixed dictionary.
 exports.freq_channel_list = { };
+exports.human_freq_channel_list = { };
 
-exports.AddChannelList = function(phyname, channellist) {
+exports.AddChannelList = function(phyname, humanname, channellist) {
     exports.freq_channel_list[phyname] = channellist;
+    exports.human_freq_channel_list[humanname] = channellist;
 }
 
-// Get a list of frequency conversions
+// Get a list of human frequency conversions
 exports.GetChannelListKeys = function() {
-    return Object.keys(exports.freq_channel_list);
+    return Object.keys(exports.human_freq_channel_list);
 }
 
 // Get a converted channel name, or the raw frequency if we can't help
-exports.GetConvertedChannel = function(phyname, frequency) {
+exports.GetConvertedChannel = function(humanname, frequency) {
+    if (humanname in exports.human_freq_channel_list) {
+        var conv = exports.human_freq_channel_list[humanname];
+
+        if (typeof(conv) === "function") {
+            // Call the conversion function if one exists
+            return conv(frequency);
+        } else if (frequency in conv) {
+            // Return the mapped value
+            return conv[frequency];
+        }
+    }
+
+    // Return the frequency if we couldn't figure out what to do
+    return frequency;
+}
+
+// Get a converted channel name, or the raw frequency if we can't help
+exports.GetPhyConvertedChannel = function(phyname, frequency) {
     if (phyname in exports.freq_channel_list) {
         var conv = exports.freq_channel_list[phyname];
 
@@ -489,7 +509,7 @@ exports.GetConvertedChannel = function(phyname, frequency) {
     }
 
     // Return the frequency if we couldn't figure out what to do
-    return frequency;
+    return kismet.HumanReadableFrequency(frequency);
 }
 
 exports.connection_error = false;
