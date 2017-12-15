@@ -864,7 +864,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         // don't want to do much more complex object creation
         
         if (dot11info->bssid_mac != globalreg->empty_mac && 
-                dot11info->bssid_mac != globalreg->broadcast_mac) {
+                !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
 
             bssid_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
@@ -1021,7 +1021,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         // source and dest where we could find them
     } else if (dot11info->type == packet_data) {
         if (dot11info->bssid_mac != globalreg->empty_mac && 
-                dot11info->bssid_mac != globalreg->broadcast_mac) {
+                !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
             bssid_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->bssid_mac, d11phy, in_pack, 
