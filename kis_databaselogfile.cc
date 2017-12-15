@@ -658,18 +658,14 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     packetchain_comp_datasource *datasrc =
         (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasource);
 
-    Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandler(commoninfo->phyid);
-
-    if (phyh == NULL)
-        phystring = "Unknown";
-    else
-        phystring = phyh->FetchPhyName();
+    Kis_Phy_Handler *phyh = NULL;
 
 
     // Packets are no longer a 1:1 with a device
     keystring = "0";
 
     if (commoninfo != NULL) {
+        phyh = devicetracker->FetchPhyHandler(commoninfo->phyid);
         macstring = commoninfo->source.Mac2String();
         deststring = commoninfo->dest.Mac2String();
         transstring = commoninfo->transmitter.Mac2String();
@@ -680,6 +676,12 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         transstring = "00:00:00:00:00:00";
         frequency = 0;
     }
+
+    if (phyh == NULL)
+        phystring = "Unknown";
+    else
+        phystring = phyh->FetchPhyName();
+
 
     if (datasrc != NULL) {
         sourceuuidstring = datasrc->ref_source->get_source_uuid().UUID2String();
