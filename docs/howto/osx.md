@@ -1,6 +1,6 @@
 # Compiling Kismet on OSX
 
-Kismet is capable of running on OSX systems, however, currently, it is _not_ capable of capturing data on OSX natively; to capture packets you will need to capture data on a supported remote system (Linux) as a remote capture.
+Kismet is capable of running on OSX and capturing data on OSX natively.
 
 ## Building Kismet
 
@@ -23,7 +23,7 @@ Kismet should build on OSX directly, but requires some libraries be installed.
 
    * For `brew`:
 
-     `$ sudo brew install libmicrohttpd pcre`
+     `$ brew install libmicrohttpd pcre`
 
 4. Make a source dir for Kismet (optional, but recommended)
    `$ mkdir src`
@@ -41,7 +41,7 @@ Kismet should build on OSX directly, but requires some libraries be installed.
    There will be some warnings - generally they can be ignored.  As the OSX port evolves, the warnings will be cleaned up.
 
 8. Install Kismet
-   `$ make suidinstall`
+   `$ sudo make suidinstall`
 
    `make suidinstall` will install the Kismet helpers as suid-root, executeable by users in the `staff` group in OSX.  There is more information on the suidinstall method in the Kismet README; in generally it increases the overall Kismet security by allowing you to launch Kismet as a normal user; only the packet capture tools will run as root.
 
