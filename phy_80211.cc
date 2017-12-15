@@ -1086,7 +1086,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 // Otherwise, we're some sort of adhoc device
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
-            } else if (dot11info->ess) {
+            } else {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
                 bssid_dev->set_type_string("Wi-Fi AP");
