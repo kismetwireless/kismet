@@ -973,6 +973,8 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 	}
 
+    device->add_basic_crypt(pack_common->basic_crypt_set);
+
     // Add the new device at the end once we've populated it
     if (new_device) {
         local_locker devlocker(&devicelist_mutex);
@@ -983,133 +985,6 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
     return device;
-}
-
-int Devicetracker::PopulateCommon(std::shared_ptr<kis_tracked_device_base> device, 
-        kis_packet *in_pack) {
-
-    kis_common_info *pack_common =
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
-    kis_layer1_packinfo *pack_l1info =
-        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
-    kis_gps_packinfo *pack_gpsinfo =
-        (kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-    packetchain_comp_datasource *pack_datasrc =
-        (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
-
-    // If we can't figure it out at all (no common layer) just bail
-    if (pack_common == NULL)
-        return 0;
-
-    // We shouldn't have ever been able to get this far w/out having a phy
-    // handler since we wouldn't know the phy id
-    Kis_Phy_Handler *handler = FetchPhyHandler(pack_common->phyid);
-    if (handler == NULL) {
-        _MSG("DeviceTracker failed to populate common because we couldn't find "
-                "a matching phy handler", MSGFLAG_ERROR);
-        return 0;
-    }
-
-    kis_tracked_device_info *devinfo =
-        (kis_tracked_device_info *) in_pack->fetch(pack_comp_device);
-
-    if (devinfo == NULL) {
-        fprintf(stderr, "debug - populating devinfo\n");
-        devinfo = new kis_tracked_device_info;
-        in_pack->insert(pack_comp_device, devinfo);
-    }
-
-    devinfo->devrefs[device->get_macaddr()] = device;
-
-    // Lock the device itself
-    local_locker devlocker(&(device->device_mutex));
-
-    if (globalreg->manufdb != NULL)
-        device->set_manuf(globalreg->manufdb->LookupOUI(device->get_macaddr()));
-
-    // Set name
-    device->set_devicename(device->get_macaddr().Mac2String());
-
-    device->inc_packets();
-
-    device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
-
-    if (device->get_last_time() < in_pack->ts.tv_sec) 
-        device->set_last_time(in_pack->ts.tv_sec);
-
-    if (pack_common->error)
-        device->inc_error_packets();
-
-    if (pack_common->type == packet_basic_data) {
-        // TODO fix directional data
-        device->inc_data_packets();
-        device->inc_datasize(pack_common->datasize);
-        device->get_data_rrd()->add_sample(pack_common->datasize,
-                globalreg->timestamp.tv_sec);
-
-        if (pack_common->datasize <= 250) {
-            device->get_packet_rrd_bin_250()->add_sample(1, globalreg->timestamp.tv_sec);
-        } else if (pack_common->datasize <= 500) {
-            device->get_packet_rrd_bin_500()->add_sample(1, globalreg->timestamp.tv_sec);
-        } else if (pack_common->datasize <= 1000) {
-            device->get_packet_rrd_bin_1000()->add_sample(1, globalreg->timestamp.tv_sec);
-        } else if (pack_common->datasize <= 1500) {
-            device->get_packet_rrd_bin_1500()->add_sample(1, globalreg->timestamp.tv_sec);
-        } else if (pack_common->datasize > 1500 ) {
-            device->get_packet_rrd_bin_jumbo()->add_sample(1, globalreg->timestamp.tv_sec);
-        }
-
-    } else if (pack_common->type == packet_basic_mgmt ||
-            pack_common->type == packet_basic_phy) {
-        device->inc_llc_packets();
-    }
-
-    if (pack_l1info != NULL) {
-        if (!(pack_l1info->channel == "0"))
-            device->set_channel(pack_l1info->channel);
-        if (pack_l1info->freq_khz != 0)
-            device->set_frequency(pack_l1info->freq_khz);
-
-        Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
-        (*(device->get_signal_data())) += *sc;
-
-        device->inc_frequency_count((int) pack_l1info->freq_khz);
-
-        if (sc != NULL)
-            delete(sc);
-
-    }
-
-    if (pack_gpsinfo != NULL) {
-        device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix);
-    }
-
-    // Update seenby records for time, frequency, packets
-    if (pack_datasrc != NULL) {
-        int f = -1;
-        Packinfo_Sig_Combo *sc = NULL;
-
-        if (pack_l1info != NULL)
-            f = pack_l1info->freq_khz;
-
-        // Generate a signal record if we're following per-source signal
-        if (track_persource_history) {
-            sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
-        }
-
-        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc);
-
-        if (sc != NULL)
-            delete(sc);
-    }
-
-    device->add_basic_crypt(pack_common->basic_crypt_set);
-
-    if (!(pack_common->channel == "0"))
-        device->set_channel(pack_common->channel);
-
-    return 1;
 }
 
 // Sort based on internal kismet ID

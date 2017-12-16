@@ -1138,9 +1138,14 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
             }
 
-            // If it's from the ess, we're some sort of wired device; set the type
-            // accordingly
-            if (dot11info->distrib == distrib_inter) {
+            if (dot11info->subtype == packet_sub_data_null ||
+                    dot11info->subtype == packet_sub_data_qos_null) {
+                // Only wireless devices can send null function data
+                source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+                source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+            } else if (dot11info->distrib == distrib_inter) {
+                // If it's from the ess, we're some sort of wired device; set the type
+                // accordingly
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
                 source_dev->set_type_string_ifonly("Wi-Fi WDS",
@@ -1229,16 +1234,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 // Otherwise, we're some sort of adhoc device
                 dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 dest_dev->set_type_string("Wi-Fi Ad-Hoc");
-            } else if (dot11info->ess) {
-                dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-
-                dest_dev->set_type_string_ifonly("Wi-Fi Bridged", 
-                        KIS_DEVICE_BASICTYPE_WIRED | KIS_DEVICE_BASICTYPE_DEVICE);
             } else {
-                dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-
-                dest_dev->set_type_string_ifnot("Wi-Fi Client",
-                        KIS_DEVICE_BASICTYPE_AP);
+                // We can't define the type with only a destination device; we can't
+                // call it wired or wireless until it talks itself
+                dest_dev->set_type_string_ifonly("Wi-Fi Device", KIS_DEVICE_BASICTYPE_DEVICE);
             }
 
             dest_dot11->inc_datasize(dot11info->datasize);

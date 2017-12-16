@@ -690,9 +690,6 @@ protected:
 	int next_phy_id;
     std::map<int, Kis_Phy_Handler *> phy_handler_map;
 
-	// Populate the common components of a device
-	int PopulateCommon(std::shared_ptr<kis_tracked_device_base> device, kis_packet *in_pack);
-
     // Insert a device directly into the records
     void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
 
