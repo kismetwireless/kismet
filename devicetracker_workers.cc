@@ -111,6 +111,9 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
         // multipath
         SharedTrackerElement field = GetTrackerElementPath(*i, device);
 
+        if (field == NULL)
+            continue;
+
         if (field->get_type() == TrackerString) {
             // We can only do a straight string match against string fields
             matched = GetTrackerValue<string>(field).find(query) != std::string::npos;
