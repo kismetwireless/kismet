@@ -18,6 +18,9 @@ Kismet Debug Service
 
 # Activating
 
+    If you have configured Kismet as a normal systemd service (using kismet.service),
+    you MUST DISABLE IT before running Kismet as a debug service!
+
     To start Kismet via systemd:
 
         $ sudo service kismet-debug start

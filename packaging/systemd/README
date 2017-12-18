@@ -1,0 +1,29 @@
+Kismet Service (and Debug Service)
+
+# Purpose
+
+    The Kismet service runs Kismet, via systemd.  For running Kismet under full debug mode
+    (for helping with development or tracking down errors), see the README in the
+    kismet_debug/ directory.
+
+# Installing
+
+    To install Kismet as a systemd servie you'll need to copy one file:
+
+        $ sudo cp kismet.service /etc/systemd/system/
+
+    If you have installed Kismet to a different prefix, such as /usr, you'll need
+    to adjust the paths accordingly.  You will need to adjust the path in
+    kismet.service as well.
+
+# Activating
+
+    To start Kismet via systemd:
+
+        $ sudo service kismet start
+
+    To start Kismet by default on boot:
+
+        $ sudo systemctl enable kismet
+
+
