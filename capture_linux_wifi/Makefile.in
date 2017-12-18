@@ -5,6 +5,7 @@ MONITOR_OBJS = \
 	../wifi_ht_channels.c.o \
 	linux_wireless_control.c.o \
 	linux_netlink_control.c.o \
+	linux_nexmon_control.c.o \
 	linux_wireless_rfkill.c.o \
 	capture_linux_wifi.c.o
 

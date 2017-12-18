@@ -76,6 +76,7 @@
 #include "linux_wireless_control.h"
 #include "linux_netlink_control.h"
 #include "linux_wireless_rfkill.h"
+#include "linux_nexmon_control.h"
 
 #include "../wifi_ht_channels.h"
 
@@ -106,6 +107,9 @@ typedef struct {
 
     /* Do we try to reset networkmanager when we're done? */
     int reset_nm_management;
+
+    /* Do we hold a link to nexmon? */
+    struct nexmon_t *nexmon;
 } local_wifi_t;
 
 /* Linux Wi-Fi Channels:
@@ -826,7 +830,26 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "channels which can cause the interface to fully reset.",
                 local_wifi->interface);
         cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+    } else if (strcmp(driver, "brcmfmac") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is a Broadcom "
+                "binary driver found in the Raspberry Pi and some Android devices; "
+                "this will ONLY work with the nexmon patches",
+                local_wifi->interface);
+        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+
+        local_wifi->use_mac80211_vif = 0;
+
+        local_wifi->nexmon = init_nexmon(local_wifi->interface);
+
+        if (local_wifi->nexmon == NULL) {
+            snprintf(msg, STATUS_MAX, "Interface '%s' looks like a Broadcom "
+                    "embedded device but could not be initialized:  You MUST install "
+                    "the nexmon patched drivers to use this device with Kismet",
+                    local_wifi->interface);
+            return -1;
+        }
     }
+
 
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
      * respond to SIOCGIWMODE */
@@ -1103,7 +1126,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
 
-        if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
+        if (local_wifi->nexmon != NULL) {
+            if (nexmon_monitor(local_wifi->nexmon) < 0) {
+                snprintf(msg, STATUS_MAX, "Could not place interface '%s' into monitor mode "
+                        "via nexmon drivers; you MUST install the patched nexmon drivers to "
+                        "use embedded broadcom interfaces with Kismet", local_wifi->interface);
+                return -1;
+            }
+        } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
             snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
                     "mode: %s", local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
