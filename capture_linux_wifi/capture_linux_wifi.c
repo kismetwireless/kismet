@@ -830,7 +830,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "channels which can cause the interface to fully reset.",
                 local_wifi->interface);
         cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
-    } else if (strcmp(driver, "brcmfmac") == 0) {
+    } else if (strcmp(driver, "brcmfmac") == 0 ||
+            strcmp(driver, "brcmfmac_sdio") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is a Broadcom "
                 "binary driver found in the Raspberry Pi and some Android devices; "
                 "this will ONLY work with the nexmon patches",

@@ -30,11 +30,15 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include <net/if.h>
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <linux/netlink.h>
 
 #include <stdbool.h>
 
@@ -42,12 +46,58 @@
 
 #include "linux_nexmon_control.h"
 
+#define NETLINK_USER        31
+
 struct nexmon_t *init_nexmon(const char *ifname) {
     struct nexmon_t *nmon = (struct nexmon_t *) malloc(sizeof(struct nexmon_t));
 
-    nmon->ifr = (struct ifreq *) malloc(sizeof(struct ifreq));
-    memset(nmon->ifr, 0, sizeof(struct ifreq));
-    snprintf(nmon->ifr->ifr_name, sizeof(nmon->ifr->ifr_name), "%s", ifname);
+    int err = 0;
+    struct sockaddr_nl *snl_tx = (struct sockaddr_nl *) malloc(sizeof(struct sockaddr_nl));
+    struct sockaddr_nl *snl_rx_ioctl = (struct sockaddr_nl *) malloc(sizeof(struct sockaddr_nl));
+    struct timeval tv;
+
+    memset(snl_tx, 0, sizeof(struct sockaddr_nl));
+    memset(snl_rx_ioctl, 0, sizeof(struct sockaddr_nl));
+
+    snl_tx->nl_family = AF_NETLINK;
+    snl_tx->nl_pid = 0;
+    snl_tx->nl_groups = 0;
+
+    snl_rx_ioctl->nl_family = AF_NETLINK;
+    snl_rx_ioctl->nl_pid = getpid();
+
+    nmon->sock_tx = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
+    if (nmon->sock_tx < 0) {
+        free(nmon);
+        return NULL;
+    }
+
+    nmon->sock_rx_ioctl = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
+    if (nmon->sock_rx_ioctl < 0) {
+        close(nmon->sock_tx);
+        free(nmon);
+        return NULL;
+    }
+
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(nmon->sock_rx_ioctl, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    err = bind(nmon->sock_rx_ioctl, (struct sockaddr *) snl_rx_ioctl, sizeof(struct sockaddr));
+    if (err) {
+        close(nmon->sock_tx);
+        close(nmon->sock_rx_ioctl);
+        free(nmon);
+        return NULL;
+    }
+
+    err = connect(nmon->sock_tx, (struct sockaddr *) snl_tx, sizeof(struct sockaddr));
+    if (err) {
+        close(nmon->sock_tx);
+        close(nmon->sock_rx_ioctl);
+        free(nmon);
+        return NULL;
+    }
 
     return nmon;
 }
@@ -62,13 +112,27 @@ struct nex_ioctl {
     unsigned int driver;    /* to identify target driver */
 };
 
+struct nexudp_header {
+    char nex[3];
+    char type;
+    int securitycookie;
+} __attribute__((packed));
+
+struct nexudp_ioctl_header {
+    struct nexudp_header nexudphdr;
+    unsigned int cmd;
+    unsigned int set;
+    char payload[1];
+} __attribute__((packed));
+
+#define NEXUDP_IOCTL            		  0
 #define WLC_SET_MONITOR                 108
 #define WLC_IOCTL_MAGIC          0x14e46c77
 
 int nexmon_monitor(struct nexmon_t *nmon) {
     struct nex_ioctl ioc;
     uint32_t monitor_value = 2;
-    int s, ret;
+    int ret = 0;
 
     ioc.cmd = WLC_SET_MONITOR;
     ioc.buf = &monitor_value;
@@ -76,17 +140,36 @@ int nexmon_monitor(struct nexmon_t *nmon) {
     ioc.set = true;
     ioc.driver = WLC_IOCTL_MAGIC;
 
-    nmon->ifr->ifr_data = (void *) &ioc;
+    int frame_len = ioc.len + sizeof(struct nexudp_ioctl_header) - sizeof(char);
+    int rx_frame_len = 0;
+    struct nexudp_ioctl_header *frame;
 
-    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) 
-        return -1;
+    struct nlmsghdr *nlh = (struct nlmsghdr *) malloc(NLMSG_SPACE(frame_len));
+    memset(nlh, 0, NLMSG_SPACE(frame_len));
+    nlh->nlmsg_len = NLMSG_SPACE(frame_len);
+    nlh->nlmsg_pid = getpid();
+    nlh->nlmsg_flags = 0;
+    frame = (struct nexudp_ioctl_header *) NLMSG_DATA(nlh);
 
-    ret = ioctl(s, SIOCDEVPRIVATE, nmon->ifr);
+    memcpy(&frame->nexudphdr.nex, "NEX", 3);
+    frame->nexudphdr.type = NEXUDP_IOCTL;
+    frame->nexudphdr.securitycookie = nmon->securitycookie;
 
-    if (ret < 0 && errno != EAGAIN)
-        return -1;
+    frame->cmd = ioc.cmd;
+    frame->set = ioc.set;
 
-    close(s);
+    memcpy(frame->payload, ioc.buf, ioc.len);
+
+    send(nmon->sock_tx, nlh, nlh->nlmsg_len, 0);
+
+    rx_frame_len = recv(nmon->sock_rx_ioctl, nlh, nlh->nlmsg_len, 0);
+
+    free(nlh);
+
+    if (rx_frame_len < 0) {
+        ret = -1;
+    }
+
     return ret;
 }
 

@@ -33,7 +33,10 @@
 #include <net/if.h>
 
 struct nexmon_t {
-    struct ifreq *ifr;
+    int sock_rx_ioctl;
+    int sock_rx_frame;
+    int sock_tx;
+    int securitycookie;
 };
 
 struct nexmon_t *init_nexmon(const char *ifname);
