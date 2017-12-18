@@ -1128,6 +1128,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
 
         if (local_wifi->nexmon != NULL) {
+            /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
+            if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+                snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
+                        "check 'dmesg' for possible errors while loading firmware: %s",
+                        local_wifi->cap_interface, errstr);
+                return -1;
+            }
+
             if (nexmon_monitor(local_wifi->nexmon) < 0) {
                 snprintf(msg, STATUS_MAX, "Could not place interface '%s' into monitor mode "
                         "via nexmon drivers; you MUST install the patched nexmon drivers to "
