@@ -1487,6 +1487,7 @@ int main(int argc, char *argv[]) {
         .mac80211_socket = NULL,
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
+        .nexmon = NULL
     };
 
 #ifdef HAVE_LIBNM
