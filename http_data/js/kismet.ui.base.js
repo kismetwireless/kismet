@@ -1758,7 +1758,7 @@ exports.FirstLoginCheck = function() {
             )
             .append(
                 $('<p>')
-                .html('The kismet login is defined in kismet_httpd.conf; If you are a guest on this server, you can continue to view much of the information without logging in but you will not be able to change configurations')
+                .html('The kismet login is randomly generated the first time Kismet is launched, and is stored in <code>~/.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>; If you are a guest on this server, you can continue to view much of the information without logging in but you will not be able to change configurations')
             )
             .append(
                 $('<form>', {
@@ -1810,7 +1810,6 @@ exports.FirstLoginCheck = function() {
                         kismet_ui_settings.ShowSettings('base_login_password');
                     })
                 )
-
             );
 
         $('#dontwarn', content)

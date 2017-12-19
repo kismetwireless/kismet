@@ -629,6 +629,11 @@ function update_datasource2(data, state) {
                 .html('Enable Source')
                 .button()
                 .on('click', function() {
+                    if (!(state["logged_in"])) {
+                        complain_about_login();
+                        return;
+                    }
+
                     var jscmd = {
                         "definition": $(this).attr('interface') + ':type=' + $(this).attr('intftype')
                     };
@@ -756,6 +761,11 @@ function update_datasource2(data, state) {
               }).html("All")
               .button()
               .on('click', function(){
+                if (!(state["logged_in"])) {
+                    complain_about_login();
+                    return;
+                }
+
                 state['defer_command_progress'] = true;
 
                 var uuid = $(this).attr('uuid');
@@ -793,6 +803,11 @@ function update_datasource2(data, state) {
                     }).html(c)
                     .button()
                     .on('click', function() {
+                        if (!(state["logged_in"])) {
+                            complain_about_login();
+                            return;
+                        }
+
                         var uuid = $(this).attr('uuid');
                         var tid = 'tid' + uuid;
 
@@ -894,6 +909,11 @@ function update_datasource2(data, state) {
                 }).html('Paused')
                 .button()
                 .on('click', function() {
+                    if (!(state["logged_in"])) {
+                        complain_about_login();
+                        return;
+                    }
+
                     state['defer_command_progress'] = true;
                     state['defer_source_update'] = true;
 
@@ -918,6 +938,11 @@ function update_datasource2(data, state) {
                 }).html('Running')
                 .button()
                 .on('click', function() {
+                    if (!(state["logged_in"])) {
+                        complain_about_login();
+                        return;
+                    }
+
                     state['defer_command_progress'] = true;
                     state['defer_source_update'] = true;
 
@@ -959,6 +984,11 @@ function update_datasource2(data, state) {
             }).html("Lock")
             .button()
             .on('click', function(){
+              if (!(state["logged_in"])) {
+                  complain_about_login();
+                  return;
+              }
+
               state['defer_source_update'] = true;
               state['defer_command_progress'] = true;
 
@@ -1002,6 +1032,11 @@ function update_datasource2(data, state) {
             }).html("Hop")
             .button()
             .on('click', function(){
+              if (!(state["logged_in"])) {
+                  complain_about_login();
+                  return;
+              }
+
               state['defer_source_update'] = true;
               state['defer_command_progress'] = true;
 
@@ -1155,6 +1190,83 @@ function update_datasource2(data, state) {
     }
 }
 
+function complain_about_login() {
+    var loginpanel;
+
+    var content = 
+        $('<div>', {
+            style: 'padding: 10px;'
+        })
+        .append(
+            $('<h3>', { }
+            )
+            .append(
+                $('<i>', {
+                    class: 'fa fa-exclamation-triangle',
+                    style: 'color: red; padding-right: 5px;'
+                })
+            )
+            .append("Warning")
+        )
+        .append(
+            $('<p>')
+            .html('To configure datasources (or perform actions like starting, stopping, or listing available interfaces) you need to be logged in as the Kismet administrator.')
+        )
+        .append(
+            $('<p>')
+            .html('The Kismet login is randomly generated and is stored in <code>~/.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;')
+        )
+        .append(
+            $('<p>')
+            .html('As a guest on this server, you can view the status of currently enabled sources, but you can not change them or list unconfigured interfaces.')
+        )
+        .append(
+            $('<div>', {
+                style: 'padding-top: 10px;'
+            })
+            .append(
+                $('<button>', {
+                    class: 'k-wl-button-close',
+                })
+                .text('Continue')
+                .button()
+                .on('click', function() {
+                    loginpanel.close();               
+                })
+            )
+            .append(
+                $('<button>', {
+                    class: 'k-wl-button-settings',
+                    style: 'position: absolute; right: 5px;',
+                })
+                .text('Settings')
+                .button()
+                .on('click', function() {
+                    loginpanel.close();               
+                    kismet_ui_settings.ShowSettings('base_login_password');
+                })
+            )
+        );
+
+    var w = ($(window).width() / 2) - 5;
+    if (w < 450) {
+        w = $(window).width() - 5;
+    }
+
+    loginpanel = $.jsPanel({
+        id: "ds-login-alert",
+        headerTitle: '<i class="fa fa-exclamation-triangle"></i> Login Error',
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        contentSize: w + " auto",
+        paneltype: 'modal',
+        content: content,
+    });
+
+}
+
 exports.DataSources2 = function() {
     var w = $(window).width() * 0.95;
     var h = $(window).height() * 0.75;
@@ -1198,7 +1310,10 @@ exports.DataSources2 = function() {
         },
 
         onclosed: function() {
-            clearTimeout(state['datasource_list_tid']);
+            if ('datasource_get_tid' in state)
+                clearTimeout(state['datasource_get_tid']);
+            if ('datasource_interface_tid' in state)
+                clearTimeout(state['datasource_interface_tid']);
         }
     })
     .resize({
@@ -1217,11 +1332,14 @@ exports.DataSources2 = function() {
     state["kismet_sources"] = [];
     state["kismet_interfaces"] = [];
 
+    state["complained_login"] = false;
+    state["logged_in"] = false;
+
     datasource_source_refresh(state, function(data) {
             update_datasource2(data, state);
         });
     datasource_interface_refresh(state, function(data) {
-            update_datasource2(data, state);
+        update_datasource2(data, state);
         });
 }
 
@@ -1230,17 +1348,35 @@ function datasource_source_refresh(state, cb) {
     if ('datasource_get_tid' in state)
         clearTimeout(state['datasource_get_tid']);
 
-    $.get("/datasource/all_sources.json")
-    .done(function(data) {
-        state['kismet_sources'] = data;
-        cb(data);
-        state['defer_source_update'] = false;
-    })
-    .always(function() {
-        state['datasource_get_tid'] = setTimeout(function() {
-            datasource_source_refresh(state, cb)
-        }, 1000);
-    });
+    var grab_sources = function(state, cb) {
+        $.get("/datasource/all_sources.json")
+        .done(function(data) {
+            state['kismet_sources'] = data;
+            cb(data);
+            state['defer_source_update'] = false;
+        })
+        .always(function() {
+            state['datasource_get_tid'] = setTimeout(function() {
+                datasource_source_refresh(state, cb)
+            }, 1000);
+        });
+    };
+
+    if (state["logged_in"] == false) {
+        kismet_ui_base.LoginCheck(function(success) {
+            if (success) {
+                state["logged_in"] = true;
+            } else if (state["complained_login"] == false) {
+                state["complained_login"] = true;
+                complain_about_login();
+            }
+
+            grab_sources(state, cb);
+        });
+    } else {
+        grab_sources(state, cb);
+    }
+
 }
 
 /* Get the list of potential interfaces */
@@ -1248,17 +1384,39 @@ function datasource_interface_refresh(state, cb) {
     if ('datasource_interface_tid' in state)
         clearTimeout(state['datasource_interface_tid']);
 
-    $.get("/datasource/list_interfaces.json")
-    .done(function(data) {
-        state['kismet_interfaces'] = data;
-        cb(data);
-        state['defer_interface_update'] = false;
-    })
-    .always(function() {
-        state['datasource_interface_tid'] = setTimeout(function() {
-            datasource_interface_refresh(state, cb)
-        }, 3000);
-    });
+    var grab_interfaces = function(state, cb) {
+        $.get("/datasource/list_interfaces.json")
+        .done(function(data) {
+            state['kismet_interfaces'] = data;
+            cb(data);
+            state['defer_interface_update'] = false;
+        })
+        .always(function() {
+            state['datasource_interface_tid'] = setTimeout(function() {
+                datasource_interface_refresh(state, cb)
+            }, 3000);
+        });
+    };
+
+    if (state["logged_in"] == false) {
+        kismet_ui_base.LoginCheck(function(success) {
+            if (success) {
+                state["logged_in"] = true;
+                grab_interfaces(state, cb);
+            } else {
+                if (state["complained_login"] == false) {
+                    state["complained_login"] = true;
+                    complain_about_login();
+                }
+
+                state['datasource_interface_tid'] = setTimeout(function() {
+                    datasource_interface_refresh(state, cb)
+                }, 3000);
+            }
+        });
+    } else {
+        grab_interfaces(state, cb);
+    }
 }
 
 // We're done loading
