@@ -415,8 +415,10 @@ void Kis_Net_Httpd::DelSession(string in_key) {
 
     auto i = session_map.find(in_key);
 
-    if (i != session_map.end())
-        DelSession(i);
+    if (i != session_map.end()) {
+        session_map.erase(i);
+        WriteSessions();
+    }
 
 }
 
@@ -465,7 +467,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         return MHD_NO;
     
     // Update the session records if one exists
-    shared_ptr<Kis_Net_Httpd_Session> s = NULL;
+    std::shared_ptr<Kis_Net_Httpd_Session> s = NULL;
     const char *cookieval;
     int ret = MHD_NO;
 
@@ -478,23 +480,20 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         auto si = kishttpd->session_map.find(cookieval);
 
         if (si != kishttpd->session_map.end()) {
-            s = si->second;
-
-            if (s->session_lifetime != 0) {
-                // Delete if the session has expired
-                if (s->session_seen + s->session_lifetime < 
-                        kishttpd->globalreg->timestamp.tv_sec) {
-                    kishttpd->DelSession(si);
-                }
+            // Delete if the session has expired and don't assign as a session
+            if (si->second->session_lifetime != 0 &&
+                    si->second->session_seen + si->second->session_lifetime < 
+                    kishttpd->globalreg->timestamp.tv_sec) {
+                kishttpd->DelSession(si);
+            } else {
+                // Update the last seen, assign as the current session
+                s = si->second;
+                s->session_seen = kishttpd->globalreg->timestamp.tv_sec;
             }
-
-            // Update the last seen
-            s->session_seen = kishttpd->globalreg->timestamp.tv_sec;
         }
     } 
     
     Kis_Net_Httpd_Handler *handler = NULL;
-
     
     {
         local_locker conclock(&(kishttpd->controller_mutex));
