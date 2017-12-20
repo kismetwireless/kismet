@@ -1021,12 +1021,21 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         // If we WERE going to process them, it would go here, and we'd start lookign for 
         // source and dest where we could find them
     } else if (dot11info->type == packet_data) {
+        unsigned int update_flags = 0;
+
+        // Don't create devices from null/qosnull packets, they seem to often be
+        // corrupt and produce bogus devices
+        if (dot11info->subtype == packet_sub_data_null ||
+                dot11info->subtype == packet_sub_data_qos_null) {
+            update_flags = UCD_UPDATE_EXISTING_ONLY;
+        }
+
         if (dot11info->bssid_mac != globalreg->empty_mac && 
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
             bssid_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->bssid_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                        (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
         }
@@ -1037,7 +1046,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             source_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->source_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                        (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
         }
@@ -1050,7 +1059,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             dest_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo,
                         dot11info->dest_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
+                        (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
         }
 
@@ -1062,7 +1071,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             other_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->other_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                        (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
         }

@@ -560,6 +560,9 @@ public:
 #define UCD_UPDATE_SEENBY       (1 << 4)
 // Update encryption options
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
+// Never create a new device, only update an existing one
+#define UCD_UPDATE_EXISTING_ONLY    (1 << 6)
+
     shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
             mac_addr in_mac, Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
 

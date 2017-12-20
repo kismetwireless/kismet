@@ -817,6 +817,9 @@ std::shared_ptr<kis_tracked_device_base>
     key = TrackedDeviceKey(globalreg->server_uuid_hash, in_phy->FetchPhynameHash(), in_mac);
 
 	if ((device = FetchDevice(key)) == NULL) {
+        if (in_flags & UCD_UPDATE_EXISTING_ONLY)
+            return NULL;
+
         device.reset(new kis_tracked_device_base(globalreg, device_base_id));
         // Device ID is the size of the vector so a new device always gets put
         // in it's numbered slot
