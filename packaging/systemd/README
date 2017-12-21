@@ -10,11 +10,33 @@ Kismet Service (and Debug Service)
 
     To install Kismet as a systemd servie you'll need to copy one file:
 
-        $ sudo cp kismet.service /etc/systemd/system/
+        $ sudo cp kismet.service /lib/systemd/system/
 
-    If you have installed Kismet to a different prefix, such as /usr, you'll need
-    to adjust the paths accordingly.  You will need to adjust the path in
-    kismet.service as well.
+# Configuring
+
+    By default, the Kismet systemd service runs Kismet as root; this is NOT best practices
+    but it is the only user consistently available.
+
+    It is STONGLY recommended that you install Kismet as suid-root via `make suidinstall`,
+    and that you run Kismet as a non-privileged user.  Kismet will then limit root 
+    access to the capture binaries which control individual interfaces.
+
+    To set up Kismet to run as a user, first follow the install directions in the Kismet
+    README file, and install the Kismet systemd service as above.  Then, use the
+    `systemctl edit` command to configure the Kismet server; for instance if you want to
+    run Kismet as the user 'kismet':
+
+        $ sudo systemctl edit kismet
+
+    `systemctl edit` will open an editor; set the following options:
+
+        [Service]
+        User=kismet
+        Group=kismet
+
+    and save.  Now systemd will start Kismet as the 'kismet' user.  If you want to 
+    automatically start Kismet as some other user (such as the one you normally log in as), 
+    put that user in the User= line.
 
 # Activating
 

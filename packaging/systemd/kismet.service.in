@@ -1,13 +1,13 @@
 [Unit]
 Description=Kismet
-ConditionPathExists=/usr/local/bin/kismet
+ConditionPathExists=@prefix@/bin/kismet
 After=network.target auditd.service
 
 [Service]
 User=root
 Group=root
 Type=simple
-ExecStart=/usr/local/bin/kismet
+ExecStart=@prefix@/bin/kismet
 KillMode=process
 TimeoutSec=0
 SysVStartPriority=99
