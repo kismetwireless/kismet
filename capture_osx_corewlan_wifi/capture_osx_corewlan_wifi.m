@@ -242,7 +242,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
             ret_localchan->width = DARWIN_CHANWIDTH_80MHZ;
             ret_localchan->pos = pos;
         } else if (strcasecmp(parsetype, "vht160") == 0) {
-            pos = corewlan_find_channel(local_wifi, parsechan, DARWIN_CHANWIDTH_80MHZ);
+            pos = corewlan_find_channel(local_wifi, parsechan, DARWIN_CHANWIDTH_160MHZ);
 
             if (pos < 0) {
                 free(ret_localchan);
