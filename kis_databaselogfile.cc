@@ -102,6 +102,8 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
             CHAINPOS_LOGGING, -100);
 
     db_enabled = true;
+
+    sqlite3_exec(db, "PRAGMA journal_mode=memory", NULL, NULL, NULL);
     
     // Go into transactional mode where we only commit every 10 seconds
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
