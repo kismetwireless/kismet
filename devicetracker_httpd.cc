@@ -732,43 +732,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     dt_search = concls->variable_cache["search[value]"]->str();
                 }
 
-                // If we're searching, we need to figure out what columns are
-                // searchable.  Because of how we have to map names into datatables,
-                // we don't get a usable field definition from the dt js plugin,
-                // BUT we DO get a usable fieldspec from our fields list that
-                // we already processed... so we have to make a slightly funky
-                // assumption that columns[x] is equivalent to summary_vec[x],
-                // and then we just pull the parsed-int field path in for our
-                // searching mechanism
+                // We can't sanely map columns to fields because we allow multiple
+                // fields per column, and other weirdness.  We can't map the fieldspec
+                // to the columns like we used to; if we're searching, we just 
+                // make every field searchable.
                 if (dt_search.length() != 0) {
-                    // fprintf(stderr, "debug - searching for '%s'\n", dt_search.c_str());
-                    std::stringstream sstr;
-
-                    // We have to act like an array and iterate through the
-                    // column fields...  We use the summary vec length as a 
-                    // quick cheat
-                    for (unsigned int ci = 0; ci < summary_vec.size(); ci++) {
-                        sstr.str("");
-                        sstr << "columns[" << ci << "][searchable]";
-                        map<string, std::unique_ptr<std::stringstream> >::iterator mi;
-                        if ((mi = concls->variable_cache.find(sstr.str())) !=
-                                concls->variable_cache.end()) {
-                            if (mi->second->str() == "true") {
-                                // We can blindly trust the offset b/c we're 
-                                // iterating from our summary vec size, not the
-                                // form data
-                                dt_search_paths.push_back(summary_vec[ci]->resolved_path);
-                            }
-                        } else {
-                            // If we've run out of columns to look at for some
-                            // reason just bail instead of doing more string 
-                            // construction
-                            break;
-                        }
-                    }
-
+                    for (auto svi : summary_vec) 
+                        dt_search_paths.push_back(svi->resolved_path);
                 }
-                
+
                 // We only handle sorting by the first column
                 if (concls->variable_cache.find("order[0][column]") !=
                         concls->variable_cache.end()) {
