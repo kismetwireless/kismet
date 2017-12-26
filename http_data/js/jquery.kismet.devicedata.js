@@ -58,16 +58,6 @@
 
         "emtpy": string | function(opts) 
         Text to be substituted when there is no value
-       
-        "editable": string
-        Field is editable; when editable is:
-            "single" - Single-line editable field (such as a device name)
-            "multi" - multi-line editable field (such as notes)
-        "editfunc": function
-        Called when editing is saved
-
-        Editing is only available when the user is logged in.
-        
     }
 */
 
@@ -191,7 +181,7 @@
 
                 cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
 
-                if (v['help']) {
+                if ('help' in v && v['help']) {
                     fn = make_help_func(v, gt);
 
                     cell.append($('<i>', {

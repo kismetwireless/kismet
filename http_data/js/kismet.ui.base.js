@@ -112,11 +112,9 @@ kismet_ui.AddDeviceColumn('column_name', {
     description: 'Device name',
     renderfunc: function(d, t, r, m) {
         if (d.length == 0) {
-            console.log("returning mac");
             console.log(r);
             return r['kismet.device.base.macaddr'];
         } else {
-            console.log("returning name");
             return d;
         }
     }
