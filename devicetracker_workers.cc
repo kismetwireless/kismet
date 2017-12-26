@@ -276,6 +276,8 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
                 val = GetTrackerValue<mac_addr>(*fi).Mac2String();
             else if ((*fi)->get_type() == TrackerUuid)
                 val = GetTrackerValue<uuid>(*fi).UUID2String();
+            else if ((*fi)->get_type() == TrackerByteArray) 
+                val = (*fi)->get_bytearray_str();
             else
                 continue;
 
