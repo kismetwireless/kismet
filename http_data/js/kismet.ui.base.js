@@ -112,7 +112,6 @@ kismet_ui.AddDeviceColumn('column_name', {
     description: 'Device name',
     renderfunc: function(d, t, r, m) {
         if (d.length == 0) {
-            console.log(r);
             return r['kismet.device.base.macaddr'];
         } else {
             return d;
@@ -1561,7 +1560,6 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
         sigicon.removeClass('fa-arrow-down');
 
         signal = data['kismet.device.base.signal']['kismet.common.signal.last_signal_dbm'];
-        console.log(signal + " " + lastsignal);
 
         if (signal < lastsignal) {
             sigicon.addClass('k-dsd-arrow-down');
