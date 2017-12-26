@@ -117,6 +117,9 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
         if (field->get_type() == TrackerString) {
             // We can only do a straight string match against string fields
             matched = GetTrackerValue<string>(field).find(query) != std::string::npos;
+        } else if (field->get_type() == TrackerByteArray) {
+            // Try a raw string match against a binary field
+            matched = field->get_bytearray_str().find(query) != std::string::npos;
         } else if (field->get_type() == TrackerMac && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
