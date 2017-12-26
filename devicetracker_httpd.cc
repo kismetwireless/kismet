@@ -570,553 +570,560 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return MHD_YES;
     }
 
-    if (tokenurl[1] == "devices") {
-        if (tokenurl[2] == "by-mac") {
-            if (tokenurl.size() < 5) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            if (!Httpd_CanSerialize(tokenurl[4])) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            local_demand_locker lock(&devicelist_mutex);
-
-            if (!Httpd_CanSerialize(tokenurl[4])) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            mac_addr mac = mac_addr(tokenurl[3]);
-
-            if (mac.error) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            lock.lock();
-            if (tracked_mac_multimap.count(mac) == 0) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-            lock.unlock();
-
-            string target = Httpd_StripSuffix(tokenurl[4]);
-
-            if (target == "devices") {
-                SharedTrackerElement devvec(new TrackerElement(TrackerVector));
-
-                lock.lock();
-                auto mmp = tracked_mac_multimap.equal_range(mac);
-                lock.unlock();
-
-                for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                    SharedTrackerElement simple;
-
-                    SummarizeTrackerElement(entrytracker, mmpi->second, summary_vec,
-                            simple, rename_map);
-            
-                    devvec->add_vector(simple);
-                }
-
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                        devvec, &rename_map);
-
-                return MHD_YES;
-            }
-
-            stream << "Invalid request";
-            concls->httpcode = 400;
-            return MHD_YES;
-        } else if (tokenurl[2] == "by-key") {
-            if (tokenurl.size() < 5) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            if (!Httpd_CanSerialize(tokenurl[4])) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            TrackedDeviceKey key(tokenurl[3]);
-
-            auto dev = FetchDevice(key);
-
-            if (dev == NULL) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            string target = Httpd_StripSuffix(tokenurl[4]);
-
-            if (target == "device") {
-                SharedTrackerElement simple;
-
-                local_locker devlock(&(dev->device_mutex));
-
-                SummarizeTrackerElement(entrytracker, dev, summary_vec, simple, rename_map);
-
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, simple, &rename_map);
-
-                return MHD_YES;
-            }
-
-            if (target == "set_name") {
-                // Must have a session to set the name
-                if (!httpd->HasValidSession(concls)) {
+    try {
+        if (tokenurl[1] == "devices") {
+            if (tokenurl[2] == "by-mac") {
+                if (tokenurl.size() < 5) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
                     return MHD_YES;
                 }
 
-            }
-
-        } else if (tokenurl[2] == "summary") {
-            // We don't lock device list up here because we use workers since it
-            // can be a multi-device return
-
-            // Wrapper we insert under
-            SharedTrackerElement wrapper = NULL;
-
-            // DT fields
-            SharedTrackerElement dt_length_elem = NULL;
-            SharedTrackerElement dt_filter_elem = NULL;
-
-            SharedTrackerElement outdevs =
-                globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
-
-            unsigned int dt_start = 0;
-            unsigned int dt_length = 0;
-            int dt_draw = 0;
-
-            int in_dt_length, in_dt_start;
-
-            // Search string
-            string dt_search;
-
-            // Resolved paths to fields we search
-            vector<vector<int> > dt_search_paths;
-            
-            int dt_order_col = -1;
-            int dt_order_dir = 0;
-            vector<int> dt_order_field;
-
-            if (structdata->getKeyAsBool("datatable", false)) {
-                // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
-                if (concls->variable_cache.find("start") != 
-                        concls->variable_cache.end()) {
-                    *(concls->variable_cache["start"]) >> in_dt_start;
+                if (!Httpd_CanSerialize(tokenurl[4])) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
                 }
 
-                if (concls->variable_cache.find("length") != 
-                        concls->variable_cache.end()) {
-                    *(concls->variable_cache["length"]) >> in_dt_length;
+                local_demand_locker lock(&devicelist_mutex);
+
+                if (!Httpd_CanSerialize(tokenurl[4])) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
                 }
 
-                if (concls->variable_cache.find("draw") != 
-                        concls->variable_cache.end()) {
-                    *(concls->variable_cache["draw"]) >> dt_draw;
+                mac_addr mac = mac_addr(tokenurl[3]);
+
+                if (mac.error) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
                 }
 
-                if (concls->variable_cache.find("search[value]") !=
+                lock.lock();
+                if (tracked_mac_multimap.count(mac) == 0) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
+                lock.unlock();
+
+                string target = Httpd_StripSuffix(tokenurl[4]);
+
+                if (target == "devices") {
+                    SharedTrackerElement devvec(new TrackerElement(TrackerVector));
+
+                    lock.lock();
+                    auto mmp = tracked_mac_multimap.equal_range(mac);
+                    lock.unlock();
+
+                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                        SharedTrackerElement simple;
+
+                        SummarizeTrackerElement(entrytracker, mmpi->second, summary_vec,
+                                simple, rename_map);
+
+                        devvec->add_vector(simple);
+                    }
+
+                    entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                            devvec, &rename_map);
+
+                    return MHD_YES;
+                }
+
+                stream << "Invalid request";
+                concls->httpcode = 400;
+                return MHD_YES;
+            } else if (tokenurl[2] == "by-key") {
+                if (tokenurl.size() < 5) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
+
+                if (!Httpd_CanSerialize(tokenurl[4])) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
+
+                TrackedDeviceKey key(tokenurl[3]);
+
+                auto dev = FetchDevice(key);
+
+                if (dev == NULL) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
+
+                string target = Httpd_StripSuffix(tokenurl[4]);
+
+                if (target == "device") {
+                    SharedTrackerElement simple;
+
+                    local_locker devlock(&(dev->device_mutex));
+
+                    SummarizeTrackerElement(entrytracker, dev, summary_vec, simple, rename_map);
+
+                    entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, simple, &rename_map);
+
+                    return MHD_YES;
+                }
+
+                if (target == "set_name") {
+                    // Must have a session to set the name
+                    if (!httpd->HasValidSession(concls)) {
+                        return MHD_YES;
+                    }
+
+                }
+
+            } else if (tokenurl[2] == "summary") {
+                // We don't lock device list up here because we use workers since it
+                // can be a multi-device return
+
+                // Wrapper we insert under
+                SharedTrackerElement wrapper = NULL;
+
+                // DT fields
+                SharedTrackerElement dt_length_elem = NULL;
+                SharedTrackerElement dt_filter_elem = NULL;
+
+                SharedTrackerElement outdevs =
+                    globalreg->entrytracker->GetTrackedInstance(device_list_base_id);
+
+                unsigned int dt_start = 0;
+                unsigned int dt_length = 0;
+                int dt_draw = 0;
+
+                int in_dt_length, in_dt_start;
+
+                // Search string
+                string dt_search;
+
+                // Resolved paths to fields we search
+                vector<vector<int> > dt_search_paths;
+
+                int dt_order_col = -1;
+                int dt_order_dir = 0;
+                vector<int> dt_order_field;
+
+                if (structdata->getKeyAsBool("datatable", false)) {
+                    // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
+                    if (concls->variable_cache.find("start") != 
                             concls->variable_cache.end()) {
-                    dt_search = concls->variable_cache["search[value]"]->str();
+                        *(concls->variable_cache["start"]) >> in_dt_start;
+                    }
+
+                    if (concls->variable_cache.find("length") != 
+                            concls->variable_cache.end()) {
+                        *(concls->variable_cache["length"]) >> in_dt_length;
+                    }
+
+                    if (concls->variable_cache.find("draw") != 
+                            concls->variable_cache.end()) {
+                        *(concls->variable_cache["draw"]) >> dt_draw;
+                    }
+
+                    if (concls->variable_cache.find("search[value]") !=
+                            concls->variable_cache.end()) {
+                        dt_search = concls->variable_cache["search[value]"]->str();
+                    }
+
+                    // We can't sanely map columns to fields because we allow multiple
+                    // fields per column, and other weirdness.  We can't map the fieldspec
+                    // to the columns like we used to; if we're searching, we just 
+                    // make every field searchable.
+                    if (dt_search.length() != 0) {
+                        for (auto svi : summary_vec) 
+                            dt_search_paths.push_back(svi->resolved_path);
+                    }
+
+                    // We only handle sorting by the first column
+                    if (concls->variable_cache.find("order[0][column]") !=
+                            concls->variable_cache.end()) {
+                        *(concls->variable_cache["order[0][column]"]) >> dt_order_col;
+                    }
+
+                    // Don't allow ordering by a column that doesn't make sense
+                    if (dt_order_col >= (int) summary_vec.size())
+                        dt_order_col = -1;
+
+                    if (dt_order_col >= 0 &&
+                            concls->variable_cache.find("order[0][dir]") !=
+                            concls->variable_cache.end()) {
+                        string ord = concls->variable_cache["order[0][dir]"]->str();
+
+                        if (ord == "asc")
+                            dt_order_dir = 1;
+
+                        dt_order_field = summary_vec[dt_order_col]->resolved_path;
+                    }
+
+                    // Force a length if we think we're doing a smart position and
+                    // something has gone wonky
+                    if (in_dt_length <= 0 || in_dt_length > 200) {
+                        dt_length = 50;
+                    } else {
+                        dt_length = in_dt_length;
+                    }
+
+                    if (in_dt_start < 0)
+                        dt_start = 0;
+                    else
+                        dt_start = in_dt_start;
+
+                    // DT always has to wrap in an object
+                    wrapper.reset(new TrackerElement(TrackerMap));
+
+                    // wrap in 'data' for DT
+                    wrapper->add_map(outdevs);
+                    outdevs->set_local_name("data");
+
+                    // Set the DT draw
+                    SharedTrackerElement 
+                        draw_elem(new TrackerElement(TrackerUInt64, dt_draw_id));
+                    draw_elem->set((uint64_t) dt_draw);
+                    draw_elem->set_local_name("draw");
+                    wrapper->add_map(draw_elem);
+
+                    // Make the length and filter elements
+                    dt_length_elem.reset(new TrackerElement(TrackerUInt64, dt_length_id));
+                    dt_length_elem->set_local_name("recordsTotal");
+                    dt_length_elem->set((uint64_t) tracked_vec.size());
+                    wrapper->add_map(dt_length_elem);
+
+                    dt_filter_elem.reset(new TrackerElement(TrackerUInt64, dt_filter_id));
+                    dt_filter_elem->set_local_name("recordsFiltered");
+                    wrapper->add_map(dt_filter_elem);
                 }
 
-                // We can't sanely map columns to fields because we allow multiple
-                // fields per column, and other weirdness.  We can't map the fieldspec
-                // to the columns like we used to; if we're searching, we just 
-                // make every field searchable.
-                if (dt_search.length() != 0) {
-                    for (auto svi : summary_vec) 
-                        dt_search_paths.push_back(svi->resolved_path);
-                }
+                if (regexdata != NULL) {
+                    // If we're doing a basic regex outside of devicetables
+                    // shenanigans...
+                    devicetracker_pcre_worker worker(globalreg, regexdata);
+                    MatchOnDevices(&worker);
 
-                // We only handle sorting by the first column
-                if (concls->variable_cache.find("order[0][column]") !=
-                        concls->variable_cache.end()) {
-                    *(concls->variable_cache["order[0][column]"]) >> dt_order_col;
-                }
+                    SharedTrackerElement pcredevs = worker.GetMatchedDevices();
+                    TrackerElementVector pcrevec(pcredevs);
 
-                // Don't allow ordering by a column that doesn't make sense
-                if (dt_order_col >= (int) summary_vec.size())
-                    dt_order_col = -1;
+                    // Check DT ranges
+                    if (dt_start >= pcrevec.size())
+                        dt_start = 0;
 
-                if (dt_order_col >= 0 &&
-                        concls->variable_cache.find("order[0][dir]") !=
-                        concls->variable_cache.end()) {
-                    string ord = concls->variable_cache["order[0][dir]"]->str();
+                    if (dt_filter_elem != NULL)
+                        dt_filter_elem->set((uint64_t) pcrevec.size());
 
-                    if (ord == "asc")
-                        dt_order_dir = 1;
+                    // Sort the list by the selected column
+                    if (dt_order_col >= 0) {
+                        kismet__stable_sort(pcrevec.begin(), pcrevec.end(), 
+                                [&](SharedTrackerElement a, SharedTrackerElement b) {
+                                SharedTrackerElement fa =
+                                GetTrackerElementPath(dt_order_field, a);
+                                SharedTrackerElement fb =
+                                GetTrackerElementPath(dt_order_field, b);
 
-                    dt_order_field = summary_vec[dt_order_col]->resolved_path;
-                }
+                                if (dt_order_dir == 0)
+                                return fa < fb;
+                                return fb < fa;
+                                });
+                    }
 
-                // Force a length if we think we're doing a smart position and
-                // something has gone wonky
-                if (in_dt_length <= 0 || in_dt_length > 200) {
-                    dt_length = 50;
+                    // If we filtered, that's our list
+                    TrackerElementVector::iterator vi;
+                    // Set the iterator endpoint for our length
+                    TrackerElementVector::iterator ei;
+                    if (dt_length == 0 ||
+                            dt_length + dt_start >= pcrevec.size())
+                        ei = pcrevec.end();
+                    else
+                        ei = pcrevec.begin() + dt_start + dt_length;
+
+                    for (vi = pcrevec.begin() + dt_start; vi != ei; ++vi) {
+                        SharedTrackerElement simple;
+
+                        SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
+
+                        outdevs->add_vector(simple);
+                    }
+                } else if (dt_search_paths.size() != 0) {
+                    // Otherwise, we're doing a search inside a datatables query,
+                    // so go through every device and do a search on every element
+                    // which we have flagged as searchable, and which is a string or
+                    // mac which we can treat as a string.
+
+                    devicetracker_stringmatch_worker worker(globalreg, dt_search, 
+                            dt_search_paths);
+                    MatchOnDevices(&worker);
+
+                    SharedTrackerElement matchdevs = worker.GetMatchedDevices();
+                    TrackerElementVector matchvec(matchdevs);
+
+                    if (dt_order_col >= 0) {
+                        kismet__stable_sort(matchvec.begin(), matchvec.end(), 
+                                [&](SharedTrackerElement a, SharedTrackerElement b) {
+                                SharedTrackerElement fa =
+                                GetTrackerElementPath(dt_order_field, a);
+                                SharedTrackerElement fb =
+                                GetTrackerElementPath(dt_order_field, b);
+
+                                if (dt_order_dir == 0)
+                                return fa < fb;
+
+                                return fb < fa;
+                                });
+                    }
+
+                    // Check DT ranges
+                    if (dt_start >= matchvec.size())
+                        dt_start = 0;
+
+                    if (dt_filter_elem != NULL)
+                        dt_filter_elem->set((uint64_t) matchvec.size());
+
+                    // Set the iterator endpoint for our length
+                    TrackerElementVector::iterator ei;
+                    if (dt_length == 0 ||
+                            dt_length + dt_start >= matchvec.size())
+                        ei = matchvec.end();
+                    else
+                        ei = matchvec.begin() + dt_start + dt_length;
+
+                    // If we filtered, that's our list
+                    TrackerElementVector::iterator vi;
+                    for (vi = matchvec.begin() + dt_start; vi != ei; ++vi) {
+                        SharedTrackerElement simple;
+
+                        SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
+
+                        outdevs->add_vector(simple);
+                    }
                 } else {
-                    dt_length = in_dt_length;
-                }
+                    local_locker listlock(&devicelist_mutex);
 
-                if (in_dt_start < 0)
-                    dt_start = 0;
-                else
-                    dt_start = in_dt_start;
+                    // Check DT ranges
+                    if (dt_start >= tracked_vec.size())
+                        dt_start = 0;
 
-                // DT always has to wrap in an object
-                wrapper.reset(new TrackerElement(TrackerMap));
+                    if (dt_filter_elem != NULL)
+                        dt_filter_elem->set((uint64_t) tracked_vec.size());
 
-                // wrap in 'data' for DT
-                wrapper->add_map(outdevs);
-                outdevs->set_local_name("data");
-
-                // Set the DT draw
-                SharedTrackerElement 
-                    draw_elem(new TrackerElement(TrackerUInt64, dt_draw_id));
-                draw_elem->set((uint64_t) dt_draw);
-                draw_elem->set_local_name("draw");
-                wrapper->add_map(draw_elem);
-
-                // Make the length and filter elements
-                dt_length_elem.reset(new TrackerElement(TrackerUInt64, dt_length_id));
-                dt_length_elem->set_local_name("recordsTotal");
-                dt_length_elem->set((uint64_t) tracked_vec.size());
-                wrapper->add_map(dt_length_elem);
-
-                dt_filter_elem.reset(new TrackerElement(TrackerUInt64, dt_filter_id));
-                dt_filter_elem->set_local_name("recordsFiltered");
-                wrapper->add_map(dt_filter_elem);
-            }
-
-            if (regexdata != NULL) {
-                // If we're doing a basic regex outside of devicetables
-                // shenanigans...
-                devicetracker_pcre_worker worker(globalreg, regexdata);
-                MatchOnDevices(&worker);
-
-                SharedTrackerElement pcredevs = worker.GetMatchedDevices();
-                TrackerElementVector pcrevec(pcredevs);
-                
-                // Check DT ranges
-                if (dt_start >= pcrevec.size())
-                    dt_start = 0;
-
-                if (dt_filter_elem != NULL)
-                    dt_filter_elem->set((uint64_t) pcrevec.size());
-
-                // Sort the list by the selected column
-                if (dt_order_col >= 0) {
-                    kismet__stable_sort(pcrevec.begin(), pcrevec.end(), 
-                            [&](SharedTrackerElement a, SharedTrackerElement b) {
-                            SharedTrackerElement fa =
+                    if (dt_order_col >= 0) {
+                        kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
+                                [&](SharedTrackerElement a, SharedTrackerElement b) {
+                                SharedTrackerElement fa =
                                 GetTrackerElementPath(dt_order_field, a);
-                            SharedTrackerElement fb =
+                                SharedTrackerElement fb =
                                 GetTrackerElementPath(dt_order_field, b);
 
-                            if (dt_order_dir == 0)
-                                return fa < fb;
-                            return fb < fa;
-                        });
-                }
-
-                // If we filtered, that's our list
-                TrackerElementVector::iterator vi;
-                // Set the iterator endpoint for our length
-                TrackerElementVector::iterator ei;
-                if (dt_length == 0 ||
-                        dt_length + dt_start >= pcrevec.size())
-                    ei = pcrevec.end();
-                else
-                    ei = pcrevec.begin() + dt_start + dt_length;
-
-                for (vi = pcrevec.begin() + dt_start; vi != ei; ++vi) {
-                    SharedTrackerElement simple;
-
-                    SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
-
-                    outdevs->add_vector(simple);
-                }
-            } else if (dt_search_paths.size() != 0) {
-                // Otherwise, we're doing a search inside a datatables query,
-                // so go through every device and do a search on every element
-                // which we have flagged as searchable, and which is a string or
-                // mac which we can treat as a string.
-
-                devicetracker_stringmatch_worker worker(globalreg, dt_search, 
-                        dt_search_paths);
-                MatchOnDevices(&worker);
-
-                SharedTrackerElement matchdevs = worker.GetMatchedDevices();
-                TrackerElementVector matchvec(matchdevs);
-
-                if (dt_order_col >= 0) {
-                    kismet__stable_sort(matchvec.begin(), matchvec.end(), 
-                            [&](SharedTrackerElement a, SharedTrackerElement b) {
-                            SharedTrackerElement fa =
-                                GetTrackerElementPath(dt_order_field, a);
-                            SharedTrackerElement fb =
-                                GetTrackerElementPath(dt_order_field, b);
-
-                            if (dt_order_dir == 0)
+                                if (dt_order_dir == 0)
                                 return fa < fb;
 
-                            return fb < fa;
-                        });
+                                return fb < fa;
+                                });
+                    }
+
+                    vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
+                    vector<shared_ptr<kis_tracked_device_base> >::iterator ei;
+
+                    // Set the iterator endpoint for our length
+                    if (dt_length == 0 ||
+                            dt_length + dt_start >= tracked_vec.size())
+                        ei = tracked_vec.end();
+                    else
+                        ei = tracked_vec.begin() + dt_start + dt_length;
+
+                    for (vi = tracked_vec.begin() + dt_start; vi != ei; ++vi) {
+                        SharedTrackerElement simple;
+
+                        SummarizeTrackerElement(entrytracker,
+                                (*vi), summary_vec,
+                                simple, rename_map);
+
+                        outdevs->add_vector(simple);
+                    }
                 }
 
-                // Check DT ranges
-                if (dt_start >= matchvec.size())
-                    dt_start = 0;
-
-                if (dt_filter_elem != NULL)
-                    dt_filter_elem->set((uint64_t) matchvec.size());
-                
-                // Set the iterator endpoint for our length
-                TrackerElementVector::iterator ei;
-                if (dt_length == 0 ||
-                        dt_length + dt_start >= matchvec.size())
-                    ei = matchvec.end();
-                else
-                    ei = matchvec.begin() + dt_start + dt_length;
-
-                // If we filtered, that's our list
-                TrackerElementVector::iterator vi;
-                for (vi = matchvec.begin() + dt_start; vi != ei; ++vi) {
-                    SharedTrackerElement simple;
-
-                    SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
-
-                    outdevs->add_vector(simple);
-                }
-            } else {
-                local_locker listlock(&devicelist_mutex);
-
-                // Check DT ranges
-                if (dt_start >= tracked_vec.size())
-                    dt_start = 0;
-
-                if (dt_filter_elem != NULL)
-                    dt_filter_elem->set((uint64_t) tracked_vec.size());
-
-                if (dt_order_col >= 0) {
-                    kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
-                            [&](SharedTrackerElement a, SharedTrackerElement b) {
-                            SharedTrackerElement fa =
-                                GetTrackerElementPath(dt_order_field, a);
-                            SharedTrackerElement fb =
-                                GetTrackerElementPath(dt_order_field, b);
-
-                            if (dt_order_dir == 0)
-                                return fa < fb;
-
-                            return fb < fa;
-                        });
+                // Apply wrapper if we haven't applied it already
+                if (wrapper_name != "" && wrapper == NULL) {
+                    wrapper.reset(new TrackerElement(TrackerMap));
+                    wrapper->add_map(outdevs);
+                    outdevs->set_local_name(wrapper_name);
+                } else if (wrapper == NULL) {
+                    wrapper = outdevs;
                 }
 
-                vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-                vector<shared_ptr<kis_tracked_device_base> >::iterator ei;
-
-                // Set the iterator endpoint for our length
-                if (dt_length == 0 ||
-                        dt_length + dt_start >= tracked_vec.size())
-                    ei = tracked_vec.end();
-                else
-                    ei = tracked_vec.begin() + dt_start + dt_length;
-
-                for (vi = tracked_vec.begin() + dt_start; vi != ei; ++vi) {
-                    SharedTrackerElement simple;
-
-                    SummarizeTrackerElement(entrytracker,
-                            (*vi), summary_vec,
-                            simple, rename_map);
-
-                    outdevs->add_vector(simple);
-                }
-            }
-
-            // Apply wrapper if we haven't applied it already
-            if (wrapper_name != "" && wrapper == NULL) {
-                wrapper.reset(new TrackerElement(TrackerMap));
-                wrapper->add_map(outdevs);
-                outdevs->set_local_name(wrapper_name);
-            } else if (wrapper == NULL) {
-                wrapper = outdevs;
-            }
-
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), stream, 
-                    wrapper, &rename_map);
-            return MHD_YES;
-
-        } else if (tokenurl[2] == "last-time") {
-            // We don't lock the device list since we use workers
-            
-            if (tokenurl.size() < 5) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), stream, 
+                        wrapper, &rename_map);
                 return MHD_YES;
-            }
 
-            // Is the timestamp an int?
-            long lastts;
-            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
-                    !Httpd_CanSerialize(tokenurl[4])) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
+            } else if (tokenurl[2] == "last-time") {
+                // We don't lock the device list since we use workers
 
-            // If it's negative, subtract from the current ts
-            if (lastts < 0) {
-                time_t now = time(0);
-                lastts = now + lastts;
-            }
+                if (tokenurl.size() < 5) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
 
-            // Rename cache generated during simplification
-            TrackerElementSerializer::rename_map rename_map;
-        
-            // List of devices that pass the timestamp filter
-            SharedTrackerElement timedevs;
-            
-            //  List of devices that pass the regex filter
-            SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
+                // Is the timestamp an int?
+                long lastts;
+                if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
+                        !Httpd_CanSerialize(tokenurl[4])) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
 
-            devicetracker_function_worker tw(globalreg, 
-                    [this, &stream, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                // If it's negative, subtract from the current ts
+                if (lastts < 0) {
+                    time_t now = time(0);
+                    lastts = now + lastts;
+                }
+
+                // Rename cache generated during simplification
+                TrackerElementSerializer::rename_map rename_map;
+
+                // List of devices that pass the timestamp filter
+                SharedTrackerElement timedevs;
+
+                //  List of devices that pass the regex filter
+                SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
+
+                devicetracker_function_worker tw(globalreg, 
+                        [this, &stream, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
-                            return false;
-
-                        return true;
-                    }, NULL);
-            MatchOnDevices(&tw);
-            timedevs = tw.GetMatchedDevices();
-
-            if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata);
-                MatchOnDevices(&worker, timedevs);
-                regexdevs = worker.GetMatchedDevices();
-            } else {
-                regexdevs = timedevs;
-            }
-
-            // Final devices being simplified and sent out
-            SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
-
-            TrackerElementVector regexdevs_vec(regexdevs);
-            for (auto rei : regexdevs_vec) {
-                std::shared_ptr<kis_tracked_device_base> rd = 
-                    std::static_pointer_cast<kis_tracked_device_base>(rei);
-
-                local_locker lock(&rd->device_mutex);
-
-                SharedTrackerElement simple;
-
-                SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
-
-                outdevs->add_vector(simple);
-            }
-
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, &rename_map);
-            return MHD_YES;
-        } else if (tokenurl[2] == "by-phy") {
-            // We don't lock the device list since we use workers
-            if (tokenurl.size() < 5) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            auto phy = FetchPhyHandlerByName(tokenurl[3]);
-
-            if (phy == NULL) {
-                stream << "Invalid request";
-                concls->httpcode = 400;
-                return MHD_YES;
-            }
-
-            // Rename cache generated during simplification
-            TrackerElementSerializer::rename_map rename_map;
-
-            // List of devices that pass the timestamp filter
-            SharedTrackerElement timedevs;
-
-            // Devices that pass the phy filter
-            SharedTrackerElement phydevs;
-
-            //  List of devices that pass the regex filter
-            SharedTrackerElement regexdevs;
-
-
-            // Filter by time first, it's fast
-            devicetracker_function_worker tw(globalreg, 
-                    [this, &stream, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-
-                    if (d->get_last_time() <= post_ts)
                         return false;
-       
-                    return true;
-                    }, NULL);
-
-            devicetracker_function_worker pw(globalreg, 
-                    [this, &stream, phydevs, phy](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
-                        if (d->get_phyname() != phy->FetchPhyName())
-                            return false;
 
                         return true;
-                    }, NULL);
-       
-            if (post_ts != 0) {
-                // time-match then phy-match then pass to regex
+                        }, NULL);
                 MatchOnDevices(&tw);
                 timedevs = tw.GetMatchedDevices();
-                MatchOnDevices(&pw, timedevs);
-                phydevs = pw.GetMatchedDevices();
-            }  else {
-                // Phy match only
-                MatchOnDevices(&pw);
-                phydevs = pw.GetMatchedDevices();
+
+                if (regexdata != NULL) {
+                    devicetracker_pcre_worker worker(globalreg, regexdata);
+                    MatchOnDevices(&worker, timedevs);
+                    regexdevs = worker.GetMatchedDevices();
+                } else {
+                    regexdevs = timedevs;
+                }
+
+                // Final devices being simplified and sent out
+                SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
+
+                TrackerElementVector regexdevs_vec(regexdevs);
+                for (auto rei : regexdevs_vec) {
+                    std::shared_ptr<kis_tracked_device_base> rd = 
+                        std::static_pointer_cast<kis_tracked_device_base>(rei);
+
+                    local_locker lock(&rd->device_mutex);
+
+                    SharedTrackerElement simple;
+
+                    SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
+
+                    outdevs->add_vector(simple);
+                }
+
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, &rename_map);
+                return MHD_YES;
+            } else if (tokenurl[2] == "by-phy") {
+                // We don't lock the device list since we use workers
+                if (tokenurl.size() < 5) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
+
+                auto phy = FetchPhyHandlerByName(tokenurl[3]);
+
+                if (phy == NULL) {
+                    stream << "Invalid request";
+                    concls->httpcode = 400;
+                    return MHD_YES;
+                }
+
+                // Rename cache generated during simplification
+                TrackerElementSerializer::rename_map rename_map;
+
+                // List of devices that pass the timestamp filter
+                SharedTrackerElement timedevs;
+
+                // Devices that pass the phy filter
+                SharedTrackerElement phydevs;
+
+                //  List of devices that pass the regex filter
+                SharedTrackerElement regexdevs;
+
+
+                // Filter by time first, it's fast
+                devicetracker_function_worker tw(globalreg, 
+                        [this, &stream, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+
+                        if (d->get_last_time() <= post_ts)
+                        return false;
+
+                        return true;
+                        }, NULL);
+
+                devicetracker_function_worker pw(globalreg, 
+                        [this, &stream, phydevs, phy](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        if (d->get_phyname() != phy->FetchPhyName())
+                        return false;
+
+                        return true;
+                        }, NULL);
+
+                if (post_ts != 0) {
+                    // time-match then phy-match then pass to regex
+                    MatchOnDevices(&tw);
+                    timedevs = tw.GetMatchedDevices();
+                    MatchOnDevices(&pw, timedevs);
+                    phydevs = pw.GetMatchedDevices();
+                }  else {
+                    // Phy match only
+                    MatchOnDevices(&pw);
+                    phydevs = pw.GetMatchedDevices();
+                }
+
+                if (regexdata != NULL) {
+                    devicetracker_pcre_worker worker(globalreg, regexdata);
+                    MatchOnDevices(&worker, phydevs);
+                    regexdevs = worker.GetMatchedDevices();
+                } else {
+                    regexdevs = phydevs;
+                }
+
+                // Final devices being simplified and sent out
+                SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
+
+                TrackerElementVector regexdevs_vec(regexdevs);
+                for (auto rei : regexdevs_vec) {
+                    std::shared_ptr<kis_tracked_device_base> rd = 
+                        std::static_pointer_cast<kis_tracked_device_base>(rei);
+
+                    local_locker lock(&rd->device_mutex);
+
+                    SharedTrackerElement simple;
+
+                    SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
+
+                    outdevs->add_vector(simple);
+                }
+
+                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, &rename_map);
+                return MHD_YES;
             }
-
-            if (regexdata != NULL) {
-                devicetracker_pcre_worker worker(globalreg, regexdata);
-                MatchOnDevices(&worker, phydevs);
-                regexdevs = worker.GetMatchedDevices();
-            } else {
-                regexdevs = phydevs;
-            }
-
-            // Final devices being simplified and sent out
-            SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
-
-            TrackerElementVector regexdevs_vec(regexdevs);
-            for (auto rei : regexdevs_vec) {
-                std::shared_ptr<kis_tracked_device_base> rd = 
-                    std::static_pointer_cast<kis_tracked_device_base>(rei);
-
-                local_locker lock(&rd->device_mutex);
-
-                SharedTrackerElement simple;
-
-                SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
-
-                outdevs->add_vector(simple);
-            }
-
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, &rename_map);
-            return MHD_YES;
         }
+    } catch(const std::exception e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
     }
 
     stream << "OK";
