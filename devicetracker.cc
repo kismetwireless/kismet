@@ -834,6 +834,9 @@ std::shared_ptr<kis_tracked_device_base>
         if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(in_mac));
 
+        load_stored_username(device);
+        load_stored_tags(device);
+
         new_device = true;
 
     }
@@ -1208,35 +1211,6 @@ int Devicetracker::Database_UpgradeDB() {
     int r;
     char *sErrMsg = NULL;
 
-    if (dbv < 1) {
-        // We keep the last seen timestamp for automatic culling of the database of
-        // idle device records.
-        //
-        // We need to split out the phyname and device mac because key is linked to 
-        // the phy *number*, which is *variable* based on the order phys are initialized;
-        // we need to rekey the phys.
-        sql = 
-            "CREATE TABLE device_storage ("
-            "first_time INT, "
-            "last_time INT, "
-            "phyname TEXT, "
-            "devmac TEXT, "
-            "storage BLOB, "
-            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
-
-        r = sqlite3_exec(db, sql.c_str(),
-                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
-
-        if (r != SQLITE_OK) {
-            _MSG("Devicetracker unable to create device_storage table in " + ds_dbfile + ": " +
-                    std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
-            return -1;
-        }
-
-    }
-
     if (dbv < 2) {
         // Define a simple table for custom device names, and a similar simple table
         // for notes; we store them outside the device record so that we have an
@@ -1245,12 +1219,34 @@ int Devicetracker::Database_UpgradeDB() {
         // Names and tags are saved in both the custom tables AND the stored device 
         // record; stored devices retain their internal state, only new devices query
         // these tables.
+    }
+
+    if (dbv < 3) {
+        sql = 
+            "DROP TABLE device_storage";
+
+        sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+    }
+
+    if (dbv < 4) {
+        sql = 
+            "DROP TABLE device_names";
+
+        sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
+        sql = 
+            "DROP TABLE device_tags";
+
+        sqlite3_exec(db, sql.c_str(),
+                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
+
         sql = 
             "CREATE TABLE device_names ("
-            "phyname TEXT, "
-            "devmac TEXT, "
+            "key TEXT, "
             "name TEXT, "
-            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
+            "UNIQUE(key) ON CONFLICT REPLACE)";
 
         r = sqlite3_exec(db, sql.c_str(),
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
@@ -1267,11 +1263,10 @@ int Devicetracker::Database_UpgradeDB() {
         // into the tag map
         sql = 
             "CREATE TABLE device_tags ("
-            "phyname TEXT, "
-            "devmac TEXT, "
+            "key TEXT, "
             "tag TEXT, "
             "content TEXT, "
-            "UNIQUE(phyname, devmac, tag) ON CONFLICT REPLACE)";
+            "UNIQUE(key, tag) ON CONFLICT REPLACE)";
 
         r = sqlite3_exec(db, sql.c_str(),
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
@@ -1285,23 +1280,7 @@ int Devicetracker::Database_UpgradeDB() {
         }
     }
 
-    if (dbv < 3) {
-        sql = 
-            "DROP TABLE device_storage";
-
-        r = sqlite3_exec(db, sql.c_str(),
-                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
-
-        if (r != SQLITE_OK) {
-            _MSG("Devicetracker unable to drop old storage table in " + ds_dbfile + ": " +
-                    std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
-            return -1;
-        }
-    }
-
-    Database_SetDBVersion(3);
+    Database_SetDBVersion(4);
 
     return 0;
 }
@@ -1518,16 +1497,14 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
     local_locker devlocker(&(in_dev->device_mutex));
 
     std::string sql;
-    std::string macstring = in_dev->get_macaddr().Mac2String();
-    std::string phystring = in_dev->get_phyname();
+    std::string keystring = in_dev->get_key().as_string();
 
     int r;
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
     sql = 
-        "SELECT name FROM device_names WHERE phyname = ? AND "
-        "devmac = ?";
+        "SELECT name FROM device_names WHERE key = ? ";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
@@ -1538,8 +1515,7 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
     }
 
     sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
 
     while (1) {
         r = sqlite3_step(stmt);
@@ -1574,28 +1550,25 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
     local_locker devlocker(&(in_dev->device_mutex));
 
     std::string sql;
-    std::string macstring = in_dev->get_macaddr().Mac2String();
-    std::string phystring = in_dev->get_phyname();
+    std::string keystring = in_dev->get_key().as_string();
 
     int r;
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
     sql = 
-        "SELECT tag, content FROM device_names WHERE phyname = ? AND "
-        "devmac = ?";
+        "SELECT tag, content FROM device_tags WHERE key = ?";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored devicename in " +
+        _MSG("Devicetracker unable to prepare database query for stored devicetag in " +
                 ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
 
     sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
 
     TrackerElementStringMap strmap(in_dev->get_tracker_tag_map());
 
@@ -1650,13 +1623,12 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
-    std::string macstring = in_dev->get_macaddr().Mac2String();
-    std::string phystring = in_dev->get_phyname();
+    std::string keystring = in_dev->get_key().as_string();
 
     sql = 
         "INSERT INTO device_names "
-        "(phyname, devmac, name) "
-        "VALUES (?, ?, ?)";
+        "(key, name) "
+        "VALUES (?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
@@ -1668,9 +1640,8 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
  
     sqlite3_reset(stmt);
 
-    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
-    sqlite3_bind_text(stmt, 3, in_username.c_str(), in_username.length(), 0);
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, in_username.c_str(), in_username.length(), 0);
 
     // Only lock the database while we're inserting
     {
@@ -1710,13 +1681,12 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
     sqlite3_stmt *stmt = NULL;
     const char *pz = NULL;
 
-    std::string macstring = in_dev->get_macaddr().Mac2String();
-    std::string phystring = in_dev->get_phyname();
+    std::string keystring = in_dev->get_key().as_string();
 
     sql = 
         "INSERT INTO device_tags "
-        "(phyname, devmac, tag, content) "
-        "VALUES (?, ?, ?, ?)";
+        "(key, tag, content) "
+        "VALUES (?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
@@ -1728,9 +1698,8 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
  
     sqlite3_reset(stmt);
 
-    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
-    sqlite3_bind_text(stmt, 3, in_tag.c_str(), in_tag.length(), 0);
+    sqlite3_bind_text(stmt, 1, keystring.c_str(), keystring.length(), 0);
+    sqlite3_bind_text(stmt, 2, in_tag.c_str(), in_tag.length(), 0);
     sqlite3_bind_text(stmt, 3, in_content.c_str(), in_content.length(), 0);
 
     // Only lock the database while we're inserting
