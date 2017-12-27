@@ -41,6 +41,7 @@ var DeviceRowHighlights = new Array();
  * name: datatable 'name' field (optional)
  * field: Kismet field path, array pair of field path and name, array of fields,
  *  or a function returning one of the above.
+ * fields: Multiple fields
  * renderfunc: string name of datatable render function, taking DT arguments
  *  (data, type, row, meta), (optional)
  * drawfunc: string name of a draw function, taking arguments:
@@ -54,8 +55,17 @@ exports.AddDeviceColumn = function(id, options) {
     var coldef = {
         kismetId: id,
         sTitle: options.sTitle,
-        field: options.field,
+        field: null,
+        fields: null,
     };
+
+    if ('field' in options) {
+        coldef.field = options.field;
+    }
+
+    if ('fields' in options) {
+        coldef.fields = options.fields;
+    }
 
     if ('description' in options) {
         coldef.description = options.description;
@@ -252,7 +262,13 @@ exports.GetDeviceFields = function(selected) {
     var cols = exports.GetDeviceColumns();
 
     for (var i in cols) {
-        rawret.push(cols[i]['field']);
+        if ('field' in cols[i]) {
+            rawret.push(cols[i]['field']);
+        }
+
+        if ('fields' in cols[i]) {
+            rawret.push.apply(rawret, cols[i]['fields']);
+        }
     }
 
     for (var i in DeviceRowHighlights) {

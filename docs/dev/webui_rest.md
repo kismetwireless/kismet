@@ -1,10 +1,8 @@
-# Extending Kismet - REST Web server Endpoints
+# Extending Kismet - REST Web Server Endpoints
 
-Kismet uses a REST-like interface on the embedded web server for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.
+Kismet uses a REST-like interface on the embedded web server for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.  Whenever possible, parameters are sent via the GET URI, but for more complex features, command arguments are sent via POST.
 
-*Broadly speaking*, nearly all endpoints in Kismet should support all output and serialization methods.  By default, these are JSON and Msgpack, but additional output serializers may be added in the future or added by plugins.
-
-Data returned by JSON serializers will transform field names to match the path delimiters used in many JS implementations - specifically, all instances of '.' will be transformed to '_'.
+*Broadly speaking*, nearly all endpoints in Kismet should support all output and serialization methods.  By default, these are JSON and Msgpack, but additional output serializers may be added in the future or added by plugins.  Some unique endpoints are available only under specific output methods, typically these take advantage of features found only in that output type.
 
 ## Exploring the REST system
 
@@ -251,29 +249,27 @@ regex = [
 
 ## REST Endpoints
 
-### Data types
-
 ### System Status
 
 ##### /system/status `/system/status.msgpack`, `/system/status.json`
 
-Dictionary of system status, including battery and memory use.
+Dictionary of system status, including uptime, battery, and memory use.
 
 ##### /system/timestamp `/system/timestamp.msgpack`, `/system/timestamp.json`
 
-Dictionary of system timestamp as second, microsecond
+Dictionary of system timestamp as second, microsecond; can be used to synchronize timestamps.
 
 ##### /system/tracked_fields `/system/tracked_fields.html`
-Human-readable table of all registered field names, types, and descriptions.  While it cannot represent the nested features of some data structures, it will describe every allocated field.
+Human-readable table of all registered field names, types, and descriptions.  While it cannot represent the nested features of some data structures, it will describe every allocated field.  This endpoint returns a HTML document for ease of use.
 
 
 ### Device Handling
 
-A device is the central record of a tracked entity in Kismet.  Clients, bridges, access points, wireless sensors, and any other type of entity seen by Kismet will be a device.  For complex relationships (such as 802.11 Wi-Fi), mappings will be provided to link client devices with their behavior on the respective access points.
+A device is the central record of a tracked entity in Kismet.  Clients, bridges, access points, wireless sensors, and any other type of entity seen by Kismet will be a device.  For complex relationships (such as 802.11 Wi-Fi), a list of related devices describes the access point-client relationship.
 
-All devices will have a basic set of records (held in the `kismet.base.foo` group of fields, generally) and then sub-trees of records attached by the phy-specific handlers.
+All devices will have a basic set of records (held in the `kismet.base.foo` group of fields, generally) and sub-trees of records attached by the phy-specific handlers.  A device may have multiple phy-specific records, for instance a device may contain both a `device.dot11` record and a `device.uav` record if it is seen to be a Wi-Fi based UAV/Drone device.
 
-The preferred method of retrieving device lists is to use the POST URI `/devices/summary/` or `/devices/last-time` with a list of fields provided.
+The preferred method of retrieving device lists is to use the POST URI `/devices/summary/` or `/devices/last-time` with a list of fields provided.  Whenever possible, limiting the fields requested and the time range requested will reduce the load on the Kismet server *and* the client consuming the data.
 
 ##### POST /devices/summary/devices `/devices/summary/devices.msgpack`, `/devices/summary/devices.json`
 
@@ -281,15 +277,15 @@ A POST endpoint which returns a summary of all devices.  This endpoint expects a
 
 Optionally, a regex dictionary may be provided to filter the devices returned.
 
-Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values - specifically, this can be used by dataTables to wrap the initial query in an `aaData` object required for that API.
+Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values; This is used by dataTables to wrap the initial query in an `aaData` object required for that API.
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key     | Value               | Type                                     | Desc                                     |
-| ------- | ------------------- | ---------------------------------------- | ---------------------------------------- |
-| fields  | Field specification | field specification array listing fields and mappings |                                          |
-| regex   | Regex specification | Optional, regular expression filter      |                                          |
-| wrapper | "foo"               | string                                   | Optional, wrapper dictionary to surround the data |
+| Key     | Value               | Type                      | Desc                                     |
+| ------- | ------------------- | ------------------------- | ---------------------------------------- |
+| fields  | Field specification | field specification array | Optional, simplified field listing.      |
+| regex   | Regex specification | regular expression array  | Optional, array of field path and regular expressions |
+| wrapper | "foo"               | string                    | Optional, wrapper dictionary to surround the data |
 
 ##### /devices/all_devices.ekjson
 
@@ -311,10 +307,10 @@ Optionally, a regex dictionary may be provided to filter the devices returned.
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key    | Value               | Type                                     | Desc |
-| ------ | ------------------- | ---------------------------------------- | ---- |
-| fields | Field specification | Optional, field specification array listing fields and mappings |      |
-| regex  | Regex specification | Optional, regular expression filter      |      |
+| Key    | Value               | Type                      | Desc                                     |
+| ------ | ------------------- | ------------------------- | ---------------------------------------- |
+| fields | Field specification | Field specification array | Optional, field listing                  |
+| regex  | Regex specification | Regular expression array  | Optional, array of field paths and regular expressions |
 
 ##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
@@ -336,9 +332,9 @@ Dictionary object of device, simplified by the `fields` argument in accordance t
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key    | Value               | Type                                     | Desc |
-| ------ | ------------------- | ---------------------------------------- | ---- |
-| fields | Field specification | Optional, field specification array listing fields and mappings |      |
+| Key    | Value               | Type                      | Desc                                |
+| ------ | ------------------- | ------------------------- | ----------------------------------- |
+| fields | Field specification | Field specification array | Optional, array of fields to return |
 
 ##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey] `/devices/by-key/[DEVICEKEY]/device.msgpack[/path/to/subkey]`, `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
@@ -354,9 +350,9 @@ Dictionary object of device, simplified by the `fields` argument in accordance t
 
 The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
 
-| Key    | Value               | Type                                     | Desc |
-| ------ | ------------------- | ---------------------------------------- | ---- |
-| fields | Field specification | Optional, field specification array listing fields and mappings |      |
+| Key    | Value               | Type                      | Desc                                |
+| ------ | ------------------- | ------------------------- | ----------------------------------- |
+| fields | Field specification | Field specification array | Optional, array of fields to return |
 
 ##### POST /devices/by-phy/[PHYNAME]/devices `/devices/by-phy/[PHYNAME]/devices.msgpack`, `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
 
@@ -370,7 +366,23 @@ The command dictionary should be passed as either JSON in the `json` POST variab
 | regex     | Regex specification             | Array   | Optional, regex specification array listing fields and regex values |
 | last_time | Timestamp or relative timestamp | Integer | Optional, timestamp.  If negative, treated as a relative timestamp (N seconds prior to now), if positive, treated as an absolute unix timestamp.  For example, `'last_time': -60` would return all devices in the past minute. |
 
-## Phy Handling
+### Device Editing
+
+Some device attributes (such as the device name and notes fields) can be set from the REST API.
+
+##### /devices/by-key/[key]/set_name `/device/by-key/[key]/set_name.cmd`  
+
+*REQUIRES LOGIN*
+
+Sets the 'username' field of the target device.
+
+Expects a command dictionary including:
+
+| Key      | Value    | Type   | Desc                |
+| -------- | -------- | ------ | ------------------- |
+| username | New name | String | New name for device |
+
+### Phy Handling
 
 A PHY handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A PHY is often, but not always, linked to specific types of hardware and specific packet link types.
 
@@ -378,7 +390,7 @@ A PHY handler processes a specific type of radio physical layer - 802.11, Blueto
 
 Array of all PHY types and statistics
 
-## Sessions and Logins
+### Sessions and Logins
 
 ##### `/session/check_session`
 
@@ -392,7 +404,7 @@ Check if a login is valid.  Login will always be checked, any session cookies wi
 
 Returns 200 OK if login is valid, 403 Unauthorized if login is invalid.
 
-## Messages
+### Messages
 
 Kismet uses the `messagebus` as in internal system for displaying message to the user.  The messagebus is used to pass error and state messages, as well as notifications about detected devices, etc.
 
@@ -404,7 +416,7 @@ Vector of the last 50 messages stored in Kismet
 
 Dictionary containing a list of all messages since server timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
 
-## Alerts
+### Alerts
 
 Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.  Alerts can be generated for critical system states, or by the WIDS system.
 
@@ -456,13 +468,13 @@ Expects a command dictionary including:
 | other   | MAC address   | String | (optional) Related other MAC address of the event which triggered this alert |
 | channel | Channel       | String | (optional) Phy-specific channel definition of the event which triggered this alert |
 
-## Channels
+### Channels
 
 ##### /channels/channels `/channels/channels.msgpack`, `/channels/channels.json`
 
 Channel usage and monitoring data.
 
-## Datasources
+### Datasources
 
 Kismet uses data sources to capture information - typically packets, but sometimes complete device or event records.  Data sources are defined in the Kismet config file via the `source=...` config option, or on the Kismet command line with the `-c` option as in `kismet -c wlan1`.
 
@@ -581,7 +593,7 @@ Pauses a source - the source will remain open, but no packets will be processed.
 
 Resumes (un-pauses) the specified source.  Packet processing will be resumed, but any packets seen while the source was paused will be lost.
 
-## GPS
+### GPS
 
 Kismet now supports multiple simultaneous GPS devices, and can select the 'best' quality device based on priority and GPS signal.
 
@@ -614,7 +626,7 @@ Expects a command dictionary including:
 | alt  | altitude (in Meters) | double | GPS altitude in meters (optional)       |
 | spd  | speed (kph)          | double | Speed in kilometers per hour (optional) |
 
-## Packet Capture
+### Packet Capture
 
 Kismet can export packets in the pcap-ng format; this is a standard, extended version of the traditional pcap format.  Tools such as Wireshark (and tshark) can process complete pcapng frames, while tcpdump and other libpcap based tools (currently including Kismet) can process the simpler version of pcapng.
 
@@ -662,7 +674,7 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
-## Plugins
+### Plugins
 
 Kismet plugins may be active C++ code (loaded as a plugin.so shared object file) or they may be web content only which is loaded into the UI without requiring additional back-end code.
 
@@ -670,7 +682,7 @@ Kismet plugins may be active C++ code (loaded as a plugin.so shared object file)
 
 Returns a vector of all activated Kismet plugins.
 
-## Streams
+### Streams
 
 A Kismet stream is any continually exporting entity - it can be a pcap file logged to disk, other disk logs, or logs streaming over the web interface.
 
@@ -688,7 +700,7 @@ Returns information about a specific stream, indicated by `[id]`
 
 Closes the stream (ending the log) specified by `[id]`
 
-## Logging
+### Logging
 
 Kismet has a centralized logging architecture which can report what logs are enabled, and what logs are possible.
 
@@ -724,7 +736,7 @@ Expects a command dictionary including:
 
 Stop, and close, the logfile specified by `[uuid]`.  The log file must be open.
 
-## 802.11 Specific
+### 802.11 Specific
 
 ##### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap
 

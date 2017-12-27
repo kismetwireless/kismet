@@ -674,11 +674,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 if (target == "set_name") {
-                    // Must have a session to set the name
-                    if (!httpd->HasValidSession(concls)) {
-                        return MHD_YES;
-                    }
+                    std::string name;
 
+                    // Must have a session to set the name
+                    if (!httpd->HasValidSession(concls)) 
+                        throw std::runtime_error("login required");
+
+                    if (!structdata->hasKey("username")) 
+                        throw std::runtime_error("expected username in command dictionary");
+
+                    name = structdata->getKeyAsString("username");
+
+                    SetDeviceUserName(dev, name);
+
+                    stream << "OK";
+                    return MHD_YES;
                 }
 
             } else if (tokenurl[2] == "summary") {
@@ -1119,7 +1129,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
         }
-    } catch(const std::exception e) {
+    } catch(const std::exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;

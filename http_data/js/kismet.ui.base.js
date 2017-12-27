@@ -109,13 +109,18 @@ exports.drawPackets = function(dyncolumn, table, row) {
 kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
     field: 'kismet.device.base.name',
+    fields: ['kismet.device.base.username'],
     description: 'Device name',
     renderfunc: function(d, t, r, m) {
-        if (d.length == 0) {
-            return r['kismet.device.base.macaddr'];
-        } else {
-            return d;
-        }
+        var name = r['kismet.device.base.username'];
+
+        if (name === "")
+            name = r['kismet.device.base.name'];
+
+        if (name === "")
+            name = r['kismet.device.base.macaddr'];
+
+        return name;
     }
 });
 
@@ -303,8 +308,40 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             {
                 field: "kismet.device.base.name",
                 title: "Name",
-                empty: "<i>None</i>",
-                help: "Device name, derived from device characteristics or set as a custom name by the user."
+                help: "Device name, derived from device characteristics or set as a custom name by the user.",
+                render: function(opts) {
+                    var name = opts['data']['kismet.device.base.username'];
+                    
+                    if (name === "")
+                        name = opts['value'];
+
+                    if (name === "")
+                        name = opts['data']['kismet.device.base.macaddr'];
+
+                    var nameobj = 
+                        $('<a>', {
+                            'href': '#'
+                        })
+                        .html(name);
+
+                    exports.LoginCheck(function(success) { 
+                        if (success) {
+                            nameobj.editable({
+                                type: 'text',
+                                mode: 'inline',
+                                success: function(response, newvalue) {
+                                    var jscmd = {
+                                        "username": newvalue
+                                    };
+                                    var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+                                    $.post("/devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
+                                }
+                            });
+                        }
+                    });
+
+                    return nameobj;
+                }
             },
             {
                 field: "kismet.device.base.macaddr",
