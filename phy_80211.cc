@@ -604,9 +604,16 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
         globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
-        stringstream ss;
-        ss << "Removing dot11 device info which has been inactive for "
-            "more than " << device_idle_expiration << " seconds.";
+        device_idle_min_packets =
+            globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
+
+        std::stringstream ss;
+        ss << "Removing 802.11 device info which has been inactive for more than " <<
+            device_idle_expiration << " seconds";
+
+        if (device_idle_min_packets > 2) 
+            ss << " and references fewer than " << device_idle_min_packets << " packets";
+
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
@@ -2411,10 +2418,11 @@ int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 class phy80211_devicetracker_expire_worker : public DevicetrackerFilterWorker {
 public:
     phy80211_devicetracker_expire_worker(GlobalRegistry *in_globalreg, 
-            unsigned int in_timeout, int entry_id) {
+            int in_timeout, unsigned int in_packets, int entry_id) {
         globalreg = in_globalreg;
         dot11_device_entry_id = entry_id;
         timeout = in_timeout;
+        packets = in_packets;
     }
 
     virtual ~phy80211_devicetracker_expire_worker() { }
@@ -2440,7 +2448,8 @@ public:
 
             ssid = static_pointer_cast<dot11_advertised_ssid>(int_itr->second);
 
-            if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout) {
+            if (globalreg->timestamp.tv_sec - ssid->get_last_time() > timeout &&
+                    device->get_packets() < packets) {
                 if (dot11dev->get_last_adv_ssid() == ssid) {
                     dot11dev->set_last_adv_ssid(NULL);
                     dot11dev->set_last_adv_ie_csum(0);
@@ -2462,7 +2471,8 @@ public:
 
             pssid = static_pointer_cast<dot11_probed_ssid>(int_itr->second);
 
-            if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout) {
+            if (globalreg->timestamp.tv_sec - pssid->get_last_time() > timeout &&
+                    device->get_packets() < packets) {
                 probe_map.erase(int_itr);
                 int_itr = probe_map.begin();
                 devicetracker->UpdateFullRefresh();
@@ -2480,7 +2490,8 @@ public:
 
             client = static_pointer_cast<dot11_client>(mac_itr->second);
 
-            if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout) {
+            if (globalreg->timestamp.tv_sec - client->get_last_time() > timeout &&
+                    device->get_packets() < packets) {
                 client_map.erase(mac_itr);
                 mac_itr = client_map.begin();
                 devicetracker->UpdateFullRefresh();
@@ -2493,14 +2504,15 @@ public:
 protected:
     GlobalRegistry *globalreg;
     int dot11_device_entry_id;
-    unsigned int timeout;
+    int timeout;
+    unsigned int packets;
 };
 
 int Kis_80211_Phy::timetracker_event(int eventid) {
     // Spawn a worker to handle this
     if (eventid == device_idle_timer) {
         phy80211_devicetracker_expire_worker worker(globalreg,
-                device_idle_expiration, dot11_device_entry_id);
+                device_idle_expiration, device_idle_min_packets, dot11_device_entry_id);
         devicetracker->MatchOnDevices(&worker);
     }
 

@@ -651,6 +651,10 @@ protected:
     int device_idle_expiration;
     int device_idle_timer;
 
+    // Minimum number of packets a device may have to be eligible for
+    // being timed out
+    unsigned int device_idle_min_packets;
+
     // Maximum number of devices
     unsigned int max_num_devices;
     int max_devices_timer;

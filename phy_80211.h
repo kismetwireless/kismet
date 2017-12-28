@@ -1483,6 +1483,7 @@ protected:
     // Do we time out components of devices?
     int device_idle_expiration;
     int device_idle_timer;
+    unsigned int device_idle_min_packets;
 
     // Pcap handlers
     unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;

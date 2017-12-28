@@ -552,9 +552,16 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
+        device_idle_min_packets =
+            globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
+
         std::stringstream ss;
         ss << "Removing tracked devices which have been inactive for more than " <<
-            device_idle_expiration << " seconds.";
+            device_idle_expiration << " seconds";
+
+        if (device_idle_min_packets > 2) 
+            ss << " and fewer than " << device_idle_min_packets << " packets";
+
         _MSG(ss.str(), MSGFLAG_INFO);
 
 		// Schedule device idle reaping every minute
@@ -1118,7 +1125,8 @@ int Devicetracker::timetracker_event(int eventid) {
                     // Lock the device itself
                     local_locker devlocker(&(d->device_mutex));
 
-                    if (ts_now - d->get_last_time() > device_idle_expiration) {
+                    if (ts_now - d->get_last_time() > device_idle_expiration &&
+                            d->get_packets() < device_idle_min_packets) {
                         device_itr mi = tracked_map.find(d->get_key());
                         if (mi != tracked_map.end())
                             tracked_map.erase(mi);
