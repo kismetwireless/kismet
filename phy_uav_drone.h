@@ -287,6 +287,7 @@ public:
     __Proxy(uav_match_type, std::string, std::string, std::string, uav_match_type);
 
     __ProxyDynamicTrackable(home_location, kis_tracked_location_triplet, home_location, home_location_id);
+    __ProxyDynamicTrackable(matched_type, uav_manuf_match, matched_type, matched_type_id);
 
 protected:
     virtual void register_fields() {
@@ -317,6 +318,11 @@ protected:
             RegisterComplexField("uav.telemetry.home_location",
                     std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
                     "GPS home location");
+
+        matched_type_id =
+            RegisterComplexField("uav.type",
+                    std::shared_ptr<uav_manuf_match>(new uav_manuf_match(globalreg, 0)),
+                    "Matched device type");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -334,10 +340,14 @@ protected:
 
             home_location.reset(new kis_tracked_location_triplet(globalreg, home_location_id,
                         e->get_map_value(home_location_id)));
+
+            matched_type.reset(new uav_manuf_match(globalreg, matched_type_id,
+                        e->get_map_value(matched_type_id)));
         }
 
         add_map(home_location);
         add_map(last_telem_loc_id, last_telem_loc);
+        add_map(matched_type);
     }
 
     SharedTrackerElement uav_manufacturer;
@@ -353,6 +363,8 @@ protected:
     std::shared_ptr<kis_tracked_location_triplet> home_location;
     int home_location_id;
 
+    std::shared_ptr<uav_manuf_match> matched_type;
+    int matched_type_id;
 };
 
 /* Frankenphy which absorbs other phys */
@@ -387,6 +399,7 @@ protected:
 
     int uav_device_id;
 
+    SharedTrackerElement manuf_match_vec;
 };
 
 #endif

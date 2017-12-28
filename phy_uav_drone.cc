@@ -93,6 +93,8 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
                 std::shared_ptr<uav_tracked_device>(new uav_tracked_device(globalreg, 0)),
                 "UAV device");
 
+    manuf_match_vec.reset(new TrackerElement(TrackerVector));
+
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
     packetchain->RegisterHandler(Kis_UAV_Phy::CommonClassifier, 
