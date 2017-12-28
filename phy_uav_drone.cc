@@ -24,6 +24,52 @@
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
 
+void uav_manuf_match::set_uav_manuf_ssid_regex(std::string in_regexstr) {
+#ifdef HAVE_LIBPCRE
+    const char *compile_error, *study_error;
+    int erroroffset;
+    ostringstream errordesc;
+
+    re = pcre_compile(in_regexstr.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+    if (re == NULL) {
+        errordesc << "Could not parse PCRE expression: " << compile_error << 
+            "at character " << erroroffset << " (" << in_regexstr.substr(erroroffset, 5) <<
+            ")";
+        throw std::runtime_error(errordesc.str());
+    }
+
+    study = pcre_study(re, 0, &study_error);
+    
+    if (study == NULL) {
+        errordesc << "Could not parse PCRE expression, optimization failure: " << study_error;
+        throw std::runtime_error(errordesc.str());
+    }
+#else
+    throw std::runtime_error("Cannot set PCRE match for SSID; Kismet was not compiled with PCRE "
+            "support");
+#endif
+}
+
+bool uav_manuf_match::match_record(mac_addr in_mac, std::string in_ssid) {
+    if (get_uav_manuf_mac() == in_mac) {
+        if (get_uav_manuf_partial())
+            return true;
+        else
+            return false;
+    }
+
+#ifdef HAVE_LIBPCRE
+    int ovector[128];
+
+    if (pcre_exec(re, study, in_ssid.c_str(), in_ssid.length(), 0, 0, ovector, 128) >= 0)
+        return true;
+#endif
+
+    return false;
+}
+
+
 Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
     Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {

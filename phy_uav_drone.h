@@ -27,6 +27,10 @@
 
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
+
 /* An abstract model of a UAV (drone/quadcopter/plane) device.
  *
  * A UAV may have multiple communications protocols (bluetooth, wi-fi, RF)
@@ -167,6 +171,85 @@ protected:
     SharedTrackerElement motor_on;
     SharedTrackerElement airborne;
 
+};
+
+// Match a manufacturer (such as OUI, SSID, or both)
+class uav_manuf_match : public tracker_component {
+public:
+    uav_manuf_match(GlobalRegistry *in_globalreg, int in_id) :
+        tracker_component(in_globalreg, in_id) {
+
+#ifdef HAVE_LIBPCRE
+        re = NULL;
+        study = NULL;
+#endif
+
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    uav_manuf_match(GlobalRegistry *in_globalreg, int in_id,
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+
+#ifdef HAVE_LIBPCRE
+        re = NULL;
+        study = NULL;
+#endif
+
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual ~uav_manuf_match() { 
+#ifdef HAVE_LIBPCRE
+        if (re != NULL)
+            pcre_free(re);
+
+        if (study != NULL)
+            pcre_free(study);
+#endif
+    }
+
+    __Proxy(uav_manuf_name, std::string, std::string, std::string, uav_manuf_name);
+    __Proxy(uav_manuf_model, std::string, std::string, std::string, uav_manuf_model);
+    __Proxy(uav_manuf_mac, mac_addr, mac_addr, mac_addr, uav_manuf_mac);
+
+    void set_uav_manuf_ssid_regex(std::string);
+    __ProxyGet(uav_manuf_ssid_regex, std::string, std::string, uav_manuf_ssid_regex);
+
+    __Proxy(uav_manuf_partial, uint8_t, bool, bool, uav_manuf_partial);
+
+    bool match_record(mac_addr in_mac, std::string in_ssid);
+
+protected:
+    virtual void register_fields() {
+        tracker_component::register_fields();
+
+        RegisterField("uav.manufmatch.name", TrackerString,
+                "Matched manufacturer name", &uav_manuf_name);
+        RegisterField("uav.manufmatch.model", TrackerString,
+                "Matched model name", &uav_manuf_model);
+
+        RegisterField("uav.manufmatch.mac", TrackerMac,
+                "Matching mac address fragment", &uav_manuf_mac);
+        RegisterField("uav.manufmatch.ssid_regex", TrackerString,
+                "Matching SSID regex", &uav_manuf_ssid_regex);
+
+        RegisterField("uav.manufmatch.partial", TrackerUInt8,
+                "Allow partial matches (only manuf or only ssid)", &uav_manuf_partial);
+    }
+
+    SharedTrackerElement uav_manuf_name;
+    SharedTrackerElement uav_manuf_model;
+    SharedTrackerElement uav_manuf_mac;
+    SharedTrackerElement uav_manuf_ssid_regex;
+    SharedTrackerElement uav_manuf_partial;
+
+#ifdef HAVE_LIBPCRE
+    pcre *re;
+    pcre_extra *study;
+#endif
 };
 
 /* A 'light' phy which attaches additional records to existing phys */
