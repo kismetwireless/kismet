@@ -6,7 +6,8 @@ CONFIGFILES = \
 	kismet_alerts.conf \
 	kismet_memory.conf \
 	kismet_storage.conf \
-	kismet_logging.conf
+	kismet_logging.conf \
+	kismet_uav.conf
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
@@ -217,6 +218,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@$(MAKE) install_conf_kismet_alerts.conf
 	@$(MAKE) install_conf_kismet_storage.conf
 	@$(MAKE) install_conf_kismet_logging.conf
+	@$(MAKE) install_conf_kismet_uav.conf
 
 	@echo
 	@echo
@@ -249,6 +251,7 @@ install: $(INSTBINS)
 	@$(MAKE) install_conf_kismet_alerts.conf
 	@$(MAKE) install_conf_kismet_storage.conf
 	@$(MAKE) install_conf_kismet_logging.conf
+	@$(MAKE) install_conf_kismet_uav.conf
 
 	@echo
 	@echo
@@ -280,6 +283,7 @@ forceconfigs:
 	@$(MAKE) install_force_conf_kismet_alerts.conf
 	@$(MAKE) install_force_conf_kismet_storage.conf
 	@$(MAKE) install_force_conf_kismet_logging.conf
+	@$(MAKE) install_force_conf_kismet_uav.conf
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"

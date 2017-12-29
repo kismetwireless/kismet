@@ -918,6 +918,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 bssid_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
+
+                dot11info->new_device = true;
             }
 
             // If it's a bssid device, it MUST be an access point
@@ -954,6 +956,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 source_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
+
+                dot11info->new_device = true;
             }
 
             // If it's sending a management packet, it must be a wifi device; upgrade it if
@@ -982,6 +986,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(dest_dot11, dest_dev);
+                
+                dot11info->new_device = true;
             }
 
             // If it's receiving a management packet, it must be a wifi device
@@ -1097,6 +1103,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 bssid_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
+
+                dot11info->new_device = true;
             }
 
             if (dot11info->distrib == distrib_adhoc) {
@@ -1153,6 +1161,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 source_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
+
+                dot11info->new_device = true;
             }
 
             if (dot11info->subtype == packet_sub_data_null ||
@@ -1238,6 +1248,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(dest_dot11, dest_dev);
+
+                dot11info->new_device = true;
             }
 
             // If it's from the ess, we're some sort of wired device; set the type
@@ -1283,6 +1295,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 dest_dot11.reset(new dot11_tracked_device(globalreg, d11phy->dot11_device_entry_id));
                 dot11_tracked_device::attach_base_parent(dest_dot11, other_dev);
+
+                dot11info->new_device = true;
             }
 
             other_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
@@ -1422,6 +1436,8 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
 
     if (ssid_itr == adv_ssid_map->end()) {
         // fprintf(stderr, "debug - packet %d new ssid - type %d %s\n", packetnum, dot11info->subtype, dot11info->ssid.c_str());
+        dot11info->new_adv_ssid = true;
+        
         ssid = dot11dev->new_advertised_ssid();
         adv_ssid_map->add_intmap((int32_t) dot11info->ssid_csum, ssid);
 

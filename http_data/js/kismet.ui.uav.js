@@ -35,6 +35,18 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
             "id": "uavdata",
             "fields": [
             {
+                field: "uav.device/uav.manufacturer",
+                title: "Manufacturer",
+                empty: "<i>Unknown</i>",
+                help: "The UAV manufacturer may be derived from characteristics such as MAC address and SSID, or from embedded data such as the DroneID information.",
+            },
+            {
+                field: "uav.device/uav.model",
+                title: "Mmodel",
+                filterOnEmpty: true,
+                help: "The UAV model may be derived from characteristics such as MAC address and SSID, or from embedded data such as the DroneID information.",
+            },
+            {
                 field: "uav.device/uav.serialnumber",
                 title: "Serial Number",
                 empty: "<i>Unknown</i>",
@@ -49,6 +61,7 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
             {
                 field: "last_telem",
                 groupTitle: "Telemetry",
+                filterOnEmpty: true,
                 id: "last_telem",
                 fields: [
                 {

@@ -211,6 +211,8 @@ public:
 #endif
     }
 
+    __Proxy(uav_match_name, std::string, std::string, std::string, uav_match_name);
+
     __Proxy(uav_manuf_name, std::string, std::string, std::string, uav_manuf_name);
     __Proxy(uav_manuf_model, std::string, std::string, std::string, uav_manuf_model);
     __Proxy(uav_manuf_mac, mac_addr, mac_addr, mac_addr, uav_manuf_mac);
@@ -226,6 +228,9 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
+        RegisterField("uav_match_name", TrackerString,
+                "Match name", &uav_match_name);
+
         RegisterField("uav.manufmatch.name", TrackerString,
                 "Matched manufacturer name", &uav_manuf_name);
         RegisterField("uav.manufmatch.model", TrackerString,
@@ -239,6 +244,8 @@ protected:
         RegisterField("uav.manufmatch.partial", TrackerUInt8,
                 "Allow partial matches (only manuf or only ssid)", &uav_manuf_partial);
     }
+
+    SharedTrackerElement uav_match_name;
 
     SharedTrackerElement uav_manuf_name;
     SharedTrackerElement uav_manuf_model;
@@ -273,6 +280,7 @@ public:
     virtual ~uav_tracked_device() { }
 
     __Proxy(uav_manufacturer, std::string, std::string, std::string, uav_manufacturer);
+    __Proxy(uav_model, std::string, std::string, std::string, uav_model);
     __Proxy(uav_serialnumber, std::string, std::string, std::string, uav_serialnumber);
     
     __ProxyDynamicTrackable(last_telem_loc, uav_tracked_telemetry, 
@@ -295,6 +303,8 @@ protected:
 
         RegisterField("uav.manufacturer", TrackerString,
                 "Manufacturer", &uav_manufacturer);
+        RegisterField("uav.model", TrackerString,
+                "Model", &uav_model);
 
         RegisterField("uav.serialnumber", TrackerString,
                 "Serial number", &uav_serialnumber);
@@ -351,6 +361,7 @@ protected:
     }
 
     SharedTrackerElement uav_manufacturer;
+    SharedTrackerElement uav_model;
     SharedTrackerElement uav_serialnumber;
     SharedTrackerElement uav_match_type;
 
@@ -368,7 +379,7 @@ protected:
 };
 
 /* Frankenphy which absorbs other phys */
-class Kis_UAV_Phy : public Kis_Phy_Handler {
+class Kis_UAV_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
 public:
     virtual ~Kis_UAV_Phy();
 
@@ -390,7 +401,21 @@ public:
     virtual void LoadPhyStorage(SharedTrackerElement in_storage,
             SharedTrackerElement in_device);
 
+    // HTTPD API
+    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+
+    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size, std::stringstream &stream);
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+
 protected:
+    bool parse_manuf_definition(std::string def);
+
+    kis_recursive_timed_mutex uav_mutex;
+
     shared_ptr<Packetchain> packetchain;
     shared_ptr<EntryTracker> entrytracker;
 

@@ -164,6 +164,8 @@ class dot11_packinfo : public packet_component {
 
             beacon_interval = 0;
 
+            new_device = false;
+            new_adv_ssid = false;
         }
 
         // Corrupt 802.11 frame
@@ -257,7 +259,9 @@ class dot11_packinfo : public packet_component {
         // 11n MCS rates
         std::vector<std::string> mcs_rates;
 
-        // VHT isn't specially enumerated, it just factors into max speed
+        // Did we just create records for these?
+        bool new_device;
+        bool new_adv_ssid;
 };
 
 class dot11_tracked_eapol : public tracker_component {

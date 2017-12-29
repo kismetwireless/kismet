@@ -736,7 +736,9 @@ Expects a command dictionary including:
 
 Stop, and close, the logfile specified by `[uuid]`.  The log file must be open.
 
-### 802.11 Specific
+### Phy-Specific:  phy80211 (Wi-Fi)
+
+The 802.11 Wi-Fi phy defines extra endpoints for extracting packets from dot11-specific devices:
 
 ##### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap
 
@@ -754,3 +756,10 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
+### Phy-Specific: phyuav (UAV / Drones)
+
+The UAV/Drone phy defines extra endpoints for matching UAVs based on manufacturer and SSID:
+
+##### /phy/phyuav/manuf_matchers `/phy/phyuav/manuf_matchers.json` `/phy/phyuav/manuf_matchers.msgpack`
+
+Returns a vector of the manufacturer matches for UAVs and drones; these matches allow the UAV phy to flag devices based on OUI and SSID.

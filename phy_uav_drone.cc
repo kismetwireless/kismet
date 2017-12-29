@@ -49,20 +49,27 @@ void uav_manuf_match::set_uav_manuf_ssid_regex(std::string in_regexstr) {
     throw std::runtime_error("Cannot set PCRE match for SSID; Kismet was not compiled with PCRE "
             "support");
 #endif
+
+    uav_manuf_ssid_regex->set(in_regexstr);
 }
 
 bool uav_manuf_match::match_record(mac_addr in_mac, std::string in_ssid) {
-    if (get_uav_manuf_mac() == in_mac) {
-        if (get_uav_manuf_partial())
-            return true;
-        else
+    if (get_uav_manuf_mac().longmac != 0) {
+        if (get_uav_manuf_mac() == in_mac) {
+            if (get_uav_manuf_partial() || get_uav_manuf_ssid_regex() == "")
+                return true;
+        } else {
             return false;
+        }
     }
 
 #ifdef HAVE_LIBPCRE
     int ovector[128];
+    int r;
 
-    if (pcre_exec(re, study, in_ssid.c_str(), in_ssid.length(), 0, 0, ovector, 128) >= 0)
+    r = pcre_exec(re, study, in_ssid.c_str(), in_ssid.length(), 0, 0, ovector, 128);
+
+    if (r >= 0)
         return true;
 #endif
 
@@ -72,7 +79,8 @@ bool uav_manuf_match::match_record(mac_addr in_mac, std::string in_ssid) {
 
 Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
+    Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
+    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     phyname = "UAV";
 
@@ -104,6 +112,12 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
     shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_uav", "/js/kismet.ui.uav.js");
+
+    // Parse the ssid regex options
+    auto uav_lines = globalreg->kismet_config->FetchOptVec("uav_match");
+    for (auto l : uav_lines)
+        parse_manuf_definition(l);
+
 }
 
 Kis_UAV_Phy::~Kis_UAV_Phy() {
@@ -153,19 +167,25 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev == NULL)
             return 1;
 
+        // Only compare to the AP device for droneid and SSID matching
+        if (basedev->get_macaddr() != dot11info->bssid_mac)
+            continue;
+
+        local_locker devlock(&(basedev->device_mutex));
+
         if (dot11info->droneid != NULL) {
-            shared_ptr<uav_tracked_device> uavdev = 
-                std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
-
-            if (uavdev == NULL) {
-                uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-                basedev->add_map(uavdev);
-            }
-
             // TODO add alerts for serial # change etc
             if (dot11info->droneid->subcommand() == 0x10) {
                 dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = 
                     dot11info->droneid->record();
+
+                shared_ptr<uav_tracked_device> uavdev = 
+                    std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+
+                if (uavdev == NULL) {
+                    uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+                    basedev->add_map(uavdev);
+                }
 
                 if (flightinfo->state_info()->serial_valid()) {
                     uavdev->set_uav_serialnumber(flightinfo->serialnumber());
@@ -191,10 +211,156 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
                 }
             }
+        } 
+        
+        if (dot11info->new_adv_ssid &&
+                dot11info->type == packet_management && 
+                (dot11info->subtype == packet_sub_beacon ||
+                 dot11info->subtype == packet_sub_probe_resp)) {
+
+            TrackerElementVector matchv(uavphy->manuf_match_vec);
+            for (auto mi : matchv) {
+                std::shared_ptr<uav_manuf_match> m = 
+                    std::static_pointer_cast<uav_manuf_match>(mi);
+
+                if (m->match_record(dot11info->bssid_mac, dot11info->ssid)) {
+                    shared_ptr<uav_tracked_device> uavdev = 
+                        std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+
+                    if (uavdev == NULL) {
+                        uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+                        basedev->add_map(uavdev);
+                        uavdev->set_uav_manufacturer(m->get_uav_manuf_name());
+                        uavdev->set_uav_model(m->get_uav_manuf_model());
+                    }
+
+                    uavdev->set_tracker_matched_type(m);
+
+                    uavdev->set_uav_match_type("UAV Fingerprint");
+
+                    break;
+                }
+            }
         }
     }
 
     return 1;
 }
 
+
+bool Kis_UAV_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") == 0) {
+        std::string stripped = Httpd_StripSuffix(path);
+
+        if (stripped == "/phy/phyuav/manuf_matchers")
+            return true;
+
+    }
+
+    return false;
+}
+
+void Kis_UAV_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size, std::stringstream &stream) {
+
+    if (strcmp(method, "GET") != 0) {
+        return;
+    }
+
+    std::string stripped = Httpd_StripSuffix(url);
+
+    if (stripped == "/phy/phyuav/manuf_matchers") {
+        local_locker lock(&uav_mutex);
+        entrytracker->Serialize(httpd->GetSuffix(url), stream, manuf_match_vec, NULL);
+        return;
+    }
+
+    return;
+}
+
+int Kis_UAV_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    return 0;
+}
+
+bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
+    local_locker lock(&uav_mutex);
+
+    size_t cpos = in_def.find(':');
+
+    if (cpos == std::string::npos) {
+        _MSG("Invalid 'uav_match' configuration line, expected 'name:option1=\"...\","  
+                "option2=\"...\" but got '" + in_def + "'", MSGFLAG_ERROR);
+        return false;
+    }
+
+    std::string name = in_def.substr(0, cpos);
+
+    TrackerElementVector matches(manuf_match_vec);
+
+    for (auto i : matches) {
+        std::shared_ptr<uav_manuf_match> mi = 
+            std::static_pointer_cast<uav_manuf_match>(i);
+
+        if (mi->get_uav_match_name() == name) {
+            _MSG("Invalid 'uav_match' configuration line, match name '" + name + "' already "
+                    "in use.", MSGFLAG_ERROR);
+            return false;
+        }
+    }
+
+    std::vector<opt_pair> optvec;
+    StringToOpts(in_def.substr(cpos + 1, in_def.length()), ",", &optvec);
+
+    std::string manuf_name = FetchOpt("name", &optvec);
+    std::string manuf_model = FetchOpt("model", &optvec);
+    std::string macstr = FetchOpt("mac", &optvec);
+    std::string ssid = FetchOpt("ssid", &optvec);
+    bool matchany = FetchOptBoolean("match_any", &optvec, false);
+
+    if (manuf_name == "") {
+        _MSG("Invalid 'uav_match' configuration line, expected 'name=\"...\"' in definition, "
+                "but got '" + in_def + "'", MSGFLAG_ERROR);
+        return false;
+    }
+
+    mac_addr mac;
+
+    if (macstr != "") {
+        mac = mac_addr(macstr);
+
+        if (mac.error) {
+            _MSG("Invlaid 'uav_match' configuration line, expected 'mac=macaddr' in definition, "
+                    "but got an invalid mac in '" + in_def + "'", MSGFLAG_ERROR);
+            return false;
+        }
+    }
+
+    std::shared_ptr<uav_manuf_match> manufmatch(new uav_manuf_match(globalreg, 0));
+
+    try {
+        manufmatch->set_uav_match_name(name);
+        manufmatch->set_uav_manuf_name(manuf_name);
+
+        if (manuf_model != "")
+            manufmatch->set_uav_manuf_model(manuf_model);
+
+        if (macstr != "") 
+            manufmatch->set_uav_manuf_mac(mac);
+
+        if (ssid != "")
+            manufmatch->set_uav_manuf_ssid_regex(ssid);
+
+        manufmatch->set_uav_manuf_partial(matchany);
+    } catch (const std::exception& e) {
+        _MSG("Invalid 'uav_match' configuration line, " + std::string(e.what()) + " in definition " +
+                "'" + in_def + "'", MSGFLAG_ERROR);
+        return false;
+    }
+
+    matches.push_back(manufmatch);
+
+    return true;
+}
 
