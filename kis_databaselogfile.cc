@@ -584,24 +584,24 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
         macstring = d->get_macaddr().Mac2String();
         typestring = d->get_type_string();
 
-        sqlite3_bind_int(device_stmt, 1, d->get_first_time());
-        sqlite3_bind_int(device_stmt, 2, d->get_last_time());
+        sqlite3_bind_int64(device_stmt, 1, d->get_first_time());
+        sqlite3_bind_int64(device_stmt, 2, d->get_last_time());
         sqlite3_bind_text(device_stmt, 3, phystring.c_str(), phystring.length(), 0);
         sqlite3_bind_text(device_stmt, 4, macstring.c_str(), macstring.length(), 0);
         sqlite3_bind_int(device_stmt, 5, d->get_signal_data()->get_max_signal_dbm());
 
         if (d->get_tracker_location() != NULL) {
-            sqlite3_bind_int(device_stmt, 6, 
+            sqlite3_bind_int64(device_stmt, 6, 
                     d->get_location()->get_min_loc()->get_lat() * 100000);
-            sqlite3_bind_int(device_stmt, 7,
+            sqlite3_bind_int64(device_stmt, 7,
                     d->get_location()->get_min_loc()->get_lon() * 100000);
-            sqlite3_bind_int(device_stmt, 8,
+            sqlite3_bind_int64(device_stmt, 8,
                     d->get_location()->get_max_loc()->get_lat() * 100000);
-            sqlite3_bind_int(device_stmt, 9,
+            sqlite3_bind_int64(device_stmt, 9,
                     d->get_location()->get_max_loc()->get_lon() * 100000);
-            sqlite3_bind_int(device_stmt, 10,
+            sqlite3_bind_int64(device_stmt, 10,
                     d->get_location()->get_avg_loc()->get_lat() * 100000);
-            sqlite3_bind_int(device_stmt, 11,
+            sqlite3_bind_int64(device_stmt, 11,
                     d->get_location()->get_avg_loc()->get_lon() * 100000);
         } else {
             // Empty location
@@ -613,7 +613,7 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
             sqlite3_bind_int(device_stmt, 11, 0);
         }
 
-        sqlite3_bind_int(device_stmt, 12, d->get_datasize());
+        sqlite3_bind_int64(device_stmt, 12, d->get_datasize());
         sqlite3_bind_text(device_stmt, 13, typestring.c_str(), typestring.length(), 0);
 
         std::stringstream sstr;
@@ -691,8 +691,8 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         sourceuuidstring = "00000000-0000-0000-0000-000000000000";
     }
 
-    sqlite3_bind_int(packet_stmt, 1, in_pack->ts.tv_sec);
-    sqlite3_bind_int(packet_stmt, 2, in_pack->ts.tv_usec);
+    sqlite3_bind_int64(packet_stmt, 1, in_pack->ts.tv_sec);
+    sqlite3_bind_int64(packet_stmt, 2, in_pack->ts.tv_usec);
 
     sqlite3_bind_text(packet_stmt, 3, phystring.c_str(), phystring.length(), 0);
     sqlite3_bind_text(packet_stmt, 4, macstring.c_str(), macstring.length(), 0);
@@ -702,15 +702,15 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     sqlite3_bind_double(packet_stmt, 8, frequency);
 
     if (gpsdata != NULL) {
-        sqlite3_bind_int(packet_stmt, 9, gpsdata->lat * 100000);
-        sqlite3_bind_int(packet_stmt, 10, gpsdata->lon * 100000);
+        sqlite3_bind_int64(packet_stmt, 9, gpsdata->lat * 100000);
+        sqlite3_bind_int64(packet_stmt, 10, gpsdata->lon * 100000);
     } else {
         sqlite3_bind_int(packet_stmt, 9, 0);
         sqlite3_bind_int(packet_stmt, 10, 0);
     }
 
     if (chunk != NULL) {
-        sqlite3_bind_int(packet_stmt, 11, chunk->length);
+        sqlite3_bind_int64(packet_stmt, 11, chunk->length);
     } else {
         sqlite3_bind_int(packet_stmt, 11, 0);
     }
@@ -751,15 +751,15 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     std::string macstring = devmac.Mac2String();
     std::string uuidstring = datasource_uuid.UUID2String();
 
-    sqlite3_bind_int(data_stmt, 1, tv.tv_sec);
-    sqlite3_bind_int(data_stmt, 2, tv.tv_usec);
+    sqlite3_bind_int64(data_stmt, 1, tv.tv_sec);
+    sqlite3_bind_int64(data_stmt, 2, tv.tv_usec);
 
     sqlite3_bind_text(data_stmt, 3, phystring.c_str(), phystring.length(), 0);
     sqlite3_bind_text(data_stmt, 4, macstring.c_str(), macstring.length(), 0);
 
     if (gps != NULL) {
-        sqlite3_bind_int(data_stmt, 5, gps->lat * 100000);
-        sqlite3_bind_int(data_stmt, 6, gps->lon * 100000);
+        sqlite3_bind_int64(data_stmt, 5, gps->lat * 100000);
+        sqlite3_bind_int64(data_stmt, 6, gps->lon * 100000);
     } else {
         sqlite3_bind_int(data_stmt, 5, 0);
         sqlite3_bind_int(data_stmt, 6, 0);
@@ -847,15 +847,15 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     double intpart, fractpart;
     fractpart = modf(in_alert->get_timestamp(), &intpart);
 
-    sqlite3_bind_int(alert_stmt, 1, intpart);
-    sqlite3_bind_int(alert_stmt, 2, fractpart * 1000000);
+    sqlite3_bind_int64(alert_stmt, 1, intpart);
+    sqlite3_bind_int64(alert_stmt, 2, fractpart * 1000000);
 
     sqlite3_bind_text(alert_stmt, 3, phystring.c_str(), phystring.length(), 0);
     sqlite3_bind_text(alert_stmt, 4, macstring.c_str(), macstring.length(), 0);
 
     if (in_alert->get_location()->get_valid()) {
-        sqlite3_bind_int(alert_stmt, 5, in_alert->get_location()->get_lat() * 100000);
-        sqlite3_bind_int(alert_stmt, 6, in_alert->get_location()->get_lon() * 100000);
+        sqlite3_bind_int64(alert_stmt, 5, in_alert->get_location()->get_lat() * 100000);
+        sqlite3_bind_int64(alert_stmt, 6, in_alert->get_location()->get_lon() * 100000);
     } else {
         sqlite3_bind_int(alert_stmt, 5, 0);
         sqlite3_bind_int(alert_stmt, 6, 0);
@@ -884,12 +884,12 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
 
     sqlite3_reset(snapshot_stmt);
 
-    sqlite3_bind_int(snapshot_stmt, 1, tv.tv_sec);
-    sqlite3_bind_int(snapshot_stmt, 2, tv.tv_usec);
+    sqlite3_bind_int64(snapshot_stmt, 1, tv.tv_sec);
+    sqlite3_bind_int64(snapshot_stmt, 2, tv.tv_usec);
 
     if (gps != NULL) {
-        sqlite3_bind_int(snapshot_stmt, 3, gps->lat * 100000);
-        sqlite3_bind_int(snapshot_stmt, 4, gps->lon * 100000);
+        sqlite3_bind_int64(snapshot_stmt, 3, gps->lat * 100000);
+        sqlite3_bind_int64(snapshot_stmt, 4, gps->lon * 100000);
     } else {
         sqlite3_bind_int(snapshot_stmt, 3, 0);
         sqlite3_bind_int(snapshot_stmt, 4, 0);
