@@ -33,6 +33,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <regex.h>
 
 #include "globalregistry.h"
 #include "packetchain.h"
@@ -367,11 +368,7 @@ class dot11_tracked_ssid_alert : public tracker_component {
 public:
     dot11_tracked_ssid_alert(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
-
-#ifdef HAVE_LIBPCRE
-            ssid_re = NULL;
-            ssid_study = NULL;
-#endif
+            regex = NULL;
 
             register_fields();
             reserve_fields(NULL);
@@ -379,22 +376,15 @@ public:
 
     dot11_tracked_ssid_alert(GlobalRegistry *in_globalreg, int in_id,
             SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
-#ifdef HAVE_LIBCPRE
-        ssid_re = NULL;
-        ssid_study = NULL;
-#endif
+        regex = NULL;
 
         register_fields();
         reserve_fields(e);
     }
 
     virtual ~dot11_tracked_ssid_alert() {
-#ifdef HAVE_LIBCPRE
-        if (ssid_re != NULL)
-            pcre_free(ssid_re);
-        if (ssid_study != NULL)
-            pcre_free(ssid_study);
-#endif
+        if (regex != NULL)
+            regfree(regex);
     }
 
     virtual SharedTrackerElement clone_type() {
@@ -423,10 +413,7 @@ protected:
     SharedTrackerElement allowed_macs_vec;
     int allowed_mac_id;
 
-#ifdef HAVE_LIBPCRE
-    pcre *ssid_re;
-    pcre_extra *ssid_study;
-#endif
+    regex_t *regex;
 };
 
 class dot11_11d_tracked_range_info : public tracker_component {
@@ -1265,18 +1252,19 @@ class dot11_tracked_device : public tracker_component {
 class dot11_ssid_alert {
     public:
         dot11_ssid_alert() {
-#ifdef HAVE_LIBPCRE
-            ssid_re = NULL;
-            ssid_study = NULL;
-#endif
+            regex = NULL;
         }
+
+        ~dot11_ssid_alert() {
+            if (regex != NULL) 
+                regfree(regex);
+        }
+
         string name;
 
-#ifdef HAVE_LIBPCRE
-        pcre *ssid_re;
-        pcre_extra *ssid_study;
+        regex_t *regex;
+
         string filter;
-#endif
         string ssid;
 
         macmap<int> allow_mac_map;

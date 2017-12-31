@@ -748,8 +748,6 @@ enable_largefile
 enable_mutextimeout
 with_linuxheaders
 enable_linuxwext
-with_pcreheaders
-enable_pcre
 enable_airpcap
 with_airpcap_devpack
 with_winpcap_devpack
@@ -1414,7 +1412,6 @@ Optional Features:
   --disable-largefile     omit support for large files
   --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
-  --disable-pcre          disable building pcre components
   --enable-airpcap        enable checking for CACE airpcap
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-pcap          disable libpcap (most sources) capture support
@@ -1426,7 +1423,6 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
-  --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-winpcap=DIR     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-libprelude-prefix=PFX
@@ -8386,107 +8382,6 @@ caplibs="-lcap"
 
 fi
 
-
-# Check whether --with-pcreheaders was given.
-if test "${with_pcreheaders+set}" = set; then :
-  withval=$with_pcreheaders;
-   	 if test "$withval" != no -a "$withval" != "yes"; then
-        CPPFLAGS="$CPPFLAGS -I$withval"
-    fi
-
-fi
-
-
-# Check whether --enable-pcre was given.
-if test "${enable_pcre+set}" = set; then :
-  enableval=$enable_pcre; case "${enableval}" in
-	  no) wantpcre=no ;;
-	   *) wantpcre=yes ;;
-	 esac
-else
-  wantpcre=yes
-
-fi
-
-
-if test "$wantpcre" = "yes"; then
-	# Check for pcre
-	pcrel=no
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcre_compile in -lpcre" >&5
-$as_echo_n "checking for pcre_compile in -lpcre... " >&6; }
-if ${ac_cv_lib_pcre_pcre_compile+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpcre  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char pcre_compile ();
-int
-main ()
-{
-return pcre_compile ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_pcre_pcre_compile=yes
-else
-  ac_cv_lib_pcre_pcre_compile=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcre_pcre_compile" >&5
-$as_echo "$ac_cv_lib_pcre_pcre_compile" >&6; }
-if test "x$ac_cv_lib_pcre_pcre_compile" = xyes; then :
-  pcrel=yes
-else
-  pcrel=no
-fi
-
-
-	if test "$pcrel" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libpcre" >&5
-$as_echo "$as_me: WARNING: Failed to find libpcre" >&2;}
-		wantpcre=no
-	fi
-
-	if test "$wantpcre" = "yes"; then
-	pcreh=no
-	ac_fn_cxx_check_header_mongrel "$LINENO" "pcre.h" "ac_cv_header_pcre_h" "$ac_includes_default"
-if test "x$ac_cv_header_pcre_h" = xyes; then :
-  pcreh=yes
-else
-  pcreh=no
-fi
-
-
-
-	if test "$pcreh" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&5
-$as_echo "$as_me: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&2;}
-		wantpcre=no
-	fi
-	fi # wantpcre
-
-	if test "$wantpcre" = "yes"; then
-
-$as_echo "#define HAVE_LIBPCRE 1" >>confdefs.h
-
-	LIBS="$LIBS -lpcre"
-	fi # pcre
-fi
-
 # Don't check for sqlite3 if we're only building datasources
 if test "$caponly" = 0; then
 
@@ -11621,12 +11516,6 @@ else
 	echo "no"
 fi
 printf "        Prelude  SIEM : $wantprelude\n"
-printf "   PCRE Regex Filters : "
-if test "$wantpcre" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
 printf "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"

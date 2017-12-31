@@ -20,16 +20,14 @@
 #ifndef __PHY_UAV_DRONE_H__
 #define __PHY_UAV_DRONE_H__
 
+#include <regex.h>
+
 #include "trackedelement.h"
 #include "tracked_location.h"
 #include "phyhandler.h"
 #include "packetchain.h"
 
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
-
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
 
 /* An abstract model of a UAV (drone/quadcopter/plane) device.
  *
@@ -179,10 +177,7 @@ public:
     uav_manuf_match(GlobalRegistry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
 
-#ifdef HAVE_LIBPCRE
-        re = NULL;
-        study = NULL;
-#endif
+        regex = NULL;
 
         register_fields();
         reserve_fields(NULL);
@@ -192,23 +187,15 @@ public:
             SharedTrackerElement e) :
         tracker_component(in_globalreg, in_id) {
 
-#ifdef HAVE_LIBPCRE
-        re = NULL;
-        study = NULL;
-#endif
+        regex = NULL;
 
         register_fields();
         reserve_fields(e);
     }
 
     virtual ~uav_manuf_match() { 
-#ifdef HAVE_LIBPCRE
-        if (re != NULL)
-            pcre_free(re);
-
-        if (study != NULL)
-            pcre_free(study);
-#endif
+        if (regex != NULL)
+            regfree(regex);
     }
 
     __Proxy(uav_match_name, std::string, std::string, std::string, uav_match_name);
@@ -253,10 +240,7 @@ protected:
     SharedTrackerElement uav_manuf_ssid_regex;
     SharedTrackerElement uav_manuf_partial;
 
-#ifdef HAVE_LIBPCRE
-    pcre *re;
-    pcre_extra *study;
-#endif
+    regex_t *regex;
 };
 
 /* A 'light' phy which attaches additional records to existing phys */

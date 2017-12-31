@@ -67,8 +67,7 @@ Filter Specification:
     would apply to all 'dot11.advertisedssid.ssid' fields in the ssid_map 
     automatically.
 
-    Regex is a basic string containing a regular expression, compatible with
-    PCRE.
+    Regex is a basic string containing a regular expression.
 
     To match on SSIDs:
 
@@ -696,9 +695,9 @@ class KismetConnector:
 
         return r == 200
 
-    def device_filtered_dot11_summary(self, pcre, fields = None, callback = None, cbargs = None, ts = 0):
+    def device_filtered_dot11_summary(self, in_regex, fields = None, callback = None, cbargs = None, ts = 0):
         """
-        device_filtered_dot11_summary(pcre, [fields, ts, callback, cbargs]) -> device list, filtered by dot11 ssid
+        device_filtered_dot11_summary(in_regex, [fields, ts, callback, cbargs]) -> device list, filtered by dot11 ssid
 
         Deprecated API, this can now be handled by smart_device_list, which
         this function uses.
@@ -707,15 +706,15 @@ class KismetConnector:
 
         regex = []
 
-        # Split the incoming PCRE into SSID matches
-        for p in pcre:
-            regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', pcre])
+        # Split the incoming regex into SSID matches
+        for p in in_regex:
+            regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', p])
 
         return self.smart_device_list(callback = callback, cbargs = cbargs, regex = regex, fields = fields, ts = ts)
 
-    def device_filtered_dot11_probe_summary(self, pcre, fields = None, callback = None, cbargs = None, ts = 0):
+    def device_filtered_dot11_probe_summary(self, in_regex, fields = None, callback = None, cbargs = None, ts = 0):
         """
-        device_filtered_dot11_probe_summary(pcre, [fields, ts, callback, cbargs]) -> device summary list, filtered by dot11 ssid
+        device_filtered_dot11_probe_summary(in_regex, [fields, ts, callback, cbargs]) -> device summary list, filtered by dot11 ssid
 
         Deprecated API, this can now be handled by smart_device_list, which
         this function uses
@@ -723,9 +722,9 @@ class KismetConnector:
 
         regex = []
 
-        # Split the incoming PCRE into SSID matches
-        for p in pcre:
-            regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', pcre])
+        # Split the incoming regex into SSID matches
+        for p in in_regex:
+            regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', p])
 
         return self.smart_device_list(callback = callback, cbargs = cbargs, regex = regex, fields = fields, ts = ts)
 

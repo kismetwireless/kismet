@@ -814,22 +814,22 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (regexdata != NULL) {
                     // If we're doing a basic regex outside of devicetables
                     // shenanigans...
-                    devicetracker_pcre_worker worker(globalreg, regexdata);
+                    devicetracker_regex_worker worker(globalreg, regexdata);
                     MatchOnDevices(&worker);
 
-                    SharedTrackerElement pcredevs = worker.GetMatchedDevices();
-                    TrackerElementVector pcrevec(pcredevs);
+                    SharedTrackerElement regexdevs = worker.GetMatchedDevices();
+                    TrackerElementVector regexvec(regexdevs);
 
                     // Check DT ranges
-                    if (dt_start >= pcrevec.size())
+                    if (dt_start >= regexvec.size())
                         dt_start = 0;
 
                     if (dt_filter_elem != NULL)
-                        dt_filter_elem->set((uint64_t) pcrevec.size());
+                        dt_filter_elem->set((uint64_t) regexvec.size());
 
                     // Sort the list by the selected column
                     if (dt_order_col >= 0) {
-                        kismet__stable_sort(pcrevec.begin(), pcrevec.end(), 
+                        kismet__stable_sort(regexvec.begin(), regexvec.end(), 
                                 [&](SharedTrackerElement a, SharedTrackerElement b) {
                                 SharedTrackerElement fa =
                                 GetTrackerElementPath(dt_order_field, a);
@@ -847,12 +847,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // Set the iterator endpoint for our length
                     TrackerElementVector::iterator ei;
                     if (dt_length == 0 ||
-                            dt_length + dt_start >= pcrevec.size())
-                        ei = pcrevec.end();
+                            dt_length + dt_start >= regexvec.size())
+                        ei = regexvec.end();
                     else
-                        ei = pcrevec.begin() + dt_start + dt_length;
+                        ei = regexvec.begin() + dt_start + dt_length;
 
-                    for (vi = pcrevec.begin() + dt_start; vi != ei; ++vi) {
+                    for (vi = regexvec.begin() + dt_start; vi != ei; ++vi) {
                         SharedTrackerElement simple;
 
                         SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
@@ -1015,7 +1015,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 timedevs = tw.GetMatchedDevices();
 
                 if (regexdata != NULL) {
-                    devicetracker_pcre_worker worker(globalreg, regexdata);
+                    devicetracker_regex_worker worker(globalreg, regexdata);
                     MatchOnDevices(&worker, timedevs);
                     regexdevs = worker.GetMatchedDevices();
                 } else {
@@ -1101,7 +1101,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 if (regexdata != NULL) {
-                    devicetracker_pcre_worker worker(globalreg, regexdata);
+                    devicetracker_regex_worker worker(globalreg, regexdata);
                     MatchOnDevices(&worker, phydevs);
                     regexdevs = worker.GetMatchedDevices();
                 } else {

@@ -31,10 +31,6 @@
 #include <iostream>
 #include <limits.h>
 
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
-
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -56,10 +52,6 @@
 #include "kismet_json.h"
 
 #include "kis_httpd_registry.h"
-
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
 
 extern "C" {
 #ifndef HAVE_PCAPPCAP_H
@@ -135,35 +127,26 @@ void dot11_tracked_ssid_alert::register_fields() {
 }
 
 void dot11_tracked_ssid_alert::set_regex(std::string s) {
-#ifdef HAVE_LIBPCRE
     local_locker lock(&ssid_mutex);
 
-    const char *compile_error, *study_error;
-    int erroroffset;
+    char compile_error[1024];
+    int rc;
     std::ostringstream errordesc;
 
-    if (ssid_re)
-        pcre_free(ssid_re);
-    if (ssid_study)
-        pcre_free(ssid_study);
+    if (regex != NULL)
+        regfree(regex);
+    
+    regex = new regex_t;
 
     ssid_regex->set(s);
 
-    ssid_re = pcre_compile(s.c_str(), 0, &compile_error, &erroroffset, NULL);
+    rc = regcomp(regex, s.c_str(), REG_EXTENDED | REG_NOSUB);
 
-    if (ssid_re == NULL) {
-        errordesc << "Could not parse PCRE: " << compile_error << 
-            "at character " << erroroffset;
+    if (rc != 0) {
+        regerror(rc, regex, compile_error, 1024);
+        errordesc << "Could not parse regex expression: " << errordesc.str();
         throw std::runtime_error(errordesc.str());
     }
-
-    ssid_study = pcre_study(ssid_re, 0, &study_error);
-
-    if (ssid_study == NULL) {
-        errordesc << "Could not parse PCRE, optimization failure: " << study_error;
-        throw std::runtime_error(errordesc.str());
-    } 
-#endif
 }
 
 void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
@@ -184,13 +167,9 @@ void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
 bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
     local_locker lock(&ssid_mutex);
 
-#ifdef HAVE_LIBPCRE
-    int rc;
-    int ovector[128];
-
-    rc = pcre_exec(ssid_re, ssid_study, ssid.c_str(), ssid.length(), 0, 0, ovector, 128);
-
-    if (rc > 0) {
+    int rc = regexec(regex, ssid.c_str(), 0, NULL, 0);
+    
+    if (rc != REG_NOMATCH) {;
         TrackerElementVector v(allowed_macs_vec);
 
         // Look for a mac address which isn't in the allowed list
@@ -199,7 +178,6 @@ bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
                 return true;
         }
     }
-#endif
 
     return false;
 
