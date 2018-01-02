@@ -43,7 +43,7 @@ for e in data_loaded:
     if 'mac' in uav and len(uav['mac']) > 1:
         confstr = confstr + "_{count}"
         
-    confstr = confstr + ",name=\"{name}\""
+    confstr = confstr + ":name=\"{name}\""
 
     if 'model' in uav:
         confstr = confstr + ",model=\"{model}\""
