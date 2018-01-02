@@ -155,47 +155,72 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         local_locker devlock(&(basedev->device_mutex));
 
         if (dot11info->droneid != NULL) {
-            // TODO add alerts for serial # change etc
-            if (dot11info->droneid->subcommand() == 0x10) {
-                dot11_ie_221_dji_droneid_t::flight_reg_info_t *flightinfo = 
-                    dot11info->droneid->record();
+            try {
+                // TODO add alerts for serial # change etc
+                if (dot11info->droneid->subcommand_flight_reg_info()) {
+                    std::stringstream did_stream(dot11info->droneid->record());
+                    kaitai::kstream ks(&did_stream);
+                    
+                    std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_reg_info_t> flightinfo(new dot11_ie_221_dji_droneid_t::flight_reg_info_t(&ks)); 
 
-                shared_ptr<uav_tracked_device> uavdev = 
-                    std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+                    shared_ptr<uav_tracked_device> uavdev = 
+                        std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
-                if (uavdev == NULL) {
-                    uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-                    basedev->add_map(uavdev);
-                }
+                    if (uavdev == NULL) {
+                        uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+                        basedev->add_map(uavdev);
+                    }
 
-                if (flightinfo->state_serial_valid()) {
-                    uavdev->set_uav_serialnumber(flightinfo->serialnumber());
-                }
+                    if (flightinfo->state_serial_valid()) {
+                        uavdev->set_uav_serialnumber(flightinfo->serialnumber());
+                    }
 
-                std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
-                telem->from_droneid_flight_reg(flightinfo);
-                telem->set_telem_timestamp(ts_to_double(in_pack->ts));
+                    std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
+                    telem->from_droneid_flight_reg(flightinfo);
+                    telem->set_telem_timestamp(ts_to_double(in_pack->ts));
 
-                uavdev->set_tracker_last_telem_loc(telem);
+                    uavdev->set_tracker_last_telem_loc(telem);
 
-                TrackerElementVector tvec(uavdev->get_tracker_uav_telem_history());
-                tvec.push_back(telem);
+                    TrackerElementVector tvec(uavdev->get_tracker_uav_telem_history());
+                    tvec.push_back(telem);
 
-                if (tvec.size() > 128)
-                    tvec.erase(tvec.begin());
+                    if (tvec.size() > 128)
+                        tvec.erase(tvec.begin());
 
-                uavdev->set_uav_match_type("DroneID");
+                    uavdev->set_uav_match_type("DroneID");
 
-                if (uavdev->get_uav_manufacturer() == "")
-                    uavdev->set_uav_manufacturer("DJI/DroneID");
+                    if (uavdev->get_uav_manufacturer() == "")
+                        uavdev->set_uav_manufacturer("DJI/DroneID");
 
-                // Set the home location
-                if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
-                    shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
-                    homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
-                }
+                    // Set the home location
+                    if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
+                        shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
+                        homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
+                    }
+                } else if (dot11info->droneid->subcommand_flight_purpose()) {
+                    std::stringstream did_stream(dot11info->droneid->record());
+                    kaitai::kstream ks(&did_stream);
+                    
+                    std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_purpose_t> flightpurpose(new dot11_ie_221_dji_droneid_t::flight_purpose_t(&ks)); 
+
+                    shared_ptr<uav_tracked_device> uavdev = 
+                        std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+
+                    if (uavdev == NULL) {
+                        uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+                        basedev->add_map(uavdev);
+                    }
+
+                    uavdev->set_uav_serialnumber(flightpurpose->serialnumber());
+                    uavdev->set_uav_match_type("DroneID");
+
+                    if (uavdev->get_uav_manufacturer() == "")
+                        uavdev->set_uav_manufacturer("DJI/DroneID");
+                } 
+            } catch (const std::exception& e) {
+                fprintf(stderr, "debug - unable to parse droneid frame - %s\n", e.what());
             }
-        } 
+        }
         
         if (dot11info->new_adv_ssid &&
                 dot11info->type == packet_management && 

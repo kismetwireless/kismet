@@ -9,15 +9,13 @@ dot11_ie_221_dji_droneid_t::dot11_ie_221_dji_droneid_t(kaitai::kstream *p_io, ka
     m__parent = p_parent;
     m__root = this;
     f_dot11_ie_221_dji_droneid_oui = false;
+    f_subcommand_flight_reg_info = false;
+    f_subcommand_flight_purpose = false;
     m_vendor_type = m__io->read_u1();
     m_unk1 = m__io->read_u1();
     m_unk2 = m__io->read_u1();
     m_subcommand = m__io->read_u1();
-    switch (subcommand()) {
-    case 16:
-        m_record = new flight_reg_info_t(m__io, this, m__root);
-        break;
-    }
+    m_record = m__io->read_bytes_full();
 }
 
 dot11_ie_221_dji_droneid_t::~dot11_ie_221_dji_droneid_t() {
@@ -36,7 +34,7 @@ dot11_ie_221_dji_droneid_t::flight_purpose_t::flight_purpose_t(kaitai::kstream *
 dot11_ie_221_dji_droneid_t::flight_purpose_t::~flight_purpose_t() {
 }
 
-dot11_ie_221_dji_droneid_t::flight_reg_info_t::flight_reg_info_t(kaitai::kstream *p_io, dot11_ie_221_dji_droneid_t *p_parent, dot11_ie_221_dji_droneid_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_dji_droneid_t::flight_reg_info_t::flight_reg_info_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_dji_droneid_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     f_state_vup_valid = false;
@@ -240,4 +238,20 @@ int32_t dot11_ie_221_dji_droneid_t::dot11_ie_221_dji_droneid_oui() {
     m_dot11_ie_221_dji_droneid_oui = 305604096;
     f_dot11_ie_221_dji_droneid_oui = true;
     return m_dot11_ie_221_dji_droneid_oui;
+}
+
+bool dot11_ie_221_dji_droneid_t::subcommand_flight_reg_info() {
+    if (f_subcommand_flight_reg_info)
+        return m_subcommand_flight_reg_info;
+    m_subcommand_flight_reg_info = subcommand() == 16;
+    f_subcommand_flight_reg_info = true;
+    return m_subcommand_flight_reg_info;
+}
+
+bool dot11_ie_221_dji_droneid_t::subcommand_flight_purpose() {
+    if (f_subcommand_flight_purpose)
+        return m_subcommand_flight_purpose;
+    m_subcommand_flight_purpose = subcommand() == 17;
+    f_subcommand_flight_purpose = true;
+    return m_subcommand_flight_purpose;
 }

@@ -73,7 +73,7 @@ public:
     __Proxy(motor_on, uint8_t, bool, bool, motor_on);
     __Proxy(airborne, uint8_t, bool, bool, airborne);
 
-    void from_droneid_flight_reg(dot11_ie_221_dji_droneid_t::flight_reg_info_t *flight_reg) {
+    void from_droneid_flight_reg(std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_reg_info_t> flight_reg) {
         if (flight_reg->state_gps_valid()) {
             location->set(flight_reg->lat(), flight_reg->lon());
             

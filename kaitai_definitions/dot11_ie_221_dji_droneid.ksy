@@ -36,16 +36,16 @@ seq:
   - id: subcommand
     type: u1
   - id: record
-    type:
-      switch-on: subcommand
-      cases:
-        0x10: flight_reg_info
-        # Temporarily disabled
-        # 0x11: flight_purpose
+    size-eos: true
 
 instances:
     dot11_ie_221_dji_droneid_oui:
         value: 0x12372600
+
+    subcommand_flight_reg_info:
+        value: "(subcommand == 0x10)"
+    subcommand_flight_purpose:
+        value: "(subcommand == 0x11)"
 
 types:
   # Flight purpose record - user entered data

@@ -73,7 +73,7 @@ public:
 
     public:
 
-        flight_reg_info_t(kaitai::kstream* p_io, dot11_ie_221_dji_droneid_t* p_parent = 0, dot11_ie_221_dji_droneid_t* p_root = 0);
+        flight_reg_info_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_dji_droneid_t* p_root = 0);
         ~flight_reg_info_t();
 
     private:
@@ -270,7 +270,7 @@ public:
         uint8_t m_uuid_len;
         std::string m_uuid;
         dot11_ie_221_dji_droneid_t* m__root;
-        dot11_ie_221_dji_droneid_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         uint8_t version() const { return m_version; }
@@ -293,7 +293,7 @@ public:
         uint8_t uuid_len() const { return m_uuid_len; }
         std::string uuid() const { return m_uuid; }
         dot11_ie_221_dji_droneid_t* _root() const { return m__root; }
-        dot11_ie_221_dji_droneid_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
 private:
@@ -304,11 +304,25 @@ public:
     int32_t dot11_ie_221_dji_droneid_oui();
 
 private:
+    bool f_subcommand_flight_reg_info;
+    bool m_subcommand_flight_reg_info;
+
+public:
+    bool subcommand_flight_reg_info();
+
+private:
+    bool f_subcommand_flight_purpose;
+    bool m_subcommand_flight_purpose;
+
+public:
+    bool subcommand_flight_purpose();
+
+private:
     uint8_t m_vendor_type;
     uint8_t m_unk1;
     uint8_t m_unk2;
     uint8_t m_subcommand;
-    flight_reg_info_t* m_record;
+    std::string m_record;
     dot11_ie_221_dji_droneid_t* m__root;
     kaitai::kstruct* m__parent;
 
@@ -317,7 +331,7 @@ public:
     uint8_t unk1() const { return m_unk1; }
     uint8_t unk2() const { return m_unk2; }
     uint8_t subcommand() const { return m_subcommand; }
-    flight_reg_info_t* record() const { return m_record; }
+    std::string record() const { return m_record; }
     dot11_ie_221_dji_droneid_t* _root() const { return m__root; }
     kaitai::kstruct* _parent() const { return m__parent; }
 };
