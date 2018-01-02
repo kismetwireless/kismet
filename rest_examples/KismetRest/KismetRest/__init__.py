@@ -522,13 +522,13 @@ class KismetConnector:
         # Always return a vector
         return v
 
-    def device(self, key):
+    def device(self, key, field = None, fields = None):
         """
         device(key) -> device object
 
         Deprecated, prefer device_by_key
         """
-        return self.device_by_key(key)
+        return self.device_by_key(key, field, fields)
 
     def device_field(self, key, field):
         """
