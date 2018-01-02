@@ -88,7 +88,7 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                 },
                 {
                     field: "uav_location",
-                    title: "Location",
+                    title: "Last Location",
                     render: function(opts) {
                         var loc =
                             kismet.ObjectByString(opts['data'], "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.lat") + ", " +
@@ -112,15 +112,23 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                 },
                 {
                     field: "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.alt",
-                    title: "Altitude (meters)",
+                    title: "Altitude",
                     help: "Last advertised altitude",
                     filter: function(opts) {
                         return (kismet.ObjectByString(opts['data'], "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.fix") >= 3);
+                    },
+                    render: function(opts) {
+                        console.log(opts['value']);
+                        return kismet_ui.renderHeightDistance(opts['value']);
                     }
                 },
                 {
                     field: "uav.device/uav.last_telemetry/uav.telemetry.height",
-                    title: "Height (meters)",
+                    title: "Height",
+                    render: function(opts) {
+                        console.log(opts['value']);
+                        return kismet_ui.renderHeightDistance(opts['value']);
+                    },
                     help: "Advertised height above ground",
                 },
 

@@ -614,6 +614,24 @@ exports.renderDistance = function(k, precision = 5) {
     }
 }
 
+// Use our settings to make some conversion functions for distance and temperature
+exports.renderHeightDistance = function(m, precision = 5) {
+    if (kismet.getStorage('kismet.base.unit.distance') === 'metric') {
+        if (m < 1000) {
+            return m.toFixed(precision) + ' m';
+        }
+
+        return (m / 1000).toFixed(precision) + ' km';
+    } else {
+        var f = (m * 3.2808399);
+
+        if (f < 5280) {
+            return f.toFixed(precision) + ' feet';
+        }
+        return (f / 5280).toFixed(precision) + ' miles';
+    }
+}
+
 exports.renderSpeed = function(kph, precision = 5) {
     if (kismet.getStorage('kismet.base.unit.speed') === 'metric') {
         return kph.toFixed(precision) + ' KPH';
