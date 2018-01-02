@@ -285,6 +285,10 @@ forceconfigs:
 	@$(MAKE) install_force_conf_kismet_logging.conf
 	@$(MAKE) install_force_conf_kismet_uav.conf
 
+uavconfig:
+	@echo "Generating kismet_uav.conf"
+	@python tools/compile_uav_conf.py conf/kismet_uav.conf.yaml > conf/kismet_uav.conf
+
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \

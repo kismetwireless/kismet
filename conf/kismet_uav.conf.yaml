@@ -1,0 +1,155 @@
+# The Kismet UAV config file is generated from this source format via
+# tools/generate_uav.py
+
+- header: |
+    This config file is generated from the YAML definitions in 
+    conf/kismet_uav.conf.yaml, changes should be made there.
+
+    The UAV/Drone phy can match against UAVs based on the presence of specific
+    telemetry data packets, or based on characteristics such as the manufacturer
+    and SSID.
+    
+    Manufacturer definitions define several possible matches, and are defined with:
+    uav_match=matchname,option1="...",option2="..."
+    
+    The matchname is a unique identifier for this rule set.  Options must include:
+     name="...", the manufacturer of the UAV
+     
+    The options may also include:
+     model="...", the specific model of the UAV
+    
+    Matches are performed on the mac address of the device, the advertised SSID,
+    or both:
+     mac=mac/mask, the mac address and macmask filter.  To match by the OUI, 
+       specify the first 3 bytes of the mac and a mask of FF:FF:FF:00:00:00
+     ssid="regex", a regex to match against the SSID.  This regex is a standard
+       PCRE regular expression.
+    
+    A UAV must meet both the mac address and SSID regex filters, if both are
+    specified.  To match on either value, optionally specify:
+     match_any=true
+
+- uav:
+    id: skyrider
+    name: Propel
+    model: Sky Rider
+    ssid: Propel Sky Rider
+    mac:
+        - 4C:0F:C7:00:00:00/FF:FF:FF:00:00:00 
+
+- uav:
+    id: 360flight
+    name: 360 Flight
+    ssid: ^360 Flight-.*
+    mac:
+        - E0:B9:4D:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: 3drsolo
+    name: 3DRobotics
+    model: Solo
+    ssid: ^SoloLink_.*
+    mac:  
+        - 8A:DC:96:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: dji_phantom
+    name: DJI
+    model: Phantom 3 Standard
+    ssid: ^Phantom3_.*
+    mac:  
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00 
+
+- uav:
+    id: dji_mavic
+    name: DJI
+    model: Mavic
+    ssid: ^Mavic_.*
+    mac: 
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00 
+
+- uav:
+    id: propel_hd
+    name: Propel
+    model: HD Video Drone
+    ssid: Propel HD Video Drone
+    mac:  
+        - EC:3D:FD:00:00:00/FF:FF:FF:00:00:00 
+        - 28:F3:66:00:00:00/FF:FF:FF:00:00:00 
+        - E0:B9:4D:00:00:00/FF:FF:FF:00:00:00 
+
+
+- uav:
+    id: yd_ufo
+    name: Attop
+    model: UFO
+    ssid: ^YD[_-]UFO[_-].*
+    mac: 
+        - 08:EA:40:00:00:00/FF:FF:FF:00:00:00
+        - 4C:0F:C7:00:00:00/FF:FF:FF:00:00:00
+        - 00:7E:56:00:00:00/FF:FF:FF:00:00:00
+        - B0:41:1D:00:00:00/FF:FF:FF:00:00:00
+        - E0:B9:4D:00:00:00/FF:FF:FF:00:00:00
+        - E8:AB:FA:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: xbm_720p
+    name: XBM
+    model: 720P
+    ssid: ^XBM-720P-.*
+    mac: 
+        - 90:97:D5:00:00:00/FF:FF:FF:00:00:00
+        - 08:EA:40:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: parrot_bebop
+    name: Parrot
+    model: Bebop Drone
+    ssid: ^BebopDrone.*
+    mac: 
+        - A0:14:3D:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: parrot_bebop2
+    name: Parrot
+    model: Bebop 2
+    ssid: ^Bebop2.*
+    mac: 
+        - 90:3A:E6:00:00:00/FF:FF:FF:00:00:00
+        - A0:14:3D:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: parrot_sumo
+    name: Parrot
+    model: Jumping Sumo
+    ssid: ^JumpingSumo-.*
+    mac: 
+        - A0:14:3D:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: parrot_ardrone
+    comment: |
+        Original model ARDrone
+    name: Parrot
+    model: AR Drone
+    ssid: ^ardrone[^2].*
+    mac: 
+        - 00:26:7E:00:00:00/FF:FF:FF:00:00:00
+
+- uav: 
+    id: parrot_ardrone2
+    name: Parrot
+    model: AR Drone 2.0
+    ssid: ^ardrone2.*
+    mac: 
+        - 90:03:B7:00:00:00/FF:FF:FF:00:00:00
+        - 00:26:7E:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
+    id: parrot_skycontroller
+    name: Parrot
+    model: SkyController
+    ssid: ^SkyController.*
+    mac: 
+        - A0:14:3D:00:00:00/FF:FF:FF:00:00:00
+
