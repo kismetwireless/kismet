@@ -168,7 +168,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     basedev->add_map(uavdev);
                 }
 
-                if (flightinfo->state_info()->serial_valid()) {
+                if (flightinfo->state_serial_valid()) {
                     uavdev->set_uav_serialnumber(flightinfo->serialnumber());
                 }
 
@@ -185,6 +185,9 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     tvec.erase(tvec.begin());
 
                 uavdev->set_uav_match_type("DroneID");
+
+                if (uavdev->get_uav_manufacturer() == "")
+                    uavdev->set_uav_manufacturer("DJI/DroneID");
 
                 // Set the home location
                 if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {

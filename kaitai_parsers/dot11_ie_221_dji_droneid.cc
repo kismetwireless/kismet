@@ -30,7 +30,7 @@ dot11_ie_221_dji_droneid_t::flight_purpose_t::flight_purpose_t(kaitai::kstream *
     m_len = m__io->read_u8le();
     m_drone_id = kaitai::kstream::bytes_to_str(kaitai::kstream::bytes_terminate(m__io->read_bytes(10), 0, false), std::string("ASCII"));
     m_purpose_len = m__io->read_u8le();
-    m_purpose = kaitai::kstream::bytes_to_str(kaitai::kstream::bytes_terminate(m__io->read_bytes(100), 0, false), std::string("ASCII"));
+    m_purpose = kaitai::kstream::bytes_to_str(kaitai::kstream::bytes_terminate(m__io->read_bytes_full(), 0, false), std::string("ASCII"));
 }
 
 dot11_ie_221_dji_droneid_t::flight_purpose_t::~flight_purpose_t() {
@@ -39,16 +39,28 @@ dot11_ie_221_dji_droneid_t::flight_purpose_t::~flight_purpose_t() {
 dot11_ie_221_dji_droneid_t::flight_reg_info_t::flight_reg_info_t(kaitai::kstream *p_io, dot11_ie_221_dji_droneid_t *p_parent, dot11_ie_221_dji_droneid_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
+    f_state_vup_valid = false;
     f_roll = false;
     f_home_lon = false;
     f_lat = false;
     f_home_lat = false;
+    f_state_gps_valid = false;
+    f_state_alt_valid = false;
     f_lon = false;
+    f_state_pitchroll_valid = false;
     f_yaw = false;
+    f_state_horiz_valid = false;
     f_pitch = false;
+    f_state_user_private_disabled = false;
+    f_state_serial_valid = false;
+    f_state_motor_on = false;
+    f_state_uuid_set = false;
+    f_state_homepoint_set = false;
+    f_state_in_air = false;
+    f_state_height_valid = false;
     m_version = m__io->read_u1();
     m_seq = m__io->read_u2le();
-    m_state_info = new state_t(m__io, this, m__root);
+    m_state_info = m__io->read_u2le();
     m_serialnumber = kaitai::kstream::bytes_to_str(kaitai::kstream::bytes_terminate(m__io->read_bytes(16), 0, false), std::string("ASCII"));
     m_raw_lon = m__io->read_s4le();
     m_raw_lat = m__io->read_s4le();
@@ -68,7 +80,14 @@ dot11_ie_221_dji_droneid_t::flight_reg_info_t::flight_reg_info_t(kaitai::kstream
 }
 
 dot11_ie_221_dji_droneid_t::flight_reg_info_t::~flight_reg_info_t() {
-    delete m_state_info;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_vup_valid() {
+    if (f_state_vup_valid)
+        return m_state_vup_valid;
+    m_state_vup_valid = (state_info() & 1024);
+    f_state_vup_valid = true;
+    return m_state_vup_valid;
 }
 
 double dot11_ie_221_dji_droneid_t::flight_reg_info_t::roll() {
@@ -103,12 +122,36 @@ double dot11_ie_221_dji_droneid_t::flight_reg_info_t::home_lat() {
     return m_home_lat;
 }
 
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_gps_valid() {
+    if (f_state_gps_valid)
+        return m_state_gps_valid;
+    m_state_gps_valid = (state_info() & 64);
+    f_state_gps_valid = true;
+    return m_state_gps_valid;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_alt_valid() {
+    if (f_state_alt_valid)
+        return m_state_alt_valid;
+    m_state_alt_valid = (state_info() & 128);
+    f_state_alt_valid = true;
+    return m_state_alt_valid;
+}
+
 double dot11_ie_221_dji_droneid_t::flight_reg_info_t::lon() {
     if (f_lon)
         return m_lon;
     m_lon = (raw_lon() / 174533.0);
     f_lon = true;
     return m_lon;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_pitchroll_valid() {
+    if (f_state_pitchroll_valid)
+        return m_state_pitchroll_valid;
+    m_state_pitchroll_valid = (state_info() & 2048);
+    f_state_pitchroll_valid = true;
+    return m_state_pitchroll_valid;
 }
 
 double dot11_ie_221_dji_droneid_t::flight_reg_info_t::yaw() {
@@ -119,6 +162,14 @@ double dot11_ie_221_dji_droneid_t::flight_reg_info_t::yaw() {
     return m_yaw;
 }
 
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_horiz_valid() {
+    if (f_state_horiz_valid)
+        return m_state_horiz_valid;
+    m_state_horiz_valid = (state_info() & 512);
+    f_state_horiz_valid = true;
+    return m_state_horiz_valid;
+}
+
 double dot11_ie_221_dji_droneid_t::flight_reg_info_t::pitch() {
     if (f_pitch)
         return m_pitch;
@@ -127,28 +178,60 @@ double dot11_ie_221_dji_droneid_t::flight_reg_info_t::pitch() {
     return m_pitch;
 }
 
-dot11_ie_221_dji_droneid_t::state_t::state_t(kaitai::kstream *p_io, dot11_ie_221_dji_droneid_t::flight_reg_info_t *p_parent, dot11_ie_221_dji_droneid_t *p_root) : kaitai::kstruct(p_io) {
-    m__parent = p_parent;
-    m__root = p_root;
-    m_unk_alt_valid = m__io->read_bits_int(1);
-    m_unk_gps_valid = m__io->read_bits_int(1);
-    m_in_air = m__io->read_bits_int(1);
-    m_motor_on = m__io->read_bits_int(1);
-    m_uuid_set = m__io->read_bits_int(1);
-    m_homepoint_set = m__io->read_bits_int(1);
-    m_private_disabled = m__io->read_bits_int(1);
-    m_serial_valid = m__io->read_bits_int(1);
-    m_unk15 = m__io->read_bits_int(1);
-    m_unk14 = m__io->read_bits_int(1);
-    m_unk13 = m__io->read_bits_int(1);
-    m_unk12 = m__io->read_bits_int(1);
-    m_unk11 = m__io->read_bits_int(1);
-    m_unk_velocity_z_valid = m__io->read_bits_int(1);
-    m_unk_velocity_x_valid = m__io->read_bits_int(1);
-    m_unk_height_valid = m__io->read_bits_int(1);
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_user_private_disabled() {
+    if (f_state_user_private_disabled)
+        return m_state_user_private_disabled;
+    m_state_user_private_disabled = (state_info() & 2);
+    f_state_user_private_disabled = true;
+    return m_state_user_private_disabled;
 }
 
-dot11_ie_221_dji_droneid_t::state_t::~state_t() {
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_serial_valid() {
+    if (f_state_serial_valid)
+        return m_state_serial_valid;
+    m_state_serial_valid = (state_info() & 1);
+    f_state_serial_valid = true;
+    return m_state_serial_valid;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_motor_on() {
+    if (f_state_motor_on)
+        return m_state_motor_on;
+    m_state_motor_on = (state_info() & 16);
+    f_state_motor_on = true;
+    return m_state_motor_on;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_uuid_set() {
+    if (f_state_uuid_set)
+        return m_state_uuid_set;
+    m_state_uuid_set = (state_info() & 8);
+    f_state_uuid_set = true;
+    return m_state_uuid_set;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_homepoint_set() {
+    if (f_state_homepoint_set)
+        return m_state_homepoint_set;
+    m_state_homepoint_set = (state_info() & 4);
+    f_state_homepoint_set = true;
+    return m_state_homepoint_set;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_in_air() {
+    if (f_state_in_air)
+        return m_state_in_air;
+    m_state_in_air = (state_info() & 32);
+    f_state_in_air = true;
+    return m_state_in_air;
+}
+
+int32_t dot11_ie_221_dji_droneid_t::flight_reg_info_t::state_height_valid() {
+    if (f_state_height_valid)
+        return m_state_height_valid;
+    m_state_height_valid = (state_info() & 256);
+    f_state_height_valid = true;
+    return m_state_height_valid;
 }
 
 int32_t dot11_ie_221_dji_droneid_t::dot11_ie_221_dji_droneid_oui() {

@@ -39,7 +39,6 @@ class dot11_ie_221_dji_droneid_t : public kaitai::kstruct {
 public:
     class flight_purpose_t;
     class flight_reg_info_t;
-    class state_t;
 
     dot11_ie_221_dji_droneid_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_dji_droneid_t* p_root = 0);
     ~dot11_ie_221_dji_droneid_t();
@@ -78,6 +77,17 @@ public:
         ~flight_reg_info_t();
 
     private:
+        bool f_state_vup_valid;
+        int32_t m_state_vup_valid;
+
+    public:
+
+        /**
+         * Guessed; V_up velocity valid?
+         */
+        int32_t state_vup_valid();
+
+    private:
         bool f_roll;
         double m_roll;
 
@@ -106,11 +116,44 @@ public:
         double home_lat();
 
     private:
+        bool f_state_gps_valid;
+        int32_t m_state_gps_valid;
+
+    public:
+
+        /**
+         * Guessed; GPS fields may be valid?
+         */
+        int32_t state_gps_valid();
+
+    private:
+        bool f_state_alt_valid;
+        int32_t m_state_alt_valid;
+
+    public:
+
+        /**
+         * Guessed; Altitude GPS record valid?
+         */
+        int32_t state_alt_valid();
+
+    private:
         bool f_lon;
         double m_lon;
 
     public:
         double lon();
+
+    private:
+        bool f_state_pitchroll_valid;
+        int32_t m_state_pitchroll_valid;
+
+    public:
+
+        /**
+         * Guessed; pitch/roll/yaw valid?
+         */
+        int32_t state_pitchroll_valid();
 
     private:
         bool f_yaw;
@@ -120,6 +163,17 @@ public:
         double yaw();
 
     private:
+        bool f_state_horiz_valid;
+        int32_t m_state_horiz_valid;
+
+    public:
+
+        /**
+         * Guessed; Horizontal velocity valid?
+         */
+        int32_t state_horiz_valid();
+
+    private:
         bool f_pitch;
         double m_pitch;
 
@@ -127,9 +181,78 @@ public:
         double pitch();
 
     private:
+        bool f_state_user_private_disabled;
+        int32_t m_state_user_private_disabled;
+
+    public:
+
+        /**
+         * private mode disabled (set to 1)
+         */
+        int32_t state_user_private_disabled();
+
+    private:
+        bool f_state_serial_valid;
+        int32_t m_state_serial_valid;
+
+    public:
+
+        /**
+         * Serial is valid
+         */
+        int32_t state_serial_valid();
+
+    private:
+        bool f_state_motor_on;
+        int32_t m_state_motor_on;
+
+    public:
+        int32_t state_motor_on();
+
+    private:
+        bool f_state_uuid_set;
+        int32_t m_state_uuid_set;
+
+    public:
+
+        /**
+         * firmware unclear; could be conflated with homepoint bit
+         */
+        int32_t state_uuid_set();
+
+    private:
+        bool f_state_homepoint_set;
+        int32_t m_state_homepoint_set;
+
+    public:
+
+        /**
+         * firmware unclear; could be conflated with uuid bit
+         */
+        int32_t state_homepoint_set();
+
+    private:
+        bool f_state_in_air;
+        int32_t m_state_in_air;
+
+    public:
+        int32_t state_in_air();
+
+    private:
+        bool f_state_height_valid;
+        int32_t m_state_height_valid;
+
+    public:
+
+        /**
+         * Guessed; Height-over-ground valid?
+         */
+        int32_t state_height_valid();
+
+    private:
         uint8_t m_version;
         uint16_t m_seq;
-        state_t* m_state_info;
+        uint16_t m_state_info;
         std::string m_serialnumber;
         int32_t m_raw_lon;
         int32_t m_raw_lat;
@@ -152,7 +275,7 @@ public:
     public:
         uint8_t version() const { return m_version; }
         uint16_t seq() const { return m_seq; }
-        state_t* state_info() const { return m_state_info; }
+        uint16_t state_info() const { return m_state_info; }
         std::string serialnumber() const { return m_serialnumber; }
         int32_t raw_lon() const { return m_raw_lon; }
         int32_t raw_lat() const { return m_raw_lat; }
@@ -171,54 +294,6 @@ public:
         std::string uuid() const { return m_uuid; }
         dot11_ie_221_dji_droneid_t* _root() const { return m__root; }
         dot11_ie_221_dji_droneid_t* _parent() const { return m__parent; }
-    };
-
-    class state_t : public kaitai::kstruct {
-
-    public:
-
-        state_t(kaitai::kstream* p_io, dot11_ie_221_dji_droneid_t::flight_reg_info_t* p_parent = 0, dot11_ie_221_dji_droneid_t* p_root = 0);
-        ~state_t();
-
-    private:
-        bool m_unk_alt_valid;
-        bool m_unk_gps_valid;
-        bool m_in_air;
-        bool m_motor_on;
-        bool m_uuid_set;
-        bool m_homepoint_set;
-        bool m_private_disabled;
-        bool m_serial_valid;
-        bool m_unk15;
-        bool m_unk14;
-        bool m_unk13;
-        bool m_unk12;
-        bool m_unk11;
-        bool m_unk_velocity_z_valid;
-        bool m_unk_velocity_x_valid;
-        bool m_unk_height_valid;
-        dot11_ie_221_dji_droneid_t* m__root;
-        dot11_ie_221_dji_droneid_t::flight_reg_info_t* m__parent;
-
-    public:
-        bool unk_alt_valid() const { return m_unk_alt_valid; }
-        bool unk_gps_valid() const { return m_unk_gps_valid; }
-        bool in_air() const { return m_in_air; }
-        bool motor_on() const { return m_motor_on; }
-        bool uuid_set() const { return m_uuid_set; }
-        bool homepoint_set() const { return m_homepoint_set; }
-        bool private_disabled() const { return m_private_disabled; }
-        bool serial_valid() const { return m_serial_valid; }
-        bool unk15() const { return m_unk15; }
-        bool unk14() const { return m_unk14; }
-        bool unk13() const { return m_unk13; }
-        bool unk12() const { return m_unk12; }
-        bool unk11() const { return m_unk11; }
-        bool unk_velocity_z_valid() const { return m_unk_velocity_z_valid; }
-        bool unk_velocity_x_valid() const { return m_unk_velocity_x_valid; }
-        bool unk_height_valid() const { return m_unk_height_valid; }
-        dot11_ie_221_dji_droneid_t* _root() const { return m__root; }
-        dot11_ie_221_dji_droneid_t::flight_reg_info_t* _parent() const { return m__parent; }
     };
 
 private:

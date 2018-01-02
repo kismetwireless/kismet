@@ -74,10 +74,10 @@ public:
     __Proxy(airborne, uint8_t, bool, bool, airborne);
 
     void from_droneid_flight_reg(dot11_ie_221_dji_droneid_t::flight_reg_info_t *flight_reg) {
-        if (flight_reg->state_info()->unk_gps_valid()) {
+        if (flight_reg->state_gps_valid()) {
             location->set(flight_reg->lat(), flight_reg->lon());
             
-            if (flight_reg->state_info()->unk_alt_valid()) {
+            if (flight_reg->state_alt_valid()) {
                 location->set_alt(flight_reg->altitude());
                 location->set_fix(3);
             } else {
@@ -89,19 +89,19 @@ public:
         set_pitch(flight_reg->pitch());
         set_roll(flight_reg->roll());
 
-        if (flight_reg->state_info()->unk_velocity_x_valid()) {
+        if (flight_reg->state_horiz_valid()) {
             set_v_east(flight_reg->v_east());
             set_v_north(flight_reg->v_north());
         }
 
-        if (flight_reg->state_info()->unk_velocity_z_valid()) 
+        if (flight_reg->state_vup_valid()) 
             set_v_up(flight_reg->v_up());
 
-        if (flight_reg->state_info()->unk_height_valid())
+        if (flight_reg->state_height_valid())
             set_height(flight_reg->height());
 
-        set_motor_on(flight_reg->state_info()->motor_on());
-        set_airborne(flight_reg->state_info()->in_air());
+        set_motor_on(flight_reg->state_motor_on());
+        set_airborne(flight_reg->state_in_air());
     }
 
 protected:

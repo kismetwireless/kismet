@@ -59,7 +59,7 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                 help: "Kismet can identify a UAV device by several methods; 'WifiMatch' compares the MAC address and SSID.  'DroneID' matches the DJI DroneID protocol added to packets from the device.",
             },
             {
-                field: "last_telem",
+                field: "uav.device/uav.last_telemetry",
                 groupTitle: "Telemetry",
                 filterOnEmpty: true,
                 id: "last_telem",

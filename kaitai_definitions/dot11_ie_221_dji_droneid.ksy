@@ -68,11 +68,13 @@ types:
       - id: purpose_len
         type: u8
       
-      # Purpose sets a length but has a fixed size
+      # Purpose sets a length but has a fixed size; current DJI firmware
+      # seems to generate invalid frames which have a truncated purpose, 
+      # map to eos
       - id: purpose
         type: strz
         encoding: ASCII
-        size: 100
+        size-eos: true
 
   # Flight telemetry data
   flight_reg_info:
@@ -81,9 +83,9 @@ types:
       - id: version
         type: u1
       - id: seq
-        type: u2
+        type: u2le
       - id: state_info
-        type: state
+        type: u2le
       - id: serialnumber
         type: strz
         encoding: ASCII
@@ -93,25 +95,25 @@ types:
       - id: raw_lat
         type: s4le
       - id: altitude
-        type: s2
+        type: s2le
       - id: height
-        type: s2
+        type: s2le
       - id: v_north
-        type: s2
+        type: s2le
       - id: v_east
-        type: s2
+        type: s2le
       - id: v_up
-        type: s2
+        type: s2le
       - id: raw_pitch
-        type: s2
+        type: s2le
       - id: raw_roll
-        type: s2
+        type: s2le
       - id: raw_yaw
-        type: s2
+        type: s2le
       - id: raw_home_lon
-        type: s4
+        type: s4le
       - id: raw_home_lat
-        type: s4
+        type: s4le
       - id: product_type
         type: u1
       - id: uuid_len
@@ -120,80 +122,66 @@ types:
         size: 20
     
     instances:
+      state_serial_valid:
+        doc: Serial is valid
+        value: "(state_info & 0x01)"
+
+      state_user_private_disabled:
+        doc: private mode disabled (set to 1)
+        value: "(state_info & 0x02)"
+
+      state_homepoint_set:
+        doc: firmware unclear; could be conflated with uuid bit
+        value: "(state_info & 0x04)"
+
+      state_uuid_set:
+        doc: firmware unclear; could be conflated with homepoint bit
+        value: "(state_info & 0x08)"
+
+      state_motor_on:
+        value: "(state_info & 0x10)"
+
+      state_in_air:
+        value: "(state_info & 0x20)"
+
+      state_gps_valid:
+        doc: Guessed; GPS fields may be valid?
+        value: "(state_info & 0x40)"
+
+      state_alt_valid:
+        doc: Guessed; Altitude GPS record valid?
+        value: "(state_info & 0x80)"
+
+      state_height_valid:
+        doc: Guessed; Height-over-ground valid?
+        value: "(state_info & 0x100)"
+
+      state_horiz_valid:
+        doc: Guessed; Horizontal velocity valid?
+        value: "(state_info & 0x200)"
+
+      state_vup_valid:
+        doc: Guessed; V_up velocity valid?
+        value: "(state_info & 0x400)"
+
+      state_pitchroll_valid:
+        doc: Guessed; pitch/roll/yaw valid?
+        value: "(state_info & 0x800)"
+
       # Convert from float and radians in one op
       lon:
         value: raw_lon / 174533.0
-    
       lat:
         value: raw_lat / 174533.0
     
       home_lon:
         value: raw_home_lon / 174533.0
-    
       home_lat:
         value: raw_home_lat / 174533.0
         
       pitch:
         value: ((raw_pitch) / 100.0) / 57.296
-      
       roll:
         value: ((raw_roll) / 100.0) / 57.296
-      
       yaw:
         value: ((raw_yaw) / 100.0) / 57.296
-
-  state:
-    seq:
-      # 16-bit field in little-endian
-    
-      # 7 - guess
-      - id: unk_alt_valid
-        type: b1
-      # 6 - guess
-      - id: unk_gps_valid
-        type: b1
-      # 5 - Drone in the air
-      - id: in_air
-        type: b1
-      # 4 - Props on
-      - id: motor_on
-        type: b1
-      # 3 - uuid is configured
-      - id: uuid_set
-        type: b1
-      # 2 - home lat/lon valid
-      - id: homepoint_set
-        type: b1
-      # 1 - inverse - set true when private mode is disabled
-      # If false, we cannot see lat/lon/etc
-      - id: private_disabled
-        type: b1
-      # 0 - Serial # is valid
-      - id: serial_valid
-        type: b1
-        
-      # 15
-      - id: unk15
-        type: b1
-      # 14
-      - id: unk14
-        type: b1
-      # 13
-      - id: unk13
-        type: b1
-      # 12
-      - id: unk12
-        type: b1
-      # 11
-      - id: unk11
-        type: b1
-      # 10 - Guess that v_up is valid
-      - id: unk_velocity_z_valid
-        type: b1
-      # 9 - Guess that v_east / v_north valid
-      - id: unk_velocity_x_valid
-        type: b1
-      # 8 - Guess that height valid
-      - id: unk_height_valid
-        type: b1
-        
