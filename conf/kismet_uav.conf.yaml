@@ -5,6 +5,8 @@
     This config file is generated from the YAML definitions in 
     conf/kismet_uav.conf.yaml, changes should be made there.
 
+    uavmatch= options can be placed in included config files as well.
+
     The UAV/Drone phy can match against UAVs based on the presence of specific
     telemetry data packets, or based on characteristics such as the manufacturer
     and SSID.
@@ -66,6 +68,22 @@
     model: Mavic
     ssid: ^Mavic_.*
     mac: 
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00 
+
+- uav:
+    id: dji_spark
+    name: DJI
+    model: Spark
+    ssid: ^Spark-(?!RC-).*
+    mac:
+        - 60:60:1F:00:00:00/FF:FF:FF:00:00:00 
+
+- uav:
+    id: dji_spark_rc
+    name: DJI
+    model: Spark RC
+    ssid: ^Spark-RC-.*
+    mac:
         - 60:60:1F:00:00:00/FF:FF:FF:00:00:00 
 
 - uav:

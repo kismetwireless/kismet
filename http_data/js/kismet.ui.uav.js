@@ -49,7 +49,7 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
             {
                 field: "uav.device/uav.serialnumber",
                 title: "Serial Number",
-                empty: "<i>Unknown</i>",
+                filterOnEmpty: true,
                 help: "Serial numbers are available from UAV devices which broadcast the DroneID protocol.  Currently only DJI devices advertise this protocol.",
             },
             {
@@ -62,6 +62,7 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                 field: "uav.device/uav.last_telemetry",
                 groupTitle: "Telemetry",
                 filterOnEmpty: true,
+                filterOnZero: true,
                 id: "last_telem",
                 fields: [
                 {
