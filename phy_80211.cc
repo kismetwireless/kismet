@@ -978,7 +978,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (bssid_dev != NULL) {
             // Now we've instantiated and mapped all the possible devices and dot11 devices; now
             // populate the per-client records for any which have mgmt communication
-            if (source_dev != NULL)
+            
+            // Don't map blind req's as being a client
+            if (source_dev != NULL && 
+                    (dot11info->subtype != packet_sub_probe_req &&
+                     dot11info->subtype != packet_sub_association_req &&
+                     dot11info->subtype != packet_sub_reassociation_req))
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
