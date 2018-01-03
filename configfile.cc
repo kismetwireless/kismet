@@ -38,6 +38,11 @@
 #define GLOB_TILDE_CHECK GLOB_TILDE
 #endif
 
+// uclibc is missing GLOB_TILDE entirely so just disable it
+#ifndef GLOB_TILDE
+#define GLOB_TILDE 0
+#endif
+
 ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     checksum = 0;
