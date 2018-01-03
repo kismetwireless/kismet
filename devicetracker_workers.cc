@@ -50,7 +50,6 @@
 #include "structured.h"
 #include "kismet_json.h"
 #include "base64.h"
-#include "structured.h"
 
 devicetracker_function_worker::devicetracker_function_worker(GlobalRegistry *in_globalreg,
         function<bool (Devicetracker *, shared_ptr<kis_tracked_device_base>)> in_mcb,
@@ -140,8 +139,10 @@ void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __a
 
 }
 
-devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_globalreg,
-        vector<shared_ptr<devicetracker_regex_worker::regex_filter> > in_filter_vec) {
+#ifdef HAVE_LIBPCRE
+
+devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+        vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec) {
 
     globalreg = in_globalreg;
 
@@ -152,8 +153,8 @@ devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_global
     error = false;
 }
 
-devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_globalreg,
-        SharedStructured raw_regex_vec) {
+devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
+        SharedStructured raw_pcre_vec) {
 
     globalreg = in_globalreg;
 
@@ -165,8 +166,9 @@ devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_global
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
 
-    StructuredData::structured_vec rawvec = raw_regex_vec->getStructuredArray();
-    for (auto i = rawvec.begin(); i != rawvec.end(); ++i) {
+    StructuredData::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    for (StructuredData::structured_vec::iterator i = rawvec.begin(); 
+            i != rawvec.end(); ++i) {
         StructuredData::structured_vec rpair = (*i)->getStructuredArray();
 
         if (rpair.size() != 2)
@@ -175,18 +177,26 @@ devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_global
         string field = rpair[0]->getString();
         string regex = rpair[1]->getString();
 
-        shared_ptr<regex_filter> filter(new regex_filter());
+        shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = field;
 
-        filter->regex = new regex_t;
-
+        const char *compile_error, *study_error;
+        int erroroffset;
         ostringstream errordesc;
-        int rc = regcomp(filter->regex, regex.c_str(), REG_EXTENDED | REG_NOSUB);
-        char errstr[1024];
 
-        if (rc != 0) {
-            regerror(rc, filter->regex, errstr, 1024);
-            errordesc << "Could not parse regex expression: " << errstr;
+        filter->re =
+            pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+        if (filter->re == NULL) {
+            errordesc << "Could not parse PCRE expression: " << compile_error <<
+                " at character " << erroroffset;
+            throw std::runtime_error(errordesc.str());
+        }
+
+        filter->study = pcre_study(filter->re, 0, &study_error);
+        if (filter->study == NULL) {
+            errordesc << "Could not parse PCRE expression, study/optimization "
+                "failure: " << study_error;
             throw std::runtime_error(errordesc.str());
         }
 
@@ -194,9 +204,9 @@ devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_global
     }
 }
 
-devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_globalreg,
+devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
         string in_target,
-        SharedStructured raw_regex_vec) {
+        SharedStructured raw_pcre_vec) {
 
     globalreg = in_globalreg;
 
@@ -208,25 +218,32 @@ devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_global
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
 
-    StructuredData::structured_vec rawvec = raw_regex_vec->getStructuredArray();
+    StructuredData::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
     for (StructuredData::structured_vec::iterator i = rawvec.begin(); 
             i != rawvec.end(); ++i) {
 
         string regex = (*i)->getString();
 
-        shared_ptr<regex_filter> filter(new regex_filter());
+        shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = in_target; 
 
+        const char *compile_error, *study_error;
+        int erroroffset;
         ostringstream errordesc;
 
-        filter->regex = new regex_t;
+        filter->re =
+            pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
 
-        int rc = regcomp(filter->regex, regex.c_str(), REG_EXTENDED | REG_NOSUB);
-        char errstr[1024];
+        if (filter->re == NULL) {
+            errordesc << "Could not parse PCRE expression: " << compile_error <<
+                " at character " << erroroffset;
+            throw std::runtime_error(errordesc.str());
+        }
 
-        if (rc != 0) {
-            regerror(rc, filter->regex, errstr, 1024);
-            errordesc << "Could not parse regex expression: " << errstr;
+        filter->study = pcre_study(filter->re, 0, &study_error);
+        if (filter->study == NULL) {
+            errordesc << "Could not parse PCRE expression, study/optimization "
+                "failure: " << study_error;
             throw std::runtime_error(errordesc.str());
         }
 
@@ -234,12 +251,12 @@ devicetracker_regex_worker::devicetracker_regex_worker(GlobalRegistry *in_global
     }
 }
 
-devicetracker_regex_worker::~devicetracker_regex_worker() {
+devicetracker_pcre_worker::~devicetracker_pcre_worker() {
 }
 
-bool devicetracker_regex_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         shared_ptr<kis_tracked_device_base> device) {
-    vector<shared_ptr<devicetracker_regex_worker::regex_filter> >::iterator i;
+    vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
     bool matched = false;
 
@@ -267,10 +284,13 @@ bool devicetracker_regex_worker::MatchDevice(Devicetracker *devicetracker __attr
             else
                 continue;
 
-            int rc = regexec((*i)->regex, val.c_str(), 0, NULL, 0);
+            int rc;
+            int ovector[128];
+
+            rc = pcre_exec((*i)->re, (*i)->study, val.c_str(), val.length(), 0, 0, ovector, 128);
 
             // Stop matching as soon as we find a hit
-            if (rc != REG_NOMATCH) {
+            if (rc >= 0) {
                 matched = true;
                 break;
             }
@@ -284,8 +304,9 @@ bool devicetracker_regex_worker::MatchDevice(Devicetracker *devicetracker __attr
     return false;
 }
 
-void devicetracker_regex_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+void devicetracker_pcre_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
 
 }
 
+#endif
 

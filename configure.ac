@@ -823,6 +823,49 @@ caplibs="-lcap"
 AC_SUBST(caplibs)
 fi
 
+AC_ARG_WITH(pcreheaders,
+	[  --with-pcreheaders[=DIR]      Custom location of the PCRE library headers ],
+	[
+   	 if test "$withval" != no -a "$withval" != "yes"; then
+        CPPFLAGS="$CPPFLAGS -I$withval"
+    fi
+	])
+
+AC_ARG_ENABLE(pcre,
+	[  --disable-pcre          disable building pcre components],
+	[case "${enableval}" in
+	  no) wantpcre=no ;;
+	   *) wantpcre=yes ;;
+	 esac],
+	[wantpcre=yes]
+)
+
+if test "$wantpcre" = "yes"; then
+	# Check for pcre
+	pcrel=no
+	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
+
+	if test "$pcrel" != "yes"; then
+		AC_MSG_WARN(Failed to find libpcre)
+		wantpcre=no
+	fi
+
+	if test "$wantpcre" = "yes"; then
+	pcreh=no
+	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
+
+	if test "$pcreh" != "yes"; then
+		AC_MSG_WARN(Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages)
+		wantpcre=no
+	fi
+	fi # wantpcre
+
+	if test "$wantpcre" = "yes"; then
+	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
+	LIBS="$LIBS -lpcre"
+	fi # pcre
+fi
+
 # Don't check for sqlite3 if we're only building datasources
 if test "$caponly" = 0; then
 
@@ -1327,6 +1370,12 @@ else
 	echo "no"
 fi
 printf "        Prelude  SIEM : $wantprelude\n"
+printf "   PCRE Regex Filters : "
+if test "$wantpcre" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
 printf "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"

@@ -135,6 +135,9 @@
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
+/* libpcre regex support */
+#undef HAVE_LIBPCRE
+
 /* libsqlite3 database support */
 #undef HAVE_LIBSQLITE3
 

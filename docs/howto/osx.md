@@ -19,9 +19,11 @@ Kismet should build on OSX directly, but requires some libraries be installed.
 
      `$ sudo port install libmicrohttpd`
 
+     `$ sudo port install pcre`
+
    * For `brew`:
 
-     `$ brew install libmicrohttpd`
+     `$ brew install libmicrohttpd pcre`
 
 4. Make a source dir for Kismet (optional, but recommended)
    `$ mkdir src`
