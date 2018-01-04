@@ -639,11 +639,12 @@ if test "$foundlcurses" != "yes"; then
                      foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
 fi
 
-AC_SEARCH_LIBS([stdscr], tinfo ncurses,curseaux="$curseaux $ac_res")
-
 if test "$foundlcurses" != "yes"; then
     AC_MSG_WARN(Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper)
 fi
+
+AC_CHECK_LIB([ncurses], [stdscr], [], [])
+AC_CHECK_LIB([tinfo], [stdscr], curseaux="$curseaux -ltinfo")
 
 if test "$termcontrol" = "ncurses"; then
     AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])

@@ -7892,12 +7892,18 @@ fi
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing stdscr" >&5
-$as_echo_n "checking for library containing stdscr... " >&6; }
-if ${ac_cv_search_stdscr+:} false; then :
+if test "$foundlcurses" != "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&5
+$as_echo "$as_me: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&2;}
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdscr in -lncurses" >&5
+$as_echo_n "checking for stdscr in -lncurses... " >&6; }
+if ${ac_cv_lib_ncurses_stdscr+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-  ac_func_search_save_LIBS=$LIBS
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lncurses  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7916,43 +7922,66 @@ return stdscr ();
   return 0;
 }
 _ACEOF
-for ac_lib in '' tinfo ncurses; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_search_stdscr=$ac_res
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_ncurses_stdscr=yes
+else
+  ac_cv_lib_ncurses_stdscr=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_stdscr+:} false; then :
-  break
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
 fi
-done
-if ${ac_cv_search_stdscr+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ncurses_stdscr" >&5
+$as_echo "$ac_cv_lib_ncurses_stdscr" >&6; }
+if test "x$ac_cv_lib_ncurses_stdscr" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBNCURSES 1
+_ACEOF
 
+  LIBS="-lncurses $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdscr in -ltinfo" >&5
+$as_echo_n "checking for stdscr in -ltinfo... " >&6; }
+if ${ac_cv_lib_tinfo_stdscr+:} false; then :
+  $as_echo_n "(cached) " >&6
 else
-  ac_cv_search_stdscr=no
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ltinfo  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char stdscr ();
+int
+main ()
+{
+return stdscr ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_tinfo_stdscr=yes
+else
+  ac_cv_lib_tinfo_stdscr=no
 fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_stdscr" >&5
-$as_echo "$ac_cv_search_stdscr" >&6; }
-ac_res=$ac_cv_search_stdscr
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  curseaux="$curseaux $ac_res"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_tinfo_stdscr" >&5
+$as_echo "$ac_cv_lib_tinfo_stdscr" >&6; }
+if test "x$ac_cv_lib_tinfo_stdscr" = xyes; then :
+  curseaux="$curseaux -ltinfo"
 fi
 
-
-if test "$foundlcurses" != "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&5
-$as_echo "$as_me: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&2;}
-fi
 
 if test "$termcontrol" = "ncurses"; then
     ac_fn_cxx_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"

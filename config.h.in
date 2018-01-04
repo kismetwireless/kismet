@@ -108,7 +108,7 @@
 /* Define to 1 if you have the <libhackrf/hackrf.h> header file. */
 #undef HAVE_LIBHACKRF_HACKRF_H
 
-/* NCurses terminal lib */
+/* Define to 1 if you have the `ncurses' library (-lncurses). */
 #undef HAVE_LIBNCURSES
 
 /* libnl netlink library */
