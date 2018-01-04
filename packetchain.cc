@@ -25,6 +25,8 @@
 #include <inttypes.h>
 #endif
 
+#include <pthread.h>
+
 #include "globalregistry.h"
 #include "messagebus.h"
 #include "configfile.h"
@@ -64,7 +66,13 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     // Lock the packet conditional
     packet_condition.lock();
 
-    packet_thread = std::thread(packet_queue_processor, this);
+    // Create a pthread thread because we have to manipulate the stack size;
+    // The decoder thread handles almost everything about a packet and some
+    // libcs seem to limit us in bad ways
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, (1024 * 8));
+    pthread_create(&packet_thread, &attr, Packetchain::packet_queue_processor, (void *) this);
 }
 
 Packetchain::~Packetchain() {
@@ -73,7 +81,8 @@ Packetchain::~Packetchain() {
         local_locker qlock(&packetqueue_mutex);
         packetchain_shutdown = true;
         packet_condition.unlock();
-        packet_thread.join();
+
+        pthread_join(packet_thread, NULL);
     }
 
     {
@@ -202,7 +211,8 @@ kis_packet *Packetchain::GeneratePacket() {
     return newpack;
 }
 
-void Packetchain::packet_queue_processor(Packetchain *packetchain) {
+void *Packetchain::packet_queue_processor(void *in_packetchain) {
+    Packetchain *packetchain = (Packetchain *) in_packetchain;
     kis_packet *packet = NULL;
     local_demand_locker queue_lock(&(packetchain->packetqueue_mutex));
     local_demand_locker chain_lock(&(packetchain->packetchain_mutex));
@@ -212,7 +222,7 @@ void Packetchain::packet_queue_processor(Packetchain *packetchain) {
 
         // Are we shutting down?
         if (packetchain->packetchain_shutdown)
-            return;
+            return NULL;
       
         if (packetchain->packet_queue.size() != 0) {
             // Get the next packet

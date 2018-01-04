@@ -138,7 +138,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    static void packet_queue_processor(Packetchain *packetchain);
+    static void *packet_queue_processor(void *in_packetchain);
 
     // Common function for both insertion methods
     int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
@@ -167,8 +167,10 @@ protected:
     // Whole packet-chain mutex
     kis_recursive_timed_mutex packetchain_mutex;
 
-    // Packet queue management
-    std::thread packet_thread;
+    // Packet queue management; we have to use raw threads to be able to set
+    // the stack size on them, which may be needed for MUSL Libc
+    pthread_t packet_thread;
+
     kis_recursive_timed_mutex packetqueue_mutex;
     conditional_locker<int> packet_condition;
     std::queue<kis_packet *> packet_queue;
