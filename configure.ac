@@ -607,6 +607,23 @@ elif test "$HAVE_LIBMICROHTTPD" = 1; then
         AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
 fi
 
+OLIBS="$LIBS"
+LIBS="$LIBS -lmicrohttpd"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <microhttpd.h>
+]], [[
+    struct MHD_Daemon *microhttpd = NULL;
+    MHD_quiesce_daemon(microhttpd);
+    return 0;
+]])],[mhd_quiesce=1],[mhd_quiesce=0])
+LIBS="$OLIBS"
+
+if test "$mhd_quiesce" = 1; then
+    AC_DEFINE(MHD_QUIESCE, 1, Able to use MHD_quiesce_daemon to shut down)
+else
+    AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
+fi
+
 # Check for ncurses for pretty wrapper; no longer mandatory
 
 termcontrol="none";

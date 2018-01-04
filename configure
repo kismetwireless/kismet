@@ -7760,6 +7760,43 @@ fi
 
 fi
 
+OLIBS="$LIBS"
+LIBS="$LIBS -lmicrohttpd"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <microhttpd.h>
+
+int
+main ()
+{
+
+    struct MHD_Daemon *microhttpd = NULL;
+    MHD_quiesce_daemon(microhttpd);
+    return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  mhd_quiesce=1
+else
+  mhd_quiesce=0
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS="$OLIBS"
+
+if test "$mhd_quiesce" = 1; then
+
+$as_echo "#define MHD_QUIESCE 1" >>confdefs.h
+
+else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&5
+$as_echo "$as_me: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&2;}
+fi
+
 # Check for ncurses for pretty wrapper; no longer mandatory
 
 termcontrol="none";

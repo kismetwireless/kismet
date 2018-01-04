@@ -205,6 +205,11 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
         delete(session_db);
     }
 
+#ifdef MHD_QUIESCE
+    if (microhttpd != NULL)
+        MHD_stop_daemon(microhttpd);
+#endif
+
     session_map.clear();
 }
 
@@ -372,12 +377,20 @@ int Kis_Net_Httpd::StopHttpd() {
     static_dir_vec.clear();
 
     if (microhttpd != NULL) {
-        // Formerly we quiesced the httpd daemon but that api seemed to have
-        // problems on some builds; now we silence the panic handler and 
-        // shut down the daemon
-        
         running = false;
+
+        // If possible we want to quiesce the daemon and stop it fully in our 
+        // deconstructor; however on some implementations of microhttpd that's 
+        // not available.
+        //
+        // Unfortunately, on OTHER builds of microhttpd, 'stop' has a race
+        // condition (notably the version shipped in ubuntu up to, at least,
+        // 17.10) so we want to prefer the 'right' one
+#ifdef MHD_QUIESCE
+        MHD_quiesce_daemon(microhttpd);
+#else
         MHD_stop_daemon(microhttpd);
+#endif
         return 1;
     }
 
