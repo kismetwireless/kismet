@@ -30,37 +30,74 @@ $ git clone https://www.kismetwireless.net/kismet.git
 
 This will take a little while to download, and due to how Git handles https servers, may look like it's hung - just give it time.
 
-## Get the tetra openwrt code
+## Get the OpenWRT code
 
-Firstly, you'll need the Tetra snapshot of OpenWRT.  It's on github at https://github.com/WiFiPineapple/openwrt-pineapple-tetra so you'd do:
+With the move to the 2.x firmware, the Tetra is now based on OpenWRT 15.05.  Until the official Tetra branch is posted, for compiling individual packages you should be able to base off the OpenWRT master branch:
 
 ```
-$ git clone https://github.com/WiFiPineapple/openwrt-pineapple-tetra.git
+$ git clone https://git.openwrt.org/15.05/openwrt.git openwrt-cc-tetra
 ```
 
-## Fix the OpenWRT download script
+## Patch the OpenWRT Code
 
-Openwrt hasn't been updated in some time; the kernel.org FTP server is now gone.
+The 15.05 branch of OpenWRT has issues building on modern systems; so you have 2 options:
 
-Edit `scripts/download.pl` in your OpenWRT source and change:
+1. Install an older Ubuntu in a virtual machine or container (14.04 would likely work)
+2. Modify some files.
 
-`push @mirrors, "http://ftp.all.kernel.org/pub/$dir";`
+Assuming you'll be building on a modern system, first you will have to patch the prerequisite build system to detect modern git; without this, `make menuconfig` (or any other build commands) will fail.
 
-to
+```
+diff --git a/include/prereq-build.mk b/include/prereq-build.mk
+index 32c4adabb7..93aae75756 100644
+--- a/include/prereq-build.mk
++++ b/include/prereq-build.mk
+@@ -144,8 +144,9 @@ $(eval $(call SetupHostCommand,python,Please install Python 2.x, \
+ $(eval $(call SetupHostCommand,svn,Please install the Subversion client, \
+        svn --version | grep Subversion))
+ 
+-$(eval $(call SetupHostCommand,git,Please install Git (git-core) >= 1.6.5, \
+-       git clone 2>&1 | grep -- --recursive))
++$(eval $(call SetupHostCommand,git,Please install Git (git-core) >= 1.7.12.2, \
++       git --exec-path | xargs -I % -- grep -q -- --recursive %/git-submodule))
++
+ 
+ $(eval $(call SetupHostCommand,file,Please install the 'file' package, \
+        file --version 2>&1 | grep file))
+```
 
-`push @mirrors, "https://kernel.org/pub/$dir";`
+You'll also need to patch against a bug in the old OpenWRT code triggered by a modern perl version:
 
-## Enable the feeds in OpenWRT
+```
+$ curl 'https://git.lede-project.org/?p=openwrt/openwrt.git;a=blob_plain;f=tools/automake/patches/010-automake-port-to-Perl-5.22-and-later.patch;h=31b9273d547145e5ecbeaef20a1e82cc9292fdc2;hb=92c80f38cff3c20388f9ac13d5196f2745aeaf77' > tools/automake/patches/010-automake-perl.patch
+```
 
-Kismet needs a bunch of libraries which are found in the OpenWRT Git Feeds.  You can enable them in the OpenWRT build by:
 
-1. Go into the OpenWRT directory you just cloned: `$ cd src/openwrt-pineapple-tetra/`
-2. Run menuconfig: `$ make menuconfig`
-3. Navigate to 'Image Configuration'
-4. Navigate to 'Separate Feed Repositories'
-5. Select 'Enable feed packages'
 
-Then tab over to Exit, back out, and when prompted to save, do so.
+## Do the basic OpenWRT Config
+
+You will need to select the basic options for OpenWRT and enable the external feed for additional libraries Kismet needs.  When running `make menuconfig` you may see warnings about needing additional packages - install any that OpenWRT says you are missing.
+
+```
+# Go into the directory you just cloned
+$ cd openwrt-cc-tetra
+
+# Start the configuration tool
+$ make menuconfig
+```
+
+Inside the OpenWRT configuration you will want to:
+
+1. Confirm that the correct platform is selected.  It should say:
+   `Target System (Atheros AR7xxx/AR9xxx) `
+   and
+   `  Subtarget (Generic)`
+   These are the defaults so you should be all set.
+   Because we are only trying to build packages and not a complete system, we don't need to configure the image formats; default is fine.
+2. Navigate to `Image Configuration`
+3. Navigate to `Separate Feed Repositories`
+4. Select `Enable feed packages`
+5. Exit the config tool.  When prompted to save, do so.
 
 ## Install the feeds
 
@@ -73,22 +110,15 @@ $ ./scripts/feeds install -a
 
 This will download all the third-party package definitions.
 
-## Copy the Kismet package
+## Copy the Kismet package definition
 
 We want to copy the Kismet package over, because we'll potentially be making some modifications.
 
 ```
-$ cp -R ~/src/kismet/packaging/openwrt/kismet-tetra ~/src/openwrt-pineapple-tetra/package/network
+$ cp -R ~/src/kismet/packaging/openwrt/kismet-tetra ~/src/openwrt-master-tetra/package/network
 ```
 
 Where, of course, you want to copy from your checked out Kismet code to the checked out OpenWRT Tetra code; your directories might be different.
-
-## Edit the Kismet package
-
-If you want to get on the absolutely latest bleeding edge Kismet git, there are two changes you can make.  Open up package/network/kismet-tetra/Makefile in an editor, then:
-
-1. Update the git version to the latest.  Run `git log` in the Kismet code directory, and get the latest commit ID.  It should look like a big string of numbers and letters, such as `commit 1e54a5c9d2e45180493c36d528a6e02841dacaa6`.  In the Makefile you're editing, replace the version in the line `PKG_SOURCE_VERSION:=` with this new commit.
-2. If you want to make building a lot faster, you can change the line `PKG_SOURCE_URL:=https://www.kismetwireless.net/kismet.git` to point to your local copy you've already checked out, for instance, `PKG_SOURCE_URL:/home/dragorn/src/kismet/`, replacing the path with the path to where you checked out Kismet git in the first step.
 
 ## Enable Kismet
 
@@ -108,28 +138,36 @@ Now we need to start the build process:  It will take a while.
 $ make
 ```
 
+Depending on how many processors your system has, you can speed this up with
+
+```
+$ make -j10
+```
+
+or similar.
+
 ## Copy the packages!
 
 If everything went well, you now have a bunch of packages to copy to your Tetra:
 
 ```
 $ cd bin/ar71xx/packages
-$ scp  packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.5.3-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-tetra_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk packages/libsqlite3_3081101-1_ar71xx.ipk root@172.16.42.1:/tmp
+$ scp packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.8.1-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk base/kismet-tetra_2017git-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk packages/libsqlite3_3081101-1_ar71xx.ipk root@172.16.42.1:/tmp
 ```
 
 ## If you're rebuilding the latest Git
 
 If you have already compiled Kismet and are just trying to update it, you simply need to:
 
-1. Edit the Kismet package Makefile as above, to set the latest git version
--or-
-2. If the git version is set to `'HEAD'`, you will need to delete the staging and downloaded code.  From your openwrt build dir,
-    ```
-    $ rm -rf build_dir/target-mips_34kc_uClibc-0.9.33.2/kismet-tetra-2017git/
-    $ rm dl/kismet*
-    ```
-3. Run `make menuconfig` to update any dependencies which have changed
-4. Compile normally
+1. Delete the staging and downloaded code.  From your openwrt build dir,
+
+  ```
+  $ rm -rf build_dir/target-mips_34kc_uClibc-0.9.33.2/kismet-tetra-2017git/
+  $ rm dl/kismet*
+  ```
+2. Run `make menuconfig` to update any dependencies which have changed
+3. Compile normally as before or compile just the Kismet package and its dependencies with:
+    ` $ make package/network/kismet-tetra/compile`
 
 ## Install Kismet on the tetra
 
