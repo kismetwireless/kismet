@@ -7,10 +7,9 @@ After=network.target auditd.service
 User=root
 Group=root
 Type=simple
-ExecStart=@prefix@/bin/kismet
+ExecStart=@prefix@/bin/kismet --no-ncurses
 KillMode=process
 TimeoutSec=0
-SysVStartPriority=99
 Restart=always
 
 [Install]
