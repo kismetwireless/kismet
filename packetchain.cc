@@ -71,7 +71,10 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     // libcs seem to limit us in bad ways
     pthread_attr_t attr;
     pthread_attr_init(&attr);
+    /*
+     * Disable - doesn't fix musl bug, might break other platforms
     pthread_attr_setstacksize(&attr, (1024 * 8));
+    */
     pthread_create(&packet_thread, &attr, Packetchain::packet_queue_processor, (void *) this);
 }
 
