@@ -37,6 +37,10 @@ KisPPILogfile::KisPPILogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_b
 	cbfilter = NULL;
 	cbaux = NULL;
 
+	dumpfile = NULL;
+	dumper = NULL;
+    dump_filep = NULL;
+
     pack_comp_80211 = globalreg->packetchain->RegisterPacketComponent("PHY80211");
     pack_comp_mangleframe = globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
     pack_comp_radiodata = globalreg->packetchain->RegisterPacketComponent("RADIODATA");
@@ -53,6 +57,7 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 
 	dumpfile = NULL;
 	dumper = NULL;
+    dump_filep = NULL;
 
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
@@ -60,17 +65,28 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 	dumpfile = pcap_open_dead(DLT_PPI, MAX_PACKET_LEN);
 
 	if (dumpfile == NULL) {
-		_MSG("Failed to open pcap dump file '" + in_path + "': " +
+		_MSG("Failed to prep pcap dump file '" + in_path + "': " +
                 std::string(strerror(errno)), MSGFLAG_ERROR);
         return false;
 	}
 
-	dumper = pcap_dump_open(dumpfile, in_path.c_str());
-	if (dumper == NULL) {
-		_MSG("Failed to open pcap dump file '" + in_path + "': " +
+    // Open as a filepointer
+    dump_filep = fopen(in_path.c_str(), "wb");
+    if (dump_filep == NULL) {
+        _MSG("Failed to open pcap dump file '" + in_path + "': " +
                 std::string(strerror(errno)), MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return false;
+        return false;
+    }
+
+    // Close it on exec
+    fcntl(fileno(dump_filep), F_SETFL, fcntl(fileno(dump_filep), F_GETFL, 0) | O_CLOEXEC);
+
+	dumper = pcap_dump_fopen(dumpfile, dump_filep);
+    if (dumper == NULL) {
+        _MSG("Failed to open pcap dump file '" + in_path + "': " +
+                std::string(strerror(errno)), MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return false;
 	}
 
 	_MSG("Opened pcapdump log file '" + in_path + "'", MSGFLAG_INFO);
@@ -98,12 +114,17 @@ void KisPPILogfile::Log_Close() {
         pcap_dump_close(dumper);
     }
 
-	if (dumpfile != NULL) {
-		pcap_close(dumpfile);
-	}
+    if (dumpfile != NULL) {
+        pcap_close(dumpfile);
+    }
+
+    if (dump_filep != NULL) {
+        fclose(dump_filep);
+    }
 
 	dumper = NULL;
 	dumpfile = NULL;
+    dump_filep = NULL;
 
 }
 

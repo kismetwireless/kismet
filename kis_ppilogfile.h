@@ -83,6 +83,7 @@ protected:
 
 	pcap_t *dumpfile;
 	pcap_dumper_t *dumper;
+    FILE *dump_filep;
 
 	int dlt;
 
