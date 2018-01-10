@@ -196,7 +196,7 @@ void LogTracker::Deferred_Startup() {
         return;
     }
 
-#if 1
+#if 0
     TrackerElementVector builders(logproto_vec);
     TrackerElementVector logfiles(logfile_vec);
 
@@ -234,7 +234,7 @@ void LogTracker::Deferred_Startup() {
     }
 #endif
 
-#if 0
+#if 1
     // Open all of them
     for (auto t : v) {
         std::string logtype = GetTrackerValue<std::string>(t);
@@ -294,15 +294,11 @@ SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
         std::shared_ptr<KisLogfileBuilder> builder = std::static_pointer_cast<KisLogfileBuilder>(b);
 
         if (builder->get_log_class() == in_class) {
-            target_builder = builder;
-            break;
+            return open_log(builder, in_title);
         }
     }
 
-    if (target_builder == NULL)
-        return 0;
-
-    return open_log(target_builder, in_title);
+    return 0;
 }
 
 SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder) {
