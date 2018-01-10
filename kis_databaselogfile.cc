@@ -103,7 +103,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     db_enabled = true;
 
-    sqlite3_exec(db, "PRAGMA journal_mode=memory", NULL, NULL, NULL);
+    sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
     
     // Go into transactional mode where we only commit every 10 seconds
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
@@ -197,6 +197,12 @@ void KisDatabaseLogfile::Log_Close() {
             sqlite3_finalize(snapshot_stmt);
         snapshot_stmt = NULL;
     }
+
+    sqlite3_exec(db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN_EXCLUSIVE", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
+
+    Database_Close();
 }
 
 int KisDatabaseLogfile::Database_UpgradeDB() {
