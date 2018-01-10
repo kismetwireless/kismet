@@ -42,7 +42,7 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
             },
             {
                 field: "uav.device/uav.model",
-                title: "Mmodel",
+                title: "Model",
                 filterOnEmpty: true,
                 help: "The UAV model may be derived from characteristics such as MAC address and SSID, or from embedded data such as the DroneID information.",
             },
