@@ -189,6 +189,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         /* We set the width and let OSX figure it out */
         (ret_localchan)->channel = parsechan;
         (ret_localchan)->width = DARWIN_CHANWIDTH_40MHZ;
+        (ret_localchan)->pos = pos;
 
         return ret_localchan;
     }
