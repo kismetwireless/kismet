@@ -27,6 +27,8 @@ KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_nam
 
     globalreg = in_globalreg;
 
+    db = NULL;
+
 }
 
 KisDatabase::~KisDatabase() {
@@ -96,6 +98,16 @@ bool KisDatabase::Database_Open(std::string in_file_path) {
     }
 
     return true;
+}
+
+void KisDatabase::Database_Close() {
+    local_locker dblock(&ds_mutex);
+
+    if (db != NULL) {
+        sqlite3_close(db);
+    }
+
+    db = NULL;
 }
 
 bool KisDatabase::Database_CreateMasterTable() {

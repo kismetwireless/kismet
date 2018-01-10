@@ -68,6 +68,7 @@ public:
     // the database is opened in the local-user settings dir and named according to
     // the module name
     virtual bool Database_Open(std::string in_path);
+    virtual void Database_Close();
 
     virtual bool Database_Valid();
 
