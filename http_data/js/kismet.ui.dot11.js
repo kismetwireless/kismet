@@ -125,6 +125,9 @@ exports.CryptToHumanReadable = function(cryptset) {
 };
 
 kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
+    if (in_freq == 0)
+        return "n/a";
+
     in_freq = parseInt(in_freq / 1000);
 
     if (in_freq == 2484)
