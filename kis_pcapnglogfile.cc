@@ -53,6 +53,10 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
     // Generate the pcap stream itself
     pcapng_stream = new Pcap_Stream_Ringbuf(globalreg, bufferhandler, NULL, NULL);
 
+    _MSG("Opened pcapng log file '" + in_path + "'", MSGFLAG_INFO);
+
+    set_int_log_open(true);
+
     return true;
 }
 
@@ -68,10 +72,6 @@ void KisPcapNGLogfile::Log_Close() {
     }
 
     bufferhandler.reset();
-
-    if (pcapng_file != NULL) {
-        delete(pcapng_file);
-        pcapng_file = NULL;
-    }
+    pcapng_file = NULL;
 }
 

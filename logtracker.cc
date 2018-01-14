@@ -238,6 +238,7 @@ void LogTracker::Deferred_Startup() {
     // Open all of them
     for (auto t : v) {
         std::string logtype = GetTrackerValue<std::string>(t);
+        printf("type: %s\n", logtype.c_str());
 
         open_log(logtype);
     }

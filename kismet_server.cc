@@ -69,6 +69,7 @@
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
 #include "kis_databaselogfile.h"
+#include "kis_pcapnglogfile.h"
 
 #include "timetracker.h"
 #include "alertracker.h"
@@ -974,6 +975,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPPILogfileBuilder(globalregistry)));
     Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder(globalregistry)));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder(globalregistry)));
 
 
     shared_ptr<Plugintracker> plugintracker;

@@ -87,7 +87,12 @@ ssize_t FileWritebuf::write(uint8_t *in_data, size_t in_sz) {
     if (backfile == NULL)
         return -1;
 
-    return (ssize_t) fwrite(in_data, in_sz, 1, backfile);
+    size_t written = fwrite(in_data, in_sz, 1, backfile);
+
+    if (written == 1)
+        return in_sz;
+
+    return 0;
 }
 
 ssize_t FileWritebuf::reserve(unsigned char **data, size_t in_sz) {
@@ -96,6 +101,8 @@ ssize_t FileWritebuf::reserve(unsigned char **data, size_t in_sz) {
     if (write_reserved) {
         throw std::runtime_error("filebuf already reserved");
     }
+
+    write_reserved = true;
 
     if (in_sz < chunk_sz) {
         *data = reserve_chunk;
@@ -131,6 +138,6 @@ bool FileWritebuf::commit(unsigned char *data, size_t in_sz) {
         delete[] data;
     }
 
-    return written == in_sz;
+    return written == 1;
 }
 
