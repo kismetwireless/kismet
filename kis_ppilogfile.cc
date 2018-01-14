@@ -66,7 +66,7 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 
 	if (dumpfile == NULL) {
 		_MSG("Failed to prep pcap dump file '" + in_path + "': " +
-                std::string(strerror(errno)), MSGFLAG_ERROR);
+                kis_strerror_r(errno), MSGFLAG_ERROR);
         return false;
 	}
 

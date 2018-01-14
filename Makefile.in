@@ -82,7 +82,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
-	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o \
+	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
 	pcapng_stream_ringbuf.cc.o streambuf_stream_buffer.cc.o \
