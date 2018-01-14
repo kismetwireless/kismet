@@ -183,7 +183,7 @@ class uuid {
                 r = fread(buf, nbytes, 1, random);
                 fclose(random);
 
-                if (r == nbytes)
+                if (r >= 1)
                     return;
             }
 
@@ -191,7 +191,7 @@ class uuid {
                 r = fread(buf, nbytes, 1, random);
                 fclose(random);
 
-                if (r == nbytes)
+                if (r >= 1)
                     return;
             }
 
