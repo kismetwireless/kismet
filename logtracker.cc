@@ -196,53 +196,11 @@ void LogTracker::Deferred_Startup() {
         return;
     }
 
-#if 0
-    TrackerElementVector builders(logproto_vec);
-    TrackerElementVector logfiles(logfile_vec);
-
-    for (auto t : v) {
-        std::string logtype = GetTrackerValue<std::string>(t);
-
-        // Scan all the builders and find a matching log type, build logfile for it
-        for (auto b : builders) {
-            std::shared_ptr<KisLogfileBuilder> builder =
-                std::static_pointer_cast<KisLogfileBuilder>(b);
-            if (builder->get_log_class() != logtype)
-                continue;
-
-            // Generate the logfile using the builder an giving it the sharedptr
-            // to itself because sharedptrs are funky
-            SharedLogfile lf = builder->build_logfile(builder);
-            lf->set_id(logfile_entry_id);
-
-            logfiles.push_back(lf);
-        }
-    }
-
-    for (auto l : logfiles) {
-        SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
-
-        std::string logpath =
-            globalreg->kismet_config->ExpandLogPath(get_log_template(),
-                    get_log_title(),
-                    lf->get_builder()->get_log_class(), 1, 0);
-
-        if (!lf->Log_Open(logpath)) {
-            _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
-                    MSGFLAG_ERROR);
-        }
-    }
-#endif
-
-#if 1
     // Open all of them
     for (auto t : v) {
         std::string logtype = GetTrackerValue<std::string>(t);
-        printf("type: %s\n", logtype.c_str());
-
         open_log(logtype);
     }
-#endif
 
     return;
 }
