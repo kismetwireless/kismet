@@ -343,6 +343,43 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     return nameobj;
                 }
             },
+
+            {
+                field: "kismet.device.base.tags/notes",
+                title: "Notes",
+                help: "Abritrary notes",
+                render: function(opts) {
+                    var notes = opts['data']['kismet.device.base.tags']['notes'];
+                    
+                    var notesobj = 
+                        $('<a>', {
+                            'href': '#',
+                            'data-type': 'textarea',
+                        })
+                        .html(notes.convertNewlines());
+
+                    exports.LoginCheck(function(success) { 
+                        if (success) {
+                            notesobj.editable({
+                                type: 'text',
+                                mode: 'inline',
+                                success: function(response, newvalue) {
+                                    var jscmd = {
+                                        "tagname": "notes",
+                                        "tagvalue": newvalue.escapeSpecialChars(),
+                                    };
+                                    var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+                                    $.post("/devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
+                                }
+                            });
+                        }
+                    });
+
+                    return notesobj;
+                }
+            },
+
+
             {
                 field: "kismet.device.base.macaddr",
                 title: "MAC Address",

@@ -302,6 +302,20 @@ exports.sanitizeObject = function(o) {
     return o;
 }
 
+String.prototype.escapeSpecialChars = function() {
+    var s = this.replace(/\n/g, "\\n")
+        .replace(/\r/g, "\\r")
+        .replace(/\t/g, "\\t");
+
+    return s;
+};
+
+String.prototype.convertNewlines = function() {
+    var s = this.replace(/\\n/g, "\n");
+    s = s.replace(/\\r/g, "");
+
+    return s;
+}
 
 return exports;
 
