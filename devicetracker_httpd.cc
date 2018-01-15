@@ -202,6 +202,10 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (target == "set_name") {
                     return true;
                 }
+
+                if (target == "set_tag") {
+                    return true;
+                }
             } else if (tokenurl[2] == "by-mac") {
                 if (tokenurl.size() < 5)
                     return false;
@@ -686,6 +690,27 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     name = structdata->getKeyAsString("username");
 
                     SetDeviceUserName(dev, name);
+
+                    stream << "OK";
+                    return MHD_YES;
+                }
+
+                if (target == "set_tag") {
+                    std::string tag, content;
+
+                    if (!httpd->HasValidSession(concls))
+                        throw std::runtime_error("login required");
+
+                    if (!structdata->hasKey("tagname"))
+                        throw std::runtime_error("expected tagname in command dictionary");
+
+                    if (!structdata->hasKey("tagvalue"))
+                        throw std::runtime_error("expected tagvalue in command dictionary");
+
+                    tag = structdata->getKeyAsString("tagname");
+                    content = structdata->getKeyAsString("tagvalue");
+
+                    SetDeviceTag(dev, tag, content);
 
                     stream << "OK";
                     return MHD_YES;

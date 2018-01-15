@@ -382,6 +382,19 @@ Expects a command dictionary including:
 | -------- | -------- | ------ | ------------------- |
 | username | New name | String | New name for device |
 
+##### /devices/by-key/[key]/set_tag `/dev/by-key/[key]/set_tag.cmd`
+
+*REQUIRES LOGIN*
+
+Set an arbitrary tag in the 'tags collection' of the target device.  The tags collection is returned in the `kismet.device.base.tags` field of the device, and can be used to store persistent notes and other data.
+
+Expects a command dictionary including:
+
+| Key     | Value    | Type   | Desc                          |
+| ------- | -------- | ------ | ----------------------------- |
+| tagname | Tag name | String | Name of tag; arbitrary string |
+| tagvalue | Tag value | String | Content of tag |
+
 ### Phy Handling
 
 A PHY handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A PHY is often, but not always, linked to specific types of hardware and specific packet link types.
