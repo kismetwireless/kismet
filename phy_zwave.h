@@ -115,7 +115,7 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_record(struct JSON_value *in_json);
+    bool json_to_record(cppjson::json in_json);
 
 };
 

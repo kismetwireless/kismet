@@ -47,146 +47,50 @@
 #include "util.h"
 
 #include "structured.h"
+#include "json.hpp"
 
-// Basic JSON interpreter - understands numbers, floats, quoted strings, bools, 
-// arrays, dictionaries, arbitrary nesting.  Currently sufficient for parsing
-// from GPSD, may be extended for other protocols in the future
-//
-// JSON is annoyingly complex, requiring a full lex and parse process.
-
-enum JSON_token_type {
-	JSON_start, JSON_end, JSON_quoted, JSON_numeric, JSON_boolean, 
-	JSON_arrstart, JSON_arrend, JSON_colon, JSON_comma, 
-	// Meta-types for expected values
-	JSON_sep, JSON_value, JSON_sym,
-	JSON_unknown
-};
-
-struct JSON_token {
-	JSON_token_type tok_type;
-	string tok_str;
-	int tok_position;
-};
-
-struct JSON_value {
-	JSON_token value;
-
-	// Dictionary of values, used for parents.  Values may in turn be
-	// dictionaries or arrays
-	map<string, struct JSON_value *> value_map;
-
-	// If we're an array, the array of our values is here.  We can't be
-	// both a dictionary and an array.
-	vector<struct JSON_value *> value_array;
-};
-
-// Recursively free a JSON value
-void JSON_delete(struct JSON_value *v);
-
-// Parse a JSON string into a value struct.
-// How value structs work:
-//   A basic JSON structure is a dictionary which holds multiple symbol => value maps.
-//   A value can be a string, int, float, bool, a sub-dictionary, or a sub-array.
-//   An array can also hold multiple dictionaries as values.  Arrays are not forced to
-//    hold all values of a single type, [1.2345, false, "foo"] is considered valid by
-//    this parser.
-//
-//   Once parsed, the JSON_value returned struct is the top level dictionary.  Values
-//    stored in this dictionary can be found in value_map keyed by their symbols.
-//
-//   When a value is extracted from value_map, value.tok_type should be checked to
-//    determine what kind of value it is.  JSON_quoted, _numeric, _boolean contain
-//    their values in value.tok_str as an unchecked string (numbers and bools should
-//    be valid because they passed the lexer, but the caller should perform safe
-//    transforms anyhow).
-//
-//   Nested dictionaries are stored as value.tok_type JSON_start, and nested arrays
-//    are stored as JSON_arrstart.  The values contained in the nested structure are
-//    stored in value_map and value_array, respectively.
-//
-//   Complex JSON data may require crawling through multiple levels of the dictionary
-//    and array maps, examine the GPSD or look at the JSON_display() example function.
-struct JSON_value *JSON_parse(string in_json, string& error);
-
-struct JSON_value *JSON_dict_get_value(struct JSON_value *in_parent, string in_key,
-									   string& error);
-
-// Some basic JSON extraction functions for common actions
-string JSON_dict_get_string(struct JSON_value *in_parent, string in_key,
-							string& error);
-// Always return a double, cast it to an int if you need to, can be used
-// for bools too (you get a 0 or 1)
-double JSON_dict_get_number(struct JSON_value *in_parent, string in_key,
-        string& error);
-
-vector<struct JSON_value *> JSON_dict_get_array(struct JSON_value *in_parent,
-        string in_key, string& error);
-
-double JSON_get_number(struct JSON_value *val, string& error);
-string JSON_get_string(struct JSON_value *val, string& error);
-
-// Do we have a key?
-bool JSON_dict_has_key(struct JSON_value *val, string in_key);
-
-// Example function which dumps to stdout a representation of the parsed JSON data
-void JSON_dump(struct JSON_value *jsonv, string key, int depth);
+namespace cppjson = nlohmann;
 
 class StructuredJson : public StructuredData {
 public:
-    StructuredJson(string data) : StructuredData(data) {
-        json = JSON_parse(data, err);
-
-        if (json == NULL || err.length() != 0) {
-            throw StructuredDataUnparseable(err);
+    StructuredJson(std::string data) : StructuredData(data) {
+        try {
+            json = cppjson::json::parse(data);
+        } catch (std::exception& e) {
+            throw StructuredDataUnparseable(e.what());
         }
-
-        free_me = true;
     }
 
-    StructuredJson(struct JSON_value *in_json) {
-        free_me = false;
+    StructuredJson(cppjson::json in_json) {
         json = in_json;
     }
 
-    virtual ~StructuredJson() {
-        if (free_me && json != NULL)
-            JSON_delete(json);
-    }
+    virtual ~StructuredJson() { }
 
-    void exceptIfNull() {
-        if (json == NULL)
-            throw StructuredDataNull("no JSON data");
-    }
-
-    void exceptIfNot(bool match, string t) {
+    void exceptIfNot(bool match, std::string t) {
         if (!match) {
             throw StructuredDataUnsuitable("JSON field is not " + t);
         }
     }
 
     virtual bool isNumber() {
-        exceptIfNull();
-        return (json->value.tok_type == JSON_numeric);
+        return json.is_number();
     }
 
     virtual bool isBool() {
-        exceptIfNull();
-        return (json->value.tok_type == JSON_boolean);
+        return json.is_boolean();
     }
 
     virtual bool isString() {
-        exceptIfNull();
-        return (json->value.tok_type == JSON_quoted);
+        return json.is_string();
     }
 
     virtual bool isArray() {
-        exceptIfNull();
-        return (json->value.tok_type == JSON_arrstart);
+        return json.is_array();
     }
 
     virtual bool isDictionary() {
-        exceptIfNull();
-        return (json->value.tok_type == JSON_start);
+        return json.is_object();
     }
 
     // Binary in json is an encoded string
@@ -195,60 +99,32 @@ public:
     }
 
     virtual double getNumber() {
-        exceptIfNull();
         exceptIfNot(isNumber(), "number");
-
-        double n = JSON_get_number(json, err);
-
-        if (err.length() != 0)
-            throw StructuredDataUnparseable(err);
-
-        return n;
+        return json.get<double>();
     }
 
     virtual string getString() {
-        exceptIfNull();
         exceptIfNot(isString(), "string");
-
-        string s = JSON_get_string(json, err);
-
-        if (err.length() != 0) 
-            throw StructuredDataUnparseable(err);
-
-        return s;
+        return json.get<std::string>();
     }
 
     virtual string getBinaryStr() {
-        exceptIfNull();
         exceptIfNot(isString(), "binary string");
-        return hexstr_to_binstr(JSON_get_string(json, err).c_str());
+        return hexstr_to_binstr(json.get<std::string>().c_str());
     }
 
     virtual bool getBool() {
-        exceptIfNull();
         exceptIfNot(isBool() || isString(), "Boolean");
-
-        bool b = (JSON_get_number(json, err) == 1.0f);
-
-        if (err.length() != 0)
-            throw StructuredDataUnparseable(err);
-
-        return b;
+        return json.get<bool>();
     }
 
     virtual number_vec getNumberVec() {
-        exceptIfNull();
         exceptIfNot(isArray(), "Array/Vector");
 
         number_vec v;
 
-        for (vector<struct JSON_value *>::iterator jvi = json->value_array.begin();
-                jvi != json->value_array.end(); ++jvi) {
-            double d = JSON_get_number(*jvi, err);
-
-            if (err.length() != 0)
-                throw StructuredDataUnparseable(err);
-
+        for (auto jvi : json) {
+            double d = jvi.get<double>();
             v.push_back(d);
         }
 
@@ -256,41 +132,34 @@ public:
     }
 
     virtual string_vec getStringVec() {
-        exceptIfNull();
         exceptIfNot(isArray(), "Array/Vector");
 
         string_vec v;
 
-        for (vector<struct JSON_value *>::iterator jvi = json->value_array.begin();
-                jvi != json->value_array.end(); ++jvi) {
-            string s = JSON_get_string(*jvi, err);
-
-            if (err.length() != 0)
-                throw StructuredDataUnparseable(err);
-
+        for (auto jvi : json) {
+            std::string s = jvi.get<std::string>();
             v.push_back(s);
         }
 
         return v;
     }
 
-    virtual bool hasKey(string key) {
-        return JSON_dict_has_key(json, key);
+    virtual bool hasKey(std::string key) {
+        return (json.find(key) != json.end());
     }
 
-    virtual SharedStructured getStructuredByKey(string key) {
-        exceptIfNull();
+    virtual SharedStructured getStructuredByKey(std::string key) {
         exceptIfNot(isDictionary(), "Dictionary/Map");
 
-        if (!JSON_dict_has_key(json, key)) 
+        if (!hasKey(key)) 
             throw StructuredDataNoSuchKey("No such key: " + key);
 
-        struct JSON_value *nj = JSON_dict_get_value(json, key, err);
+        auto ki = json.find(key);
 
-        if (err.length() != 0 || nj == NULL)
-            throw StructuredDataUnsuitable(err);
+        if (ki == json.end())
+            throw StructuredDataNoSuchKey("No such key: " + key);
 
-        return SharedStructured(new StructuredJson(nj));
+        return SharedStructured(new StructuredJson(ki.value()));
     }
 
     virtual double getKeyAsNumber(string key) {
@@ -342,48 +211,42 @@ public:
     }
 
     virtual structured_vec getStructuredArray() {
-        exceptIfNull();
         exceptIfNot(isArray(), "array/vector");
 
         structured_vec v;
 
-        for (vector<struct JSON_value *>::iterator jvi = json->value_array.begin();
-                jvi != json->value_array.end(); ++jvi) {
-            v.push_back(SharedStructured(new StructuredJson(*jvi)));
+        for (auto jvi : json) {
+            v.push_back(SharedStructured(new StructuredJson(jvi)));
         }
 
         return v;
     }
 
     virtual structured_num_map getStructuredNumMap() {
-        exceptIfNull();
         exceptIfNot(isDictionary(), "dictionary/map");
 
         structured_num_map m;
 
-        for (map<string, struct JSON_value *>::iterator jmi = json->value_map.begin();
-                jmi != json->value_map.end(); ++jmi) {
+        for (auto& jvi : cppjson::json::iterator_wrapper(json)) {
             double n;
-
-            if (sscanf(jmi->first.c_str(), "%lf", &n) != 1)
+            
+            if (sscanf(jvi.key().c_str(), "%lf", &n) != 1)
                 throw StructuredDataUnsuitable("got non-numerical key converting "
                         "to structured numerical map");
-
-            m[n] = SharedStructured(new StructuredJson(jmi->second));
+            
+            m[n] = SharedStructured(new StructuredJson(jvi.value()));
         }
 
         return m;
     }
 
     virtual structured_str_map getStructuredStrMap() {
-        exceptIfNull();
         exceptIfNot(isDictionary(), "dictionary/map");
 
         structured_str_map m;
 
-        for (map<string, struct JSON_value *>::iterator jmi = json->value_map.begin();
-                jmi != json->value_map.end(); ++jmi) {
-            m[jmi->first] = SharedStructured(new StructuredJson(jmi->second));
+        for (auto& jvi : cppjson::json::iterator_wrapper(json)) {
+            m[jvi.key()] = SharedStructured(new StructuredJson(jvi.value()));
         }
 
         return m;
@@ -391,7 +254,7 @@ public:
 
 protected:
     bool free_me;
-    struct JSON_value *json;
+    cppjson::json json;
     string err;
 };
 

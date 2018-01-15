@@ -1,20 +1,20 @@
 /*
-    This file is part of Kismet
+   This file is part of Kismet
 
-    Kismet is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+   Kismet is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-    Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+   Kismet is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Kismet; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+   You should have received a copy of the GNU General Public License
+   along with Kismet; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   */
 
 #include "config.h"
 
@@ -29,33 +29,33 @@
 GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
     KisGps(in_globalreg, in_builder) {
 
-    // Defer making buffers until open, because we might be used to make a 
-    // builder instance
-   
-    tcphandler = NULL;
+        // Defer making buffers until open, because we might be used to make a 
+        // builder instance
 
-    last_heading_time = time(0);
+        tcphandler = NULL;
 
-    poll_mode = 0;
-    si_units = 0;
-    si_raw = 0;
+        last_heading_time = time(0);
 
-    pollabletracker = 
-        Globalreg::FetchGlobalAs<PollableTracker>(globalreg, "POLLABLETRACKER");
+        poll_mode = 0;
+        si_units = 0;
+        si_raw = 0;
 
-    auto timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    error_reconnect_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
-                [this](int) -> int {
+        pollabletracker = 
+            Globalreg::FetchGlobalAs<PollableTracker>(globalreg, "POLLABLETRACKER");
+
+        auto timetracker = 
+            Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        error_reconnect_timer = 
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+                    [this](int) -> int {
                     if (get_device_connected()) 
-                        return 1;
+                    return 1;
 
                     open_gps(get_gps_definition());
 
                     return 1;
-                });
-}
+                    });
+    }
 
 GPSGpsdV2::~GPSGpsdV2() {
     local_eol_locker lock(&gps_mutex);
@@ -183,12 +183,12 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     bool set_fix;
     bool set_heading;
 
-	vector<string> inptok = StrTokenize(string(buf, buf_sz), "\n", 0);
+    vector<string> inptok = StrTokenize(string(buf, buf_sz), "\n", 0);
     tcphandler->PeekFreeReadBufferData(buf);
 
-	if (inptok.size() < 1) {
+    if (inptok.size() < 1) {
         return;
-	}
+    }
 
     set_lat_lon = false;
     set_alt = false;
@@ -196,7 +196,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     set_fix = false;
     set_heading = false;
 
-	for (unsigned int it = 0; it < inptok.size(); it++) {
+    for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
         tcphandler->ConsumeReadBufferData(inptok[it].length() + 1);
 
@@ -205,167 +205,158 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
         // We don't know what we're going to get from GPSD.  If it starts with 
         // { then it probably is json, try to parse it
-		if (inptok[it][0] == '{') {
-			struct JSON_value *json;
-			string err;
+        if (inptok[it][0] == '{') {
+            cppjson::json json;
 
-			json = JSON_parse(inptok[it], err);
+            try {
+                json = cppjson::json::parse(inptok[it]);
 
-			if (err.length() != 0) {
-				_MSG("GPSGpsdV2 - Invalid JSON data block from GPSD: " + err, 
-                        MSGFLAG_ERROR);
-				continue;
-			}  
+                std::string msg_class = json["class"];
 
-#if 0
-			fprintf(stderr, "debug - GPS JSON:\n");
-			JSON_dump(json, "", 0);
-#endif
+                if (msg_class == "VERSION") {
+                    std::string version  = MungeToPrintable(json["release"]);
 
-			string msg_class = JSON_dict_get_string(json, "class", err);
+                    _MSG("GPSGpsdV2 connected to a JSON-enabled GPSD version " +
+                            version + ", turning on JSON mode", MSGFLAG_INFO);
 
-			if (msg_class == "VERSION") {
-				_MSG("GPSGpsdV2 connected to a JSON-enabled GPSD version " +
-					 MungeToPrintable(JSON_dict_get_string(json, "release", err)) + 
-					 ", turning on JSON mode", MSGFLAG_INFO);
-				// Set JSON mode
-				poll_mode = 10;
-				// We get speed in meters/sec
-				si_units = 1;
+                    // Set JSON mode
+                    poll_mode = 10;
+                    // We get speed in meters/sec
+                    si_units = 1;
 
-                // Send a JSON message that we want future communication in JSON
-                string json_msg = "?WATCH={\"json\":true};\n";
+                    // Send a JSON message that we want future communication in JSON
+                    string json_msg = "?WATCH={\"json\":true};\n";
 
-                if (tcphandler->PutWriteBufferData((void *) json_msg.c_str(), 
-                            json_msg.length(), true) < json_msg.length()) {
-                    _MSG("GPSGpsdV2 could not not write JSON enable command",
-                            MSGFLAG_ERROR);
-                }
-			} else if (msg_class == "TPV") {
-				float n;
+                    if (tcphandler->PutWriteBufferData((void *) json_msg.c_str(), 
+                                json_msg.length(), true) < json_msg.length()) {
+                        _MSG("GPSGpsdV2 could not not write JSON enable command",
+                                MSGFLAG_ERROR);
+                    }
+                } else if (msg_class == "TPV") {
+                    auto mode_j = json.find("mode");
 
-				n = JSON_dict_get_number(json, "mode", err);
-				if (err.length() == 0) {
-                    new_location->fix = (int) n;
-                    set_fix = true;
-				}
+                    if (mode_j != json.end()) {
+                        new_location->fix = mode_j.value().get<int>();
+                        set_fix = true;
+                    }
 
-				// If we have a valid alt, use it
-				if (set_fix && new_location->fix > 2) {
-					n = JSON_dict_get_number(json, "alt", err);
-					if (err.length() == 0) {
-                        new_location->alt = n;
-                        set_alt = true;
-					}
-				} 
+                    // If we have a valid alt, use it
+                    if (set_fix && new_location->fix > 2) {
+                        auto alt_j = json.find("alt");
 
-				if (set_fix && new_location->fix >= 2) {
-					// If we have LAT and LON, use them
-					n = JSON_dict_get_number(json, "lat", err);
-					if (err.length() == 0) {
-                        new_location->lat = n;
+                        if (alt_j != json.end()) {
+                            new_location->alt = alt_j.value().get<double>();
+                            set_alt = true;
+                        }
+                    } 
 
-						n = JSON_dict_get_number(json, "lon", err);
-						if (err.length() == 0) {
-                            new_location->lon = n;
+                    if (set_fix && new_location->fix >= 2) {
+                        // If we have LAT and LON, use them
+                        auto lat_j = json.find("lat");
+                        auto lon_j = json.find("lon");
+
+                        if (lat_j != json.end() && lon_j != json.end()) {
+                            new_location->lat = lat_j.value().get<double>();
+                            new_location->lon = lon_j.value().get<double>();
 
                             set_lat_lon = true;
-						}
-					}
+                        }
 
 #if 0
-					// If we have HDOP and VDOP, use them
-					n = JSON_dict_get_number(json, "epx", err);
-					if (err.length() == 0) {
-						in_hdop = n;
+                        // If we have HDOP and VDOP, use them
+                        n = JSON_dict_get_number(json, "epx", err);
+                        if (err.length() == 0) {
+                            in_hdop = n;
 
-						n = JSON_dict_get_number(json, "epy", err);
-						if (err.length() == 0) {
-							in_vdop = n;
+                            n = JSON_dict_get_number(json, "epy", err);
+                            if (err.length() == 0) {
+                                in_vdop = n;
 
-							use_dop = 1;
-						}
-					}
+                                use_dop = 1;
+                            }
+                        }
 #endif
 
-					// Heading (track in gpsd speak)
-					n = JSON_dict_get_number(json, "track", err);
-					if (err.length() == 0) {
-                        new_location->heading = n;
-                        set_heading = true;
-					}
+                        auto heading_j = json.find("track");
+                        if (heading_j != json.end()) {
+                            new_location->heading = heading_j.value().get<double>();
+                            set_heading = true;
+                        }
 
-					// Speed
-					n = JSON_dict_get_number(json, "speed", err);
-					if (err.length() == 0) {
-                        new_location->speed = n;
-                        set_speed = true;
-					} 
-				}
+                        auto speed_j = json.find("speed");
+                        if (speed_j != json.end()) {
+                            new_location->speed = speed_j.value().get<double>();
+                            set_speed = true;
+                        }
+                    }
 #if 0
-			} else if (msg_class == "SKY") {
-				GPSCore::sat_pos sp;
-				struct JSON_value *v = NULL, *s = NULL;
+                } else if (msg_class == "SKY") {
+                    GPSCore::sat_pos sp;
+                    struct JSON_value *v = NULL, *s = NULL;
 
-				gps_connected = 1;
+                    gps_connected = 1;
 
-				v = JSON_dict_get_value(json, "satellites", err);
+                    v = JSON_dict_get_value(json, "satellites", err);
 
-				if (err.length() == 0 && v != NULL) {
-					sat_pos_map.clear();
+                    if (err.length() == 0 && v != NULL) {
+                        sat_pos_map.clear();
 
-					if (v->value.tok_type == JSON_arrstart) {
-						for (unsigned int z = 0; z < v->value_array.size(); z++) {
-							float prn, ele, az, snr;
-							int valid = 1;
+                        if (v->value.tok_type == JSON_arrstart) {
+                            for (unsigned int z = 0; z < v->value_array.size(); z++) {
+                                float prn, ele, az, snr;
+                                int valid = 1;
 
-							s = v->value_array[z];
+                                s = v->value_array[z];
 
-							// If we're not a dictionary in the sat array, skip
-							if (s->value.tok_type != JSON_start) {
-								continue;
-							}
+                                // If we're not a dictionary in the sat array, skip
+                                if (s->value.tok_type != JSON_start) {
+                                    continue;
+                                }
 
-							prn = JSON_dict_get_number(s, "PRN", err);
-							if (err.length() != 0) 
-								valid = 0;
+                                prn = JSON_dict_get_number(s, "PRN", err);
+                                if (err.length() != 0) 
+                                    valid = 0;
 
-							ele = JSON_dict_get_number(s, "el", err);
-							if (err.length() != 0)
-								valid = 0;
+                                ele = JSON_dict_get_number(s, "el", err);
+                                if (err.length() != 0)
+                                    valid = 0;
 
-							az = JSON_dict_get_number(s, "az", err);
-							if (err.length() != 0)
-								valid = 0;
+                                az = JSON_dict_get_number(s, "az", err);
+                                if (err.length() != 0)
+                                    valid = 0;
 
-							snr = JSON_dict_get_number(s, "ss", err);
-							if (err.length() != 0)
-								valid = 0;
+                                snr = JSON_dict_get_number(s, "ss", err);
+                                if (err.length() != 0)
+                                    valid = 0;
 
-							if (valid) {
-								sp.prn = prn;
-								sp.elevation = ele;
-								sp.azimuth = az;
-								sp.snr = snr;
+                                if (valid) {
+                                    sp.prn = prn;
+                                    sp.elevation = ele;
+                                    sp.azimuth = az;
+                                    sp.snr = snr;
 
-								sat_pos_map[prn] = sp;
-							}
-						}
+                                    sat_pos_map[prn] = sp;
+                                }
+                            }
 
-					}
+                        }
 
-				}
+                    }
 #endif
-			}
+                }
 
-			JSON_delete(json);
-		} else if (poll_mode == 0 && inptok[it] == "GPSD") {
-			// Look for a really old gpsd which doesn't do anything intelligent
-			// with the L (version) command.  Only do this once, if we've already
-			// figured out a poll mode then there's not much point in hammering
-			// the server.  Force us into watch mode.
+            } catch (std::exception& e) {
+                _MSG(std::string("GPSGpsdV2 - Invalid JSON block from GPSD: ") + 
+                        std::string(e.what()), MSGFLAG_ERROR);
+                continue;
+            }
+        } else if (poll_mode == 0 && inptok[it] == "GPSD") {
+            // Look for a really old gpsd which doesn't do anything intelligent
+            // with the L (version) command.  Only do this once, if we've already
+            // figured out a poll mode then there's not much point in hammering
+            // the server.  Force us into watch mode.
 
-			poll_mode = 1;
+            poll_mode = 1;
 
             string init_cmd = "L\n";
             if (tcphandler->PutWriteBufferData((void *) init_cmd.c_str(), 
@@ -374,12 +365,12 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                         MSGFLAG_ERROR);
             }
 
-			continue;
-		} else if (poll_mode < 10 && inptok[it].substr(0, 15) == "GPSD,L=2 1.0-25") {
-			// Maemo ships a broken,broken GPS which doesn't parse NMEA correctly
-			// and results in no alt or fix in watcher or polling modes, so we
-			// have to detect this version and kick it into debug R=1 mode
-			// and do NMEA ourselves.
+            continue;
+        } else if (poll_mode < 10 && inptok[it].substr(0, 15) == "GPSD,L=2 1.0-25") {
+            // Maemo ships a broken,broken GPS which doesn't parse NMEA correctly
+            // and results in no alt or fix in watcher or polling modes, so we
+            // have to detect this version and kick it into debug R=1 mode
+            // and do NMEA ourselves.
             string cmd = "R=1\n";
             if (tcphandler->PutWriteBufferData((void *) cmd.c_str(), 
                         cmd.length(), true) < cmd.length()) {
@@ -387,33 +378,33 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                         MSGFLAG_ERROR);
             }
 
-			// Use raw for position
-			si_raw = 1;
-		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,L=") {
-			// Look for the version response
-			vector<string> lvec = StrTokenize(inptok[it], " ");
-			int gma, gmi;
+            // Use raw for position
+            si_raw = 1;
+        } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,L=") {
+            // Look for the version response
+            vector<string> lvec = StrTokenize(inptok[it], " ");
+            int gma, gmi;
 
-			if (lvec.size() < 3) {
-				poll_mode = 1;
-			} else if (sscanf(lvec[1].c_str(), "%d.%d", &gma, &gmi) != 2) {
-				poll_mode = 1;
-			} else {
-				if (gma < 2 || (gma == 2 && gmi < 34)) {
-					poll_mode = 1;
-				}
-				// Since GPSD r2368 'O' gives the speed as m/s instead of knots
-				if (gma > 2 || (gma == 2 && gmi >= 31)) {
-					si_units = 1;
-				}
-			}
+            if (lvec.size() < 3) {
+                poll_mode = 1;
+            } else if (sscanf(lvec[1].c_str(), "%d.%d", &gma, &gmi) != 2) {
+                poll_mode = 1;
+            } else {
+                if (gma < 2 || (gma == 2 && gmi < 34)) {
+                    poll_mode = 1;
+                }
+                // Since GPSD r2368 'O' gives the speed as m/s instead of knots
+                if (gma > 2 || (gma == 2 && gmi >= 31)) {
+                    si_units = 1;
+                }
+            }
 
-			// Don't use raw for position
-			si_raw = 0;
+            // Don't use raw for position
+            si_raw = 0;
 
-			// If we're still in poll mode 0, write the watcher command.
-			// This has been merged into one command because gpsd apparently
-			// silently drops the second command sent too quickly
+            // If we're still in poll mode 0, write the watcher command.
+            // This has been merged into one command because gpsd apparently
+            // silently drops the second command sent too quickly
             string watch_cmd = "J=1,W=1,R=1\n";
             if (tcphandler->PutWriteBufferData((void *) watch_cmd.c_str(), 
                         watch_cmd.length(), true) < watch_cmd.length()) {
@@ -428,31 +419,31 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);
             }
-            
 
-		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
-			// Poll lines
-			vector<string> pollvec = StrTokenize(inptok[it], ",");
 
-			if (pollvec.size() < 5) {
-				continue;
-			}
+        } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
+            // Poll lines
+            vector<string> pollvec = StrTokenize(inptok[it], ",");
 
-			if (sscanf(pollvec[1].c_str(), "P=%lf %lf", 
+            if (pollvec.size() < 5) {
+                continue;
+            }
+
+            if (sscanf(pollvec[1].c_str(), "P=%lf %lf", 
                         &(new_location->lat), &(new_location->lon)) != 2) {
-				continue;
-			}
+                continue;
+            }
 
-			if (sscanf(pollvec[4].c_str(), "M=%d", &(new_location->fix)) != 1) {
-				continue;
-			}
+            if (sscanf(pollvec[4].c_str(), "M=%d", &(new_location->fix)) != 1) {
+                continue;
+            }
 
-			if (sscanf(pollvec[2].c_str(), "A=%lf", &(new_location->alt)) != 1)
+            if (sscanf(pollvec[2].c_str(), "A=%lf", &(new_location->alt)) != 1)
                 set_alt = false;
             else
                 set_alt = true;
 
-			if (sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1)
+            if (sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1)
                 set_speed = false;
             else 
                 set_speed = true;
@@ -467,50 +458,50 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             set_fix = true;
             set_lat_lon = true;
 
-		} else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,O=") {
-			// Look for O= watch lines
-			vector<string> ggavec = StrTokenize(inptok[it], " ");
+        } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,O=") {
+            // Look for O= watch lines
+            vector<string> ggavec = StrTokenize(inptok[it], " ");
 
-			if (ggavec.size() < 15) {
-				continue;
-			}
+            if (ggavec.size() < 15) {
+                continue;
+            }
 
-			// Total fail if we can't get lat/lon/mode
-			if (sscanf(ggavec[3].c_str(), "%lf", &(new_location->lat)) != 1)
-				continue;
+            // Total fail if we can't get lat/lon/mode
+            if (sscanf(ggavec[3].c_str(), "%lf", &(new_location->lat)) != 1)
+                continue;
 
-			if (sscanf(ggavec[4].c_str(), "%lf", &(new_location->lon)) != 1)
-				continue;
+            if (sscanf(ggavec[4].c_str(), "%lf", &(new_location->lon)) != 1)
+                continue;
 
-			if (sscanf(ggavec[14].c_str(), "%d", &(new_location->fix)) != 1)
-				continue;
+            if (sscanf(ggavec[14].c_str(), "%d", &(new_location->fix)) != 1)
+                continue;
 
-			if (sscanf(ggavec[5].c_str(), "%lf", &(new_location->alt)) != 1)
+            if (sscanf(ggavec[5].c_str(), "%lf", &(new_location->alt)) != 1)
                 set_alt = false;
             else
                 set_alt = true;
 
 #if 0
-			if (sscanf(ggavec[6].c_str(), "%f", &in_hdop) != 1) 
-				use_dop = 0;
+            if (sscanf(ggavec[6].c_str(), "%f", &in_hdop) != 1) 
+                use_dop = 0;
 
-			if (sscanf(ggavec[7].c_str(), "%f", &in_vdop) != 1)
-				use_dop = 0;
+            if (sscanf(ggavec[7].c_str(), "%f", &in_vdop) != 1)
+                use_dop = 0;
 #endif
 
-			if (sscanf(ggavec[8].c_str(), "%lf", &(new_location->heading)) != 1)
+            if (sscanf(ggavec[8].c_str(), "%lf", &(new_location->heading)) != 1)
                 set_heading = false;
             else
                 set_heading = true;
 
-			if (sscanf(ggavec[9].c_str(), "%lf", &(new_location->speed)) != 1)
+            if (sscanf(ggavec[9].c_str(), "%lf", &(new_location->speed)) != 1)
                 set_speed = false;
             else
                 set_speed = true;
 
 #if 0
-			if (si_units == 0)
-				in_spd *= 0.514; /* Speed in meters/sec from knots */
+            if (si_units == 0)
+                in_spd *= 0.514; /* Speed in meters/sec from knots */
 #endif
 
             if (set_alt && new_location->fix < 3)
@@ -522,102 +513,102 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             set_fix = true;
             set_lat_lon = true;
-		} else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
-			vector<string> savec = StrTokenize(inptok[it], ",");
+        } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
+            vector<string> savec = StrTokenize(inptok[it], ",");
 
-			if (savec.size() != 18)
-				continue;
+            if (savec.size() != 18)
+                continue;
 
-			if (sscanf(savec[2].c_str(), "%d", &(new_location->fix)) != 1)
-				continue;
+            if (sscanf(savec[2].c_str(), "%d", &(new_location->fix)) != 1)
+                continue;
 
             set_fix = true;
-		} else if (si_raw && inptok[it].substr(0, 6) == "$GPVTG") {
-			vector<string> vtvec = StrTokenize(inptok[it], ",");
+        } else if (si_raw && inptok[it].substr(0, 6) == "$GPVTG") {
+            vector<string> vtvec = StrTokenize(inptok[it], ",");
 
-			if (vtvec.size() != 10)
-				continue;
+            if (vtvec.size() != 10)
+                continue;
 
-			if (sscanf(vtvec[7].c_str(), "%lf", &(new_location->speed)) != 1)
-				continue;
+            if (sscanf(vtvec[7].c_str(), "%lf", &(new_location->speed)) != 1)
+                continue;
 
             set_speed = true;
-		} else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
-			vector<string> gavec = StrTokenize(inptok[it], ",");
-			int tint;
-			float tfloat;
+        } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
+            vector<string> gavec = StrTokenize(inptok[it], ",");
+            int tint;
+            float tfloat;
 
-			if (gavec.size() != 15)
-				continue;
+            if (gavec.size() != 15)
+                continue;
 
-			if (sscanf(gavec[2].c_str(), "%2d%f", &tint, &tfloat) != 2)
-				continue;
-			new_location->lat = (float) tint + (tfloat / 60);
-			if (gavec[3] == "S")
-				new_location->lat *= -1;
+            if (sscanf(gavec[2].c_str(), "%2d%f", &tint, &tfloat) != 2)
+                continue;
+            new_location->lat = (float) tint + (tfloat / 60);
+            if (gavec[3] == "S")
+                new_location->lat *= -1;
 
-			if (sscanf(gavec[4].c_str(), "%3d%f", &tint, &tfloat) != 2)
-				continue;
-			new_location->lon = (float) tint + (tfloat / 60);
-			if (gavec[5] == "W")
-				new_location->lon *= -1;
+            if (sscanf(gavec[4].c_str(), "%3d%f", &tint, &tfloat) != 2)
+                continue;
+            new_location->lon = (float) tint + (tfloat / 60);
+            if (gavec[5] == "W")
+                new_location->lon *= -1;
 
-			if (sscanf(gavec[9].c_str(), "%f", &tfloat) != 1)
-				continue;
-			new_location->alt = tfloat;
+            if (sscanf(gavec[9].c_str(), "%f", &tfloat) != 1)
+                continue;
+            new_location->alt = tfloat;
 
             if (new_location->fix < 3)
                 new_location->fix = 3;
-            
+
             set_fix = 3;
             set_alt = true;
             set_lat_lon = true;
 #if 0
-		} else if (poll_mode < 10 && inptok[it].substr(0, 6) == "$GPGSV") {
-			// $GPGSV,3,1,09,22,80,170,40,14,58,305,19,01,46,291,,18,44,140,33*7B
-			// $GPGSV,3,2,09,05,39,105,31,12,34,088,32,30,31,137,31,09,26,047,34*72
-			// $GPGSV,3,3,09,31,26,222,31*46
-			//
-			// # of sentences for data
-			// sentence #
-			// # of sats in view
-			//
-			// sat #
-			// elevation
-			// azimuth
-			// snr
+        } else if (poll_mode < 10 && inptok[it].substr(0, 6) == "$GPGSV") {
+            // $GPGSV,3,1,09,22,80,170,40,14,58,305,19,01,46,291,,18,44,140,33*7B
+            // $GPGSV,3,2,09,05,39,105,31,12,34,088,32,30,31,137,31,09,26,047,34*72
+            // $GPGSV,3,3,09,31,26,222,31*46
+            //
+            // # of sentences for data
+            // sentence #
+            // # of sats in view
+            //
+            // sat #
+            // elevation
+            // azimuth
+            // snr
 
-			gps_connected = 1;
+            gps_connected = 1;
 
-			vector<string> svvec = StrTokenize(inptok[it], ",");
-			GPSCore::sat_pos sp;
+            vector<string> svvec = StrTokenize(inptok[it], ",");
+            GPSCore::sat_pos sp;
 
-			if (svvec.size() < 6)
-				continue;
+            if (svvec.size() < 6)
+                continue;
 
-			// If we're on the last sentence, move the new vec to the transmitted one
-			if (svvec[1] == svvec[2]) {
-				sat_pos_map = sat_pos_map_tmp;
-				sat_pos_map_tmp.clear();
-			}
+            // If we're on the last sentence, move the new vec to the transmitted one
+            if (svvec[1] == svvec[2]) {
+                sat_pos_map = sat_pos_map_tmp;
+                sat_pos_map_tmp.clear();
+            }
 
-			unsigned int pos = 4;
-			while (pos + 4 < svvec.size()) {
-				if (sscanf(svvec[pos++].c_str(), "%d", &sp.prn) != 1) 
-					break;
-				if (sscanf(svvec[pos++].c_str(), "%d", &sp.elevation) != 1)
-					break;
-				if (sscanf(svvec[pos++].c_str(), "%d", &sp.azimuth) != 1)
-					break;
-				if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
-					sp.snr = 0;
+            unsigned int pos = 4;
+            while (pos + 4 < svvec.size()) {
+                if (sscanf(svvec[pos++].c_str(), "%d", &sp.prn) != 1) 
+                    break;
+                if (sscanf(svvec[pos++].c_str(), "%d", &sp.elevation) != 1)
+                    break;
+                if (sscanf(svvec[pos++].c_str(), "%d", &sp.azimuth) != 1)
+                    break;
+                if (sscanf(svvec[pos++].c_str(), "%d", &sp.snr) != 1)
+                    sp.snr = 0;
 
-				sat_pos_map_tmp[sp.prn] = sp;
-			}
+                sat_pos_map_tmp[sp.prn] = sp;
+            }
 
-			continue;
+            continue;
 #endif
-		} 
+        } 
     }
 
     // fprintf(stderr, "gps set loc %d alt %d spd %d fix %d heading %d\n", set_lat_lon, set_alt, set_speed, set_fix, set_heading);
@@ -657,26 +648,26 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
         gettimeofday(&(gps_location->tv), NULL);
 
-		if (!set_heading && globalreg->timestamp.tv_sec - last_heading_time > 5 &&
+        if (!set_heading && globalreg->timestamp.tv_sec - last_heading_time > 5 &&
                 gps_last_location->fix >= 2) {
-			gps_location->heading = 
+            gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
             last_heading_time = gps_location->tv.tv_sec;
-		}
+        }
     }
 
     // Sync w/ the tracked fields
     update_locations();
-}
+    }
 
-void GPSGpsdV2::BufferError(string in_error) {
-    local_locker lock(&gps_mutex);
+    void GPSGpsdV2::BufferError(string in_error) {
+        local_locker lock(&gps_mutex);
 
-    _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
-            MSGFLAG_ERROR);
+        _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
+                MSGFLAG_ERROR);
 
-    set_int_device_connected(false);
-}
+        set_int_device_connected(false);
+    }
 
 

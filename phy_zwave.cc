@@ -74,9 +74,7 @@ mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
     return mac_addr(macstr.str());
 }
 
-bool Kis_Zwave_Phy::json_to_record(struct JSON_value *json) {
-    string err;
-
+bool Kis_Zwave_Phy::json_to_record(cppjson::json json) {
     string tempstr;
     std::stringstream converter;
 
@@ -87,34 +85,47 @@ bool Kis_Zwave_Phy::json_to_record(struct JSON_value *json) {
     double datasize;
 
     // TODO parse the actual payload
-   
-    tempstr = JSON_dict_get_string(json, "home_id", err);
+    
+  
+    auto homeid_j = json.find("home_id");
 
-    if (err.length() != 0)
+    if (homeid_j != json.end() && homeid_j.value().is_string()) {
+        tempstr = homeid_j.value().get<std::string>();
+    } else {
         return false;
+    }
 
     converter.str(tempstr);
     converter >> std::hex >> homeid;
 
-    devid = (uint8_t) JSON_dict_get_number(json, "source", err);
-
-    if (err.length() != 0)
+    auto source_j = json.find("source");
+    if (source_j != json.end() && source_j.value().is_number()) {
+        devid = source_j.value().get<unsigned int>();
+    } else {
         return false;
+    }
 
-    dest_devid = (uint8_t) JSON_dict_get_number(json, "dest", err);
 
-    if (err.length() != 0)
+    auto dest_j = json.find("dest");
+    if (dest_j != json.end() && dest_j.value().is_number()) {
+        dest_devid = dest_j.value().get<double>();
+    } else {
         return false;
+    }
 
-    frequency = JSON_dict_get_number(json, "freq_khz", err);
-
-    if (err.length() != 0)
+    auto freq_j = json.find("freq_khz");
+    if (freq_j != json.end() && freq_j.value().is_number()) {
+        frequency = freq_j.value().get<double>();
+    } else {
         return false;
+    }
 
-    datasize = JSON_dict_get_number(json, "datasize", err);
-
-    if (err.length() != 0)
+    auto datasize_j = json.find("datasize");
+    if (datasize_j != json.end() && datasize_j.value().is_number()) {
+        datasize = datasize_j.value().get<double>();
+    } else {
         return false;
+    }
 
     mac_addr smac = id_to_mac(homeid, devid);
     mac_addr dmac = id_to_mac(homeid, dest_devid);
@@ -215,18 +226,14 @@ int Kis_Zwave_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
    
     if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
-        struct JSON_value *json;
-        string err;
+        cppjson::json json;
 
-        json = JSON_parse(concls->variable_cache["obj"]->str(), err);
-
-        if (err.length() != 0 || json == NULL) {
-            concls->response_stream << "Invalid request: could not parse JSON";
+        try {
+            json = cppjson::json::parse(concls->variable_cache["obj"]->str());
+        } catch (std::exception& e) {
+            concls->response_stream << "Invalid request: could not parse JSON: " <<
+                e.what();
             concls->httpcode = 400;
-
-            if (json != NULL)
-                JSON_delete(json);
-
             return 1;
         }
 
@@ -239,8 +246,6 @@ int Kis_Zwave_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         } else {
             handled = true;
         }
-
-        JSON_delete(json);
     }
 
     // If we didn't handle it and got here, we don't know what it is, throw an
