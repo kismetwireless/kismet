@@ -350,6 +350,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 help: "Abritrary notes",
                 render: function(opts) {
                     var notes = opts['data']['kismet.device.base.tags']['notes'];
+
+                    if (notes == null)
+                        notes = "";
                     
                     var notesobj = 
                         $('<a>', {
