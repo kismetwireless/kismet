@@ -719,6 +719,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             } else if (tokenurl[2] == "summary") {
                 // We don't lock device list up here because we use workers since it
                 // can be a multi-device return
+                
+                SharedStructured colmapdata;
+                StructuredData::structured_num_map colmap;
+                if (structdata->hasKey("colmap")) {
+                    colmapdata = structdata->getStructuredByKey("colmap");
+                    colmap = colmapdata->getStructuredNumMap();
+                }
 
                 // Wrapper we insert under
                 SharedTrackerElement wrapper = NULL;
@@ -740,11 +747,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 string dt_search;
 
                 // Resolved paths to fields we search
-                vector<vector<int> > dt_search_paths;
+                std::vector<std::vector<int> > dt_search_paths;
 
                 int dt_order_col = -1;
                 int dt_order_dir = 0;
-                vector<int> dt_order_field;
+
+                // Fields we search
+                std::vector<std::vector<int> > dt_order_fields;
 
                 if (structdata->getKeyAsBool("datatable", false)) {
                     // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
@@ -768,23 +777,23 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         dt_search = concls->variable_cache["search[value]"]->str();
                     }
 
-                    // We can't sanely map columns to fields because we allow multiple
-                    // fields per column, and other weirdness.  We can't map the fieldspec
-                    // to the columns like we used to; if we're searching, we just 
-                    // make every field searchable.
+                    // Search every field; we could make this more controlled by using
+                    // the new colmap code but we don't really need to
                     if (dt_search.length() != 0) {
                         for (auto svi : summary_vec) 
                             dt_search_paths.push_back(svi->resolved_path);
                     }
 
-                    // We only handle sorting by the first column
+                    // We only handle sorting by the first column in the sort list; we
+                    // don't support cascading sorts
                     if (concls->variable_cache.find("order[0][column]") !=
                             concls->variable_cache.end()) {
                         *(concls->variable_cache["order[0][column]"]) >> dt_order_col;
                     }
 
                     // Don't allow ordering by a column that doesn't make sense
-                    if (dt_order_col >= (int) summary_vec.size())
+                    auto colmap_index = colmap.find(dt_order_col);
+                    if (colmap_index == colmap.end())
                         dt_order_col = -1;
 
                     if (dt_order_col >= 0 &&
@@ -795,7 +804,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         if (ord == "asc")
                             dt_order_dir = 1;
 
-                        dt_order_field = summary_vec[dt_order_col]->resolved_path;
+                        // Resolve the paths
+                        StructuredData::string_vec col_field_vec = 
+                            colmap_index->second->getStringVec();
+
+                        for (auto fn : col_field_vec) {
+                            TrackerElementSummary s(fn, entrytracker);
+                            dt_order_fields.push_back(s.resolved_path);
+                        }
                     }
 
                     // Force a length if we think we're doing a smart position and
@@ -853,16 +869,39 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         dt_filter_elem->set((uint64_t) pcrevec.size());
 
                     // Sort the list by the selected column
-                    if (dt_order_col >= 0) {
+                    if (dt_order_col >= 0 && dt_order_fields.size() > 0) {
                         kismet__stable_sort(pcrevec.begin(), pcrevec.end(), 
                                 [&](SharedTrackerElement a, SharedTrackerElement b) {
-                                SharedTrackerElement fa =
-                                GetTrackerElementPath(dt_order_field, a);
-                                SharedTrackerElement fb =
-                                GetTrackerElementPath(dt_order_field, b);
+                                SharedTrackerElement fa;
+                                SharedTrackerElement fb;
+                                bool passfa = false, passfb = false;
+
+                                for (auto ofi : dt_order_fields) {
+                                    if (fa == NULL || (fa != NULL && 
+                                        fa->get_type() == TrackerString &&
+                                        GetTrackerValue<std::string>(fa) == "")) {
+                                        fa = 
+                                            GetTrackerElementPath(ofi, a);
+                                    } else {
+                                        passfa = true;
+                                    }
+
+                                    if (fb == NULL || (fb != NULL && 
+                                        fb->get_type() == TrackerString &&
+                                        GetTrackerValue<std::string>(fb) == "")) {
+                                        fb = 
+                                            GetTrackerElementPath(ofi, b);
+                                    } else {
+                                        passfb = true;
+                                    }
+
+                                    if (passfa && passfb)
+                                        break;
+                                }
 
                                 if (dt_order_dir == 0)
-                                return fa < fb;
+                                    return fa < fb;
+
                                 return fb < fa;
                                 });
                     }
@@ -897,16 +936,38 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     SharedTrackerElement matchdevs = worker.GetMatchedDevices();
                     TrackerElementVector matchvec(matchdevs);
 
-                    if (dt_order_col >= 0) {
+                    if (dt_order_col >= 0 && dt_order_fields.size() > 0) {
                         kismet__stable_sort(matchvec.begin(), matchvec.end(), 
                                 [&](SharedTrackerElement a, SharedTrackerElement b) {
-                                SharedTrackerElement fa =
-                                GetTrackerElementPath(dt_order_field, a);
-                                SharedTrackerElement fb =
-                                GetTrackerElementPath(dt_order_field, b);
+                                SharedTrackerElement fa;
+                                SharedTrackerElement fb;
+                                bool passfa = false, passfb = false;
+
+                                for (auto ofi : dt_order_fields) {
+                                    if (fa == NULL || (fa != NULL && 
+                                        fa->get_type() == TrackerString &&
+                                        GetTrackerValue<std::string>(fa) == "")) {
+                                        fa = 
+                                            GetTrackerElementPath(ofi, a);
+                                    } else {
+                                        passfa = true;
+                                    }
+
+                                    if (fb == NULL || (fb != NULL && 
+                                        fb->get_type() == TrackerString &&
+                                        GetTrackerValue<std::string>(fb) == "")) {
+                                        fb = 
+                                            GetTrackerElementPath(ofi, b);
+                                    } else {
+                                        passfb = true;
+                                    }
+
+                                    if (passfa && passfb)
+                                        break;
+                                }
 
                                 if (dt_order_dir == 0)
-                                return fa < fb;
+                                    return fa < fb;
 
                                 return fb < fa;
                                 });
@@ -946,16 +1007,38 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     if (dt_filter_elem != NULL)
                         dt_filter_elem->set((uint64_t) tracked_vec.size());
 
-                    if (dt_order_col >= 0) {
+                    if (dt_order_col >= 0 && dt_order_fields.size() > 0) {
                         kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
                                 [&](SharedTrackerElement a, SharedTrackerElement b) {
-                                SharedTrackerElement fa =
-                                GetTrackerElementPath(dt_order_field, a);
-                                SharedTrackerElement fb =
-                                GetTrackerElementPath(dt_order_field, b);
+                                SharedTrackerElement fa;
+                                SharedTrackerElement fb;
+                                bool passfa = false, passfb = false;
+
+                                for (auto ofi : dt_order_fields) {
+                                    if (fa == NULL || (fa != NULL && 
+                                        fa->get_type() == TrackerString &&
+                                        GetTrackerValue<std::string>(fa) == "")) {
+                                        fa = 
+                                            GetTrackerElementPath(ofi, a);
+                                    } else {
+                                        passfa = true;
+                                    }
+
+                                    if (fb == NULL || (fb != NULL && 
+                                        fb->get_type() == TrackerString &&
+                                        GetTrackerValue<std::string>(fb) == "")) {
+                                        fb = 
+                                            GetTrackerElementPath(ofi, b);
+                                    } else {
+                                        passfb = true;
+                                    }
+
+                                    if (passfa && passfb)
+                                        break;
+                                }
 
                                 if (dt_order_dir == 0)
-                                return fa < fb;
+                                    return fa < fb;
 
                                 return fb < fa;
                                 });

@@ -254,6 +254,27 @@ exports.GetDeviceColumns = function(showall = false) {
     return ret;
 }
 
+// Generate a map of column number to field array so we can tell Kismet what fields
+// are in what column for sorting
+exports.GetDeviceColumnMap = function(columns) {
+    var ret = {};
+
+    for (var ci in columns) {
+        var fields = new Array();
+
+        if ('field' in columns[ci]) 
+            fields.push(columns[ci]['field']);
+
+        if ('fields' in columns[ci])
+            fields.push.apply(fields, columns[ci]['fields']);
+
+        ret[ci] = fields;
+    }
+
+    return ret;
+}
+
+
 /* Return field arrays for the device list; aggregates fields from device columns,
  * widget columns, and color highlight columns.
  */
@@ -711,11 +732,13 @@ exports.CreateDeviceTable = function(element) {
 exports.InitializeDeviceTable = function(element) {
     /* Make the fields list json and set the wrapper object to aData to make the DT happy */
     var cols = exports.GetDeviceColumns();
+    var colmap = exports.GetDeviceColumnMap(cols);
 
     var fields = exports.GetDeviceFields();
 
     var json = {
         fields: fields,
+        colmap: colmap,
         datatable: true,
     };
     var postdata = "json=" + JSON.stringify(json);

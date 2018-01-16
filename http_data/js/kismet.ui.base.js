@@ -108,8 +108,8 @@ exports.drawPackets = function(dyncolumn, table, row) {
 // Define the basic columns
 kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
-    field: 'kismet.device.base.name',
-    fields: ['kismet.device.base.username'],
+    field: 'kismet.device.base.username',
+    fields: ['kismet.device.base.name', 'kismet.device.base.macaddr'],
     description: 'Device name',
     renderfunc: function(d, t, r, m) {
         var name = r['kismet.device.base.username'];
