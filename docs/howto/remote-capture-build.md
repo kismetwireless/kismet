@@ -24,7 +24,7 @@ This will take a little while to download, and due to how Git handles https serv
 ## Get the OpenWrt code
 
 ```
-$ git clone https://git.openwrt.org/15.05/openwrt.git openwrt-cc-tetra
+$ git clone https://github.com/openwrt/openwrt.git 
 ```
 
 ## Do the basic OpenWrt Config
