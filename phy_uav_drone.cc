@@ -175,8 +175,29 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
         if (dot11info->droneid != NULL) {
             try {
-                // TODO add alerts for serial # change etc
-                if (dot11info->droneid->subcommand_flight_reg_info()) {
+                if (dot11info->droneid->subcommand() == 0x00) {
+                    // DJI Mavic firmware has known bugs where it sends completely blank
+                    // droneID frames.  Known affected firmware includes:
+                    //
+                    // Mavic V01.04.0100 
+                    // Mavic V01.04.0200
+                    //
+                    // Look for subcommand of 0, with 0 content
+                    if (dot11info->droneid->record().substr(0, 32).find_first_not_of(std::string("\x00", 1)) == string::npos) {
+                        shared_ptr<uav_tracked_device> uavdev = 
+                            std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+
+                        if (uavdev == NULL) {
+                            uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
+                            basedev->add_map(uavdev);
+                        }
+
+                        uavdev->set_uav_manufacturer("DJI Mavic (Broken firmware)");
+                        uavdev->set_uav_match_type("DroneID");
+                    }
+
+                } else if (dot11info->droneid->subcommand_flight_reg_info()) {
+                    // TODO add alerts for serial # change etc
                     std::stringstream did_stream(dot11info->droneid->record());
                     kaitai::kstream ks(&did_stream);
                     
