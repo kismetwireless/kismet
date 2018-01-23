@@ -192,7 +192,8 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                             basedev->add_map(uavdev);
                         }
 
-                        uavdev->set_uav_manufacturer("DJI Mavic (Broken firmware)");
+                        uavdev->set_uav_manufacturer("DJI");
+                        uavdev->set_uav_model("Mavic (Broken firmware)");
                         uavdev->set_uav_match_type("DroneID");
                     }
 
