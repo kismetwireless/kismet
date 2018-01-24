@@ -479,17 +479,26 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             incpad = 1;
         } else if (op == 'h') { 
             if (globalreg->homepath == "") {
-                struct passwd *pw;
+                char *pwbuf;
+                ssize_t pwbuf_sz;
+                struct passwd pw, *pw_result = NULL;
 
-                pw = getpwuid(getuid());
+                if ((pwbuf_sz = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1) {
+                    pwbuf_sz = 8192;
+                }
 
-                if (pw == NULL) {
+                pwbuf = new char[pwbuf_sz];
+
+                if (getpwuid_r(getuid(), &pw, pwbuf, pwbuf_sz, &pw_result) != 0 || 
+                        pw_result == NULL) {
                     fprintf(stderr, "ERROR:  Could not explode home directory path, "
                             "getpwuid() failed.\n");
                     exit(1);
+                } else {
+                    logtemplate.insert(nl, pw_result->pw_dir);
                 }
 
-                logtemplate.insert(nl, pw->pw_dir);
+                delete[] pwbuf;
             } else {
                 logtemplate.insert(nl, globalreg->homepath);
             }
@@ -616,9 +625,6 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             logtemplate = "";
         }
     }
-
-    // Close the pwent
-    endpwent();
 
     return logtemplate;
 }
