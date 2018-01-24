@@ -56,6 +56,7 @@
 #include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
 #include "kaitai_parsers/dot11_ie_221_ms_wmm.h"
 #include "kaitai_parsers/dot11_ie_221_ms_wps.h"
+#include "kaitai_parsers/dot11_ie_221_wfa_wpa.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -1835,6 +1836,37 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid(new dot11_ie_221_dji_droneid_t(&kds));
 
                     packinfo->droneid = droneid;
+                }
+
+                // Look for MS/WFA WPA
+                if (vendor->vendor_oui_int() == 0x0050f2 && vendor->vendor_oui_type() == 0x01) {
+                    std::stringstream wpastream(vendor->vendor_tag()->vendor_data());
+                    kaitai::kstream wpas(&wpastream);
+
+                    std::shared_ptr<dot11_ie_221_wfa_wpa_t> wpa(new dot11_ie_221_wfa_wpa_t(&wpas));
+
+                    // Merge the group cipher
+                    packinfo->cryptset |= 
+                        WPACipherConv(wpa->multicast_cipher()->cipher_type());
+
+                    // Merge the unicast ciphers
+                    for (auto i : *(wpa->unicast_ciphers())) {
+                        packinfo->cryptset |= WPACipherConv(i->cipher_type());
+                    }
+
+                    // Merge the authkey types
+                    for (auto i : *(wpa->akm_ciphers())) {
+                        packinfo->cryptset |= WPAKeyMgtConv(i->cipher_type());
+                    }
+
+                    if (wpa->wpa_version() == 1)
+                        packinfo->cryptset |= crypt_version_wpa;
+                    if (wpa->wpa_version() == 2)
+                        packinfo->cryptset |= crypt_version_wpa2;
+
+                    common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+
+
                 }
 
                 // Look for WPS MS

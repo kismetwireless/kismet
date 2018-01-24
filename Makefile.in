@@ -56,7 +56,8 @@ KAITAI_PARSERS = \
 	kaitai_parsers/dot11_ie_221_vendor.cc.o \
 	kaitai_parsers/dot11_ie_221_ms_wps.cc.o \
 	kaitai_parsers/dot11_ie_221_ms_wmm.cc.o \
-	kaitai_parsers/dot11_ie_221_dji_droneid.cc.o
+	kaitai_parsers/dot11_ie_221_dji_droneid.cc.o \
+	kaitai_parsers/dot11_ie_221_wfa_wpa.cc.o
 
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
