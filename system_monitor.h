@@ -54,7 +54,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
     __Proxy(battery_perc, int32_t, int32_t, int32_t, battery_perc);
-    __Proxy(battery_charging, string, string, string, battery_charging);
+    __Proxy(battery_charging, std::string, std::string, std::string, battery_charging);
     __Proxy(battery_ac, uint8_t, bool, bool, battery_ac);
     __Proxy(battery_remaining, uint32_t, uint32_t, uint32_t, battery_remaining);
 
@@ -65,6 +65,8 @@ public:
 
     __Proxy(memory, uint64_t, uint64_t, uint64_t, memory);
     __Proxy(devices, uint64_t, uint64_t, uint64_t, devices);
+
+    __Proxy(username, std::string, std::string, std::string, username);
 
     virtual void pre_serialize();
 
@@ -79,28 +81,15 @@ protected:
 
     shared_ptr<Devicetracker> devicetracker;
 
-    int battery_perc_id;
     SharedTrackerElement battery_perc;
-
-    int battery_charging_id;
     SharedTrackerElement battery_charging;
-
-    int battery_ac_id;
     SharedTrackerElement battery_ac;
-
-    int battery_remaining_id;
     SharedTrackerElement battery_remaining;
-
-    int timestamp_sec_id;
     SharedTrackerElement timestamp_sec;
-
-    int timestamp_usec_id;
     SharedTrackerElement timestamp_usec;
-
     SharedTrackerElement timestamp_start_sec;
-
-    int mem_id;
     SharedTrackerElement memory;
+    SharedTrackerElement username;
 
     int mem_rrd_id;
     shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > memory_rrd;

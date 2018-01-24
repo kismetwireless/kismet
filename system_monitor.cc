@@ -23,6 +23,8 @@
 #include <fstream>
 #include <unistd.h>
 
+#include <pwd.h>
+
 #include "globalregistry.h"
 #include "util.h"
 #include "battery.h"
@@ -60,6 +62,30 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     // Set the startup time
     set_timestamp_start_sec(time(0));
+
+    // Get the userid
+    char *pwbuf;
+    ssize_t pwbuf_sz;
+    struct passwd pw, *pw_result = NULL;
+    std::stringstream uidstr;
+
+    if ((pwbuf_sz = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1) {
+        pwbuf_sz = 8192;
+    }
+
+    pwbuf = new char[pwbuf_sz];
+
+    if (getpwuid_r(getuid(), &pw, pwbuf, pwbuf_sz, &pw_result) != 0 || 
+            pw_result == NULL) {
+        uidstr << getuid();
+    } else {
+        uidstr << pw_result->pw_name;
+    }
+
+    delete[] pwbuf;
+
+    set_username(uidstr.str());
+
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -70,36 +96,31 @@ Systemmonitor::~Systemmonitor() {
 }
 
 void Systemmonitor::register_fields() {
-    battery_perc_id =
-        RegisterField("kismet.system.battery.percentage", TrackerInt32,
-                "remaining battery percentage", &battery_perc);
-    battery_charging_id =
-        RegisterField("kismet.system.battery.charging", TrackerString,
-                "battery charging state", &battery_charging);
-    battery_ac_id =
-        RegisterField("kismet.system.battery.ac", TrackerUInt8,
-                "on AC power", &battery_ac);
-    battery_remaining_id =
-        RegisterField("kismet.system.battery.remaining", TrackerUInt32,
-                "battery remaining in seconds", &battery_remaining);
+    RegisterField("kismet.system.battery.percentage", TrackerInt32,
+            "remaining battery percentage", &battery_perc);
+    RegisterField("kismet.system.battery.charging", TrackerString,
+            "battery charging state", &battery_charging);
+    RegisterField("kismet.system.battery.ac", TrackerUInt8,
+            "on AC power", &battery_ac);
+    RegisterField("kismet.system.battery.remaining", TrackerUInt32,
+            "battery remaining in seconds", &battery_remaining);
 
-    timestamp_sec_id =
-        RegisterField("kismet.system.timestamp.sec", TrackerUInt64,
-                "system timestamp, seconds", &timestamp_sec);
-    timestamp_usec_id =
-        RegisterField("kismet.system.timestamp.usec", TrackerUInt64,
-                "system timestamp, usec", &timestamp_usec);
-    
+    RegisterField("kismet.system.timestamp.sec", TrackerUInt64,
+            "system timestamp, seconds", &timestamp_sec);
+    RegisterField("kismet.system.timestamp.usec", TrackerUInt64,
+            "system timestamp, usec", &timestamp_usec);
+
     RegisterField("kismet.system.timestamp.start_sec", TrackerUInt64,
             "system startup timestamp, seconds", &timestamp_start_sec);
 
-    mem_id = 
-        RegisterField("kismet.system.memory.rss", TrackerUInt64,
-                "memory RSS in kbytes", &memory);
+    RegisterField("kismet.system.memory.rss", TrackerUInt64,
+            "memory RSS in kbytes", &memory);
 
-    devices_id =
-        RegisterField("kismet.system.devices.count", TrackerUInt64,
-                "number of devices in devicetracker", &devices);
+    RegisterField("kismet.system.devices.count", TrackerUInt64,
+            "number of devices in devicetracker", &devices);
+
+    RegisterField("kismet.system.user", TrackerString,
+            "user Kismet is running as", &username);
 
     shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > rrd_builder(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0));
 
