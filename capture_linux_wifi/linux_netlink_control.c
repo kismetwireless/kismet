@@ -331,6 +331,23 @@ int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id,
     NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, control_freq);
     NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, chan_width);
 
+    switch (chan_width) {
+        case NL80211_CHAN_WIDTH_20_NOHT:
+            NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_NO_HT);
+            break;
+        case NL80211_CHAN_WIDTH_20:
+            NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT20);
+            break;
+        case NL80211_CHAN_WIDTH_40:
+            if (control_freq > center_freq1)
+                NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT40MINUS);
+            else
+                NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT40PLUS);
+            break;
+        default:
+            break;
+    }
+
     if (center_freq1 != 0) {
         NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, center_freq1);
     }
