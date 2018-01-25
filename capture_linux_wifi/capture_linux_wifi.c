@@ -1316,34 +1316,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    if ((placeholder_len = 
-                cf_find_flag(&placeholder, "channel", definition)) > 0) {
-        localchanstr = strndup(placeholder, placeholder_len);
-
-        localchan = 
-            (local_channel_t *) chantranslate_callback(caph, localchanstr);
-
-        free(localchanstr);
-
-        if (localchan == NULL) {
-            snprintf(msg, STATUS_MAX, 
-                    "Could not parse channel= option provided in source "
-                    "definition");
-            return -1;
-        }
-
-        local_channel_to_str(localchan, errstr);
-        (*ret_interface)->chanset = strdup(errstr);
-
-        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", 
-                (*ret_interface)->chanset);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
-
-        if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
-            return -1;
-        }
-    }
-
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
             MAX_PACKET_LEN, 1, 1000, pcap_errstr);
@@ -1373,6 +1345,34 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     &(local_wifi->mac80211_id), &(local_wifi->mac80211_ifidx),
                     errstr) < 0) {
             local_wifi->use_mac80211_channels = 0;
+        }
+    }
+
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+
+        localchan = 
+            (local_channel_t *) chantranslate_callback(caph, localchanstr);
+
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX, 
+                    "Could not parse channel= option provided in source "
+                    "definition");
+            return -1;
+        }
+
+        local_channel_to_str(localchan, errstr);
+        (*ret_interface)->chanset = strdup(errstr);
+
+        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", 
+                (*ret_interface)->chanset);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+
+        if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+            return -1;
         }
     }
 
