@@ -163,6 +163,39 @@ typedef struct {
     unsigned int center_freq2;
 } local_channel_t;
 
+unsigned int wifi_chan_to_freq(unsigned int in_chan) {
+    /* 802.11 channels to frequency; if it looks like a frequency, return as
+     * pure frequency; derived from iwconfig */
+
+    if (in_chan > 250)
+        return in_chan;
+
+    if (in_chan == 14)
+        return 2484;
+    else if (in_chan < 14)
+        return 2407 + in_chan * 5;
+    else if (in_chan >= 182 && in_chan <= 196)
+        return 4000 + in_chan * 5;
+    else
+        return 5000 + in_chan * 5;
+
+    return in_chan;
+}
+
+unsigned int wifi_freq_to_chan(unsigned int in_freq) {
+    if (in_freq < 250)
+        return in_freq;
+
+    /* revamped from iw */
+    if (in_freq == 2484)
+        return 14;
+
+    if (in_freq < 2484)
+        return (in_freq - 2407) / 5;
+
+    return in_freq / 5 - 1000;
+}
+
 /* Find an interface based on a mac address (or mac address prefix in the case
  * of monitor mode interfaces); if we have to make a disassociated monitor interface
  * name we want to be able to find it again if we re-open
@@ -292,10 +325,12 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
         memset(ret_localchan, 0, sizeof(local_channel_t));
 
-        (ret_localchan)->control_freq = parsechan;
+        (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan);
 
         if (mod == '-') {
             (ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_40;
+            (ret_localchan)->center_freq1 = (ret_localchan)->control_freq - 10;
 
             /* Search for the ht channel record */
             for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
@@ -313,6 +348,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
             }
         } else if (mod == '+') {
             (ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
+            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_40;
+            (ret_localchan)->center_freq1 = (ret_localchan)->control_freq + 10;
 
             /* Search for the ht channel record */
             for (ci = 0; ci < sizeof(wifi_ht_channels) / 
