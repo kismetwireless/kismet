@@ -1008,7 +1008,7 @@ public:
 
             int ds_offt = (ds_hopvec.size() / offt_count) * nintf;
 
-            double rate = dst->string_to_rate((*ds)->get_definition_opt("hoprate"), -1);
+            double rate = dst->string_to_rate((*ds)->get_definition_opt("channel_hoprate"), -1);
 
             if (rate < 0) {
                 rate = defaults->get_hop_rate();
