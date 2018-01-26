@@ -471,6 +471,24 @@ xx. Datasource: Linux Wi-Fi
 
         When channel hopping is disabled, set a specific channel.
 
+    channels="channel list"
+
+        A comma-separated list of channels to be used on this source, instead of
+        the default channels automatically detected. 
+
+        This list MUST BE IN QUOTES, for example:
+
+            source=wlan0:name=foo,channels="1,2,6HT40+,53,57",hop_rate=1/sec
+
+        If you are providing this source via the command line '-c' option, you
+        may need to escape the quotes to keep your shell from hiding them,
+        for example:
+
+            $ kismet -c wlan0:name=foo,channels=\"1,2,6HT40+,53\",hop_rate=1/sec
+
+        You may specify channels which are not detected by the source probe, however
+        if the source cannot tune to them, there will be errors.
+
     channel_hop=true | false
 
         Enable channel hopping on this source.  If this is omitted, the source

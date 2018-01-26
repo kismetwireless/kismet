@@ -369,6 +369,9 @@ int cf_parse_interface(char **ret_interface, char *definition);
  * the start of the flag value in definition in ret_value, and the length of the
  * flag.
  *
+ * Parameter lists may include quoted strings; the quotes will not be returned;
+ * for instance channels="1,2,3,4",foo=bar will return 1,2,3,4 for 'channels'.
+ *
  * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
  * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
  *
@@ -412,6 +415,7 @@ int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitli
  */
 size_t cf_append_unique_chans(char **in_list1, size_t in_list1_sz,
         char **in_list2, size_t in_list2_sz, char ***ret_list);
+
 
 /* Initialize a caphandler
  *

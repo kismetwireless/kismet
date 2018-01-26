@@ -849,17 +849,40 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         set_source_key(Adler32Checksum(nuuid.UUID2String()));
     }
 
-    // Copy the channels from the remote to the hopping list; if there is a channels=
-    // directive the remote end will handle it and tell us, this keeps all the logic
-    // in the capture_framework code since remote sources would need to handle it locally
-    // anyhow
+    // If we have a channels= option in the definition, override the
+    // channels list, merge the custom channels list and the supplied channels
+    // list.  Otherwise, copy the source list to the hop list
 
     TrackerElementVector source_chan_vec(get_int_source_channels_vec());
     TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
 
     hop_chan_vec.clear();
-    for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
-        hop_chan_vec.push_back(*c);
+
+    std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
+
+    if (def_vec.size() != 0) {
+        for (auto dc : def_vec) {
+            SharedTrackerElement dce(new TrackerElement(TrackerString));
+            dce->set(dc);
+
+            hop_chan_vec.push_back(dce);
+
+            bool append = true;
+            for (auto sci : source_chan_vec) {
+                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
+                    append = false;
+                    break;
+                }
+            }
+            
+            if (append) {
+                source_chan_vec.push_back(dce);
+            }
+        }
+    } else {
+        for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+            hop_chan_vec.push_back(*c);
+        }
     }
 
     if (get_kv_success(i->second)) {

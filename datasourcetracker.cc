@@ -912,9 +912,9 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         // Generate a detached thread for joining the ring buffer; it acts as a blocking
         // wait for the buffer to be filled
         incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, 
-                    in_definition]{
-                merge_target_device->connect_buffer(in_handler, in_definition, NULL);
-                calculate_source_hopping(merge_target_device);
+                    in_definition]  {
+                    merge_target_device->connect_buffer(in_handler, in_definition, NULL);
+                    calculate_source_hopping(merge_target_device);
                 }));
 
         return;
