@@ -452,6 +452,8 @@ xx. Datasource: Linux Wi-Fi
           embedded firmware does not support monitor mode.  It may be possible
           to get it working with the Nexmon driver project, available at: 
               https://github.com/seemoo-lab/nexmon
+          The Kali distribution for the Raspberry Pi3 and Raspberry Pi 0W includes
+          the nexmon patches.
         - Most out-of-kernel drivers installed by a distribution outside of
           the normal kernel driver set.  Some distributions (raspbian for instance)
           package custom drivers for many of the cheaper USB Wi-Fi adapters, and
@@ -465,9 +467,24 @@ xx. Datasource: Linux Wi-Fi
 
     Linux Wi-Fi sources accept several options in the source definition:
 
+    channel=channel-def
+
+        When channel hopping is disabled, set a specific channel.
+
+    channel_hop=true | false
+
+        Enable channel hopping on this source.  If this is omitted, the source
+        will use the global hopping option.
+
+    channel_hoprate=channels/sec | channels/min
+
+        Like the global channel_hop_rate configuration option, this sets the 
+        speed of channel hopping on this source only.  If this is omitted,
+        the source will use the global hop rate.
+
     fcsfail=true | false
 
-        mac80211-based drivers sometimes have the option to report packets 
+        Mac80211-based drivers sometimes have the option to report packets 
         which do not pass the frame checksum, or FCS.  Generally these packets
         are garbage - they are packets which, due to in-air corruption due to
         collisions with other packets, have become corrupt.
@@ -475,17 +492,6 @@ xx. Datasource: Linux Wi-Fi
         Usually there is no good reason to turn this on unless you are doing
         research on non-standard packets and hope to glean some sort of
         information from them.
-
-    hop=true | false
-
-        Enable channel hopping on this source.  If this is omitted, the source
-        will use the global hopping option.
-
-    hoprate=channels/sec | channels/min
-
-        Like the global channel_hop_rate configuration option, this sets the 
-        speed of channel hopping on this source only.  If this is omitted,
-        the source will use the global hop rate.
 
     ignoreprimary=true | false
 
