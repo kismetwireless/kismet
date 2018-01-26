@@ -123,7 +123,7 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     // and call the cb instantly
     if (!get_source_builder()->get_list_capable()) {
         if (in_cb != NULL) {
-            in_cb(in_transaction, vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<SharedInterface>());
         }
 
         return;
@@ -136,7 +136,7 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     send_command_list_interfaces(in_transaction, in_cb);
 }
 
-void KisDatasource::probe_interface(string in_definition, unsigned int in_transaction,
+void KisDatasource::probe_interface(std::string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -170,7 +170,7 @@ void KisDatasource::probe_interface(string in_definition, unsigned int in_transa
     send_command_probe_interface(in_definition, in_transaction, in_cb);
 }
 
-void KisDatasource::open_interface(string in_definition, unsigned int in_transaction, 
+void KisDatasource::open_interface(std::string in_definition, unsigned int in_transaction, 
         open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -205,7 +205,7 @@ void KisDatasource::open_interface(string in_definition, unsigned int in_transac
     send_command_open_interface(in_definition, in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel(string in_channel, unsigned int in_transaction,
+void KisDatasource::set_channel(std::string in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -278,7 +278,7 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
 }
 
 void KisDatasource::connect_buffer(shared_ptr<BufferHandlerGeneric> in_ringbuf,
-        string in_definition, open_callback_t in_cb) {
+        std::string in_definition, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
     set_int_source_running(true);
@@ -537,17 +537,17 @@ void KisDatasource::BufferAvailable(size_t in_amt __attribute__((unused))) {
     }
 }
 
-void KisDatasource::BufferError(string in_error) {
+void KisDatasource::BufferError(std::string in_error) {
     // Simple passthrough to crash the source out from an error at the buffer level
     trigger_error(in_error);
 }
 
-void KisDatasource::trigger_error(string in_error) {
+void KisDatasource::trigger_error(std::string in_error) {
     local_locker lock(&source_lock);
 
     // fprintf(stderr, "DEBUG - trigger error %s\n", in_error.c_str());
 
-    stringstream ss;
+    std::stringstream ss;
 
     if (!quiet_errors) {
         ss << "Data source " << get_source_name() << " (" <<
@@ -570,7 +570,7 @@ void KisDatasource::trigger_error(string in_error) {
     cancel_all_commands(in_error);
 }
 
-string KisDatasource::get_definition_opt(string in_opt) {
+std::string KisDatasource::get_definition_opt(std::string in_opt) {
     auto i = source_definition_opts.find(StrLower(in_opt));
 
     if (i == source_definition_opts.end())
@@ -579,9 +579,9 @@ string KisDatasource::get_definition_opt(string in_opt) {
     return i->second;
 }
 
-bool KisDatasource::get_definition_opt_bool(string in_opt, bool in_def) {
+bool KisDatasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
     auto i = source_definition_opts.find(StrLower(in_opt));
-    string opt;
+    std::string opt;
 
     if (i != source_definition_opts.end())
         opt = i->second;
@@ -591,12 +591,12 @@ bool KisDatasource::get_definition_opt_bool(string in_opt, bool in_def) {
     return StringToBool(opt, in_def);
 }
 
-bool KisDatasource::parse_interface_definition(string in_definition) {
+bool KisDatasource::parse_interface_definition(std::string in_definition) {
     local_locker lock(&source_lock);
 
     local_uuid = false;
 
-    string interface;
+    std::string interface;
 
     size_t cpos = in_definition.find(":");
 
@@ -604,7 +604,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
     std::vector<opt_pair> options;
 
     // If there's no ':' then there are no options
-    if (cpos == string::npos) {
+    if (cpos == std::string::npos) {
         set_int_source_interface(in_definition);
         set_source_name(in_definition);
     } else {
@@ -625,7 +625,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
 
     // Set some basic options
    
-    string namestr = get_definition_opt("name");
+    std::string namestr = get_definition_opt("name");
 
     if (namestr != "") {
         set_source_name(namestr);
@@ -633,7 +633,7 @@ bool KisDatasource::parse_interface_definition(string in_definition) {
         set_source_name(get_source_interface());
     }
 
-    string uuidstr = get_definition_opt("uuid");
+    std::string uuidstr = get_definition_opt("uuid");
 
     if (uuidstr != "") {
         uuid u(uuidstr);
@@ -667,7 +667,7 @@ shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint32_t i
     return i->second;
 }
 
-void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
+void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error) {
     local_locker lock(&source_lock);
 
     auto i = command_ack_map.find(in_transaction);
@@ -687,7 +687,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
         if (cmd->list_cb != NULL) {
             list_callback_t cb = cmd->list_cb;
             cmd->list_cb = NULL;
-            cb(cmd->transaction, vector<SharedInterface>());
+            cb(cmd->transaction, std::vector<SharedInterface>());
         } else if (cmd->probe_cb != NULL) {
             probe_callback_t cb = cmd->probe_cb;
             cmd->probe_cb = NULL;
@@ -706,7 +706,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, string in_error) {
     }
 }
 
-void KisDatasource::cancel_all_commands(string in_error) {
+void KisDatasource::cancel_all_commands(std::string in_error) {
     local_locker lock(&source_lock);
 
     // fprintf(stderr, "debug - cancel all commands\n");
@@ -723,10 +723,10 @@ void KisDatasource::cancel_all_commands(string in_error) {
     command_ack_map.empty();
 }
 
-void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
+void KisDatasource::proto_dispatch_packet(std::string in_type, KVmap in_kvmap) {
     local_locker lock(&source_lock);
 
-    string ltype = StrLower(in_type);
+    std::string ltype = StrLower(in_type);
 
     if (ltype == "proberesp") {
         proto_packet_probe_resp(in_kvmap);
@@ -754,7 +754,7 @@ void KisDatasource::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
 
 void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
-    string msg;
+    std::string msg;
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
@@ -797,7 +797,7 @@ void KisDatasource::proto_packet_probe_resp(KVmap in_kvpairs) {
 void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
     KVmap::iterator successitr;
-    string msg;
+    std::string msg;
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
@@ -906,7 +906,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
 
 void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
     KVmap::iterator i;
-    string msg;
+    std::string msg;
 
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
         msg = handle_kv_message(i->second);
@@ -939,7 +939,7 @@ void KisDatasource::proto_packet_list_resp(KVmap in_kvpairs) {
 void KisDatasource::proto_packet_error(KVmap in_kvpairs) {
     KVmap::iterator i;
 
-    string fail_reason = "Received error frame on data source";
+    std::string fail_reason = "Received error frame on data source";
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
@@ -964,7 +964,7 @@ void KisDatasource::proto_packet_message(KVmap in_kvpairs) {
 
 void KisDatasource::proto_packet_configresp(KVmap in_kvpairs) {
     KVmap::iterator i;
-    string msg;
+    std::string msg;
 
     // Process any messages
     if ((i = in_kvpairs.find("message")) != in_kvpairs.end()) {
@@ -1092,13 +1092,13 @@ uint32_t KisDatasource::get_kv_success_sequence(KisDatasourceCapKeyedObject *in_
     return seqno;
 }
 
-string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
+std::string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
     // Unpack the dictionary
     MsgpackAdapter::MsgpackStrMap dict;
     msgpack::unpacked result;
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
-    string msg;
+    std::vector<std::string> channel_vec;
+    std::string msg;
 
     try {
         msgpack::unpack(result, in_obj->object, in_obj->size); 
@@ -1108,7 +1108,7 @@ string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
         unsigned int flags;
 
         if ((obj_iter = dict.find("msg")) != dict.end()) {
-            msg = obj_iter->second.as<string>();
+            msg = obj_iter->second.as<std::string>();
         } else {
             throw std::runtime_error("missing 'msg' entry");
         }
@@ -1123,7 +1123,7 @@ string KisDatasource::handle_kv_message(KisDatasourceCapKeyedObject *in_obj) {
 
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack message bundle: " << e.what();
 
         trigger_error(ss.str());
@@ -1144,7 +1144,7 @@ void KisDatasource::handle_kv_channels(KisDatasourceCapKeyedObject *in_obj) {
     MsgpackAdapter::MsgpackStrMap dict;
     msgpack::unpacked result;
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
+    std::vector<std::string> channel_vec;
 
     try {
         msgpack::unpack(result, in_obj->object, in_obj->size);
@@ -1170,7 +1170,7 @@ void KisDatasource::handle_kv_channels(KisDatasourceCapKeyedObject *in_obj) {
         }
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack proberesp channels bundle: " << e.what();
 
         trigger_error(ss.str());
@@ -1221,7 +1221,7 @@ kis_layer1_packinfo *KisDatasource::handle_kv_signal(KisDatasourceCapKeyedObject
         }
 
         if ((obj_iter = dict.find("channel")) != dict.end()) {
-            siginfo->channel = obj_iter->second.as<string>();
+            siginfo->channel = obj_iter->second.as<std::string>();
         }
 
         if ((obj_iter = dict.find("datarate")) != dict.end()) {
@@ -1232,7 +1232,7 @@ kis_layer1_packinfo *KisDatasource::handle_kv_signal(KisDatasourceCapKeyedObject
         delete(siginfo);
 
         // Something went wrong with msgpack unpacking
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack gps bundle: " << e.what();
 
         trigger_error(ss.str());
@@ -1298,7 +1298,7 @@ kis_gps_packinfo *KisDatasource::handle_kv_gps(KisDatasourceCapKeyedObject *in_o
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
         delete(gpsinfo);
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack gps bundle: " << e.what();
 
         trigger_error(ss.str());
@@ -1331,13 +1331,13 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
             if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
                 packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
             } else {
-                throw std::runtime_error(string("tv_sec timestamp missing"));
+                throw std::runtime_error(std::string("tv_sec timestamp missing"));
             }
 
             if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
                 packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
             } else {
-                throw std::runtime_error(string("tv_usec timestamp missing"));
+                throw std::runtime_error(std::string("tv_usec timestamp missing"));
             }
         }
 
@@ -1346,18 +1346,18 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         if ((obj_iter = dict.find("size")) != dict.end()) {
             size = obj_iter->second.as<uint64_t>();
         } else {
-            throw std::runtime_error(string("size field missing or zero"));
+            throw std::runtime_error(std::string("size field missing or zero"));
         }
 
         msgpack::object rawdata;
         if ((obj_iter = dict.find("packet")) != dict.end()) {
             rawdata = obj_iter->second;
         } else {
-            throw std::runtime_error(string("packet data missing"));
+            throw std::runtime_error(std::string("packet data missing"));
         }
 
         if (rawdata.via.bin.size != size) {
-            throw std::runtime_error(string("packet size did not match data size"));
+            throw std::runtime_error(std::string("packet size did not match data size"));
         }
 
         datachunk->copy_data((const uint8_t *) rawdata.via.bin.ptr, size);
@@ -1371,7 +1371,7 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
         // until later
         delete(datachunk);
 
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack packet bundle: " << e.what();
 
         trigger_error(ss.str());
@@ -1387,7 +1387,7 @@ kis_packet *KisDatasource::handle_kv_packet(KisDatasourceCapKeyedObject *in_obj)
 }
 
 void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
-    uuid parsed_uuid(string(in_obj->object, in_obj->size));
+    uuid parsed_uuid(std::string(in_obj->object, in_obj->size));
 
     if (parsed_uuid.error) {
         trigger_error("unable to parse UUID");
@@ -1402,19 +1402,19 @@ void KisDatasource::handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj) {
 }
 
 void KisDatasource::handle_kv_capif(KisDatasourceCapKeyedObject *in_obj) {
-    set_int_source_cap_interface(string(in_obj->object, in_obj->size));
+    set_int_source_cap_interface(std::string(in_obj->object, in_obj->size));
 }
 
-string KisDatasource::handle_kv_warning(KisDatasourceCapKeyedObject *in_obj) {
+std::string KisDatasource::handle_kv_warning(KisDatasourceCapKeyedObject *in_obj) {
     // Stupid simple
-    set_int_source_warning(string(in_obj->object, in_obj->size));
-    return (string(in_obj->object, in_obj->size));
+    set_int_source_warning(std::string(in_obj->object, in_obj->size));
+    return (std::string(in_obj->object, in_obj->size));
 }
 
 void KisDatasource::handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj) {
     // Very simple - we just copy the channel string over
     set_int_source_hopping(false);
-    set_int_source_channel(string(in_obj->object, in_obj->size));
+    set_int_source_channel(std::string(in_obj->object, in_obj->size));
 }
 
 void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
@@ -1422,14 +1422,14 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
     MsgpackAdapter::MsgpackStrMap dict;
     msgpack::unpacked result;
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
+    std::vector<std::string> channel_vec;
 
-    vector<string> blocked_channel_vec;
+    std::vector<std::string> blocked_channel_vec;
 
     // Get any channels we mask out from the source definition
     blocked_channel_vec = StrTokenize(get_definition_opt("blockedchannels"), ",");
 
-    string blocked_msg_list = "";
+    std::string blocked_msg_list = "";
 
     try {
         msgpack::unpack(result, in_obj->object, in_obj->size);
@@ -1475,13 +1475,13 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
                         blocked_msg_list + "'", MSGFLAG_INFO);
             }
         } else {
-            throw std::runtime_error(string("channel list missing in hop config"));
+            throw std::runtime_error(std::string("channel list missing in hop config"));
         }
 
         if ((obj_iter = dict.find("rate")) != dict.end()) {
             set_int_source_hop_rate(obj_iter->second.as<double>());
         } else {
-            throw std::runtime_error(string("rate missing in hop config"));
+            throw std::runtime_error(std::string("rate missing in hop config"));
         }
 
         set_int_source_hopping(true);
@@ -1501,7 +1501,7 @@ void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
 
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack hop config bundle: " << e.what();
         trigger_error(ss.str());
 
@@ -1519,7 +1519,7 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
     msgpack::unpacked result;
     MsgpackAdapter::MsgpackStrMap dict;
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> channel_vec;
+    std::vector<std::string> channel_vec;
 
     try {
         msgpack::unpack(result, in_obj->object, in_obj->size);
@@ -1531,18 +1531,18 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
             dict = deserialized.via.array.ptr[i].as<MsgpackAdapter::MsgpackStrMap>();
 
             // Our extracted values
-            string interface;
-            string opts;
+            std::string interface;
+            std::string opts;
 
             // Interface is mandatory, flags are not
             if ((obj_iter = dict.find("interface")) != dict.end()) {
-                interface = obj_iter->second.as<string>();
+                interface = obj_iter->second.as<std::string>();
             } else {
-                throw std::runtime_error(string("interface missing in list response"));
+                throw std::runtime_error(std::string("interface missing in list response"));
             }
 
             if ((obj_iter = dict.find("flags")) != dict.end()) {
-                opts = obj_iter->second.as<string>();
+                opts = obj_iter->second.as<std::string>();
             }
 
             SharedInterface intf = static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
@@ -1557,7 +1557,7 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
         }
     } catch (const std::exception& e) {
         // Something went wrong with msgpack unpacking
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack interface list bundle: " << e.what();
 
         trigger_error(ss.str());
@@ -1583,7 +1583,7 @@ unsigned int KisDatasource::handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj) {
     return *dlt;
 }
 
-bool KisDatasource::write_packet(string in_cmd, KVmap in_kvpairs,
+bool KisDatasource::write_packet(std::string in_cmd, KVmap in_kvpairs,
         uint32_t &ret_seqno) {
     local_locker lock(&source_lock);
     // Generate a packet and put it in the buffer
@@ -1662,7 +1662,7 @@ void KisDatasource::send_command_list_interfaces(unsigned int in_transaction,
 
     if (!success) {
         if (in_cb != NULL) {
-            in_cb(in_transaction, vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<SharedInterface>());
         }
 
         return;
@@ -1674,7 +1674,7 @@ void KisDatasource::send_command_list_interfaces(unsigned int in_transaction,
     command_ack_map.emplace(seqno, cmd);
 }
 
-void KisDatasource::send_command_probe_interface(string in_definition, 
+void KisDatasource::send_command_probe_interface(std::string in_definition, 
         unsigned int in_transaction, probe_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -1708,7 +1708,7 @@ void KisDatasource::send_command_probe_interface(string in_definition,
 }
 
 
-void KisDatasource::send_command_open_interface(string in_definition,
+void KisDatasource::send_command_open_interface(std::string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -1741,7 +1741,7 @@ void KisDatasource::send_command_open_interface(string in_definition,
     command_ack_map.emplace(seqno, cmd);
 }
 
-void KisDatasource::send_command_set_channel(string in_channel, 
+void KisDatasource::send_command_set_channel(std::string in_channel, 
         unsigned int in_transaction, configure_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -1788,26 +1788,26 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
     TrackerElementVector in_vec(in_chans);
 
     // Pack the vector into a string stream using the msgpack api
-    stringstream stream;
+    std::stringstream stream;
     msgpack::packer<std::stringstream> packer(&stream);
 
     // 4-element dictionary
     packer.pack_map(4);
 
     // Pack the rate dictionary entry
-    packer.pack(string("rate"));
+    packer.pack(std::string("rate"));
     packer.pack(in_rate);
 
     // Pack the shuffle
-    packer.pack(string("shuffle"));
+    packer.pack(std::string("shuffle"));
     packer.pack((uint8_t) in_shuffle);
 
     // Pack the offset
-    packer.pack(string("offset"));
+    packer.pack(std::string("offset"));
     packer.pack((uint32_t) in_offt);
 
     // Pack the vector of channels
-    packer.pack(string("channels"));
+    packer.pack(std::string("channels"));
     packer.pack_array(in_vec.size());
 
     for (auto i = in_vec.begin(); i != in_vec.end(); ++i) {
@@ -1966,7 +1966,7 @@ void KisDatasource::handle_source_error() {
     if (mode_listing || mode_probing)
         return;
 
-    stringstream ss;
+    std::stringstream ss;
 
     // Do nothing if we don't handle retry
     if (get_source_remote()) {
@@ -2052,7 +2052,7 @@ void KisDatasource::handle_source_error() {
 
                 // Call open on the same sourceline, no transaction, no cb
                 open_interface(get_source_definition(), 0, 
-                        [this](int, bool success, string) {
+                        [this](int, bool success, std::string) {
                             if (!success)
                                 return;
 
@@ -2088,7 +2088,7 @@ void KisDatasource::handle_source_error() {
 void KisDatasource::launch_ipc() {
     local_locker lock(&source_lock);
 
-    stringstream ss;
+    std::stringstream ss;
 
     if (get_source_ipc_binary() == "") {
         ss << "missing IPC binary name, cannot launch capture tool";
@@ -2115,13 +2115,12 @@ void KisDatasource::launch_ipc() {
     ipc_remote.reset(new IPCRemoteV2(globalreg, ringbuf_handler));
 
     // Get allowed paths for binaries
-    vector<string> bin_paths = 
+    std::vector<std::string> bin_paths = 
         globalreg->kismet_config->FetchOptVec("capture_binary_path");
 
     // Explode any expansion macros in the path and add it to the list we search
-    for (vector<string>::iterator i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-        ipc_remote->add_path(globalreg->kismet_config->ExpandLogPath(*i, "", 
-                    "", 0, 1));
+    for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {
+        ipc_remote->add_path(globalreg->kismet_config->ExpandLogPath(*i, "", "", 0, 1));
     }
 
     int ret = ipc_remote->launch_kis_binary(get_source_ipc_binary(), ipc_binary_args);
@@ -2144,7 +2143,7 @@ KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(simple_cap_proto_kv *in
     kv = in_kp;
 
     snprintf(ckey, 16, "%s", in_kp->header.key);
-    key = string(ckey);
+    key = std::string(ckey);
 
     size = kis_ntoh32(in_kp->header.obj_sz);
     object = (char *) kv->object;
@@ -2152,7 +2151,7 @@ KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(simple_cap_proto_kv *in
     allocated = false;
 }
 
-KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(string in_key,
+KisDatasourceCapKeyedObject::KisDatasourceCapKeyedObject(std::string in_key,
         const char *in_object, ssize_t in_len) {
     // Clone the object into a kv header for easier transmission assembly
     
