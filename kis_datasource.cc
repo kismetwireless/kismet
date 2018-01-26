@@ -849,9 +849,11 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         set_source_key(Adler32Checksum(nuuid.UUID2String()));
     }
 
-    // TODO configure channels based on source line, if any; otherwise, copy
-    // the source channels to the hopping list
-    
+    // Copy the channels from the remote to the hopping list; if there is a channels=
+    // directive the remote end will handle it and tell us, this keeps all the logic
+    // in the capture_framework code since remote sources would need to handle it locally
+    // anyhow
+
     TrackerElementVector source_chan_vec(get_int_source_channels_vec());
     TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
 
@@ -892,12 +894,10 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
             local_locker lock(&source_lock);
             
             if (!get_source_running()) {
-                // fprintf(stderr, "debug - ping - %lu source not running in ping timer, stopping\n", time(0));
                 ping_timer_id = -1;
                 return 0;
             }
            
-            // fprintf(stderr, "debug - ping - %lu\n", time(0));
             send_command_ping();
             return 1;
         });
