@@ -395,6 +395,24 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition);
 int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
         size_t *ret_splitlist_sz);
 
+/* Merge two string arrays of strings, such as channels, into a single array of
+ * unique values.
+ *  
+ * Passed elements *are copied*.  Caller is responsible for freeing original
+ * copies.
+ *
+ * The resulting list is dynamically allocated.  Caller is responsible for
+ * freeing returned list after use.
+ *
+ * Strings are compared with a case-insensitive compare.
+ *
+ * Returns:
+ *  0   Error / Empty lists passed
+ *  sz  Size of *ret_list
+ */
+size_t cf_append_unique_chans(char **in_list1, size_t in_list1_sz,
+        char **in_list2, size_t in_list2_sz, char ***ret_list);
+
 /* Initialize a caphandler
  *
  * Returns:

@@ -66,10 +66,7 @@ int cf_parse_interface(char **ret_interface, char *definition) {
 }
 
 int cf_find_flag(char **ret_value, const char *flag, char *definition) {
-    char *colonpos;
-    char *flagpos;
-    char *comma;
-    char *equals;
+    char *colonpos, *flagpos, *comma, *equals, *quote, *equote;
 
     colonpos = strstr(definition, ":");
 
@@ -95,34 +92,73 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
         if (strncasecmp(flag, flagpos, (equals - flagpos)) == 0) {
             /* Find the next comma */
             comma = strstr(equals, ",");
+            /* Find the next quote */
+            quote = strstr(equals, "\"");
 
             /* If it's null we're the last flag, so use the total length after
              * the equals as the value */
-            if (comma == NULL) {
+            if (comma == NULL && quote == NULL) {
+                printf("comma and quote null\n");
                 *ret_value = equals + 1;
                 return strlen(equals) - 1;
             }
 
-            /* Otherwise return until the equals */
+            /* If we've got a quote inside the string, before the terminating comma,
+             * find the next quote and return that as the length */
+            if (quote != NULL) {
+                printf("quote not null\n");
+                if ((comma != NULL && quote < comma) || comma == NULL) {
+                    printf("quote < comma or comma null %p %p\n", quote, comma);
+                    equote = strstr(quote + 1, "\"");
+                    *ret_value = quote + 1;
+                    return (equote - (quote + 1));
+                } else {
+                    printf("quote out of flag\n");
+                }
+            }
+
+            /* Otherwise return until the next comma */
             *ret_value = equals + 1;
             return (comma - (equals + 1));
         }
 
-        /* Otherwise find the next comma and advance */
+        /* Otherwise find the next comma */
         comma = strstr(flagpos, ",");
+        /* Find the next quote */
+        quote = strstr(equals, "\"");
 
         /* No comma, no more flags, nothing to find */
-        if (comma == NULL) {
+        if (comma == NULL && quote == NULL) {
             *ret_value = NULL;
             return 0;
         }
 
+        /* If we have a quote */
+        if (quote != NULL) {
+            /* And it contains the current flag */
+            if ((comma != NULL && quote < comma) || comma == NULL) {
+                /* Jump to the end of the quote */
+                equote = strstr(quote + 1, "\"");
+
+                /* Find a trailing comma */
+                comma = strstr(equote, ",");
+
+                /* bail if this was the last */
+                if (comma == NULL) {
+                    *ret_value = NULL;
+                    return 0;
+                }
+            }
+        }
+
+        /* Jump past the flagpos */
         flagpos = comma + 1;
     }
 
     *ret_value = NULL;
     return 0;
 }
+
 
 int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
         size_t *ret_splitlist_sz) {
@@ -187,6 +223,49 @@ int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitli
     }
 
     return 0;
+}
+
+size_t cf_append_unique_chans(char **in_list1, size_t in_list1_sz,
+        char **in_list2, size_t in_list2_sz, char ***ret_list) {
+    size_t max_sz = in_list1_sz + in_list2_sz;
+    size_t i, n, offt;
+    int skip = 0;
+
+    if (max_sz == 0) {
+        *ret_list = NULL;
+        return 0;
+    }
+
+    /* Make a max-size list; we only lose a few char* sizes so we don't care */
+    *ret_list = (char **) malloc(sizeof(char *) * max_sz);
+
+    if (*ret_list == NULL)
+        return 0;
+
+    /* dupe all of the first list */
+    for (i = 0; i < in_list1_sz; i++) {
+        (*ret_list)[i] = strdup(in_list1[i]);
+    }
+
+    offt = in_list1_sz;
+
+    /* Dupe uniques of the second list */
+    for (i = 0; i < in_list2_sz; i++) {
+        skip = 0;
+        for (n = 0; n < in_list1_sz; n++) {
+            if (strcasecmp(in_list1[n], in_list2[i]) == 0) {
+                skip = 1;
+                break;
+            }
+        }
+
+        if (skip)
+            continue;
+
+        (*ret_list)[offt++] = strdup(in_list2[i]);
+    }
+
+    return offt;
 }
 
 kis_capture_handler_t *cf_handler_init(const char *in_type) {
