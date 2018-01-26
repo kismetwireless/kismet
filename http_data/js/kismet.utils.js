@@ -98,6 +98,15 @@ exports.HumanReadableFrequency = function(f) {
         return (f / 1000 / 1000).toFixed(3) + " GHz";
 }
 
+var dynamics_loaded = false;
+var load_completes = [];
+exports.AddLoadComplete = function(f) {
+    if (dynamics_loaded)
+        f();
+    else
+        load_completes.push(f);
+}
+
 // Load any plugin scripts defined in /system/dynamic.json
 exports.GetDynamicIncludes = function() {
     // Make a deferred promise that the scripts are loaded
@@ -171,6 +180,15 @@ exports.GetDynamicIncludes = function() {
     });
 
     return scriptchain;
+}
+
+exports.LoadDynamicIncludes = function(f) {
+    exports.GetDynamicIncludes().done(function() {
+        dynamics_loaded = true;
+        f();
+        for (var cb of load_completes) 
+            cb();
+    });
 }
 
 // Modify a RRD minute record by fast-forwarding it to 'now', and optionally

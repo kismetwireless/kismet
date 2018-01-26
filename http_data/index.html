@@ -151,7 +151,7 @@ $(function() {
 
     // Dynamic load of our plugin js, then continue.  is this the only way to do
     // this?  sure is annoying.
-    kismet.GetDynamicIncludes().done(function() {
+    kismet.LoadDynamicIncludes(function() {
 
     kismet_ui.CreateDeviceTable($('#devices'));
 
