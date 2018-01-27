@@ -310,8 +310,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         }
     }
 
-    recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
-        chunk_csum;
+    if (recent_packet_checksums_sz > 0)
+        recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
+            chunk_csum;
 
     // Flat-out dump if it's not big enough to be 80211, don't even bother making a
     // packinfo record for it because we're completely broken
