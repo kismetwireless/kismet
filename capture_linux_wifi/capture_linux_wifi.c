@@ -102,6 +102,11 @@ typedef struct {
     int mac80211_id;
     int mac80211_ifidx;
 
+    /* Do we process extended channels?  Controlled by chipset and by source
+     * options */
+    int use_ht_channels;
+    int use_vht_channels;
+
     /* Number of sequential errors setting channel */
     unsigned int seq_channel_failure;
 
@@ -516,16 +521,23 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     }
 }
 
-int populate_chanlist(char *interface, char *msg, char ***chanlist, 
-        size_t *chanlist_sz) {
+int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
+        char ***chanlist, size_t *chanlist_sz) {
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
     unsigned int *iw_chanlist;
     unsigned int chan_sz;
     unsigned int ci;
     char conv_chan[16];
+    unsigned int extended_flags = 0;
+
+    if (local_wifi->use_ht_channels)
+        extended_flags += MAC80211_GET_HT;
+    if (local_wifi->use_vht_channels)
+        extended_flags += MAC80211_GET_VHT;
 
     /* Prefer mac80211 channel fetch */
-    ret = mac80211_get_chanlist(interface, msg, chanlist, 
+    ret = mac80211_get_chanlist(interface, extended_flags, msg, chanlist, 
             (unsigned int *) chanlist_sz);
 
     if (ret < 0) {
@@ -674,6 +686,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, simple_cap_proto_frame_t *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
@@ -684,6 +697,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_interface = cf_params_interface_new();
 
     uint8_t hwaddr[6];
+    char driver[32] = "";
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -692,13 +706,57 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     interface = strndup(placeholder, placeholder_len);
 
+    /* get the driver */
+    linux_getsysdrv(local_wifi->interface, driver);
+
+    /* if we're hard rfkilled we can't do anything */
+    if (linux_sys_get_rfkill(local_wifi->interface, LINUX_RFKILL_TYPE_HARD) == 1) {
+        snprintf(msg, STATUS_MAX, "Interface '%s' is set to hard rfkill; check your "
+                "wireless switch if you have one.", local_wifi->interface);
+        return -1;
+    }
+
     /* get the mac address; this should be standard for anything */
     if (ifconfig_get_hwaddr(interface, errstr, hwaddr) < 0) {
         free(interface);
         return 0;
     }
 
-    ret = populate_chanlist(interface, errstr, &((*ret_interface)->channels),
+    if (strcmp(driver, "brcmfmac") == 0 ||
+            strcmp(driver, "brcmfmac_sdio") == 0) {
+        struct nexmon_t *nexmon;
+        nexmon = init_nexmon(local_wifi->interface);
+
+        if (nexmon == NULL) {
+            return -1;
+        }
+
+        free(nexmon);
+    } else if (strcmp(driver, "iwlwifi") == 0) {
+        local_wifi->use_ht_channels = 0;
+        local_wifi->use_vht_channels = 0;
+    }
+
+    /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "ht_channels", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->use_ht_channels = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->use_ht_channels = 1;
+        }
+    }
+
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "vht_channels", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->use_vht_channels = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->use_vht_channels = 1;
+        } 
+    }
+
+    ret = populate_chanlist(caph, interface, errstr, &((*ret_interface)->channels),
             &((*ret_interface)->channels_len));
 
     free(interface);
@@ -861,12 +919,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "cleanly filter all of them; you may see large quantities of spurious "
                 "networks.", local_wifi->interface);
         cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
-    } else if (strcmp(driver, "iwlwifi") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the Intel iwlwifi "
-                "driver.  Some Intel Wi-Fi cards encounter problems setting some "
-                "channels which can cause the interface to fully reset.",
-                local_wifi->interface);
-        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
     } else if (strcmp(driver, "brcmfmac") == 0 ||
             strcmp(driver, "brcmfmac_sdio") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is a Broadcom "
@@ -886,6 +938,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local_wifi->interface);
             return -1;
         }
+    } else if (strcmp(driver, "iwlwifi") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is an Intel "
+                "iwlwifi device; These have shown significant problems tuning to HT and VHT "
+                "channels leading to firmware crashes, disabling HT and VHT channels now. "
+                "You can override this with the source options htchannels=true and "
+                "vhtchannels=true", local_wifi->interface);
+        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+        local_wifi->use_ht_channels = 0;
+        local_wifi->use_vht_channels = 0;
     }
 
 
@@ -1295,7 +1356,26 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    ret = populate_chanlist(local_wifi->cap_interface, errstr, 
+    /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "ht_channels", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->use_ht_channels = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->use_ht_channels = 1;
+        }
+    }
+
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "vht_channels", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->use_vht_channels = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->use_vht_channels = 1;
+        } 
+    }
+
+    ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
         snprintf(msg, STATUS_MAX, "Could not get list of channels from capture "
@@ -1522,6 +1602,8 @@ int main(int argc, char *argv[]) {
         .use_mac80211_vif = 1,
         .use_mac80211_channels = 1,
         .mac80211_socket = NULL,
+        .use_ht_channels = 1,
+        .use_vht_channels = 1,
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
         .nexmon = NULL

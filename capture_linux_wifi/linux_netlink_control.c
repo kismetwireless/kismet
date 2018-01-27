@@ -406,6 +406,7 @@ struct nl80211_channel_block {
 	char *phyname;
 
 	int nfreqs;
+    unsigned int extended_flags;
 
     struct nl80211_channel_list *channel_list;
     struct nl80211_channel_list *chan_list_last;
@@ -502,7 +503,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                      * but it's better to do a frequency lookup */
                     for (hti = 0; hti < MAX_WIFI_HT_CHANNEL; hti++) {
                         if (wifi_ht_channels[hti].freq == freq) {
-                            if (band_ht40) {
+                            if (band_ht40 && (chanb->extended_flags & MAC80211_GET_HT)) {
                                 if (wifi_ht_channels[hti].flags & WIFI_HT_HT40MINUS) {
                                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
                                     snprintf(channel_str, 32, 
@@ -529,7 +530,8 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                                 }
                             }
 
-                            if (band_ht80 && wifi_ht_channels[hti].flags & WIFI_HT_HT80) {
+                            if (band_ht80 && wifi_ht_channels[hti].flags & WIFI_HT_HT80 &&
+                                    (chanb->extended_flags & MAC80211_GET_VHT)) {
                                 chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
                                 snprintf(channel_str, 32, 
                                         "%uVHT80", mac80211_freq_to_chan(freq));
@@ -541,7 +543,8 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                                 chanb->chan_list_last = chan_list_new;
                             }
 
-                            if (band_ht160 && wifi_ht_channels[hti].flags & WIFI_HT_HT160) {
+                            if (band_ht160 && wifi_ht_channels[hti].flags & WIFI_HT_HT160 &&
+                                    (chanb->extended_flags & MAC80211_GET_VHT)) {
                                 chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
                                 snprintf(channel_str, 32, 
                                         "%uVHT160", mac80211_freq_to_chan(freq));
@@ -585,7 +588,7 @@ static int nl80211_ack_cb(struct nl_msg *msg, void *arg) {
 }
 #endif
 
-int mac80211_get_chanlist(const char *interface, char *errstr,
+int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
         char ***ret_chan_list, unsigned int *ret_num_chans) {
     struct nl80211_channel_block cblock = {
         .phyname = NULL,
@@ -609,6 +612,8 @@ int mac80211_get_chanlist(const char *interface, char *errstr,
     struct nl_cb *cb;
     int err;
     struct nl_msg *msg;
+
+    cblock.extended_flags = extended_flags;
 
     cblock.phyname = mac80211_find_parent(interface);
     if (strlen(cblock.phyname) == 0) {

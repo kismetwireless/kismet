@@ -111,6 +111,10 @@ char *mac80211_find_parent(const char *interface);
 #define MAC80211_CHANLIST_NO_INTERFACE		-2
 #define MAC80211_CHANLIST_NOT_MAC80211		-3
 #define MAC80211_CHANLIST_GENERIC			-4
+
+#define MAC80211_GET_HT                     (1 << 0) 
+#define MAC80211_GET_VHT                    (1 << 1)
+
 /* Get a complete channel list supported by an interface.
  *
  * This extracts any information about HT40, 80, and 160 from the device specs,
@@ -134,7 +138,7 @@ char *mac80211_find_parent(const char *interface);
  *  0   Success
  *
  */
-int mac80211_get_chanlist(const char *interface, char *errstr,
+int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
         char ***ret_chanlist, unsigned int *ret_chanlist_len);
 
 #endif

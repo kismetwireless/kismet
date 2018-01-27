@@ -511,6 +511,19 @@ xx. Datasource: Linux Wi-Fi
         research on non-standard packets and hope to glean some sort of
         information from them.
 
+    ht_channels=true | false
+
+        Kismet will tune to HT40 channels when available; to disable this 
+        behavior, set ht_channels to false and Kismet will no longer index
+        HT40+ and HT40- variants in the autodetected channel list.
+
+        This option may also be used to override Kismet disabling HT channels
+        on some drivers where there have been known problems, such as 
+        Intel iwlwifi; to FORCE Kismet to use HT40 channels, set ht_channels=true.
+        WARNING: This causes firmware resets on all currently known Intel cards!
+
+        See the vht_channels option for similar control over 80 and 160MHz channels.
+
     ignoreprimary=true | false
 
         mac80211-based drivers use multiple virtual interfaces to control
@@ -567,6 +580,19 @@ xx. Datasource: Linux Wi-Fi
 
         The 'vif=' option allows setting a custom name which will be used
         instead of creating a name.
+
+    vht_channels=true | false
+
+        Kismet will tune to VHT80 and VHT160 channels when available; to disable 
+        this behavior, set vht_channels to false and Kismet will no longer index
+        VHT80 and VHT160 variants in the autodetected channel list.
+
+        This option may also be used to override Kismet disabling VHT channels
+        on some drivers where there have been known problems, such as 
+        Intel iwlwifi; to FORCE Kismet to use VHT channels, set vht_channels=true.
+        WARNING: This causes firmware resets on all currently known Intel cards!
+
+        See the ht_channels option for similar control over HT40 channels.
 
     retry=true | false
         
