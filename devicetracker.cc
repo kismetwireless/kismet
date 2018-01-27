@@ -986,7 +986,7 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 	}
 
-    if (pack_comon != NULL)
+    if (pack_common != NULL)
         device->add_basic_crypt(pack_common->basic_crypt_set);
 
     // Add the new device at the end once we've populated it
