@@ -438,14 +438,34 @@ xx. Datasource: Linux Wi-Fi
 
     The Linux Wi-Fi source is known to support, among others:
         - All Atheros-based cards (ath5k, ath9k, ath10k with some restrictions, 
-          USB-based atheros cards like the AR9271)
+          USB-based atheros cards like the AR9271) (* Some issues)
         - Modern Intel-based cards (all supported by the iwlwifi driver including
-          the 3945, 4965, 7265, 8265 and similar)
+          the 3945, 4965, 7265, 8265 and similar) (* Some issues)
         - Realtek USB devices (rtl8180 and rtl8187, such as the Alfa AWUS036H)
         - Realtek USB 802.11AC (rtl8812au), with some restrictions
         - RALink rt2x00 based devices
         - ZyDAS cards
         - Almost all drivers shipped with the Linux kernel
+
+    Devices known to have issues:
+        - ath9k Atheros 802.11abgn cards are typically the most reliable, however
+          they appear to return false packets with valid checksums on very small
+          packets such as phy/control and powersave control packets.  This may
+          lead Kismet to detect spurious devices not actually present.
+        - ath10k Atheros 802.11AC cards have many problems, including floods of
+          spurious packets in monitor mode.  These packets carry 'valid' checksum
+          flags, making it impossible to programmatically filter them.  Expect
+          large numbers of false devices.
+        - iwlwifi Intel cards appear to have errors when tuning to HT40 and VHT
+          channels, leading to microcode/firmware crashes and resets of the card.
+          Kismet works around this by disabling HT and VHT channels and only
+          tuning to stock channels.
+        - rtl8812au Realtek 802.11AC cards, such as the Alfa 802.11AC USB cards,
+          have no in-kernel drivers.  There are many variants of the out-of-kernel
+          driver, however most do NOT support monitor mode.
+          A variant of the one driver currently known to work in monitor mode,
+          with patches to compile on modern kernels, is available at:
+          https://github.com/kismetwireless/rtl8812au
 
     It will NOT work with:
         - Raspberry Pi 3 or ZeroW built-in Wi-Fi using standard drivers.  The Broadcom
