@@ -250,7 +250,13 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
                 */
 
 				if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
-					gpsinfo->fix = 3;
+					if (gpsinfo == NULL) {
+						gpsinfo = new kis_gps_packinfo;
+                        gpsinfo->fix = 0;
+                        gpsinfo->gpsname = "PPI";
+                    } else {
+                        gpsinfo->fix = 3;
+                    }
 
 					u = (block *) &(ppigps->field_data[data_offt]);
 					gpsinfo->alt = fixed6_4_to_double(kis_letoh32(u->u32));

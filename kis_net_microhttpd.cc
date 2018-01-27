@@ -932,8 +932,10 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
     std::stringstream stream;
     int ret;
 
-    if (connection != NULL)
-        std::lock_guard<std::mutex> lk(connection->connection_mutex);
+    if (connection == NULL)
+        return MHD_NO;
+
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
             upload_data_size, stream);
@@ -957,8 +959,10 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
         size_t *upload_data_size) {
 
     // Call the post complete and populate our stream
-    if (connection != NULL)
-        std::lock_guard<std::mutex> lk(connection->connection_mutex);
+    if (connection == NULL)
+        return MHD_NO;
+
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     Httpd_PostComplete(connection);
 
@@ -1287,8 +1291,10 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    if (connection != NULL)
-        std::lock_guard<std::mutex> lk(connection->connection_mutex);
+    if (connection == NULL)
+        return MHD_NO;
+
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (connection->response == NULL) {
         shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
@@ -1338,8 +1344,10 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    if (connection != NULL)
-        std::lock_guard<std::mutex> lk(connection->connection_mutex);
+    if (connection == NULL)
+        return MHD_NO;
+
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (connection->response == NULL) {
         // No read, default write

@@ -921,7 +921,7 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 
             device->inc_frequency_count((int) pack_l1info->freq_khz);
-        } else {
+        } else if (pack_common != NULL) {
             if (!(pack_common->channel == "0"))
                 device->set_channel(pack_common->channel);
             if (pack_common->freq_khz != 0)
@@ -986,7 +986,8 @@ std::shared_ptr<kis_tracked_device_base>
             delete(sc);
 	}
 
-    device->add_basic_crypt(pack_common->basic_crypt_set);
+    if (pack_comon != NULL)
+        device->add_basic_crypt(pack_common->basic_crypt_set);
 
     // Add the new device at the end once we've populated it
     if (new_device) {
