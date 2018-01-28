@@ -28,19 +28,19 @@
 #include "globalregistry.h"
 #include "serialclient2.h"
 #include "pollabletracker.h"
+#include "gpsnmea.h"
 
 // New serial GPS code
 //
 // This code replaces gpsserial with a new gps driver based on
 // a ringbuffer interface, serialclientv2, and new kis_gps interface.
 
-class GPSSerialV2 : public KisGps, public BufferInterface {
+class GPSSerialV2 : public GPSNMEA {
 public:
     GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSSerialV2();
 
-    // BufferInterface API
-    virtual void BufferAvailable(size_t in_amt);
+    // BufferInterface API - buffer available implemented in gpsnmea
     virtual void BufferError(string error);
 
     virtual bool open_gps(string in_opts);
@@ -55,7 +55,6 @@ protected:
     shared_ptr<PollableTracker> pollabletracker;
     
     shared_ptr<SerialClientV2> serialclient;
-    BufferHandler<RingbufV2> *serialhandler;
 
     // Device
     string serial_device;
