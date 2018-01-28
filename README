@@ -1026,6 +1026,27 @@ xx. GPS
 
         gps=serial:device=/dev/ttyACM0,reconnect=true,name=LaptopSerial
 
+    tcp (High priority)
+        Network-connected raw NMEA stream.  Typically this is served by a
+        smartphone app like "BlueNMEA" on Android or "NMEA GPS" on iPhone.
+        For GPSD-based network GPS connections, use the "gpsd" GPS in
+        Kismet.
+
+        Options:
+
+        name=foo
+            Arbitrary name to identify this GPS device.
+
+        host=ip-or-name
+            IP address or hostname of NMEA network server
+
+        port=port
+            Port the NMEA network server is listening on
+
+        reconnect=true|false
+            Automatically reconnect to the NMEA TCP server if there is a 
+            network error.
+
     gpsd (High priority)
         A GPSD server.  GPSD (http://www.catb.org/gpsd/) parses GPS
         data from multiple GPS vendors (including proprietary binary)

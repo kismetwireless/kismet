@@ -26,6 +26,7 @@
 #include "configfile.h"
 
 #include "gpsserial2.h"
+#include "gpstcp.h"
 #include "gpsgpsd2.h"
 #include "gpsfake.h"
 #include "gpsweb.h"
@@ -55,6 +56,7 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
 
     // Register the built-in GPS drivers
     register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder(globalreg)));
+    register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder(globalreg)));
     register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder(globalreg)));
     register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder(globalreg)));
     register_gps_builder(SharedGpsBuilder(new GPSWebBuilder(globalreg)));
