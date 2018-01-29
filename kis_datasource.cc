@@ -851,12 +851,32 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
 
     // If we have a channels= option in the definition, override the
     // channels list, merge the custom channels list and the supplied channels
-    // list.  Otherwise, copy the source list to the hop list
+    // list.  Otherwise, copy the source list to the hop list.
+    //
+    // If we have a 'channel=' in the source definition that isn't in the list,
+    // add it.
 
     TrackerElementVector source_chan_vec(get_int_source_channels_vec());
     TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
 
     hop_chan_vec.clear();
+
+    std::string def_chan = get_definition_opt("channel");
+    if (def_chan != "") {
+        bool append = true;
+        for (auto sci : source_chan_vec) {
+            if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+                append = false;
+                break;
+            }
+        }
+
+        if (append) {
+            SharedTrackerElement dce(new TrackerElement(TrackerString));
+            dce->set(def_chan);
+            source_chan_vec.push_back(dce);
+        }
+    }
 
     std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
 
