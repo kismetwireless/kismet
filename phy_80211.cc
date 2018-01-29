@@ -922,11 +922,16 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            // If it's a bssid device, it MUST be an access point
-            bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-            bssid_dev->set_type_string("Wi-Fi AP");
-
-            bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+            // Detect if we're an adhoc bssid
+            if (dot11info->ibss) {
+                bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+                bssid_dev->set_type_string("Wi-Fi Adhoc");
+                bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+            } else {
+                bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
+                bssid_dev->set_type_string("Wi-Fi AP");
+                bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+            }
 
             // Do some maintenance on the bssid device if we're a beacon or other ssid-carrying
             // packet...
@@ -960,11 +965,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            // If it's sending a management packet, it must be a wifi device; upgrade it if
-            // it was previously a wired-only device
-            source_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-            source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-            source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+            // If it's sending ibss-flagged packets it's got to be adoc
+            if (dot11info->ibss) {
+                source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+                source_dev->set_type_string("Wi-Fi Adhoc");
+                source_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+            } else {
+                // If it's the source of a mgmt packet, it's got to be a wifi device of 
+                // some sort and not just bridged
+                source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
+                source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+            }
 
             if (dot11info->subtype == packet_sub_probe_req ||
                     dot11info->subtype == packet_sub_reassociation_req) {
@@ -990,10 +1001,13 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+#if 0
+            // Test - disable dest mgmt client set
             // If it's receiving a management packet, it must be a wifi device
             dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
             dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             dest_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+#endif
         }
 
         // Safety check that our BSSID device exists
@@ -1033,10 +1047,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         }
     } else if (dot11info->type == packet_phy) {
         // Phy packets are so often bogus that we just ignore them for now; if we enable
-        // creating devices from them, even on good cards like the ath9k we get a flood of
+        // creating devices from them, even on "good" cards like the ath9k we get a flood of
         // garbage
         //
-        // If we WERE going to process them, it would go here, and we'd start lookign for 
+        // If we WERE going to process them, it would go here, and we'd start looking for 
         // source and dest where we could find them
     } else if (dot11info->type == packet_data) {
         unsigned int update_flags = 0;
@@ -1182,15 +1196,14 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 source_dev->set_type_string_ifonly("Wi-Fi WDS",
                         KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
-            } else if (dot11info->distrib == distrib_adhoc) {
-                // Otherwise, we're some sort of adhoc device
+            } else if (dot11info->distrib == distrib_adhoc && dot11info->ibss) {
+                // We're some sort of adhoc device
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 source_dev->set_type_string("Wi-Fi Ad-Hoc");
-            } else if (dot11info->ess) {
+            } else if (dot11info->distrib == distrib_from) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-
-                source_dev->set_type_string_ifonly("Wi-Fi Bridged", 
-                        KIS_DEVICE_BASICTYPE_WIRED | KIS_DEVICE_BASICTYPE_DEVICE);
+                source_dev->set_type_string_ifnot("Wi-Fi Bridged",
+                        KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP);
             } else {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
