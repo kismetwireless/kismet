@@ -1001,13 +1001,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-#if 0
-            // Test - disable dest mgmt client set
             // If it's receiving a management packet, it must be a wifi device
             dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
             dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             dest_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
-#endif
         }
 
         // Safety check that our BSSID device exists
