@@ -118,9 +118,7 @@ public:
         reserve_fields(e);
     }
 
-    virtual ~kis_tracked_device_base() {
-
-    }
+    virtual ~kis_tracked_device_base() { }
 
     virtual SharedTrackerElement clone_type() {
         return SharedTrackerElement(new kis_tracked_device_base(globalreg, get_id()));

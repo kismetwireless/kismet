@@ -1127,15 +1127,12 @@ int Devicetracker::timetracker_event(int eventid) {
                     local_locker devlocker(&(d->device_mutex));
 
                     if (ts_now - d->get_last_time() > device_idle_expiration &&
-                            d->get_packets() < device_idle_min_packets) {
+                            (d->get_packets() < device_idle_min_packets || 
+                             device_idle_min_packets <= 0)) {
                         device_itr mi = tracked_map.find(d->get_key());
+
                         if (mi != tracked_map.end())
                             tracked_map.erase(mi);
-
-                        // Forget it from the immutable vec, but keep its 
-                        // position; we need to have vecpos = devid
-                        auto iti = immutable_tracked_vec.begin() + d->get_kis_internal_id();
-                        (*iti).reset();
 
                         // Erase it from the multimap
                         auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
@@ -1147,7 +1144,16 @@ int Devicetracker::timetracker_event(int eventid) {
                             }
                         }
 
+                        // Forget it from the immutable vec, but keep its 
+                        // position; we need to have vecpos = devid
+                        auto iti = immutable_tracked_vec.begin() + d->get_kis_internal_id();
+                        (*iti).reset();
+
+
                         purged = true;
+
+                        // fprintf(stderr, "debug - thinking we're purging %s refcount %d\n", d->get_macaddr().Mac2String().c_str(), d.use_count());
+
 
                         return true;
                     }
@@ -1179,18 +1185,34 @@ int Devicetracker::timetracker_event(int eventid) {
 		kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
                 devicetracker_sort_lastseen);
 
-		unsigned int drop = tracked_vec.size() - max_num_devices;
+        tracked_vec.erase(std::remove_if(tracked_vec.begin() + max_num_devices, tracked_vec.end(),
+                [&](std::shared_ptr<kis_tracked_device_base> d) {
+                    // Lock the device itself
+                    local_locker devlocker(&(d->device_mutex));
 
-		// Figure out how many we don't care about, and remove them from the map
-		for (unsigned int d = 0; d < drop; d++) {
-			device_itr mi = tracked_map.find(tracked_vec[d]->get_key());
+                    device_itr mi = tracked_map.find(d->get_key());
 
-			if (mi != tracked_map.end())
-				tracked_map.erase(mi);
-		}
+                    if (mi != tracked_map.end())
+                        tracked_map.erase(mi);
 
-		// Clear them out of the vector
-		tracked_vec.erase(tracked_vec.begin(), tracked_vec.begin() + drop);
+                    // Erase it from the multimap
+                    auto mmp = tracked_mac_multimap.equal_range(d->get_macaddr());
+
+                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                        if (mmpi->second->get_key() == d->get_key()) {
+                            tracked_mac_multimap.erase(mmpi);
+                            break;
+                        }
+                    }
+
+                    // Forget it from the immutable vec, but keep its 
+                    // position; we need to have vecpos = devid
+                    auto iti = immutable_tracked_vec.begin() + d->get_kis_internal_id();
+                    (*iti).reset();
+
+                    return true;
+         
+                    }), tracked_vec.end());
 	}
 
     // Loop
