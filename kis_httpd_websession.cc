@@ -35,7 +35,6 @@ Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
 }
 
 void Kis_Httpd_Websession::Deferred_Startup() {
-    fprintf(stderr, "debug - session\n");
     string olduser = globalreg->kismet_config->FetchOpt("httpd_user");
 
     shared_ptr<Alertracker> alertracker = 
