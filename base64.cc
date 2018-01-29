@@ -39,6 +39,9 @@ string Base64::decode(string in_str) {
     unsigned int i;
     char *pos;
 
+    memset(obuf, 0, 4);
+    memset(ibuf, 0, 4);
+
     // Make a rough guess at the decoded length to optimise sizing
     out.reserve(in_str.length() * 0.75);
 
