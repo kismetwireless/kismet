@@ -93,6 +93,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
     buf = new uint8_t[buf_sz];
 
     if (buf == NULL) {
+        delete[] buf;
         handler->ProtocolError();
         return -1;
     }
@@ -166,6 +167,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
     }
 
     log_size += write_sz;
+
+    delete[] buf;
 
     return 1;
 }
@@ -285,6 +288,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, string in
     }
 
     log_size += write_sz;
+
+    delete[] retbuf;
 
     return logid;
 }
