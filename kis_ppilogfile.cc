@@ -118,10 +118,6 @@ void KisPPILogfile::Log_Close() {
         pcap_close(dumpfile);
     }
 
-    if (dump_filep != NULL) {
-        fclose(dump_filep);
-    }
-
 	dumper = NULL;
 	dumpfile = NULL;
     dump_filep = NULL;
