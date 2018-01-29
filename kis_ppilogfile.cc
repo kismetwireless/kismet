@@ -255,9 +255,9 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
                 ppilog->ppi_cb_vec[p].aux);
     }
 
-    dump_len += ppi_len; //dumplen now accoutns for all ppi data
+    dump_len += ppi_len; //dumplen now accounts for all ppi data
 
-    if (dump_len == 0 && ppi_len == 0)
+    if (dump_len == 0 || ppi_len == 0)
         return 0;
 
     dump_data = new u_char[dump_len];
