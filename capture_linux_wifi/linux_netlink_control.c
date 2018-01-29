@@ -328,7 +328,8 @@ int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id,
 
     genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_SET_WIPHY, 0);
     NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifindex);
-    NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, control_freq);
+    NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, 
+            mac80211_chan_to_freq(control_freq));
     NLA_PUT_U32(msg, NL80211_ATTR_CHANNEL_WIDTH, chan_width);
 
     switch (chan_width) {
@@ -349,7 +350,8 @@ int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id,
     }
 
     if (center_freq1 != 0) {
-        NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, center_freq1);
+        NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, 
+                mac80211_chan_to_freq(center_freq1));
     }
 
     if ((ret = nl_send_auto_complete(nl_sock, msg)) >= 0) {
