@@ -581,6 +581,9 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
     std::string typestring;
 
     for (auto i : in_devices) {
+        if (i == NULL)
+            continue;
+
         sqlite3_reset(device_stmt);
 
         std::shared_ptr<kis_tracked_device_base> d =
