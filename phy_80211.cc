@@ -973,8 +973,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             } else {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of 
                 // some sort and not just bridged
-                source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-                source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+                source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
+                source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_CLIENT);
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
