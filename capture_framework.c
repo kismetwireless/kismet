@@ -2762,11 +2762,8 @@ double cf_parse_frequency(const char *freq) {
     if (strlen(freq) == 0)
         return 0;
 
-    /* Make a buffer at least as big */
+    /* Make a buffer at least as big as the total string to hold the frequency component */
     ufreq = (char *) malloc(strlen(freq));
-
-    for (i = 0; i < strlen(ufreq); i++) 
-        ufreq[i] = toupper(ufreq[i]);
 
     i = sscanf(freq, "%lf%s", &v, ufreq);
 
