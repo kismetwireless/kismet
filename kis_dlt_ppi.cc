@@ -119,6 +119,9 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 		unsigned int fh_type = kis_letoh16(ppi_fh->pfh_datatype);
 
 		if (fh_len > linkchunk->length || fh_len > ph_len) {
+            if (radioheader != NULL)
+                delete radioheader;
+
 			_MSG("pcap PPI converter got corrupt/invalid PPI field length",
 				 MSGFLAG_ERROR);
 			return 0;
