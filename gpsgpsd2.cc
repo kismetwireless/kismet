@@ -176,7 +176,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
     // so if we're within a second of the previous one we can aggregate them
-    kis_gps_packinfo *new_location = new kis_gps_packinfo;
+    std::unique_ptr<kis_gps_packinfo> new_location(new kis_gps_packinfo);
     bool set_lat_lon;
     bool set_alt;
     bool set_speed;
@@ -659,15 +659,15 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
     // Sync w/ the tracked fields
     update_locations();
-    }
+}
 
-    void GPSGpsdV2::BufferError(string in_error) {
-        local_locker lock(&gps_mutex);
+void GPSGpsdV2::BufferError(string in_error) {
+    local_locker lock(&gps_mutex);
 
-        _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
-                MSGFLAG_ERROR);
+    _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
+            MSGFLAG_ERROR);
 
-        set_int_device_connected(false);
-    }
+    set_int_device_connected(false);
+}
 
 
