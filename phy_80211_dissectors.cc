@@ -2203,6 +2203,8 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
                             false);
     }
 
+    in_pack->insert(pack_comp_datapayload, datachunk);
+
     return 1;
 }
 
