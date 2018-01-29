@@ -1843,6 +1843,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
         pthread_mutex_unlock(&(caph->handler_lock));
 
+        max_fd = 0;
+
         /* Only set read sets if we're not spinning down */
         if (spindown == 0) {
             /* Only set rset if we're not spinning down */

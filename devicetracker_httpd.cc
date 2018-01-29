@@ -741,7 +741,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 unsigned int dt_length = 0;
                 int dt_draw = 0;
 
-                int in_dt_length, in_dt_start;
+                int in_dt_length = 0, in_dt_start = 0;
 
                 // Search string
                 string dt_search;
