@@ -1467,7 +1467,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         // IE 7 802.11d
         if (ie_tag->tag_num() == 7) {
             try {
-                std::shared_ptr<dot11_ie_7_country_t> dot11d(new dot11_ie_7_country_t(&ks));
+                std::unique_ptr<dot11_ie_7_country_t> dot11d(new dot11_ie_7_country_t(&ks));
 
                 packinfo->dot11d_country = MungeToPrintable(dot11d->country_code());
 
@@ -1875,7 +1875,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     std::stringstream wpsstream(vendor->vendor_tag()->vendor_data());
                     kaitai::kstream wpss(&wpsstream);
 
-                    std::shared_ptr<dot11_ie_221_ms_wps_t> wps(new dot11_ie_221_ms_wps_t(&wpss));
+                    std::unique_ptr<dot11_ie_221_ms_wps_t> wps(new dot11_ie_221_ms_wps_t(&wpss));
 
                     for (auto wpselem : *(wps->wps_element())) {
                         if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_STATE) {
@@ -1886,21 +1886,28 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                             } else {
                                 packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
                             }
+
+			    delete state;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_DEVICE_NAME) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_device_name = MungeToPrintable(str->raw_str());
+			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MANUF) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_manuf = MungeToPrintable(str->raw_str());
+			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_model_name = MungeToPrintable(str->raw_str());
+			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL_NUM) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_model_number = MungeToPrintable(str->raw_str());
+			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_SERIAL) {
                             dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
                             packinfo->wps_serial_number = MungeToPrintable(str->raw_str());
+			    delete str;
                         }
                     }
                 }
