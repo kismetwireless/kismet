@@ -1465,10 +1465,11 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
         // IE 7 802.11d
+#if 0
         if (ie_tag->tag_num() == 7) {
+	    dot11_ie_7_country_t *dot11d = NULL;
             try {
-                std::unique_ptr<dot11_ie_7_country_t> dot11d(new dot11_ie_7_country_t(&ks));
-
+		dot11d = new dot11_ie_7_country_t(&ks);
                 packinfo->dot11d_country = MungeToPrintable(dot11d->country_code());
 
                 for (auto c : *(dot11d->country_list())) {
@@ -1483,12 +1484,16 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
             } catch (const std::exception& e) {
                 // Corrupt dot11 isn't a fatal condition
-                // fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
+                fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
+		if (dot11d != NULL)
+			delete dot11d;
                 continue;
             }
 
+	    delete dot11d;
             continue;
         }
+#endif
 
         // IE 11 QBSS
         if (ie_tag->tag_num() == 11) {
