@@ -575,6 +575,20 @@ fi
 CC="$oCC"
 AC_SUBST(CXXLIBS)
 
+# Does the compiler handle std::to_string properly?
+oCC="$CC"
+CC="$CXX"
+
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <string>
+]], [[
+    std::to_string(0);
+    return 0;
+]])],[],[AC_DEFINE(MISSING_STD_TO_STRING, 1, we need to shim std to_string)])
+
+CC="$oCC"
+
+
 AC_MSG_CHECKING([for group 'root'])
 if test "`grep -e ^root: /etc/group`" = ""; then
 	AC_MSG_RESULT([no.  Using 'wheel'])

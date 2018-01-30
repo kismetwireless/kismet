@@ -7677,6 +7677,39 @@ fi
 CC="$oCC"
 
 
+# Does the compiler handle std::to_string properly?
+oCC="$CC"
+CC="$CXX"
+
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <string>
+
+int
+main ()
+{
+
+    std::to_string(0);
+    return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+
+else
+
+$as_echo "#define MISSING_STD_TO_STRING 1" >>confdefs.h
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+CC="$oCC"
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for group 'root'" >&5
 $as_echo_n "checking for group 'root'... " >&6; }
 if test "`grep -e ^root: /etc/group`" = ""; then

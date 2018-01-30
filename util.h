@@ -367,5 +367,16 @@ double ts_now_to_double();
 
 std::string hexstr_to_binstr(const char *hs);
 
+#ifdef MISSING_STD_TO_STRING
+namespace std {
+    template<typename T>
+    std::string to_string(const T &n) {
+        std::ostringstream s;
+        s << n;
+        return s.str();
+    }
+}
+#endif
+
 #endif
 
