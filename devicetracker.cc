@@ -1242,6 +1242,9 @@ int Devicetracker::Database_UpgradeDB() {
     int r;
     char *sErrMsg = NULL;
 
+    if (db == NULL)
+        return -1;
+
     if (dbv < 2) {
         // Define a simple table for custom device names, and a similar simple table
         // for notes; we store them outside the device record so that we have an
