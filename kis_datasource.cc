@@ -855,6 +855,9 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     //
     // If we have a 'channel=' in the source definition that isn't in the list,
     // add it.
+    //
+    // If we have a 'add_channels=' in the source, use the provided list + that
+    // for hop, 
 
     TrackerElementVector source_chan_vec(get_int_source_channels_vec());
     TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
@@ -879,6 +882,7 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
     }
 
     std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
+    std::vector<std::string> add_vec = StrTokenize(get_definition_opt("add_channels"), ",");
 
     if (def_vec.size() != 0) {
         for (auto dc : def_vec) {
@@ -899,6 +903,32 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
                 source_chan_vec.push_back(dce);
             }
         }
+    } else if (add_vec.size() != 0) {
+        // Add all our existing channels
+        for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+            hop_chan_vec.push_back(*c);
+        }
+
+        for (auto ac : add_vec) {
+            // Add any new channels from the add_vec
+            bool append = true;
+            for (auto sci : source_chan_vec) {
+                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
+                    append = false;
+                    break;
+                }
+            }
+            
+            if (append) {
+                SharedTrackerElement ace(new TrackerElement(TrackerString));
+                ace->set(ac);
+
+                hop_chan_vec.push_back(ace);
+
+                source_chan_vec.push_back(ace);
+            }
+        }
+
     } else {
         for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
             hop_chan_vec.push_back(*c);

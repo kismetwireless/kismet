@@ -482,10 +482,51 @@ xx. Datasource: Linux Wi-Fi
     Many more devices should be supported - if yours isn't listed and works, let
     us know via Twitter (@kismetwireless).  
 
+    
+    Wi-Fi Channels
+
+    Wi-Fi channels in Kismet define both the basic channel number, and extra channel
+    attributes such as 802.11N 40MHz channels, 802.11AC 80MHz and 160MHz channels,
+    and non-standard half and quarter rate channels at 10MHz and 5MHz.
+
+    Kismet will auto-detect the supported channels on most Wi-Fi cards.  Monitoring
+    on HT40, VHT80, and VHT160 requires support from your card.
+
+    Channels can be defined by number or by frequency.
+
+        XX          20MHz channel, such as '6' or '153'
+        XXXX        20MHz frequency, such as '2412'
+        XXHT40+     40MHz, 802.11N/AC, upper secondary, such as '6HT40+' or '2412HT40+'
+        XXHT40-     40MHz, 802.11N/AC, lower secondary, such as '53HT40-'
+        XXVHT80     80MHz, 802.11AC, 80MHz wide AC channel, such as '116VHT80'
+        XXVHT160    160MHz, 802.11AC, 160MHz wide AC channel, '36VHT160'
+        XXW10       10MHz half-channel, supported on some Atheros cards and few others.
+                    Not auto-detected and must be manually added.
+        XXW5        5MHz quarter-channel, supported on some Atheros cards and few others.
+                    Not auto-detected and must be manually added.
 
     Wi-Fi Source Parameters
 
     Linux Wi-Fi sources accept several options in the source definition:
+
+    add_channels="channel list"
+
+        A comma-separated list of channels to be added to the detected channels on
+        this source.  Kismet will auto-detect channels, then append any channels
+        from this list.
+
+        This list MUST BE IN QUOTES, for example:
+
+            source=wlan0:name=foo,add_channels="1W5,6W5",hop_rate=1/sec
+
+        If you are providing this list via the command line '-c' option,
+        you will need to escape the quotes to keep your shell from hiding them,
+        for example:
+
+            $ kismet -c wlan0:name=foo,add_channels=\"1W5,6W5\",hop_rate=1/sec
+
+        This option is most useful for including non-standard channels supported
+        by some interfaces, such as 5 and 10MHz wide channels on Atheros cards.
 
     channel=channel-def
 
@@ -501,7 +542,7 @@ xx. Datasource: Linux Wi-Fi
             source=wlan0:name=foo,channels="1,2,6HT40+,53,57",hop_rate=1/sec
 
         If you are providing this source via the command line '-c' option, you
-        may need to escape the quotes to keep your shell from hiding them,
+        will need to escape the quotes to keep your shell from hiding them,
         for example:
 
             $ kismet -c wlan0:name=foo,channels=\"1,2,6HT40+,53\",hop_rate=1/sec
