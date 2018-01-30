@@ -24,7 +24,7 @@ dot11_ie_221_ms_wps_t::~dot11_ie_221_ms_wps_t() {
     delete m_wps_element;
 }
 
-dot11_ie_221_ms_wps_t::wps_de_uuid_e_t::wps_de_uuid_e_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_uuid_e_t::wps_de_uuid_e_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_uuid_e = m__io->read_bytes_full();
@@ -33,7 +33,7 @@ dot11_ie_221_ms_wps_t::wps_de_uuid_e_t::wps_de_uuid_e_t(kaitai::kstream *p_io, d
 dot11_ie_221_ms_wps_t::wps_de_uuid_e_t::~wps_de_uuid_e_t() {
 }
 
-dot11_ie_221_ms_wps_t::wps_de_version_t::wps_de_version_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_version_t::wps_de_version_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_version = m__io->read_u1();
@@ -42,7 +42,7 @@ dot11_ie_221_ms_wps_t::wps_de_version_t::wps_de_version_t(kaitai::kstream *p_io,
 dot11_ie_221_ms_wps_t::wps_de_version_t::~wps_de_version_t() {
 }
 
-dot11_ie_221_ms_wps_t::wps_de_state_t::wps_de_state_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_state_t::wps_de_state_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     f_wps_state_configured = false;
@@ -60,7 +60,7 @@ int8_t dot11_ie_221_ms_wps_t::wps_de_state_t::wps_state_configured() {
     return m_wps_state_configured;
 }
 
-dot11_ie_221_ms_wps_t::wps_de_vendor_extension_t::wps_de_vendor_extension_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_vendor_extension_t::wps_de_vendor_extension_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     f_wfa_sub_version = false;
@@ -81,7 +81,7 @@ int8_t dot11_ie_221_ms_wps_t::wps_de_vendor_extension_t::wfa_sub_version() {
     return m_wfa_sub_version;
 }
 
-dot11_ie_221_ms_wps_t::wps_de_generic_t::wps_de_generic_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_generic_t::wps_de_generic_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_wps_de_data = m__io->read_bytes_full();
@@ -90,7 +90,7 @@ dot11_ie_221_ms_wps_t::wps_de_generic_t::wps_de_generic_t(kaitai::kstream *p_io,
 dot11_ie_221_ms_wps_t::wps_de_generic_t::~wps_de_generic_t() {
 }
 
-dot11_ie_221_ms_wps_t::wps_de_rfband_t::wps_de_rfband_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_rfband_t::wps_de_rfband_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_reserved1 = m__io->read_bits_int(6);
@@ -115,79 +115,13 @@ dot11_ie_221_ms_wps_t::wps_de_element_t::wps_de_element_t(kaitai::kstream *p_io,
     m__root = p_root;
     m_wps_de_type = static_cast<dot11_ie_221_ms_wps_t::wps_de_element_t::wps_de_types_t>(m__io->read_u2be());
     m_wps_de_length = m__io->read_u2be();
-    switch (wps_de_type()) {
-    case WPS_DE_TYPES_AP_SETUP:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_ap_setup_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_STATE:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_state_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_MODEL_NUM:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_rawstr_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_MANUF:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_rawstr_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_SERIAL:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_rawstr_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_VERSION:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_version_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_VENDOR_EXTENSION:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_vendor_extension_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_DEVICE_NAME:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_rawstr_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_UUID_E:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_uuid_e_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_MODEL:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_rawstr_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_PRIMARY_TYPE:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_primary_type_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    case WPS_DE_TYPES_RFBANDS:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_rfband_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    default:
-        m__raw_wps_de_content = m__io->read_bytes(wps_de_length());
-        m__io__raw_wps_de_content = new kaitai::kstream(m__raw_wps_de_content);
-        m_wps_de_content = new wps_de_generic_t(m__io__raw_wps_de_content, this, m__root);
-        break;
-    }
+    m_wps_de_content = m__io->read_bytes(wps_de_length());
 }
 
 dot11_ie_221_ms_wps_t::wps_de_element_t::~wps_de_element_t() {
 }
 
-dot11_ie_221_ms_wps_t::wps_de_ap_setup_t::wps_de_ap_setup_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_ap_setup_t::wps_de_ap_setup_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_ap_setup_locked = m__io->read_u1();
@@ -196,7 +130,7 @@ dot11_ie_221_ms_wps_t::wps_de_ap_setup_t::wps_de_ap_setup_t(kaitai::kstream *p_i
 dot11_ie_221_ms_wps_t::wps_de_ap_setup_t::~wps_de_ap_setup_t() {
 }
 
-dot11_ie_221_ms_wps_t::wps_de_primary_type_t::wps_de_primary_type_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_primary_type_t::wps_de_primary_type_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_category = m__io->read_u2le();
@@ -207,7 +141,7 @@ dot11_ie_221_ms_wps_t::wps_de_primary_type_t::wps_de_primary_type_t(kaitai::kstr
 dot11_ie_221_ms_wps_t::wps_de_primary_type_t::~wps_de_primary_type_t() {
 }
 
-dot11_ie_221_ms_wps_t::wps_de_rawstr_t::wps_de_rawstr_t(kaitai::kstream *p_io, dot11_ie_221_ms_wps_t::wps_de_element_t *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
+dot11_ie_221_ms_wps_t::wps_de_rawstr_t::wps_de_rawstr_t(kaitai::kstream *p_io, kaitai::kstruct *p_parent, dot11_ie_221_ms_wps_t *p_root) : kaitai::kstruct(p_io) {
     m__parent = p_parent;
     m__root = p_root;
     m_raw_str = kaitai::kstream::bytes_to_str(m__io->read_bytes_full(), std::string("ASCII"));

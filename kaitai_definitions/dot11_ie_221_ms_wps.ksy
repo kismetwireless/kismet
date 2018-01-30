@@ -26,22 +26,23 @@ types:
         type: u2be
       - id: wps_de_content
         size: wps_de_length
-        type:
-          switch-on: wps_de_type
-          cases:
-            'wps_de_types::device_name': wps_de_rawstr
-            'wps_de_types::manuf': wps_de_rawstr
-            'wps_de_types::model': wps_de_rawstr
-            'wps_de_types::model_num': wps_de_rawstr
-            'wps_de_types::rfbands': wps_de_rfband
-            'wps_de_types::serial': wps_de_rawstr
-            'wps_de_types::state': wps_de_state
-            'wps_de_types::uuid_e': wps_de_uuid_e
-            'wps_de_types::vendor_extension': wps_de_vendor_extension
-            'wps_de_types::version': wps_de_version
-            'wps_de_types::primary_type': wps_de_primary_type
-            'wps_de_types::ap_setup': wps_de_ap_setup
-            _: wps_de_generic
+        
+#        type:
+#          switch-on: wps_de_type
+#          cases:
+#            'wps_de_types::device_name': wps_de_rawstr
+#            'wps_de_types::manuf': wps_de_rawstr
+#            'wps_de_types::model': wps_de_rawstr
+#            'wps_de_types::model_num': wps_de_rawstr
+#            'wps_de_types::rfbands': wps_de_rfband
+#            'wps_de_types::serial': wps_de_rawstr
+#            'wps_de_types::state': wps_de_state
+#            'wps_de_types::uuid_e': wps_de_uuid_e
+#            'wps_de_types::vendor_extension': wps_de_vendor_extension
+#            'wps_de_types::version': wps_de_version
+#            'wps_de_types::primary_type': wps_de_primary_type
+#            'wps_de_types::ap_setup': wps_de_ap_setup
+#            _: wps_de_generic
            
     enums:
       wps_de_types:

@@ -36,43 +36,43 @@ public:
 
     public:
 
-        wps_de_uuid_e_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_uuid_e_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_uuid_e_t();
 
     private:
         std::string m_uuid_e;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         std::string uuid_e() const { return m_uuid_e; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_version_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_version_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_version_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_version_t();
 
     private:
         uint8_t m_version;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         uint8_t version() const { return m_version; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_state_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_state_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_state_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_state_t();
 
     private:
@@ -85,19 +85,19 @@ public:
     private:
         uint8_t m_state;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         uint8_t state() const { return m_state; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_vendor_extension_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_vendor_extension_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_vendor_extension_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_vendor_extension_t();
 
     private:
@@ -113,7 +113,7 @@ public:
         uint8_t m_wfa_sub_len;
         std::string m_wfa_sub_data;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         std::string vendor_id() const { return m_vendor_id; }
@@ -121,32 +121,32 @@ public:
         uint8_t wfa_sub_len() const { return m_wfa_sub_len; }
         std::string wfa_sub_data() const { return m_wfa_sub_data; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_generic_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_generic_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_generic_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_generic_t();
 
     private:
         std::string m_wps_de_data;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         std::string wps_de_data() const { return m_wps_de_data; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_rfband_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_rfband_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_rfband_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_rfband_t();
 
     private:
@@ -154,14 +154,14 @@ public:
         bool m_rf_band_5ghz;
         bool m_rf_band_24ghz;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         uint64_t reserved1() const { return m_reserved1; }
         bool rf_band_5ghz() const { return m_rf_band_5ghz; }
         bool rf_band_24ghz() const { return m_rf_band_24ghz; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class vendor_data_generic_t : public kaitai::kstruct {
@@ -207,45 +207,41 @@ public:
     private:
         wps_de_types_t m_wps_de_type;
         uint16_t m_wps_de_length;
-        kaitai::kstruct* m_wps_de_content;
+        std::string m_wps_de_content;
         dot11_ie_221_ms_wps_t* m__root;
         dot11_ie_221_ms_wps_t* m__parent;
-        std::string m__raw_wps_de_content;
-        kaitai::kstream* m__io__raw_wps_de_content;
 
     public:
         wps_de_types_t wps_de_type() const { return m_wps_de_type; }
         uint16_t wps_de_length() const { return m_wps_de_length; }
-        kaitai::kstruct* wps_de_content() const { return m_wps_de_content; }
+        std::string wps_de_content() const { return m_wps_de_content; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
         dot11_ie_221_ms_wps_t* _parent() const { return m__parent; }
-        std::string _raw_wps_de_content() const { return m__raw_wps_de_content; }
-        kaitai::kstream* _io__raw_wps_de_content() const { return m__io__raw_wps_de_content; }
     };
 
     class wps_de_ap_setup_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_ap_setup_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_ap_setup_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_ap_setup_t();
 
     private:
         uint8_t m_ap_setup_locked;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         uint8_t ap_setup_locked() const { return m_ap_setup_locked; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_primary_type_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_primary_type_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_primary_type_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_primary_type_t();
 
     private:
@@ -253,32 +249,32 @@ public:
         uint32_t m_typedata;
         uint16_t m_subcategory;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         uint16_t category() const { return m_category; }
         uint32_t typedata() const { return m_typedata; }
         uint16_t subcategory() const { return m_subcategory; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
     class wps_de_rawstr_t : public kaitai::kstruct {
 
     public:
 
-        wps_de_rawstr_t(kaitai::kstream* p_io, dot11_ie_221_ms_wps_t::wps_de_element_t* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
+        wps_de_rawstr_t(kaitai::kstream* p_io, kaitai::kstruct* p_parent = 0, dot11_ie_221_ms_wps_t* p_root = 0);
         ~wps_de_rawstr_t();
 
     private:
         std::string m_raw_str;
         dot11_ie_221_ms_wps_t* m__root;
-        dot11_ie_221_ms_wps_t::wps_de_element_t* m__parent;
+        kaitai::kstruct* m__parent;
 
     public:
         std::string raw_str() const { return m_raw_str; }
         dot11_ie_221_ms_wps_t* _root() const { return m__root; }
-        dot11_ie_221_ms_wps_t::wps_de_element_t* _parent() const { return m__parent; }
+        kaitai::kstruct* _parent() const { return m__parent; }
     };
 
 private:

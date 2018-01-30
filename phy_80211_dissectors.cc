@@ -1878,36 +1878,33 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     std::unique_ptr<dot11_ie_221_ms_wps_t> wps(new dot11_ie_221_ms_wps_t(&wpss));
 
                     for (auto wpselem : *(wps->wps_element())) {
+                        std::stringstream elemstream(wpselem->wps_de_content());
+                        kaitai::kstream elems(&elemstream);
+
                         if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_STATE) {
-                            dot11_ie_221_ms_wps_t::wps_de_state_t *state = (dot11_ie_221_ms_wps_t::wps_de_state_t *) wpselem->wps_de_content();
+
+                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_state_t> state(new dot11_ie_221_ms_wps_t::wps_de_state_t(&elems));
 
                             if (state->wps_state_configured()) {
                                 packinfo->wps |= DOT11_WPS_CONFIGURED;
                             } else {
                                 packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
                             }
-
-			    delete state;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_DEVICE_NAME) {
-                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
                             packinfo->wps_device_name = MungeToPrintable(str->raw_str());
-			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MANUF) {
-                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
                             packinfo->wps_manuf = MungeToPrintable(str->raw_str());
-			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL) {
-                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
                             packinfo->wps_model_name = MungeToPrintable(str->raw_str());
-			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL_NUM) {
-                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
                             packinfo->wps_model_number = MungeToPrintable(str->raw_str());
-			    delete str;
                         } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_SERIAL) {
-                            dot11_ie_221_ms_wps_t::wps_de_rawstr_t *str = (dot11_ie_221_ms_wps_t::wps_de_rawstr_t *) wpselem->wps_de_content();
+                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
                             packinfo->wps_serial_number = MungeToPrintable(str->raw_str());
-			    delete str;
                         }
                     }
                 }
