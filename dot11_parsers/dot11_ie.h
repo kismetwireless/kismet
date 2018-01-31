@@ -38,12 +38,19 @@ public:
     class dot11_ie_tag;
     typedef std::vector<std::shared_ptr<dot11_ie_tag> > shared_ie_tag_vector;
 
-    dot11_ie();
-    ~dot11_ie();
+    dot11_ie() {
+
+    }
+
+    ~dot11_ie() {
+
+    }
 
     void parse(kaitai::kstream *p_io);
 
-    std::shared_ptr<shared_ie_tag_vector> tags();
+    std::shared_ptr<shared_ie_tag_vector> tags() {
+        return m_tags;
+    }
 
 protected:
     std::shared_ptr<shared_ie_tag_vector> m_tags;
@@ -51,17 +58,29 @@ protected:
 public:
     class dot11_ie_tag {
     public:
-        dot11_ie_tag();
-        ~dot11_ie_tag();
+        dot11_ie_tag() {
+
+        }
+
+        ~dot11_ie_tag() {
+
+        }
 
         void parse(kaitai::kstream *p_io);
 
-        uint8_t tag_num();
-        uint8_t tag_len();
-        std::string tag_data();
+        uint8_t tag_num() {
+            return m_tag_num;
+        }
+
+        uint8_t tag_len() {
+            return m_tag_len;
+        }
+
+        std::string tag_data() {
+            return m_tag_data;
+        }
 
     protected:
-        kaitai::kstream *m_io;
         uint8_t m_tag_num;
         uint8_t m_tag_len;
         std::string m_tag_data;

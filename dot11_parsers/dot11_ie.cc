@@ -18,14 +18,6 @@
 
 #include "dot11_ie.h"
 
-dot11_ie::dot11_ie() {
-
-}
-
-dot11_ie::~dot11_ie() {
-
-}
-
 void dot11_ie::parse(kaitai::kstream *p_io) {
     m_tags.reset(new shared_ie_tag_vector());
 
@@ -36,34 +28,9 @@ void dot11_ie::parse(kaitai::kstream *p_io) {
     }
 }
 
-std::shared_ptr<dot11_ie::shared_ie_tag_vector> dot11_ie::tags() {
-    return m_tags;
-}
-
-dot11_ie::dot11_ie_tag::dot11_ie_tag() {
-
-}
-
-dot11_ie::dot11_ie_tag::~dot11_ie_tag() {
-
-}
-
 void dot11_ie::dot11_ie_tag::parse(kaitai::kstream *p_io) {
     m_tag_num = p_io->read_u1();
     m_tag_len = p_io->read_u1();
     m_tag_data = p_io->read_bytes(tag_len());
 }
-
-uint8_t dot11_ie::dot11_ie_tag::tag_num() {
-    return m_tag_num;
-}
-
-uint8_t dot11_ie::dot11_ie_tag::tag_len() {
-    return m_tag_len;
-}
-
-std::string dot11_ie::dot11_ie_tag::tag_data() {
-    return m_tag_data;
-}
-
 
