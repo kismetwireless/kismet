@@ -1230,6 +1230,25 @@ xx. Kismet Memory and Processor Tuning
         This can be set to 0; Kismet will never drop packets.  This may 
         lead to a runaway memory situation, however.
 
+    ulimit_mbytes=ram_in_megabytes
+
+        Kismet can hard-limit the amount of memory it is allowed to use via the 
+        'ulimit' system; this could be set via a launch/setup script using the
+        at startup.  
+
+        If Kismet runs out of ram, it *will exit immediately* as if the system 
+        had encountered an out-of-memory error.
+
+        This setting should ONLY be combined with a restart script that relaunches
+        Kismet, and typically should only be used on long-running WIDS-style 
+        installs of Kismet.
+
+        If this value is set too low, Kismet may fail to start the webserver 
+        correctly or perform other startup tasks.  This value should typically
+        only be used to control unbounded growth on long-running installs.
+
+        The memory value is specified in *megabytes of ram*
+
 xx. Storage and Snapshots
 
     Kismet can remember devices seen from one launch of Kismet to another; this

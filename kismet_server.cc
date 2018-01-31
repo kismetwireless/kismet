@@ -41,6 +41,8 @@
 #include <vector>
 #include <sstream>
 
+#include <sys/resource.h>
+
 #ifdef HAVE_LIBNCURSES
 #include <ncurses.h>
 #endif
@@ -838,6 +840,28 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     Load_Kismet_UUID(globalregistry);
+
+    // Set up ulimits if we define any
+    std::string limits = globalregistry->kismet_config->FetchOpt("ulimit_mbytes");
+    if (limits != "") {
+        long limitb;
+        if (sscanf(limits.c_str(), "%ld", &limitb) != 1) {
+            fprintf(stderr, "WARNING:  Could not parse byte value from ulimit_mbytes\n");
+        } else {
+            limitb = limitb * 1024 * 1024;
+
+            struct rlimit limit;
+            limit.rlim_max = limitb;
+            limit.rlim_cur = limitb;
+
+            if (setrlimit(RLIMIT_DATA, &limit) != 0) {
+                fprintf(stderr, "WARNING:  Could not set memory limit to %sMb: %s\n",
+                        limits.c_str(), strerror(errno));
+            } else {
+                fprintf(stderr, "INFO: Set Kismet memory limit to %sMb\n", limits.c_str());
+            }
+        }
+    }
 
     // Make the timetracker
     Timetracker::create_timetracker(globalregistry);
