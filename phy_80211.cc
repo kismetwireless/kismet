@@ -159,7 +159,7 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
 
     ssid_study = pcre_study(ssid_re, 0, &study_error);
 
-    if (ssid_study == NULL) {
+    if (study_error != NULL) {
         errordesc << "Could not parse PCRE, optimization failure: " << study_error;
         throw std::runtime_error(errordesc.str());
     } 

@@ -194,7 +194,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         }
 
         filter->study = pcre_study(filter->re, 0, &study_error);
-        if (filter->study == NULL) {
+        if (study_error != NULL) {
             errordesc << "Could not parse PCRE expression, study/optimization "
                 "failure: " << study_error;
             throw std::runtime_error(errordesc.str());
@@ -241,7 +241,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         }
 
         filter->study = pcre_study(filter->re, 0, &study_error);
-        if (filter->study == NULL) {
+        if (study_error != NULL) {
             errordesc << "Could not parse PCRE expression, study/optimization "
                 "failure: " << study_error;
             throw std::runtime_error(errordesc.str());

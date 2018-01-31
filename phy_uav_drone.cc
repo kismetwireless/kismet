@@ -41,7 +41,7 @@ void uav_manuf_match::set_uav_manuf_ssid_regex(std::string in_regexstr) {
 
     study = pcre_study(re, 0, &study_error);
     
-    if (study == NULL) {
+    if (study_error != NULL) {
         errordesc << "Could not parse PCRE expression, optimization failure: " << study_error;
         throw std::runtime_error(errordesc.str());
     }
