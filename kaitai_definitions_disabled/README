@@ -1,0 +1,10 @@
+KAITAI DEFINITIONS
+Currently disabled
+
+As of 2018-01, Kaitai generates memory-unsafe C++ code which can cause significant
+memory leaks when handling invalid buffers.
+
+This makes these parsers unusable in a long-running service such as Kismet.
+
+The definitions remain as a resource for the future when Kaitai may become 
+usable for C++ again.

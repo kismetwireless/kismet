@@ -38,26 +38,31 @@ BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
-KAITAI_PARSERS = \
-	kaitai_parsers/wpaeap.cc.o \
-	kaitai_parsers/dot11_ie.cc.o \
-	kaitai_parsers/dot11_action.cc.o \
-	kaitai_parsers/dot11_ie_7_country.cc.o \
-	kaitai_parsers/dot11_ie_11_qbss.cc.o \
-	kaitai_parsers/dot11_ie_45_ht.cc.o \
-	kaitai_parsers/dot11_ie_48_rsn.cc.o \
-	kaitai_parsers/dot11_ie_48_rsn_partial.cc.o \
-	kaitai_parsers/dot11_ie_52_rmm_neighbor.cc.o \
-	kaitai_parsers/dot11_ie_54_mobility.cc.o \
-	kaitai_parsers/dot11_ie_61_ht.cc.o \
-	kaitai_parsers/dot11_ie_133_cisco_ccx.cc.o \
-	kaitai_parsers/dot11_ie_191_vht_capabilities.cc.o \
-	kaitai_parsers/dot11_ie_192_vht_operation.cc.o \
-	kaitai_parsers/dot11_ie_221_vendor.cc.o \
-	kaitai_parsers/dot11_ie_221_ms_wps.cc.o \
-	kaitai_parsers/dot11_ie_221_ms_wmm.cc.o \
-	kaitai_parsers/dot11_ie_221_dji_droneid.cc.o \
-	kaitai_parsers/dot11_ie_221_wfa_wpa.cc.o
+# Disabled; Kaitai generates unusable C++ code currently
+# KAITAI_PARSERS = \
+# 	kaitai_parsers/wpaeap.cc.o \
+# 	kaitai_parsers/dot11_ie.cc.o \
+# 	kaitai_parsers/dot11_action.cc.o \
+# 	kaitai_parsers/dot11_ie_7_country.cc.o \
+# 	kaitai_parsers/dot11_ie_11_qbss.cc.o \
+# 	kaitai_parsers/dot11_ie_45_ht.cc.o \
+# 	kaitai_parsers/dot11_ie_48_rsn.cc.o \
+# 	kaitai_parsers/dot11_ie_48_rsn_partial.cc.o \
+# 	kaitai_parsers/dot11_ie_52_rmm_neighbor.cc.o \
+# 	kaitai_parsers/dot11_ie_54_mobility.cc.o \
+# 	kaitai_parsers/dot11_ie_61_ht.cc.o \
+# 	kaitai_parsers/dot11_ie_133_cisco_ccx.cc.o \
+# 	kaitai_parsers/dot11_ie_191_vht_capabilities.cc.o \
+# 	kaitai_parsers/dot11_ie_192_vht_operation.cc.o \
+# 	kaitai_parsers/dot11_ie_221_vendor.cc.o \
+# 	kaitai_parsers/dot11_ie_221_ms_wps.cc.o \
+# 	kaitai_parsers/dot11_ie_221_ms_wmm.cc.o \
+# 	kaitai_parsers/dot11_ie_221_dji_droneid.cc.o \
+# 	kaitai_parsers/dot11_ie_221_wfa_wpa.cc.o
+
+# Dot11 parsers (modeled on former Kaitai model)
+DOT11_PARSERS =
+	dot11_parsers/dot11_ie.cc.o 
 
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
@@ -79,7 +84,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	statealert.cc.o \
 	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o \
 	kaitaistream.cc.o \
-	$(KAITAI_PARSERS) \
+	$(DOT11_PARSERS) \
 	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o \
 	kis_dissector_ipdata.cc.o \
@@ -302,8 +307,10 @@ depclean:
 clean:
 	@-rm -f *.o *.mo
 	@-rm -f *.d
-	@-rm -f kaitai_parsers/*.o
-	@-rm -f kaitai_parsers/*.d
+	# @-rm -f kaitai_parsers/*.o
+	# @-rm -f kaitai_parsers/*.d
+	@-rm -f dot11_parsers/*.o
+	@-rm -f dot11_parsers/*.d
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
@@ -365,11 +372,12 @@ all-plugins-clean: Makefile
 	@$(MAKE) plugins-clean
 	@$(MAKE) restricted-plugins-clean
 
-kaitai-parsers:
-	@echo "Re-generating the kaitai_struct parsers requires the gpl3 licensed "
-	@echo "kaitai_struct compiler; see http://http://kaitai.io/ for more info!"
-	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
-	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
+# Disabled
+# kaitai-parsers:
+# 	@echo "Re-generating the kaitai_struct parsers requires the gpl3 licensed "
+# 	@echo "kaitai_struct compiler; see http://http://kaitai.io/ for more info!"
+# 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
+# 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
