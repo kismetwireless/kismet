@@ -19,10 +19,10 @@
 #include "dot11_ie_61_ht_ops.h"
 
 void dot11_ie_61_ht_ops::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_primary_channel = p_io->get_u1();
-    m_info_subset_1 = p_io->get_u1();
-    m_info_subset_2 = p_io->get_u2be();
-    m_info_subset_3 = p_io->get_u2be();
-    m_rx_coding_scheme = p_io->get_u2le();
+    m_primary_channel = p_io->read_u1();
+    m_info_subset_1 = p_io->read_u1();
+    m_info_subset_2 = p_io->read_u2be();
+    m_info_subset_3 = p_io->read_u2be();
+    m_rx_coding_scheme = p_io->read_u2le();
 }
 
