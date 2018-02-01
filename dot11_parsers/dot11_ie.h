@@ -58,13 +58,8 @@ protected:
 public:
     class dot11_ie_tag {
     public:
-        dot11_ie_tag() {
-
-        }
-
-        ~dot11_ie_tag() {
-
-        }
+        dot11_ie_tag() { } 
+        ~dot11_ie_tag() { }
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
@@ -80,10 +75,15 @@ public:
             return m_tag_data;
         }
 
+        std::shared_ptr<kaitai::kstream> tag_data_stream() {
+            return m_tag_data_stream;
+        }
+
     protected:
         uint8_t m_tag_num;
         uint8_t m_tag_len;
         std::string m_tag_data;
+        std::shared_ptr<kaitai::kstream> m_tag_data_stream;
     };
 
 };
