@@ -44,7 +44,7 @@ public:
     dot11_ie_48_rsn() { }
     ~dot11_ie_48_rsn() { }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint16_t rsn_version() {
         return m_rsn_version;
@@ -97,7 +97,7 @@ public:
 
         ~dot11_ie_48_rsn_rsn_cipher() { }
 
-        void parse(kaitai::kstream *p_io);
+        void parse(std::shared_ptr<kaitai::kstream> p_io);
 
         std::string cipher_suite_oui() {
             return m_cipher_suite_oui;
@@ -129,7 +129,7 @@ public:
         dot11_ie_48_rsn_rsn_management() { }
         ~dot11_ie_48_rsn_rsn_management() { }
 
-        void parse(kaitai::kstream *p_io);
+        void parse(std::shared_ptr<kaitai::kstream> p_io);
 
         std::string management_suite_oui() {
             return m_management_suite_oui;
@@ -151,7 +151,7 @@ public:
     dot11_ie_48_rsn_partial() { }
     ~dot11_ie_48_rsn_partial() { }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint16_t rsn_version() {
         return m_rsn_version;

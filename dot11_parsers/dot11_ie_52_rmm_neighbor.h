@@ -37,7 +37,7 @@ public:
 
     ~dot11_ie_52_rmm() { }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     std::string bssid() {
         return m_bssid;

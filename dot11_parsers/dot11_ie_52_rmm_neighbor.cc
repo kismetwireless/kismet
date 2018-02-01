@@ -18,7 +18,7 @@
 
 #include "dot11_ie_52_rmm_neighbor.h"
 
-void dot11_ie_52_rmm::parse(kaitai::kstream *p_io) {
+void dot11_ie_52_rmm::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_bssid = p_io->read_bytes(6);
     m_bssid_info = p_io->read_u4le();
     m_operating_class = p_io->read_u1();

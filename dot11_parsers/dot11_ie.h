@@ -46,7 +46,7 @@ public:
 
     }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     std::shared_ptr<shared_ie_tag_vector> tags() {
         return m_tags;
@@ -66,7 +66,7 @@ public:
 
         }
 
-        void parse(kaitai::kstream *p_io);
+        void parse(std::shared_ptr<kaitai::kstream> p_io);
 
         uint8_t tag_num() {
             return m_tag_num;

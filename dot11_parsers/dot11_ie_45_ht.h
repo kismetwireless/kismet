@@ -42,7 +42,7 @@ public:
 
     }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint16_t ht_capabilities() {
         return m_ht_capabilities;

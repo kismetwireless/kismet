@@ -18,7 +18,7 @@
 
 #include "dot11_ie_54_mobility.h"
 
-void dot11_ie_54_mobility::parse(kaitai::kstream *p_io) {
+void dot11_ie_54_mobility::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_mobility_domain = p_io->read_u2le();
     m_mobility_policy = p_io->read_u1();
 }

@@ -18,7 +18,7 @@
 
 #include "dot11_ie_11_qbss.h"
 
-void dot11_ie_11_qbss::parse(kaitai::kstream *p_io) {
+void dot11_ie_11_qbss::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_station_count = p_io->read_u2le();
     m_channel_utilization = p_io->read_u1();
     m_available_admissions = p_io->read_u2le();

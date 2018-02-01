@@ -34,7 +34,7 @@ public:
 
     ~dot11_ie_54_mobility() { }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint16_t mobility_domain() {
         return m_mobility_domain;

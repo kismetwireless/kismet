@@ -18,7 +18,7 @@
 
 #include "dot11_ie_48_rsn.h"
 
-void dot11_ie_48_rsn::parse(kaitai::kstream *p_io) {
+void dot11_ie_48_rsn::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_rsn_version = p_io->read_u2le();
     m_group_cipher.reset(new dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher());
     m_group_cipher->parse(p_io);
@@ -39,17 +39,17 @@ void dot11_ie_48_rsn::parse(kaitai::kstream *p_io) {
 
 }
 
-void dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher::parse(kaitai::kstream *p_io) {
+void dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_cipher_suite_oui = p_io->read_bytes(3);
     m_cipher_type = p_io->read_u1();
 }
 
-void dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_management::parse(kaitai::kstream *p_io) {
+void dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_management::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_management_suite_oui = p_io->read_bytes(3);
     m_management_type = p_io->read_u1();
 }
 
-void dot11_ie_48_rsn_partial::parse(kaitai::kstream *p_io) {
+void dot11_ie_48_rsn_partial::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_rsn_version = p_io->read_u2le();
     m_group_cipher = p_io->read_bytes(4);
     m_pairwise_count = p_io->read_u2le();

@@ -41,7 +41,7 @@ public:
 
     }
 
-    void parse(kaitai::kstream *p_io);
+    void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint16_t station_count() {
         return m_station_count;
