@@ -33,13 +33,8 @@
 
 class dot11_ie_11_qbss {
 public:
-    dot11_ie_11_qbss() {
-
-    }
-
-    ~dot11_ie_11_qbss() {
-
-    }
+    dot11_ie_11_qbss() { }
+    ~dot11_ie_11_qbss() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
