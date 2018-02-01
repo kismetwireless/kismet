@@ -49,3 +49,9 @@ void dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_management::parse(kaitai::kstream *p_i
     m_management_type = p_io->read_u1();
 }
 
+void dot11_ie_48_rsn_partial::parse(kaitai::kstream *p_io) {
+    m_rsn_version = p_io->read_u2le();
+    m_group_cipher = p_io->read_bytes(4);
+    m_pairwise_count = p_io->read_u2le();
+}
+

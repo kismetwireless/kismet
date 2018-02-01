@@ -23,6 +23,9 @@
  *
  * RSN (Robust Security Network) defines 802.11i WPA/WPA2 encryption
  *
+ * Implement an additional partial record parser to extract broken RSN
+ * which may be used in some exploits
+ *
  */
 
 #include <string>
@@ -141,6 +144,31 @@ public:
         uint8_t m_management_type;
     };
 
+};
+
+class dot11_ie_48_rsn_partial {
+public:
+    dot11_ie_48_rsn_partial() { }
+    ~dot11_ie_48_rsn_partial() { }
+
+    void parse(kaitai::kstream *p_io);
+
+    uint16_t rsn_version() {
+        return m_rsn_version;
+    }
+
+    std::string group_cipher() {
+        return m_group_cipher;
+    }
+
+    uint16_t pairwise_count() {
+        return m_pairwise_count;
+    }
+
+protected:
+    uint16_t m_rsn_version;
+    std::string m_group_cipher;
+    uint16_t m_pairwise_count;
 };
 
 
