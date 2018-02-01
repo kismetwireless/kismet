@@ -68,55 +68,55 @@ public:
         return m_asel_caps;
     }
 
-    bool ht_cap_ldpc() {
+    unsigned int ht_cap_ldpc() {
         return ht_capabilities() & 0x01;
     }
 
-    bool ht_cap_40mhz_channel() {
+    unsigned int ht_cap_40mhz_channel() {
         return ht_capabilities() & 0x02;
     }
 
-    bool ht_cap_sm_powersave() {
+    unsigned int ht_cap_sm_powersave() {
         return ht_capabilities() & 0x0C;
     }
 
-    bool ht_cap_greenfield() {
+    unsigned int ht_cap_greenfield() {
         return ht_capabilities() & 0x10;
     }
 
-    bool ht_cap_20mhz_shortgi() {
+    unsigned int ht_cap_20mhz_shortgi() {
         return ht_capabilities() & 0x20;
     }
 
-    bool ht_cap_tx_stbc() {
+    unsigned int ht_cap_tx_stbc() {
         return ht_capabilities() & 0x80;
     }
 
-    bool ht_cap_rx_stbc() {
+    unsigned int ht_cap_rx_stbc() {
         return ht_capabilities() & 0x300;
     }
 
-    bool ht_cap_delayed_block_ack() {
+    unsigned int ht_cap_delayed_block_ack() {
         return ht_capabilities() & 0x400;
     }
 
-    bool ht_cap_max_amsdu_len() {
+    unsigned int ht_cap_max_amsdu_len() {
         return ht_capabilities() & 0x800;
     }
 
-    bool ht_cap_dss_40mhz() {
+    unsigned int ht_cap_dss_40mhz() {
         return ht_capabilities() & 0x1000;
     }
 
-    bool ht_cap_psmp_intolerant() {
+    unsigned int ht_cap_psmp_intolerant() {
         return ht_capabilities() & 0x2000;
     }
 
-    bool ht_cap_40mhz_intolerant() {
+    unsigned int ht_cap_40mhz_intolerant() {
         return ht_capabilities() & 0x4000;
     }
 
-    bool ht_cap_lsig_txop() {
+    unsigned int ht_cap_lsig_txop() {
         return ht_capabilities() & 0x8000;
     }
 
