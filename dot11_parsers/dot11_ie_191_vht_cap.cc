@@ -19,10 +19,10 @@
 #include "dot11_ie_191_vht_cap.h"
 
 void dot11_ie_191_vht_cap::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_vht_capabilities = p_io->get_u4le();
-    m_rx_mcs_map = p_io->get_u2le();
-    m_rx_mcs_set = p_io->get_u2le();
-    m_tx_mcs_map = p_io->get_u2le();
-    m_tx_mcs_set = p_io->get_u2le();
+    m_vht_capabilities = p_io->read_u4le();
+    m_rx_mcs_map = p_io->read_u2le();
+    m_rx_mcs_set = p_io->read_u2le();
+    m_tx_mcs_map = p_io->read_u2le();
+    m_tx_mcs_set = p_io->read_u2le();
 }
 

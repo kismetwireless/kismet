@@ -19,9 +19,9 @@
 #include "dot11_ie_133_cisco_ccx.h"
 
 void dot11_ie_133_cisco_ccx::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_ccx_unk1 = p_io->get_bytes(10);
-    m_ap_name = p_io->get_bytes(16);
-    m_station_count = p_io->get_u1();
-    m_ccx_unk2 = p_io->get_bytes(3);
+    m_ccx_unk1 = p_io->read_bytes(10);
+    m_ap_name = p_io->read_bytes(16);
+    m_station_count = p_io->read_u1();
+    m_ccx_unk2 = p_io->read_bytes(3);
 
 }
