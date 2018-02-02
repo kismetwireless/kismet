@@ -69,7 +69,7 @@ DOT11_PARSERS = \
 	dot11_parsers/dot11_ie_52_rmm_neighbor.cc.o \
 	dot11_parsers/dot11_ie_54_mobility.cc.o \
 	dot11_parsers/dot11_ie_55_fastbss.cc.o \
-	dot11_parsers/dot11_ie_61_ht.cc.o \
+	dot11_parsers/dot11_ie_61_ht_op.cc.o \
 	dot11_parsers/dot11_ie_133_cisco_ccx.cc.o \
  	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
  	dot11_parsers/dot11_ie_192_vht_op.cc.o \
