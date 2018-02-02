@@ -47,12 +47,12 @@
 #include "phy_80211_httpd_pcap.h"
 
 #include "kaitai/kaitaistream.h"
-#include "kaitai_parsers/wpaeap.h"
-#include "kaitai_parsers/dot11_ie_11_qbss.h"
-#include "kaitai_parsers/dot11_ie_54_mobility.h"
-#include "kaitai_parsers/dot11_ie_61_ht.h"
-#include "kaitai_parsers/dot11_ie_192_vht_operation.h"
-#include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
+#include "dot11_parsers/dot11_wpa_eap.h"
+#include "dot11_parsers/dot11_ie_11_qbss.h"
+#include "dot11_parsers/dot11_ie_54_mobility.h"
+#include "dot11_parsers/dot11_ie_61_ht_op.h"
+#include "dot11_parsers/dot11_ie_192_vht_op.h"
+#include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 
 /*
  * 802.11 PHY handlers
@@ -244,12 +244,12 @@ class dot11_packinfo : public packet_component {
         std::string wps_serial_number;
 
         // Direct kaitai structs pulled from the beacon
-        std::shared_ptr<dot11_ie_11_qbss_t> qbss;
-        std::shared_ptr<dot11_ie_54_mobility_t> dot11r_mobility;
-        std::shared_ptr<dot11_ie_61_ht_t> dot11ht;
-        std::shared_ptr<dot11_ie_192_vht_operation_t> dot11vht;
+        std::shared_ptr<dot11_ie_11_qbss> qbss;
+        std::shared_ptr<dot11_ie_54_mobility> dot11r_mobility;
+        std::shared_ptr<dot11_ie_61_ht_op> dot11ht;
+        std::shared_ptr<dot11_ie_192_vht_op> dot11vht;
 
-        std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid;
+        std::shared_ptr<dot11_ie_221_dji_droneid> droneid;
 
         double maxrate;
         // 11g rates

@@ -1567,23 +1567,19 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             // Grab the primary channel from the HT data
             ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
 
-            if (dot11info->dot11vht->channel_width() ==
-                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80) {
+            if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80) {
                 ssid->set_ht_mode("HT80");
                 ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
                 ssid->set_ht_center_2(0);
-            } else if (dot11info->dot11vht->channel_width() ==
-                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_160) {
+            } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_160) {
                 ssid->set_ht_mode("HT160");
                 ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
                 ssid->set_ht_center_2(0);
-            } else if (dot11info->dot11vht->channel_width() ==
-                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_80_80) {
+            } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80_80) {
                 ssid->set_ht_mode("HT80+80");
                 ssid->set_ht_center_1(5000 + (5 * dot11info->dot11vht->center1()));
                 ssid->set_ht_center_2(5000 + (5 * dot11info->dot11vht->center2()));
-            } else if (dot11info->dot11vht->channel_width() ==
-                    dot11_ie_192_vht_operation_t::CHANNEL_WIDTH_CH_20_40) {
+            } else if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_20_40) {
                 if (dot11info->dot11ht->ht_info_chan_offset_none()) {
                     ssid->set_ht_mode("HT20");
                 } else if (dot11info->dot11ht->ht_info_chan_offset_above()) {

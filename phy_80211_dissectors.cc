@@ -38,25 +38,24 @@
 #include "configfile.h"
 
 #include "kaitai/kaitaistream.h"
-#include "kaitai_parsers/wpaeap.h"
-#include "kaitai_parsers/dot11_action.h"
-#include "kaitai_parsers/dot11_ie.h"
-#include "kaitai_parsers/dot11_ie_7_country.h"
-#include "kaitai_parsers/dot11_ie_11_qbss.h"
-#include "kaitai_parsers/dot11_ie_45_ht.h"
-#include "kaitai_parsers/dot11_ie_48_rsn.h"
-#include "kaitai_parsers/dot11_ie_48_rsn_partial.h"
-#include "kaitai_parsers/dot11_ie_52_rmm_neighbor.h"
-#include "kaitai_parsers/dot11_ie_54_mobility.h"
-#include "kaitai_parsers/dot11_ie_61_ht.h"
-#include "kaitai_parsers/dot11_ie_133_cisco_ccx.h"
-#include "kaitai_parsers/dot11_ie_191_vht_capabilities.h"
-#include "kaitai_parsers/dot11_ie_192_vht_operation.h"
-#include "kaitai_parsers/dot11_ie_221_vendor.h"
-#include "kaitai_parsers/dot11_ie_221_dji_droneid.h"
-#include "kaitai_parsers/dot11_ie_221_ms_wmm.h"
-#include "kaitai_parsers/dot11_ie_221_ms_wps.h"
-#include "kaitai_parsers/dot11_ie_221_wfa_wpa.h"
+#include "dot11_parsers/dot11_wpa_eap.h"
+#include "dot11_parsers/dot11_action.h"
+#include "dot11_parsers/dot11_ie.h"
+#include "dot11_parsers/dot11_ie_7_country.h"
+#include "dot11_parsers/dot11_ie_11_qbss.h"
+#include "dot11_parsers/dot11_ie_45_ht_cap.h"
+#include "dot11_parsers/dot11_ie_48_rsn.h"
+#include "dot11_parsers/dot11_ie_52_rmm_neighbor.h"
+#include "dot11_parsers/dot11_ie_54_mobility.h"
+#include "dot11_parsers/dot11_ie_61_ht_op.h"
+#include "dot11_parsers/dot11_ie_133_cisco_ccx.h"
+#include "dot11_parsers/dot11_ie_191_vht_cap.h"
+#include "dot11_parsers/dot11_ie_192_vht_op.h"
+#include "dot11_parsers/dot11_ie_221_vendor.h"
+#include "dot11_parsers/dot11_ie_221_dji_droneid.h"
+#include "dot11_parsers/dot11_ie_221_ms_wmm.h"
+#include "dot11_parsers/dot11_ie_221_ms_wps.h"
+#include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -700,12 +699,11 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                     (char *) &(chunk->data[chunk->length]));
             std::istream pack_stream(&pack_membuf);
 
-            std::shared_ptr<dot11_action_t> action;
+            std::shared_ptr<dot11_action> action(new dot11_action());
 
             try {
-                kaitai::kstream ks(&pack_stream);
-
-                action.reset(new dot11_action_t(&ks));
+                std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
+                action->parse(ks);
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
                 packinfo->corrupt = 1;
@@ -714,23 +712,25 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             }
 
             // We only care about RMM for wids purposes right now
-            if (action->category_code() == dot11_action_t::CATEGORY_CODE_TYPE_RADIO_MEASUREMENT &&
-                    action->action_frame() != NULL) {
-                for (auto t : *(action->action_frame()->tags())) {
-                    if (t->ie() == 52) {
-                        std::istringstream tag_stream(t->ie_data());
-                       
+            std::shared_ptr<dot11_action::action_rmm> action_rmm;
+            if (action->category_code() == dot11_action::category_code_radio_measurement &&
+                    (action_rmm = action->action_frame_rmm()) != NULL) {
+                // Scan the action IE tags
+                std::shared_ptr<dot11_ie> rmm_tags(new dot11_ie());
+                rmm_tags->parse(action_rmm->tags_data_stream());
+
+                for (auto t : *(rmm_tags->tags())) {
+                    if (t->tag_num() == 52) {
                         try {
-                            kaitai::kstream wmkstream(&tag_stream);;
+                            dot11_ie_52_rmm ie_rmm;
+                            ie_rmm.parse(t->tag_data_stream());
 
-                            dot11_ie_52_rmm_neighbor_t rmm(&wmkstream);
-
-                            if (rmm.channel_number() > 0xE0) {
+                            if (ie_rmm.channel_number() > 0xE0) {
                                 std::stringstream ss;
 
                                 ss << "IEE80211 Access Point BSSID " <<
                                     packinfo->bssid_mac.Mac2String() << " reporting an 802.11k " <<
-                                    "neighbor channel of " << rmm.channel_number() << " which is " <<
+                                    "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
                                     "greater than the maximum channel, 224.  This may be an " << 
                                     "exploit attempt against Broadcom chipsets used in mobile " <<
                                     "devices.";
@@ -1216,11 +1216,11 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             (char *) &(chunk->data[chunk->length]));
     std::istream istream_ietags(&tags_membuf);
 
-    std::shared_ptr<dot11_ie_t> ietags;
+    std::shared_ptr<dot11_ie> ietags(new dot11_ie());
 
     try {
-        kaitai::kstream stream_ietags(&istream_ietags);
-        ietags.reset(new dot11_ie_t(&stream_ietags));
+        std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
+        ietags->parse(stream_ietags);
     } catch (const std::exception& e) {
         fprintf(stderr, "debug - IE tags corrupt\n");
         packinfo->corrupt = 1;
@@ -1238,9 +1238,6 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     unsigned int wmmtspec_responses = 0;
 
     for (auto ie_tag : *(ietags->tags())) {
-        std::stringstream tag_stream(ie_tag->tag_data());
-        kaitai::kstream ks(&tag_stream);
-
         // IE 0 SSID
         if (ie_tag->tag_num() == 0) {
             if (seen_ssid) {
@@ -1465,14 +1462,16 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
         // IE 7 802.11d
-#if 0
         if (ie_tag->tag_num() == 7) {
-	    dot11_ie_7_country_t *dot11d = NULL;
             try {
-		dot11d = new dot11_ie_7_country_t(&ks);
-                packinfo->dot11d_country = MungeToPrintable(dot11d->country_code());
+                dot11_ie_7_country dot11d;
+                // Allow fragmented 11d, take what we can parse
+                dot11d.set_allow_fragments(true);
+                dot11d.parse(ie_tag->tag_data_stream());
 
-                for (auto c : *(dot11d->country_list())) {
+                packinfo->dot11d_country = MungeToPrintable(dot11d.country_code());
+
+                for (auto c : *(dot11d.country_list())) {
                     dot11_packinfo_dot11d_entry ri;
 
                     ri.startchan = c->first_channel();
@@ -1484,21 +1483,17 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
             } catch (const std::exception& e) {
                 // Corrupt dot11 isn't a fatal condition
-                fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
-		if (dot11d != NULL)
-			delete dot11d;
-                continue;
+                // fprintf(stderr, "debug - corrupt dot11d: %s\n", e.what());
             }
 
-	    delete dot11d;
             continue;
         }
-#endif
 
         // IE 11 QBSS
         if (ie_tag->tag_num() == 11) {
             try {
-                std::shared_ptr<dot11_ie_11_qbss_t> qbss(new dot11_ie_11_qbss_t(&ks));
+                std::shared_ptr<dot11_ie_11_qbss> qbss(new dot11_ie_11_qbss());
+                qbss->parse(ie_tag->tag_data_stream());
                 packinfo->qbss = qbss;
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - corrupt QBSS\n");
@@ -1519,7 +1514,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             std::vector<std::string> mcsrates;
 
             try {
-                std::shared_ptr<dot11_ie_45_ht_t> ht(new dot11_ie_45_ht_t(&ks));
+                std::shared_ptr<dot11_ie_45_ht_cap> ht(new dot11_ie_45_ht_cap());
+                ht->parse(ie_tag->tag_data_stream());
 
                 std::stringstream mcsstream;
 
@@ -1591,7 +1587,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             bool rsn_invalid = false;
 
             try {
-                std::shared_ptr<dot11_ie_48_rsn_t> rsn(new dot11_ie_48_rsn_t(&ks));
+                std::shared_ptr<dot11_ie_48_rsn> rsn(new dot11_ie_48_rsn());
+                rsn->parse(ie_tag->tag_data_stream());
 
                 // TODO - don't aggregate these in the future
 
@@ -1625,11 +1622,10 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             // https://pleasestopnamingvulnerabilities.com/
             // CVE-2017-9714
             if (rsn_invalid) {
-                std::stringstream rsn_stream(ie_tag->tag_data());
-
                 try {
-                    kaitai::kstream ks(&rsn_stream);
-                    std::shared_ptr<dot11_ie_48_rsn_partial_t> rsn(new dot11_ie_48_rsn_partial_t(&ks));
+                    std::shared_ptr<dot11_ie_48_rsn_partial> rsn(new dot11_ie_48_rsn_partial());
+                    ie_tag->tag_data_stream()->seek(0);
+                    rsn->parse(ie_tag->tag_data_stream());
 
                     if (rsn->pairwise_count() > 1024) {
                         alertracker->RaiseAlert(alert_atheros_rsnloop_ref, 
@@ -1655,7 +1651,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         // IE 54 Mobility
         if (ie_tag->tag_num() == 54) {
             try {
-                std::shared_ptr<dot11_ie_54_mobility_t> mobility(new dot11_ie_54_mobility_t(&ks));
+                std::shared_ptr<dot11_ie_54_mobility> mobility(new dot11_ie_54_mobility());
+                mobility->parse(ie_tag->tag_data_stream());
                 packinfo->dot11r_mobility = mobility;
             } catch (const std::exception& e) {
                 packinfo->corrupt = 1;
@@ -1667,7 +1664,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         // IE 61 HT
         if (ie_tag->tag_num() == 61) {
             try {
-                std::shared_ptr<dot11_ie_61_ht_t> ht(new dot11_ie_61_ht_t(&ks));
+                std::shared_ptr<dot11_ie_61_ht_op> ht(new dot11_ie_61_ht_op());
+                ht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11ht = ht;
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - unparseable HT\n");
@@ -1681,7 +1679,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         // IE 133 CISCO CCX
         if (ie_tag->tag_num() == 133) {
             try {
-                std::shared_ptr<dot11_ie_133_cisco_ccx_t> ccx1(new dot11_ie_133_cisco_ccx_t(&ks));
+                std::shared_ptr<dot11_ie_133_cisco_ccx> ccx1(new dot11_ie_133_cisco_ccx());
+                ccx1->parse(ie_tag->tag_data_stream());
                 packinfo->beacon_info = MungeToPrintable(ccx1->ap_name());
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - ccx error %s\n", e.what());
@@ -1691,14 +1690,16 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             continue;
         }
 
-        // IE 191 VHT Capabilities
+        // IE 191 VHT Capabilities TODO compbine with VHT OP to derive actual usable
+        // rate
         if (ie_tag->tag_num() == 191) {
             try {
-                std::shared_ptr<dot11_ie_191_vht_capabilities_t> vhtc(new dot11_ie_191_vht_capabilities_t(&ks));
+                std::shared_ptr<dot11_ie_191_vht_cap> vht(new dot11_ie_191_vht_cap());
+                vht->parse(ie_tag->tag_data_stream());
 
-                bool gi80 = vhtc->vht_cap_80mhz_shortgi();
-                bool gi160 = vhtc->vht_cap_160mhz_shortgi();
-                bool supp160 = vhtc->vht_cap_160mhz_supported();
+                bool gi80 = vht->vht_cap_80mhz_shortgi();
+                bool gi160 = vht->vht_cap_160mhz_shortgi();
+                bool supp160 = vht->vht_cap_160mhz();
 
                 int stream = -1;
                 unsigned int mcs = 0;
@@ -1719,28 +1720,28 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 }
 
                 // Count back from stream 4 looking for the highest MCS setting
-                if (vhtc->rx_mcs_s4() == 2) {
+                if (vht->rx_mcs_s4() == 2) {
                     stream = 3;
                     mcs = 9;
-                } else if (vhtc->rx_mcs_s4() == 1) {
+                } else if (vht->rx_mcs_s4() == 1) {
                     stream = 3;
                     mcs = 7;
-                } else if (vhtc->rx_mcs_s3() == 2) {
+                } else if (vht->rx_mcs_s3() == 2) {
                     stream = 2;
                     mcs = 9;
-                } else if (vhtc->rx_mcs_s3() == 1) {
+                } else if (vht->rx_mcs_s3() == 1) {
                     stream = 2;
                     mcs = 7;
-                } else if (vhtc->rx_mcs_s2() == 2) {
+                } else if (vht->rx_mcs_s2() == 2) {
                     stream = 1;
                     mcs = 9;
-                } else if (vhtc->rx_mcs_s2() == 1) {
+                } else if (vht->rx_mcs_s2() == 1) {
                     stream = 1;
                     mcs = 7;
-                } else if (vhtc->rx_mcs_s1() == 2) {
+                } else if (vht->rx_mcs_s1() == 2) {
                     stream = 0;
                     mcs = 9;
-                } else if (vhtc->rx_mcs_s1() == 1) {
+                } else if (vht->rx_mcs_s1() == 1) {
                     stream = 0;
                     mcs = 7;
                 }
@@ -1760,10 +1761,10 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 if (packinfo->maxrate < speed)
                     packinfo->maxrate = speed;
 
+
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - vht 191 error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
-
             }
         }
 
@@ -1771,8 +1772,10 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         // IE 192 VHT Operation
         if (ie_tag->tag_num() == 192) {
             try {
-                std::shared_ptr<dot11_ie_192_vht_operation_t> vht(new dot11_ie_192_vht_operation_t(&ks));
+                std::shared_ptr<dot11_ie_192_vht_op> vht(new dot11_ie_192_vht_op());
+                vht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11vht = vht;
+
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - vht 192 error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
@@ -1783,7 +1786,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
         if (ie_tag->tag_num() == 221) {
             try {
-                std::shared_ptr<dot11_ie_221_vendor_t> vendor(new dot11_ie_221_vendor_t(&ks));
+                std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
+                vendor->parse(ie_tag->tag_data_stream());
 
                 // Match mis-sized WMM
                 if (packinfo->subtype == packet_sub_beacon &&
@@ -1809,9 +1813,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 if (packinfo->subtype == packet_sub_association_resp &&
                         vendor->vendor_oui_int() == 0x0050f2 &&
                         vendor->vendor_oui_type() == 2) {
-                    std::stringstream wmmstream(vendor->vendor_tag()->vendor_data());
-                    kaitai::kstream kds(&wmmstream);
-                    dot11_ie_221_ms_wmm_t wmm(&kds);
+                    dot11_ie_221_ms_wmm wmm;
+                    wmm.parse(vendor->vendor_tag_stream());
 
                     if (wmm.wme_subtype() == 0x02) {
                         wmmtspec_responses++;
@@ -1835,21 +1838,18 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
 
                 // Look for DJI DroneID OUIs
-                if (vendor->vendor_oui_int() == 0x263712) {
-                    std::stringstream dronestream(vendor->vendor_tag()->vendor_data());
-                    kaitai::kstream kds(&dronestream);
-
-                    std::shared_ptr<dot11_ie_221_dji_droneid_t> droneid(new dot11_ie_221_dji_droneid_t(&kds));
+                if (vendor->vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
+                    std::shared_ptr<dot11_ie_221_dji_droneid> droneid(new dot11_ie_221_dji_droneid());
+                    droneid->parse(vendor->vendor_tag_stream());
 
                     packinfo->droneid = droneid;
                 }
 
                 // Look for MS/WFA WPA
-                if (vendor->vendor_oui_int() == 0x0050f2 && vendor->vendor_oui_type() == 0x01) {
-                    std::stringstream wpastream(vendor->vendor_tag()->vendor_data());
-                    kaitai::kstream wpas(&wpastream);
-
-                    std::shared_ptr<dot11_ie_221_wfa_wpa_t> wpa(new dot11_ie_221_wfa_wpa_t(&wpas));
+                if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() && 
+                        vendor->vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
+                    std::shared_ptr<dot11_ie_221_wfa_wpa> wpa(new dot11_ie_221_wfa_wpa());
+                    wpa->parse(vendor->vendor_tag_stream());
 
                     // Merge the group cipher
                     packinfo->cryptset |= 
@@ -1876,40 +1876,52 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 }
 
                 // Look for WPS MS
-                if (vendor->vendor_oui_int() == 0x0050f2 && vendor->vendor_oui_type() == 0x04) {
-                    std::stringstream wpsstream(vendor->vendor_tag()->vendor_data());
-                    kaitai::kstream wpss(&wpsstream);
+                if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
+                        vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
+                    std::unique_ptr<dot11_ie_221_ms_wps> wps(new dot11_ie_221_ms_wps());
+                    wps->parse(vendor->vendor_tag_stream());
 
-                    std::unique_ptr<dot11_ie_221_ms_wps_t> wps(new dot11_ie_221_ms_wps_t(&wpss));
-
-                    for (auto wpselem : *(wps->wps_element())) {
-                        std::stringstream elemstream(wpselem->wps_de_content());
-                        kaitai::kstream elems(&elemstream);
-
-                        if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_STATE) {
-
-                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_state_t> state(new dot11_ie_221_ms_wps_t::wps_de_state_t(&elems));
-
+                    for (auto wpselem : *(wps->wps_elements())) {
+                        auto state = wpselem->sub_element_state();
+                        if (state != NULL) {
                             if (state->wps_state_configured()) {
                                 packinfo->wps |= DOT11_WPS_CONFIGURED;
                             } else {
                                 packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
                             }
-                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_DEVICE_NAME) {
-                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
-                            packinfo->wps_device_name = MungeToPrintable(str->raw_str());
-                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MANUF) {
-                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
-                            packinfo->wps_manuf = MungeToPrintable(str->raw_str());
-                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL) {
-                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
-                            packinfo->wps_model_name = MungeToPrintable(str->raw_str());
-                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_MODEL_NUM) {
-                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
-                            packinfo->wps_model_number = MungeToPrintable(str->raw_str());
-                        } else if (wpselem->wps_de_type() == dot11_ie_221_ms_wps_t::wps_de_element_t::WPS_DE_TYPES_SERIAL) {
-                            std::unique_ptr<dot11_ie_221_ms_wps_t::wps_de_rawstr_t> str(new dot11_ie_221_ms_wps_t::wps_de_rawstr_t(&elems));
-                            packinfo->wps_serial_number = MungeToPrintable(str->raw_str());
+
+                            continue;
+                        }
+
+                        auto device_name = wpselem->sub_element_name();
+                        if (device_name != NULL) {
+                            packinfo->wps_device_name = MungeToPrintable(device_name->str());
+
+                            continue;
+                        }
+
+                        auto manuf = wpselem->sub_element_manuf();
+                        if (manuf != NULL) {
+                            packinfo->wps_manuf = MungeToPrintable(manuf->str());
+                            continue;
+                        }
+
+                        auto model = wpselem->sub_element_model();
+                        if (model != NULL) {
+                            packinfo->wps_model_name = MungeToPrintable(model->str());
+                            continue;
+                        }
+
+                        auto model_num = wpselem->sub_element_model_num();
+                        if (model_num != NULL) {
+                            packinfo->wps_model_number = MungeToPrintable(model_num->str());
+                            continue;
+                        }
+
+                        auto serial_num = wpselem->sub_element_serial();
+                        if (serial_num != NULL) {
+                            packinfo->wps_serial_number = MungeToPrintable(serial_num->str());
+                            continue;
                         }
                     }
                 }
@@ -2278,48 +2290,39 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
 
     try {
         // Make a kaitai parser and parse with our wpaeap handler
-        kaitai::kstream ks(&eapol_stream);
-        wpaeap_t eap(&ks);
+        std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&eapol_stream));
+        dot11_wpa_eap eap;
+        eap.parse(ks);
 
         // We only care about EAPOL packets for WPS decoding
-        if (eap.dot1x_type() != wpaeap_t::DOT1X_TYPE_ENUM_EAP_PACKET) {
+        if (eap.dot1x_type() != dot11_wpa_eap::dot1x_type_eap_packet) {
             return 0;
         }
 
         // Assign the eapol packet parser
-        wpaeap_t::dot1x_eapol_t *eapol_packet =
-            static_cast<wpaeap_t::dot1x_eapol_t *>(eap.dot1x_content());
+        auto eapol_packet = eap.dot1x_content_eap_packet();
 
         // We only catch M3 in this test so we only care about requests
-        if (eapol_packet->eapol_type() != wpaeap_t::EAPOL_TYPE_ENUM_REQUEST) {
+        if (eapol_packet->eapol_type() != dot11_wpa_eap::dot1x_eap_packet::eapol_type_request) {
             return 0;
         }
 
         // Make sure we're a WPS expanded type
         if (eapol_packet->eapol_expanded_type() != 
-                wpaeap_t::EAPOL_EXPANDED_TYPE_ENUM_WFA_WPS) {
+                dot11_wpa_eap::dot1x_eap_packet::eapol_expanded_wfa_wps) {
             return 0;
         }
 
         // Assign the expanded WFA WPS subframe
-        wpaeap_t::eapol_extended_wpa_wps_t *wps =
-            static_cast<wpaeap_t::eapol_extended_wpa_wps_t *>(eapol_packet->content());
+        auto wfa_wps = eapol_packet->eapol_content_wpa_wps();
 
         // Go through the fields until we find the MESSAGE_TYPE field
-        for (auto i = wps->fields()->begin(); i != wps->fields()->end();  ++i) {
-            if ((*i)->type() == wpaeap_t::EAPOL_FIELD_TYPE_ENUM_MESSAGE_TYPE) {
-                // Assign the messagetype and compare
-                wpaeap_t::eapol_field_messagetype_t *msgfield =
-                    static_cast<wpaeap_t::eapol_field_messagetype_t *>((*i)->content());
+        for (auto i : *(wfa_wps->fields())) {
+            auto msg = i->content_message_type();
 
-                // Check the actual flag
-                if (msgfield->messagetype() == wpaeap_t::EAPOL_MESSAGETYPE_ENUM_M3) {
-                    // fprintf(stderr, "debug - got wpa m3\n");
-                    return 1;
-                }
-
-                break;
-            }
+            if (msg != NULL && msg->messagetype() ==
+                    dot11_wpa_eap::dot1x_eap_packet::eapol_extended_wpa_wps::eapol_wpa_field::eapol_field_message_type::eapol_messagetype_m3)
+                return 1;
         }
 
         // We got here but didn't get anything out of the packet, return false for m3
@@ -2405,25 +2408,20 @@ shared_ptr<dot11_tracked_eapol>
 
     try {
         // Make a kaitai parser and parse with our wpaeap handler
-        kaitai::kstream ks(&eapol_stream);
-        wpaeap_t eap(&ks);
+        std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&eapol_stream));
+        dot11_wpa_eap eap;
+        eap.parse(ks);
 
         // We only care about RSN keys
-        if (eap.dot1x_type() != wpaeap_t::DOT1X_TYPE_ENUM_KEY) {
+        if (eap.dot1x_type() != dot11_wpa_eap::dot1x_type_eap_key)
             return NULL;
-        }
 
-        wpaeap_t::dot1x_key_t *dot1xkey =
-            static_cast<wpaeap_t::dot1x_key_t *>(eap.dot1x_content());
+        auto dot1xkey = eap.dot1x_content_key();
 
+        auto rsnkey = dot1xkey->key_content_eapolrsn();
 
-        if (dot1xkey->key_descriptor_type() != 
-                wpaeap_t::DOT1X_KEY_TYPE_ENUM_EAPOL_RSN_KEY) {
+        if (rsnkey == NULL)
             return NULL;
-        }
-
-        wpaeap_t::eapol_rsn_key_t *rsnkey =
-            static_cast<wpaeap_t::eapol_rsn_key_t *>(dot1xkey->key_content());
 
         shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
@@ -2440,16 +2438,16 @@ shared_ptr<dot11_tracked_eapol>
 
         tp->get_data()->set_bytearray(chunk->data, chunk->length);
 
-        wpaeap_t::eapol_rsn_key_info_t *keyinfo = rsnkey->key_information();
-
-        if (keyinfo->key_ack() && !keyinfo->key_mic() && !keyinfo->install()) {
+        if (rsnkey->key_info_key_ack() && !rsnkey->key_info_key_mic() &&
+                !rsnkey->key_info_install()) {
             eapol->set_eapol_msg_num(1);
-        } else if (keyinfo->key_mic() && !keyinfo->key_ack() && !keyinfo->install()) {
-            if (rsnkey->wpa_key_data_length()) {
+        } else if (rsnkey->key_info_key_mic() && !rsnkey->key_info_key_ack() && 
+                !rsnkey->key_info_install()) {
+            if (rsnkey->wpa_key_data_len()) {
                 eapol->set_eapol_msg_num(2);
             } else {
                 // Look for attempts to set an empty nonce; only on group keys
-                if (!keyinfo->pairwise_key() &&
+                if (!rsnkey->key_info_pairwise_key() &&
                         rsnkey->wpa_key_nonce().find_first_not_of(std::string("\x00", 1)) == string::npos) {
                     alertracker->RaiseAlert(alert_nonce_zero_ref, in_pack,
                             packinfo->bssid_mac, packinfo->source_mac, 
@@ -2462,11 +2460,12 @@ shared_ptr<dot11_tracked_eapol>
 
                 eapol->set_eapol_msg_num(4);
             }
-        } else if (keyinfo->key_mic() && keyinfo->key_ack() && keyinfo->key_ack()) {
+        } else if (rsnkey->key_info_key_mic() && rsnkey->key_info_key_ack() && 
+                rsnkey->key_info_key_ack()) {
             eapol->set_eapol_msg_num(3);
         }
 
-        eapol->set_eapol_install(keyinfo->install());
+        eapol->set_eapol_install(rsnkey->key_info_install());
         eapol->set_eapol_nonce(rsnkey->wpa_key_nonce());
         eapol->set_eapol_replay_counter(rsnkey->replay_counter());
 
