@@ -16,9 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "dot11_ie_61_ht_ops.h"
+#include "dot11_ie_61_ht_op.h"
 
-void dot11_ie_61_ht_ops::parse(std::shared_ptr<kaitai::kstream> p_io) {
+void dot11_ie_61_ht_op::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_primary_channel = p_io->read_u1();
     m_info_subset_1 = p_io->read_u1();
     m_info_subset_2 = p_io->read_u2be();

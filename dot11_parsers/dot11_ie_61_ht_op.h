@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DOT11_IE_61_HT_OPS_H__
-#define __DOT11_IE_61_HT_OPS_H__
+#ifndef __DOT11_IE_61_HT_OP_H__
+#define __DOT11_IE_61_HT_OP_H__
 
 /* dot11 ie HT operations
  *
@@ -30,10 +30,10 @@
 #include <vector>
 #include <kaitai/kaitaistream.h>
 
-class dot11_ie_61_ht_ops {
+class dot11_ie_61_ht_op {
 public:
-    dot11_ie_61_ht_ops() { }
-    ~dot11_ie_61_ht_ops() { }
+    dot11_ie_61_ht_op() { }
+    ~dot11_ie_61_ht_op() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 

@@ -139,7 +139,7 @@ public:
 
         }
 
-        void parse(kaitai::kstream *p_io);
+        void parse(std::shared_ptr<kaitai::kstream> p_io);
 
         std::string rx_mcs() {
             return m_rx_mcs;
