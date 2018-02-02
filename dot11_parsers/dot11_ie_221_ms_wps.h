@@ -49,11 +49,11 @@ public:
         return m_wps_elements;
     }
 
-    uint32_t ms_wps_oui() const {
+    static uint32_t ms_wps_oui() {
         return 0x0050f2;
     }
 
-    uint8_t ms_wps_subtype() const {
+    static uint8_t ms_wps_subtype() {
         return 0x04;
     }
 

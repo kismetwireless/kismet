@@ -38,6 +38,14 @@ public:
     dot11_ie_221_wfa_wpa() { }
     ~dot11_ie_221_wfa_wpa() { }
 
+    static uint32_t ms_wps_oui() {
+        return 0x0050f2;
+    }
+
+    static uint8_t wfa_wpa_subtype() {
+        return 0x01;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint8_t vendor_subtype() {

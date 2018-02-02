@@ -61,6 +61,10 @@ public:
     dot11_ie_221_dji_droneid() { }
     ~dot11_ie_221_dji_droneid() { }
 
+    static unsigned int vendor_oui() {
+        return 0x263712;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     uint8_t vendor_type() {

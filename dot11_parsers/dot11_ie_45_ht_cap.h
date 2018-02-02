@@ -30,17 +30,12 @@
 #include <vector>
 #include <kaitai/kaitaistream.h>
 
-class dot11_ie_45_ht {
+class dot11_ie_45_ht_cap {
 public:
     class dot11_ie_45_rx_mcs;
 
-    dot11_ie_45_ht() {
-
-    }
-
-    ~dot11_ie_45_ht() {
-
-    }
+    dot11_ie_45_ht_cap() { }
+    ~dot11_ie_45_ht_cap() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
@@ -86,6 +81,10 @@ public:
 
     unsigned int ht_cap_20mhz_shortgi() {
         return ht_capabilities() & 0x20;
+    }
+
+    unsigned int ht_cap_40mhz_shortgi() {
+        return ht_capabilities() & 0x40;
     }
 
     unsigned int ht_cap_tx_stbc() {

@@ -39,7 +39,7 @@ public:
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     std::string vendor_oui() {
-        return m_vendor_oiu;
+        return m_vendor_oui;
     }
 
     std::string vendor_tag() {
@@ -58,10 +58,15 @@ public:
                 (vendor_tag()[2]));
     }
 
+    uint8_t vendor_oui_type() {
+        return m_vendor_oui_type;
+    }
+
 protected:
-    std::string m_vendor_oiu;
+    std::string m_vendor_oui;
     std::string m_vendor_tag;
     std::shared_ptr<kaitai::kstream> m_vendor_tag_stream;
+    uint8_t m_vendor_oui_type;
 
 };
 
