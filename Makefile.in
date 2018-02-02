@@ -62,7 +62,23 @@ DATASOURCE_BINS = @DATASOURCE_BINS@
 
 # Dot11 parsers (modeled on former Kaitai model)
 DOT11_PARSERS = \
-	dot11_parsers/dot11_ie.cc.o 
+	dot11_parsers/dot11_ie.cc.o \
+	dot11_parsers/dot11_ie_11_qbss.cc.o \
+	dot11_parsers/dot11_ie_45_ht.cc.o \
+	dot11_parsers/dot11_ie_48_rsn.cc.o \
+	dot11_parsers/dot11_ie_52_rmm_neighbor.cc.o \
+	dot11_parsers/dot11_ie_54_mobility.cc.o \
+	dot11_parsers/dot11_ie_55_fastbss.cc.o \
+	dot11_parsers/dot11_ie_61_ht.cc.o \
+	dot11_parsers/dot11_ie_133_cisco_ccx.cc.o \
+ 	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
+ 	dot11_parsers/dot11_ie_192_vht_op.cc.o \
+ 	dot11_parsers/dot11_ie_221_vendor.cc.o \
+ 	dot11_parsers/dot11_ie_221_ms_wps.cc.o \
+ 	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
+ 	dot11_parsers/dot11_ie_221_dji_droneid.cc.o \
+ 	dot11_parsers/dot11_ie_221_wfa_wpa.cc.o \
+	dot11_parsers/dot11_wpa_eap.cc.o
 
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
