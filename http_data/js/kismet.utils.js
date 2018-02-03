@@ -308,6 +308,10 @@ exports.sanitizeHTML = function(s) {
 /* Recurse over a complete object (such as from json), finding all strings,
  * and escaping them to be 'safe' */
 exports.sanitizeObject = function(o) {
+    if (o === null) {
+        return o;
+    }
+
     if (typeof(o) === 'string') {
         var s = exports.sanitizeHTML(o);
         return exports.sanitizeHTML(o);
