@@ -210,7 +210,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     }
 
                     if (flightinfo->state_serial_valid()) {
-                        uavdev->set_uav_serialnumber(flightinfo->serialnumber());
+                        uavdev->set_uav_serialnumber(MungeToPrintable(flightinfo->serialnumber()));
                     }
 
                     std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
@@ -247,7 +247,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                         basedev->add_map(uavdev);
                     }
 
-                    uavdev->set_uav_serialnumber(flightpurpose->serialnumber());
+                    uavdev->set_uav_serialnumber(MungeToPrintable(flightpurpose->serialnumber()));
                     uavdev->set_uav_match_type("DroneID");
 
                     if (uavdev->get_uav_manufacturer() == "")
