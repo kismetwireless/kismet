@@ -31,6 +31,7 @@ void dot11_ie_221_wfa_wpa::parse(std::shared_ptr<kaitai::kstream> p_io) {
         m_unicast_ciphers->push_back(c);
     }
     m_akm_count = p_io->read_u2le();
+    m_akm_ciphers.reset(new shared_wpa_v1_cipher_vector());
     for (uint16_t i = 0; i < akm_count(); i++) {
         std::shared_ptr<wpa_v1_cipher> c(new wpa_v1_cipher());
         c->parse(p_io);
