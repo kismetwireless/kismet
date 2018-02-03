@@ -83,6 +83,10 @@ public:
         return (e_dji_subcommand_type) m_subcommand;
     }
 
+    std::string raw_record_data() {
+        return m_raw_record_data;
+    }
+
     std::shared_ptr<dji_subcommand_common> record() {
         return m_record;
     }
@@ -162,6 +166,10 @@ public:
 
         int16_t v_east() {
             return m_v_east;
+        }
+
+        int16_t v_up() {
+            return m_v_up;
         }
 
         int16_t raw_pitch() {

@@ -183,7 +183,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     // Mavic V01.04.0200
                     //
                     // Look for subcommand of 0, with 0 content
-                    if (dot11info->droneid->record().substr(0, 32).find_first_not_of(std::string("\x00", 1)) == string::npos) {
+                    if (dot11info->droneid->raw_record_data().substr(0, 32).find_first_not_of(std::string("\x00", 1)) == string::npos) {
                         shared_ptr<uav_tracked_device> uavdev = 
                             std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
@@ -197,13 +197,10 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                         uavdev->set_uav_match_type("DroneID");
                     }
 
-                } else if (dot11info->droneid->subcommand_flight_reg_info()) {
-                    // TODO add alerts for serial # change etc
-                    std::stringstream did_stream(dot11info->droneid->record());
-                    kaitai::kstream ks(&did_stream);
-                    
-                    std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_reg_info_t> flightinfo(new dot11_ie_221_dji_droneid_t::flight_reg_info_t(&ks)); 
+                } 
 
+                auto flightinfo = dot11info->droneid->flight_reg_record();
+                if (flightinfo != NULL) {
                     shared_ptr<uav_tracked_device> uavdev = 
                         std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
@@ -238,12 +235,10 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                         shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
                         homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
                     }
-                } else if (dot11info->droneid->subcommand_flight_purpose()) {
-                    std::stringstream did_stream(dot11info->droneid->record());
-                    kaitai::kstream ks(&did_stream);
-                    
-                    std::shared_ptr<dot11_ie_221_dji_droneid_t::flight_purpose_t> flightpurpose(new dot11_ie_221_dji_droneid_t::flight_purpose_t(&ks)); 
-
+                } 
+               
+                auto flightpurpose = dot11info->droneid->flight_purpose_record();
+                if (flightpurpose != NULL) {
                     shared_ptr<uav_tracked_device> uavdev = 
                         std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 

@@ -63,6 +63,7 @@ DATASOURCE_BINS = @DATASOURCE_BINS@
 # Dot11 parsers (modeled on former Kaitai model)
 DOT11_PARSERS = \
 	dot11_parsers/dot11_ie.cc.o \
+	dot11_parsers/dot11_ie_7_country.cc.o \
 	dot11_parsers/dot11_ie_11_qbss.cc.o \
 	dot11_parsers/dot11_ie_45_ht_cap.cc.o \
 	dot11_parsers/dot11_ie_48_rsn.cc.o \

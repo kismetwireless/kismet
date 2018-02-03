@@ -32,6 +32,11 @@ void dot11_ie_55_fastbss::parse(std::shared_ptr<kaitai::kstream> p_io) {
     }
 }
 
+void dot11_ie_55_fastbss::sub_mic_control::parse(std::shared_ptr<kaitai::kstream> p_io) {
+    m_reserved = p_io->read_u1();
+    m_element_count = p_io->read_u1();
+}
+
 void dot11_ie_55_fastbss::sub_element::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_sub_id = p_io->read_u1();
     m_sub_len = p_io->read_u1();
