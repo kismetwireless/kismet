@@ -261,11 +261,11 @@ public:
         }
 
         float home_lon() {
-            return (float) home_lon() / 174533.0f;
+            return (float) raw_home_lon() / 174533.0f;
         }
 
         float home_lat() {
-            return (float) home_lat() / 174533.0f;
+            return (float) raw_home_lat() / 174533.0f;
         }
 
         float pitch() {
