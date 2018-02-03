@@ -53,9 +53,9 @@ public:
     // Process the vendor tag 
     uint32_t vendor_oui_int() {
         return (uint32_t) (
-                (vendor_tag()[0] << 16) + 
-                (vendor_tag()[1] << 8) +
-                (vendor_tag()[2]));
+                (vendor_oui()[0] << 16) + 
+                (vendor_oui()[1] << 8) +
+                (vendor_oui()[2]));
     }
 
     uint8_t vendor_oui_type() {
