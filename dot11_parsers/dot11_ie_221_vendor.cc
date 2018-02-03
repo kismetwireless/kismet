@@ -21,10 +21,8 @@
 void dot11_ie_221_vendor::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_vendor_oui = p_io->read_bytes(3);
     m_vendor_tag = p_io->read_bytes_full();
-    m_vendor_tag_stream.reset(new kaitai::kstream(m_vendor_tag));
-    // Get the type (maybe type, depending) from a literal position then
-    // rewind the io stream to just after the vendor oui
-    m_vendor_oui_type = p_io->read_u1();
-    p_io->seek(3);
+
+    if (m_vendor_tag.length() >= 1)
+        m_vendor_oui_type = m_vendor_tag[0];
 }
 
