@@ -984,18 +984,23 @@ class dot11_tracked_device : public tracker_component {
         shared_ptr<dot11_client> new_client() {
             return shared_ptr<dot11_client>(new dot11_client(globalreg, client_map_entry_id));
         }
+        __Proxy(num_client_aps, uint64_t, uint64_t, uint64_t, num_client_aps);
+
 
         __ProxyTrackable(advertised_ssid_map, TrackerElement, advertised_ssid_map);
         shared_ptr<dot11_advertised_ssid> new_advertised_ssid() {
             return shared_ptr<dot11_advertised_ssid>(new dot11_advertised_ssid(globalreg, advertised_ssid_map_entry_id));
         }
+        __Proxy(num_advertised_ssids, uint64_t, uint64_t, uint64_t, num_advertised_ssids);
 
         __ProxyTrackable(probed_ssid_map, TrackerElement, probed_ssid_map);
         shared_ptr<dot11_probed_ssid> new_probed_ssid() {
             return shared_ptr<dot11_probed_ssid>(new dot11_probed_ssid(globalreg, probed_ssid_map_entry_id));
         }
+        __Proxy(num_probed_ssids, uint64_t, uint64_t, uint64_t, num_probed_ssids);
 
         __ProxyTrackable(associated_client_map, TrackerElement, associated_client_map);
+        __Proxy(num_associated_clients, uint64_t, uint64_t, uint64_t, num_associated_clients);
 
         __Proxy(client_disconnects, uint64_t, uint64_t, uint64_t, client_disconnects);
         __ProxyIncDec(client_disconnects, uint64_t, uint64_t, client_disconnects);
@@ -1055,6 +1060,18 @@ class dot11_tracked_device : public tracker_component {
             last_adv_ssid = adv_ssid;
         }
 
+        virtual void pre_serialize() {
+            TrackerElementMacMap c_e_map(client_map);
+            TrackerElementIntMap a_s_map(advertised_ssid_map);
+            TrackerElementIntMap p_s_map(probed_ssid_map);
+            TrackerElementMacMap a_c_map(associated_client_map);
+
+            set_num_client_aps(c_e_map.size());
+            set_num_advertised_ssids(a_s_map.size());
+            set_num_probed_ssids(p_s_map.size());
+            set_num_associated_clients(a_c_map.size());
+        }
+
     protected:
         virtual void register_fields() {
             RegisterField("dot11.device.typeset", TrackerUInt64,
@@ -1067,6 +1084,9 @@ class dot11_tracked_device : public tracker_component {
             client_map_entry_id =
                 RegisterComplexField("dot11.device.client", client_builder, "client record");
 
+            RegisterField("dot11.device.num_client_aps", TrackerUInt64,
+                    "number of APs connected to", &num_client_aps);
+
             // Advertised SSIDs keyed by ssid checksum
             RegisterField("dot11.device.advertised_ssid_map", TrackerIntMap,
                     "advertised SSIDs", &advertised_ssid_map);
@@ -1075,6 +1095,9 @@ class dot11_tracked_device : public tracker_component {
             advertised_ssid_map_entry_id =
                 RegisterComplexField("dot11.device.advertised_ssid",
                         adv_ssid_builder, "advertised ssid");
+
+            RegisterField("dot11.device.num_advertised_ssids", TrackerUInt64,
+                    "number of advertised SSIDs", &num_advertised_ssids);
 
             // Probed SSIDs keyed by int checksum
             RegisterField("dot11.device.probed_ssid_map", TrackerIntMap,
@@ -1085,6 +1108,10 @@ class dot11_tracked_device : public tracker_component {
                 RegisterComplexField("dot11.device.probed_ssid",
                         probe_ssid_builder, "probed ssid");
 
+            RegisterField("dot11.device.num_probed_ssids", TrackerUInt64,
+                    "number of probed SSIDs", &num_probed_ssids);
+
+
             RegisterField("dot11.device.associated_client_map", TrackerMacMap,
                     "associated clients", &associated_client_map);
 
@@ -1092,6 +1119,9 @@ class dot11_tracked_device : public tracker_component {
             associated_client_map_entry_id =
                 RegisterField("dot11.device.associated_client", TrackerKey,
                         "associated client");
+
+            RegisterField("dot11.device.num_associated_clients", TrackerUInt64,
+                    "number of associated clients", &num_associated_clients);
 
             RegisterField("dot11.device.client_disconnects", TrackerUInt64,
                     "client disconnects in last second", 
@@ -1219,18 +1249,22 @@ class dot11_tracked_device : public tracker_component {
         // Records of this device behaving as a client
         SharedTrackerElement client_map;
         int client_map_entry_id;
+        SharedTrackerElement num_client_aps;
 
         // Records of this device advertising SSIDs
         SharedTrackerElement advertised_ssid_map;
         int advertised_ssid_map_entry_id;
+        SharedTrackerElement num_advertised_ssids;
 
         // Records of this device probing for a network
         SharedTrackerElement probed_ssid_map;
         int probed_ssid_map_entry_id;
+        SharedTrackerElement num_probed_ssids;
 
         // Mac addresses of clients who have talked to this network
         SharedTrackerElement associated_client_map;
         int associated_client_map_entry_id;
+        SharedTrackerElement num_associated_clients;
 
         SharedTrackerElement client_disconnects;
         SharedTrackerElement last_sequence;
