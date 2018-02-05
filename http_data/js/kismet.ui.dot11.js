@@ -180,6 +180,13 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
+kismet_ui.AddDeviceColumn('wifi_clients', {
+    sTitle: 'Clients',
+    field: 'dot11.device/dot11.device.num_associated_clients',
+    description: 'Count of associated Wi-Fi clients',
+    width: '2em'
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
