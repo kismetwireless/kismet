@@ -1331,9 +1331,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
         if (bssid_dev != NULL) {
             // Map clients
-            if (source_dev != NULL)
+            if (source_dev != NULL) {
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, source_dev, source_dot11,
+                        in_pack, dot11info);
+            }
 
             if (dest_dev != NULL) {
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
