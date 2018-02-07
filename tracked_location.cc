@@ -230,7 +230,7 @@ void kis_tracked_location::register_fields() {
                 "maximum corner of bounding rectangle");
     avg_loc_id = 
         RegisterComplexField("kismet.common.location.avg_loc", loc_builder,
-                "average corner of bounding rectangle");
+                "average center of bounding rectangle");
 
     RegisterField("kismet.common.location.avg_lat", TrackerInt64,
             "run-time average latitude", &avg_lat);
