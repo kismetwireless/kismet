@@ -288,16 +288,16 @@ SharedTrackerElement kis_historic_location::clone_type() {
 void kis_historic_location::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kis.historic.location.lat", TrackerDouble, "latitude", &lat);
-    RegisterField("kis.historic.location.lon", TrackerDouble, "longitude", &lon);
-    RegisterField("kis.historic.location.alt", TrackerDouble, "altitude (m)", &alt);
-    RegisterField("kis.historic.location.speed", TrackerDouble, "speed (kph)", &speed);
-    RegisterField("kis.historic.location.heading", TrackerDouble, 
+    RegisterField("kismet.historic.location.lat", TrackerDouble, "latitude", &lat);
+    RegisterField("kismet.historic.location.lon", TrackerDouble, "longitude", &lon);
+    RegisterField("kismet.historic.location.alt", TrackerDouble, "altitude (m)", &alt);
+    RegisterField("kismet.historic.location.speed", TrackerDouble, "speed (kph)", &speed);
+    RegisterField("kismet.historic.location.heading", TrackerDouble, 
             "heading (degrees)", &heading);
-    RegisterField("kis.historic.location.signal", TrackerInt32, "signal", &signal);
-    RegisterField("kis.historic.location.time_sec", TrackerUInt64, 
+    RegisterField("kismet.historic.location.signal", TrackerInt32, "signal", &signal);
+    RegisterField("kismet.historic.location.time_sec", TrackerUInt64, 
             "time (unix ts)", &time_sec);
-    RegisterField("kis.historic.location.frequency", TrackerUInt64, 
+    RegisterField("kismet.historic.location.frequency", TrackerUInt64, 
             "frequency (khz)", &frequency);
 }
 
@@ -386,7 +386,8 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
 
         aggloc->set_lat(lat / samples_100_vec.size());
         aggloc->set_lon(lon / samples_100_vec.size());
-        aggloc->set_alt(alt / num_alt);
+        if (!std::isnan(alt / num_alt))
+            aggloc->set_alt(alt / num_alt);
         aggloc->set_heading(heading / samples_100_vec.size());
         aggloc->set_speed(speed / samples_100_vec.size());
         aggloc->set_signal(signal / num_signal);
@@ -435,7 +436,8 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
 
             aggloc10->set_lat(lat / samples_10k_vec.size());
             aggloc10->set_lon(lon / samples_10k_vec.size());
-            aggloc10->set_alt(alt / num_alt);
+            if (!std::isnan(alt / num_alt))
+                    aggloc10->set_alt(alt / num_alt);
             aggloc10->set_heading(heading / samples_10k_vec.size());
             aggloc10->set_speed(speed / samples_10k_vec.size());
             aggloc10->set_signal(signal / num_signal);
