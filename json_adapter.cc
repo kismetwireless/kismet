@@ -119,10 +119,16 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             stream << GetTrackerValue<uint64_t>(e);
             break;
         case TrackerFloat:
-            stream << fixed << GetTrackerValue<float>(e);
+            if (std::isnan(GetTrackerValue<float>(e)) || std::isinf(GetTrackerValue<float>(e)))
+                stream << 0;
+            else
+                stream << fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
-            stream << fixed << GetTrackerValue<double>(e);
+            if (std::isnan(GetTrackerValue<double>(e)) || std::isinf(GetTrackerValue<double>(e)))
+                stream << 0;
+            else
+                stream << fixed << GetTrackerValue<double>(e);
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
@@ -406,10 +412,16 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             stream << GetTrackerValue<uint64_t>(e);
             break;
         case TrackerFloat:
-            stream << fixed << GetTrackerValue<float>(e);
+            if (std::isnan(GetTrackerValue<float>(e)) || std::isinf(GetTrackerValue<float>(e)))
+                stream << 0;
+            else
+                stream << fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
-            stream << fixed << GetTrackerValue<double>(e);
+            if (std::isnan(GetTrackerValue<double>(e)) || std::isinf(GetTrackerValue<double>(e)))
+                stream << 0;
+            else
+                stream << fixed << GetTrackerValue<double>(e);
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
