@@ -86,6 +86,12 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     set_username(uidstr.str());
 
+    set_server_uuid(globalreg->server_uuid);
+
+    set_server_name(globalreg->kismet_config->FetchOpt("server_name"));
+    set_server_description(globalreg->kismet_config->FetchOpt("server_description"));
+    set_server_location(globalreg->kismet_config->FetchOpt("server_location"));
+
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -121,6 +127,16 @@ void Systemmonitor::register_fields() {
 
     RegisterField("kismet.system.user", TrackerString,
             "user Kismet is running as", &username);
+
+    RegisterField("kismet.system.server_uuid", TrackerUuid,
+            "UUID of kismet server", &server_uuid);
+
+    RegisterField("kismet.system.server_name", TrackerString,
+            "Arbitrary name of server instance", &server_name);
+    RegisterField("kismet.system.server_description", TrackerString,
+            "Arbitrary server description", &server_description);
+    RegisterField("kismet.system.server_location", TrackerString,
+            "Arbitrary server location string", &server_location);
 
     shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > rrd_builder(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0));
 

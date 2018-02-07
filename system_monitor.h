@@ -68,6 +68,11 @@ public:
 
     __Proxy(username, std::string, std::string, std::string, username);
 
+    __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
+    __Proxy(server_name, std::string, std::string, std::string, server_name);
+    __Proxy(server_description, std::string, std::string, std::string, server_description);
+    __Proxy(server_location, std::string, std::string, std::string, server_location);
+
     virtual void pre_serialize();
 
     // Timetracker callback
@@ -90,6 +95,10 @@ protected:
     SharedTrackerElement timestamp_start_sec;
     SharedTrackerElement memory;
     SharedTrackerElement username;
+    SharedTrackerElement server_uuid;
+    SharedTrackerElement server_name;
+    SharedTrackerElement server_description;
+    SharedTrackerElement server_location;
 
     int mem_rrd_id;
     shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > memory_rrd;
