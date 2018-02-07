@@ -239,6 +239,9 @@ void kis_tracked_device_base::register_fields() {
     packet_rrd_bin_jumbo_id =
         RegisterComplexField("kismet.device.base.packet.bin.jumbo", bin_rrd_builder, 
                 "Jumbo packets over 1500 bytes");
+
+    RegisterField("kismet.device.base.server_uuid", TrackerUuid,
+            "UUID of server which saw this device", &server_uuid);
 }
 
 void kis_tracked_device_base::reserve_fields(SharedTrackerElement e) {
@@ -835,6 +838,8 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_key(key);
         device->set_macaddr(in_mac);
         device->set_phyname(in_phy->FetchPhyName());
+
+        device->set_server_uuid(globalreg->server_uuid);
 
         device->set_first_time(in_pack->ts.tv_sec);
 
@@ -1493,6 +1498,10 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
         // Give all the phys a shot at it
         for (auto p : phy_handler_map)
             p.second->LoadPhyStorage(e, kdb);
+
+        // Update the server uuid in case we don't have it
+        if (kdb->get_server_uuid().error)
+            kdb->set_server_uuid(globalreg->server_uuid);
 
         // Update the manuf in case we added a manuf db
         if (globalreg->manufdb != NULL)

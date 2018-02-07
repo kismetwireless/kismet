@@ -241,6 +241,8 @@ public:
 
     __ProxyTrackable(tag_map, TrackerElement, tag_map);
 
+    __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
+
     // Non-exported internal counter used for structured sorting
     uint64_t get_kis_internal_id() {
         return kis_internal_id;
@@ -376,6 +378,9 @@ protected:
     // Seenby map (mapped by int16 device id)
     SharedTrackerElement seenby_map;
     int seenby_map_id;
+
+    // Server UUID which generated this device
+    SharedTrackerElement server_uuid;
 
     // Non-exported local value for frequency count
     int frequency_val_id;
