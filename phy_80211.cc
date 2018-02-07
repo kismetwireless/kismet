@@ -1084,12 +1084,13 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->dest_mac != dot11info->bssid_mac &&
                 dot11info->dest_mac != globalreg->empty_mac && 
                 !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
-            // Don't update signal or location for destination
+            // Only update signal and location if we have no other record
             dest_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo,
                         dot11info->dest_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION | 
+                         UCD_UPDATE_EMPTY_SIGNAL | UCD_UPDATE_EMPTY_LOCATION));
         }
 
         if (dot11info->other_mac != dot11info->source_mac &&

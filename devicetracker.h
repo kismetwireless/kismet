@@ -565,6 +565,10 @@ public:
 #define UCD_UPDATE_ENCRYPTION   (1 << 5)
 // Never create a new device, only update an existing one
 #define UCD_UPDATE_EXISTING_ONLY    (1 << 6)
+// Only update signal if we have no existing data
+#define UCD_UPDATE_EMPTY_SIGNAL     (1 << 7)
+// Only update location if we have no existing location
+#define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
     shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
             mac_addr in_mac, Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
