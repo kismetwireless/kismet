@@ -1263,7 +1263,12 @@ class tracker_component : public TrackerElement {
     } \
     virtual SharedTrackerElement get_tracker_##name() { \
         return std::static_pointer_cast<TrackerElement>(cvar); \
-    } 
+    } \
+    virtual bool has_##name() { \
+        if (cvar == NULL) \
+            return false; \
+        return true; \
+    }
 
 // Proxy bitset functions (name, trackable type, data type, class var)
 #define __ProxyBitset(name, dtype, cvar) \
