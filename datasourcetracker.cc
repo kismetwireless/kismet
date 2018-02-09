@@ -1122,6 +1122,8 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 return false;
             }
         }
+
+        return false;
     }
 
     if (strcmp(method, "GET") == 0) {
@@ -1182,7 +1184,7 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (Httpd_StripSuffix(tokenurl[4]) == "resume_source")
                     return true;
 
-                return true;
+                return false;
             }
         }
 
