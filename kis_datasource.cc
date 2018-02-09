@@ -175,6 +175,36 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
     local_locker lock(&source_lock);
 
     set_int_source_definition(in_definition);
+
+    // Populate our local info about the interface
+    if (!parse_interface_definition(in_definition)) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Malformed source config");
+        }
+
+        return;
+    }
+
+    if (get_source_builder()->get_passive_capable()) {
+        if (get_source_uuid().error && !local_uuid) {
+            uuid nuuid;
+
+            nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+
+            set_source_uuid(nuuid);
+            set_source_key(Adler32Checksum(nuuid.UUID2String()));
+        }
+
+        set_int_source_retry_attempts(0);
+
+        set_int_source_running(1);
+        set_int_source_error(0);
+
+        if (in_cb != NULL)
+            in_cb(in_transaction, true, "Source opened");
+
+        return;
+    }
     
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
@@ -188,15 +218,6 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
     // If we have an error callback that's going to try to re-open us, cancel it
     if (error_timer_id > 0)
         timetracker->RemoveTimer(error_timer_id);
-
-    // Populate our local info about the interface
-    if (!parse_interface_definition(in_definition)) {
-        if (in_cb != NULL) {
-            in_cb(in_transaction, false, "Malformed source config");
-        }
-
-        return;
-    }
 
     // Launch the IPC
     launch_ipc();
