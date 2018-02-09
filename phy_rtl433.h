@@ -426,11 +426,11 @@ protected:
     int pack_comp_common;
 
     // Convert a JSON record to a RTL-based device key
-    mac_addr json_to_mac(cppjson::json in_json);
+    mac_addr json_to_mac(Json::Value in_json);
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(cppjson::json in_json);
+    bool json_to_rtl(Json::Value in_json);
 
     double f_to_c(double f);
 

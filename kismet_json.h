@@ -44,24 +44,24 @@
 #include <sstream>
 #include <iomanip>
 
+#include "json/json.h"
+
 #include "util.h"
 
 #include "structured.h"
-#include "json.hpp"
-
-namespace cppjson = nlohmann;
 
 class StructuredJson : public StructuredData {
 public:
     StructuredJson(std::string data) : StructuredData(data) {
         try {
-            json = cppjson::json::parse(data);
+            std::stringstream ss(data);
+            ss >> json;
         } catch (std::exception& e) {
             throw StructuredDataUnparseable(e.what());
         }
     }
 
-    StructuredJson(cppjson::json in_json) {
+    StructuredJson(Json::Value in_json) {
         json = in_json;
     }
 
@@ -74,23 +74,23 @@ public:
     }
 
     virtual bool isNumber() {
-        return json.is_number();
+        return json.isNumeric();
     }
 
     virtual bool isBool() {
-        return json.is_boolean();
+        return json.isBool();
     }
 
     virtual bool isString() {
-        return json.is_string();
+        return json.isString();
     }
 
     virtual bool isArray() {
-        return json.is_array();
+        return json.isArray();
     }
 
     virtual bool isDictionary() {
-        return json.is_object();
+        return json.isObject();
     }
 
     // Binary in json is an encoded string
@@ -100,22 +100,22 @@ public:
 
     virtual double getNumber() {
         exceptIfNot(isNumber(), "number");
-        return json.get<double>();
+        return json.asDouble();
     }
 
     virtual string getString() {
         exceptIfNot(isString(), "string");
-        return json.get<std::string>();
+        return json.asString();
     }
 
     virtual string getBinaryStr() {
         exceptIfNot(isString(), "binary string");
-        return hexstr_to_binstr(json.get<std::string>().c_str());
+        return hexstr_to_binstr(getString().c_str());
     }
 
     virtual bool getBool() {
         exceptIfNot(isBool() || isString(), "Boolean");
-        return json.get<bool>();
+        return json.asBool();
     }
 
     virtual number_vec getNumberVec() {
@@ -124,7 +124,7 @@ public:
         number_vec v;
 
         for (auto jvi : json) {
-            double d = jvi.get<double>();
+            double d = jvi.asDouble();
             v.push_back(d);
         }
 
@@ -137,7 +137,7 @@ public:
         string_vec v;
 
         for (auto jvi : json) {
-            std::string s = jvi.get<std::string>();
+            std::string s = jvi.asString();
             v.push_back(s);
         }
 
@@ -145,7 +145,7 @@ public:
     }
 
     virtual bool hasKey(std::string key) {
-        return (json.find(key) != json.end());
+        return json.isMember(key);
     }
 
     virtual SharedStructured getStructuredByKey(std::string key) {
@@ -154,12 +154,9 @@ public:
         if (!hasKey(key)) 
             throw StructuredDataNoSuchKey("No such key: " + key);
 
-        auto ki = json.find(key);
+        auto ki = json[key];
 
-        if (ki == json.end())
-            throw StructuredDataNoSuchKey("No such key: " + key);
-
-        return SharedStructured(new StructuredJson(ki.value()));
+        return SharedStructured(new StructuredJson(ki));
     }
 
     virtual double getKeyAsNumber(string key) {
@@ -227,14 +224,14 @@ public:
 
         structured_num_map m;
 
-        for (auto& jvi : cppjson::json::iterator_wrapper(json)) {
+        for (Json::ValueIterator jvi = json.begin(); jvi != json.end(); ++jvi) {
             double n;
-            
-            if (sscanf(jvi.key().c_str(), "%lf", &n) != 1)
+           
+            if (sscanf(jvi.key().asString().c_str(), "%lf", &n) != 1)
                 throw StructuredDataUnsuitable("got non-numerical key converting "
                         "to structured numerical map");
             
-            m[n] = SharedStructured(new StructuredJson(jvi.value()));
+            m[n] = SharedStructured(new StructuredJson(*jvi));
         }
 
         return m;
@@ -245,8 +242,8 @@ public:
 
         structured_str_map m;
 
-        for (auto& jvi : cppjson::json::iterator_wrapper(json)) {
-            m[jvi.key()] = SharedStructured(new StructuredJson(jvi.value()));
+        for (Json::ValueIterator jvi = json.begin(); jvi != json.end(); ++jvi) {
+            m[jvi.key().asString()] = SharedStructured(new StructuredJson(*jvi));
         }
 
         return m;
@@ -254,8 +251,8 @@ public:
 
 protected:
     bool free_me;
-    cppjson::json json;
-    string err;
+    Json::Value json;
+    std::string err;
 };
 
 #endif

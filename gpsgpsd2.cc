@@ -206,15 +206,16 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
         // We don't know what we're going to get from GPSD.  If it starts with 
         // { then it probably is json, try to parse it
         if (inptok[it][0] == '{') {
-            cppjson::json json;
+            Json::Value json;
 
             try {
-                json = cppjson::json::parse(inptok[it]);
+                std::stringstream ss(inptok[it]);
+                ss >> json;
 
-                std::string msg_class = json["class"];
+                std::string msg_class = json["class"].asString();
 
                 if (msg_class == "VERSION") {
-                    std::string version  = MungeToPrintable(json["release"]);
+                    std::string version  = MungeToPrintable(json["release"].asString());
 
                     _MSG("GPSGpsdV2 connected to a JSON-enabled GPSD version " +
                             version + ", turning on JSON mode", MSGFLAG_INFO);
@@ -233,31 +234,24 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                                 MSGFLAG_ERROR);
                     }
                 } else if (msg_class == "TPV") {
-                    auto mode_j = json.find("mode");
-
-                    if (mode_j != json.end()) {
-                        new_location->fix = mode_j.value().get<int>();
+                    if (json.isMember("mode")) {
+                        new_location->fix = json["mode"].asInt();
                         set_fix = true;
                     }
 
                     // If we have a valid alt, use it
                     if (set_fix && new_location->fix > 2) {
-                        auto alt_j = json.find("alt");
-
-                        if (alt_j != json.end()) {
-                            new_location->alt = alt_j.value().get<double>();
+                        if (json.isMember("alt")) {
+                            new_location->alt = json["alt"].asDouble();
                             set_alt = true;
                         }
                     } 
 
                     if (set_fix && new_location->fix >= 2) {
                         // If we have LAT and LON, use them
-                        auto lat_j = json.find("lat");
-                        auto lon_j = json.find("lon");
-
-                        if (lat_j != json.end() && lon_j != json.end()) {
-                            new_location->lat = lat_j.value().get<double>();
-                            new_location->lon = lon_j.value().get<double>();
+                        if (json.isMember("lat") && json.isMember("lon")) {
+                            new_location->lat = json["lat"].asDouble();
+                            new_location->lon = json["lon"].asDouble();
 
                             set_lat_lon = true;
                         }
@@ -277,15 +271,13 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                         }
 #endif
 
-                        auto heading_j = json.find("track");
-                        if (heading_j != json.end()) {
-                            new_location->heading = heading_j.value().get<double>();
+                        if (json.isMember("track")) {
+                            new_location->heading = json["track"].asDouble();
                             set_heading = true;
                         }
 
-                        auto speed_j = json.find("speed");
-                        if (speed_j != json.end()) {
-                            new_location->speed = speed_j.value().get<double>();
+                        if (json.isMember("speed")) {
+                            new_location->speed = json["speed"].asDouble();
                             set_speed = true;
                         }
                     }

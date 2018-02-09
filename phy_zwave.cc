@@ -74,7 +74,7 @@ mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
     return mac_addr(macstr.str());
 }
 
-bool Kis_Zwave_Phy::json_to_record(cppjson::json json) {
+bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     string tempstr;
     std::stringstream converter;
 
@@ -87,10 +87,10 @@ bool Kis_Zwave_Phy::json_to_record(cppjson::json json) {
     // TODO parse the actual payload
     
   
-    auto homeid_j = json.find("home_id");
+    auto homeid_j = json["home_id"];
 
-    if (homeid_j != json.end() && homeid_j.value().is_string()) {
-        tempstr = homeid_j.value().get<std::string>();
+    if (homeid_j.isString()) {
+        tempstr = homeid_j.asString();
     } else {
         return false;
     }
@@ -98,31 +98,31 @@ bool Kis_Zwave_Phy::json_to_record(cppjson::json json) {
     converter.str(tempstr);
     converter >> std::hex >> homeid;
 
-    auto source_j = json.find("source");
-    if (source_j != json.end() && source_j.value().is_number()) {
-        devid = source_j.value().get<unsigned int>();
+    auto source_j = json["source"];
+    if (source_j.isNumeric()) {
+        devid = source_j.asInt();
     } else {
         return false;
     }
 
 
-    auto dest_j = json.find("dest");
-    if (dest_j != json.end() && dest_j.value().is_number()) {
-        dest_devid = dest_j.value().get<double>();
+    auto dest_j = json["dest"];
+    if (dest_j.isNumeric()) {
+        dest_devid = dest_j.asDouble();
     } else {
         return false;
     }
 
-    auto freq_j = json.find("freq_khz");
-    if (freq_j != json.end() && freq_j.value().is_number()) {
-        frequency = freq_j.value().get<double>();
+    auto freq_j = json["freq_khz"];
+    if (freq_j.isNumeric()) {
+        frequency = freq_j.asDouble();
     } else {
         return false;
     }
 
-    auto datasize_j = json.find("datasize");
-    if (datasize_j != json.end() && datasize_j.value().is_number()) {
-        datasize = datasize_j.value().get<double>();
+    auto datasize_j = json["datasize"];
+    if (datasize_j.isNumeric()) {
+        datasize = datasize_j.asDouble();
     } else {
         return false;
     }
@@ -226,10 +226,11 @@ int Kis_Zwave_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
    
     if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
-        cppjson::json json;
+        Json::Value json;
 
         try {
-            json = cppjson::json::parse(concls->variable_cache["obj"]->str());
+            std::stringstream ss(concls->variable_cache["obj"]->str());
+            ss >> json;
         } catch (std::exception& e) {
             concls->response_stream << "Invalid request: could not parse JSON: " <<
                 e.what();

@@ -85,7 +85,7 @@ double Kis_RTL433_Phy::f_to_c(double f) {
     return (f - 32) / (double) 1.8f;
 }
 
-mac_addr Kis_RTL433_Phy::json_to_mac(cppjson::json json) {
+mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
     // Derive a mac addr from the model and device id data
     //
     // We turn the model string into 4 bytes using the adler32 checksum,
@@ -97,24 +97,35 @@ mac_addr Kis_RTL433_Phy::json_to_mac(cppjson::json json) {
     uint16_t *model = (uint16_t *) bytes;
     uint32_t *checksum = (uint32_t *) (bytes + 2);
 
-    auto model_j = json.find("model");
-    auto id_j = json.find("id");
-    auto device_j = json.find("device");
-
     std::string smodel = "unk";
 
-    if (model_j != json.end() && model_j.value().is_string()) {
-        smodel = model_j.value().get<std::string>();
+    if (json.isMember("model")) {
+        Json::Value m = json["model"];
+        if (m.isString()) {
+            smodel = m.asString();
+        }
     }
+
     *checksum = Adler32Checksum(smodel.c_str(), smodel.length());
 
-    if (id_j != json.end() && id_j.value().is_number()) {
-        *model = 
-            kis_hton16((uint16_t) id_j.value().get<unsigned int>());
-    } else if (device_j != json.end() && device_j.value().is_number()) {
-        *model =
-            kis_hton16((uint16_t) device_j.value().get<unsigned int>());
-    } else {
+    bool set_model = false;
+    if (json.isMember("id")) {
+        Json::Value i = json["id"];
+        if (i.isNumeric()) {
+            *model = kis_hton16((uint16_t) i.asUInt());
+            set_model = true;
+        }
+    }
+
+    if (!set_model && json.isMember("device")) {
+        Json::Value d = json["device"];
+        if (d.isNumeric()) {
+            *model = kis_hton16((uint16_t) d.asUInt());
+            set_model = true;
+        }
+    }
+
+    if (!set_model) {
         *model = 0x0000;
     }
 
@@ -124,12 +135,9 @@ mac_addr Kis_RTL433_Phy::json_to_mac(cppjson::json json) {
     return mac_addr(bytes, 6);
 }
 
-bool Kis_RTL433_Phy::json_to_rtl(cppjson::json json) {
+bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     string err;
     string v;
-
-    if (json == NULL)
-        return false;
 
     // synth a mac out of it
     mac_addr rtlmac = json_to_mac(json);
@@ -152,10 +160,13 @@ bool Kis_RTL433_Phy::json_to_rtl(cppjson::json json) {
     common->datasize = 0;
 
     // If this json record has a channel
-    auto channel_j = json.find("channel");
-
-    if (channel_j != json.end() && channel_j.value().is_number()) {
-        common->channel = IntToString(channel_j.value().get<int>());
+    if (json.isMember("channel")) {
+        Json::Value c = json["channel"];
+        if (c.isNumeric()) {
+            common->channel = IntToString(c.asInt());
+        } else if (c.isString()) {
+            common->channel = MungeToPrintable(c.asString());
+        }
     }
 
     common->freq_khz = 433920;
@@ -173,10 +184,9 @@ bool Kis_RTL433_Phy::json_to_rtl(cppjson::json json) {
     delete(pack);
 
     std::string dn = "Sensor";
-    auto model_j = json.find("model");
 
-    if (model_j != json.end() && model_j.value().is_string()) {
-        dn = MungeToPrintable(model_j.value().get<std::string>());
+    if (json.isMember("model")) {
+        dn = MungeToPrintable(json["model"].asString());
     }
 
     basedev->set_manuf("RTL433");
@@ -204,35 +214,51 @@ bool Kis_RTL433_Phy::json_to_rtl(cppjson::json json) {
 
         commondev->set_model(dn);
 
-        auto id_j = json.find("id");
-        auto device_j = json.find("device");
+        bool set_id = false;
+        if (json.isMember("id")) {
+            Json::Value id_j = json["id"];
+            if (id_j.isNumeric()) {
+                commondev->set_rtlid(id_j.asUInt64());
+                set_id = true;
+            }
+        }
 
-        if (id_j != json.end() && id_j.value().is_number()) {
-            commondev->set_rtlid((uint64_t) id_j.value().get<unsigned long>());
-        } else if (device_j != json.end() && device_j.value().is_number()) {
-            commondev->set_rtlid((uint64_t) device_j.value().get<unsigned long>());
-        } else {
+        if (!set_id && json.isMember("device")) {
+            Json::Value device_j = json["device"];
+            if (device_j.isNumeric()) {
+                commondev->set_rtlid(device_j.asUInt64());
+                set_id = true;
+            }
+        }
+
+        if (!set_id) {
             commondev->set_rtlid(0);
         }
 
         commondev->set_rtlchannel("0");
     }
 
-    if (channel_j != json.end() && channel_j.value().is_number()) {
-        commondev->set_rtlchannel(IntToString(channel_j.value().get<int>()));
+    if (json.isMember("channel")) {
+        auto channel_j = json["channel"];
+
+        if (channel_j.isNumeric())
+            commondev->set_rtlchannel(IntToString(channel_j.asInt()));
+        else if (channel_j.isString())
+            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
     }
 
-    auto battery_j = json.find("battery");
+    if (json.isMember("battery")) {
+        auto battery_j = json["battery"];
 
-    if (battery_j != json.end() && battery_j.value().is_string()) {
-        commondev->set_battery(MungeToPrintable(battery_j.value().get<std::string>()));
+        if (battery_j.isString())
+            commondev->set_battery(MungeToPrintable(battery_j.asString()));
     }
 
-    auto humidity_j = json.find("humidity");
-    auto temp_c_j = json.find("temperature_C");
-    auto temp_f_j = json.find("temperature_F");
+    auto humidity_j = json["humidity"];
+    auto temp_f_j = json["temperature_F"];
+    auto temp_c_j = json["temperature_C"];
 
-    if (humidity_j != json.end() || temp_c_j != json.end() || temp_f_j != json.end()) {
+    if (!humidity_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
         shared_ptr<rtl433_tracked_thermometer> thermdev = 
             static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
 
@@ -242,28 +268,28 @@ bool Kis_RTL433_Phy::json_to_rtl(cppjson::json json) {
             rtlholder->add_map(thermdev);
         }
 
-
-        if (humidity_j != json.end() && humidity_j.value().is_number()) {
-            thermdev->set_humidity((int32_t) humidity_j.value().get<int>());
+        if (humidity_j.isNumeric()) {
+            thermdev->set_humidity(humidity_j.asInt());
         }
 
-        if (temp_f_j != json.end() && temp_f_j.value().is_number()) 
-            thermdev->set_temperature(f_to_c(temp_f_j.value().get<double>()));
+        if (temp_f_j.isNumeric()) {
+            thermdev->set_temperature(temp_f_j.asInt());
+        }
 
-        if (temp_c_j != json.end() && temp_c_j.value().is_number())
-            thermdev->set_temperature(temp_c_j.value().get<double>());
+        if (temp_c_j.isNumeric()) {
+            thermdev->set_temperature(temp_c_j.asInt());
+        }
     }
 
-    auto direction_j = json.find("direction_deg");
-    auto windstrength_j = json.find("windstrength");
-    auto winddirection_j = json.find("winddirection");
-    auto windspeed_j = json.find("speed");
-    auto gust_j = json.find("gust");
-    auto rain_j = json.find("rain");
+    auto direction_j = json["direction_deg"];
+    auto windstrength_j = json["windstrength"];
+    auto winddirection_j = json["winddirection"];
+    auto windspeed_j = json["speed"];
+    auto gust_j = json["gust"];
+    auto rain_j = json["rain"];
 
-    if (direction_j != json.end() || windstrength_j != json.end() ||
-            winddirection_j != json.end() || windspeed_j != json.end() ||
-            gust_j != json.end() || rain_j != json.end()) {
+    if (!direction_j.isNull() || !windstrength_j.isNull() || !winddirection_j.isNull() ||
+            !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull()) {
 
         shared_ptr<rtl433_tracked_weatherstation> weatherdev = 
             static_pointer_cast<rtl433_tracked_weatherstation>(rtlholder->get_map_value(rtl433_weatherstation_id));
@@ -274,39 +300,35 @@ bool Kis_RTL433_Phy::json_to_rtl(cppjson::json json) {
             rtlholder->add_map(weatherdev);
         }
 
-        if (direction_j != json.end() && direction_j.value().is_number()) {
-            weatherdev->set_wind_dir((int32_t) direction_j.value().get<int>());
-            weatherdev->get_wind_dir_rrd()->add_sample((int64_t) direction_j.value().get<int>(),
+        if (direction_j.isNumeric()) {
+            weatherdev->set_wind_dir(direction_j.asInt());
+            weatherdev->get_wind_dir_rrd()->add_sample(direction_j.asInt(), time(0));
+        }
+
+        if (winddirection_j.isNumeric()) {
+            weatherdev->set_wind_dir(winddirection_j.asInt());
+            weatherdev->get_wind_dir_rrd()->add_sample(winddirection_j.asInt(), time(0));
+        }
+
+        if (windspeed_j.isNumeric()) {
+            weatherdev->set_wind_speed((int32_t) windspeed_j.asInt());
+            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) windspeed_j.asInt(), time(0));
+        }
+
+        if (windstrength_j.isNumeric()) {
+            weatherdev->set_wind_speed((int32_t) windstrength_j.asInt());
+            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) windstrength_j.asInt(),
                     time(0));
         }
 
-        if (winddirection_j != json.end() && winddirection_j.value().is_number()) {
-            weatherdev->set_wind_dir((int32_t) winddirection_j.value().get<int>());
-            weatherdev->get_wind_dir_rrd()->add_sample((int64_t) winddirection_j.value().get<int>(),
-                    time(0));
+        if (gust_j.isNumeric()) {
+            weatherdev->set_wind_gust((int32_t) gust_j.asInt());
+            weatherdev->get_wind_gust_rrd()->add_sample((int64_t) gust_j.asInt(), time(0));
         }
 
-        if (windspeed_j != json.end() && windspeed_j.value().is_number()) {
-            weatherdev->set_wind_speed((int32_t) windspeed_j.value().get<int>());
-            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) windspeed_j.value().get<int>(),
-                    time(0));
-        }
-
-        if (windstrength_j != json.end() && windstrength_j.value().is_number()) {
-            weatherdev->set_wind_speed((int32_t) windstrength_j.value().get<int>());
-            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) windstrength_j.value().get<int>(),
-                    time(0));
-        }
-
-        if (gust_j != json.end() && gust_j.value().is_number()) {
-            weatherdev->set_wind_gust((int32_t) gust_j.value().get<int>());
-            weatherdev->get_wind_gust_rrd()->add_sample((int64_t) gust_j.value().get<int>(),
-                    time(0));
-        }
-
-        if (rain_j != json.end() && rain_j.value().is_number()) {
-            weatherdev->set_rain((int32_t) rain_j.value().get<int>());
-            weatherdev->get_rain_rrd()->add_sample((int64_t) rain_j.value().get<int>(),
+        if (rain_j.isNumeric()) {
+            weatherdev->set_rain((int32_t) rain_j.asInt());
+            weatherdev->get_rain_rrd()->add_sample((int64_t) rain_j.asInt(),
                     globalreg->timestamp.tv_sec);
         }
 
@@ -349,10 +371,11 @@ int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
    
     if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
-        cppjson::json json;
+        Json::Value json;
 
         try {
-            json = cppjson::json::parse(concls->variable_cache["obj"]->str());
+            std::stringstream ss(concls->variable_cache["obj"]->str());
+            ss >> json;
         } catch (std::exception& e) {
             concls->response_stream << "Invalid request: could not parse JSON: " <<
                 e.what();
