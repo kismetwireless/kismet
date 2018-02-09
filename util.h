@@ -367,11 +367,5 @@ double ts_now_to_double();
 
 std::string hexstr_to_binstr(const char *hs);
 
-#ifdef MISSING_STD_SNPRINTF
-namespace std {
-    using ::snprintf;
-};
-#endif
-
 #endif
 

@@ -234,6 +234,13 @@ static inline void fixNumericLocaleInput(char* begin, char* end) {
 #include <set>
 #include <limits>
 
+#include "config.h"
+#ifdef MISSING_STD_SNPRINTF
+namespace std {
+    using ::snprintf;
+};
+#endif
+
 #if defined(_MSC_VER)
 #if !defined(WINCE) && defined(__STDC_SECURE_LIB__) && _MSC_VER >= 1500 // VC++ 9.0 and above 
 #define snprintf sprintf_s
