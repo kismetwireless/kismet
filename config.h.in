@@ -284,8 +284,8 @@
 /* Able to use MHD_quiesce_daemon to shut down */
 #undef MHD_QUIESCE
 
-/* we need to shim std to_string */
-#undef MISSING_STD_TO_STRING
+/* we need to shim std snprintf */
+#undef MISSING_STD_SNPRINTF
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

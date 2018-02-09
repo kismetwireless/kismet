@@ -7677,7 +7677,7 @@ fi
 CC="$oCC"
 
 
-# Does the compiler handle std::to_string properly?
+# Does the compiler handle std::snprintf properly?
 oCC="$CC"
 CC="$CXX"
 
@@ -7685,12 +7685,14 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
     #include <string>
+    #include <cstdio>
 
 int
 main ()
 {
 
-    std::to_string(0);
+    char *foo;
+    std::snprintf(foo, 10, "x");
     return 0;
 
   ;
@@ -7701,7 +7703,7 @@ if ac_fn_cxx_try_link "$LINENO"; then :
 
 else
 
-$as_echo "#define MISSING_STD_TO_STRING 1" >>confdefs.h
+$as_echo "#define MISSING_STD_SNPRINTF 1" >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext \

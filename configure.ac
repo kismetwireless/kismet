@@ -575,16 +575,18 @@ fi
 CC="$oCC"
 AC_SUBST(CXXLIBS)
 
-# Does the compiler handle std::to_string properly?
+# Does the compiler handle std::snprintf properly?
 oCC="$CC"
 CC="$CXX"
 
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     #include <string>
+    #include <cstdio>
 ]], [[
-    std::to_string(0);
+    char *foo;
+    std::snprintf(foo, 10, "x");
     return 0;
-]])],[],[AC_DEFINE(MISSING_STD_TO_STRING, 1, we need to shim std to_string)])
+]])],[],[AC_DEFINE(MISSING_STD_SNPRINTF, 1, we need to shim std snprintf)])
 
 CC="$oCC"
 
