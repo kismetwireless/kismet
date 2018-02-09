@@ -67,6 +67,7 @@
 #include "datasource_linux_wifi.h"
 #include "datasource_linux_bluetooth.h"
 #include "datasource_osx_corewlan_wifi.h"
+#include "datasource_rtl433.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -979,18 +980,11 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 
     // Add the datasources
-#ifdef HAVE_LIBPCAP
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
-#endif
-#ifdef HAVE_LINUX_WIFI_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder(globalregistry)));
-#endif
-#ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
-#endif
-#ifdef HAVE_OSX_COREWLAN_WIFI_DATASOURCE
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder(globalregistry)));
-#endif
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder(globalregistry)));
 
     // Create the database logger as a global because it's a special case
     KisDatabaseLogfile::create_kisdatabaselog(globalregistry);
