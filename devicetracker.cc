@@ -942,7 +942,7 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
     if (((in_flags & UCD_UPDATE_LOCATION) ||
-                (in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud()) &&
+                ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
             pack_gpsinfo != NULL) {
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                 pack_gpsinfo->alt, pack_gpsinfo->fix);
