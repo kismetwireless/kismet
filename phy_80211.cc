@@ -869,6 +869,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         // Resolve the common structures of management frames; this is a lot of code
         // copy and paste, but because this happens *every single packet* we probably 
         // don't want to do much more complex object creation
+        commoninfo->type = packet_basic_mgmt;
         
         if (dot11info->bssid_mac != globalreg->empty_mac && 
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
@@ -1049,7 +1050,10 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         //
         // If we WERE going to process them, it would go here, and we'd start looking for 
         // source and dest where we could find them
+        commoninfo->type = packet_basic_phy;
     } else if (dot11info->type == packet_data) {
+        commoninfo->type = packet_basic_data;
+
         unsigned int update_flags = 0;
 
         // Don't create devices from null/qosnull packets, they seem to often be
