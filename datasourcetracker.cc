@@ -1390,11 +1390,12 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             throw std::runtime_error("unable to find data");
         }
 
-        // Locker for waiting for the open callback
-        std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
-
         if (stripped == "/datasource/add_source") {
-            std::string r; 
+            // Locker for waiting for the open callback
+            std::shared_ptr<conditional_locker<SharedDatasource> > cl(new conditional_locker<SharedDatasource>());
+
+            SharedDatasource r;
+            std::string error_reason;
 
             if (!structdata->hasKey("definition")) {
                 throw std::runtime_error("Missing source definition");
@@ -1406,26 +1407,28 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             // Initiate the open
             open_datasource(structdata->getKeyAsString("definition"),
-                    [this, cl, &cmd_complete_success](bool success, std::string reason, 
+                    [&error_reason, cl, &cmd_complete_success](bool success, std::string reason, 
                         SharedDatasource ds) {
 
                         cmd_complete_success = success;
 
                         // Unlock the locker so we unblock below
-                        if (success)
-                            cl->unlock(ds->get_source_uuid().UUID2String());
-                        else
-                            cl->unlock(reason);
+                        if (success) {
+                            cl->unlock(ds);
+                        } else {
+                            error_reason = reason;
+                            cl->unlock(NULL);
+                        }
                     });
 
             // Block until the open cmd unlocks us
             r = cl->block_until();
 
             if (cmd_complete_success) {
-                concls->response_stream << r;
+                Httpd_Serialize(concls->url, concls->response_stream, r);
                 concls->httpcode = 200;
             } else {
-                concls->response_stream << r;
+                concls->response_stream << error_reason;
                 concls->httpcode = 500;
             }
 
@@ -1472,6 +1475,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
                 if (structdata->hasKey("channel")) {
+                    std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
                     std::string ch = structdata->getKeyAsString("channel", "");
 
                     if (ch.length() == 0) {
@@ -1531,6 +1535,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             converted_channels.push_back(c->get_string());
                     }
 
+                    std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
+
                     // Get the hop rate and the shuffle; default to the source
                     // state if we don't have them provided
                     double rate = 
@@ -1576,6 +1582,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         MSGFLAG_INFO);
 
                 bool cmd_complete_success = false;
+                std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
 
                 cl->lock();
 
