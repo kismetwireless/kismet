@@ -28,28 +28,17 @@
 #include "phyhandler.h"
 #include "kismet_json.h"
 
-/* phy-rtl433
- *
- * A simple phy handler which creates a REST endpoint for posting json-encoded
- * data from the rtl_433 sensor reading program.
- *
- * This serves as a relatively simple example of an alternate data capture
- * method: 
- *
- * 1. For very low-rate data (such as capturing sensor information), 
- *    we can implement a simple REST POST api which allows an external data
- *    gathering program to send us the information.
- *
- * 2. This serves as a simple demonstration of how to handle non-packetized 
- *    information from an external capture system.  The rtl433 sensor data is a 
- *    complete record.  We'll simulate a data frame to increment some counters,
- *    and then rely on the display frontend to make sense of it from there.
- *
- * RTL433 has an option to export as JSON; with the help of an external script
- * we simply convert the JSON from stdout and post it to Kismet, then decode it into
- * a tracked record and derive a device key for it.
- *
- */
+class packet_info_rtl433 : public packet_component {
+public:
+    packet_info_rtl433(Json::Value in_json) {
+        json = in_json;
+        self_destruct = 1;
+    }
+
+    virtual ~packet_info_rtl433() { }
+
+    Json::Value json;
+};
 
 /* Similar to the extreme aggregator, a temperature aggregator which ignores empty
  * slots while aggregating and otherwise selects the most extreme value when a 
@@ -389,7 +378,7 @@ protected:
     shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rain_rrd;
 };
 
-class Kis_RTL433_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
+class Kis_RTL433_Phy : public Kis_Phy_Handler {
 public:
     virtual ~Kis_RTL433_Phy();
 
@@ -406,15 +395,7 @@ public:
     Kis_RTL433_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
             int in_phyid);
 
-    // HTTPD API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
-
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    static int PacketHandler(CHAINCALL_PARMS);
 
 protected:
     shared_ptr<Packetchain> packetchain;
@@ -423,7 +404,7 @@ protected:
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id;
 
-    int pack_comp_common;
+    int pack_comp_common, pack_comp_rtl433;
 
     // Convert a JSON record to a RTL-based device key
     mac_addr json_to_mac(Json::Value in_json);

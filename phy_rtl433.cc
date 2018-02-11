@@ -28,8 +28,7 @@
 
 Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
 
     SetPhyName("RTL433");
 
@@ -40,6 +39,8 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
+    pack_comp_rtl433 = 
+        packetchain->RegisterPacketComponent("RTL433JSON");
 
     rtl433_holder_id =
         entrytracker->RegisterField("rtl433.device", TrackerMap, 
@@ -66,19 +67,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
     httpregistry->register_js_module("kismet_ui_rtl433", 
             "/js/kismet.ui.rtl433.js");
 
+	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 Kis_RTL433_Phy::~Kis_RTL433_Phy() {
-
-}
-
-bool Kis_RTL433_Phy::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "POST") == 0) {
-        if (strcmp(path, "/phy/phyRTL433/post_sensor_json.cmd") == 0)
-            return true;
-    }
-
-    return false;
+    packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 double Kis_RTL433_Phy::f_to_c(double f) {
@@ -349,59 +342,17 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     return true;
 }
 
-void Kis_RTL433_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
+int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
+    Kis_RTL433_Phy *rtl433 = (Kis_RTL433_Phy *) auxdata;
 
-    return;
-}
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+        return 0;
 
+    packet_info_rtl433 *rtlinfo = (packet_info_rtl433 *) in_pack->fetch(rtl433->pack_comp_rtl433);
+    if (rtlinfo == NULL)
+        return 0;
 
-int Kis_RTL433_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-
-    // Anything involving POST here requires a login
-    if (!httpd->HasValidSession(concls, true)) {
-        return 1;
-    }
-
-    bool handled = false;
-
-    if (concls->url != "/phy/phyRTL433/post_sensor_json.cmd")
-        return 1;
-   
-    if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
-        Json::Value json;
-
-        try {
-            std::stringstream ss(concls->variable_cache["obj"]->str());
-            ss >> json;
-        } catch (std::exception& e) {
-            concls->response_stream << "Invalid request: could not parse JSON: " <<
-                e.what();
-            concls->httpcode = 400;
-            return 1;
-        }
-
-        // If we can't make sense of it, blow up
-        if (!json_to_rtl(json)) {
-            concls->response_stream << 
-                "Invalid request:  could not convert to RTL device";
-            concls->httpcode = 400;
-            handled = false;
-        } else {
-            handled = true;
-        }
-    }
-
-    // If we didn't handle it and got here, we don't know what it is, throw an
-    // error.
-    if (!handled) {
-        concls->response_stream << "Invalid request";
-        concls->httpcode = 400;
-    } else {
-        concls->response_stream << "OK";
-    }
+    rtl433->json_to_rtl(rtlinfo->json);
 
     return 1;
 }
