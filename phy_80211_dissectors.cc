@@ -721,7 +721,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 try {
                     rmm_tags->parse(action_rmm->tags_data_stream());
                 } catch (const std::exception& e) {
-                    fprintf(stderr, "debug - invalid ie tags: %s\n", e.what());
+                    // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     return 0;
