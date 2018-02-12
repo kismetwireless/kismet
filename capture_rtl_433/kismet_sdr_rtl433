@@ -12,18 +12,63 @@ from datetime import datetime
 
 class kismet_rtl433:
     def __init__(self):
-        parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge')
+        parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge - Creates a rtl433 data source on a Kismet server and passes JSON-based records from the rtl_433 binary',
+                epilog='Requires the rtl_433 tool (install your distributions package or compile from https://github.com/merbanan/rtl_433)')
         
-        parser.add_argument('--uri', action="store", dest="uri", default="http://localhost:2501")
-        parser.add_argument('--user', action="store", dest="user", default="kismet")
-        parser.add_argument('--password', action="store", dest="password", default="kismet")
-        parser.add_argument('--uuid', action="store", dest="uuid")
-        parser.add_argument('--name', action="store", dest="name")
-        parser.add_argument('--no-reconnect', action="store_false", dest="reconnect", default=True)
-        parser.add_argument('--rtl433', action="store", dest="rtlbin", default="rtl_433")
-        parser.add_argument('--device', action="store", dest="device")
-        parser.add_argument('--gain', action="store", dest="gain")
-        parser.add_argument('--frequency', action="store", dest="frequency")
+        parser.add_argument('--uri', 
+                action="store", 
+                dest="uri", 
+                default="http://localhost:2501",
+                help="Kismet REST server to use (default: http://localhost:2501")
+
+        parser.add_argument('--user', 
+                action="store", 
+                dest="user", 
+                default="kismet",
+                help="Kismet admin user (default: kismet)")
+
+        parser.add_argument('--password', 
+                action="store", 
+                dest="password", 
+                default="kismet",
+                help="Kismet admin password")
+
+        parser.add_argument('--uuid', 
+                action="store", 
+                dest="uuid",
+                help="RTL433 datasource UUID")
+
+        parser.add_argument('--name', 
+                action="store", 
+                dest="name",
+                help="RTL433 datasource name")
+
+        parser.add_argument('--no-reconnect', 
+                action="store_false", 
+                dest="reconnect", 
+                default=True,
+                help="Disable re-connection if the rtl_433 binary fails")
+
+        parser.add_argument('--rtl433', 
+                action="store", 
+                dest="rtlbin", 
+                default="rtl_433",
+                help="Path to rtl_433 binary (only needed if rtl_433 is not installed in a default system location")
+
+        parser.add_argument('--device', 
+                action="store", 
+                dest="device",
+                help="RTL433 device number (passed as '-d' to rtl_433)")
+
+        parser.add_argument('--gain', 
+                action="store", 
+                dest="gain",
+                help="RTL433 device gain (passed as '-g' to rtl_433)")
+
+        parser.add_argument('--frequency', 
+                action="store", 
+                dest="frequency",
+                help="RTL433 device frequency (passed as '-f' to rtl_433)")
         
         self.config = parser.parse_args()
         
