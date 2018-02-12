@@ -29,6 +29,17 @@ KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
 
     pack_comp_rtl433 = packetchain->RegisterPacketComponent("RTL433JSON");
 
+    std::string devnum = MungeToPrintable(get_definition_opt("device"));
+    if (devnum != "") {
+        set_int_source_cap_interface("rtl433usb#" + devnum);
+    } else {
+        set_int_source_cap_interface("rtl433usb");
+    }
+
+    set_int_source_retry(false);
+
+    _MSG("Created RTL433 datasource.  This data source receives events from a helper tool, "
+            "kismet_cap_sdr_rtl433; make sure this tool is running.", MSGFLAG_INFO);
 }
 
 KisDatasourceRtl433::~KisDatasourceRtl433() {

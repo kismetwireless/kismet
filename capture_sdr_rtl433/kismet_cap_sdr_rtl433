@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 
-import json
-import requests
-import os
-import subprocess
 import argparse
-import uuid
+from datetime import datetime
+import json
+import os
+import requests
+import subprocess
 import sys
 import time
-from datetime import datetime
+import uuid
 
 class kismet_rtl433:
     def __init__(self):
@@ -69,6 +69,12 @@ class kismet_rtl433:
                 action="store", 
                 dest="frequency",
                 help="RTL433 device frequency (passed as '-f' to rtl_433)")
+
+        parser.add_argument('--debug',
+                action="store_true",
+                dest="debug",
+                default=False,
+                help="Enable debug mode (print out received messages, etc)")
         
         self.config = parser.parse_args()
         
@@ -125,6 +131,9 @@ class kismet_rtl433:
 
         if not self.config.name is None:
             datasource = "{},name={}".format(datasource, self.config.name)
+
+        if not self.config.device is None:
+            datasource = "{},device={}".format(datasource, self.config.device)
 
         cmd = {
             "definition": datasource
@@ -207,6 +216,8 @@ class kismet_rtl433:
             cmd.append('-f')
             cmd.append(self.config.frequency)
 
+        seen_any_valid = False
+
         try:
             FNULL = open(os.devnull, 'w')
             r = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
@@ -215,6 +226,8 @@ class kismet_rtl433:
                 l = r.stdout.readline()
                 if len(l) < 5:
                     raise RuntimeError('empty/junk rtl_433 response')
+
+                seen_any_valid = True
 
                 now = datetime.now()
 
@@ -226,11 +239,21 @@ class kismet_rtl433:
                     "device": l
                 }
 
-                print l
+                if self.config.debug:
+                    print "{} - {}".format(time.ctime(), l)
 
                 self.session.post("{}/datasource/by-uuid/{}/update.json".format(self.config.uri, self.config.uuid), data=pd)
 
-        except Exception:
+        except subprocess.CalledProcessError as ce:
+            if self.config.debug:
+                print "{} - rtl_433 binary exited unexpectedly: {}".format(time.ctime(), ce)
+        except Exception as e:
+            if self.config.debug:
+                print "{} - rtl_433 binary exited unexpectedly: {}".format(time.ctime(), e)
+        finally:
+            if not seen_any_valid:
+                print "WARNING:  No valid information seen from rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your rtlsdr USB device."
+
             r.kill()
 
     def rtl_loop(self):
@@ -239,13 +262,16 @@ class kismet_rtl433:
 
             if not rtl.has_alert():
                 rtl.create_alert()
-                print "alert created"
-            else:
-                print "alert already present"
+                if self.config.debug:
+                    print "{} - Defined Kismet alert for RTL errors".format(time.ctime())
+            elif self.config.debug:
+                print "{} - Kismet RTL alert already defined".format(time.ctime())
    
             d_created = False
             d_present = rtl.check_datasource()
-            print "datasource present:", d_present
+            
+            if d_present and self.config.debug:
+                print "{} - Kismet RTL datasource '{}' present".format(time.ctime(), self.config.uuid)
 
             if d_present:
                 d_created = True
@@ -253,11 +279,12 @@ class kismet_rtl433:
                 d_created = rtl.create_datasource()
 
                 if not d_created:
-                    print "Could not create rtl433 data source"
-                
-            print "connected to rtl433 data source", rtl.get_uuid()
+                    print "ERROR - Could not create rtl433 data source"
+                    sys.exit(1)
+               
+            if self.config.debug:
+                print "{} - Connected to rtl433 data source {}".format(time.ctime(), self.get_uuid())
 
-            print "Launching ", self.config.rtlbin
             self.run_rtl()
             
             if not self.config.reconnect:
