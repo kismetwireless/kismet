@@ -2447,12 +2447,10 @@ shared_ptr<dot11_tracked_eapol>
 
         if (rsnkey->key_info_key_ack() && !rsnkey->key_info_key_mic() &&
                 !rsnkey->key_info_install()) {
-            printf("1\n");
             eapol->set_eapol_msg_num(1);
         } else if (rsnkey->key_info_key_mic() && !rsnkey->key_info_key_ack() && 
                 !rsnkey->key_info_install()) {
             if (rsnkey->wpa_key_data_len()) {
-                printf("2\n");
                 eapol->set_eapol_msg_num(2);
             } else {
                 // Look for attempts to set an empty nonce; only on group keys
@@ -2467,12 +2465,10 @@ shared_ptr<dot11_tracked_eapol>
                             "vanhoefm attack against OpenBSD Wi-Fi supplicants.");
                 }
 
-                printf("4\n");
                 eapol->set_eapol_msg_num(4);
             }
         } else if (rsnkey->key_info_key_mic() && rsnkey->key_info_key_ack() && 
                 rsnkey->key_info_key_ack()) {
-            printf("3\n");
             eapol->set_eapol_msg_num(3);
         }
 
