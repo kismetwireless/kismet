@@ -373,7 +373,7 @@ class kismet_rtl433:
     # mqtt helper func, call the handle_json function in our class
     @staticmethod
     def mqtt_on_message(client, user, msg):
-        if not user.handle_json(l):
+        if not user.handle_json(msg.payload):
             raise RuntimeError('could not post data')
 
     def run_mqtt(self):
@@ -393,7 +393,7 @@ class kismet_rtl433:
             self.mq.loop_forever()
         except Exception as e:
             if self.config.debug:
-                print "{} - Error processing MQTT data".format(time.ctime())
+                print "{} - Error processing MQTT data {}".format(time.ctime(), e)
         finally:
             self.mq.loop_stop()
 
