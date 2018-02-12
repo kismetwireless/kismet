@@ -190,6 +190,28 @@ class kismet_rtl433:
 
     def rtl_loop(self):
         while True:
+            rtl.check_login()
+
+            if not rtl.has_alert():
+                rtl.create_alert()
+                print "alert created"
+            else:
+                print "alert already present"
+   
+            d_created = False
+            d_present = rtl.check_datasource()
+            print "datasource present:", d_present
+
+            if d_present:
+                d_created = True
+            else:
+                d_created = rtl.create_datasource()
+
+                if not d_created:
+                    print "Could not create rtl433 data source"
+                
+            print "connected to rtl433 data source", rtl.get_uuid()
+
             print "Launching ", self.config.rtlbin
             self.run_rtl()
             
@@ -206,28 +228,6 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         print "Found rtl_433"
-
-    rtl.check_login()
-
-    if not rtl.has_alert():
-        rtl.create_alert()
-        print "alert created"
-    else:
-        print "alert already present"
-   
-    d_created = False
-    d_present = rtl.check_datasource()
-    print "datasource present:", d_present
-
-    if d_present:
-        d_created = True
-    else:
-        d_created = rtl.create_datasource()
-
-        if not d_created:
-            print "Could not create rtl433 data source"
-        
-    print "connected to rtl433 data source", rtl.get_uuid()
 
     rtl.rtl_loop()
 
