@@ -266,7 +266,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         }
 
         if (temp_f_j.isNumeric()) {
-            thermdev->set_temperature(temp_f_j.asInt());
+            thermdev->set_temperature(f_to_c(temp_f_j.asInt()));
         }
 
         if (temp_c_j.isNumeric()) {
