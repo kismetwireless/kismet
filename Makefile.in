@@ -35,8 +35,12 @@ BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 CAPTURE_OSX_COREWLAN = capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 
+# Just python
+CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
+BUILD_CAPTURE_SDR_RTL433 = 1
+
 # Capture binaries to build
-DATASOURCE_BINS = @DATASOURCE_BINS@
+DATASOURCE_BINS = $(CAPTURE_SDR_RTL433) @DATASOURCE_BINS@
 
 # Disabled; Kaitai generates unusable C++ code currently
 # KAITAI_PARSERS = \
@@ -200,6 +204,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HACKRF_SWEEP) $(BIN)/kismet_capture_tools/$(CAPTURE_HACKRF_SWEEP); \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTL433) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_SDR_RTL433)`; \
 	fi;
 
 	mkdir -p $(MAN)/man1
