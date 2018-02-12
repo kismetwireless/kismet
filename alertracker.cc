@@ -716,7 +716,8 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     if (!httpd->HasValidSession(concls, true)) {
-        return -1;
+        concls->httpcode = 503;
+        return MHD_NO;
     }
 
     SharedStructured structdata;
@@ -833,7 +834,7 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
     }
 
-    return 0;
+    return MHD_NO;
 }
 
 
