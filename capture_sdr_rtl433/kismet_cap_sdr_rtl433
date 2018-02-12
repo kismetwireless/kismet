@@ -10,6 +10,14 @@ import sys
 import time
 import uuid
 
+try:
+    import paho.mqtt.client as mqtt
+    has_mqtt = True
+    print "MQTT found; enabling MQTT features"
+except ImportError:
+    print "MQTT not found; to use MQTT features install the Python Paho MQTT library"
+    has_mqtt = False
+
 class kismet_rtl433:
     def __init__(self):
         parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge - Creates a rtl433 data source on a Kismet server and passes JSON-based records from the rtl_433 binary',
@@ -75,6 +83,37 @@ class kismet_rtl433:
                 dest="debug",
                 default=False,
                 help="Enable debug mode (print out received messages, etc)")
+
+        if has_mqtt:
+            parser.add_argument('--use-mqtt',
+                    action="store_true",
+                    dest="use_mqtt",
+                    default=False,
+                    help="Connect to a MQTT channel instead of a physical device")
+
+            parser.add_argument('--mqtt-server',
+                    action="store",
+                    dest="mqtt_server",
+                    help="MQTT server (if in MQTT mode)",
+                    default="localhost")
+
+            parser.add_argument('--mqtt-port',
+                    action="store",
+                    dest="mqtt_port",
+                    help="MQTT port (if in MQTT mode)",
+                    default="1883")
+
+            parser.add_argument('--mqtt-client-id',
+                    action="store",
+                    dest="mqtt_client",
+                    help="MQTT client name (if in MQTT mode)",
+                    default="kismet")
+
+            parser.add_argument('--mqtt-channel',
+                    action="store",
+                    dest="mqtt_channel",
+                    help="MQTT channel to subscribe to (if in MQTT mode)",
+                    default="rtl433")
         
         self.config = parser.parse_args()
         
@@ -95,14 +134,27 @@ class kismet_rtl433:
     def get_rtlbin(self):
         return self.config.rtlbin
 
+    def get_mqtt(self):
+        if not has_mqtt:
+            return false
+        return self.config.use_mqtt
+
     def check_login(self):
-        r = self.session.get("{}/session/check_session".format(self.config.uri))
+        try:
+            r = self.session.get("{}/session/check_session".format(self.config.uri))
+        except requests.exceptions.ConnectionError:
+            return False
 
         if not r.status_code == 200:
             raise RuntimeError("Invalid username/password")
 
+        return True
+
     def find_datasource(self):
-        r = self.session.get("{}/datasource/all_sources.json".format(self.config.uri))
+        try:
+            r = self.session.get("{}/datasource/all_sources.json".format(self.config.uri))
+        except requests.exceptions.ConnectionError:
+            return None
 
         if not r.status_code == 200:
             return None
@@ -116,7 +168,10 @@ class kismet_rtl433:
         return None
 
     def check_datasource(self):
-        r = self.session.get("{}/datasource/by-uuid/{}/source.json".format(self.config.uri, self.config.uuid))
+        try:
+            r = self.session.get("{}/datasource/by-uuid/{}/source.json".format(self.config.uri, self.config.uuid))
+        except requests.exceptions.ConnectionError:
+            return False
 
         if not r.status_code == 200:
             return False
@@ -143,7 +198,10 @@ class kismet_rtl433:
             "json": json.dumps(cmd)
         }
 
-        r = self.session.post("{}/datasource/add_source.json".format(self.config.uri), data=pd)
+        try:
+            r = self.session.post("{}/datasource/add_source.json".format(self.config.uri), data=pd)
+        except requests.exceptions.ConnectionError:
+            return False
 
         if not r.status_code == 200:
             return False
@@ -155,7 +213,10 @@ class kismet_rtl433:
         return True
 
     def has_alert(self):
-        r = self.session.get("{}/alerts/definitions.json".format(self.config.uri))
+        try:
+            r = self.session.get("{}/alerts/definitions.json".format(self.config.uri))
+        except requests.exceptions.ConnectionError:
+            return False
 
         if not r.status_code == 200:
             return False
@@ -181,9 +242,10 @@ class kismet_rtl433:
             "json": json.dumps(cmd)
         }
 
-        print pd
-
-        r = self.session.post("{}/alerts/definitions/define_alert.json".format(self.config.uri), data=pd)
+        try:
+            r = self.session.post("{}/alerts/definitions/define_alert.json".format(self.config.uri), data=pd)
+        except requests.exceptions.ConnectionError:
+            return False
 
         if not r.status_code == 200:
             return False
@@ -197,6 +259,60 @@ class kismet_rtl433:
         except subprocess.CalledProcessError:
             return True
         except OSError:
+            return False
+
+        return True
+
+    def prep_kismet(self):
+        rtl.check_login()
+
+        if not rtl.has_alert():
+            rtl.create_alert()
+            if self.config.debug:
+                print "{} - Defined Kismet alert for RTL errors".format(time.ctime())
+        elif self.config.debug:
+            print "{} - Kismet RTL alert already defined".format(time.ctime())
+   
+        d_created = False
+        d_present = rtl.check_datasource()
+        
+        if d_present and self.config.debug:
+            print "{} - Kismet RTL datasource '{}' present".format(time.ctime(), self.config.uuid)
+
+        if d_present:
+            d_created = True
+        else:
+            d_created = rtl.create_datasource()
+
+            if not d_created:
+                print "ERROR - Could not create rtl433 data source"
+                return False
+           
+        if self.config.debug:
+            print "{} - Connected to rtl433 data source {}".format(time.ctime(), self.get_uuid())
+
+        return True
+
+    def handle_json(self, j):
+        now = datetime.now()
+
+        pd = {
+            "meta": json.dumps({
+                "tv_sec": now.second,
+                "tv_usec": now.microsecond
+            }),
+            "device": j
+        }
+
+        if self.config.debug:
+            print "{} - {}".format(time.ctime(), j)
+
+        try:
+            r = self.session.post("{}/datasource/by-uuid/{}/update.json".format(self.config.uri, self.config.uuid), data=pd)
+        except requests.exceptions.ConnectionError:
+            return False
+
+        if not r.status_code == 200:
             return False
 
         return True
@@ -229,27 +345,15 @@ class kismet_rtl433:
 
                 seen_any_valid = True
 
-                now = datetime.now()
-
-                pd = {
-                    "meta": json.dumps({
-                        "tv_sec": now.second,
-                        "tv_usec": now.microsecond
-                    }),
-                    "device": l
-                }
-
-                if self.config.debug:
-                    print "{} - {}".format(time.ctime(), l)
-
-                self.session.post("{}/datasource/by-uuid/{}/update.json".format(self.config.uri, self.config.uuid), data=pd)
+                if not self.handle_json(l):
+                    raise RuntimeError('could not post data')
 
         except subprocess.CalledProcessError as ce:
             if self.config.debug:
-                print "{} - rtl_433 binary exited unexpectedly: {}".format(time.ctime(), ce)
+                print "{} - processing rtl_433 stopped unexpectedly: {}".format(time.ctime(), ce)
         except Exception as e:
             if self.config.debug:
-                print "{} - rtl_433 binary exited unexpectedly: {}".format(time.ctime(), e)
+                print "{} - processing rtl_433 stopped unexpectedly: {}".format(time.ctime(), ce)
         finally:
             if not seen_any_valid:
                 print "WARNING:  No valid information seen from rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your rtlsdr USB device."
@@ -258,34 +362,45 @@ class kismet_rtl433:
 
     def rtl_loop(self):
         while True:
-            rtl.check_login()
-
-            if not rtl.has_alert():
-                rtl.create_alert()
-                if self.config.debug:
-                    print "{} - Defined Kismet alert for RTL errors".format(time.ctime())
-            elif self.config.debug:
-                print "{} - Kismet RTL alert already defined".format(time.ctime())
-   
-            d_created = False
-            d_present = rtl.check_datasource()
+            if self.prep_kismet():
+                self.run_rtl()
             
-            if d_present and self.config.debug:
-                print "{} - Kismet RTL datasource '{}' present".format(time.ctime(), self.config.uuid)
+            if not self.config.reconnect:
+                break
 
-            if d_present:
-                d_created = True
-            else:
-                d_created = rtl.create_datasource()
+            time.sleep(1)
 
-                if not d_created:
-                    print "ERROR - Could not create rtl433 data source"
-                    sys.exit(1)
-               
+    # mqtt helper func, call the handle_json function in our class
+    @staticmethod
+    def mqtt_on_message(client, user, msg):
+        if not user.handle_json(l):
+            raise RuntimeError('could not post data')
+
+    def run_mqtt(self):
+        if self.config.debug:
+            print "{} - Connecting to MQTT {}:{} @{}".format(time.ctime(), self.config.mqtt_server, self.config.mqtt_port, self.config.mqtt_channel)
+
+        self.mq = mqtt.Client(self.config.mqtt_client)
+        self.mq.user_data_set(self)
+        self.mq.on_message = kismet_rtl433.mqtt_on_message
+        self.mq.connect(self.config.mqtt_server, self.config.mqtt_port, 60)
+        self.mq.subscribe(self.config.mqtt_channel)
+
+        if self.config.debug:
+            print "{} - Entering MQTT loop".format(time.ctime());
+
+        try:
+            self.mq.loop_forever()
+        except Exception as e:
             if self.config.debug:
-                print "{} - Connected to rtl433 data source {}".format(time.ctime(), self.get_uuid())
+                print "{} - Error processing MQTT data".format(time.ctime())
+        finally:
+            self.mq.loop_stop()
 
-            self.run_rtl()
+    def mqtt_loop(self):
+        while True:
+            if self.prep_kismet():
+                self.run_mqtt()
             
             if not self.config.reconnect:
                 break
@@ -295,11 +410,14 @@ class kismet_rtl433:
 if __name__ == '__main__':
     rtl = kismet_rtl433()
 
-    if not rtl.check_rtl_bin():
-        print "Could not find rtl_433 binary '{}': Check that you installed rtl_433 or use --rtl433 to set it".format(rtl.get_rtlbin())
-        sys.exit(1)
+    if rtl.get_mqtt():
+        print "Going into MQTT mode"
+
+        rtl.mqtt_loop()
+
     else:
-        print "Found rtl_433"
+        if not rtl.check_rtl_bin():
+            print "Could not find rtl_433 binary '{}': Check that you installed rtl_433 or use --rtl433 to set it".format(rtl.get_rtlbin())
+            sys.exit(1)
 
-    rtl.rtl_loop()
-
+        rtl.rtl_loop()
