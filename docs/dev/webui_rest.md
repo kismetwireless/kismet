@@ -390,10 +390,10 @@ Set an arbitrary tag in the 'tags collection' of the target device.  The tags co
 
 Expects a command dictionary including:
 
-| Key     | Value    | Type   | Desc                          |
-| ------- | -------- | ------ | ----------------------------- |
-| tagname | Tag name | String | Name of tag; arbitrary string |
-| tagvalue | Tag value | String | Content of tag |
+| Key      | Value     | Type   | Desc                          |
+| -------- | --------- | ------ | ----------------------------- |
+| tagname  | Tag name  | String | Name of tag; arbitrary string |
+| tagvalue | Tag value | String | Content of tag                |
 
 ### Phy Handling
 
@@ -447,7 +447,7 @@ Dictionary containing a list of alerts since Kismet double-precision timestamp `
 
 Double-precision timestamps include the microseconds in the decimal value.  A pure second-precision timestamp may be provided, but could cause some alerts to be missed if they occurred in the fraction of the second after the request.
 
-##### POST /alerts/definitions/define_alert.cmd
+##### POST /alerts/definitions/define_alert [`json`, `msgpack`]
 
 *LOGIN REQUIRED*
 
@@ -483,7 +483,7 @@ Expects a command dictionary including:
 
 ### Channels
 
-##### /channels/channels `/channels/channels.msgpack`, `/channels/channels.json`
+##### /channels/channels [`json`, `msgpack`]
 
 Channel usage and monitoring data.
 
@@ -493,29 +493,29 @@ Kismet uses data sources to capture information - typically packets, but sometim
 
 #### Querying data sources
 
-##### /datasource/all_sources `/datasource/all_sources.msgpack`, `/datasource/all_sources.json`
+##### /datasource/all_sources [`json`, `msgpack`]
 
 List containing all data sources and the current information about them
 
-##### /datasource/types `/datasource/types.msgpack`, `/datasource/types.json`
+##### /datasource/types [`json`, `msgpack`]
 
 List containing all defined datasource types & basic information about them
 
-##### /datasource/defaults `/datasource/defaults.msgpack`, `/datasource/defaults.json`
+##### /datasource/defaults [`json`, `msgpack`]
 
 Default settings for new data sources
 
-##### /datasource/list_interfaces `/datasource/list_interfaces.msgpack`, `/datasource/list_interfaces.json`
+##### /datasource/list_interfaces [`json`, `msgpack`]
 
 Query all possible data source drivers and return a list of auto-detected interfaces that could be used to capture.
 
-##### /datasource/by-uuid/[uuid]/source `/datasource/by-uuid/[uuid]/source.msgpack`, `/datasource/by-uuid/[uuid]/source.json`
+##### /datasource/by-uuid/[uuid]/source [`json`, `msgpack`]
 
 Return information about a specific data source, specified by the source UUID `[uuid]`
 
 #### Controlling data sources
 
-##### /datasource/add_source.cmd `/datasource/add_source.cmd`
+##### /datasource/add_source [`json`, `msgpack`]
 
 *LOGIN REQUIRED*.
 
