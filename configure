@@ -7795,6 +7795,35 @@ fi
 
 fi
 
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <microhttpd.h>
+
+int
+main ()
+{
+
+    #if MHD_VERSION <= 0x00093700
+    #error MHD_TOO_OLD
+    #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  mhd_too_old=0
+else
+  mhd_too_old=1
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+if test "$mhd_too_old" = 1; then
+    as_fn_error $? "sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/" "$LINENO" 5
+fi
+
 OLIBS="$LIBS"
 LIBS="$LIBS -lmicrohttpd"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext

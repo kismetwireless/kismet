@@ -623,6 +623,18 @@ elif test "$HAVE_LIBMICROHTTPD" = 1; then
         AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
 fi
 
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <microhttpd.h>
+    ]], [[
+    #if MHD_VERSION <= 0x00093700
+    #error MHD_TOO_OLD
+    #endif
+    ]])],[mhd_too_old=0],[mhd_too_old=1])
+
+if test "$mhd_too_old" = 1; then
+    AC_MSG_ERROR(sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/)
+fi
+
 OLIBS="$LIBS"
 LIBS="$LIBS -lmicrohttpd"
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
