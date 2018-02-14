@@ -126,35 +126,36 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     }
 
     if (!(buf.st_mode & S_IXOTH)) {
-        if (getuid() != buf.st_uid || getuid() == 0) {
+        if (getuid() != buf.st_uid && getuid() != 0) {
             bool group_ok = false;
             gid_t *groups;
             int ngroups;
 
-            ngroups = getgroups(0, NULL);
-            if (ngroups <= 0) {
-                _MSG("IPC could not get groups to check binary '" + cmdpath + "'", 
-                        MSGFLAG_ERROR);
-                return -1;
-            }
+            if (getgid() != buf.st_gid) {
+                ngroups = getgroups(0, NULL);
 
-            groups = new gid_t[ngroups];
-            ngroups = getgroups(ngroups, groups);
+                if (ngroups > 0) {
+                    groups = new gid_t[ngroups];
+                    ngroups = getgroups(ngroups, groups);
 
-            for (int g = 0; g < ngroups; g++) {
-                if (groups[g] == buf.st_gid) {
-                    group_ok = true;
-                    break;
+                    for (int g = 0; g < ngroups; g++) {
+                        if (groups[g] == buf.st_gid) {
+                            group_ok = true;
+                            break;
+                        }
+                    }
+
+                    delete[] groups;
                 }
-            }
 
-            if (!group_ok) {
-                _MSG("IPC cannot run binary '" + cmdpath + "', Kismet was installed "
-                        "setgid and you are not in that group. If you recently added you "
-                        "user to the kismet group, you will need to log out and back in to "
-                        "activate it.  You can check your groups with the 'groups' command.",
-                        MSGFLAG_ERROR);
-                return -1;
+                if (!group_ok) {
+                    _MSG("IPC cannot run binary '" + cmdpath + "', Kismet was installed "
+                            "setgid and you are not in that group. If you recently added your "
+                            "user to the kismet group, you will need to log out and back in to "
+                            "activate it.  You can check your groups with the 'groups' command.",
+                            MSGFLAG_ERROR);
+                    return -1;
+                }
             }
         }
     }
