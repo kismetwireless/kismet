@@ -433,8 +433,18 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
                         (ret_localchan)->control_freq = wifi_ht_channels[ci].freq;
                         (ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq80;
+                        return ret_localchan;
                     }
                 }
+
+                /* Fall through to error state if we found no valid vht80 channel */
+                snprintf(errstr, STATUS_MAX, "requested channel %u as a "
+                        "VHT80 channel; this does not appear to be a valid "
+                        "channel for 80MHz operation, skipping channel", 
+                        parsechan);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                free(ret_localchan);
+                return NULL;
             }
         } else if (strcasecmp(parsetype, "vht160") == 0) {
             (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_160;
@@ -462,8 +472,18 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
                         (ret_localchan)->control_freq = wifi_ht_channels[ci].freq;
                         (ret_localchan)->center_freq1 = wifi_ht_channels[ci].freq160;
+                        return ret_localchan;
                     }
                 }
+
+                /* Fall through to an error if we never found a vht160 for this */
+                snprintf(errstr, STATUS_MAX, "requested channel %u as a "
+                        "VHT160 channel; this does not appear to be a "
+                        "valid channel for 160MHz operation, skipping "
+                        "channel", parsechan);
+                cf_send_message(caph, errstr, MSGFLAG_ERROR);
+                free(ret_localchan);
+                return NULL;
             }
         } else {
             /* otherwise return it as a basic channel; we don't know what to do */
