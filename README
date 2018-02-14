@@ -177,7 +177,7 @@ https://www.kismetwireless.net
     by removing it manually if you installed it from source (specifically,
     be sure to remove the binaries 'kismet_server', 'kismet_client',  and 
     'kismet_capture', by default found in '/usr/local/bin/' and the config 
-    file 'kismet.conf', by default in '/usr/local/bin/'.
+    file 'kismet.conf', by default in '/usr/local/etc/'.
 
     You can then configure, and install, the new Kismet.  
 
