@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <math.h>
+
 #include "tracked_location.h"
 #include "gpstracker.h"
 
@@ -386,7 +388,7 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
 
         aggloc->set_lat(lat / samples_100_vec.size());
         aggloc->set_lon(lon / samples_100_vec.size());
-        if (!std::isnan(alt / num_alt))
+        if (!isnan(alt / num_alt))
             aggloc->set_alt(alt / num_alt);
         aggloc->set_heading(heading / samples_100_vec.size());
         aggloc->set_speed(speed / samples_100_vec.size());
@@ -436,7 +438,7 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
 
             aggloc10->set_lat(lat / samples_10k_vec.size());
             aggloc10->set_lon(lon / samples_10k_vec.size());
-            if (!std::isnan(alt / num_alt))
+            if (!isnan(alt / num_alt))
                     aggloc10->set_alt(alt / num_alt);
             aggloc10->set_heading(heading / samples_10k_vec.size());
             aggloc10->set_speed(speed / samples_10k_vec.size());

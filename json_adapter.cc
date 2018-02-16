@@ -25,6 +25,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <math.h>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
@@ -119,13 +120,13 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             stream << GetTrackerValue<uint64_t>(e);
             break;
         case TrackerFloat:
-            if (std::isnan(GetTrackerValue<float>(e)) || std::isinf(GetTrackerValue<float>(e)))
+            if (isnan(GetTrackerValue<float>(e)) || isinf(GetTrackerValue<float>(e)))
                 stream << 0;
             else
                 stream << fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
-            if (std::isnan(GetTrackerValue<double>(e)) || std::isinf(GetTrackerValue<double>(e)))
+            if (isnan(GetTrackerValue<double>(e)) || isinf(GetTrackerValue<double>(e)))
                 stream << 0;
             else
                 stream << fixed << GetTrackerValue<double>(e);
@@ -412,13 +413,13 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             stream << GetTrackerValue<uint64_t>(e);
             break;
         case TrackerFloat:
-            if (std::isnan(GetTrackerValue<float>(e)) || std::isinf(GetTrackerValue<float>(e)))
+            if (isnan(GetTrackerValue<float>(e)) || isinf(GetTrackerValue<float>(e)))
                 stream << 0;
             else
                 stream << fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
-            if (std::isnan(GetTrackerValue<double>(e)) || std::isinf(GetTrackerValue<double>(e)))
+            if (isnan(GetTrackerValue<double>(e)) || isinf(GetTrackerValue<double>(e)))
                 stream << 0;
             else
                 stream << fixed << GetTrackerValue<double>(e);
