@@ -1159,6 +1159,9 @@ function update_datasource2(data, state) {
         if (source['kismet.datasource.remote']) {
             rts = 'Remote sources are not re-opened by Kismet, but will be re-opened when the '
                 'remote source reconnects.';
+        } else if (source['kismet.datasource.passive']) {
+            rts = 'Passive sources are not directly managed by Kismet, they accept data '
+                'from external services.';
         } else if (source['kismet.datasource.retry']) {
             rts = 'Kismet will try to re-open this source if an error occurs';
             if (source['kismet.datasource.retry_attempts'] && 

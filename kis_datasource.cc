@@ -1982,6 +1982,9 @@ void KisDatasource::register_fields() {
     RegisterField("kismet.datasource.remote", TrackerUInt8,
             "capture is connected from a remote server", &source_remote);
 
+    RegisterField("kismet.datasource.passive", TrackerUInt8,
+            "capture is a post-able passive capture", &source_passive);
+
     RegisterField("kismet.datasource.name", TrackerString,
             "Human-readable name", &source_name);
     RegisterField("kismet.datasource.uuid", TrackerUuid,

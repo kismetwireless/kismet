@@ -206,6 +206,7 @@ public:
     __ProxyGet(source_running, uint8_t, bool, source_running);
 
     __ProxyGet(source_remote, uint8_t, bool, source_remote);
+    __ProxyGet(source_passive, uint8_t, bool, source_passive);
 
     __Proxy(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets);
     __ProxyIncDec(source_num_packets, uint64_t, uint64_t, source_num_packets);
@@ -540,6 +541,9 @@ protected:
 
     SharedTrackerElement source_remote;
     __ProxySet(int_source_remote, uint8_t, bool, source_remote);
+
+    SharedTrackerElement source_passive;
+    __ProxySet(int_source_passive, uint8_t, bool, source_passive);
 
     SharedTrackerElement source_running;
     __ProxySet(int_source_running, uint8_t, bool, source_running);
