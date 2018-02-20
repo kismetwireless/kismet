@@ -655,6 +655,23 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.client.bssid_key",
+                    title: "Name",
+                    draw: function(opts) {
+                        $.get("/devices/by-key/" + opts['value'] +
+                                "/device.json/kismet.device.base.commonname")
+                        .done(function(clidata) {
+                            clidata = kismet.sanitizeObject(clidata);
+
+                            if (clidata === '' || clidata === '""') {
+                                opts['container'].html('<i>None/i>');
+                            } else {
+                                opts['container'].html(clidata);
+                            }
+                        });
+                    },
+                },
+                {
+                    field: "dot11.client.bssid_key",
                     title: "Last SSID",
                     draw: function(opts) {
                         $.get("/devices/by-key/" + opts['value'] +
@@ -822,8 +839,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                     }
                                 },
                                 {
-                                    field: "kismet.device.base.name",
+                                    field: "kismet.device.base.commonname",
                                     title: "Name",
+                                    filterOnEmpty: "true",
                                     empty: "<i>None</i>"
                                 },
                                 {
