@@ -126,6 +126,9 @@ void kis_tracked_device_base::register_fields() {
     RegisterField("kismet.device.base.username", TrackerString,
             "user name", &username);
 
+    RegisterField("kismet.device.base.commonname", TrackerString,
+            "common name alias of custom or device names", &commonname);
+
     RegisterField("kismet.device.base.type", TrackerString,
             "printable device type", &type_string);
 

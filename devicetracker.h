@@ -133,6 +133,8 @@ public:
     __Proxy(devicename, std::string, std::string, std::string, devicename);
     __Proxy(username, std::string, std::string, std::string, username);
 
+    __Proxy(commonname, std::string, std::string, std::string, commonname);
+
     __Proxy(type_string, std::string, std::string, std::string, type_string);
 
     __Proxy(basic_type_set, uint64_t, uint64_t, uint64_t, basic_type_set);
@@ -255,6 +257,14 @@ public:
     // Lock our device around serialization
     virtual void pre_serialize() {
         local_eol_locker lock(&device_mutex);
+
+        if (get_username() != "") {
+            set_commonname(get_username());
+        } else if (get_devicename() != "") {
+            set_commonname(get_devicename());
+        } else {
+            set_commonname(get_macaddr().Mac2String());
+        }
     }
 
     virtual void post_serialize() {
@@ -291,6 +301,9 @@ protected:
 
     // User name for arbitrary naming
     SharedTrackerElement username;
+
+    // Common name connected via preserialize
+    SharedTrackerElement commonname;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
     // This can be set per-phy and is treated as a printable interpretation.
