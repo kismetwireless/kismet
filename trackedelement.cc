@@ -2397,6 +2397,10 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
         SharedTrackerElement &ret_elem, 
         TrackerElementSerializer::rename_map &rename_map) {
 
+    // Poke the pre-serialization function to update anything that needs updating before
+    // we create the new meta-object
+    in->pre_serialize();
+
     unsigned int fn = 0;
     ret_elem.reset(new TrackerElement(TrackerMap));
 
@@ -2445,5 +2449,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
 
         ret_elem->add_map(f);
     }
+
+    in->post_serialize();
 }
 
