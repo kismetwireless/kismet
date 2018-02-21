@@ -967,8 +967,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
         local_wifi->use_ht_channels = 0;
         local_wifi->use_vht_channels = 0;
+    } else if (strcmp(driver, "rtl8192cu") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it uses the rtl8192cu drivers.  "
+                "These have typically not supported monitor mode; most likely trying to set monitor "
+                "mode in the next step will fail, sorry.", local_wifi->interface);
+        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
     }
-
 
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
      * respond to SIOCGIWMODE */
