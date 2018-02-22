@@ -136,7 +136,7 @@ class kismet_rtl433:
 
     def get_mqtt(self):
         if not has_mqtt:
-            return false
+            return False
         return self.config.use_mqtt
 
     def check_login(self):
