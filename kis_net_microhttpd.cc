@@ -1191,26 +1191,23 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt) {
 }
 
 void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
-    // Protect until we lock
-    local_demand_locker lock(&aux_mutex);
+    { 
+        // Scope this block
+        local_locker lock(&aux_mutex);
 
-    // Scope this block
-    lock.lock();
+        // Immediately return if we have pending data
+        shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
+        if (rbh->GetReadBufferUsed()) {
+            return;
+        }
 
-    // Immediately return if we have pending data
-    shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
-    if (rbh->GetReadBufferUsed()) {
-        return;
+        // Immediately return so we can flush out the buffer before we fail
+        if (get_in_error()) {
+            return;
+        }
+
+        cl->lock();
     }
-
-    // Immediately return so we can flush out the buffer before we fail
-    if (get_in_error()) {
-        return;
-    }
-
-    lock.unlock();
-
-    cl->lock();
 
     // Block outside of the mutex protection
     cl->block_until();
@@ -1312,19 +1309,15 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
             std::thread([this, &cl, aux, httpd, connection, url, method, upload_data, upload_data_size]{
-                // Unlock the thread as soon as we've spawned it
+                // Unlock the http thread as soon as we've spawned it
                 cl.unlock(1);
 
-                int r = 
-                    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+                Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
                         upload_data_size);
 
-                // Trigger 'error' when the function is complete, causing us to finish 
-                // the stream
-                if (r == MHD_YES) {
-                    aux->sync();
-                    aux->trigger_error();
-                }
+                aux->sync();
+                aux->trigger_error();
+                    
                 });
 
         cl.block_until();
