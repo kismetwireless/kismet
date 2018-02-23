@@ -187,7 +187,6 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 	unsigned int iter_align;
 	int fcs_cut = 0; // Is the FCS bit set?
     bool fcs_flag_invalid = false; // Do we have a flag that tells us the fcs is known bad?
-	char errstr[STATUS_MAX];
 
 	kis_layer1_packinfo *radioheader = NULL;
 
