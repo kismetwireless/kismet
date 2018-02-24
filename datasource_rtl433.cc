@@ -39,6 +39,8 @@ KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
     set_int_source_retry(false);
     set_int_source_passive(true);
 
+    set_int_source_hardware("rtlsdr");
+
     _MSG("Created RTL433 datasource.  This data source receives events from a helper tool, "
             "kismet_cap_sdr_rtl433; make sure this tool is running.", MSGFLAG_INFO);
 }
