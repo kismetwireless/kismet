@@ -185,6 +185,14 @@ simple_cap_proto_kv_t *encode_kv_sourcetype(const char *sourcetype);
  */
 simple_cap_proto_kv_t *encode_kv_definition(const char *definition);
 
+/* Encode a source hardware KV
+ *
+ * Returns:
+ * Pointer on success
+ * NULL on failure 
+ */
+simple_cap_proto_kv_t *encode_kv_hardware(const char *hardware);
+
 /* Encode a chanset response
  *
  * Returns:
@@ -257,19 +265,26 @@ simple_cap_proto_kv_t *encode_kv_signal(int32_t signal_dbm, uint32_t signal_rssi
         int32_t noise_dbm, uint32_t noise_rssi, double freq_khz, char *channel, 
         double datarate);
 
-/* Encode an INTERFACELIST KV 
+/* Encode an arbitrary complex KV field list
  *
- * Interfaces and Options are expected to be of identical lengths; if an 
- * interface has no corresponding OPTIONS element, it should have a NULL in
- * that slot.
+ * Expects:
+ *
+ * The KV key in 'key'
+ * A list of fields, of length len_fields
+ * A two-dimensional array of data, indexed by data[row][field]
+ *
+ * Produces:
+ *
+ * A KV pair consisting of an array of name:value string pairs, for
+ * use with KV pairs such as the interface list
  *
  * Returns:
  * Pointer on success
  * Null on failure
  *
  */
-simple_cap_proto_kv_t *encode_kv_interfacelist(char **interfaces, char **options, 
-        size_t len);
+simple_cap_proto_kv_t *encode_kv_arraylist(const char *key, const char **fields, size_t len_fields,
+        char ***data, size_t len_data);
 
 /* Encode a DLT KV
  *

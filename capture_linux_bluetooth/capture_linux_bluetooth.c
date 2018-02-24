@@ -726,7 +726,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
-        char *msg, char ***interfaces, char ***flags) {
+        char *msg, cf_params_list_interface_t ***interfaces) {
     DIR *devdir;
     struct dirent *devfile;
 
@@ -745,7 +745,6 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     if ((devdir = opendir("/sys/class/bluetooth/")) == NULL) {
         /* Not an error, just nothing to do */
         *interfaces = NULL;
-        *flags = NULL;
         return 0;
     }
 
@@ -768,19 +767,22 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     if (num_devs == 0) {
         *interfaces = NULL;
-        *flags = NULL;
         return 0;
     }
 
-    *interfaces = (char **) malloc(sizeof(char *) * num_devs);
-    *flags = (char **) malloc(sizeof(char *) * num_devs);
+    *interfaces = 
+        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
 
     i = 0;
 
     while (devs != NULL) {
         bt_list_t *td = devs->next;
-        (*interfaces)[i] = devs->device;
-        (*flags)[i] = devs->flags;
+        (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
+        memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
+
+        (*interfaces)[i]->interface = devs->device;
+        (*interfaces)[i]->flags = devs->flags;
+        (*interfaces)[i]->hardware = strdup("linuxhci");
 
         free(devs);
         devs = td;
@@ -893,6 +895,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     (*ret_interface)->capif = strdup(localbt->bt_interface);
+    (*ret_interface)->hardware = strdup("linuxhci");
 
     if (localbt->mgmt_fd > 0)
         close(localbt->mgmt_fd);
@@ -1006,11 +1009,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
-        cf_print_help(caph, argv[0]);
-        return -1;
-    }
-
     localbt.caph = caph;
 
     /* Set the local data ptr */
@@ -1030,6 +1028,12 @@ int main(int argc, char *argv[]) {
 
     /* Support remote capture by launching the remote loop */
     cf_handler_remote_capture(caph);
+
+    if (cf_handler_parse_opts(caph, argc, argv) < 1) {
+        cf_print_help(caph, argv[0]);
+        return -1;
+    }
+
 
     /* Jail our ns */
     if (cf_jail_filesystem(caph) < 1) {

@@ -8,6 +8,8 @@ Kismet supports additional capture types via the `KisDatasource` interface.  Dat
 
 Datasources can report packets or complex records - if your datasource needs to pass parsed information about a device event, that's possible!
 
+[TOC]
+
 ## Capture via IPC and Network
 
 Kismet datasources communicate from the capture binary to the Kismet server via an IPC channel or TCP connection.  This channel passes commands, data, and msgpack binary objects via a simple wrapper protocol.
@@ -34,7 +36,10 @@ Datasource implementations *may* use other message passing mechanisms, either in
 
 Several top-level packet types and key:value pairs are pre-defined and will be automatically handled by classes derived from the `KisDataSource` driver.
 
-#### CHANNELS (Datasource->Kismet)
+#### CHANNELS 
+
+*(Datasource->Kismet)*
+
 Alert Kismet that the device has changed its channel list. 
 
 This occurs when, for instance, a Wi-Fi card driver communicates that it supports some set of channels, but is unable to actually tune to them.  Sending this message will most likely cause the server to rebalance channel hopping.
@@ -45,7 +50,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### CLOSEDEVICE (Kismet->Datasource)
+#### CLOSEDEVICE 
+
+*(Kismet->Datasource)*
+
 Close any open device and initiate a shutdown.  Sent to capture binary during source close or server shutdown.
 
 KV Pairs:
@@ -54,7 +62,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### CONFIGURE (Kismet->Datasource)
+#### CONFIGURE 
+
+*(Kismet->Datasource)*
+
 Reconfigure a source.  Typically used to pass channel configuration data but may be used to embed additional information.
 
 KV Pairs:
@@ -65,7 +76,10 @@ KV Pairs:
 Responses:
 * CONFIGRESP
 
-#### CONFIGRESP (Datasource->Kismet)
+#### CONFIGRESP 
+
+*(Datasource->Kismet)*
+
 Acknowledge a source has been reconfigured, and return the new configuration state.
 
 KV Pairs:
@@ -78,7 +92,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### DATA (Datasource->Kismet)
+#### DATA
+
+*(Datasource->Kismet)*
+
 Pass capture data.  May be a packet, a decoded trackable entity, or other information.
 
 KV Pairs:
@@ -92,7 +109,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### ERROR (Any)
+#### ERROR 
+
+*(Any)*
+
 An error occurred.  The capture is assumed closed, and the connection will be shut down.
 
 KV Pairs:
@@ -102,7 +122,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### LISTINTERFACES (Kismet->Datasource)
+#### LISTINTERFACES
+
+*(Kismet->Datasource)*
+
 Request a list of interfaces.  This allows Kismet to present a list of compatible auto-detected interfaces, but not all datasource methods will support it.
 
 KV Pairs:
@@ -111,7 +134,10 @@ KV Pairs:
 Responses:
 * LISTRESP
 
-#### LISTRESP (Datasource->Kismet)
+#### LISTRESP
+
+*(Datasource->Kismet)*
+
 Return a list of interfaces.
 
 KV Pairs:
@@ -122,7 +148,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### MESSAGE (Datasource->Kismet)
+#### MESSAGE
+
+*(Datasource->Kismet)*
+
 Message for the user - informational, warning, or other non-critical errors.  Essentially a tunneling of the Kismet Messagebus protocol.  Permanent failure conditions should be carried over the ERROR frames.
 
 KV Pairs:
@@ -132,7 +161,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### NEWSOURCE (Datasource->Kismet Network)
+#### NEWSOURCE
+
+*(Datasource->Kismet Network)*
+
 Sent from a datasource running in network mode (remote capture) to Kismet to tell it to create a source and attach it to the network socket.
 
 The driver type must be included so that Kismet knows how to map the remote interface.
@@ -148,7 +180,10 @@ Responses:
 * OPENDEVICE
 * ERROR
 
-#### OPENDEVICE (Kismet->Datasource)
+#### OPENDEVICE
+
+*(Kismet->Datasource)*
+
 Open a device.  This should only be sent to a datasource which is capable of handling this device type, but may still return errors.
 
 KV Pairs:
@@ -157,7 +192,10 @@ KV Pairs:
 Responses:
 * OPENRESP
 
-#### OPENRESP (Datasource->Kismet)
+#### OPENRESP
+
+*(Datasource->Kismet)*
+
 Device open response.  Sent to declare the source is open and functioning, or that there was an error.
 
 KV Pairs:
@@ -165,6 +203,7 @@ KV Pairs:
 * CHANNELS (optional)
 * CHANSET (optional)
 * DLT
+* HARDWARE (optional)
 * MESSAGE (optional)
 * SPECSET (optional)
 * SUCCESS
@@ -174,7 +213,10 @@ KV Pairs:
 Responses:
 * NONE
 
-#### PING (Kismet->Datasource and Datasource->Kismet)
+#### PING
+
+*(Any)*
+
 Send a keep-alive frame to monitor that the remote capture is still functional.
 
 Failure to receive a PONG response within 5 seconds indicates that a problem has occurred, and that the Kismet server should terminate the capture binary with an error, or that the capture binary should exit.
@@ -185,7 +227,10 @@ KV Pairs:
 Responses:
 * PONG
 
-#### PONG (Kismet->Datasource and Datasource->Kismet)
+#### PONG
+
+*(Any)*
+
 Respond to a keep-alive PING frame.
 
 Failure to send a PONG response within 5 seconds indicates a problem has occurred.
@@ -196,7 +241,10 @@ KV Pairs:
 Responses:
 * None
 
-#### PROBEDEVICE (Kismet->Datasource)
+#### PROBEDEVICE 
+
+*(Kismet->Datasource)*
+
 Probe if this datasource can handle a device of unknown type.  This is used during the probing for auto-type sources.
 
 KV Pairs:
@@ -205,7 +253,10 @@ KV Pairs:
 Responses:
 * PROBERESP
 
-#### PROBERESP (Datasource->Kismet)
+#### PROBERESP
+
+*(Datasource->Kismet)*
+
 Response for attempting to probe if a device is supported via PROBEDEVICE.  This should always be sent, even if the answer is that the device is unsupported.
 
 KV Pairs:
@@ -214,6 +265,7 @@ KV Pairs:
 * CHANNELS (optional)
 * CHANSET (optional)
 * SPECSET (optional)
+* HARDWARE (optional)
 
 Responses:
 * NONE
@@ -318,6 +370,10 @@ Msgpack packed dictionary containing at least the following values:
 * "type": string containing the GPS type
 * "name": string containing the GPS user-defined name
 
+#### HARDWARE ####
+
+A simple string containing information about the hardware, if any.  For example, the chipset of a Wi-Fi device can be annotated here.
+
 #### INTERFACELIST
 A list of interfaces the source detected it can support.  This is the result of running an interface scan or list.
 
@@ -325,6 +381,7 @@ Content:
 Msgpack packed array containing mspack dictionaries of the following:
 * "interface": String interface compatible with a source=interface definition
 * "flags": String flags, aggregated as "flag1=foo,flag2=bar", compatible with a source=interface:flags source definition.
+* "hardware": String definition of the hardware (optional)
 
 #### MESSAGE
 MESSAGE KV pairs bridge directly to the messagebus of the Kismet server and are presented to users, logged, etc.  Message values may also be used in error reports if a source fails to open or a similar error occurs.

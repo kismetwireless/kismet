@@ -61,6 +61,9 @@ typedef struct kis_capture_handler kis_capture_handler_t;
 struct cf_params_interface;
 typedef struct cf_params_interface cf_params_interface_t;
 
+struct cf_params_list_interface;
+typedef struct cf_params_list_interface cf_params_list_interface_t;
+
 struct cf_params_spectrum;
 typedef struct cf_params_spectrum cf_params_spectrum_t;
 
@@ -70,18 +73,16 @@ typedef struct cf_params_spectrum cf_params_spectrum_t;
  *
  * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
- * **interfaces must be allocated by the list cb and should contain allocated
- * strings of interfaces
- * **flags must be allocated by the list cb and should contain allocated strings
- * of flags, or NULL if no flags.  It must be the same length as **interfaces.
+ * **interfaces mut be allocated by the list cb and should contain valid 
+ * list_iterface_t objects
  *
  * Return values:
  * -1   error occurred while listing
  *  0   no error occurred but no interfaces found
- *  1+  number of interfaces and flags present in **interfaces / **flags
+ *  1+  number of interfaces present in *interfaces
  */
 typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
-        char *msg, char ***interfaces, char ***flags);
+        char *msg, cf_params_list_interface_t ***interfaces);
 
 /* Probe definition callback
  * Called to determine if definition is supported by this datasource
@@ -326,6 +327,13 @@ struct cf_params_interface {
     char *chanset;
     char **channels;
     size_t channels_len;
+    char *hardware;
+};
+
+struct cf_params_list_interface {
+    char *interface;
+    char *flags;
+    char *hardware;
 };
 
 struct cf_params_spectrum {
@@ -740,7 +748,7 @@ int cf_send_error(kis_capture_handler_t *caph, const char *message);
  *  1   Success
  */
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, char **interfaces, char **flags, size_t len);
+        const char *msg, cf_params_list_interface_t **interfaces, size_t len);
 
 /* Send a PROBERESP response; can contain traditional interface data, spectrum interface
  * data, both, or neither in the case of an error.

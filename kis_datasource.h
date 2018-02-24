@@ -185,6 +185,7 @@ public:
     __ProxyGet(source_definition, std::string, std::string, source_definition);
     __ProxyGet(source_interface, std::string, std::string, source_interface);
     __ProxyGet(source_cap_interface, std::string, std::string, source_cap_interface);
+    __ProxyGet(source_hardware, std::string, std::string, source_hardware);
 
     __ProxyGet(source_dlt, uint32_t, uint32_t, source_dlt);
 
@@ -351,18 +352,20 @@ protected:
     // maintaining the async events, filling in the packet responses, etc.
     virtual bool get_kv_success(KisDatasourceCapKeyedObject *in_obj);
     virtual uint32_t get_kv_success_sequence(KisDatasourceCapKeyedObject *in_obj);
-    virtual string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
-    virtual string handle_kv_warning(KisDatasourceCapKeyedObject *in_obj);
+
+    virtual void handle_kv_capif(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj);
-    virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
-    virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
-    virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_capif(KisDatasourceCapKeyedObject *in_obj);
     virtual unsigned int handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj);
+    virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_hardware(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj);
+    virtual string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
+    virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
+    virtual void handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj);
+    virtual string handle_kv_warning(KisDatasourceCapKeyedObject *in_obj);
 
 
     // Assemble a packet it write it out the buffer, returning a command 
@@ -406,6 +409,7 @@ protected:
     __ProxySet(int_source_definition, std::string, std::string, source_definition);
     __ProxySet(int_source_interface, std::string, std::string, source_interface);
     __ProxySet(int_source_cap_interface, std::string, std::string, source_cap_interface);
+    __ProxySet(int_source_hardware, std::string, std::string, source_hardware);
     __ProxySet(int_source_dlt, uint32_t, uint32_t, source_dlt);
     __ProxyTrackable(int_source_channels_vec, TrackerElement, source_channels_vec);
 
@@ -439,6 +443,8 @@ protected:
     // Optional interface we actually capture from - ie, linux wifi VIFs or resolved
     // USB device paths
     SharedTrackerElement source_cap_interface;
+    // Optional hardware
+    SharedTrackerElement source_hardware;
 
     // Interface DLT
     SharedTrackerElement source_dlt;
@@ -757,6 +763,8 @@ public:
 
     __Proxy(in_use_uuid, uuid, uuid, uuid, in_use_uuid);
 
+    __Proxy(hardware, std::string, std::string, std::string, hardware);
+
     void populate(std::string in_interface, std::string in_options) {
         std::vector<std::string> optvec = StrTokenize(in_options, ",");
         populate(in_interface, optvec);
@@ -792,6 +800,10 @@ protected:
 
         RegisterField("kismet.datasource.probed.in_use_uuid", TrackerUuid,
                 "Active source using this interface", &in_use_uuid);
+
+        RegisterField("kismet.datasource.probed.hardware", TrackerString,
+                "Hardware / chipset", &hardware);
+
     }
 
     SharedTrackerElement interface;
@@ -800,6 +812,8 @@ protected:
     SharedDatasourceBuilder prototype;
 
     SharedTrackerElement in_use_uuid;
+
+    SharedTrackerElement hardware;
 
     int options_entry_id;
 

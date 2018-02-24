@@ -621,12 +621,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     (*ret_interface)->capif = strdup(local_wifi->cap_interface);
+    (*ret_interface)->hardware = strdup("osxcorewlan");
 
     return 1;
 }
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
-        char *msg, char ***interfaces, char ***flags) {
+        char *msg, cf_params_list_interface_t ***interfaces) {
 
     NSArray<CWInterface *> *cw_interfaces = 
         [[CWWiFiClient sharedWiFiClient] interfaces];
@@ -639,12 +640,17 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     if (num_corewlan_devs <= 0) 
         return 0;
 
-    *interfaces = (char **) malloc(sizeof(char *) * num_corewlan_devs);
-    *flags = (char **) malloc(sizeof(char *) * num_corewlan_devs);
+    *interfaces = 
+        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * 
+                num_corewlan_devs);
 
     for (di = 0; di < num_corewlan_devs; di++) {
-        (*interfaces)[di] = strdup([[cw_interfaces[di] interfaceName] UTF8String]);
-        (*flags)[di] = NULL;
+        (*interfaces)[di] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
+        memset((*interfaces)[di], 0, sizeof(cf_params_list_interface_t));
+
+        (*interfaces)[di]->interface = strdup([[cw_interfaces[di] interfaceName] UTF8String]);
+        (*interfaces)[di]->flags = NULL;
+        (*interfaces)[di]->hardware = strdup("osxcorewlan");
     }
 
     return num_corewlan_devs;

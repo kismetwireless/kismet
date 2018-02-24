@@ -779,6 +779,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     ret = populate_chanlist(caph, interface, errstr, &((*ret_interface)->channels),
             &((*ret_interface)->channels_len));
 
+    (*ret_interface)->hardware = strdup(driver);
+
     free(interface);
 
     if (ret < 0)
@@ -1404,6 +1406,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    (*ret_interface)->hardware = strdup(driver);
+
     /* Get the iw regdom and see if it makes sense */
     if (linux_sys_get_regdom(regdom) == 0) {
         if (strcmp(regdom, "00") == 0) {
@@ -1480,7 +1484,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 }
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
-        char *msg, char ***interfaces, char ***flags) {
+        char *msg, cf_params_list_interface_t ***interfaces) {
     DIR *devdir;
     struct dirent *devfile;
     char errstr[STATUS_MAX];
@@ -1489,6 +1493,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     typedef struct wifi_list {
         char *device;
         char *flags;
+        char *driver;
         struct wifi_list *next;
     } wifi_list_t; 
 
@@ -1497,12 +1502,13 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     unsigned int i;
 
+    char driver[32] = "";
+
     if ((devdir = opendir("/sys/class/net/")) == NULL) {
         /* fprintf(stderr, "debug - no /sys/class/net dir?\n"); */
 
         /* Not an error, just nothing to do */
         *interfaces = NULL;
-        *flags = NULL;
         return 0;
     }
 
@@ -1517,6 +1523,10 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
             num_devs++;
             d->device = strdup(devfile->d_name);
             d->flags = NULL;
+
+            linux_getsysdrv(devfile->d_name, driver);
+            d->driver = strdup(driver);
+
             d->next = devs;
             devs = d;
         }
@@ -1526,19 +1536,26 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
     if (num_devs == 0) {
         *interfaces = NULL;
-        *flags = NULL;
         return 0;
     }
 
-    *interfaces = (char **) malloc(sizeof(char *) * num_devs);
-    *flags = (char **) malloc(sizeof(char *) * num_devs);
+    *interfaces = 
+        (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
 
     i = 0;
 
     while (devs != NULL) {
         wifi_list_t *td = devs->next;
-        (*interfaces)[i] = devs->device;
-        (*flags)[i] = devs->flags;
+
+        /* Allocate an interface */
+        (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
+        memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
+
+        /* All these strings were strdup'd already so we assign the pointers and let the
+         * cleanup of the interface list free them */
+        (*interfaces)[i]->interface = devs->device;
+        (*interfaces)[i]->flags = devs->flags;
+        (*interfaces)[i]->hardware = devs->driver;
 
         free(devs);
         devs = td;

@@ -616,6 +616,8 @@ function update_datasource2(data, state) {
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
         set_row(idiv, 'driver', '<b>Capture Driver</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
+        if (intf['kismet.datasource.probed.hardware'] !== '')
+            set_row(idiv, 'hardware', '<b>Hardware</b>', intf['kismet.datasource.probed.hardware']);
         set_row(idiv, 'description', '<b>Type</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.description']);
 
         var addbutton = $('#add', idiv);
@@ -1152,6 +1154,8 @@ function update_datasource2(data, state) {
         }
 
         set_row(sdiv, 'interface', '<b>Interface</b>', s);
+        if (source['kismet.datasource.hardware'] !== '')
+            set_row(idiv, 'hardware', '<b>Hardware</b>', source['kismet.datasource.hardware']);
         set_row(sdiv, 'uuid', '<b>UUID</b>', source['kismet.datasource.uuid']);
         set_row(sdiv, 'packets', '<b>Packets</b>', source['kismet.datasource.num_packets']);
 

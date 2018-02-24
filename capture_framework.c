@@ -575,8 +575,7 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *caph, int spacing
 }
 
 void cf_handler_list_devices(kis_capture_handler_t *caph) {
-    char **interfaces = NULL;
-    char **flags = NULL;
+    cf_params_list_interface_t **interfaces = NULL;
 
     /* Callback ret */
     int cbret = -1;
@@ -594,7 +593,7 @@ void cf_handler_list_devices(kis_capture_handler_t *caph) {
         return;
     }
 
-    cbret = (*(caph->listdevices_cb))(caph, 0, msgstr, &interfaces, &flags);
+    cbret = (*(caph->listdevices_cb))(caph, 0, msgstr, &interfaces);
 
     if (cbret <= 0) {
         fprintf(stderr, "%s - No supported data sources found...\n", caph->capsource_type);
@@ -606,23 +605,30 @@ void cf_handler_list_devices(kis_capture_handler_t *caph) {
     if (cbret > 0) {
         for (i = 0; i < (size_t) cbret; i++) {
             if (interfaces[i] != NULL) {
-                fprintf(stderr, "    %s", interfaces[i]);
-                free(interfaces[i]);
+                fprintf(stderr, "    %s", interfaces[i]->interface);
 
-                if (flags[i] != NULL) {
-                    fprintf(stderr, ":%s", flags[i]);
+                if (interfaces[i]->flags != NULL) {
+                    fprintf(stderr, ":%s", interfaces[i]->flags);
+                }
+
+                if (interfaces[i]->hardware != NULL) {
+                    fprintf(stderr, " (%s)", interfaces[i]->hardware);
                 }
                 
                 fprintf(stderr, "\n");
             }
 
-            if (flags[i] != NULL)
-                free(flags[i]);
+            if (interfaces[i]->interface != NULL)
+                free(interfaces[i]->interface);
+            if (interfaces[i]->flags != NULL)
+                free(interfaces[i]->flags);
+            if (interfaces[i]->hardware != NULL)
+                free(interfaces[i]->hardware);
+
+            free(interfaces[i]);
         }
 
         free(interfaces);
-        free(flags);
-
     }
 }
 
@@ -1182,30 +1188,33 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         if (caph->listdevices_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    true, "", NULL, NULL, 0);
+                    true, "", NULL, 0);
             cbret = -1;
         } else {
-            char **interfaces = NULL;
-            char **flags = NULL;
-
+            cf_params_list_interface_t **interfaces = NULL;
             msgstr[0] = 0;
             cbret = (*(caph->listdevices_cb))(caph, 
                     ntohl(cap_proto_frame->header.sequence_number),
-                    msgstr, &interfaces, &flags);
+                    msgstr, &interfaces);
 
             cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    cbret >= 0, msgstr, interfaces, flags, cbret < 0 ? 0 : cbret);
+                    cbret >= 0, msgstr, interfaces, cbret < 0 ? 0 : cbret);
 
             if (cbret > 0) {
                 for (i = 0; i < (size_t) cbret; i++) {
-                    if (interfaces[i] != NULL)
+                    if (interfaces[i] != NULL) {
+                        if (interfaces[i]->interface != NULL)
+                            free(interfaces[i]->interface);
+                        if (interfaces[i]->flags != NULL)
+                            free(interfaces[i]->flags);
+                        if (interfaces[i]->hardware != NULL)
+                            free(interfaces[i]->hardware);
+
                         free(interfaces[i]);
-                    if (flags[i] != NULL)
-                        free(flags[i]);
+                    }
                 }
 
                 free(interfaces);
-                free(flags);
             }
 
             /* Always spin down after listing */
@@ -2189,12 +2198,21 @@ int cf_send_error(kis_capture_handler_t *caph, const char *msg) {
 }
 
 int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int success,
-        const char *msg, char **interfaces, char **flags, size_t len) {
+        const char *msg, cf_params_list_interface_t **interfaces, size_t len) {
     /* How many KV pairs are we allocating?  1 for success for sure */
     size_t num_kvs = 1;
 
     size_t kv_pos = 0;
     size_t i = 0;
+
+    /* The fields we push for the interface array */
+    const char *interface_fields[] = {
+        "interface",
+        "flags",
+        "hardware"
+    };
+    size_t num_interface_fields = 3;
+    char ***interface_table = NULL;
 
     /* Actual KV pairs we encode into the packet */
     simple_cap_proto_kv_t **kv_pairs;
@@ -2233,8 +2251,53 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     }
 
     if (len != 0) {
+        /* Convert the listed interfaces into a table; we can use the same pointers to
+         * the strings and free the device list itself; this is some extra work but we
+         * only do this once 
+         *
+         * Allocate the length...
+         */
+        interface_table = (char ***) malloc(sizeof(char **) * len);
+
+        if (interface_table == NULL) {
+            fprintf(stderr, "FATAL: Unable to allocate interface table for INTERFACES kv pair\n");
+            for (i = 0; i < kv_pos; i++) {
+                free(kv_pairs[i]);
+            }
+            free(kv_pairs);
+            return -1;
+        }
+
+        for (i = 0; i < len; i++) {
+            /* Allocate the fields */
+            interface_table[i] = (char **) malloc(sizeof(char *) * num_interface_fields);
+
+            if (interface_table[i] == NULL) {
+                fprintf(stderr, "FATAL: Unable to allocate interface table fields for "
+                        "INTERFACES kv pair\n");
+                free(interface_table);
+                for (i = 0; i < kv_pos; i++) {
+                    free(kv_pairs[i]);
+                }
+                free(kv_pairs);
+                return -1;
+            }
+
+            /* Use the same pointers as the interface list object */
+            interface_table[i][0] = interfaces[i]->interface;
+            interface_table[i][1] = interfaces[i]->flags;
+            interface_table[i][2] = interfaces[i]->hardware;
+        }
+
         kv_pairs[kv_pos] =
-            encode_kv_interfacelist(interfaces, flags, len);
+            encode_kv_arraylist("INTERFACELIST", interface_fields, num_interface_fields, 
+                    interface_table, len);
+
+        /* We no longer need this since it's now encoded into the response kv */
+        for (i = 0; i < len; i++) 
+            free(interface_table[i]);
+        free(interface_table);
+
         if (kv_pairs[kv_pos] == NULL) {
             fprintf(stderr, "FATAL: Unable to allocate KV INTERFACE pair\n");
             for (i = 0; i < kv_pos; i++) {
@@ -2269,6 +2332,9 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
             num_kvs++;
 
         if (interface->channels_len != 0)
+            num_kvs++;
+
+        if (interface->hardware != NULL)
             num_kvs++;
     }
 
@@ -2330,6 +2396,19 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
             }
             kv_pos++;
         }
+
+        if (interface->hardware != NULL) {
+            kv_pairs[kv_pos] = encode_kv_hardware(interface->hardware);
+            if (kv_pairs[kv_pos] == NULL) {
+                fprintf(stderr, "FATAL: Unable to allocate KV HARDWARE pair\n");
+                for (i = 0; i < kv_pos; i++) {
+                    free(kv_pairs[i]);
+                }
+                free(kv_pairs);
+                return -1;
+            }
+            kv_pos++;
+        }
     }
 
     if (spectrum != NULL) {
@@ -2374,6 +2453,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
             num_kvs++;
 
         if (interface->capif != NULL)
+            num_kvs++;
+
+        if (interface->hardware != NULL)
             num_kvs++;
     }
 
@@ -2467,6 +2549,19 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
                     interface->channels_len);
             if (kv_pairs[kv_pos] == NULL) {
                 fprintf(stderr, "FATAL: Unable to allocate KV CHANNELS pair\n");
+                for (i = 0; i < kv_pos; i++) {
+                    free(kv_pairs[i]);
+                }
+                free(kv_pairs);
+                return -1;
+            }
+            kv_pos++;
+        }
+
+        if (interface->hardware != NULL) {
+            kv_pairs[kv_pos] = encode_kv_hardware(interface->hardware);
+            if (kv_pairs[kv_pos] == NULL) {
+                fprintf(stderr, "FATAL: Unable to allocate KV HARDWARE pair\n");
                 for (i = 0; i < kv_pos; i++) {
                     free(kv_pairs[i]);
                 }

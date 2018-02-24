@@ -853,6 +853,10 @@ void KisDatasource::proto_packet_open_resp(KVmap in_kvpairs) {
         handle_kv_capif(i->second);
     }
 
+    if ((i = in_kvpairs.find("hardware")) != in_kvpairs.end()) {
+        handle_kv_hardware(i->second);
+    }
+
     if ((i = in_kvpairs.find("dlt")) != in_kvpairs.end()) {
         handle_kv_dlt(i->second);
     } else {
@@ -1501,7 +1505,7 @@ void KisDatasource::handle_kv_capif(KisDatasourceCapKeyedObject *in_obj) {
 
 std::string KisDatasource::handle_kv_warning(KisDatasourceCapKeyedObject *in_obj) {
     // Stupid simple
-    set_int_source_warning(std::string(in_obj->object, in_obj->size));
+    set_int_source_warning(MungeToPrintable(std::string(in_obj->object, in_obj->size)));
     return (std::string(in_obj->object, in_obj->size));
 }
 
@@ -1509,6 +1513,10 @@ void KisDatasource::handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj
     // Very simple - we just copy the channel string over
     set_int_source_hopping(false);
     set_int_source_channel(std::string(in_obj->object, in_obj->size));
+}
+
+void KisDatasource::handle_kv_hardware(KisDatasourceCapKeyedObject *in_obj) {
+    set_int_source_hardware(MungeToPrintable(std::string(in_obj->object, in_obj->size)));
 }
 
 void KisDatasource::handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj) {
@@ -1642,6 +1650,10 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
             SharedInterface intf = static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
             intf->populate(interface, opts);
             intf->set_prototype(get_source_builder());
+
+            if ((obj_iter = dict.find("hardware")) != dict.end()) {
+                intf->set_hardware(obj_iter->second.as<std::string>());
+            }
 
             {
                 local_locker lock(&source_lock);
@@ -1996,6 +2008,8 @@ void KisDatasource::register_fields() {
             "Interface", &source_interface);
     RegisterField("kismet.datasource.capture_interface", TrackerString,
             "Interface", &source_cap_interface);
+    RegisterField("kismet.datasource.hardware", TrackerString,
+            "Hardware / chipset", &source_hardware);
 
     RegisterField("kismet.datasource.dlt", TrackerUInt32,
             "DLT (link type)", &source_dlt);
