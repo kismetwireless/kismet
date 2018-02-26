@@ -223,6 +223,8 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
             "first_time INT, " // Time seen
             "last_time INT, "
 
+            "devkey TEXT, " // Device key
+
             "phyname TEXT, " // Phy records
             "devmac TEXT, "
 
@@ -438,11 +440,11 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     //
     sql =
         "INSERT INTO devices "
-        "(first_time, last_time, phyname, devmac, strongest_signal, "
+        "(first_time, last_time, devkey, phyname, devmac, strongest_signal, "
         "min_lat, min_lon, max_lat, max_lon, "
         "avg_lat, avg_lon, "
         "bytes_data, type, device) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
 
@@ -582,6 +584,7 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
     std::string phystring;
     std::string macstring;
     std::string typestring;
+    std::string keystring;
 
     for (auto i : in_devices) {
         if (i == NULL)
@@ -595,45 +598,49 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
         phystring = d->get_phyname();
         macstring = d->get_macaddr().Mac2String();
         typestring = d->get_type_string();
+        keystring = d->get_key().as_string();
 
-        sqlite3_bind_int64(device_stmt, 1, d->get_first_time());
-        sqlite3_bind_int64(device_stmt, 2, d->get_last_time());
-        sqlite3_bind_text(device_stmt, 3, phystring.c_str(), phystring.length(), 0);
-        sqlite3_bind_text(device_stmt, 4, macstring.c_str(), macstring.length(), 0);
-        sqlite3_bind_int(device_stmt, 5, d->get_signal_data()->get_max_signal_dbm());
+        int spos = 1;
+
+        sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
+        sqlite3_bind_int64(device_stmt, spos++, d->get_last_time());
+        sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), keystring.length(), 0);
+        sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), phystring.length(), 0);
+        sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), macstring.length(), 0);
+        sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal_dbm());
 
         if (d->get_tracker_location() != NULL) {
-            sqlite3_bind_int64(device_stmt, 6, 
+            sqlite3_bind_int64(device_stmt, spos++, 
                     d->get_location()->get_min_loc()->get_lat() * 100000);
-            sqlite3_bind_int64(device_stmt, 7,
+            sqlite3_bind_int64(device_stmt, spos++,
                     d->get_location()->get_min_loc()->get_lon() * 100000);
-            sqlite3_bind_int64(device_stmt, 8,
+            sqlite3_bind_int64(device_stmt, spos++,
                     d->get_location()->get_max_loc()->get_lat() * 100000);
-            sqlite3_bind_int64(device_stmt, 9,
+            sqlite3_bind_int64(device_stmt, spos++,
                     d->get_location()->get_max_loc()->get_lon() * 100000);
-            sqlite3_bind_int64(device_stmt, 10,
+            sqlite3_bind_int64(device_stmt, spos++,
                     d->get_location()->get_avg_loc()->get_lat() * 100000);
-            sqlite3_bind_int64(device_stmt, 11,
+            sqlite3_bind_int64(device_stmt, spos++,
                     d->get_location()->get_avg_loc()->get_lon() * 100000);
         } else {
             // Empty location
-            sqlite3_bind_int(device_stmt, 6, 0);
-            sqlite3_bind_int(device_stmt, 7, 0);
-            sqlite3_bind_int(device_stmt, 8, 0);
-            sqlite3_bind_int(device_stmt, 9, 0);
-            sqlite3_bind_int(device_stmt, 10, 0);
-            sqlite3_bind_int(device_stmt, 11, 0);
+            sqlite3_bind_int(device_stmt, spos++, 0);
+            sqlite3_bind_int(device_stmt, spos++, 0);
+            sqlite3_bind_int(device_stmt, spos++, 0);
+            sqlite3_bind_int(device_stmt, spos++, 0);
+            sqlite3_bind_int(device_stmt, spos++, 0);
+            sqlite3_bind_int(device_stmt, spos++, 0);
         }
 
-        sqlite3_bind_int64(device_stmt, 12, d->get_datasize());
-        sqlite3_bind_text(device_stmt, 13, typestring.c_str(), typestring.length(), 0);
+        sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
+        sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), typestring.length(), 0);
 
         std::stringstream sstr;
 
         // Serialize the device
         JsonAdapter::Pack(globalreg, sstr, d, NULL);
         std::string streamstring = sstr.str();
-        sqlite3_bind_text(device_stmt, 14, streamstring.c_str(), streamstring.length(), 0);
+        sqlite3_bind_text(device_stmt, spos++, streamstring.c_str(), streamstring.length(), 0);
 
         sqlite3_step(device_stmt);
     }
