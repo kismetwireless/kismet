@@ -506,7 +506,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         }
     }
 
-    if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", false)) {
+    if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
         unsigned int lograte = 
             globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
 
