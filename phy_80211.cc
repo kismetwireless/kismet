@@ -1473,6 +1473,16 @@ void Kis_80211_Phy::HandleSSID(shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_ssid_cloaked(true);
         ssid->set_ssid_len(dot11info->ssid_len);
 
+        std::string ssidstr;
+        if (ssid->get_ssid_cloaked()) {
+            ssidstr = "a cloaked SSID";
+        } else {
+            ssidstr = "SSID '" + ssid->get_ssid() + "'";
+        }
+
+        _MSG("802.11 Wi-Fi device " + basedev->get_macaddr().Mac2String() + 
+                " advertising " + ssidstr, MSGFLAG_INFO);
+
         if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
                 ssid->get_ssid() == "AirJack" ) {
 
