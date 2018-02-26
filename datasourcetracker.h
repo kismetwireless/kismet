@@ -426,6 +426,9 @@ protected:
     // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(SharedDatasource in_source);
 
+    // Log the datasources
+    virtual void databaselog_write_datasources();
+
     GlobalRegistry *globalreg;
 
     shared_ptr<Datasourcetracker> datasourcetracker;
@@ -481,6 +484,10 @@ protected:
 
     // Our pcap http interface
     shared_ptr<Datasourcetracker_Httpd_Pcap> httpd_pcap;
+
+    // Datasource logging
+    int database_log_timer;
+    bool database_log_enabled, database_logging;
 
 };
 

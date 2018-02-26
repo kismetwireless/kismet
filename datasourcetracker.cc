@@ -35,6 +35,7 @@
 #include "streamtracker.h"
 #include "kis_httpd_registry.h"
 #include "endian_magic.h"
+#include "kis_databaselogfile.h"
 
 DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg, 
         std::string in_definition, SharedTrackerElement in_protovec) {
@@ -394,17 +395,69 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_datasources", 
             "/js/kismet.ui.datasources.js");
+
+    database_log_enabled = false;
+
+    if (globalreg->kismet_config->FetchOptBoolean("kis_log_datasources", true)) {
+        unsigned int lograte =
+            globalreg->kismet_config->FetchOptUInt("kis_log_datasource_rate", 30);
+
+        _MSG("Saving datasources to the Kismet database log every " + UIntToString(lograte) + 
+                " seconds.", MSGFLAG_INFO);
+
+        database_log_enabled = true;
+        database_logging = false;
+
+        database_log_timer =
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
+                    [this](int) -> int {
+
+                        local_locker l(&dst_lock);
+
+                        if (database_logging) {
+                            _MSG("Attempting to log datasources, but datasources are still "
+                                    "being saved from the last logging attempt.  It's possible "
+                                    "your system is extremely over capacity; try increasing the "
+                                    "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
+                                    MSGFLAG_ERROR);
+                            return 1;
+                        }
+
+                        database_logging = true;
+
+                        std::thread t([this] {
+                            databaselog_write_datasources();
+
+                            {
+                                local_locker l(&dst_lock);
+                                database_logging = false;
+                            }
+
+                        });
+
+                        t.detach();
+
+                        return 1;
+                    });
+
+    } else {
+        database_log_timer = -1;
+    }
+
 }
 
 Datasourcetracker::~Datasourcetracker() {
     local_eol_locker lock(&dst_lock);
 
-    // fprintf(stderr, "debug - ~datasourcetracker\n");
-
     globalreg->RemoveGlobal("DATA_SOURCE_TRACKER");
 
     if (completion_cleanup_id >= 0)
         timetracker->RemoveTimer(completion_cleanup_id);
+
+    if (database_log_timer >= 0) {
+        timetracker->RemoveTimer(database_log_timer);
+        databaselog_write_datasources();
+    }
 
     for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
         i->second->cancel();
@@ -416,6 +469,20 @@ Datasourcetracker::~Datasourcetracker() {
     }
 
     datasource_vec.reset();
+}
+
+void Datasourcetracker::databaselog_write_datasources() {
+    if (!database_log_enabled)
+        return;
+
+    std::shared_ptr<KisDatabaseLogfile> dbf =
+        Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+    
+    if (dbf == NULL)
+        return;
+
+    // Fire off a database log
+    dbf->log_datasources(datasource_vec);
 }
 
 std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
@@ -789,6 +856,15 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
 
     // Figure out channel hopping
     calculate_source_hopping(in_source);
+
+    if (database_log_enabled) {
+        std::shared_ptr<KisDatabaseLogfile> dbf =
+            Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+
+        if (dbf != NULL) {
+            dbf->log_datasource(in_source);
+        }
+    }
 
     TrackerElementVector vec(datasource_vec);
     vec.push_back(in_source);
