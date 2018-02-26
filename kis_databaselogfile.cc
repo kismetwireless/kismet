@@ -93,13 +93,16 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     set_int_log_path(in_path);
     set_int_log_open(true);
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-
 	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
 
-	packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
-            CHAINPOS_LOGGING, -100);
+    if (globalreg->kismet_config->FetchOptBoolean("kis_log_packets", true)) {
+        _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
+        std::shared_ptr<Packetchain> packetchain =
+            Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+
+        packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
+                CHAINPOS_LOGGING, -100);
+    }
 
     db_enabled = true;
 
