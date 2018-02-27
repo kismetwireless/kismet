@@ -28,37 +28,7 @@
  * The new log format synergizes with the REST UI to provide dynamic access to 
  * historical data.
  *
- * The log file is divided into several core record groups:
- *
- * DEVICES      A raw dump of the device record, as JSON.  This is the same data as what
- *              is exported via the REST UI.  Devices are snapshotted at regular intervals.
- *              The entire known tracked device object in Kismet will be serialized to
- *              the database.
- *
- * PACKET       Location-tagged data record which includes raw pcap data in the original
- *              DLT format of the datasource, suitable for conversion to pcap files
- *
- * DATASOURCES  List of data sources for logging packet origins
- *
- * DATA         Arbitrary non-pcap data in JSON format, and similar instant records tied
- *              to an event or device
- *
- * MESSAGES     Kismet message text (traditionally shown on the server console and the
- *              'Messages' panel of the UI)
- *
- * SNAPSHOT     Snapshots of various state types, such as datasource performance, 
- *              channel usage, and other non-packet/non-device time-based records
- *
- *
- * Storage notes
- *
- * - Normalized floating point fields (such as GPS coordinates) are stored as integers
- *   instead of doubles.  The original value can be obtained by dividing by 100000.
- *
- * - Devices are stored by phy name and mac address.  The 'kismet.device.base.key' field
- *   is only meaningful during an active Kismet session.  Anything which refers to a device
- *
- * - Most log entries of third-party code will be entered as snapshots
+ * Docs in docs/dev/log_kismet.md
  *
  */
 
