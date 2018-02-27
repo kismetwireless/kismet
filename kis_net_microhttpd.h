@@ -213,9 +213,12 @@ public:
     // Called as a connection is being set up; responsible for populating
     //
     // Returns:
-    //  MHD_NO  - Streambuffer should not automatically close out the buffer
+    //  MHD_NO  - Streambuffer should not automatically close out the buffer; this
+    //            is used when spawning an independent thread for managing the stream,
+    //            for example with pcap streaming
     //  MHD_YES - Streambuffer should automatically close the buffer when the
-    //            streamresponse is complete
+    //            streamresponse is complete, typically used when streaming a finite
+    //            amount of data through a memchunk buffer like a json serialization
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
