@@ -150,6 +150,9 @@ $(CAPTURE_LINUX_BLUETOOTH):	$(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_OSX_COREWLAN): $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_osx_corewlan_wifi && $(MAKE))
 
+$(CAPTURE_SDR_RTL433): FORCE
+	(cd capture_sdr_rtl433 && $(MAKE))
+
 $(CAPTURE_HACKRF_SWEEP):	$(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
 
@@ -343,6 +346,7 @@ clean:
 	@(cd capture_linux_bluetooth; make clean)
 	@(cd capture_linux_wifi; make clean)
 	@(cd capture_osx_corewlan_wifi; make clean)
+	@(cd capture_linux_sdr_rtl433; make clean)
 	@(cd msgpack-1.4.1; make clean)
 
 distclean:

@@ -575,7 +575,7 @@ fi
 CC="$oCC"
 AC_SUBST(CXXLIBS)
 
-# Does the compiler handle std::snprintf properly?
+# Does the compiler handle various std::foo namespaces properly?
 oCC="$CC"
 CC="$CXX"
 
@@ -587,6 +587,15 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     std::snprintf(foo, 10, "x");
     return 0;
 ]])],[],[AC_DEFINE(MISSING_STD_SNPRINTF, 1, we need to shim std snprintf)])
+
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <string>
+    #include <cstdio>
+    #include <cmath>
+]], [[
+    std::isnan(1.0f);
+    return 0;
+]])],[],[AC_DEFINE(MISSING_STD_ISNAN, 1, we need to shim isnan)])
 
 CC="$oCC"
 
@@ -1390,7 +1399,7 @@ AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile])
 AC_OUTPUT
 
 echo
