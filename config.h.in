@@ -409,14 +409,3 @@
 #define _(x) x
 #endif
 
-/* C++-specific */
-#ifdef __cplusplus
-
-#ifdef MISSING_STD_SNPRINTF
-namespace std {
-    using ::snprintf;
-};
-#endif
-
-#endif
-
