@@ -343,11 +343,11 @@ clean:
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
-	@(cd capture_linux_bluetooth; make clean)
-	@(cd capture_linux_wifi; make clean)
-	@(cd capture_osx_corewlan_wifi; make clean)
-	@(cd capture_linux_sdr_rtl433; make clean)
-	@(cd msgpack-1.4.1; make clean)
+	@(cd capture_linux_bluetooth && make clean)
+	@(cd capture_linux_wifi && make clean)
+	@(cd capture_osx_corewlan_wifi && make clean)
+	@(cd capture_sdr_rtl433 && make clean)
+	@(cd msgpack-1.4.1 && make clean)
 
 distclean:
 	@-$(MAKE) clean
