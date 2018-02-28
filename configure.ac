@@ -6,9 +6,6 @@ AC_SUBST(VERSION)
 
 BUNDLE_MSGPACK=./msgpack-1.4.1
 
-#m4_include([m4/acx_pthread.m4])
-#m4_include([m4/ax_cxx_compile_stdcxx.m4])
-#m4_include([m4/ax_cxx_compile_stdcxx_11.m4])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
@@ -487,7 +484,7 @@ AC_CHECK_LIB([z], [deflate],
 LIBS="$LIBS -lz"
 
 # We need threads
-ACX_PTHREAD
+AX_PTHREAD
 KSLIBS="$KSLIBS $PTHREAD_LIBS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
 
