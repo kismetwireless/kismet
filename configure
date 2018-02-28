@@ -7749,8 +7749,11 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
-KSLIBS="$KSLIBS $PTHREAD_LIBS"
+LIBS="$PTHREAD_LIBS $LIBS"
+CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
+
+echo $LIBS
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_mutex_timedlock" >&5
 $as_echo_n "checking for pthread_mutex_timedlock... " >&6; }
