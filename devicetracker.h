@@ -989,7 +989,7 @@ public:
     bool get_error() { return true; }
 
     virtual bool MatchDevice(Devicetracker *devicetracker,
-            std::shared_ptr<kis_tracked_device_base> device) { };
+            std::shared_ptr<kis_tracked_device_base> device) { return false; };
 
     virtual void Finalize(Devicetracker *devicetracker) { };
 };
