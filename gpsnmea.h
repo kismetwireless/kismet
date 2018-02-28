@@ -49,7 +49,7 @@ public:
     virtual void BufferAvailable(size_t in_amt);
 
 protected:
-    shared_ptr<Pollable> nmeaclient;
+    std::shared_ptr<Pollable> nmeaclient;
     BufferHandler<RingbufV2> *nmeahandler;
 
     // Have we ever seen data from the device?

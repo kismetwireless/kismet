@@ -812,8 +812,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                        "driver attack");
         }
 
-        map<int, vector<int> > tag_cache_map;
-        map<int, vector<int> >::iterator tcitr;
+        std::map<int, std::vector<int> > tag_cache_map;
+        std::map<int, std::vector<int> >::iterator tcitr;
 
         if (fc->subtype == packet_sub_beacon || 
             fc->subtype == packet_sub_probe_req || 
@@ -1264,7 +1264,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             if (packinfo->ssid_len <= DOT11_PROTO_SSID_LEN) {
-                if (ie_tag->tag_data().find_first_not_of('\0') == string::npos) {
+                if (ie_tag->tag_data().find_first_not_of('\0') == std::string::npos) {
                     packinfo->ssid_blank = true;
                 } else {
                     packinfo->ssid = MungeToPrintable(ie_tag->tag_data().data());
@@ -1301,7 +1301,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 seen_extendedrates = true;
             }
 
-            if (ie_tag->tag_data().find("\x75\xEB\x49") != string::npos) {
+            if (ie_tag->tag_data().find("\x75\xEB\x49") != std::string::npos) {
                 _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
                         "MSF-style poisoned rate field in beacon for network " +
                         packinfo->bssid_mac.Mac2String() + ", exploit attempt "
@@ -1803,7 +1803,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         vendor->vendor_oui_type() == 2 &&
                         ie_tag->tag_data().length() > 24) {
 
-                    string al = "IEEE80211 Access Point BSSID " + 
+                    std::string al = "IEEE80211 Access Point BSSID " + 
                         packinfo->bssid_mac.Mac2String() + " sent association "
                         "response with an invalid WMM length; this may "
                         "indicate attempts to exploit driver vulnerabilities "
@@ -1832,7 +1832,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                 // Overflow of responses
                 if (wmmtspec_responses > 4) {
-                    string al = "IEEE80211 Access Point BSSID " + 
+                    std::string al = "IEEE80211 Access Point BSSID " + 
                         packinfo->bssid_mac.Mac2String() + " sent association "
                         "response with more than 4 WMM-TSPEC responses; this "
                         "may be attempt to exploit embedded Atheros drivers using "
@@ -2343,9 +2343,9 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
     return 0;
 }
 
-shared_ptr<dot11_tracked_eapol> 
+std::shared_ptr<dot11_tracked_eapol> 
     Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack,
-            shared_ptr<dot11_tracked_device> dot11dev) {
+            std::shared_ptr<dot11_tracked_device> dot11dev) {
 
     if (in_pack->error) {
         return NULL;
@@ -2430,12 +2430,12 @@ shared_ptr<dot11_tracked_eapol>
         if (rsnkey == NULL)
             return NULL;
 
-        shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
+        std::shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
         eapol->set_eapol_time(ts_to_double(in_pack->ts));
         eapol->set_eapol_dir(packinfo->distrib);
 
-        shared_ptr<kis_tracked_packet> tp = eapol->get_eapol_packet();
+        std::shared_ptr<kis_tracked_packet> tp = eapol->get_eapol_packet();
 
         tp->set_ts_sec(in_pack->ts.tv_sec);
         tp->set_ts_usec(in_pack->ts.tv_usec);
@@ -2455,7 +2455,7 @@ shared_ptr<dot11_tracked_eapol>
             } else {
                 // Look for attempts to set an empty nonce; only on group keys
                 if (!rsnkey->key_info_pairwise_key() &&
-                        rsnkey->wpa_key_nonce().find_first_not_of(std::string("\x00", 1)) == string::npos) {
+                        rsnkey->wpa_key_nonce().find_first_not_of(std::string("\x00", 1)) == std::string::npos) {
                     alertracker->RaiseAlert(alert_nonce_zero_ref, in_pack,
                             packinfo->bssid_mac, packinfo->source_mac, 
                             packinfo->dest_mac, packinfo->other_mac,

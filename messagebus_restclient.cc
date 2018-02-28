@@ -38,7 +38,7 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
         globalreg->entrytracker->RegisterField("kismet.messagebus.timestamp",
                 TrackerUInt64, "message update timestamp");
 
-    shared_ptr<tracked_message> msg_builder(new tracked_message(globalreg, 0));
+    std::shared_ptr<tracked_message> msg_builder(new tracked_message(globalreg, 0));
 
     message_entry_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.message",
@@ -57,13 +57,13 @@ RestMessageClient::~RestMessageClient() {
     message_vec.clear();
 }
 
-void RestMessageClient::ProcessMessage(string in_msg, int in_flags) {
+void RestMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     // Don't propagate LOCAL messages
     if (in_flags & MSGFLAG_LOCAL)
         return;
 
-    shared_ptr<tracked_message> msg = 
-        static_pointer_cast<tracked_message>(globalreg->entrytracker->GetTrackedInstance(message_entry_id));
+    std::shared_ptr<tracked_message> msg = 
+        std::static_pointer_cast<tracked_message>(globalreg->entrytracker->GetTrackedInstance(message_entry_id));
 
     msg->set_from_message(in_msg, in_flags);
 
@@ -85,7 +85,7 @@ bool RestMessageClient::Httpd_VerifyPath(const char *path, const char *method) {
     }
 
     // Split URL and process
-    vector<string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = StrTokenize(path, "/");
     if (tokenurl.size() < 3)
         return false;
 
@@ -128,7 +128,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
         return;
 
     // Split URL and process
-    vector<string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = StrTokenize(path, "/");
     if (tokenurl.size() < 3)
         return;
 
@@ -172,7 +172,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
             wrapper = msgvec;
         }
 
-        for (vector<shared_ptr<tracked_message> >::iterator i = message_vec.begin();
+        for (std::vector<std::shared_ptr<tracked_message> >::iterator i = message_vec.begin();
                 i != message_vec.end(); ++i) {
             if (since_time < (*i)->get_timestamp()) {
                 msgvec->add_vector(*i);

@@ -62,7 +62,7 @@ public:
 
 	virtual ~MessageClient() { }
 
-    virtual void ProcessMessage(string in_msg, int in_flags) = 0;
+    virtual void ProcessMessage(std::string in_msg, int in_flags) = 0;
 protected:
     GlobalRegistry *globalreg;
 	void *auxptr;
@@ -73,13 +73,13 @@ public:
     StdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
 	virtual ~StdoutMessageClient() { }
-    void ProcessMessage(string in_msg, int in_flags);
+    void ProcessMessage(std::string in_msg, int in_flags);
 };
 
 class MessageBus : public LifetimeGlobal {
 public:
-    static shared_ptr<MessageBus> create_messagebus(GlobalRegistry *in_globalreg) {
-        shared_ptr<MessageBus> mon(new MessageBus(in_globalreg));
+    static std::shared_ptr<MessageBus> create_messagebus(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<MessageBus> mon(new MessageBus(in_globalreg));
         in_globalreg->messagebus = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("MESSAGEBUS", mon);
@@ -93,7 +93,7 @@ public:
     virtual ~MessageBus();
 
     // Inject a message into the bus
-    void InjectMessage(string in_msg, int in_flags);
+    void InjectMessage(std::string in_msg, int in_flags);
 
     // Link a meessage display system
     void RegisterClient(MessageClient *in_subcriber, int in_mask);
@@ -109,7 +109,7 @@ protected:
         int mask;
     } busclient;
 
-    vector<MessageBus::busclient *> subscribers;
+    std::vector<MessageBus::busclient *> subscribers;
 };
 
 

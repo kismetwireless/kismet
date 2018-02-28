@@ -42,27 +42,27 @@
 #include <memory>
 
 class StructuredData;
-typedef shared_ptr<StructuredData> SharedStructured;
+typedef std::shared_ptr<StructuredData> SharedStructured;
 
 class StructuredData {
 public:
-    typedef vector<SharedStructured> structured_vec;
+    typedef std::vector<SharedStructured> structured_vec;
     typedef structured_vec::iterator structured_vec_iterator;
 
-    typedef map<double, SharedStructured> structured_num_map;
+    typedef std::map<double, SharedStructured> structured_num_map;
     typedef structured_num_map::iterator structured_num_map_iterator;
 
-    typedef map<string, SharedStructured> structured_str_map;
+    typedef std::map<std::string, SharedStructured> structured_str_map;
     typedef structured_str_map::iterator structured_str_map_iterator;
 
-    typedef vector<double> number_vec;
+    typedef std::vector<double> number_vec;
     typedef number_vec::iterator number_vec_iterator;
 
-    typedef vector<string> string_vec;
+    typedef std::vector<std::string> string_vec;
     typedef string_vec::iterator string_vec_iterator;
 
     StructuredData() { };
-    StructuredData(string data __attribute__((unused))) { };
+    StructuredData(std::string data __attribute__((unused))) { };
 
     virtual ~StructuredData() { };
 
@@ -75,23 +75,23 @@ public:
     virtual bool isBinary() = 0;
 
     virtual double getNumber() = 0;
-    virtual string getString() = 0;
+    virtual std::string getString() = 0;
     virtual bool getBool() = 0;
-    virtual string getBinaryStr() = 0;
+    virtual std::string getBinaryStr() = 0;
 
     // Get vectors of numbers and strings
     virtual number_vec getNumberVec() = 0;
     virtual string_vec getStringVec() = 0;
 
     // Get keyed values as...
-    virtual bool hasKey(string key) = 0;
-    virtual SharedStructured getStructuredByKey(string key) = 0;
-    virtual double getKeyAsNumber(string key) = 0;
-    virtual double getKeyAsNumber(string key, double def) = 0;
-    virtual string getKeyAsString(string key, string def) = 0;
-    virtual string getKeyAsString(string key) = 0;
-    virtual bool getKeyAsBool(string key) = 0;
-    virtual bool getKeyAsBool(string key, bool def) = 0;
+    virtual bool hasKey(std::string key) = 0;
+    virtual SharedStructured getStructuredByKey(std::string key) = 0;
+    virtual double getKeyAsNumber(std::string key) = 0;
+    virtual double getKeyAsNumber(std::string key, double def) = 0;
+    virtual std::string getKeyAsString(std::string key, std::string def) = 0;
+    virtual std::string getKeyAsString(std::string key) = 0;
+    virtual bool getKeyAsBool(std::string key) = 0;
+    virtual bool getKeyAsBool(std::string key, bool def) = 0;
 
     // Get structured sub-arrays
     virtual structured_vec getStructuredArray() = 0;

@@ -51,7 +51,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
 
     bluetooth_device_entry_id =
         entrytracker->RegisterField("bluetooth.device", 
-                shared_ptr<bluetooth_tracked_device>(new bluetooth_tracked_device(globalreg, 0)),
+                std::shared_ptr<bluetooth_tracked_device>(new bluetooth_tracked_device(globalreg, 0)),
                 "Bluetooth device");
 
     packetchain->RegisterHandler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
@@ -62,7 +62,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
 
     // Register js module for UI
-    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_bluetooth", 
             "/js/kismet.ui.bluetooth.js");
@@ -115,7 +115,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     if (ci == NULL)
         return 0;
 
-    shared_ptr<kis_tracked_device_base> basedev =
+    std::shared_ptr<kis_tracked_device_base> basedev =
         btphy->devicetracker->UpdateCommonDevice(ci, ci->source, btphy, in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -124,11 +124,11 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     if (basedev == NULL)
         return 0;
 
-    shared_ptr<bluetooth_tracked_device> btdev =
-        static_pointer_cast<bluetooth_tracked_device>(basedev->get_map_value(btphy->bluetooth_device_entry_id));
+    std::shared_ptr<bluetooth_tracked_device> btdev =
+        std::static_pointer_cast<bluetooth_tracked_device>(basedev->get_map_value(btphy->bluetooth_device_entry_id));
 
     if (btdev == NULL) {
-        stringstream ss;
+        std::stringstream ss;
         ss << "Detected new Bluetooth device " << btpi->address.Mac2String();
         if (btpi->name.length() > 0) 
             ss << " (" << btpi->name << ")";
@@ -184,7 +184,7 @@ void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
 
     // Adopt it into a dot11
     if (btdevi != in_storage->end()) {
-        shared_ptr<bluetooth_tracked_device> btdev(new bluetooth_tracked_device(globalreg, bluetooth_device_entry_id, btdevi->second));
+        std::shared_ptr<bluetooth_tracked_device> btdev(new bluetooth_tracked_device(globalreg, bluetooth_device_entry_id, btdevi->second));
         in_device->add_map(btdev);
     }
 }

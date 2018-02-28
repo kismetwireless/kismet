@@ -27,10 +27,10 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
     if (strcmp(method, "GET") == 0) {
         // /devices/by-key/[key]/pcap/[key].pcapng
         
-        shared_ptr<Devicetracker> devicetracker =
-            static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
+        std::shared_ptr<Devicetracker> devicetracker =
+            std::static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
 
-        vector<string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = StrTokenize(path, "/");
         if (tokenurl.size() < 6)
             return false;
 
@@ -50,7 +50,7 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
         if (devicetracker->FetchDevice(key) == NULL)
             return false;
 
-        string keyurl = tokenurl[3] + ".pcapng";
+        std::string keyurl = tokenurl[3] + ".pcapng";
 
         if (tokenurl[5] != keyurl)
             return false;
@@ -72,16 +72,16 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
-    shared_ptr<Packetchain> packetchain = 
-        static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+    std::shared_ptr<Packetchain> packetchain = 
+        std::static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
     int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
     // /devices/by-key/[key]/pcap/[key].pcapng
 
-    shared_ptr<Devicetracker> devicetracker =
-        static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
+    std::shared_ptr<Devicetracker> devicetracker =
+        std::static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
 
-    vector<string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = StrTokenize(url, "/");
     if (tokenurl.size() < 6)
         return MHD_YES;
 
@@ -98,7 +98,7 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (key.get_error())
         return MHD_YES;
 
-    shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
+    std::shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
     if (dev == NULL)
         return MHD_YES;
 
@@ -129,8 +129,8 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 return false;
             }, NULL);
 
-    shared_ptr<StreamTracker> streamtracker =
-        static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
+    std::shared_ptr<StreamTracker> streamtracker =
+        std::static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
 
     saux->set_aux(psrb, 
         [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {

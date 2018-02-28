@@ -134,7 +134,7 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     }
 }
 
-void DST_DatasourceProbe::probe_sources(function<void (SharedDatasourceBuilder)> in_cb) {
+void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb) {
     // Lock while we generate all of the probes; 
     local_locker lock(&probe_lock);
 
@@ -149,7 +149,7 @@ void DST_DatasourceProbe::probe_sources(function<void (SharedDatasourceBuilder)>
 
     TrackerElementVector vec(proto_vec);
 
-    vector<SharedDatasourceBuilder> remote_builders;
+    std::vector<SharedDatasourceBuilder> remote_builders;
 
     for (auto i = vec.begin(); i != vec.end(); ++i) {
         SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
@@ -221,7 +221,7 @@ void DST_DatasourceList::cancel() {
         list_cb(listed_sources);
 }
 
-void DST_DatasourceList::complete_list(vector<SharedInterface> in_list, unsigned int in_transaction) {
+void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, unsigned int in_transaction) {
     local_locker lock(&list_lock);
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them
@@ -244,7 +244,7 @@ void DST_DatasourceList::complete_list(vector<SharedInterface> in_list, unsigned
     }
 }
 
-void DST_DatasourceList::list_sources(function<void (vector<SharedInterface>)> in_cb) {
+void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
     local_locker lock(&list_lock);
 
     cancel_timer = 
@@ -258,7 +258,7 @@ void DST_DatasourceList::list_sources(function<void (vector<SharedInterface>)> i
 
     TrackerElementVector vec(proto_vec);
 
-    vector<SharedDatasourceBuilder> remote_builders;
+    std::vector<SharedDatasourceBuilder> remote_builders;
 
     for (auto i = vec.begin(); i != vec.end(); ++i) {
         SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
@@ -274,7 +274,7 @@ void DST_DatasourceList::list_sources(function<void (vector<SharedInterface>)> i
         ipc_list_map.emplace(transaction, pds);
 
         pds->list_interfaces(transaction, 
-            [this] (unsigned int transaction, vector<SharedInterface> interfaces) {
+            [this] (unsigned int transaction, std::vector<SharedInterface> interfaces) {
                 complete_list(interfaces, transaction);
             });
     }
@@ -700,7 +700,7 @@ void Datasourcetracker::open_datasource(std::string in_source,
     size_t cpos = in_source.find(":");
 
     // Parse basic options and interface, extract type
-    if (cpos == string::npos) {
+    if (cpos == std::string::npos) {
         interface = in_source;
         type = "auto";
     } else {
@@ -870,7 +870,7 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
     vec.push_back(in_source);
 }
 
-void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)> in_cb) {
+void Datasourcetracker::list_interfaces(std::function<void (std::vector<SharedInterface>)> in_cb) {
     local_locker lock(&dst_lock);
 
     // Create a DSTProber to handle the probing
@@ -881,7 +881,7 @@ void Datasourcetracker::list_interfaces(function<void (vector<SharedInterface>)>
     listing_map.emplace(listid, dst_list);
 
     // Initiate the probe
-    dst_list->list_sources([this, listid, in_cb](vector<SharedInterface> interfaces) {
+    dst_list->list_sources([this, listid, in_cb](std::vector<SharedInterface> interfaces) {
         // Lock on completion
         local_locker lock(&dst_lock);
 
@@ -1107,7 +1107,7 @@ protected:
     Datasourcetracker *dst;
 
     SharedDatasource initial_ds;
-    vector<SharedDatasource> target_sources;
+    std::vector<SharedDatasource> target_sources;
 
     std::shared_ptr<datasourcetracker_defaults> defaults;
 
@@ -1314,7 +1314,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
         // Initiate the open
         list_interfaces(
-                [this, cl](vector<SharedInterface> iflist) {
+                [this, cl](std::vector<SharedInterface> iflist) {
                     cl->unlock(iflist);
 
                 });

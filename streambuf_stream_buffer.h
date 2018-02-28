@@ -33,19 +33,19 @@
 class Streambuf_Stream_Buffer : public streaming_agent {
 public:
     Streambuf_Stream_Buffer(GlobalRegistry *in_globalreg,
-            shared_ptr<BufferHandlerGeneric> in_handler,
+            std::shared_ptr<BufferHandlerGeneric> in_handler,
             bool in_blocking);
 
     virtual ~Streambuf_Stream_Buffer();
 
-    virtual void stop_stream(string in_reason);
+    virtual void stop_stream(std::string in_reason);
 
-    virtual ostream *get_ostream();
+    virtual std::ostream *get_ostream();
 
 protected:
     GlobalRegistry *globalreg;
 
-    shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<BufferHandlerGeneric> handler;
 
     BufferHandlerOStreambuf streambuf;
 };

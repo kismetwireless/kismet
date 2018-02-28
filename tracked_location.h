@@ -89,9 +89,9 @@ public:
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
 
-    shared_ptr<kis_tracked_location_triplet> get_min_loc() { return min_loc; }
-    shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
-    shared_ptr<kis_tracked_location_triplet> get_avg_loc() { return avg_loc; }
+    std::shared_ptr<kis_tracked_location_triplet> get_min_loc() { return min_loc; }
+    std::shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
+    std::shared_ptr<kis_tracked_location_triplet> get_avg_loc() { return avg_loc; }
 
     __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
     __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
@@ -107,7 +107,7 @@ protected:
     // into locations
     virtual void reserve_fields(SharedTrackerElement e);
 
-    shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
+    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
     int min_loc_id, max_loc_id, avg_loc_id;
 
     SharedTrackerElement avg_lat, avg_lon, avg_alt, num_avg, num_alt_avg;
@@ -154,7 +154,7 @@ public:
 
     virtual SharedTrackerElement clone_type();
 
-    void add_sample(shared_ptr<kis_historic_location> in_sample);
+    void add_sample(std::shared_ptr<kis_historic_location> in_sample);
 
     __ProxyPrivSplit(last_sample_ts, uint64_t, time_t, time_t, last_sample_ts);
 

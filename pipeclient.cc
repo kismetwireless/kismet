@@ -31,7 +31,7 @@
 #include "pollabletracker.h"
 
 PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
-        shared_ptr<BufferHandlerGeneric> in_rbhandler) {
+        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) {
     globalreg = in_globalreg;
     handler = in_rbhandler;
 
@@ -46,8 +46,8 @@ PipeClient::~PipeClient() {
 
     ClosePipes();
 
-    shared_ptr<PollableTracker> pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+    std::shared_ptr<PollableTracker> pollabletracker =
+        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 
     handler.reset();
 }
@@ -108,7 +108,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker lock(&pipe_lock);
 
-    stringstream msg;
+    std::stringstream msg;
 
     uint8_t *buf;
     size_t len;

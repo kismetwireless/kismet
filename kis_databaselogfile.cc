@@ -450,7 +450,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;
@@ -471,7 +471,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;
@@ -490,7 +490,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;
@@ -508,7 +508,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for datasources in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;
@@ -526,7 +526,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for alerts in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;
@@ -543,7 +543,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for messages in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;
@@ -560,7 +560,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for snapshots in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
         return -1;

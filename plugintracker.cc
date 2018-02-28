@@ -104,7 +104,7 @@ int Plugintracker::ScanPlugins() {
     // Bail if plugins disabled
     if (plugins_active == 0) return 0;
 
-    string plugin_path = string(LIB_LOC) + "/kismet/";
+    std::string plugin_path = std::string(LIB_LOC) + "/kismet/";
     DIR *plugdir;
 
     if ((plugdir = opendir(plugin_path.c_str())) == NULL) {
@@ -115,7 +115,7 @@ int Plugintracker::ScanPlugins() {
         closedir(plugdir);
     }
 
-    string config_path;
+    std::string config_path;
     if ((config_path = globalreg->kismet_config->FetchOpt("configdir")) == "") {
         _MSG(
             "Failed to find a 'configdir' path in the Kismet config file, "
@@ -141,7 +141,7 @@ int Plugintracker::ScanPlugins() {
 }
 
 // Scans a directory for sub-directories
-int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
+int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
     struct dirent *plugfile;
 
     while ((plugfile = readdir(in_dir)) != NULL) {
@@ -150,7 +150,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
         struct stat sstat;
 
         // Is it a directory?
-        if (stat(string(in_path + "/" + plugfile->d_name).c_str(), &sstat) < 0)
+        if (stat(std::string(in_path + "/" + plugfile->d_name).c_str(), &sstat) < 0)
             continue;
 
         if (!S_ISDIR(sstat.st_mode))
@@ -159,7 +159,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
         // Load the plugin manifest
         ConfigFile cf(globalreg);
 
-        string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
+        std::string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
 
         cf.ParseConfig(manifest.c_str());
 
@@ -168,7 +168,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
         preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/");
         preg->set_plugin_dirname(plugfile->d_name);
 
-        string s;
+        std::string s;
 
         if ((s = cf.FetchOpt("name")) == "") {
             _MSG("Missing 'name=' in plugin manifest '" + manifest + "', "
@@ -206,7 +206,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 
 
         if ((s = cf.FetchOpt("object")) != "") {
-            if (s.find("/") != string::npos) {
+            if (s.find("/") != std::string::npos) {
                 _MSG("Found path in 'object=' in plugin manifest '" + manifest +
                         "', object= should define the file name only", MSGFLAG_ERROR);
                 continue;
@@ -216,7 +216,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
         }
 
         if ((s = cf.FetchOpt("js")) != "") {
-            if (s.find(",") == string::npos) {
+            if (s.find(",") == std::string::npos) {
                 _MSG("Found an invalid 'js=' in plugin manifest '" + manifest +
                         "', js= should define module,path", MSGFLAG_ERROR);
                 continue;
@@ -247,7 +247,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 }
 
 // Catch plugin failures so we can alert the user
-string global_plugin_load;
+std::string global_plugin_load;
 void PluginServerSignalHandler(int sig __attribute__((unused))) {
     fprintf(stderr,
             "\n\n"
@@ -275,7 +275,7 @@ int Plugintracker::ActivatePlugins() {
 
     local_locker lock(&plugin_lock);
 
-    shared_ptr<Kis_Httpd_Registry> httpdregistry =
+    std::shared_ptr<Kis_Httpd_Registry> httpdregistry =
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
 
     // Set the new signal handler, remember the old one; if something goes
@@ -360,18 +360,18 @@ int Plugintracker::ActivatePlugins() {
 
         // If we have a JS module, load it
         if (x->get_plugin_js() != "") {
-            string js = x->get_plugin_js();
+            std::string js = x->get_plugin_js();
             size_t cpos = js.find(",");
 
-            if (cpos == string::npos || cpos >= js.length() - 2) {
+            if (cpos == std::string::npos || cpos >= js.length() - 2) {
                 _MSG("Plugin '" + x->get_plugin_path() + "' could not parse "
                         "JS plugin module, expected modulename,path",
                         MSGFLAG_ERROR);
                 continue;
             }
 
-            string module = js.substr(0, cpos);
-            string path = js.substr(cpos + 1, js.length());
+            std::string module = js.substr(0, cpos);
+            std::string path = js.substr(cpos + 1, js.length());
 
             if (!httpdregistry->register_js_module(module, path)) {
                 _MSG("Plugin '" + x->get_plugin_path() + "' could not "
@@ -401,7 +401,7 @@ int Plugintracker::FinalizePlugins() {
     // Look only at plugins that have a dl file, and attempt to run the finalize
     // function in each
     for (auto x : plugin_registry_vec) {
-        SharedPluginData pd = dynamic_pointer_cast<PluginRegistrationData>(x);
+        SharedPluginData pd = std::dynamic_pointer_cast<PluginRegistrationData>(x);
 
         void *dlfile;
 
@@ -441,7 +441,7 @@ bool Plugintracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/plugins/all_plugins")
         return true;
@@ -454,7 +454,7 @@ void Plugintracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/plugins/all_plugins") {
         local_locker locker(&plugin_lock);

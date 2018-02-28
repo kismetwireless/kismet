@@ -111,8 +111,8 @@ bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
     return (x.spkey == y.spkey && x.dkey == y.dkey);
 }
 
-ostream& operator<<(ostream& os, const TrackedDeviceKey& k) {
-    ios::fmtflags fflags;
+std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k) {
+    std::ios::fmtflags fflags;
 
     fflags = os.flags();
     os << std::uppercase << std::setfill('0') << std::setw(2) <<
@@ -259,9 +259,9 @@ void TrackerElement::set_type(TrackerType in_type) {
     } else if (type == TrackerKey) {
         dataunion.key_value = new TrackedDeviceKey();
     } else if (type == TrackerString) {
-        dataunion.string_value = new string();
+        dataunion.string_value = new std::string();
     } else if (type == TrackerByteArray) {
-        dataunion.bytearray_value = new shared_ptr<uint8_t>();
+        dataunion.bytearray_value = new std::shared_ptr<uint8_t>();
         bytearray_value_len = 0;
     }
 }
@@ -299,7 +299,7 @@ TrackerElement& TrackerElement::operator++(int) {
             dataunion.double_value++;
             break;
         default:
-            throw std::runtime_error(string("can't increment " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't increment " + type_to_string(type)));
     }
 
     return *this;
@@ -338,7 +338,7 @@ TrackerElement& TrackerElement::operator--(int) {
             dataunion.double_value--;
             break;
         default:
-            throw std::runtime_error(string("can't decrement " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't decrement " + type_to_string(type)));
     }
 
     return *this;
@@ -353,7 +353,7 @@ TrackerElement& TrackerElement::operator+=(const float& v) {
             dataunion.double_value+= v;
             break;
         default:
-            throw std::runtime_error(string("can't += float to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't += float to " + type_to_string(type)));
     }
 
     return *this;
@@ -368,7 +368,7 @@ TrackerElement& TrackerElement::operator+=(const double& v) {
             dataunion.double_value+= v;
             break;
         default:
-            throw std::runtime_error(string("can't += float to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't += float to " + type_to_string(type)));
     }
 
     return *this;
@@ -407,7 +407,7 @@ TrackerElement& TrackerElement::operator+=(const int& v) {
             dataunion.double_value+= v;
             break;
         default:
-            throw std::runtime_error(string("can't += to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't += to " + type_to_string(type)));
     }
 
     return *this;
@@ -446,7 +446,7 @@ TrackerElement& TrackerElement::operator+=(const unsigned int& v) {
             dataunion.double_value+= v;
             break;
         default:
-            throw std::runtime_error(string("can't += to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't += to " + type_to_string(type)));
     }
 
     return *this;
@@ -497,7 +497,7 @@ TrackerElement& TrackerElement::operator-=(const int& v) {
             dataunion.double_value-= v;
             break;
         default:
-            throw std::runtime_error(string("can't -= to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't -= to " + type_to_string(type)));
     }
 
     return *this;
@@ -536,7 +536,7 @@ TrackerElement& TrackerElement::operator-=(const unsigned int& v) {
             dataunion.double_value-= v;
             break;
         default:
-            throw std::runtime_error(string("can't -= to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't -= to " + type_to_string(type)));
     }
 
     return *this;
@@ -551,7 +551,7 @@ TrackerElement& TrackerElement::operator-=(const float& v) {
             dataunion.double_value-= v;
             break;
         default:
-            throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't -= float to " + type_to_string(type)));
     }
 
     return *this;
@@ -566,7 +566,7 @@ TrackerElement& TrackerElement::operator-=(const double& v) {
             dataunion.double_value-= v;
             break;
         default:
-            throw std::runtime_error(string("can't -= float to " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't -= float to " + type_to_string(type)));
     }
 
     return *this;
@@ -736,7 +736,7 @@ TrackerElement::map_iterator TrackerElement::begin() {
         case TrackerIntMap:
             return dataunion.subintmap_value->begin();
         default:
-            throw std::runtime_error(string("can't address " + 
+            throw std::runtime_error(std::string("can't address " + 
                         type_to_string(type) + " as a map"));
     }
 }
@@ -748,7 +748,7 @@ TrackerElement::map_iterator TrackerElement::end() {
         case TrackerIntMap:
             return dataunion.subintmap_value->end();
         default:
-            throw std::runtime_error(string("can't address " + 
+            throw std::runtime_error(std::string("can't address " + 
                         type_to_string(type) + " as a map"));
     }
 }
@@ -760,7 +760,7 @@ TrackerElement::map_iterator TrackerElement::find(int k) {
         case TrackerIntMap:
             return dataunion.subintmap_value->find(k);
         default:
-            throw std::runtime_error(string("can't address " + 
+            throw std::runtime_error(std::string("can't address " + 
                         type_to_string(type) + " as a map"));
     }
 }
@@ -988,7 +988,7 @@ size_t TrackerElement::size_doublemap() {
     return dataunion.subdoublemap_value->size();
 }
 
-string TrackerElement::type_to_string(TrackerType t) {
+std::string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
         case TrackerString:
             return "string";
@@ -1039,7 +1039,7 @@ string TrackerElement::type_to_string(TrackerType t) {
     }
 }
 
-string TrackerElement::type_to_typestring(TrackerType t) {
+std::string TrackerElement::type_to_typestring(TrackerType t) {
     switch (t) {
         case TrackerString:
             return "TrackerString";
@@ -1472,7 +1472,7 @@ void TrackerElement::set_bytearray(uint8_t *d, size_t len) {
     bytearray_value_len = len;
 }
 
-void TrackerElement::set_bytearray(shared_ptr<uint8_t> d, size_t len) {
+void TrackerElement::set_bytearray(std::shared_ptr<uint8_t> d, size_t len) {
     except_type_mismatch(TrackerByteArray);
 
     *(dataunion.bytearray_value) = d;
@@ -1518,7 +1518,7 @@ size_t TrackerElement::size() {
         case TrackerDoubleMap:
             return dataunion.subdoublemap_value->size();
         default:
-            throw std::runtime_error(string("can't get size of a " + type_to_string(type)));
+            throw std::runtime_error(std::string("can't get size of a " + type_to_string(type)));
     }
 }
 
@@ -1847,14 +1847,14 @@ tracker_component::~tracker_component() {
 }
 
 SharedTrackerElement tracker_component::clone_type() {
-    return shared_ptr<TrackerElement>(new tracker_component(globalreg, get_id()));
+    return std::shared_ptr<TrackerElement>(new tracker_component(globalreg, get_id()));
 }
 
-string tracker_component::get_name() {
+std::string tracker_component::get_name() {
     return globalreg->entrytracker->GetFieldName(get_id());
 }
 
-string tracker_component::get_name(int in_id) {
+std::string tracker_component::get_name(int in_id) {
     return globalreg->entrytracker->GetFieldName(in_id);
 }
 
@@ -1935,7 +1935,7 @@ SharedTrackerElement tracker_component::get_child_path(std::string in_path) {
 }
 
 SharedTrackerElement 
-    tracker_component::get_child_path(std::vector<string> in_path) {
+    tracker_component::get_child_path(std::vector<std::string> in_path) {
     if (in_path.size() < 1)
         return NULL;
 
@@ -2346,7 +2346,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
                 TrackerElementStringMap cn(next_elem);
 
                 for (auto i = cn.begin(); i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
@@ -2360,7 +2360,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
                 TrackerElementMacMap cn(next_elem);
 
                 for (auto i = cn.begin(); i != cn.end(); ++i) {
-                    vector<SharedTrackerElement> subret =
+                    std::vector<SharedTrackerElement> subret =
                         GetTrackerElementMultiPath(sub_path, i->second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());

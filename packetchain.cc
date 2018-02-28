@@ -94,7 +94,7 @@ Packetchain::~Packetchain() {
         globalreg->RemoveGlobal("PACKETCHAIN");
         globalreg->packetchain = NULL;
 
-        vector<Packetchain::pc_link *>::iterator i;
+        std::vector<Packetchain::pc_link *>::iterator i;
 
         for (i = genesis_chain.begin(); i != genesis_chain.end(); ++i) {
             delete(*i);
@@ -135,7 +135,7 @@ Packetchain::~Packetchain() {
 
 }
 
-int Packetchain::RegisterPacketComponent(string in_component) {
+int Packetchain::RegisterPacketComponent(std::string in_component) {
     local_locker lock(&packetchain_mutex);
 
 	if (next_componentid >= MAX_PACKET_COMPONENTS) {
@@ -161,7 +161,7 @@ int Packetchain::RegisterPacketComponent(string in_component) {
 int Packetchain::RemovePacketComponent(int in_id) {
     local_locker lock(&packetchain_mutex);
 
-    string str;
+    std::string str;
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
         return -1;
@@ -174,7 +174,7 @@ int Packetchain::RemovePacketComponent(int in_id) {
     return 1;
 }
 
-string Packetchain::FetchPacketComponentName(int in_id) {
+std::string Packetchain::FetchPacketComponentName(int in_id) {
     local_locker lock(&packetchain_mutex);
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
@@ -316,7 +316,7 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
         if (offt > 30) {
             last_packet_queue_user_warning = time(0);
 
-            shared_ptr<Alertracker> alertracker =
+            std::shared_ptr<Alertracker> alertracker =
                 Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
             alertracker->RaiseOneShot("PACKETQUEUE", 
                     "The packet queue has a backlog of " + IntToString(packet_queue.size()) + 
@@ -332,7 +332,7 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
         if (offt > 30) {
             last_packet_drop_user_warning = time(0);
 
-            shared_ptr<Alertracker> alertracker =
+            std::shared_ptr<Alertracker> alertracker =
                 Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
             alertracker->RaiseOneShot("PACKETLOST", 
                     "Kismet has started to drop packets; the packet queue has a backlog "
@@ -369,7 +369,7 @@ void Packetchain::DestroyPacket(kis_packet *in_pack) {
 }
 
 int Packetchain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
-        function<int (kis_packet *)> in_l_cb, 
+        std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
     pc_link *link = NULL;
@@ -452,7 +452,7 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     return RegisterIntHandler(in_cb, in_aux, NULL, in_chain, in_prio);
 }
 
-int Packetchain::RegisterHandler(function<int (kis_packet *)> in_cb, int in_chain,
+int Packetchain::RegisterHandler(std::function<int (kis_packet *)> in_cb, int in_chain,
         int in_prio) {
     return RegisterIntHandler(NULL, NULL, in_cb, in_chain, in_prio);
 }

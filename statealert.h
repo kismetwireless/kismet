@@ -70,7 +70,7 @@ public:
 	virtual int ProcessPacket(kis_packet *in_pack);
 
 protected:
-	map<mac_addr, bss_rec *> state_map;
+	std::map<mac_addr, bss_rec *> state_map;
 
 	int alert_bss_ts_ref;
 

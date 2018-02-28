@@ -97,7 +97,7 @@ public:
         return (int64_t) -9999;
     }
 
-    static string name() {
+    static std::string name() {
         return "rtl433_empty";
     }
 };
@@ -123,10 +123,10 @@ public:
         reserve_fields(e);
     }
 
-    __Proxy(model, string, string, string, model);
+    __Proxy(model, std::string, std::string, std::string, model);
     __Proxy(rtlid, uint64_t, uint64_t, uint64_t, rtlid);
-    __Proxy(rtlchannel, string, string, string, rtlchannel);
-    __Proxy(battery, string, string, string, battery);
+    __Proxy(rtlchannel, std::string, std::string, std::string, rtlchannel);
+    __Proxy(battery, std::string, std::string, std::string, battery);
 
 protected:
     virtual void register_fields() {
@@ -199,7 +199,7 @@ protected:
             RegisterField("rtl433.device.temperature", TrackerDouble,
                     "Temperature in degrees Celsius", &temperature);
 
-        shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rrd_builder(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
+        std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rrd_builder(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
         temperature_rrd_id =
             RegisterComplexField("rtl433.device.temperature_rrd", rrd_builder,
                     "Temperature RRD");
@@ -238,14 +238,14 @@ protected:
     SharedTrackerElement temperature;
 
     int temperature_rrd_id;
-    shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > temperature_rrd;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > temperature_rrd;
 
     // Basic humidity in percentage, from multiple sensors
     int humidity_id;
     SharedTrackerElement humidity;
 
     int humidity_rrd_id;
-    shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > humidity_rrd;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > humidity_rrd;
 };
 
 // Weather station type data
@@ -285,7 +285,7 @@ protected:
             RegisterField("rtl433.device.wind_dir", TrackerInt32,
                     "Wind direction in degrees", &wind_dir);
 
-        shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rrd_builder(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
+        std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rrd_builder(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
         wind_dir_rrd_id =
             RegisterComplexField("rtl433.device.wind_dir_rrd", rrd_builder,
                     "Wind direction RRD");
@@ -354,28 +354,28 @@ protected:
     SharedTrackerElement wind_dir;
 
     int wind_dir_rrd_id;
-    shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_dir_rrd;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_dir_rrd;
 
     // Wind speed in kph (might have to convert for some sensors)
     int wind_speed_id;
     SharedTrackerElement wind_speed;
 
     int wind_speed_rrd_id;
-    shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_speed_rrd;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_speed_rrd;
 
     // Wind gust in kph (might have to convert for some sensors)
     int wind_gust_id;
     SharedTrackerElement wind_gust;
 
     int wind_gust_rrd_id;
-    shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_gust_rrd;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_gust_rrd;
 
     // Rain (in whatever the sensor reports it in)
     int rain_id;
     SharedTrackerElement rain;
 
     int rain_rrd_id;
-    shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rain_rrd;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rain_rrd;
 };
 
 class Kis_RTL433_Phy : public Kis_Phy_Handler {
@@ -398,8 +398,8 @@ public:
     static int PacketHandler(CHAINCALL_PARMS);
 
 protected:
-    shared_ptr<Packetchain> packetchain;
-    shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<EntryTracker> entrytracker;
 
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id;

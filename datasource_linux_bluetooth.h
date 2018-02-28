@@ -26,7 +26,7 @@
 #include "kis_datasource.h"
 
 class KisDatasourceLinuxBluetooth;
-typedef shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBluetooth;
+typedef std::shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBluetooth;
 
 class KisDatasourceLinuxBluetooth : public KisDatasource {
 public:
@@ -36,7 +36,7 @@ public:
     virtual ~KisDatasourceLinuxBluetooth() { };
 
 protected:
-    virtual void proto_dispatch_packet(string in_type, KVmap in_kvmap);
+    virtual void proto_dispatch_packet(std::string in_type, KVmap in_kvmap);
    
     void proto_packet_linuxbtdevice(KVmap in_kvpairs);
 

@@ -44,7 +44,7 @@ public:
     virtual ~SerialClientV2();
 
     // Open a serial port @ a given baud rate
-    int OpenDevice(string in_device, unsigned int in_baud);
+    int OpenDevice(std::string in_device, unsigned int in_baud);
     void Close();
 
     // Pollable interface
@@ -59,7 +59,7 @@ protected:
 
     int device_fd;
 
-    string device;
+    std::string device;
     unsigned int baud;
 };
 

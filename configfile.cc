@@ -286,7 +286,7 @@ std::vector<std::string> ConfigFile::FetchOptVec(std::string in_key) {
     local_locker lock(&config_locker);
 
     // Empty vec to return
-    vector<std::string> eretvec;
+    std::vector<std::string> eretvec;
 
     auto cmitr = config_map.find(StrLower(in_key));
     // No such key
@@ -319,7 +319,7 @@ int ConfigFile::FetchOptInt(std::string in_key, int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 
-    string v = StrLower(FetchOpt(in_key));
+    std::string v = StrLower(FetchOpt(in_key));
     int r;
 
     try {
@@ -335,7 +335,7 @@ unsigned int ConfigFile::FetchOptUInt(std::string in_key, unsigned int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 
-    string v = FetchOpt(in_key);
+    std::string v = FetchOpt(in_key);
     unsigned int r;
 
     try {
@@ -376,7 +376,7 @@ void ConfigFile::SetOptDirty(std::string in_key, int in_dirty) {
 void ConfigFile::SetOpt(std::string in_key, std::string in_val, int in_dirty) {
     local_locker lock(&config_locker);
 
-    vector<config_entity> v;
+    std::vector<config_entity> v;
     config_entity e(in_val, "::dynamic::");
     v.push_back(e);
     config_map[StrLower(in_key)] = v;
@@ -503,7 +503,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
                 logtemplate.insert(nl, globalreg->homepath);
             }
         } else if (op == 'p') {
-            string pfx = globalreg->log_prefix;
+            std::string pfx = globalreg->log_prefix;
 
             if (pfx == "") 
                 pfx = FetchOptDfl("log_prefix", "./");
@@ -641,7 +641,7 @@ uint32_t ConfigFile::FetchFileChecksum() {
 void ConfigFile::CalculateChecksum() {
     local_locker lock(&config_locker);
 
-    string cks;
+    std::string cks;
 
     for (auto x = config_map.begin(); x != config_map.end(); ++x) {
         cks += x->first;

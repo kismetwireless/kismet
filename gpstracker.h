@@ -29,10 +29,10 @@
 #include "tracked_location.h"
 
 class KisGpsBuilder;
-typedef shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
 
 class KisGps;
-typedef shared_ptr<KisGps> SharedGps;
+typedef std::shared_ptr<KisGps> SharedGps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
 class kis_gps_packinfo : public packet_component {
@@ -64,8 +64,8 @@ public:
         }
     }
 
-    shared_ptr<kis_tracked_location_triplet> as_tracked_triplet(GlobalRegistry *globalreg) {
-        shared_ptr<kis_tracked_location_triplet> 
+    std::shared_ptr<kis_tracked_location_triplet> as_tracked_triplet(GlobalRegistry *globalreg) {
+        std::shared_ptr<kis_tracked_location_triplet> 
             r(new kis_tracked_location_triplet(globalreg, 0));
 
         r->set_lat(lat);
@@ -99,15 +99,15 @@ public:
     uuid gpsuuid;
 
     // Name of GPS that created us
-    string gpsname;
+    std::string gpsname;
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
 class GpsTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
-    static shared_ptr<GpsTracker> create_gpsmanager(GlobalRegistry *in_globalreg) {
-        shared_ptr<GpsTracker> mon(new GpsTracker(in_globalreg));
+    static std::shared_ptr<GpsTracker> create_gpsmanager(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<GpsTracker> mon(new GpsTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("GPSTRACKER", mon);
         return mon;
@@ -130,7 +130,7 @@ public:
     void register_gps_builder(SharedGpsBuilder in_builder);
 
     // Create a GPS from a definition string
-    shared_ptr<KisGps> create_gps(string in_definition);
+    std::shared_ptr<KisGps> create_gps(std::string in_definition);
 
     // Remove a GPS by UUID
     bool remove_gps(uuid in_uuid);

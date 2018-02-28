@@ -28,7 +28,7 @@ void uav_manuf_match::set_uav_manuf_ssid_regex(std::string in_regexstr) {
 #ifdef HAVE_LIBPCRE
     const char *compile_error, *study_error;
     int erroroffset;
-    ostringstream errordesc;
+    std::ostringstream errordesc;
 
     re = pcre_compile(in_regexstr.c_str(), 0, &compile_error, &erroroffset, NULL);
 
@@ -109,7 +109,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
             this, CHAINPOS_TRACKER, 65535);
 
     // Register js module for UI
-    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_uav", "/js/kismet.ui.uav.js");
 
@@ -134,7 +134,7 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
     auto devi = in_storage->find(uav_device_id);
 
     if (devi != in_storage->end()) {
-        shared_ptr<uav_tracked_device> uavdev(new uav_tracked_device(globalreg, uav_device_id, devi->second));
+        std::shared_ptr<uav_tracked_device> uavdev(new uav_tracked_device(globalreg, uav_device_id, devi->second));
         in_device->add_map(uavdev);
     }
 }
@@ -183,8 +183,8 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     // Mavic V01.04.0200
                     //
                     // Look for subcommand of 0, with 0 content
-                    if (dot11info->droneid->raw_record_data().substr(0, 32).find_first_not_of(std::string("\x00", 1)) == string::npos) {
-                        shared_ptr<uav_tracked_device> uavdev = 
+                    if (dot11info->droneid->raw_record_data().substr(0, 32).find_first_not_of(std::string("\x00", 1)) == std::string::npos) {
+                        std::shared_ptr<uav_tracked_device> uavdev = 
                             std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
                         if (uavdev == NULL) {
@@ -201,7 +201,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
                 auto flightinfo = dot11info->droneid->flight_reg_record();
                 if (flightinfo != NULL) {
-                    shared_ptr<uav_tracked_device> uavdev = 
+                    std::shared_ptr<uav_tracked_device> uavdev = 
                         std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
                     if (uavdev == NULL) {
@@ -232,14 +232,14 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
                     // Set the home location
                     if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
-                        shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
+                        std::shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
                         homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
                     }
                 } 
                
                 auto flightpurpose = dot11info->droneid->flight_purpose_record();
                 if (flightpurpose != NULL) {
-                    shared_ptr<uav_tracked_device> uavdev = 
+                    std::shared_ptr<uav_tracked_device> uavdev = 
                         std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
                     if (uavdev == NULL) {
@@ -269,7 +269,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     std::static_pointer_cast<uav_manuf_match>(mi);
 
                 if (m->match_record(dot11info->bssid_mac, dot11info->ssid)) {
-                    shared_ptr<uav_tracked_device> uavdev = 
+                    std::shared_ptr<uav_tracked_device> uavdev = 
                         std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
 
                     if (uavdev == NULL) {

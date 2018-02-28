@@ -46,7 +46,7 @@ SharedTrackerElement StorageLoader::storage_to_tracker(std::shared_ptr<EntryTrac
     std::string objtypestr;
     TrackerType objtype;
 
-    shared_ptr<StructuredData> objdata;
+    std::shared_ptr<StructuredData> objdata;
 
     SharedTrackerElement elem;
     int elemid;

@@ -44,7 +44,7 @@ public:
     virtual ~TcpClientV2();
 
     // Connect to a host, returns 0 if connection initiated and negative if fail
-    int Connect(string in_host, unsigned int in_port);
+    int Connect(std::string in_host, unsigned int in_port);
     void Disconnect();
 
     bool FetchConnected();
@@ -64,7 +64,7 @@ protected:
     struct sockaddr_in client_sock, local_sock;
     struct hostent *client_host;
 
-    string host;
+    std::string host;
     unsigned int port;
 };
 

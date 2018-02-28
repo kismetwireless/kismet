@@ -37,11 +37,11 @@ public:
 	~Kis_DLT_Handler();
 
 	virtual int FetchDLT() { return dlt; }
-	virtual string FetchDLTName() { return dlt_name; }
+	virtual std::string FetchDLTName() { return dlt_name; }
 
 protected:
 	GlobalRegistry *globalreg;
-	string dlt_name;
+	std::string dlt_name;
 	int dlt;
 	int chainid;
 	int pack_comp_linkframe, pack_comp_decap, pack_comp_datasrc,

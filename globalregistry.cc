@@ -161,7 +161,7 @@ void GlobalRegistry::RegisterUsageFunc(usage_func in_cli) {
 }
 
 void GlobalRegistry::RemoveUsageFunc(usage_func in_cli) {
-    for (vector<usage_func>::iterator i = usage_func_vec.begin();
+    for (std::vector<usage_func>::iterator i = usage_func_vec.begin();
             i != usage_func_vec.end(); ++i) {
         if ((*i) == in_cli) {
             usage_func_vec.erase(i);

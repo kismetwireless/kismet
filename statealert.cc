@@ -54,7 +54,7 @@ BSSTSStateAlert::BSSTSStateAlert(GlobalRegistry *in_globalreg) :
 }
 
 BSSTSStateAlert::~BSSTSStateAlert() {
-	for (map<mac_addr, bss_rec *>::iterator x = state_map.begin(); 
+	for (std::map<mac_addr, bss_rec *>::iterator x = state_map.begin(); 
 		 x != state_map.end(); ++x) {
 		delete x->second;
 	}
@@ -75,7 +75,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 		packinfo->distrib == distrib_adhoc)
 		return 0;
 
-	map<mac_addr, bss_rec *>::iterator smi =
+	std::map<mac_addr, bss_rec *>::iterator smi =
 		state_map.find(packinfo->bssid_mac);
 
 	if (smi == state_map.end()) {
@@ -104,7 +104,7 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
 		(long int) br->bss_timestamp - (long int) packinfo->timestamp > 5000000) {
 		if (br->incident > 0) {
 			// Raise an alert
-			ostringstream oss;
+			std::ostringstream oss;
 
 			oss << "Network BSSID " << packinfo->bssid_mac.Mac2String() << 
 				" BSS timestamp fluctuating, which may indicate a spoofed "

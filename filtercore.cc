@@ -53,21 +53,21 @@ FilterCore::FilterCore(GlobalRegistry *in_globalreg) {
 #define _filter_type_any		3
 #define _filter_type_pcre		4
 
-int FilterCore::AddFilterLine(string filter_str) {
+int FilterCore::AddFilterLine(std::string filter_str) {
 	_kis_lex_rec ltop;
 	int type = _filter_stacker_none;
 	int mtype = _filter_type_none;
 	int negate = -1;
-	string errstr;
+    std::string errstr;
 
 	// Local copies to add so we can error out cleanly...  This is a cheap
 	// hack but it lets us avoid a bunch of if's
-	map<int, vector<mac_addr> > local_maps;
-	map<int, int> local_inverts;
+    std::map<int, std::vector<mac_addr> > local_maps;
+    std::map<int, int> local_inverts;
 #ifdef HAVE_LIBPCRE
-	vector<pcre_filter *> local_pcre;
+    std::vector<pcre_filter *> local_pcre;
 #endif
-	vector<mac_addr> macvec;
+    std::vector<mac_addr> macvec;
 
 	local_inverts[_filter_type_bssid] = -1;
 	local_inverts[_filter_type_source] = -1;
@@ -75,7 +75,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 	local_inverts[_filter_type_any] = -1;
 	local_inverts[_filter_type_pcre] = -1;
 
-	list<_kis_lex_rec> precs = LexString(filter_str, errstr);
+    std::list<_kis_lex_rec> precs = LexString(filter_str, errstr);
 
 	if (precs.size() == 0) {
 		_MSG(errstr, MSGFLAG_ERROR);
@@ -111,7 +111,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 				return -1;
 			}
 
-			string uqstr = StrLower(ltop.data);
+            std::string uqstr = StrLower(ltop.data);
 
 			if (uqstr == "bssid") {
 				type = _filter_stacker_mac;
@@ -346,7 +346,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 			pcre_filter *filt = new pcre_filter;
 			const char *error, *study_err;
 			int erroffset;
-			ostringstream osstr;
+            std::ostringstream osstr;
 
 			filt->re = 
 				pcre_compile(ltop.data.c_str(), 0, &error, &erroffset, NULL);
@@ -742,7 +742,7 @@ int FilterCore::FetchPCREHits() {
 #endif
 }
 
-int FilterCore::RunPcreFilter(string in_text) {
+int FilterCore::RunPcreFilter(std::string in_text) {
 #ifndef HAVE_LIBPCRE
 	return 0;
 #else

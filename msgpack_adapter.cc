@@ -73,12 +73,12 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
 
     mac_addr mac;
 
-    shared_ptr<uint8_t> bytes;
+    std::shared_ptr<uint8_t> bytes;
     size_t sz;
 
     switch (v->get_type()) {
         case TrackerString:
-            o.pack(GetTrackerValue<string>(v));
+            o.pack(GetTrackerValue<std::string>(v));
             break;
         case TrackerInt8:
             o.pack(GetTrackerValue<int8_t>(v));
@@ -138,7 +138,7 @@ void MsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
                         nmi->second->rename.length() != 0) {
                     o.pack(nmi->second->rename);
                 } else {
-                    string tname;
+                    std::string tname;
                     if (map_iter->second != NULL &&
                             (tname = map_iter->second->get_local_name()) != "")
                         o.pack(tname);
@@ -223,7 +223,7 @@ void MsgpackAdapter::AsStringVector(msgpack::object &obj,
         throw msgpack::type_error();
 
     for (unsigned int i = 0; i < obj.via.array.size; i++)
-        vec.push_back(obj.via.array.ptr[i].as<string>());
+        vec.push_back(obj.via.array.ptr[i].as<std::string>());
 }
 
 void StorageMsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerElement v,
@@ -257,7 +257,7 @@ void StorageMsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerEleme
 
     mac_addr mac;
 
-    shared_ptr<uint8_t> bytes;
+    std::shared_ptr<uint8_t> bytes;
     size_t sz;
 
     // Every stored packed record is 3 records
@@ -277,7 +277,7 @@ void StorageMsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerEleme
 
     switch (v->get_type()) {
         case TrackerString:
-            o.pack(GetTrackerValue<string>(v));
+            o.pack(GetTrackerValue<std::string>(v));
             break;
         case TrackerInt8:
             o.pack(GetTrackerValue<int8_t>(v));
@@ -340,7 +340,7 @@ void StorageMsgpackAdapter::Packer(GlobalRegistry *globalreg, SharedTrackerEleme
                         nmi->second->rename.length() != 0) {
                     o.pack(nmi->second->rename);
                 } else {
-                    string tname;
+                    std::string tname;
                     if (map_iter->second != NULL &&
                             (tname = map_iter->second->get_local_name()) != "")
                         o.pack(tname);

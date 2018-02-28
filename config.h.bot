@@ -34,10 +34,10 @@
 /* C++-specific */
 #ifdef __cplusplus
 
-/* Namespace (on non-obj-c files) */
-#ifndef __IN_OBJC_FILE__
-using namespace std;
-#define __STL_USE_NAMESPACES
+#ifdef MISSING_STD_SNPRINTF
+namespace std {
+    using ::snprintf;
+};
 #endif
 
 #endif

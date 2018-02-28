@@ -95,7 +95,7 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
         seenby_map->add_intmap(source->get_source_key(), seenby);
 
     } else {
-        seenby = static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);
+        seenby = std::static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);
 
         seenby->set_last_time(tv_sec);
         seenby->inc_num_packets();
@@ -418,7 +418,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "'make forceconfigs' from the Kismet source directory.",
                 MSGFLAG_ERROR);
 
-        shared_ptr<Alertracker> alertracker =
+        std::shared_ptr<Alertracker> alertracker =
             Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
         alertracker->RaiseOneShot("CONFIGERROR", 
                 "Kismet has recently added persistent device storage; it looks like "
@@ -663,7 +663,7 @@ Devicetracker::~Devicetracker() {
 }
 
 Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
-	map<int, Kis_Phy_Handler *>::iterator i = phy_handler_map.find(in_phy);
+	std::map<int, Kis_Phy_Handler *>::iterator i = phy_handler_map.find(in_phy);
 
 	if (i == phy_handler_map.end())
 		return NULL;
@@ -1525,7 +1525,7 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
         _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
-    } catch (const exception& e) {
+    } catch (const std::exception& e) {
         _MSG("Unable to load a stored device (" + macaddr.Mac2String() + "); the stored "
                 "device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
@@ -1558,7 +1558,7 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database query for stored devicename in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
 
@@ -1579,7 +1579,7 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
             break;
         } else {
             _MSG("Devicetracker encountered an error loading stored device username: " + 
-                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                    std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
     }
@@ -1611,7 +1611,7 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database query for stored devicetag in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
 
@@ -1643,7 +1643,7 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
             break;
         } else {
             _MSG("Devicetracker encountered an error loading stored device username: " + 
-                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                    std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
     }
@@ -1682,7 +1682,7 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database insert for device name in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
  
@@ -1740,7 +1740,7 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database insert for device tags in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
  
@@ -1925,7 +1925,7 @@ int DevicetrackerStateStore::load_devices() {
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database query for stored devices in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return -1;
     }
 
@@ -1970,7 +1970,7 @@ int DevicetrackerStateStore::load_devices() {
             break;
         } else {
             _MSG("Encountered an error loading stored devices: " + 
-                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                    std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
     }
@@ -2006,7 +2006,7 @@ DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database query for stored device in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return NULL;
     }
 
@@ -2029,7 +2029,7 @@ DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
             break;
         } else {
             _MSG("Encountered an error loading stored device: " + 
-                    string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                    std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
     }
@@ -2063,7 +2063,7 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
 
     if (r != SQLITE_OK) {
         _MSG("Devicetracker unable to prepare database insert for devices in " +
-                ds_dbfile + ":" + string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return -1;
     }
 

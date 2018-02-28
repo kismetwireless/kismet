@@ -55,7 +55,7 @@ public:
 
     // Combine a vector for a higher-level record (seconds to minutes, minutes to 
     // hours, and so on).
-    static int64_t combine_vector(shared_ptr<TrackerElement> e) {
+    static int64_t combine_vector(std::shared_ptr<TrackerElement> e) {
         TrackerElementVector v(e);
 
         int64_t avg = 0;
@@ -70,7 +70,7 @@ public:
         return (int64_t) 0;
     }
 
-    static string name() {
+    static std::string name() {
         return "default";
     }
 };
@@ -86,7 +86,7 @@ public:
     }
 
     kis_tracked_rrd(GlobalRegistry *in_globalreg, int in_id, 
-            shared_ptr<TrackerElement> e) :
+            std::shared_ptr<TrackerElement> e) :
         tracker_component(in_globalreg, in_id) {
 
         register_fields();
@@ -95,8 +95,8 @@ public:
 
     }
 
-    virtual shared_ptr<TrackerElement> clone_type() {
-        return shared_ptr<TrackerElement>(new kis_tracked_rrd<Aggregator>(globalreg, 
+    virtual std::shared_ptr<TrackerElement> clone_type() {
+        return std::shared_ptr<TrackerElement>(new kis_tracked_rrd<Aggregator>(globalreg, 
                     get_id()));
     }
 
@@ -134,7 +134,7 @@ public:
             return;
         }
         
-        shared_ptr<TrackerElement> e;
+        std::shared_ptr<TrackerElement> e;
 
         // If we haven't seen data in a day, we reset everything because
         // none of it is valid.  This is the simplest case.
@@ -363,7 +363,7 @@ protected:
 
     } 
 
-    virtual void reserve_fields(shared_ptr<TrackerElement> e) {
+    virtual void reserve_fields(std::shared_ptr<TrackerElement> e) {
         tracker_component::reserve_fields(e);
 
         // Build slots for all the times
@@ -616,7 +616,7 @@ public:
         return (int64_t) 0;
     }
 
-    static string name() {
+    static std::string name() {
         return "peak_signal";
     }
 };
@@ -665,7 +665,7 @@ public:
         return (int64_t) 0;
     }
 
-    static string name() {
+    static std::string name() {
         return "extreme";
     }
 };

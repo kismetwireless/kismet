@@ -36,7 +36,7 @@ int ipdata_packethook(CHAINCALL_PARMS) {
 Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
-	globalreg->InsertGlobal("DISSECTOR_IPDATA", shared_ptr<Kis_Dissector_IPdata>(this));
+	globalreg->InsertGlobal("DISSECTOR_IPDATA", std::shared_ptr<Kis_Dissector_IPdata>(this));
 
 	globalreg->packetchain->RegisterHandler(&ipdata_packethook, this,
 		 									CHAINPOS_DATADISSECT, -100);
@@ -72,8 +72,8 @@ Kis_Dissector_IPdata::~Kis_Dissector_IPdata() {
 // Cache offsets we've looked at in the map so we don't follow them repeatedly
 // Bytelen indicates how many bytes to advance the stream; negative indicates
 // error
-string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft, 
-					  unsigned int startofft, map<unsigned int, string> *name_cache,
+std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft, 
+					  unsigned int startofft, std::map<unsigned int, std::string> *name_cache,
 					  int *bytelen) {
 	// If we're fed a bad offset just throw it back
 	if (startofft > chunk->length) {
@@ -81,7 +81,7 @@ string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 		return "";
 	}
 
-	string dns_str;
+	std::string dns_str;
 
 	unsigned int offt = startofft;
 
@@ -110,7 +110,7 @@ string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 			ptr &= MDNS_PTR_ADDRESS;
 
 			// Get the cached value if we can, instead of following the pointer
-			map<unsigned int, string>::iterator nci = name_cache->find(ptr);
+			std::map<unsigned int, std::string>::iterator nci = name_cache->find(ptr);
 			if (nci != name_cache->end()) {
 				if (dns_str == "")
 					dns_str = nci->second;
@@ -123,7 +123,7 @@ string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 				(*name_cache)[offt - baseofft] = "";
 
 				int junklen;
-				string ret = MDNS_Fetchname(chunk, baseofft, baseofft + ptr, name_cache, 
+				std::string ret = MDNS_Fetchname(chunk, baseofft, baseofft + ptr, name_cache, 
 											&junklen);
 
 				(*name_cache)[offt - baseofft] = ret;
@@ -149,7 +149,7 @@ string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 			return dns_str;
 		}
 
-		string ret = 
+		std::string ret = 
 			MungeToPrintable((char *) &(chunk->data[offt]), len, 0);
 
 		offt += len;
@@ -400,7 +400,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 
 			// Extract the DHCP tags the same way we get IEEE 80211 tags,
 			// infact we can re-use the code
-			map<int, vector<int> > dhcp_tag_map;
+			std::map<int, std::vector<int> > dhcp_tag_map;
 
 			// This is convenient since it won't return anything that is outside
 			// the context of the packet, we can feed it the length w/out checking 
@@ -446,7 +446,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 
 			// Extract the DHCP tags the same way we get IEEE 80211 tags,
 			// infact we can re-use the code
-			map<int, vector<int> > dhcp_tag_map;
+			std::map<int, std::vector<int> > dhcp_tag_map;
 
 			// This is convenient since it won't return anything that is outside
 			// the context of the packet, we can feed it the length w/out checking 
@@ -464,7 +464,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 					dhcp_tag_map[12].size() != 0) {
 
 					datainfo->discover_host = 
-						string((char *) &(chunk->data[dhcp_tag_map[12][0] + 1]), 
+						std::string((char *) &(chunk->data[dhcp_tag_map[12][0] + 1]), 
 							   chunk->data[dhcp_tag_map[12][0]]);
 
 					datainfo->discover_host = MungeToPrintable(datainfo->discover_host);
@@ -474,7 +474,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 					dhcp_tag_map[60].size() != 0) {
 
 					datainfo->discover_vendor = 
-						string((char *) &(chunk->data[dhcp_tag_map[60][0] + 1]), 
+						std::string((char *) &(chunk->data[dhcp_tag_map[60][0] + 1]), 
 							   chunk->data[dhcp_tag_map[60][0]]);
 					datainfo->discover_vendor = 
 						MungeToPrintable(datainfo->discover_vendor);
@@ -488,10 +488,10 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 					if (clmac != common->source) {
                         _COMMONALERT(alert_dhcpclient_ref, in_pack, common, 
                                 common->network,
-                                string("DHCP request from ") +
+                                std::string("DHCP request from ") +
                                 common->source.Mac2String() + 
-                                string(" doesn't match DHCP DISCOVER client id ") +
-                                clmac.Mac2String() + string(" which can indicate "
+                                std::string(" doesn't match DHCP DISCOVER client id ") +
+                                clmac.Mac2String() + std::string(" which can indicate "
                                     "a DHCP spoofing attack"));
 					}
 				}
@@ -507,14 +507,14 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 			uint16_t answer_rr = 0, auth_rr = 0, additional_rr = 0;
 
 			// mdns name
-			string mdns_name;
-			string mdns_ptr;
+			std::string mdns_name;
+			std::string mdns_ptr;
 
 			// Skip UDP headers
 			unsigned int mdns_start = UDP_OFFSET + 8;
 			unsigned int offt = UDP_OFFSET + 8;
 
-			map<unsigned int, string> mdns_cache;
+			std::map<unsigned int, std::string> mdns_cache;
 
 			// Skip transaction ID, we don't care
 			offt += 2;
@@ -604,7 +604,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 					continue;
 				}
 
-				string mdns_rec;
+				std::string mdns_rec;
 
 				mdns_rec = MDNS_Fetchname(chunk, mdns_start, offt, &mdns_cache, &retbytes);
 

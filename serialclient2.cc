@@ -41,12 +41,12 @@ SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg,
 SerialClientV2::~SerialClientV2() {
     Close();
 
-    shared_ptr<PollableTracker> pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+    std::shared_ptr<PollableTracker> pollabletracker =
+        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 }
 
-int SerialClientV2::OpenDevice(string in_device, unsigned int in_baud) {
-    stringstream msg;
+int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
+    std::stringstream msg;
 
     if (device_fd > -1) {
         msg << "Serial client asked to connect to " << in_device << "@" <<
@@ -138,7 +138,7 @@ int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) 
 }
 
 int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
-    stringstream msg;
+    std::stringstream msg;
 
     uint8_t *buf;
     size_t len;

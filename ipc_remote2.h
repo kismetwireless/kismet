@@ -50,12 +50,12 @@ class IPCRemoteV2Tracker;
 
 class IPCRemoteV2 {
 public:
-    IPCRemoteV2(GlobalRegistry *in_globalreg, shared_ptr<BufferHandlerGeneric> in_rbhandler);
+    IPCRemoteV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~IPCRemoteV2();
 
     // Add paths to look for binary in.  Paths are searched in the order
     // they are added
-    void add_path(string in_path);
+    void add_path(std::string in_path);
 
     // Close IPC and issue a soft-kill
     void close_ipc();
@@ -69,10 +69,10 @@ public:
     // to the binary.
     //
     // returns negative on failure
-    int launch_kis_binary(string cmd, vector<string> args);
-    int launch_kis_explicit_binary(string cmdpath, vector<string> args);
-    int launch_standard_binary(string cmd, vector<string> args);
-    int launch_standard_explicit_binary(string cmdpath, vector<string> args);
+    int launch_kis_binary(std::string cmd, std::vector<std::string> args);
+    int launch_kis_explicit_binary(std::string cmdpath, std::vector<std::string> args);
+    int launch_standard_binary(std::string cmd, std::vector<std::string> args);
+    int launch_standard_explicit_binary(std::string cmdpath, std::vector<std::string> args);
 
     // Soft-kill a binary (send a sigterm)
     int soft_kill();
@@ -96,25 +96,25 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    shared_ptr<IPCRemoteV2Tracker> remotehandler;
-    shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<IPCRemoteV2Tracker> remotehandler;
+    std::shared_ptr<PollableTracker> pollabletracker;
 
     // Handler for proxying IPC results
-    shared_ptr<BufferHandlerGeneric> ipchandler;
+    std::shared_ptr<BufferHandlerGeneric> ipchandler;
 
     // Client that reads/writes from the pipes and populates the IPC
-    shared_ptr<PipeClient> pipeclient;
+    std::shared_ptr<PipeClient> pipeclient;
 
     bool tracker_free;
 
-    vector<string> path_vec;
+    std::vector<std::string> path_vec;
 
     pid_t child_pid;
 
-    string FindBinaryPath(string in_cmd);
+    std::string FindBinaryPath(std::string in_cmd);
 
-    string binary_path;
-    vector<string> binary_args;
+    std::string binary_path;
+    std::vector<std::string> binary_args;
 
 };
 
@@ -126,8 +126,8 @@ protected:
  */
 class IPCRemoteV2Tracker : public TimetrackerEvent, public LifetimeGlobal {
 public:
-    static shared_ptr<IPCRemoteV2Tracker> create_ipcremote(GlobalRegistry *in_globalreg) {
-        shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
+    static std::shared_ptr<IPCRemoteV2Tracker> create_ipcremote(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("IPCHANDLER", mon);
         return mon;

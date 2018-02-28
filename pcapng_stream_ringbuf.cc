@@ -21,14 +21,14 @@
 #include "pcapng_stream_ringbuf.h"
 
 Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
-        shared_ptr<BufferHandlerGeneric> in_handler,
-        function<bool (kis_packet *)> accept_filter,
-        function<kis_datachunk * (kis_packet *)> data_selector) : streaming_agent() {
+        std::shared_ptr<BufferHandlerGeneric> in_handler,
+        std::function<bool (kis_packet *)> accept_filter,
+        std::function<kis_datachunk * (kis_packet *)> data_selector) : streaming_agent() {
 
     globalreg = in_globalreg;
     
     packetchain = 
-        static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+        std::static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
     handler = in_handler;
 
@@ -54,12 +54,12 @@ Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
 }
 
-void Pcap_Stream_Ringbuf::stop_stream(string in_reason) {
+void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
     handler->ProtocolError();
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_app) {
+int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app) {
     uint8_t *buf = NULL;
     pcapng_shb *shb;
 
@@ -174,14 +174,14 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(string in_hw, string in_os, string in_a
 }
 
 int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
-    string ifname;
+    std::string ifname;
     if (in_datasource->get_source_cap_interface().length() > 0) {
         ifname = in_datasource->get_source_cap_interface();
     } else {
         ifname = in_datasource->get_source_interface();
     }
 
-    string ifdesc;
+    std::string ifdesc;
     if (in_datasource->get_source_cap_interface() !=
             in_datasource->get_source_interface()) {
         ifdesc = "capture interface for " + in_datasource->get_source_interface();
@@ -191,8 +191,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
             in_datasource->get_source_dlt());
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, string in_interface, 
-        string in_desc, int in_dlt) {
+int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
+        std::string in_desc, int in_dlt) {
     // Put it in the map of datasource IDs to local log IDs.  The sequential 
     // position in the list of IDBs is the size of the map because we never
     // remove from the number map
@@ -295,7 +295,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, string in
 }
 
 int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
-        struct timeval *in_tv, vector<data_block> in_blocks) {
+        struct timeval *in_tv, std::vector<data_block> in_blocks) {
     uint8_t *retbuf;
 
     // Interface ID for multiple interfaces per file
@@ -465,7 +465,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachun
         ng_interface_id = ds_id_rec->second;
     }
 
-    vector<data_block> blocks;
+    std::vector<data_block> blocks;
     blocks.push_back(data_block(in_data->data, in_data->length));
 
     return pcapng_write_packet(ng_interface_id, &(in_packet->ts), blocks);

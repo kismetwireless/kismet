@@ -42,7 +42,7 @@ public:
 
 	void IndexOUI();
 
-	string LookupOUI(mac_addr in_mac);
+	std::string LookupOUI(mac_addr in_mac);
 
 	struct index_pos {
 		uint32_t oui;
@@ -51,15 +51,15 @@ public:
 
 	struct manuf_data {
 		uint32_t oui;
-		string manuf;
+		std::string manuf;
 	}; 
 
 protected:
 	GlobalRegistry *globalreg;
 
-	vector<index_pos> index_vec;
+	std::vector<index_pos> index_vec;
 
-	map<uint32_t, manuf_data> oui_map;
+	std::map<uint32_t, manuf_data> oui_map;
 
 	FILE *mfile;
 };

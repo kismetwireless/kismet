@@ -30,17 +30,17 @@
 #include "pollabletracker.h"
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
-        shared_ptr<BufferHandlerGeneric> in_rbhandler) {
+        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) {
 
     globalreg = in_globalreg;
 
     pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 
     ipchandler = in_rbhandler;
 
     remotehandler = 
-        static_pointer_cast<IPCRemoteV2Tracker>(globalreg->FetchGlobal("IPCHANDLER"));
+        std::static_pointer_cast<IPCRemoteV2Tracker>(globalreg->FetchGlobal("IPCHANDLER"));
 
     if (remotehandler == NULL) {
         _MSG("IPCRemoteV2 called before IPCRemoteV2Tracker instantiated, cannot track "
@@ -66,16 +66,16 @@ IPCRemoteV2::~IPCRemoteV2() {
     close_ipc();
 }
 
-void IPCRemoteV2::add_path(string in_path) {
+void IPCRemoteV2::add_path(std::string in_path) {
     local_locker lock(&ipc_locker);
     path_vec.push_back(in_path);
 }
 
-string IPCRemoteV2::FindBinaryPath(string in_cmd) {
+std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
     local_locker lock(&ipc_locker);
 
     for (unsigned int x = 0; x < path_vec.size(); x++) {
-        stringstream path;
+        std::stringstream path;
         struct stat buf;
 
         path << path_vec[x] << "/" << in_cmd;
@@ -100,8 +100,8 @@ void IPCRemoteV2::close_ipc() {
     child_pid = -1;
 }
 
-int IPCRemoteV2::launch_kis_binary(string cmd, vector<string> args) {
-    string fullcmd = FindBinaryPath(cmd);
+int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
+    std::string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
         _MSG("IPC could not find binary '" + cmd + "'", MSGFLAG_ERROR);
@@ -111,10 +111,10 @@ int IPCRemoteV2::launch_kis_binary(string cmd, vector<string> args) {
     return launch_kis_explicit_binary(fullcmd, args);
 }
 
-int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args) {
+int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std::string> args) {
     struct stat buf;
     char **cmdarg;
-    stringstream arg;
+    std::stringstream arg;
 
     if (pipeclient != NULL) {
         soft_kill();
@@ -310,8 +310,8 @@ int IPCRemoteV2::launch_kis_explicit_binary(string cmdpath, vector<string> args)
     return 1;
 }
 
-int IPCRemoteV2::launch_standard_binary(string cmd, vector<string> args) {
-    string fullcmd = FindBinaryPath(cmd);
+int IPCRemoteV2::launch_standard_binary(std::string cmd, std::vector<std::string> args) {
+    std::string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
         _MSG("IPC could not find binary '" + cmd + "'", MSGFLAG_ERROR);
@@ -321,10 +321,10 @@ int IPCRemoteV2::launch_standard_binary(string cmd, vector<string> args) {
     return launch_standard_explicit_binary(fullcmd, args);
 }
 
-int IPCRemoteV2::launch_standard_explicit_binary(string cmdpath, vector<string> args) {
+int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vector<std::string> args) {
     struct stat buf;
     char **cmdarg;
-    stringstream arg;
+    std::stringstream arg;
 
     if (pipeclient != NULL) {
         soft_kill();
@@ -475,7 +475,7 @@ int IPCRemoteV2::hard_kill() {
 }
 
 void IPCRemoteV2::notify_killed(int in_exit) {
-    stringstream ss;
+    std::stringstream ss;
 
     // fprintf(stderr, "debug - ipcremote2 notify_killed\n");
 
@@ -661,7 +661,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 }
 
 int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
-    stringstream str;
+    std::stringstream str;
     IPCRemoteV2 *dead_remote = NULL;
 
     // Turn off sigchild while we process the list

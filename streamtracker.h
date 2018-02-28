@@ -42,7 +42,7 @@ public:
 
     virtual ~streaming_agent() { };
 
-    virtual void stop_stream(string in_reason __attribute__((unused))) { };
+    virtual void stop_stream(std::string in_reason __attribute__((unused))) { };
 
     uint64_t get_log_size() { return log_size; }
     uint64_t get_log_packets() { return log_packets; }
@@ -99,10 +99,10 @@ public:
 
     __Proxy(stream_id, double, double, double, stream_id);
 
-    __Proxy(log_name, string, string, string, log_name);
-    __Proxy(log_type, string, string, string, log_type);
-    __Proxy(log_path, string, string, string, log_path);
-    __Proxy(log_description, string, string, string, log_description);
+    __Proxy(log_name, std::string, std::string, std::string, log_name);
+    __Proxy(log_type, std::string, std::string, std::string, log_type);
+    __Proxy(log_path, std::string, std::string, std::string, log_path);
+    __Proxy(log_description, std::string, std::string, std::string, log_description);
 
     __Proxy(log_packets, uint64_t, uint64_t, uint64_t, log_packets);
     __Proxy(log_size, uint64_t, uint64_t, uint64_t, log_size);
@@ -202,8 +202,8 @@ protected:
 
 class StreamTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
-    static shared_ptr<StreamTracker> create_streamtracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
+    static std::shared_ptr<StreamTracker> create_streamtracker(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("STREAMTRACKER", mon);
         return mon;
@@ -215,8 +215,8 @@ private:
 public:
     virtual ~StreamTracker();
 
-    void register_streamer(streaming_agent *in_agent, string in_name,
-            string in_type, string in_path, string in_description);
+    void register_streamer(streaming_agent *in_agent, std::string in_name,
+            std::string in_type, std::string in_path, std::string in_description);
     void remove_streamer(double in_id);
 
     // HTTP API
@@ -235,7 +235,7 @@ protected:
     SharedTrackerElement tracked_stream_map;
     TrackerElementDoubleMap stream_map;
 
-    shared_ptr<streaming_info_record> info_builder;
+    std::shared_ptr<streaming_info_record> info_builder;
     int info_builder_id;
 
     double next_stream_id;

@@ -55,7 +55,7 @@ class uuid {
             error = 1;
         }
 
-        uuid(const string in) {
+        uuid(const std::string in) {
             memset(uuid_block, 0, 16);
             time_low = (uint32_t *) &(uuid_block[0]);
             time_mid = (uint16_t *) &(uuid_block[4]);
@@ -121,14 +121,14 @@ class uuid {
             error = 0;
         }
 
-        string UUID2String() const {
+        std::string UUID2String() const {
             char ids[38];
             snprintf(ids, 38, "%08x-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
                     (unsigned int) *time_low, *time_mid, *time_hi, *clock_seq,
                     (unsigned short) node[0], (unsigned short) node[1],
                     (unsigned short) node[2], (unsigned short) node[3],
                     (unsigned short) node[4], (unsigned short) node[5]);
-            return string(ids);
+            return std::string(ids);
         }
 
         inline bool operator== (const uuid& op) const {

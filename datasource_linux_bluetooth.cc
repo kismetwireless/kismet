@@ -34,12 +34,12 @@ KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(GlobalRegistry *in_glob
     pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
 }
 
-void KisDatasourceLinuxBluetooth::proto_dispatch_packet(string in_type, KVmap in_kvmap) {
+void KisDatasourceLinuxBluetooth::proto_dispatch_packet(std::string in_type, KVmap in_kvmap) {
     local_locker lock(&source_lock);
 
     KisDatasource::proto_dispatch_packet(in_type, in_kvmap);
 
-    string ltype = StrLower(in_type);
+    std::string ltype = StrLower(in_type);
 
     if (ltype == "linuxbtdevice") {
         proto_packet_linuxbtdevice(in_kvmap);
@@ -107,7 +107,7 @@ kis_packet *
     MsgpackAdapter::MsgpackStrMap dict;
     msgpack::unpacked result;
     MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-    vector<string> uuid_str_vec;
+    std::vector<std::string> uuid_str_vec;
 
     bluetooth_packinfo *bpi = new bluetooth_packinfo();
 
@@ -123,29 +123,29 @@ kis_packet *
             if ((obj_iter = dict.find("tv_sec")) != dict.end()) {
                 packet->ts.tv_sec = (time_t) obj_iter->second.as<uint64_t>();
             } else {
-                throw std::runtime_error(string("tv_sec timestamp missing"));
+                throw std::runtime_error(std::string("tv_sec timestamp missing"));
             }
 
             if ((obj_iter = dict.find("tv_usec")) != dict.end()) {
                 packet->ts.tv_usec = (time_t) obj_iter->second.as<uint64_t>();
             } else {
-                throw std::runtime_error(string("tv_usec timestamp missing"));
+                throw std::runtime_error(std::string("tv_usec timestamp missing"));
             }
         }
 
         if ((obj_iter = dict.find("address")) != dict.end()) {
-            mac_addr m(obj_iter->second.as<string>());
+            mac_addr m(obj_iter->second.as<std::string>());
 
             if (m.error)
-                throw std::runtime_error(string("invalid mac address for btdevice"));
+                throw std::runtime_error(std::string("invalid mac address for btdevice"));
 
             bpi->address = m;
         } else {
-            throw std::runtime_error(string("address missing from bt device"));
+            throw std::runtime_error(std::string("address missing from bt device"));
         }
 
         if ((obj_iter = dict.find("name")) != dict.end()) {
-            bpi->name = obj_iter->second.as<string>();
+            bpi->name = obj_iter->second.as<std::string>();
         }
 
         if ((obj_iter = dict.find("txpower")) != dict.end()) {
@@ -169,7 +169,7 @@ kis_packet *
                 uuid ui(u);
 
                 if (ui.error) {
-                    throw std::runtime_error(string("invalid uuid in service vec from "
+                    throw std::runtime_error(std::string("invalid uuid in service vec from "
                                 "bt device"));
                 }
 
@@ -180,7 +180,7 @@ kis_packet *
         packetchain->DestroyPacket(packet);
         delete(bpi);
 
-        stringstream ss;
+        std::stringstream ss;
         ss << "failed to unpack btdevice bundle: " << e.what();
         trigger_error(ss.str());
         

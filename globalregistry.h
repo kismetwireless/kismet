@@ -141,7 +141,7 @@ class Kis_Net_Httpd;
 // like the root IPC process failing to load, or dropping dead.
 struct critical_fail {
 	time_t fail_time;
-	string fail_msg;
+    std::string fail_msg;
 };
 
 // Stub class for global data
@@ -210,20 +210,20 @@ public:
 	KisBuiltinDissector *builtindissector;
 	Manuf *manufdb;
 
-	string log_prefix;
+    std::string log_prefix;
 
-	string version_major;
-	string version_minor;
-	string version_tiny;
-	string revision;
-	string revdate;
+    std::string version_major;
+	std::string version_minor;
+	std::string version_tiny;
+	std::string revision;
+	std::string revdate;
 
 	// Vector of child signals
     pid_t sigchild_vec[1024];
     unsigned int sigchild_vec_pos;
 	
     time_t start_time;
-    string servername;
+    std::string servername;
 	struct timeval timestamp;
 
     std::string homepath;
@@ -288,7 +288,7 @@ public:
     typedef void (*usage_func)(const char *);
     void RegisterUsageFunc(usage_func in_cli);
     void RemoveUsageFunc(usage_func in_cli);
-    vector<usage_func> usage_func_vec;
+    std::vector<usage_func> usage_func_vec;
 
 	// Are we supposed to start checksumming packets?  (ie multiple sources, 
 	// whatever other conditions we use)

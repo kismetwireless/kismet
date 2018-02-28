@@ -39,9 +39,9 @@ public:
     virtual ~GPSTCP();
 
     // BufferInterface API - buffer available implemented in gpsnmea
-    virtual void BufferError(string error);
+    virtual void BufferError(std::string error);
 
-    virtual bool open_gps(string in_opts);
+    virtual bool open_gps(std::string in_opts);
 
     virtual bool get_location_valid();
 
@@ -50,9 +50,9 @@ public:
 protected:
     time_t error_reconnect_timer;
 
-    shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<PollableTracker> pollabletracker;
    
-    shared_ptr<TcpClientV2> tcpclient;
+    std::shared_ptr<TcpClientV2> tcpclient;
 
     std::string host;
     unsigned int port;

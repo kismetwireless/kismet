@@ -41,9 +41,9 @@ public:
 
     // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
-    virtual void BufferError(string in_err);
+    virtual void BufferError(std::string in_err);
 
-    virtual bool open_gps(string in_definition);
+    virtual bool open_gps(std::string in_definition);
 
     virtual bool get_location_valid();
     virtual bool get_device_connected();
@@ -51,13 +51,13 @@ public:
 protected:
     int error_reconnect_timer;
 
-    shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<PollableTracker> pollabletracker;
 
-    shared_ptr<TcpClientV2> tcpclient;
+    std::shared_ptr<TcpClientV2> tcpclient;
     BufferHandler<RingbufV2> *tcphandler;
 
     // Device
-    string host;
+    std::string host;
     unsigned int port;
 
     // Last time we calculated the heading, don't do it more than once every 

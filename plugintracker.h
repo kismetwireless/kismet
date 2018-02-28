@@ -138,16 +138,16 @@ public:
         return SharedTrackerElement(new PluginRegistrationData(globalreg, get_id()));
     }
 
-    __Proxy(plugin_name, string, string, string, plugin_name);
-    __Proxy(plugin_description, string, string, string, plugin_description);
-    __Proxy(plugin_author, string, string, string, plugin_author);
-    __Proxy(plugin_version, string, string, string, plugin_version);
+    __Proxy(plugin_name, std::string, std::string, std::string, plugin_name);
+    __Proxy(plugin_description, std::string, std::string, std::string, plugin_description);
+    __Proxy(plugin_author, std::string, std::string, std::string, plugin_author);
+    __Proxy(plugin_version, std::string, std::string, std::string, plugin_version);
 
-    __Proxy(plugin_so, string, string, string, plugin_so);
-    __Proxy(plugin_dirname, string, string, string, plugin_dirname);
-    __Proxy(plugin_path, string, string, string, plugin_path);
+    __Proxy(plugin_so, std::string, std::string, std::string, plugin_so);
+    __Proxy(plugin_dirname, std::string, std::string, std::string, plugin_dirname);
+    __Proxy(plugin_path, std::string, std::string, std::string, plugin_path);
 
-    __Proxy(plugin_js, string, string, string, plugin_js);
+    __Proxy(plugin_js, std::string, std::string, std::string, plugin_js);
 
     void set_plugin_dlfile(void *in_dlfile) {
         dlfile = in_dlfile;
@@ -193,7 +193,7 @@ protected:
     void *dlfile;
 
 };
-typedef shared_ptr<PluginRegistrationData> SharedPluginData;
+typedef std::shared_ptr<PluginRegistrationData> SharedPluginData;
 
 // Plugin activation and final activation function
 typedef int (*plugin_activation)(GlobalRegistry *);
@@ -212,9 +212,9 @@ struct plugin_server_info {
     // future to expand the versioning
     unsigned int plugin_api_version;
 
-    string kismet_major;
-    string kismet_minor;
-    string kismet_tiny;
+    std::string kismet_major;
+    std::string kismet_minor;
+    std::string kismet_tiny;
 
     // End V1 info
 };
@@ -230,8 +230,8 @@ typedef int (*plugin_version_check)(plugin_server_info *);
 class Plugintracker : public LifetimeGlobal,
     public Kis_Net_Httpd_CPPStream_Handler {
 public:
-    static shared_ptr<Plugintracker> create_plugintracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<Plugintracker> mon(new Plugintracker(in_globalreg));
+    static std::shared_ptr<Plugintracker> create_plugintracker(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<Plugintracker> mon(new Plugintracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("PLUGINTRACKER", mon);
         return mon;
@@ -271,14 +271,14 @@ protected:
 	GlobalRegistry *globalreg;
 	int plugins_active;
 
-	int ScanDirectory(DIR *in_dir, string in_path);
+	int ScanDirectory(DIR *in_dir, std::string in_path);
 
     // Final vector of registered activated plugins
     SharedTrackerElement plugin_registry;
     TrackerElementVector plugin_registry_vec;
 
     // List of plugins before they're loaded
-    vector<SharedPluginData> plugin_preload;
+    std::vector<SharedPluginData> plugin_preload;
 };
 
 #endif

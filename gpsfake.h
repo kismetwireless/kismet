@@ -34,7 +34,7 @@ public:
     GPSFake(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSFake();
 
-    virtual bool open_gps(string in_opts);
+    virtual bool open_gps(std::string in_opts);
 
     virtual bool get_location_valid() { return true; };
     virtual bool get_device_connected() { return true; };

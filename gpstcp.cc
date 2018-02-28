@@ -59,12 +59,12 @@ GPSTCP::~GPSTCP() {
 
     pollabletracker->RemovePollable(tcpclient);
 
-    shared_ptr<Timetracker> timetracker = 
+    std::shared_ptr<Timetracker> timetracker = 
         Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     timetracker->RemoveTimer(error_reconnect_timer);
 }
 
-bool GPSTCP::open_gps(string in_opts) {
+bool GPSTCP::open_gps(std::string in_opts) {
     local_locker lock(&gps_mutex);
 
     if (!KisGps::open_gps(in_opts))
@@ -121,12 +121,12 @@ bool GPSTCP::open_gps(string in_opts) {
     tcpclient->Connect(proto_host, proto_port);
 
     // Register a pollable event
-    pollabletracker->RegisterPollable(static_pointer_cast<Pollable>(tcpclient));
+    pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
 
     host = proto_host;
     port = proto_port;
 
-    stringstream msg;
+    std::stringstream msg;
     msg << "GPSTCP connecting to GPS NMEA server on " << host << ":" << port;
     _MSG(msg.str(), MSGFLAG_INFO);
 
@@ -164,7 +164,7 @@ bool GPSTCP::get_device_connected() {
     return tcpclient->FetchConnected();
 }
 
-void GPSTCP::BufferError(string in_error) {
+void GPSTCP::BufferError(std::string in_error) {
     local_locker lock(&gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,

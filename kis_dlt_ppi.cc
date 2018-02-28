@@ -40,7 +40,7 @@ Kis_DLT_PPI::Kis_DLT_PPI(GlobalRegistry *in_globalreg) :
 	dlt_name = "PPI";
 	dlt = DLT_PPI;
 
-	globalreg->InsertGlobal("DLT_PPI", shared_ptr<Kis_DLT_PPI>(this));
+	globalreg->InsertGlobal("DLT_PPI", std::shared_ptr<Kis_DLT_PPI>(this));
 
 	_MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
 }

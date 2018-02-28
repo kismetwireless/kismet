@@ -103,7 +103,7 @@ void LogTracker::reserve_fields(SharedTrackerElement e) {
 
 void LogTracker::Deferred_Startup() {
 	int option_idx = 0;
-	string retfname;
+	std::string retfname;
 
     // longopts for the packetsourcetracker component
     static struct option logfile_long_options[] = {
@@ -127,22 +127,22 @@ void LogTracker::Deferred_Startup() {
         if (r < 0) break;
         switch (r) {
             case 'T':
-                argtypes = string(optarg);
+                argtypes = std::string(optarg);
                 break;
             case 't':
-                argtitle = string(optarg);
+                argtitle = std::string(optarg);
                 break;
             case 'n':
                 arg_enable = 0;
                 break;
             case 'p':
-                argprefix = string(optarg);
+                argprefix = std::string(optarg);
                 break;
         }
     }
 
     if (!globalreg->kismet_config->FetchOptBoolean("log_config_present", false)) {
-        shared_ptr<Alertracker> alertracker =
+        std::shared_ptr<Alertracker> alertracker =
             Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
         alertracker->RaiseOneShot("CONFIGERROR", "It looks like Kismet is missing "
                 "the kismet_logging.conf config file.  This file was added recently "
@@ -187,7 +187,7 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (!get_logging_enabled()) {
-        shared_ptr<Alertracker> alertracker =
+        std::shared_ptr<Alertracker> alertracker =
             Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
         alertracker->RaiseOneShot("LOGDISABLED", "Logging has been disabled via the Kismet "
                 "config files or the command line.  Pcap, database, and related logs "
@@ -513,7 +513,7 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         } else {
             throw std::runtime_error("unknown url");
         }
-    } catch(const exception e) {
+    } catch(const std::exception e) {
         stream << "Invalid request: ";
         stream << e.what();
         connection->httpcode = 400;
@@ -598,7 +598,7 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
         }
-    } catch(const exception e) {
+    } catch(const std::exception e) {
         concls->response_stream << "Invalid request: ";
         concls->response_stream << e.what();
         concls->httpcode = 400;

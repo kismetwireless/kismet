@@ -58,7 +58,7 @@ public:
         return SharedTrackerElement(new Channeltracker_V2_Channel(globalreg, get_id()));
     }
 
-    __Proxy(channel, string, string, string, channel);
+    __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
     typedef kis_tracked_rrd<> uint64_rrd;
@@ -143,20 +143,20 @@ protected:
 
     // Packets per second RRD
     int packets_rrd_id;
-    shared_ptr<kis_tracked_rrd<> > packets_rrd;
+    std::shared_ptr<kis_tracked_rrd<> > packets_rrd;
 
     // Data in bytes per second RRD
     int data_rrd_id;
-    shared_ptr<kis_tracked_rrd<> > data_rrd;
+    std::shared_ptr<kis_tracked_rrd<> > data_rrd;
 
     // Devices active per second RRD
     int device_rrd_id;
-    shared_ptr<kis_tracked_rrd<> > device_rrd;
+    std::shared_ptr<kis_tracked_rrd<> > device_rrd;
 
     // Overall signal data.  This could in theory be populated by spectrum
     // analyzers in the future as well.
     int signal_data_id;
-    shared_ptr<kis_tracked_signal_data> signal_data;
+    std::shared_ptr<kis_tracked_signal_data> signal_data;
 
 };
 
@@ -164,8 +164,8 @@ class Channeltracker_V2 : public tracker_component,
     public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal, 
     public TimetrackerEvent {
 public:
-    static shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));
+    static std::shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("CHANNEL_TRACKER", mon);
         return mon;
@@ -189,7 +189,7 @@ public:
     virtual int timetracker_event(int event_id);
 
     // Update device counts
-    void update_device_counts(map<double, unsigned int> in_counts);
+    void update_device_counts(std::map<double, unsigned int> in_counts);
 
     int device_decay;
 

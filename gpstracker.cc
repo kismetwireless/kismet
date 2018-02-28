@@ -62,7 +62,7 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     register_gps_builder(SharedGpsBuilder(new GPSWebBuilder(globalreg)));
 
     // Process any gps options in the config file
-    vector<string> gpsvec = globalreg->kismet_config->FetchOptVec("gps");
+    std::vector<std::string> gpsvec = globalreg->kismet_config->FetchOptVec("gps");
     for (auto g : gpsvec) {
         create_gps(g);
     }
@@ -81,7 +81,7 @@ void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {
     local_locker lock(&gpsmanager_mutex);
 
     for (auto x : gps_prototypes_vec) {
-        SharedGpsBuilder gb = static_pointer_cast<KisGpsBuilder>(x);
+        SharedGpsBuilder gb = std::static_pointer_cast<KisGpsBuilder>(x);
 
         if (gb->get_gps_class() == in_builder->get_gps_class()) {
             _MSG("GPSTRACKER - tried to register a duplicate GPS driver for '" +
@@ -93,17 +93,17 @@ void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {
     gps_prototypes_vec.push_back(in_builder);
 }
 
-shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
+std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
     local_locker lock(&gpsmanager_mutex);
 
     SharedGps gps;
     SharedGpsBuilder builder;
 
     size_t cpos = in_definition.find(":");
-    string types;
+    std::string types;
 
     // Extract the type string
-    if (cpos == string::npos) {
+    if (cpos == std::string::npos) {
         types = in_definition;
     } else {
         types = in_definition.substr(0, cpos);
@@ -111,7 +111,7 @@ shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
 
     // Find a driver
     for (auto p : gps_prototypes_vec) {
-        SharedGpsBuilder optbuilder = static_pointer_cast<KisGpsBuilder>(p);
+        SharedGpsBuilder optbuilder = std::static_pointer_cast<KisGpsBuilder>(p);
 
         if (optbuilder->get_gps_class() == types) {
             builder = optbuilder;
@@ -129,7 +129,7 @@ shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
     // If it's a singleton make sure we don't have something built already
     if (builder->get_singleton()) {
         for (auto d : gps_instances_vec) {
-            SharedGps igps = static_pointer_cast<KisGps>(d);
+            SharedGps igps = std::static_pointer_cast<KisGps>(d);
 
             if (igps->get_gps_prototype()->get_gps_class() == types) {
                 _MSG("GPSTRACKER - Already defined a GPS of type '" + types + "', this "
@@ -154,8 +154,8 @@ shared_ptr<KisGps> GpsTracker::create_gps(string in_definition) {
     // Sort running GPS by priority
     sort(gps_instances_vec.begin(), gps_instances_vec.end(), 
             [](const SharedTrackerElement a, const SharedTrackerElement b) -> bool {
-                SharedGps ga = static_pointer_cast<KisGps>(a);
-                SharedGps gb = static_pointer_cast<KisGps>(b);
+                SharedGps ga = std::static_pointer_cast<KisGps>(a);
+                SharedGps gb = std::static_pointer_cast<KisGps>(b);
 
                 return ga->get_gps_priority() < gb->get_gps_priority();
             });
@@ -168,7 +168,7 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
 
     // Iterate 
     for (auto d : gps_instances_vec) {
-        SharedGps gps = static_pointer_cast<KisGps>(d);
+        SharedGps gps = std::static_pointer_cast<KisGps>(d);
 
         if (gps->get_gps_data_only())
             continue;
@@ -212,7 +212,7 @@ bool GpsTracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
     
     if (!Httpd_CanSerialize(path))
         return false;
@@ -243,7 +243,7 @@ void GpsTracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/gps/drivers") {
         entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_prototypes, NULL);
@@ -258,7 +258,7 @@ void GpsTracker::Httpd_CreateStreamResponse(
     if (stripped == "/gps/location") {
         kis_gps_packinfo *pi = get_best_location();
 
-        shared_ptr<kis_tracked_location_triplet> loctrip(new kis_tracked_location_triplet(globalreg, 0));
+        std::shared_ptr<kis_tracked_location_triplet> loctrip(new kis_tracked_location_triplet(globalreg, 0));
 
         SharedTrackerElement ue(new TrackerElement(TrackerUuid, tracked_uuid_addition_id));
 

@@ -49,11 +49,11 @@ public:
         return SharedTrackerElement(new tracked_message(globalreg, get_id()));
     }
 
-    __Proxy(message, string, string, string, message);
+    __Proxy(message, std::string, std::string, std::string, message);
     __Proxy(flags, int32_t, int32_t, int32_t, flags);
     __Proxy(timestamp, uint64_t, time_t, time_t, timestamp);
 
-    void set_from_message(string in_msg, int in_flags) {
+    void set_from_message(std::string in_msg, int in_flags) {
         set_message(in_msg);
         set_flags(in_flags);
         set_timestamp(globalreg->timestamp.tv_sec);
@@ -91,9 +91,9 @@ protected:
 class RestMessageClient : public MessageClient, public Kis_Net_Httpd_CPPStream_Handler,
     public LifetimeGlobal {
 public:
-    static shared_ptr<RestMessageClient> 
+    static std::shared_ptr<RestMessageClient> 
         create_messageclient(GlobalRegistry *in_globalreg) {
-        shared_ptr<RestMessageClient> mon(new RestMessageClient(in_globalreg, NULL));
+        std::shared_ptr<RestMessageClient> mon(new RestMessageClient(in_globalreg, NULL));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("REST_MSG_CLIENT", mon);
         return mon;
@@ -104,7 +104,7 @@ private:
 
 public:
 	virtual ~RestMessageClient();
-    void ProcessMessage(string in_msg, int in_flags);
+    void ProcessMessage(std::string in_msg, int in_flags);
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -116,7 +116,7 @@ public:
 protected:
     kis_recursive_timed_mutex msg_mutex;
 
-    std::vector<shared_ptr<tracked_message> > message_vec;
+    std::vector<std::shared_ptr<tracked_message> > message_vec;
 
     int message_vec_id, message_entry_id, message_timestamp_id;
 };

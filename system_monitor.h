@@ -33,8 +33,8 @@
 class Systemmonitor : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler,
     public LifetimeGlobal, public TimetrackerEvent {
 public:
-    static shared_ptr<Systemmonitor> create_systemmonitor(GlobalRegistry *in_globalreg) {
-        shared_ptr<Systemmonitor> mon(new Systemmonitor(in_globalreg));
+    static std::shared_ptr<Systemmonitor> create_systemmonitor(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<Systemmonitor> mon(new Systemmonitor(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("SYSTEM_MONITOR", mon);
         return mon;
@@ -84,7 +84,7 @@ protected:
     virtual void register_fields();
     virtual void reserve_fields(SharedTrackerElement e);
 
-    shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<Devicetracker> devicetracker;
 
     SharedTrackerElement battery_perc;
     SharedTrackerElement battery_charging;
@@ -101,13 +101,13 @@ protected:
     SharedTrackerElement server_location;
 
     int mem_rrd_id;
-    shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > memory_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > memory_rrd;
 
     int devices_id;
     SharedTrackerElement devices;
 
     int devices_rrd_id;
-    shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
 
     long mem_per_page;
 };

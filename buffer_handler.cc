@@ -361,13 +361,13 @@ void BufferHandlerGeneric::RemoveWriteBufferInterface() {
     wbuf_notify = NULL;
 }
 
-void BufferHandlerGeneric::SetReadBufferDrainCb(function<void (size_t)> in_cb) {
+void BufferHandlerGeneric::SetReadBufferDrainCb(std::function<void (size_t)> in_cb) {
     local_locker lock(&r_callback_locker);
 
     readbuf_drain_cb = in_cb;
 }
 
-void BufferHandlerGeneric::SetWriteBufferDrainCb(function<void (size_t)> in_cb) {
+void BufferHandlerGeneric::SetWriteBufferDrainCb(std::function<void (size_t)> in_cb) {
     local_locker lock(&w_callback_locker);
 
     writebuf_drain_cb = in_cb;
@@ -383,26 +383,26 @@ void BufferHandlerGeneric::RemoveWriteBufferDrainCb() {
     writebuf_drain_cb = NULL;
 }
 
-void BufferHandlerGeneric::BufferError(string in_error) {
+void BufferHandlerGeneric::BufferError(std::string in_error) {
     ReadBufferError(in_error);
     WriteBufferError(in_error);
 }
 
-void BufferHandlerGeneric::ReadBufferError(string in_error) {
+void BufferHandlerGeneric::ReadBufferError(std::string in_error) {
     local_locker lock(&r_callback_locker);
 
     if (rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
-void BufferHandlerGeneric::WriteBufferError(string in_error) {
+void BufferHandlerGeneric::WriteBufferError(std::string in_error) {
     local_locker lock(&w_callback_locker);
 
     if (wbuf_notify)
         wbuf_notify->BufferError(in_error);
 }
 
-void BufferHandlerGeneric::SetProtocolErrorCb(function<void (void)> in_cb) {
+void BufferHandlerGeneric::SetProtocolErrorCb(std::function<void (void)> in_cb) {
     local_locker lock(&handler_locker);
 
     protoerror_cb = in_cb;

@@ -40,7 +40,7 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     devicetracker =
-        static_pointer_cast<Devicetracker>(globalreg->FetchGlobal("DEVICE_TRACKER"));
+        std::static_pointer_cast<Devicetracker>(globalreg->FetchGlobal("DEVICE_TRACKER"));
 
     register_fields();
     reserve_fields(NULL);
@@ -138,7 +138,7 @@ void Systemmonitor::register_fields() {
     RegisterField("kismet.system.server_location", TrackerString,
             "Arbitrary server location string", &server_location);
 
-    shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > rrd_builder(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0));
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > rrd_builder(new kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>(globalreg, 0));
 
     mem_rrd_id =
         RegisterComplexField("kismet.system.memory.rrd", rrd_builder, 
@@ -191,8 +191,8 @@ int Systemmonitor::timetracker_event(int eventid) {
         // space, and split the rest
         size_t paren = procline.find_last_of(")");
 
-        if (paren != string::npos) {
-            vector<string> toks = 
+        if (paren != std::string::npos) {
+            std::vector<std::string> toks = 
                 StrTokenize(procline.substr(paren + 1, procline.length()), " ");
 
             if (toks.size() > 22) {
@@ -283,7 +283,7 @@ void Systemmonitor::Httpd_CreateStreamResponse(
     if (!Httpd_CanSerialize(path))
         return;
 
-    shared_ptr<EntryTracker> entrytracker =
+    std::shared_ptr<EntryTracker> entrytracker =
         Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
     if (stripped == "/system/status") {

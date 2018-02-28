@@ -41,9 +41,9 @@ public:
     virtual ~GPSSerialV2();
 
     // BufferInterface API - buffer available implemented in gpsnmea
-    virtual void BufferError(string error);
+    virtual void BufferError(std::string error);
 
-    virtual bool open_gps(string in_opts);
+    virtual bool open_gps(std::string in_opts);
 
     virtual bool get_location_valid();
 
@@ -52,12 +52,12 @@ public:
 protected:
     time_t error_reconnect_timer;
 
-    shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<PollableTracker> pollabletracker;
     
-    shared_ptr<SerialClientV2> serialclient;
+    std::shared_ptr<SerialClientV2> serialclient;
 
     // Device
-    string serial_device;
+    std::string serial_device;
     unsigned int baud;
 
     // Have we ever seen data from the device?

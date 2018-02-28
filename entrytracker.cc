@@ -40,10 +40,10 @@ EntryTracker::~EntryTracker() {
     field_id_map.clear();
 }
 
-int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_desc) {
+int EntryTracker::RegisterField(std::string in_name, TrackerType in_type, std::string in_desc) {
     local_locker lock(&entry_mutex);
 
-    string mod_name = StrLower(in_name);
+    std::string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
 
@@ -66,7 +66,7 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_d
         return iter->second->field_id;
     }
 
-    shared_ptr<reserved_field> definition(new reserved_field());
+    std::shared_ptr<reserved_field> definition(new reserved_field());
 
     definition->field_id = next_field_num++;
     definition->field_name = in_name;
@@ -82,11 +82,11 @@ int EntryTracker::RegisterField(string in_name, TrackerType in_type, string in_d
     return definition->field_id;
 }
 
-int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_builder, 
-        string in_desc) {
+int EntryTracker::RegisterField(std::string in_name, std::shared_ptr<TrackerElement> in_builder, 
+        std::string in_desc) {
     local_locker lock(&entry_mutex);
 
-    string mod_name = StrLower(in_name);
+    std::string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
 
@@ -103,7 +103,7 @@ int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_bu
         return iter->second->field_id;
     }
 
-    shared_ptr<reserved_field> definition(new reserved_field());
+    std::shared_ptr<reserved_field> definition(new reserved_field());
 
     definition->field_id = next_field_num++;
     definition->field_name = in_name;
@@ -124,10 +124,10 @@ int EntryTracker::RegisterField(string in_name, shared_ptr<TrackerElement> in_bu
     return definition->field_id;
 }
 
-int EntryTracker::GetFieldId(string in_name) {
+int EntryTracker::GetFieldId(std::string in_name) {
     local_locker lock(&entry_mutex);
 
-    string mod_name = StrLower(in_name);
+    std::string mod_name = StrLower(in_name);
 
     name_itr iter = field_name_map.find(mod_name);
 
@@ -138,7 +138,7 @@ int EntryTracker::GetFieldId(string in_name) {
     return iter->second->field_id;
 }
 
-string EntryTracker::GetFieldName(int in_id) {
+std::string EntryTracker::GetFieldName(int in_id) {
     local_locker lock(&entry_mutex);
 
     id_itr iter = field_id_map.find(in_id);
@@ -150,7 +150,7 @@ string EntryTracker::GetFieldName(int in_id) {
     return iter->second->field_name;
 }
 
-string EntryTracker::GetFieldDescription(int in_id) {
+std::string EntryTracker::GetFieldDescription(int in_id) {
     local_locker lock(&entry_mutex);
 
     id_itr iter = field_id_map.find(in_id);
@@ -175,8 +175,8 @@ TrackerType EntryTracker::GetFieldType(int in_id) {
 
 }
 
-shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
-        TrackerType in_type, string in_desc) {
+std::shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(std::string in_name, 
+        TrackerType in_type, std::string in_desc) {
     int fn = GetFieldId(in_name);
 
     if (fn >= 0) {
@@ -185,11 +185,11 @@ shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name,
 
     fn = RegisterField(in_name, in_type, in_desc);
 
-    return shared_ptr<TrackerElement>(new TrackerElement(in_type, fn));
+    return std::shared_ptr<TrackerElement>(new TrackerElement(in_type, fn));
 }
 
-shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name, 
-        shared_ptr<TrackerElement> in_builder, string in_desc) {
+std::shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(std::string in_name, 
+        std::shared_ptr<TrackerElement> in_builder, std::string in_desc) {
     int fn = GetFieldId(in_name);
 
     if (fn >= 0) {
@@ -202,7 +202,7 @@ shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(string in_name,
 }
 
 
-shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
+std::shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
     local_demand_locker lock(&entry_mutex);
 
     lock.lock();
@@ -213,21 +213,21 @@ shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(int in_id) {
         return NULL;
     }
 
-    shared_ptr<reserved_field> definition = iter->second;
+    std::shared_ptr<reserved_field> definition = iter->second;
 
     lock.unlock();
 
     if (definition->builder == NULL)
-        return shared_ptr<TrackerElement>(new TrackerElement(definition->track_type, 
+        return std::shared_ptr<TrackerElement>(new TrackerElement(definition->track_type, 
                     definition->field_id));
     else
         return definition->builder->clone_type(definition->field_id);
 }
 
-shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(string in_name) {
+std::shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(std::string in_name) {
     local_demand_locker lock(&entry_mutex);
 
-    string mod_name = StrLower(in_name);
+    std::string mod_name = StrLower(in_name);
 
     lock.lock();
 
@@ -238,12 +238,12 @@ shared_ptr<TrackerElement> EntryTracker::GetTrackedInstance(string in_name) {
         return NULL;
     }
 
-    shared_ptr<reserved_field> definition = iter->second;
+    std::shared_ptr<reserved_field> definition = iter->second;
 
     lock.unlock();
 
     if (definition->builder == NULL)
-        return shared_ptr<TrackerElement>(new TrackerElement(definition->track_type, 
+        return std::shared_ptr<TrackerElement>(new TrackerElement(definition->track_type, 
                     definition->field_id));
     else
         return definition->builder->clone_type(definition->field_id);
@@ -307,11 +307,11 @@ void EntryTracker::Httpd_CreateStreamResponse(
 
 }
 
-void EntryTracker::RegisterSerializer(string in_name, 
-        shared_ptr<TrackerElementSerializer> in_ser) {
+void EntryTracker::RegisterSerializer(std::string in_name, 
+        std::shared_ptr<TrackerElementSerializer> in_ser) {
     local_locker lock(&serializer_mutex);
     
-    string mod_type = StrLower(in_name);
+    std::string mod_type = StrLower(in_name);
 
     if (serializer_map.find(mod_type) != serializer_map.end()) {
         _MSG("Attempt to register two serializers for type " + in_name,
@@ -322,10 +322,10 @@ void EntryTracker::RegisterSerializer(string in_name,
     serializer_map[mod_type] = in_ser;
 }
 
-void EntryTracker::RemoveSerializer(string in_name) {
+void EntryTracker::RemoveSerializer(std::string in_name) {
     local_locker lock(&serializer_mutex);
 
-    string mod_type = StrLower(in_name);
+    std::string mod_type = StrLower(in_name);
     serial_itr i = serializer_map.find(in_name);
 
     if (i != serializer_map.end()) {
@@ -333,10 +333,10 @@ void EntryTracker::RemoveSerializer(string in_name) {
     }
 }
 
-bool EntryTracker::CanSerialize(string in_name) {
+bool EntryTracker::CanSerialize(std::string in_name) {
     local_locker lock(&serializer_mutex);
 
-    string mod_type = StrLower(in_name);
+    std::string mod_type = StrLower(in_name);
     serial_itr i = serializer_map.find(in_name);
 
     if (i != serializer_map.end()) {
@@ -346,7 +346,7 @@ bool EntryTracker::CanSerialize(string in_name) {
     return false;
 }
 
-bool EntryTracker::Serialize(string in_name, std::ostream &stream,
+bool EntryTracker::Serialize(std::string in_name, std::ostream &stream,
         SharedTrackerElement e,
         TrackerElementSerializer::rename_map *name_map) {
 

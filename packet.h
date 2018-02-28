@@ -75,7 +75,7 @@ public:
     int duplicate;
 
 	// Actual vector of bits in the packet
-	vector<packet_component *> content_vec;
+    std::vector<packet_component *> content_vec;
    
     // Init stuff
     kis_packet() {
@@ -305,7 +305,7 @@ public:
 	// Phy-specific numeric channel, freq is held in l1info.  Channel is
     // represented as a string to carry whatever special attributes, ie
     // 6HT20 or 6HT40+ for wifi
-	string channel;
+    std::string channel;
     // Frequency in khz
     double freq_khz;
 };
@@ -317,11 +317,11 @@ public:
 		self_destruct = 1;
 	}
 
-	vector<string> extracted_strings;
+    std::vector<std::string> extracted_strings;
 };
 
 typedef struct {
-	string text;
+    std::string text;
 	mac_addr bssid;
 	mac_addr source;
 	mac_addr dest;
@@ -374,11 +374,11 @@ public:
 	kis_protocol_info_type ip_type;
 
 	// The two CDP fields we really care about for anything
-	string cdp_dev_id;
-	string cdp_port_id;
+    std::string cdp_dev_id;
+    std::string cdp_port_id;
 
 	// DHCP Discover data
-	string discover_host, discover_vendor;
+    std::string discover_host, discover_vendor;
 
 	// IV
 	uint8_t ivset[3];
@@ -387,7 +387,7 @@ public:
 	int field1;
 
 	// A string field that can be filled in
-	string auxstring;
+    std::string auxstring;
 
 };
 
@@ -421,7 +421,7 @@ public:
 	double freq_khz;
 
 	// Logical channel
-	string channel;
+    std::string channel;
 
     // Connection info
     kis_layer1_packinfo_signal_type signal_type;

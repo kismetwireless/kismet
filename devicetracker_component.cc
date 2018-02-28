@@ -270,7 +270,7 @@ void kis_tracked_signal_data::register_fields() {
             "maximum noise (RSSI)", &max_noise_rssi);
 
 
-    shared_ptr<kis_tracked_location_triplet> 
+    std::shared_ptr<kis_tracked_location_triplet> 
         loc_builder(new kis_tracked_location_triplet(globalreg, 0));
     peak_loc_id = 
         RegisterComplexField("kismet.common.signal.peak_loc", loc_builder,
@@ -283,7 +283,7 @@ void kis_tracked_signal_data::register_fields() {
     RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
             "bitset of observed carrier types", &carrierset);
 
-    shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> >
+    std::shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> >
         signal_min_rrd_builder(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, 0));
     signal_min_rrd_id =
         RegisterComplexField("kismet.common.signal.signal_rrd",
@@ -354,7 +354,7 @@ void kis_tracked_seenby_data::register_fields() {
 
     signal_data_id =
         RegisterComplexField("kismet.common.seenby.signal", 
-                shared_ptr<kis_tracked_signal_data>(new kis_tracked_signal_data(globalreg, 0)),
+                std::shared_ptr<kis_tracked_signal_data>(new kis_tracked_signal_data(globalreg, 0)),
                 "signal data");
 }
 

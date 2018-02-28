@@ -429,7 +429,7 @@ public:
             std::shared_ptr<kis_tracked_device_base> base) = 0;
 
     // Finalize operations
-    virtual void Finalize(Devicetracker *devicetracker) { }
+    virtual void Finalize(Devicetracker *devicetracker __attribute__((unused))) { }
 
     virtual SharedTrackerElement GetMatchedDevices() {
         return matched_devices;
@@ -502,15 +502,15 @@ public:
 	int RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler);
 
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
-    Kis_Phy_Handler *FetchPhyHandlerByName(string in_name);
+    Kis_Phy_Handler *FetchPhyHandlerByName(std::string in_name);
 
     std::string FetchPhyName(int in_phy);
 
 	int FetchNumDevices();
 	int FetchNumPackets();
 
-	int AddFilter(string in_filter);
-	int AddNetCliFilter(string in_filter);
+	int AddFilter(std::string in_filter);
+	int AddNetCliFilter(std::string in_filter);
 
     // Flag that we've altered the device structure in a way that a client should
     // perform a full pull.  For instance, removing devices or device record
@@ -583,7 +583,7 @@ public:
 // Only update location if we have no existing location
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
-    shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
+    std::shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
             mac_addr in_mac, Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags);
 
     // Set the common name of a device (and log it in the database for future runs)
@@ -607,7 +607,7 @@ public:
     // Generate a list of all phys, serialized appropriately.  If specified,
     // wrap it in a dictionary and name it with the key in in_wrapper, which
     // is required for some js libs like datatables.
-    void httpd_all_phys(string url, std::ostream &stream, 
+    void httpd_all_phys(std::string url, std::ostream &stream, 
             std::string in_wrapper_key = "");
 
     // Timetracker event handler
@@ -840,9 +840,9 @@ private:
 class devicetracker_function_worker : public DevicetrackerFilterWorker {
 public:
     devicetracker_function_worker(GlobalRegistry *in_globalreg,
-            function<bool (Devicetracker *, 
+            std::function<bool (Devicetracker *, 
                 std::shared_ptr<kis_tracked_device_base>)> in_mcb,
-            function<void (Devicetracker *)> in_fcb);
+            std::function<void (Devicetracker *)> in_fcb);
     virtual ~devicetracker_function_worker();
 
     virtual bool MatchDevice(Devicetracker *devicetracker,
@@ -853,9 +853,9 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    function<bool (Devicetracker *, 
+    std::function<bool (Devicetracker *, 
             std::shared_ptr<kis_tracked_device_base>)> mcb;
-    function<void (Devicetracker *)> fcb;
+    std::function<void (Devicetracker *)> fcb;
 };
 
 // Matching worker to match fields against a string search term
@@ -884,7 +884,7 @@ protected:
     std::shared_ptr<EntryTracker> entrytracker;
 
     std::string query;
-    std::vector<vector<int> > fieldpaths;
+    std::vector<std::vector<int> > fieldpaths;
 
     // Make a macaddr query out of it, too
     uint64_t mac_query_term;
@@ -998,3 +998,4 @@ public:
 #endif
 
 #endif
+

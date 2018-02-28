@@ -118,7 +118,7 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
     }
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = min(in_sz, used());
+    size_t opsize = std::min(in_sz, used());
 
     // Always reserve first since we may blindly peek_free later
     peek_reserved = true;
@@ -177,7 +177,7 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     free_peek = false;
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = min(in_sz, used());
+    size_t opsize = std::min(in_sz, used());
 
     if (opsize == 0)
         return 0;
@@ -226,7 +226,7 @@ size_t RingbufV2::consume(size_t in_sz) {
     }
 
     // No matter what is requested we can't read more than we have
-    size_t opsize = min(in_sz, used());
+    size_t opsize = std::min(in_sz, used());
 
     if (opsize > length) {
         throw std::runtime_error("ringbuf v2 consuming more than we have?");

@@ -52,8 +52,8 @@
 #include "base64.h"
 
 devicetracker_function_worker::devicetracker_function_worker(GlobalRegistry *in_globalreg,
-        function<bool (Devicetracker *, shared_ptr<kis_tracked_device_base>)> in_mcb,
-        function<void (Devicetracker *)> in_fcb) {
+        std::function<bool (Devicetracker *, std::shared_ptr<kis_tracked_device_base>)> in_mcb,
+        std::function<void (Devicetracker *)> in_fcb) {
 
     globalreg = in_globalreg;
 
@@ -65,7 +65,7 @@ devicetracker_function_worker::~devicetracker_function_worker() {
 }
 
 bool devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
-        shared_ptr<kis_tracked_device_base> device) {
+        std::shared_ptr<kis_tracked_device_base> device) {
 
     if (mcb == NULL)
         return false;
@@ -81,13 +81,13 @@ void devicetracker_function_worker::Finalize(Devicetracker *devicetracker) {
 
 
 devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistry *in_globalreg,
-        string in_query,
-        vector<vector<int> > in_paths) {
+        std::string in_query,
+        std::vector<std::vector<int> > in_paths) {
 
     globalreg = in_globalreg;
 
     entrytracker =
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     query = in_query;
     fieldpaths = in_paths;
@@ -100,8 +100,8 @@ devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
 }
 
 bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
-        shared_ptr<kis_tracked_device_base> device) {
-    vector<vector<int> >::iterator i;
+        std::shared_ptr<kis_tracked_device_base> device) {
+    std::vector<std::vector<int> >::iterator i;
 
     bool matched = false;
 
@@ -116,7 +116,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
 
         if (field->get_type() == TrackerString) {
             // We can only do a straight string match against string fields
-            matched = GetTrackerValue<string>(field).find(query) != std::string::npos;
+            matched = GetTrackerValue<std::string>(field).find(query) != std::string::npos;
         } else if (field->get_type() == TrackerByteArray) {
             // Try a raw string match against a binary field
             matched = field->get_bytearray_str().find(query) != std::string::npos;
@@ -142,12 +142,12 @@ void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __a
 #ifdef HAVE_LIBPCRE
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-        vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec) {
+        std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter> > in_filter_vec) {
 
     globalreg = in_globalreg;
 
     entrytracker =
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     filter_vec = in_filter_vec;
     error = false;
@@ -159,7 +159,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     globalreg = in_globalreg;
 
     entrytracker =
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     error = false;
 
@@ -174,15 +174,15 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
         if (rpair.size() != 2)
             throw StructuredDataException("expected [field, regex] pair");
 
-        string field = rpair[0]->getString();
-        string regex = rpair[1]->getString();
+        std::string field = rpair[0]->getString();
+        std::string regex = rpair[1]->getString();
 
-        shared_ptr<pcre_filter> filter(new pcre_filter());
+        std::shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = field;
 
         const char *compile_error, *study_error;
         int erroroffset;
-        ostringstream errordesc;
+        std::ostringstream errordesc;
 
         filter->re =
             pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
@@ -205,13 +205,13 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalreg,
-        string in_target,
+        std::string in_target,
         SharedStructured raw_pcre_vec) {
 
     globalreg = in_globalreg;
 
     entrytracker =
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     error = false;
 
@@ -222,14 +222,14 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     for (StructuredData::structured_vec::iterator i = rawvec.begin(); 
             i != rawvec.end(); ++i) {
 
-        string regex = (*i)->getString();
+        std::string regex = (*i)->getString();
 
-        shared_ptr<pcre_filter> filter(new pcre_filter());
+        std::shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = in_target; 
 
         const char *compile_error, *study_error;
         int erroroffset;
-        ostringstream errordesc;
+        std::ostringstream errordesc;
 
         filter->re =
             pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
@@ -255,8 +255,8 @@ devicetracker_pcre_worker::~devicetracker_pcre_worker() {
 }
 
 bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
-        shared_ptr<kis_tracked_device_base> device) {
-    vector<shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
+        std::shared_ptr<kis_tracked_device_base> device) {
+    std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter> >::iterator i;
 
     bool matched = false;
 
@@ -265,16 +265,16 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
 
         // Get complex fields - this lets us search nested vectors
         // or strings or whatnot
-        vector<SharedTrackerElement> fields = 
+        std::vector<SharedTrackerElement> fields = 
             GetTrackerElementMultiPath((*i)->target, device, entrytracker);
 
-        for (vector<SharedTrackerElement>::iterator fi = fields.begin();
+        for (std::vector<SharedTrackerElement>::iterator fi = fields.begin();
                 fi != fields.end(); ++fi) {
             std::string val;
 
             // Process a few different types
             if ((*fi)->get_type() == TrackerString)
-                val = GetTrackerValue<string>(*fi);
+                val = GetTrackerValue<std::string>(*fi);
             else if ((*fi)->get_type() == TrackerMac)
                 val = GetTrackerValue<mac_addr>(*fi).Mac2String();
             else if ((*fi)->get_type() == TrackerUuid)

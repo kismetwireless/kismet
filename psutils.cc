@@ -28,20 +28,20 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-int FindProcess(string in_proc, string in_option) {
+int FindProcess(std::string in_proc, std::string in_option) {
 #ifdef SYS_LINUX
 	DIR *procdir;
 	struct dirent *pid;
 	FILE *pfile;
-	string path, targ;
+    std::string path, targ;
 	int c;
-	vector<string> parsed;
+    std::vector<std::string> parsed;
 
 	if ((procdir = opendir("/proc")) == NULL)
 		return 0;
 
 	while ((pid = readdir(procdir)) != NULL) {
-		path = string("/proc/") + pid->d_name + string("/cmdline");
+		path = std::string("/proc/") + pid->d_name + std::string("/cmdline");
 
 		if ((pfile = fopen(path.c_str(), "r")) != NULL) {
 			targ = "";
@@ -63,9 +63,9 @@ int FindProcess(string in_proc, string in_option) {
 			if (parsed.size() <= 0)
 				continue;
 
-			if (parsed[0].find(in_proc) != string::npos) {
+			if (parsed[0].find(in_proc) != std::string::npos) {
 				for (unsigned int x = 1; x < parsed.size(); x++) {
-					if (parsed[x].find(in_option) != string::npos) {
+					if (parsed[x].find(in_option) != std::string::npos) {
 						closedir(procdir);
 						return 1;
 					}

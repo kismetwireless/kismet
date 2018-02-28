@@ -35,10 +35,10 @@ class Kis_Gps_Location;
 class kis_gps_packinfo;
 
 class KisGpsBuilder;
-typedef shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
 
 class KisGps;
-typedef shared_ptr<KisGps> SharedGps;
+typedef std::shared_ptr<KisGps> SharedGps;
 
 // GPS builders are responsible for telling the GPS tracker what sort of GPS,
 // the basic priority, the type and default name, and so on.
@@ -70,10 +70,11 @@ public:
         return NULL;
     }
 
-    __ProxyPrivSplit(gps_class, string, string, string, gps_class);
-    __ProxyPrivSplit(gps_class_description, string, string, string, gps_class_description);
+    __ProxyPrivSplit(gps_class, std::string, std::string, std::string, gps_class);
+    __ProxyPrivSplit(gps_class_description, std::string, std::string, std::string, 
+            gps_class_description);
     __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
-    __ProxyPrivSplit(default_name, string, string, string, gps_default_name);
+    __ProxyPrivSplit(default_name, std::string, std::string, std::string, gps_default_name);
     __ProxyPrivSplit(singleton, uint8_t, bool, bool, singleton);
 
 protected:
@@ -113,10 +114,10 @@ public:
 
     virtual void initialize() { };
 
-    __ProxyPrivSplit(gps_name, string, string, string, gps_name);
-    __ProxyPrivSplit(gps_description, string, string, string, gps_description);
+    __ProxyPrivSplit(gps_name, std::string, std::string, std::string, gps_name);
+    __ProxyPrivSplit(gps_description, std::string, std::string, std::string, gps_description);
     __ProxyPrivSplit(gps_uuid, uuid, uuid, uuid, gps_uuid);
-    __ProxyPrivSplit(gps_definition, string, string, string, gps_definition);
+    __ProxyPrivSplit(gps_definition, std::string, std::string, std::string, gps_definition);
     __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
     __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
     __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
@@ -129,7 +130,7 @@ public:
     // will determine if we consider a value to still be valid
     virtual bool get_location_valid() { return false; }
 
-    virtual bool open_gps(string in_definition);
+    virtual bool open_gps(std::string in_definition);
 
     // Various GPS transformation utility functions
     static double GpsCalcHeading(double in_lat, double in_lon, double in_lat2, double in_lon2);
@@ -157,12 +158,12 @@ protected:
 
         tracked_location_id = 
             RegisterComplexField("kismet.gps.location", 
-                    shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
                     "current location");
 
         tracked_last_location_id = 
             RegisterComplexField("kismet.gps.last_location",
-                    shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
                     "previous location");
 
         RegisterField("kismet.gps.uuid", TrackerUuid, "UUID", &gps_uuid);
@@ -203,10 +204,10 @@ protected:
     SharedTrackerElement gps_priority;
 
     int tracked_location_id;
-    shared_ptr<kis_tracked_location_triplet> tracked_location;
+    std::shared_ptr<kis_tracked_location_triplet> tracked_location;
 
     int tracked_last_location_id;
-    shared_ptr<kis_tracked_location_triplet> tracked_last_location;
+    std::shared_ptr<kis_tracked_location_triplet> tracked_last_location;
 
     kis_gps_packinfo *gps_location;
     kis_gps_packinfo *gps_last_location;

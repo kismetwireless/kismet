@@ -128,14 +128,14 @@ protected:
     SharedTrackerElement max_signal_rssi, max_noise_rssi;
 
     int peak_loc_id;
-    shared_ptr<kis_tracked_location_triplet> peak_loc;
+    std::shared_ptr<kis_tracked_location_triplet> peak_loc;
 
     SharedTrackerElement maxseenrate, encodingset, carrierset;
 
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
     int signal_min_rrd_id;
-    shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> > signal_min_rrd;
+    std::shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> > signal_min_rrd;
 };
 
 class kis_tracked_seenby_data : public tracker_component {
@@ -170,7 +170,7 @@ protected:
     SharedTrackerElement freq_khz_map;
     int frequency_val_id;
 
-    shared_ptr<kis_tracked_signal_data> signal_data;
+    std::shared_ptr<kis_tracked_signal_data> signal_data;
     int signal_data_id;
 };
 

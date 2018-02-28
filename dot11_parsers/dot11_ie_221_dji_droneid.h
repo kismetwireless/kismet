@@ -118,7 +118,7 @@ public:
         dji_subcommand_common() { }
         virtual ~dji_subcommand_common() { }
 
-        virtual void parse(std::shared_ptr<kaitai::kstream> p_io) { }
+        virtual void parse(std::shared_ptr<kaitai::kstream> p_io __attribute__((unused))) { }
     };
 
     class dji_subcommand_flight_reg : public dji_subcommand_common {

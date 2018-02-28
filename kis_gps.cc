@@ -38,7 +38,7 @@ KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
     gps_location = new kis_gps_packinfo();
     gps_last_location = new kis_gps_packinfo();
 
-    shared_ptr<Timetracker> timetracker = 
+    std::shared_ptr<Timetracker> timetracker = 
         Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 }
 
@@ -46,7 +46,7 @@ KisGps::~KisGps() {
     local_eol_locker lock(&gps_mutex);
 }
 
-bool KisGps::open_gps(string in_definition) {
+bool KisGps::open_gps(std::string in_definition) {
     local_locker lock(&gps_mutex);
 
     set_int_device_connected(false);
@@ -63,10 +63,10 @@ bool KisGps::open_gps(string in_definition) {
     // Turn the rest into an opt vector
     std::vector<opt_pair> options;
 
-    string types;
+    std::string types;
 
     // If there's no ':' then there are no options
-    if (cpos == string::npos) {
+    if (cpos == std::string::npos) {
         types = in_definition;
     } else {
         types = in_definition.substr(0, cpos);
@@ -82,14 +82,14 @@ bool KisGps::open_gps(string in_definition) {
         }
     }
 
-    string sname = FetchOpt("name", source_definition_opts);
+    std::string sname = FetchOpt("name", source_definition_opts);
     if (sname != "") {
         set_int_gps_name(sname);
     } else {
         set_int_gps_name(gps_prototype->get_default_name());
     }
 
-    string suuid = FetchOpt("uuid", source_definition_opts);
+    std::string suuid = FetchOpt("uuid", source_definition_opts);
     if (suuid != "") {
         // Use the static UUID from the defintion
         uuid u(suuid);
@@ -104,7 +104,7 @@ bool KisGps::open_gps(string in_definition) {
     } else {
         // Otherwise combine the server name and the definition, checksum it, and 
         // munge it into a UUID like we do for datasources
-        string id = globalreg->servername + in_definition;
+        std::string id = globalreg->servername + in_definition;
         char ubuf[40];
 
         snprintf(ubuf, 40, "%08X-0000-0000-0000-0000%08X",
@@ -115,7 +115,7 @@ bool KisGps::open_gps(string in_definition) {
         set_int_gps_uuid(u);
     }
 
-    string sprio = FetchOpt("priority", source_definition_opts);
+    std::string sprio = FetchOpt("priority", source_definition_opts);
     if (sprio != "") {
         int priority;
 

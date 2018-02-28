@@ -35,7 +35,7 @@ Kis_Httpd_Registry::~Kis_Httpd_Registry() {
 
 }
 
-bool Kis_Httpd_Registry::register_js_module(string in_module, string in_path) {
+bool Kis_Httpd_Registry::register_js_module(std::string in_module, std::string in_path) {
     local_locker lock(&reg_lock);
 
     if (js_module_path_map.find(in_module) != js_module_path_map.end()) {
@@ -85,7 +85,7 @@ void Kis_Httpd_Registry::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         }
     }
 
-    stream << "] }" << endl;
+    stream << "] }" << std::endl;
 
     return;
 }

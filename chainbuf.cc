@@ -83,7 +83,7 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
         size_t free_chunk_sz = chunk_sz - write_offt;
 
         // Whole buffer or whole chunk
-        size_t w_sz = min(in_sz - total_written, free_chunk_sz);
+        size_t w_sz = std::min(in_sz - total_written, free_chunk_sz);
 
         // fprintf(stderr, "debug - chainbuf - in_sz %lu free in block %lu total written %lu\n", in_sz, free_chunk_sz, total_written);
 
@@ -140,7 +140,7 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
         return 0;
     }
 
-    size_t goal_sz = min(used(), in_sz);
+    size_t goal_sz = std::min(used(), in_sz);
 
     // If we're contiguous 
     if (read_offt + goal_sz <= chunk_sz) {
@@ -210,8 +210,8 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
 
     // Pick the least size: a zero-copy of our buffer, the requested size,
     // or the amount actually used
-    size_t goal_sz = min(chunk_sz - read_offt, in_sz);
-    goal_sz = min(goal_sz, used());
+    size_t goal_sz = std::min(chunk_sz - read_offt, in_sz);
+    goal_sz = std::min(goal_sz, used());
 
     *ret_data = read_buf + read_offt;
 
@@ -260,7 +260,7 @@ size_t Chainbuf::consume(size_t in_sz) {
                     "during consume");
 
         // Get either the remaining data, or the remaining chunk
-        rd_sz = min(in_sz - consumed_sz, chunk_sz - read_offt);
+        rd_sz = std::min(in_sz - consumed_sz, chunk_sz - read_offt);
 
         // Jump ahead
         consumed_sz += rd_sz;

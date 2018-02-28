@@ -61,10 +61,10 @@ public:
     virtual ~TcpServerV2();
 
     virtual int ConfigureServer(short int in_port, unsigned int in_maxcli,
-            string in_bindaddress, vector<string> in_filtervec);
+            std::string in_bindaddress, std::vector<std::string> in_filtervec);
 
     virtual void KillConnection(int in_fd);
-    virtual void KillConnection(shared_ptr<BufferHandlerGeneric> in_handler);
+    virtual void KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler);
 
     virtual void Shutdown();
 
@@ -75,7 +75,7 @@ public:
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
    
     // Must be filled in
-    virtual void NewConnection(shared_ptr<BufferHandlerGeneric> conn_handler) = 0;
+    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) = 0;
 protected:
     GlobalRegistry *globalreg;
 
@@ -86,7 +86,7 @@ protected:
     virtual bool AllowConnection(int in_fd);
 
     // Allocate the connection
-    virtual shared_ptr<BufferHandlerGeneric> AllocateConnection(int in_fd);
+    virtual std::shared_ptr<BufferHandlerGeneric> AllocateConnection(int in_fd);
 
     bool valid;
 
@@ -98,14 +98,14 @@ protected:
 
     struct sockaddr_in serv_sock;
 
-    vector<TcpServerV2::ipfilter> ipfilter_vec;
+    std::vector<TcpServerV2::ipfilter> ipfilter_vec;
 
     int server_fd;
 
     // FD to handler
-    map<int, shared_ptr<BufferHandlerGeneric> > handler_map;
+    std::map<int, std::shared_ptr<BufferHandlerGeneric> > handler_map;
 
-    map<int, shared_ptr<BufferHandlerGeneric> > kill_map;
+    std::map<int, std::shared_ptr<BufferHandlerGeneric> > kill_map;
 
 };
 

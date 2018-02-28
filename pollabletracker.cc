@@ -28,13 +28,13 @@ PollableTracker::~PollableTracker() {
 
 }
 
-void PollableTracker::RegisterPollable(shared_ptr<Pollable> in_pollable) {
+void PollableTracker::RegisterPollable(std::shared_ptr<Pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
     add_vec.push_back(in_pollable);
 }
 
-void PollableTracker::RemovePollable(shared_ptr<Pollable> in_pollable) {
+void PollableTracker::RemovePollable(std::shared_ptr<Pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
     remove_vec.push_back(in_pollable);

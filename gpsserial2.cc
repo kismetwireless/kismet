@@ -59,12 +59,12 @@ GPSSerialV2::~GPSSerialV2() {
 
     pollabletracker->RemovePollable(serialclient);
 
-    shared_ptr<Timetracker> timetracker = 
+    std::shared_ptr<Timetracker> timetracker = 
         Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     timetracker->RemoveTimer(error_reconnect_timer);
 }
 
-bool GPSSerialV2::open_gps(string in_opts) {
+bool GPSSerialV2::open_gps(std::string in_opts) {
     local_locker lock(&gps_mutex);
 
     if (!KisGps::open_gps(in_opts))
@@ -84,9 +84,9 @@ bool GPSSerialV2::open_gps(string in_opts) {
         nmeaclient.reset();
     }
 
-    string proto_device;
-    string proto_baud_s;
-    string proto_name;
+    std::string proto_device;
+    std::string proto_baud_s;
+    std::string proto_name;
     unsigned int proto_baud;
 
     proto_device = FetchOpt("device", source_definition_opts);
@@ -158,7 +158,7 @@ bool GPSSerialV2::get_device_connected() {
     return serialclient->FetchConnected();
 }
 
-void GPSSerialV2::BufferError(string in_error) {
+void GPSSerialV2::BufferError(std::string in_error) {
     local_locker lock(&gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a serial error: " + in_error,

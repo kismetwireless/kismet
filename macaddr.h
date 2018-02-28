@@ -122,7 +122,7 @@ struct mac_addr {
         string2long(in);
     }
 
-	inline mac_addr(const string in) {
+	inline mac_addr(const std::string in) {
 		string2long(in.c_str());
 	}
 
@@ -156,7 +156,7 @@ struct mac_addr {
 
     // Convert a string to a positional search fragment, places fragent
     // in ret_term and length of fragment in ret_len
-    inline static bool PrepareSearchTerm(string s, uint64_t &ret_term, 
+    inline static bool PrepareSearchTerm(std::string s, uint64_t &ret_term, 
             unsigned int &ret_len) {
 
 		short unsigned int byte;
@@ -299,11 +299,12 @@ struct mac_addr {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
-    inline string Mac2String() const {
-		ostringstream osstr;
+    inline std::string Mac2String() const {
+        std::ostringstream osstr;
 
 		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
-			osstr << hex << setw(2) << setfill('0') << uppercase << index64(longmac, x);
+			osstr << std::hex << std::setw(2) << std::setfill('0') << 
+                std::uppercase << index64(longmac, x);
 			if (x != MAC_LEN_MAX - 1)
 				osstr << ':';
 		}
@@ -311,11 +312,12 @@ struct mac_addr {
 		return osstr.str();
     }
 
-    inline string MacMask2String() const {
-		ostringstream osstr;
+    inline std::string MacMask2String() const {
+        std::ostringstream osstr;
 
 		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
-			osstr << hex << setw(2) << setfill('0') << uppercase << index64(longmask, x);
+			osstr << std::hex << std::setw(2) << std::setfill('0') << 
+                std::uppercase << index64(longmask, x);
 			if (x != MAC_LEN_MAX - 1)
 				osstr << ':';
 		}
@@ -327,7 +329,7 @@ struct mac_addr {
         return longmac;
     }
 
-    inline string MacFull2String() const {
+    inline std::string MacFull2String() const {
         return Mac2String() + "/" + MacMask2String();
     }
 
@@ -438,7 +440,7 @@ public:
         T *second;
 
     protected:
-        inline void assign(typename map<mac_addr, T>::iterator in_itr) {
+        inline void assign(typename std::map<mac_addr, T>::iterator in_itr) {
             singleton_itr = in_itr;
             vector_itr = -1;
 
@@ -458,7 +460,7 @@ public:
             }
         }
 
-        typename map<mac_addr, T>::iterator singleton_itr;
+        typename std::map<mac_addr, T>::iterator singleton_itr;
         int vector_itr;
         macmap<T> *owner;
     };
@@ -518,7 +520,7 @@ public:
 
         if (in_mac.longmask == (uint64_t) -1) {
             // Look in the singleton map... This is very fast.
-            typename map<mac_addr, T>::iterator sitr = singleton_map.find(in_mac);
+            typename std::map<mac_addr, T>::iterator sitr = singleton_map.find(in_mac);
             if (sitr != singleton_map.end()) {
                 ret.assign(sitr);
                 return ret;
@@ -617,9 +619,9 @@ public:
     }
 
 protected:
-    map<mac_addr, T> singleton_map;
-    vector<mask_vec_content> mask_vec;
-    map<mac_addr, mask_vec_offsets> vec_offset_map;
+    std::map<mac_addr, T> singleton_map;
+    std::vector<mask_vec_content> mask_vec;
+    std::map<mac_addr, mask_vec_offsets> vec_offset_map;
 };
 
 

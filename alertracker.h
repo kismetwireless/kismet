@@ -71,15 +71,15 @@ public:
 
     uint64_t device_key;
 
-	string header;
+    std::string header;
 	int phy;
 	struct timeval tm;
 	mac_addr bssid;
 	mac_addr source;
 	mac_addr dest;
 	mac_addr other;
-	string channel;
-	string text;
+    std::string channel;
+    std::string text;
 
     kis_gps_packinfo *gps;
 };
@@ -92,7 +92,7 @@ public:
 		self_destruct = 1;
 	}
 
-	vector<kis_alert_info *> alert_vec;
+    std::vector<kis_alert_info *> alert_vec;
 };
 
 class tracked_alert : public tracker_component {
@@ -115,7 +115,7 @@ public:
 
     __Proxy(device_key, uint64_t, uint64_t, uint64_t, device_key);
 
-    __Proxy(header, string, string, string, header);
+    __Proxy(header, std::string, std::string, std::string, header);
     __Proxy(phy, uint32_t, uint32_t, uint32_t, phy);
     __Proxy(timestamp, double, double, double, timestamp);
 
@@ -124,10 +124,10 @@ public:
     __Proxy(dest_mac, mac_addr, mac_addr, mac_addr, dest_mac);
     __Proxy(other_mac, mac_addr, mac_addr, mac_addr, other_mac);
 
-    __Proxy(channel, string, string, string, channel);
+    __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
-    __Proxy(text, string, string, string, text);
+    __Proxy(text, std::string, std::string, std::string, text);
 
     __ProxyTrackable(location, kis_tracked_location_triplet, location);
 
@@ -245,8 +245,8 @@ public:
         return SharedTrackerElement(new tracked_alert_definition(globalreg, get_id()));
     }
 
-    __Proxy(header, string, string, string, header);
-    __Proxy(description, string, string, string, description);
+    __Proxy(header, std::string, std::string, std::string, header);
+    __Proxy(description, std::string, std::string, std::string, description);
     __Proxy(phy, int64_t, int64_t, int64_t, phy);
 
     __Proxy(limit_unit, uint64_t, alert_time_unit, alert_time_unit, limit_unit);
@@ -320,21 +320,21 @@ protected:
     SharedTrackerElement time_last;
 };
 
-typedef shared_ptr<tracked_alert_definition> shared_alert_def;
+typedef std::shared_ptr<tracked_alert_definition> shared_alert_def;
 
 class Alertracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
 	// Simple struct from reading config lines
 	struct alert_conf_rec {
-		string header;
+        std::string header;
         alert_time_unit limit_unit;
         int limit_rate;
 		alert_time_unit burst_unit;
         int limit_burst;
 	};
 
-    static shared_ptr<Alertracker> create_alertracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<Alertracker> mon(new Alertracker(in_globalreg));
+    static std::shared_ptr<Alertracker> create_alertracker(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<Alertracker> mon(new Alertracker(in_globalreg));
         in_globalreg->alertracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("ALERTTRACKER", mon);
@@ -346,7 +346,7 @@ private:
 
     // Raise an Prelude alert (requires prelude support compiled in)
     int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
-            mac_addr dest, mac_addr other, string in_channel, string in_text);
+            mac_addr dest, mac_addr other, std::string in_channel, std::string in_text);
     int RaisePreludeOneShot(std::string in_header, std::string in_text);
 
     // Initialize Prelude Client (requires prelude support compiled in)
@@ -356,12 +356,12 @@ public:
     virtual ~Alertracker();
 
     // Register an alert and get an alert reference number back.
-    int RegisterAlert(string in_header, string in_desc, 
+    int RegisterAlert(std::string in_header, std::string in_desc, 
             alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit, 
             int in_burst, int in_phy);
 
     // Find a reference from a name
-    int FetchAlertRef(string in_header);
+    int FetchAlertRef(std::string in_header);
 
     // Will an alert succeed?
     int PotentialAlert(int in_ref);
@@ -369,13 +369,13 @@ public:
     // Raise an alert ...
     int RaiseAlert(int in_ref, kis_packet *in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
-                   string in_channel, string in_text);
+                   std::string in_channel, std::string in_text);
 
     // Raise a one-shot communications alert
     int RaiseOneShot(std::string in_header, std::string in_text, int in_phy);
 
     // parse an alert config string
-	int ParseAlertStr(string alert_str, string *ret_name, 
+	int ParseAlertStr(std::string alert_str, std::string *ret_name, 
 					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
 					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
 
@@ -383,15 +383,15 @@ public:
 	int ParseAlertConfig(ConfigFile *in_conf);
 
     // Define an alert and limits
-    int DefineAlert(string name, alert_time_unit limit_unit, int limit_rate,
+    int DefineAlert(std::string name, alert_time_unit limit_unit, int limit_rate,
             alert_time_unit limit_burst, int burst_rate);
 
 	// Activate a preconfigured alert from a file
-	int ActivateConfiguredAlert(string in_header, string in_desc);
-	int ActivateConfiguredAlert(string in_header, string in_desc, int in_phy);
+	int ActivateConfiguredAlert(std::string in_header, std::string in_desc);
+	int ActivateConfiguredAlert(std::string in_header, std::string in_desc, int in_phy);
 
     // Find an activated alert
-    int FindActivatedAlert(string in_header);
+    int FindActivatedAlert(std::string in_header);
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -405,8 +405,8 @@ public:
 protected:
     kis_recursive_timed_mutex alert_mutex;
 
-    shared_ptr<Packetchain> packetchain;
-    shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<EntryTracker> entrytracker;
 
     int alert_vec_id, alert_entry_id, alert_timestamp_id, alert_def_id;
 
@@ -414,15 +414,15 @@ protected:
     int CheckTimes(shared_alert_def arec);
 
 	// Parse a foo/bar rate/unit option
-	int ParseRateUnit(string in_ru, alert_time_unit *ret_unit, int *ret_rate);
+	int ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
     GlobalRegistry *globalreg;
 
     int next_alert_id;
 
     // Internal C++ mapping
-    map<string, int> alert_name_map;
-    map<int, shared_alert_def> alert_ref_map;
+    std::map<std::string, int> alert_name_map;
+    std::map<int, shared_alert_def> alert_ref_map;
 
     // Tracked mapping for export
     SharedTrackerElement alert_defs;
@@ -431,10 +431,10 @@ protected:
     int num_backlog;
 
     // Backlog of alerts to be sent
-    vector<kis_alert_info *> alert_backlog;
+    std::vector<kis_alert_info *> alert_backlog;
 
     // Alert configs we read before we know the alerts themselves
-	map<string, alert_conf_rec *> alert_conf_map;
+	std::map<std::string, alert_conf_rec *> alert_conf_map;
 
 #ifdef PRELUDE
     // Prelude client

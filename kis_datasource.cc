@@ -65,7 +65,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     mode_probing = false;
     mode_listing = false;
 
-    shared_ptr<EntryTracker> entrytracker = 
+    std::shared_ptr<EntryTracker> entrytracker = 
         Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
     listed_interface_builder =
         entrytracker->RegisterAndGetField("kismet.datasourcetracker.listed_interface", 
@@ -298,7 +298,7 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void KisDatasource::connect_buffer(shared_ptr<BufferHandlerGeneric> in_ringbuf,
+void KisDatasource::connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
         std::string in_definition, open_callback_t in_cb) {
     local_locker lock(&source_lock);
 
@@ -679,7 +679,7 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
     return true;
 }
 
-shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint32_t in_transaction) {
+std::shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint32_t in_transaction) {
     auto i = command_ack_map.find(in_transaction);
 
     if (i == command_ack_map.end())
@@ -693,7 +693,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error
 
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
-        shared_ptr<tracked_command> cmd = i->second;
+        std::shared_ptr<tracked_command> cmd = i->second;
 
         // Cancel any timers
         if (cmd->timer_id > -1) {
@@ -1647,7 +1647,7 @@ void KisDatasource::handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj)
                 opts = obj_iter->second.as<std::string>();
             }
 
-            SharedInterface intf = static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
+            SharedInterface intf = std::static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
             intf->populate(interface, opts);
             intf->set_prototype(get_source_builder());
 
@@ -1762,7 +1762,7 @@ void KisDatasource::send_command_list_interfaces(unsigned int in_transaction,
 
     uint32_t seqno;
     bool success;
-    shared_ptr<tracked_command> cmd;
+    std::shared_ptr<tracked_command> cmd;
 
     success = write_packet("LISTINTERFACES", kvmap, seqno);
 
@@ -1793,7 +1793,7 @@ void KisDatasource::send_command_probe_interface(std::string in_definition,
 
     uint32_t seqno;
     bool success;
-    shared_ptr<tracked_command> cmd;
+    std::shared_ptr<tracked_command> cmd;
 
     success = write_packet("PROBEDEVICE", kvmap, seqno);
 
@@ -1827,7 +1827,7 @@ void KisDatasource::send_command_open_interface(std::string in_definition,
 
     uint32_t seqno;
     bool success;
-    shared_ptr<tracked_command> cmd;
+    std::shared_ptr<tracked_command> cmd;
 
     success = write_packet("OPENDEVICE", kvmap, seqno);
 
@@ -1860,7 +1860,7 @@ void KisDatasource::send_command_set_channel(std::string in_channel,
 
     uint32_t seqno;
     bool success;
-    shared_ptr<tracked_command> cmd;
+    std::shared_ptr<tracked_command> cmd;
 
     success = write_packet("CONFIGURE", kvmap, seqno);
 
@@ -1929,7 +1929,7 @@ void KisDatasource::send_command_set_channel_hop(double in_rate,
 
     uint32_t seqno;
     bool success;
-    shared_ptr<tracked_command> cmd;
+    std::shared_ptr<tracked_command> cmd;
 
     success = write_packet("CONFIGURE", kvmap, seqno);
 
@@ -2053,7 +2053,7 @@ void KisDatasource::register_fields() {
             &source_num_error_packets);
 
     packet_rate_rrd_id = RegisterComplexField("kismet.datasource.packets_rrd", 
-            shared_ptr<kis_tracked_minute_rrd<> >(new kis_tracked_minute_rrd<>(globalreg, 0)), 
+            std::shared_ptr<kis_tracked_minute_rrd<> >(new kis_tracked_minute_rrd<>(globalreg, 0)), 
             "packet rate over past minute");
 
     RegisterField("kismet.datasource.retry", TrackerUInt8,
@@ -2086,7 +2086,7 @@ void KisDatasource::handle_source_error() {
                 "Remote sources are not locally reconnected; waiting for the remote source "
                 "to reconnect to resume capture.";
 
-            shared_ptr<Alertracker> alertracker =
+            std::shared_ptr<Alertracker> alertracker =
                 Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
             alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
@@ -2108,7 +2108,7 @@ void KisDatasource::handle_source_error() {
                 "is not configured to automatically re-try opening; it will remain "
                 "closed.";
 
-            shared_ptr<Alertracker> alertracker =
+            std::shared_ptr<Alertracker> alertracker =
                 Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
             alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
@@ -2146,7 +2146,7 @@ void KisDatasource::handle_source_error() {
             "Kismet will attempt to re-open the source in 5 seconds.  (" <<
             get_source_retry_attempts() << " failures)";
 
-        shared_ptr<Alertracker> alertracker =
+        std::shared_ptr<Alertracker> alertracker =
             Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
         alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
@@ -2172,7 +2172,7 @@ void KisDatasource::handle_source_error() {
                             ss << "Source " << get_source_name() << " successfully "
                                 "re-opened";
 
-                            shared_ptr<Alertracker> alertracker =
+                            std::shared_ptr<Alertracker> alertracker =
                                 Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
                             alertracker->RaiseOneShot("SOURCEOPEN", ss.str(), -1);
 

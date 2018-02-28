@@ -127,10 +127,10 @@ public:
     SmartStdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
     virtual ~SmartStdoutMessageClient() { }
-    void ProcessMessage(string in_msg, int in_flags);
+    void ProcessMessage(std::string in_msg, int in_flags);
 };
 
-void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
+void SmartStdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     if (glob_silent)
         return;
 
@@ -178,13 +178,13 @@ public:
     FatalQueueMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
     virtual ~FatalQueueMessageClient() { }
-    void ProcessMessage(string in_msg, int in_flags);
+    void ProcessMessage(std::string in_msg, int in_flags);
     void DumpFatals();
 protected:
-    vector<string> fatalqueue;
+    std::vector<std::string> fatalqueue;
 };
 
-void FatalQueueMessageClient::ProcessMessage(string in_msg, int in_flags) {
+void FatalQueueMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     // Queue PRINT forced errors differently than fatal conditions
     if (in_flags & MSGFLAG_PRINT) {
         fatalqueue.push_back("ERROR: " + in_msg);
@@ -221,17 +221,17 @@ int packnum = 0, localdropnum = 0;
 // Ultimate registry of global components
 GlobalRegistry *globalregistry = NULL;
 
-void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
+void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     // Eat the child signal handler
     signal(SIGCHLD, SIG_DFL);
 
     // Shut down the webserver first
-    shared_ptr<Kis_Net_Httpd> httpd = 
+    std::shared_ptr<Kis_Net_Httpd> httpd = 
         Globalreg::FetchGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER");
     if (httpd != NULL)
         httpd->StopHttpd();
 
-    shared_ptr<Devicetracker> devicetracker =
+    std::shared_ptr<Devicetracker> devicetracker =
         Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
     if (devicetracker != NULL) {
         devicetracker->store_all_devices();
@@ -301,7 +301,7 @@ void SpindownKismet(shared_ptr<PollableTracker> pollabletracker) {
     }
 
     fprintf(stderr, "Shutting down plugins...\n");
-    shared_ptr<Plugintracker> plugintracker =
+    std::shared_ptr<Plugintracker> plugintracker =
         Globalreg::FetchGlobalAs<Plugintracker>(globalregistry, "PLUGINTRACKER");
     if (plugintracker != NULL)
         plugintracker->ShutdownPlugins();
@@ -385,7 +385,7 @@ int Usage(char *argv) {
 
     LogTracker::Usage(argv);
 
-    for (vector<GlobalRegistry::usage_func>::iterator i = 
+    for (std::vector<GlobalRegistry::usage_func>::iterator i = 
             globalregistry->usage_func_vec.begin();
             i != globalregistry->usage_func_vec.end(); ++i) {
         (*i)(argv);
@@ -433,7 +433,7 @@ void SegVHandler(int sig __attribute__((unused))) {
 }
 
 #ifdef HAVE_LIBNCURSES
-vector<string> ncurses_exitbuf;
+std::vector<std::string> ncurses_exitbuf;
 
 pid_t ncurses_kismet_pid = 0;
 
@@ -566,7 +566,7 @@ void ncurses_wrapper_fork() {
                 waddstr(main_text, buf);
                 wrefresh(main_text);
 
-                ncurses_exitbuf.push_back(string(buf));
+                ncurses_exitbuf.push_back(std::string(buf));
                 if (ncurses_exitbuf.size() > 10)
                     ncurses_exitbuf.erase(ncurses_exitbuf.begin());
             }
@@ -610,8 +610,8 @@ void Load_Kismet_UUID(GlobalRegistry *globalreg) {
     }
 
     // Make a custom config
-    string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
-    string config_dir_path = 
+    std::string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
+    std::string config_dir_path = 
         globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
     std::string uuidconfpath = config_dir_path + "/" + "kismet_server_id.conf";
@@ -774,7 +774,7 @@ int main(int argc, char *argv[], char *envp[]) {
         } else if (r == npwc) {
             plugins = 0;
         } else if (r == hdwc) {
-            globalregistry->homepath = string(optarg);
+            globalregistry->homepath = std::string(optarg);
         }
     }
 
@@ -793,7 +793,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
     // We need to create the pollable system near the top of execution as well
-    shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
+    std::shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
 
     // Open, initial parse, and assign the config file
     if (configfilename == NULL) {
@@ -813,7 +813,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->kismet_config = conf;
 
     struct stat fstat;
-    string configdir;
+    std::string configdir;
 
     if (conf->FetchOpt("configdir") != "") {
         configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
@@ -876,19 +876,19 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Allocate some other critical stuff like the entry tracker and the
     // serializers
-    shared_ptr<EntryTracker> entrytracker =
+    std::shared_ptr<EntryTracker> entrytracker =
         EntryTracker::create_entrytracker(globalregistry);
 
     // Base serializers
-    entrytracker->RegisterSerializer("msgpack", shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("json", shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("ekjson", shared_ptr<TrackerElementSerializer>(new EkJsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("prettyjson", shared_ptr<TrackerElementSerializer>(new PrettyJsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("storagejson", shared_ptr<TrackerElementSerializer>(new StorageJsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("msgpack", std::shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("json", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("ekjson", std::shared_ptr<TrackerElementSerializer>(new EkJsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("prettyjson", std::shared_ptr<TrackerElementSerializer>(new PrettyJsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("storagejson", std::shared_ptr<TrackerElementSerializer>(new StorageJsonAdapter::Serializer(globalregistry)));
 
     // cmd is msgpack, jcmd is json (for now?)
-    entrytracker->RegisterSerializer("cmd", shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("jcmd", shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("cmd", std::shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("jcmd", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
 
 
     if (daemonize) {
@@ -912,7 +912,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (gethostname(hostname, 64) < 0)
             globalregistry->servername = "Kismet";
         else
-            globalregistry->servername = string(hostname);
+            globalregistry->servername = std::string(hostname);
     } else {
         globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
     }
@@ -940,7 +940,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Alertracker::create_alertracker(globalregistry);
 
     // Add the datasource tracker
-    shared_ptr<Datasourcetracker> datasourcetracker;
+    std::shared_ptr<Datasourcetracker> datasourcetracker;
     datasourcetracker = Datasourcetracker::create_dst(globalregistry);
 
     if (globalregistry->fatal_condition)
@@ -950,7 +950,7 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 
     // Create the device tracker
-    shared_ptr<Devicetracker> devicetracker = 
+    std::shared_ptr<Devicetracker> devicetracker = 
         Devicetracker::create_devicetracker(globalregistry);
 
     // Add channel tracking
@@ -996,7 +996,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder(globalregistry)));
 
 
-    shared_ptr<Plugintracker> plugintracker;
+    std::shared_ptr<Plugintracker> plugintracker;
 
     // Start the plugin handler
     if (plugins) {

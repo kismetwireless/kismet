@@ -87,7 +87,7 @@ protected:
 
 	int dlt;
 
-	vector<ppi_cb_rec> ppi_cb_vec;
+	std::vector<ppi_cb_rec> ppi_cb_vec;
 
 	dumpfile_pcap_filter_cb cbfilter;
 	void *cbaux;

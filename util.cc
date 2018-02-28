@@ -67,8 +67,8 @@
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
-	string ret;
+std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
+    std::string ret;
 	unsigned int i;
 
 	for (i = 0; i < max; i++) {
@@ -88,20 +88,20 @@ string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
 	return ret;
 }
 
-string MungeToPrintable(string in_str) {
+std::string MungeToPrintable(std::string in_str) {
 	return MungeToPrintable(in_str.c_str(), in_str.length(), 1);
 }
 
-string StrLower(string in_str) {
-    string thestr = in_str;
+std::string StrLower(std::string in_str) {
+    std::string thestr = in_str;
     for (unsigned int i = 0; i < thestr.length(); i++)
         thestr[i] = tolower(thestr[i]);
 
     return thestr;
 }
 
-string StrUpper(string in_str) {
-    string thestr = in_str;
+std::string StrUpper(std::string in_str) {
+    std::string thestr = in_str;
 
     for (unsigned int i = 0; i < thestr.length(); i++)
         thestr[i] = toupper(thestr[i]);
@@ -109,8 +109,8 @@ string StrUpper(string in_str) {
     return thestr;
 }
 
-string StrStrip(string in_str) {
-    string temp;
+std::string StrStrip(std::string in_str) {
+    std::string temp;
     unsigned int start, end;
 
     start = 0;
@@ -136,8 +136,8 @@ string StrStrip(string in_str) {
     return in_str.substr(start, end-start+1);
 }
 
-string StrPrintable(string in_str) {
-    string thestr;
+std::string StrPrintable(std::string in_str) {
+    std::string thestr;
 
     for (unsigned int i = 0; i < in_str.length(); i++) {
 		if (isprint(in_str[i])) {
@@ -168,14 +168,14 @@ int IsBlank(const char *s) {
     return 1;
 }
 
-string AlignString(string in_txt, char in_spacer, int in_align, int in_width) {
+std::string AlignString(std::string in_txt, char in_spacer, int in_align, int in_width) {
 	if (in_align == 1) {
 		// Center -- half, text, chop to fit
 		int sp = (in_width / 2) - (in_txt.length() / 2);
-		string ts = "";
+        std::string ts = "";
 
 		if (sp > 0) {
-			ts = string(sp, in_spacer);
+			ts = std::string(sp, in_spacer);
 		}
 
 		ts += in_txt.substr(0, in_width);
@@ -184,10 +184,10 @@ string AlignString(string in_txt, char in_spacer, int in_align, int in_width) {
 	} else if (in_align == 2) {
 		// Right -- width - len, chop to fit
 		int sp = (in_width - in_txt.length());
-		string ts = "";
+        std::string ts = "";
 
 		if (sp > 0) {
-			ts = string(sp, in_spacer);
+			ts = std::string(sp, in_spacer);
 		}
 
 		ts += in_txt.substr(0, in_width);
@@ -199,7 +199,7 @@ string AlignString(string in_txt, char in_spacer, int in_align, int in_width) {
 	return in_txt.substr(0, in_width);
 }
 
-int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen) {
+int HexStrToUint8(std::string in_str, uint8_t *in_buf, int in_buflen) {
 	int decode_pos = 0;
 	int str_pos = 0;
 
@@ -266,14 +266,14 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
 // "foo","bar","baz,foo",something
 // and network protocols like
 // foo bar \001baz foo\001
-vector<smart_word_token> BaseStrTokenize(string in_str, 
-										 string in_split, string in_quote) {
+std::vector<smart_word_token> BaseStrTokenize(std::string in_str, 
+        std::string in_split, std::string in_quote) {
 	size_t begin = 0;
 	size_t end = 0;
-	vector<smart_word_token> ret;
+    std::vector<smart_word_token> ret;
     smart_word_token stok;
 	int special = 0;
-	string val;
+    std::string val;
 	
 	if (in_str.length() == 0)
 		return ret;
@@ -319,16 +319,16 @@ vector<smart_word_token> BaseStrTokenize(string in_str,
 }
 
 // No-frills tokenize with no intelligence about nested delimiters
-vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
+std::vector<std::string> StrTokenize(std::string in_str, std::string in_split, int return_partial) {
     size_t begin = 0;
     size_t end = in_str.find(in_split);
-    vector<string> ret;
+    std::vector<std::string> ret;
 
     if (in_str.length() == 0)
         return ret;
     
-    while (end != string::npos) {
-        string sub = in_str.substr(begin, end-begin);
+    while (end != std::string::npos) {
+        std::string sub = in_str.substr(begin, end-begin);
         begin = end+1;
         end = in_str.find(in_split, begin);
         ret.push_back(sub);
@@ -340,8 +340,8 @@ vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
     return ret;
 }
 
-string StrJoin(vector<string> in_content, string in_delim, bool in_first) {
-    ostringstream ostr;
+std::string StrJoin(std::vector<std::string> in_content, std::string in_delim, bool in_first) {
+    std::ostringstream ostr;
 
     bool d = false;
 
@@ -359,15 +359,15 @@ string StrJoin(vector<string> in_content, string in_delim, bool in_first) {
 }
 
 // Collapse into basic tokenizer
-vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
-										int return_partial) {
+std::vector<smart_word_token> NetStrTokenize(std::string in_str, std::string in_split, 
+        int return_partial) {
 	return BaseStrTokenize(in_str, in_split, "\001");
 }
 
 // Collapse into basic tokenizer rewrite
-vector<string> QuoteStrTokenize(string in_str, string in_split) {
-	vector<string> ret;
-	vector<smart_word_token> bret;
+std::vector<std::string> QuoteStrTokenize(std::string in_str, std::string in_split) {
+    std::vector<std::string> ret;
+    std::vector<smart_word_token> bret;
 
 	bret = BaseStrTokenize(in_str, in_split, "\"");
 
@@ -378,7 +378,7 @@ vector<string> QuoteStrTokenize(string in_str, string in_split) {
 	return ret;
 }
 
-int TokenNullJoin(string *ret_str, const char **in_list) {
+int TokenNullJoin(std::string *ret_str, const char **in_list) {
 	int ret = 0;
 
 	while (in_list[ret] != NULL) {
@@ -394,8 +394,8 @@ int TokenNullJoin(string *ret_str, const char **in_list) {
 }
 
 // Find an option - just like config files
-string FetchOpt(string in_key, vector<opt_pair> *in_vec) {
-	string lkey = StrLower(in_key);
+std::string FetchOpt(std::string in_key, std::vector<opt_pair> *in_vec) {
+    std::string lkey = StrLower(in_key);
 
 	if (in_vec == NULL)
 		return "";
@@ -408,14 +408,15 @@ string FetchOpt(string in_key, vector<opt_pair> *in_vec) {
 	return "";
 }
 
-int FetchOptBoolean(string in_key, vector<opt_pair> *in_vec, int dvalue) {
-	string s = FetchOpt(in_key, in_vec);
+int FetchOptBoolean(std::string in_key, std::vector<opt_pair> *in_vec, int dvalue) {
+    std::string s = FetchOpt(in_key, in_vec);
 
 	return StringToBool(s, dvalue);
 }
 
 // Quick fetch of strings from a map of options
-string FetchOpt(string in_key, map<string, string> in_map, string dvalue) {
+std::string FetchOpt(std::string in_key, std::map<std::string, std::string> in_map, 
+        std::string dvalue) {
     auto i = in_map.find(in_key);
 
     if (i == in_map.end())
@@ -424,7 +425,7 @@ string FetchOpt(string in_key, map<string, string> in_map, string dvalue) {
     return i->second;
 }
 
-int FetchOptBoolean(string in_key, map<string, string> in_map, int dvalue) {
+int FetchOptBoolean(std::string in_key, std::map<std::string, std::string> in_map, int dvalue) {
     auto i = in_map.find(in_key);
 
     if (i == in_map.end())
@@ -433,9 +434,9 @@ int FetchOptBoolean(string in_key, map<string, string> in_map, int dvalue) {
     return StringToBool(i->second, dvalue);
 }
 
-vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
-	string lkey = StrLower(in_key);
-	vector<string> ret;
+std::vector<std::string> FetchOptVec(std::string in_key, std::vector<opt_pair> *in_vec) {
+    std::string lkey = StrLower(in_key);
+    std::vector<std::string> ret;
 
 	if (in_vec == NULL)
 		return ret;
@@ -448,8 +449,8 @@ vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
 	return ret;
 }
 
-int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec) {
-	vector<string> optv;
+int StringToOpts(std::string in_line, std::string in_sep, std::vector<opt_pair> *in_vec) {
+    std::vector<std::string> optv;
 	opt_pair optp;
 
 	int in_tag = 1, in_quote = 0;
@@ -495,7 +496,7 @@ int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec) {
 	return 1;
 }
 
-void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec) {
+void AddOptToOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
 	optp.opt = StrLower(opt);
@@ -504,7 +505,7 @@ void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec) {
 	in_vec->push_back(optp);
 }
 
-void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec) {
+void ReplaceAllOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
 	optp.opt = StrLower(opt);
@@ -521,21 +522,21 @@ void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec) {
 	in_vec->push_back(optp);
 }
 
-vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
+std::vector<std::string> LineWrap(std::string in_txt, unsigned int in_hdr_len, 
 						unsigned int in_maxlen) {
-	vector<string> ret;
+    std::vector<std::string> ret;
 
 	size_t pos, prev_pos, start, hdroffset;
 	start = hdroffset = 0;
 
-	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; 
+	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != std::string::npos; 
 		 pos = in_txt.find(' ', pos + 1)) {
 		if ((hdroffset + pos) - start >= in_maxlen) {
 			if (pos - prev_pos > (in_maxlen / 4)) {
 				pos = prev_pos = start + (in_maxlen - hdroffset);
 			}
 
-			string str(hdroffset, ' ');
+            std::string str(hdroffset, ' ');
 			hdroffset = in_hdr_len;
 			str += in_txt.substr(start, prev_pos - start);
 			ret.push_back(str);
@@ -547,7 +548,7 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len,
 	}
 
 	while (in_txt.length() - start > (in_maxlen - hdroffset)) {
-		string str(hdroffset, ' ');
+        std::string str(hdroffset, ' ');
 		hdroffset = in_hdr_len;
 
 		str += in_txt.substr(start, (prev_pos - start));
@@ -558,17 +559,17 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len,
 		prev_pos+= (in_maxlen - hdroffset);
 	}
 
-	string str(hdroffset, ' ');
+    std::string str(hdroffset, ' ');
 	str += in_txt.substr(start, in_txt.length() - start);
 	ret.push_back(str);
 
 	return ret;
 }
 
-string InLineWrap(string in_txt, unsigned int in_hdr_len, 
+std::string InLineWrap(std::string in_txt, unsigned int in_hdr_len, 
 				  unsigned int in_maxlen) {
-	vector<string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
-	string ret;
+    std::vector<std::string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
+    std::string ret;
 
 	for (unsigned int x = 0; x < raw.size(); x++) {
 		ret += raw[x] + "\n";
@@ -577,9 +578,9 @@ string InLineWrap(string in_txt, unsigned int in_hdr_len,
 	return ret;
 }
 
-string SanitizeXML(string in_str) {
+std::string SanitizeXML(std::string in_str) {
 	// Ghetto-fied XML sanitizer.  Add more stuff later if we need to.
-	string ret;
+    std::string ret;
 	for (unsigned int x = 0; x < in_str.length(); x++) {
 		if (in_str[x] == '&')
 			ret += "&amp;";
@@ -594,8 +595,8 @@ string SanitizeXML(string in_str) {
 	return ret;
 }
 
-string SanitizeCSV(string in_str) {
-	string ret;
+std::string SanitizeCSV(std::string in_str) {
+    std::string ret;
 	for (unsigned int x = 0; x < in_str.length(); x++) {
 		if (in_str[x] == ';')
 			ret += " ";
@@ -615,9 +616,9 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
     return (double) primary + ((double) mantissa / 1000000);
 }
 
-vector<int> Str2IntVec(string in_text) {
-    vector<string> optlist = StrTokenize(in_text, ",");
-    vector<int> ret;
+std::vector<int> Str2IntVec(std::string in_text) {
+    std::vector<std::string> optlist = StrTokenize(in_text, ",");
+    std::vector<int> ret;
     int ch;
 
     for (unsigned int x = 0; x < optlist.size(); x++) {
@@ -694,11 +695,11 @@ uint32_t Adler32Checksum(const char *in_buf, size_t in_len) {
     return Adler32IncrementalChecksum(in_buf, in_len, &s1, &s2);
 }
 
-list<_kis_lex_rec> LexString(string in_line, string& errstr) {
-	list<_kis_lex_rec> ret;
+std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr) {
+    std::list<_kis_lex_rec> ret;
 	int curstate = _kis_lex_none;
 	_kis_lex_rec cpr;
-	string tempstr;
+    std::string tempstr;
 	char lastc = 0;
 	char c = 0;
 
@@ -945,8 +946,8 @@ u_int32_t double_to_ns(double in) {
     return ret;
 }
 
-int StringToBool(string s, int dvalue) {
-	string ls = StrLower(s);
+int StringToBool(std::string s, int dvalue) {
+    std::string ls = StrLower(s);
 
 	if (ls == "true" || ls == "t") {
 		return 1;
@@ -957,7 +958,7 @@ int StringToBool(string s, int dvalue) {
 	return dvalue;
 }
 
-int StringToInt(string s) {
+int StringToInt(std::string s) {
     int r;
 
     if (sscanf(s.c_str(), "%d", &r) != 1)
@@ -966,7 +967,7 @@ int StringToInt(string s) {
     return r;
 }
 
-unsigned int StringToUInt(string s) {
+unsigned int StringToUInt(std::string s) {
     unsigned int r;
 
     if (sscanf(s.c_str(), "%u", &r) != 1)
@@ -975,7 +976,7 @@ unsigned int StringToUInt(string s) {
     return r;
 }
 
-string StringAppend(string s, string a, string d) {
+std::string StringAppend(std::string s, std::string a, std::string d) {
 	if (s.length() == 0)
 		return a;
 
@@ -988,7 +989,7 @@ string StringAppend(string s, string a, string d) {
 
 int GetLengthTagOffsets(unsigned int init_offset, 
 						kis_datachunk *in_chunk,
-						map<int, vector<int> > *tag_cache_map) {
+						std::map<int, std::vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     unsigned int cur_offset = (unsigned int) init_offset;
@@ -1042,9 +1043,9 @@ std::string MultiReplaceAll(std::string in, std::string match,
     return in;
 }
 
-string kis_strerror_r(int errnum) {
+std::string kis_strerror_r(int errnum) {
     char *d_errstr = new char[1024];
-    string rs;
+    std::string rs;
 
     // How did glibc get this so amazingly wrong?
 
@@ -1061,7 +1062,7 @@ string kis_strerror_r(int errnum) {
     if (strerror_r(errnum, d_errstr, 1024)) {
         rs = IntToString(errnum);
     } else {
-        rs = string(d_errstr);
+        rs = std::string(d_errstr);
     }
     delete[] d_errstr;
     return rs;

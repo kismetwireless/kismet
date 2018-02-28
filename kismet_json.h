@@ -103,12 +103,12 @@ public:
         return json.asDouble();
     }
 
-    virtual string getString() {
+    virtual std::string getString() {
         exceptIfNot(isString(), "string");
         return json.asString();
     }
 
-    virtual string getBinaryStr() {
+    virtual std::string getBinaryStr() {
         exceptIfNot(isString(), "binary string");
         return hexstr_to_binstr(getString().c_str());
     }
@@ -159,11 +159,11 @@ public:
         return SharedStructured(new StructuredJson(ki));
     }
 
-    virtual double getKeyAsNumber(string key) {
+    virtual double getKeyAsNumber(std::string key) {
         return getStructuredByKey(key)->getNumber();
     }
 
-    virtual double getKeyAsNumber(string key, double def) {
+    virtual double getKeyAsNumber(std::string key, double def) {
         if (!hasKey(key))
             return def;
 
@@ -175,11 +175,11 @@ public:
         return v->getNumber();
     }
 
-    virtual string getKeyAsString(string key) {
+    virtual std::string getKeyAsString(std::string key) {
         return getStructuredByKey(key)->getString();
     }
 
-    virtual string getKeyAsString(string key, string def) {
+    virtual std::string getKeyAsString(std::string key, std::string def) {
         if (!hasKey(key))
             return def;
 
@@ -191,11 +191,11 @@ public:
         return v->getString();
     }
 
-    virtual bool getKeyAsBool(string key) {
+    virtual bool getKeyAsBool(std::string key) {
         return getStructuredByKey(key)->getBool();
     }
 
-    virtual bool getKeyAsBool(string key, bool def) {
+    virtual bool getKeyAsBool(std::string key, bool def) {
         if (!hasKey(key))
             return def;
 

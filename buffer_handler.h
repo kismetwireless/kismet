@@ -265,17 +265,17 @@ public:
 
     // Set simple functional callbacks to be called when we drain an interface; used to
     // allow quick unlocking of blocked writers
-    virtual void SetReadBufferDrainCb(function<void (size_t)> in_cb);
-    virtual void SetWriteBufferDrainCb(function<void (size_t)> in_cb);
+    virtual void SetReadBufferDrainCb(std::function<void (size_t)> in_cb);
+    virtual void SetWriteBufferDrainCb(std::function<void (size_t)> in_cb);
 
     virtual void RemoveReadBufferDrainCb();
     virtual void RemoveWriteBufferDrainCb();
 
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
-    virtual void BufferError(string in_error);
+    virtual void BufferError(std::string in_error);
     // Propagate an error to a specific listener
-    virtual void ReadBufferError(string in_error);
-    virtual void WriteBufferError(string in_error);
+    virtual void ReadBufferError(std::string in_error);
+    virtual void WriteBufferError(std::string in_error);
 
     // Propagate a protocol-layer error to any line-drivers (protocol parser
     // to line drivers).  We don't pass a string to the line drivers because
@@ -283,7 +283,7 @@ public:
     virtual void ProtocolError();
     // Set a protocol error callback; line level drivers should set this and initiate
     // a shutdown of the line connections
-    virtual void SetProtocolErrorCb(function<void (void)> in_cb);
+    virtual void SetProtocolErrorCb(std::function<void (void)> in_cb);
 
 protected:
     // Generic buffers
@@ -296,10 +296,10 @@ protected:
 
     kis_recursive_timed_mutex handler_locker, r_callback_locker, w_callback_locker;
 
-    function<void (void)> protoerror_cb;
+    std::function<void (void)> protoerror_cb;
 
-    function<void (size_t)> readbuf_drain_cb;
-    function<void (size_t)> writebuf_drain_cb;
+    std::function<void (size_t)> readbuf_drain_cb;
+    std::function<void (size_t)> writebuf_drain_cb;
 };
 
 template<class B> 
@@ -326,9 +326,9 @@ public:
 
 // A C++ streambuf-compatible wrapper around a buf handler
 struct BufferHandlerOStreambuf : public std::streambuf {
-    BufferHandlerOStreambuf(shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+    BufferHandlerOStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler) :
         rb_handler(in_rbhandler), blocking(false) { }
-    BufferHandlerOStreambuf(shared_ptr<BufferHandlerGeneric > in_rbhandler, bool in_blocking) :
+    BufferHandlerOStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler, bool in_blocking) :
         rb_handler(in_rbhandler), blocking(in_blocking) { }
 
     virtual ~BufferHandlerOStreambuf();
@@ -339,19 +339,19 @@ protected:
 
 private:
     // buf handler we bind to
-    shared_ptr<BufferHandlerGeneric > rb_handler;
+    std::shared_ptr<BufferHandlerGeneric > rb_handler;
 
     // Do we block when buffer is full?
     bool blocking;
 
     // Locker variable if we block
-    shared_ptr<conditional_locker<size_t> > blocking_cl;
+    std::shared_ptr<conditional_locker<size_t> > blocking_cl;
 };
 
 // A C++ streambuf-compatible wrapper around a buf handler with an interstitial string
 // cache
 struct BufferHandlerOStringStreambuf : public std::stringbuf {
-    BufferHandlerOStringStreambuf(shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+    BufferHandlerOStringStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler) :
         rb_handler(in_rbhandler) { }
 
     virtual ~BufferHandlerOStringStreambuf();
@@ -365,7 +365,7 @@ protected:
 
 private:
     // buf handler we bind to
-    shared_ptr<BufferHandlerGeneric > rb_handler;
+    std::shared_ptr<BufferHandlerGeneric > rb_handler;
     
 };
 
@@ -380,7 +380,7 @@ public:
     virtual void BufferAvailable(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
-    virtual void BufferError(string in_error __attribute__((unused))) { }
+    virtual void BufferError(std::string in_error __attribute__((unused))) { }
 
 protected:
     BufferHandlerGeneric *buffer_handler;

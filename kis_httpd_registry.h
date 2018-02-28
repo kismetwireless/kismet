@@ -38,12 +38,12 @@
 class Kis_Httpd_Registry : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal {
 public:
-    static shared_ptr<Kis_Httpd_Registry> 
+    static std::shared_ptr<Kis_Httpd_Registry> 
         create_http_registry(GlobalRegistry *in_globalreg) {
-        shared_ptr<Kis_Httpd_Registry> mon(new Kis_Httpd_Registry(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("WEBREGISTRY", mon);
-        return mon;
+            std::shared_ptr<Kis_Httpd_Registry> mon(new Kis_Httpd_Registry(in_globalreg));
+            in_globalreg->RegisterLifetimeGlobal(mon);
+            in_globalreg->InsertGlobal("WEBREGISTRY", mon);
+            return mon;
     }
 
 private:
@@ -53,7 +53,7 @@ public:
     ~Kis_Httpd_Registry();
 
     // Register a javascript module
-    virtual bool register_js_module(string in_module, string in_path);
+    virtual bool register_js_module(std::string in_module, std::string in_path);
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -69,7 +69,7 @@ protected:
 
     bool allow_userplugins;
 
-    map<string, string> js_module_path_map;
+    std::map<std::string, std::string> js_module_path_map;
 };
 
 #endif

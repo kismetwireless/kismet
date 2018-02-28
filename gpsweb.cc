@@ -33,7 +33,7 @@ GPSWeb::GPSWeb(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
 
 GPSWeb::~GPSWeb() { }
 
-bool GPSWeb::open_gps(string in_opts) {
+bool GPSWeb::open_gps(std::string in_opts) {
     local_locker lock(&gps_mutex);
 
     if (!KisGps::open_gps(in_opts)) {
@@ -116,7 +116,7 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
 
     if (concls->url == "/gps/web/update.cmd") {
         if (strcmp(key, "msgpack") == 0 && size > 0) {
-            string decode = Base64::decode(string(data));
+            std::string decode = Base64::decode(std::string(data));
 
             // Get the dictionary
             MsgpackAdapter::MsgpackStrMap params;

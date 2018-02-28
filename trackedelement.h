@@ -68,7 +68,7 @@ class TrackedDeviceKey {
 public:
     friend bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
     friend bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
-    friend ostream& operator<<(ostream& os, const TrackedDeviceKey& k);
+    friend std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k);
 
     TrackedDeviceKey();
 
@@ -107,7 +107,7 @@ protected:
 
 bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
 bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
-ostream& operator<<(ostream& os, const TrackedDeviceKey& k);
+std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k);
 
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
@@ -176,12 +176,12 @@ public:
     void Initialize();
 
     // Factory-style for easily making more of the same if we're subclassed
-    virtual shared_ptr<TrackerElement> clone_type() {
+    virtual std::shared_ptr<TrackerElement> clone_type() {
         std::shared_ptr<TrackerElement> dup1(new TrackerElement(get_type(), get_id()));
         return dup1;
     }
 
-    virtual shared_ptr<TrackerElement> clone_type(int in_id) {
+    virtual std::shared_ptr<TrackerElement> clone_type(int in_id) {
         std::shared_ptr<TrackerElement> dup1(clone_type());
         dup1->set_id(in_id);
 
@@ -530,7 +530,7 @@ public:
     void set_bytearray(std::shared_ptr<uint8_t> d, size_t len);
     void set_bytearray(std::string s);
     size_t get_bytearray_size();
-    shared_ptr<uint8_t> get_bytearray();
+    std::shared_ptr<uint8_t> get_bytearray();
     std::string get_bytearray_str();
 
     // Do our best to increment a value
@@ -1070,7 +1070,7 @@ public:
 
 // Templated access functions
 
-template<typename T> T GetTrackerValue(shared_ptr<TrackerElement>);
+template<typename T> T GetTrackerValue(SharedTrackerElement);
 
 template<> std::string GetTrackerValue(SharedTrackerElement e);
 template<> int8_t GetTrackerValue(SharedTrackerElement e);
@@ -1117,7 +1117,7 @@ class tracker_component : public TrackerElement {
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
     virtual SharedTrackerElement get_tracker_##name() { \
-        return (shared_ptr<TrackerElement>) cvar; \
+        return (std::shared_ptr<TrackerElement>) cvar; \
     } \
     virtual rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
@@ -1137,7 +1137,7 @@ class tracker_component : public TrackerElement {
 // calling the callback function
 #define __ProxyL(name, ptype, itype, rtype, cvar, lambda) \
     virtual SharedTrackerElement get_tracker_##name() { \
-        return (shared_ptr<TrackerElement>) cvar; \
+        return (std::shared_ptr<TrackerElement>) cvar; \
     } \
     virtual rtype get_##name() const { \
         return (rtype) GetTrackerValue<ptype>(cvar); \
@@ -1201,8 +1201,8 @@ class tracker_component : public TrackerElement {
 
 // Proxy sub-trackable (name, trackable type, class variable)
 #define __ProxyTrackable(name, ttype, cvar) \
-    virtual shared_ptr<ttype> get_##name() { return cvar; } \
-    virtual void set_##name(shared_ptr<ttype> in) { \
+    virtual std::shared_ptr<ttype> get_##name() { return cvar; } \
+    virtual void set_##name(std::shared_ptr<ttype> in) { \
         if (cvar != NULL) \
             del_map(std::static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
@@ -1224,7 +1224,7 @@ class tracker_component : public TrackerElement {
 // setting function.  Set function calls lambda, which should be of the signature
 // [] (shared_ptr<ttype>) -> bool
 #define __ProxyTrackableL(name, ttype, cvar, lambda) \
-    virtual shared_ptr<ttype> get_##name() { return cvar; } \
+    virtual std::shared_ptr<ttype> get_##name() { return cvar; } \
     virtual bool set_##name(shared_ptr<ttype> in) { \
         if (cvar != NULL) \
             del_map(std::static_pointer_cast<TrackerElement>(cvar)); \
@@ -1244,7 +1244,7 @@ class tracker_component : public TrackerElement {
 // Proxy dynamic trackable (value in class may be null and is dynamically
 // built)
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
-    virtual shared_ptr<ttype> get_##name() { \
+    virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
             cvar = std::static_pointer_cast<ttype>(entrytracker->GetTrackedInstance(id)); \
             if (cvar != NULL) \
@@ -1252,7 +1252,7 @@ class tracker_component : public TrackerElement {
         } \
         return cvar; \
     } \
-    virtual void set_tracker_##name(shared_ptr<ttype> in) { \
+    virtual void set_tracker_##name(std::shared_ptr<ttype> in) { \
         if (cvar != NULL) \
             del_map(std::static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
@@ -1283,8 +1283,8 @@ class tracker_component : public TrackerElement {
     }
 
 #define __RegisterComplexField(type, id, name, description) \
-    shared_ptr< type > builder_##id(new type(globalreg, 0)); \
-    id = RegisterComplexField(name, builder_##id, description);
+        std::shared_ptr< type > builder_##id(new type(globalreg, 0)); \
+        id = RegisterComplexField(name, builder_##id, description);
 
 public:
     // Build a basic component.  All basic components are maps.
@@ -1309,20 +1309,20 @@ public:
     virtual std::string get_name(int in_id);
 
     SharedTrackerElement get_child_path(std::string in_path);
-    SharedTrackerElement get_child_path(std::vector<string> in_path);
+    SharedTrackerElement get_child_path(std::vector<std::string> in_path);
 
 protected:
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
     // This field will be automatically assigned or created during the reservefields 
     // stage.
-    int RegisterField(std::string in_name, TrackerType in_type, string in_desc, 
+    int RegisterField(std::string in_name, TrackerType in_type, std::string in_desc, 
             SharedTrackerElement *in_dest);
 
     // Reserve a field via the entrytracker, using standard entrytracker build methods,
     // but do not assign or create during the reservefields stage.
     // This can be used for registering sub-components of maps which are not directly
     // instantiated as top-level fields.
-    int RegisterField(std::string in_name, TrackerType in_type, string in_desc);
+    int RegisterField(std::string in_name, TrackerType in_type, std::string in_desc);
 
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
     // This field will be automatically assigned or created during the reservefields 
@@ -1373,7 +1373,7 @@ protected:
 };
 
 class TrackerElementSummary;
-typedef shared_ptr<TrackerElementSummary> SharedElementSummary;
+typedef std::shared_ptr<TrackerElementSummary> SharedElementSummary;
 
 // Element simplification record for summarizing and simplifying records
 class TrackerElementSummary {
@@ -1381,7 +1381,7 @@ public:
     TrackerElementSummary(std::string in_path, std::string in_rename, 
             std::shared_ptr<EntryTracker> entrytracker);
 
-    TrackerElementSummary(vector<string> in_path, std::string in_rename,
+    TrackerElementSummary(std::vector<std::string> in_path, std::string in_rename,
             std::shared_ptr<EntryTracker> entrytracker);
 
     TrackerElementSummary(std::string in_path, std::shared_ptr<EntryTracker> entrytracker);
@@ -1434,7 +1434,7 @@ protected:
 SharedTrackerElement GetTrackerElementPath(std::string in_path, 
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker);
 // Split std::string path
-SharedTrackerElement GetTrackerElementPath(std::vector<string> in_path, 
+SharedTrackerElement GetTrackerElementPath(std::vector<std::string> in_path, 
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker);
 // Resolved field ID path
 SharedTrackerElement GetTrackerElementPath(std::vector<int> in_path, 
@@ -1450,7 +1450,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::string in_path
         SharedTrackerElement elem,
         std::shared_ptr<EntryTracker> entrytracker);
 // Split std::string path
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<string> in_path, 
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<std::string> in_path, 
         SharedTrackerElement elem,
         std::shared_ptr<EntryTracker> entrytracker);
 // Resolved field ID path
@@ -1460,7 +1460,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned in ret_elem, and the rename mapping for serialization is
 // completed in rename.
-void SummarizeTrackerElement(shared_ptr<EntryTracker> entrytracker,
+void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
         SharedTrackerElement in, 
         std::vector<SharedElementSummary> in_summarization, 
         SharedTrackerElement &ret_elem, 

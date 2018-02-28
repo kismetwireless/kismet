@@ -32,9 +32,9 @@
 class Kis_Httpd_Websession : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public DeferredStartup {
 public:
-    static shared_ptr<Kis_Httpd_Websession> 
+    static std::shared_ptr<Kis_Httpd_Websession> 
         create_websession(GlobalRegistry *in_globalreg) {
-        shared_ptr<Kis_Httpd_Websession> mon(new Kis_Httpd_Websession(in_globalreg));
+        std::shared_ptr<Kis_Httpd_Websession> mon(new Kis_Httpd_Websession(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->RegisterDeferredGlobal(mon);
         in_globalreg->InsertGlobal("WEBSESSION", mon);
@@ -57,14 +57,14 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual void set_login(string in_username, string in_password);
+    virtual void set_login(std::string in_username, std::string in_password);
 
     // Live-check a session login
     virtual bool validate_login(struct MHD_Connection *connection);
 
     // Get current l/p
-    string get_username() { return conf_username; }
-    string get_password() { return conf_password; }
+    std::string get_username() { return conf_username; }
+    std::string get_password() { return conf_password; }
 
 protected:
     bool activated; 
@@ -73,12 +73,12 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    string user_httpd_config_file;
+    std::string user_httpd_config_file;
     ConfigFile *user_httpd_config;
 
     bool global_config;
-    string conf_username;
-    string conf_password;
+    std::string conf_username;
+    std::string conf_password;
 
 };
 

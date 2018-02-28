@@ -73,7 +73,7 @@ int Fetch_Battery_Linux_ACPI(kis_battery_info *out __attribute__((unused))) {
 	DIR *adir;
 	struct dirent *ent;
 	int rate = 0, cap = 0, remain = 0, tint = 0;
-	string bpath;
+    std::string bpath;
 
 	adir = opendir("/proc/acpi/battery");
 
@@ -87,7 +87,7 @@ int Fetch_Battery_Linux_ACPI(kis_battery_info *out __attribute__((unused))) {
 	}
 
 	while ((ent = readdir(adir)) != NULL) {
-		bpath = "/proc/acpi/battery/" + string(ent->d_name) + "/state";
+		bpath = "/proc/acpi/battery/" + std::string(ent->d_name) + "/state";
 
 		if ((bfile = fopen(bpath.c_str(), "r")) == NULL)
 			continue;
@@ -119,7 +119,7 @@ int Fetch_Battery_Linux_ACPI(kis_battery_info *out __attribute__((unused))) {
 		}
 		fclose(bfile);
 
-		bpath = "/proc/acpi/battery/" + string(ent->d_name) + "/info";
+		bpath = "/proc/acpi/battery/" + std::string(ent->d_name) + "/info";
 		if ((bfile = fopen(bpath.c_str(), "r")) == NULL) {
 			continue;
 		}

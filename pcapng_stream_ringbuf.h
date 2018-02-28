@@ -128,13 +128,13 @@ typedef struct pcapng_epb pcapng_epb_t;
 class Pcap_Stream_Ringbuf : public streaming_agent {
 public:
     Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
-            shared_ptr<BufferHandlerGeneric> in_handler,
-            function<bool (kis_packet *)> accept_filter,
-            function<kis_datachunk * (kis_packet *)> data_selector);
+            std::shared_ptr<BufferHandlerGeneric> in_handler,
+            std::function<bool (kis_packet *)> accept_filter,
+            std::function<kis_datachunk * (kis_packet *)> data_selector);
 
     virtual ~Pcap_Stream_Ringbuf();
 
-    virtual void stop_stream(string in_reason);
+    virtual void stop_stream(std::string in_reason);
 
     struct data_block {
         data_block(uint8_t *in_d, size_t in_l) {
@@ -147,14 +147,14 @@ public:
     };
 
 protected:
-    virtual int pcapng_make_shb(string in_hw, string in_os, string in_app);
+    virtual int pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app);
 
     // Create a new interface record from an existing datasource
     virtual int pcapng_make_idb(KisDatasource *in_datasource);
 
     // Low-level datasource creation
-    virtual int pcapng_make_idb(unsigned int in_sourcenumber, string in_interface, 
-            string in_description, int in_dlt);
+    virtual int pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
+            std::string in_description, int in_dlt);
 
     // Write a complete block using native headers
     virtual int pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data);
@@ -162,7 +162,7 @@ protected:
     // Low-level packet logging; accepts a vector of blocks to minimize the copying
     // needed to append custom headers
     virtual int pcapng_write_packet(unsigned int in_sourcenumber, struct timeval *in_tv,
-            vector<data_block> in_blocks);
+            std::vector<data_block> in_blocks);
 
     virtual void handle_chain_packet(kis_packet *in_packet);
 
@@ -173,18 +173,18 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<Packetchain> packetchain;
 
-    shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<BufferHandlerGeneric> handler;
 
     int packethandler_id;
     int pack_comp_linkframe, pack_comp_datasrc;
 
-    function<bool (kis_packet *)> accept_cb;
-    function<kis_datachunk * (kis_packet *)> selector_cb;
+    std::function<bool (kis_packet *)> accept_cb;
+    std::function<kis_datachunk * (kis_packet *)> selector_cb;
 
     // Map kismet internal interface ID to log interface ID
-    map<unsigned int, unsigned int> datasource_id_map;
+    std::map<unsigned int, unsigned int> datasource_id_map;
     
 };
 

@@ -38,13 +38,13 @@ void TcpServerV2::SetBufferSize(unsigned int in_sz) {
 }
 
 int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
-        string in_bindaddress, vector<string> in_filtervec) {
+        std::string in_bindaddress, std::vector<std::string> in_filtervec) {
     port = in_port;
     maxcli = in_maxcli;
 
     // Parse the filters
     for (auto i = in_filtervec.begin(); i != in_filtervec.end(); ++i) {
-        vector<string> fv = StrTokenize(*i, "/");
+        std::vector<std::string> fv = StrTokenize(*i, "/");
 
         ipfilter ipf;
 
@@ -162,7 +162,7 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 
 
 int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
-    stringstream msg;
+    std::stringstream msg;
     int ret, iret;
     size_t len;
     unsigned char *buf;
@@ -192,7 +192,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
         }
 
-        shared_ptr<BufferHandlerGeneric> con_handler = AllocateConnection(accept_fd);
+        std::shared_ptr<BufferHandlerGeneric> con_handler = AllocateConnection(accept_fd);
 
         if (con_handler == NULL) {
             KillConnection(accept_fd);
@@ -328,7 +328,7 @@ void TcpServerV2::KillConnection(int in_fd) {
     }
 }
 
-void TcpServerV2::KillConnection(shared_ptr<BufferHandlerGeneric> in_handler) {
+void TcpServerV2::KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler) {
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         if (i->second == in_handler) {
             kill_map.emplace(i->first, i->second);
@@ -418,16 +418,16 @@ bool TcpServerV2::AllowConnection(int in_fd) {
         }
     }
 
-    string reject = string(inet_ntoa(client_addr.sin_addr));
+    std::string reject = std::string(inet_ntoa(client_addr.sin_addr));
     _MSG("TCP server rejected connection from untrusted IP " + reject,
             MSGFLAG_ERROR);
 
     return false;
 }
 
-shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
+std::shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
     // Basic allocation
-    shared_ptr<BufferHandlerGeneric> rbh(new BufferHandler<RingbufV2>(ringbuf_size, ringbuf_size));  
+    std::shared_ptr<BufferHandlerGeneric> rbh(new BufferHandler<RingbufV2>(ringbuf_size, ringbuf_size));  
 
     // Protocol errors kill the connection
     rbh->SetProtocolErrorCb([this, in_fd]() {

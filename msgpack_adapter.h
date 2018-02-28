@@ -36,7 +36,7 @@
 
 namespace MsgpackAdapter {
 
-typedef map<string, msgpack::object> MsgpackStrMap;
+typedef std::map<std::string, msgpack::object> MsgpackStrMap;
 
 void Packer(GlobalRegistry *globalreg, SharedTrackerElement v, 
         msgpack::packer<std::ostream> &packer,
@@ -89,12 +89,12 @@ public:
 
 class StructuredMsgpack : public StructuredData {
 public:
-    StructuredMsgpack(string data) : StructuredData(data) {
+    StructuredMsgpack(std::string data) : StructuredData(data) {
         try {
             msgpack::unpack(result, data.data(), data.size());
             object = result.get();
         } catch (const std::exception& e) {
-            string se = string("Unable to unpack msgpack object: ") + e.what();
+            std::string se = std::string("Unable to unpack msgpack object: ") + e.what();
             throw StructuredDataUnparseable(se);
         }
     }
@@ -107,7 +107,7 @@ public:
 
     }
 
-    void exceptIfNot(bool match, string t) {
+    void exceptIfNot(bool match, std::string t) {
         if (!match) {
             throw StructuredDataUnsuitable("msgpack field is not " + t);
         }
@@ -161,7 +161,7 @@ public:
         exceptIfNot(isString(), "string");
 
         try {
-            return object.as<string>();
+            return object.as<std::string>();
         } catch (const std::exception& e) {
             throw StructuredDataUnsuitable(e.what());
         }
@@ -174,7 +174,7 @@ public:
             return getString();
 
         try {
-            return object.as<string>();
+            return object.as<std::string>();
         } catch (const std::exception& e) {
             throw StructuredDataUnsuitable(e.what());
         }
@@ -200,7 +200,7 @@ public:
         }
     }
 
-    virtual bool hasKey(string key) {
+    virtual bool hasKey(std::string key) {
         exceptIfNot(isDictionary(), "dictionary / map");
 
         try {
@@ -211,7 +211,7 @@ public:
         }
     }
 
-    virtual SharedStructured getStructuredByKey(string key) {
+    virtual SharedStructured getStructuredByKey(std::string key) {
         exceptIfNot(isDictionary(), "dictionary / map");
 
         try {
@@ -227,11 +227,11 @@ public:
         }
     }
 
-    virtual double getKeyAsNumber(string key) {
+    virtual double getKeyAsNumber(std::string key) {
         return getStructuredByKey(key)->getNumber();
     }
 
-    virtual double getKeyAsNumber(string key, double def) {
+    virtual double getKeyAsNumber(std::string key, double def) {
         if (!hasKey(key))
             return def;
 
@@ -243,11 +243,11 @@ public:
         return v->getNumber();
     }
 
-    virtual string getKeyAsString(string key) {
+    virtual std::string getKeyAsString(std::string key) {
         return getStructuredByKey(key)->getString();
     }
 
-    virtual string getKeyAsString(string key, string def) {
+    virtual std::string getKeyAsString(std::string key, std::string def) {
         if (!hasKey(key))
             return def;
 
@@ -259,11 +259,11 @@ public:
         return v->getString();
     }
 
-    virtual bool getKeyAsBool(string key) {
+    virtual bool getKeyAsBool(std::string key) {
         return getStructuredByKey(key)->getBool();
     }
 
-    virtual bool getKeyAsBool(string key, bool def) {
+    virtual bool getKeyAsBool(std::string key, bool def) {
         if (!hasKey(key))
             return def;
 
@@ -329,9 +329,9 @@ public:
     }
 
 protected:
-    typedef map<string, msgpack::object> string_key_map;
-    typedef map<double, msgpack::object> number_key_map;
-    typedef vector<msgpack::object> object_vector;
+    typedef std::map<std::string, msgpack::object> string_key_map;
+    typedef std::map<double, msgpack::object> number_key_map;
+    typedef std::vector<msgpack::object> object_vector;
 
     msgpack::unpacked result;
     msgpack::object object;

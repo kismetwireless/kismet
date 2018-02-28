@@ -61,7 +61,7 @@ public:
     //
     // To override a default, return a string for that option; to ignore an
     // opportunity to override, return an empty string.
-    virtual string override_default_option(std::string in_opt __attribute__((unused))) {
+    virtual std::string override_default_option(std::string in_opt __attribute__((unused))) {
         return "";
     }
 
@@ -74,7 +74,7 @@ public:
     
     // 'List' callback - called with caller-supplied transaction id and contents,
     // if any, of the interface list command
-    typedef function<void (unsigned int, std::vector<SharedInterface>)> list_callback_t;
+    typedef std::function<void (unsigned int, std::vector<SharedInterface>)> list_callback_t;
 
     // List all interfaces this source can support
     virtual void list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
@@ -83,7 +83,7 @@ public:
     // or failure of the probe command and string message of any additional 
     // information if there was a MESSAGE key in the PROBERESP or if there was a
     // local communications error.
-    typedef function<void (unsigned int, bool, std::string)> probe_callback_t;
+    typedef std::function<void (unsigned int, bool, std::string)> probe_callback_t;
 
     // Probe to determine if a specific interface is supported by this source
     virtual void probe_interface(std::string in_definition, unsigned int in_transaction,
@@ -93,7 +93,7 @@ public:
     // success (or not) of open command, and a string message of any failure
     // data if there was a MESSAGE key in the OPENRESP or there was a
     // local communications error.
-    typedef function<void (unsigned int, bool, std::string)> open_callback_t;
+    typedef std::function<void (unsigned int, bool, std::string)> open_callback_t;
 
     // Open an interface defined by in_definition
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
@@ -102,7 +102,7 @@ public:
     // 'Configure' callback - called when a configure-related command such as
     // channel set, hop set, etc is performed.  Returns the caller-supplied
     // transaction id, success, std::string message (if any) related to a failure
-    typedef function<void (unsigned int, bool, std::string)> configure_callback_t;
+    typedef std::function<void (unsigned int, bool, std::string)> configure_callback_t;
 
     // Lock to a specific channel and stop hopping
     virtual void set_channel(std::string in_channel, unsigned int in_transaction,
@@ -131,7 +131,7 @@ public:
     // interface; anything we do with the buffer is itself async in the
     // future however
     virtual void connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
-            string in_definition, open_callback_t in_cb);
+            std::string in_definition, open_callback_t in_cb);
 
 
     // Close the source
@@ -151,7 +151,7 @@ public:
 
 
     // Get an option from the definition
-    virtual string get_definition_opt(std::string in_opt);
+    virtual std::string get_definition_opt(std::string in_opt);
     virtual bool get_definition_opt_bool(std::string in_opt, bool in_default);
 
 
@@ -243,7 +243,7 @@ public:
     //
     // Checksum functions should flag the packet as invalid directly via some
     // method recognized by the device categorization stage
-    virtual void checksum_packet(kis_packet *in_pack) { return; }
+    virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
 
 protected:
@@ -361,11 +361,11 @@ protected:
     virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_hardware(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj);
-    virtual string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
+    virtual std::string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
     virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
     virtual void handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj);
-    virtual string handle_kv_warning(KisDatasourceCapKeyedObject *in_obj);
+    virtual std::string handle_kv_warning(KisDatasourceCapKeyedObject *in_obj);
 
 
     // Assemble a packet it write it out the buffer, returning a command 
@@ -612,7 +612,7 @@ public:
         initialize();
 
         entrytracker = 
-            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+            std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
         if (in_id == 0) {
             tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
@@ -628,7 +628,7 @@ public:
         initialize();
 
         entrytracker = 
-            static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+            std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
         if (in_id == 0) {
             tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
@@ -829,7 +829,7 @@ public:
 
     bool allocated;
 
-    string key;
+    std::string key;
     size_t size;
     char *object;
 };

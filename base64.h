@@ -31,7 +31,7 @@
 class Base64 {
 public:
     /* Decode a string; return raw data if it was valid */
-    static string decode(string in_str);
+    static std::string decode(std::string in_str);
 
     // Convert 4 6-bit b64 characters into 3 8-bit standard bytes.
     // In and out must be able to hold the appropriate amount of data.

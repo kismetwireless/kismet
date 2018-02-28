@@ -38,7 +38,7 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
     // so if we're within a second of the previous one we can aggregate them
-    vector<string> inptok = StrTokenize(string(buf, buf_sz), "\n", 0);
+    std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
 
     // We've tokenized a copy of the buffer so unlock what we peeked
     nmeahandler->PeekFreeReadBufferData(buf);
@@ -68,7 +68,7 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
 
         // $GPGGA,012527.000,4142.6918,N,07355.8711,W,1,07,1.2,57.8,M,-34.0,M,,0000*57
 
-        vector<string> gpstoks = StrTokenize(inptok[it], ",");
+        std::vector<std::string> gpstoks = StrTokenize(inptok[it], ",");
 
         if (gpstoks.size() == 0)
             continue;

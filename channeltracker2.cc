@@ -86,7 +86,7 @@ void Channeltracker_V2::register_fields() {
         RegisterField("kismet.channeltracker.channel_map", TrackerStringMap,
                 "Channel use", &channel_map);
 
-    shared_ptr<Channeltracker_V2_Channel> chan_builder(new Channeltracker_V2_Channel(globalreg, 0));
+    std::shared_ptr<Channeltracker_V2_Channel> chan_builder(new Channeltracker_V2_Channel(globalreg, 0));
     channel_entry_id = RegisterComplexField("kismet.channeltracker.channel",
             chan_builder, "channel/frequency entry");
 }
@@ -98,7 +98,7 @@ bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/channels/channels")
         return true;
@@ -118,11 +118,11 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
         return;
     }
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/channels/channels") {
         local_locker locker(&lock);
-        shared_ptr<Channeltracker_V2> cv2 = 
+        std::shared_ptr<Channeltracker_V2> cv2 = 
             Globalreg::FetchGlobalAs<Channeltracker_V2>(globalreg, "CHANNEL_TRACKER");
         Httpd_Serialize(path, stream, cv2);
     }
@@ -145,7 +145,7 @@ public:
     // Count all the devices.  We use a filter worker but 'match' on all
     // and count them into our local map
     virtual bool MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
-            shared_ptr<kis_tracked_device_base> device) {
+            std::shared_ptr<kis_tracked_device_base> device) {
         if (device == NULL)
             return false;
 
@@ -179,7 +179,7 @@ protected:
     GlobalRegistry *globalreg;
     Channeltracker_V2 *channelv2;
 
-    map<double, unsigned int> device_count;
+    std::map<double, unsigned int> device_count;
 
     time_t stime;
 
@@ -208,11 +208,11 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
     return 1;
 }
 
-void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts) {
+void Channeltracker_V2::update_device_counts(std::map<double, unsigned int> in_counts) {
     local_locker locker(&lock);
     time_t ts = time(0);
 
-    for (map<double, unsigned int>::iterator i = in_counts.begin();
+    for (std::map<double, unsigned int>::iterator i = in_counts.begin();
             i != in_counts.end(); ++i) {
 
         TrackerElement::double_map_iterator imi =
@@ -223,7 +223,7 @@ void Channeltracker_V2::update_device_counts(map<double, unsigned int> in_counts
             continue;
 
         // Update the device RRD for the count
-        static_pointer_cast<Channeltracker_V2_Channel>(imi->second)->
+        std::static_pointer_cast<Channeltracker_V2_Channel>(imi->second)->
             get_device_rrd()->add_sample(i->second, ts);
     }
 }
@@ -242,8 +242,8 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     if (l1info == NULL)
         return 1;
 
-    shared_ptr<Channeltracker_V2_Channel> freq_channel;
-    shared_ptr<Channeltracker_V2_Channel> chan_channel;
+    std::shared_ptr<Channeltracker_V2_Channel> freq_channel;
+    std::shared_ptr<Channeltracker_V2_Channel> chan_channel;
 
     // Find or make a frequency record if we know our frequency
     if (l1info->freq_khz != 0) {
@@ -255,7 +255,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
             freq_channel->set_frequency(l1info->freq_khz);
             cv2->frequency_map->add_doublemap(l1info->freq_khz, freq_channel);
         } else {
-            freq_channel = static_pointer_cast<Channeltracker_V2_Channel>(imi->second);
+            freq_channel = std::static_pointer_cast<Channeltracker_V2_Channel>(imi->second);
         }
     }
 
@@ -269,7 +269,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
                 chan_channel->set_channel(common->channel);
                 cv2->channel_map->add_stringmap(common->channel, chan_channel);
             } else {
-                chan_channel = static_pointer_cast<Channeltracker_V2_Channel>(smi->second);
+                chan_channel = std::static_pointer_cast<Channeltracker_V2_Channel>(smi->second);
             }
         }
     }

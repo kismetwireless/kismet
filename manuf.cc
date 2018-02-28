@@ -32,7 +32,7 @@ Manuf::Manuf(GlobalRegistry *in_globalreg) {
         exit(1);
     }
 
-    vector<string> fname = globalreg->kismet_config->FetchOptVec("ouifile");
+    std::vector<std::string> fname = globalreg->kismet_config->FetchOptVec("ouifile");
     if (fname.size() == 0) {
         _MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
              "names for MAC addresses", MSGFLAG_ERROR);
@@ -46,7 +46,7 @@ Manuf::Manuf(GlobalRegistry *in_globalreg) {
         }
 
         _MSG("Could not open OUI file '" + fname[x] + "': " +
-                string(strerror(errno)), MSGFLAG_INFO);
+                std::string(strerror(errno)), MSGFLAG_INFO);
     }
 
     if (mfile == NULL) {
@@ -117,7 +117,7 @@ void Manuf::IndexOUI() {
          IntToString(index_vec.size()) + " indexes", MSGFLAG_INFO);
 }
 
-string Manuf::LookupOUI(mac_addr in_mac) {
+std::string Manuf::LookupOUI(mac_addr in_mac) {
     uint32_t soui = in_mac.OUI(), toui;
     int matched = -1;
     char buf[1024];
@@ -171,7 +171,7 @@ string Manuf::LookupOUI(mac_addr in_mac) {
             if (toui == soui) {
                 manuf_data md;
                 md.oui = soui;
-                md.manuf = MungeToPrintable(string(manuf));
+                md.manuf = MungeToPrintable(std::string(manuf));
                 oui_map[soui] = md;
                 return md.manuf;
             }

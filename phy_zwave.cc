@@ -42,12 +42,12 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg,
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
 
-    shared_ptr<zwave_tracked_device> builder(new zwave_tracked_device(globalreg, 0));
+    std::shared_ptr<zwave_tracked_device> builder(new zwave_tracked_device(globalreg, 0));
     zwave_device_id =
         entrytracker->RegisterField("zwave.device", builder, "Z-Wave Device");
 
     // Register js module for UI
-    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "/js/kismet.ui.zwave.js");
 }
@@ -66,7 +66,7 @@ bool Kis_Zwave_Phy::Httpd_VerifyPath(const char *path, const char *method) {
 }
 
 mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
-    stringstream macstr;
+    std::stringstream macstr;
 
     // Lazy!
     macstr << "02" << std::hex << in_homeid << std::hex << (int) in_devid;
@@ -75,7 +75,7 @@ mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
 }
 
 bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
-    string tempstr;
+    std::string tempstr;
     std::stringstream converter;
 
     uint32_t homeid;
@@ -152,7 +152,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
 
     pack->insert(pack_comp_common, common);
 
-    shared_ptr<kis_tracked_device_base> basedev =
+    std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->UpdateCommonDevice(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY));
@@ -163,8 +163,8 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     basedev->set_manuf("Z-Wave");
     basedev->set_type_string("Z-Wave Node");
 
-    string devname;
-    stringstream devstr;
+    std::string devname;
+    std::stringstream devstr;
 
     devstr << std::hex << homeid;
 
@@ -180,14 +180,14 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
 
     basedev->set_devicename(devname);
 
-    shared_ptr<zwave_tracked_device> zdev =
-        static_pointer_cast<zwave_tracked_device>(basedev->get_map_value(zwave_device_id));
+    std::shared_ptr<zwave_tracked_device> zdev =
+        std::static_pointer_cast<zwave_tracked_device>(basedev->get_map_value(zwave_device_id));
 
     bool newzdev = false;
 
     if (zdev == NULL) {
         zdev = 
-            static_pointer_cast<zwave_tracked_device>(entrytracker->GetTrackedInstance(zwave_device_id));
+            std::static_pointer_cast<zwave_tracked_device>(entrytracker->GetTrackedInstance(zwave_device_id));
         basedev->add_map(zdev);
         newzdev = true;
     }

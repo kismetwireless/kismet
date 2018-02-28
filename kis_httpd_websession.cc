@@ -35,9 +35,9 @@ Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
 }
 
 void Kis_Httpd_Websession::Deferred_Startup() {
-    string olduser = globalreg->kismet_config->FetchOpt("httpd_user");
+    std::string olduser = globalreg->kismet_config->FetchOpt("httpd_user");
 
-    shared_ptr<Alertracker> alertracker = 
+    std::shared_ptr<Alertracker> alertracker = 
         Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
     if (olduser != "") {
@@ -93,8 +93,8 @@ void Kis_Httpd_Websession::Deferred_Startup() {
 
     user_httpd_config = new ConfigFile(globalreg);
 
-    string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
-    string config_dir_path = 
+    std::string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
+    std::string config_dir_path = 
         globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
     user_httpd_config_file = config_dir_path + "/" + "kismet_httpd.conf";
@@ -151,8 +151,8 @@ void Kis_Httpd_Websession::userdir_login() {
 
         srand(seed);
 
-        string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        string genpw;
+        std::string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        std::string genpw;
 
         for (unsigned int x = 0; x < 16; x++) {
             genpw += chars[rand() % chars.length()];
@@ -169,7 +169,7 @@ void Kis_Httpd_Websession::userdir_login() {
         user_httpd_config->SetOpt("httpd_password", conf_password, true);
         user_httpd_config->SaveConfig(user_httpd_config_file.c_str());
 
-        shared_ptr<Alertracker> alertracker = 
+        std::shared_ptr<Alertracker> alertracker = 
             Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
         _MSG("Kismet has generated a random login for the web UI; it has been "
@@ -203,8 +203,8 @@ Kis_Httpd_Websession::~Kis_Httpd_Websession() {
 
 }
 
-void Kis_Httpd_Websession::set_login(string in_username, string in_password) {
-    stringstream str;
+void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_password) {
+    std::stringstream str;
 
     conf_username = in_username;
     conf_password = in_password;
@@ -235,7 +235,7 @@ bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method
     if (strcmp(method, "GET") != 0)
         return false;
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/session/check_login")
         return true;
@@ -255,7 +255,7 @@ void Kis_Httpd_Websession::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
-    string stripped = Httpd_StripSuffix(url);
+    std::string stripped = Httpd_StripSuffix(url);
 
     if (stripped == "/session/check_session") {
         if (httpd->HasValidSession(connection, true)) {

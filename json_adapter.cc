@@ -36,8 +36,8 @@
 #include "json_adapter.h"
 
 
-string JsonAdapter::SanitizeString(string in) {
-    string itr = MultiReplaceAll(in, "\\", "\\\\");
+std::string JsonAdapter::SanitizeString(std::string in) {
+    std::string itr = MultiReplaceAll(in, "\\", "\\\\");
     itr = MultiReplaceAll(itr, "\"", "\\\"");
     return itr;
 }
@@ -84,16 +84,16 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     mac_addr mac;
     uuid euuid;
 
-    string tname;
+    std::string tname;
 
-    shared_ptr<uint8_t> bytes;
+    std::shared_ptr<uint8_t> bytes;
 
     size_t sz;
-    ios::fmtflags fflags;
+    std::ios::fmtflags fflags;
 
     switch (e->get_type()) {
         case TrackerString:
-            stream << "\"" << SanitizeString(GetTrackerValue<string>(e)) << "\"";
+            stream << "\"" << SanitizeString(GetTrackerValue<std::string>(e)) << "\"";
             break;
         case TrackerInt8:
             stream << (int) GetTrackerValue<int8_t>(e);
@@ -123,13 +123,13 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             if (isnan(GetTrackerValue<float>(e)) || isinf(GetTrackerValue<float>(e)))
                 stream << 0;
             else
-                stream << fixed << GetTrackerValue<float>(e);
+                stream << std::fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
             if (isnan(GetTrackerValue<double>(e)) || isinf(GetTrackerValue<double>(e)))
                 stream << 0;
             else
-                stream << fixed << GetTrackerValue<double>(e);
+                stream << std::fixed << GetTrackerValue<double>(e);
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
@@ -277,7 +277,7 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             for (double_map_iter = tdoublemap->begin();
                     double_map_iter != tdoublemap->end(); /* */) {
                 // Double keys are handled as strings in json
-                stream << indent << "\"" << fixed << double_map_iter->first << "\": ";
+                stream << indent << "\"" << std::fixed << double_map_iter->first << "\": ";
                 JsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map,
                         prettyprint, depth + 1);
                 if (++double_map_iter != tdoublemap->end())
@@ -361,12 +361,12 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     uuid euuid;
     TrackedDeviceKey key;
 
-    string tname;
+    std::string tname;
 
-    shared_ptr<uint8_t> bytes;
+    std::shared_ptr<uint8_t> bytes;
 
     size_t sz;
-    ios::fmtflags fflags;
+    std::ios::fmtflags fflags;
 
     // Every record gets wrapped into it's own object export with metadata
     stream << "{";
@@ -386,7 +386,7 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
     switch (e->get_type()) {
         case TrackerString:
-            stream << "\"" << JsonAdapter::SanitizeString(GetTrackerValue<string>(e)) << "\"";
+            stream << "\"" << JsonAdapter::SanitizeString(GetTrackerValue<std::string>(e)) << "\"";
             break;
         case TrackerInt8:
             stream << (int) GetTrackerValue<int8_t>(e);
@@ -416,13 +416,13 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             if (isnan(GetTrackerValue<float>(e)) || isinf(GetTrackerValue<float>(e)))
                 stream << 0;
             else
-                stream << fixed << GetTrackerValue<float>(e);
+                stream << std::fixed << GetTrackerValue<float>(e);
             break;
         case TrackerDouble:
             if (isnan(GetTrackerValue<double>(e)) || isinf(GetTrackerValue<double>(e)))
                 stream << 0;
             else
-                stream << fixed << GetTrackerValue<double>(e);
+                stream << std::fixed << GetTrackerValue<double>(e);
             break;
         case TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
@@ -543,7 +543,7 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             for (double_map_iter = tdoublemap->begin();
                     double_map_iter != tdoublemap->end(); /* */) {
                 // Double keys are handled as strings in json
-                stream << "\"" << fixed << double_map_iter->first << "\": ";
+                stream << "\"" << std::fixed << double_map_iter->first << "\": ";
                 StorageJsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map);
                 if (++double_map_iter != tdoublemap->end())
                     stream << ",";

@@ -36,7 +36,7 @@ void Pack(GlobalRegistry *globalreg, std::ostream &stream, SharedTrackerElement 
         TrackerElementSerializer::rename_map *name_map = NULL,
         bool prettyprint = false, unsigned int depth = 0);
 
-string SanitizeString(string in);
+std::string SanitizeString(std::string in);
 
 class Serializer : public TrackerElementSerializer {
 public:

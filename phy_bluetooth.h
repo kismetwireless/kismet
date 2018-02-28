@@ -52,8 +52,8 @@ public:
     }
 
     mac_addr address;
-    string name;
-    vector<uuid> service_uuid_vec;
+    std::string name;
+    std::vector<uuid> service_uuid_vec;
     int txpower;
     int type;
 };
@@ -129,10 +129,10 @@ public:
             SharedTrackerElement in_device);
 
 protected:
-    shared_ptr<Alertracker> alertracker;
-    shared_ptr<Packetchain> packetchain;
-    shared_ptr<EntryTracker> entrytracker;
-    shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<Alertracker> alertracker;
+    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Devicetracker> devicetracker;
 
     int bluetooth_device_entry_id;
 

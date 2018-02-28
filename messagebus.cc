@@ -23,7 +23,7 @@
 
 #include "util.h"
 
-void StdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
+void StdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     if (in_flags & (MSGFLAG_ERROR | MSGFLAG_FATAL))
         fprintf(stderr, "ERROR: %s\n", in_msg.c_str());
     else
@@ -43,7 +43,7 @@ MessageBus::~MessageBus() {
     globalreg->messagebus = NULL;
 }
 
-void MessageBus::InjectMessage(string in_msg, int in_flags) {
+void MessageBus::InjectMessage(std::string in_msg, int in_flags) {
     local_locker lock(&msg_mutex);
 
     for (unsigned int x = 0; x < subscribers.size(); x++) {

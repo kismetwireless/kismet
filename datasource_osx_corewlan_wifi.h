@@ -26,7 +26,7 @@
 #include "kis_datasource.h"
 
 class KisDatasourceOsxCorewlanWifi;
-typedef shared_ptr<KisDatasourceOsxCorewlanWifi> SharedDatasourceOsxCorewlanWifi;
+typedef std::shared_ptr<KisDatasourceOsxCorewlanWifi> SharedDatasourceOsxCorewlanWifi;
 
 class KisDatasourceOsxCorewlanWifi : public KisDatasource {
 public:

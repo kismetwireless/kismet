@@ -42,12 +42,12 @@ TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg,
 
 TcpClientV2::~TcpClientV2() {
     Disconnect();
-    shared_ptr<PollableTracker> pollabletracker =
-        static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+    std::shared_ptr<PollableTracker> pollabletracker =
+        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 }
 
-int TcpClientV2::Connect(string in_host, unsigned int in_port) {
-    stringstream msg;
+int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
+    std::stringstream msg;
 
     if (connected) {
         msg << "TCP client asked to connect to " << in_host << ":" <<
@@ -160,7 +160,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
-    stringstream msg;
+    std::stringstream msg;
 
     uint8_t *buf;
     size_t len;

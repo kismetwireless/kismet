@@ -50,7 +50,7 @@ public:
 	typedef struct {
 		pcre *re;
 		pcre_extra *study;
-		string filter;
+        std::string filter;
 	} pcre_filter;
 #endif
 
@@ -58,7 +58,7 @@ public:
 	FilterCore(GlobalRegistry *in_globalreg);
 
 	// Add a filter line to a block
-	int AddFilterLine(string filter_str);
+	int AddFilterLine(std::string filter_str);
 
 	// Run a set of addresses through the filter.  We extract this to the
 	// generic layer here so that we're not necessarily tied to the
@@ -68,7 +68,7 @@ public:
 	// Run the PCRE filters against the incoming text.  This isn't an ifdef since
 	// we'll catch it in the implementation.  We don't want to have to ifdef every
 	// filter call.
-	int RunPcreFilter(string in_text);
+	int RunPcreFilter(std::string in_text);
 
 	int FetchBSSIDHit() { return bssid_hit; }
 	int FetchSourceHit() { return source_hit; }
@@ -91,7 +91,7 @@ protected:
 	int dest_hit;
 
 #ifdef HAVE_LIBPCRE
-	vector<FilterCore::pcre_filter *> pcre_vec;
+    std::vector<FilterCore::pcre_filter *> pcre_vec;
 	int pcre_invert;
 	int pcre_hit;
 #endif

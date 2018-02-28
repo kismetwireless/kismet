@@ -54,28 +54,6 @@
 
 #include <pthread.h> 
 
-// ieee float struct for a 64bit float for serialization
-typedef struct {
-	uint64_t mantissa:52 __attribute__ ((packed));
-	uint64_t exponent:11 __attribute__ ((packed));
-	uint64_t sign:1 __attribute__ ((packed));
-} ieee_64_float_t;
-
-typedef struct {
-	unsigned int mantissal:32;
-	unsigned int mantissah:20;
-	unsigned int exponent:11;
-	unsigned int sign:1;
-} ieee_double_t;
-
-typedef struct {
-	unsigned int mantissal:32;
-	unsigned int mantissah:32;
-	unsigned int exponent:15;
-	unsigned int sign:1;
-	unsigned int empty:16;
-} ieee_long_double_t;
-
 // Munge a string to characters safe for calling in a shell
 std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
 std::string MungeToPrintable(std::string in_str);
@@ -94,22 +72,22 @@ std::string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 template<class t> class NtoString {
 public:
 	NtoString(t in_n, int in_precision = 0, int in_hex = 0) { 
-		ostringstream osstr;
+        std::ostringstream osstr;
 
 		if (in_hex)
-			osstr << hex;
+			osstr << std::hex;
 
 		if (in_precision)
-			osstr << setprecision(in_precision) << fixed;
+			osstr << std::setprecision(in_precision) << std::fixed;
 
 		osstr << in_n;
 
 		s = osstr.str();
 	}
 
-	string Str() { return s; }
+    std::string Str() { return s; }
 
-	string s;
+    std::string s;
 };
 
 #define IntToString(I)			NtoString<int>((I)).Str()
@@ -124,20 +102,20 @@ void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
 
 // Generic options pair
 struct opt_pair {
-	string opt;
-	string val;
+    std::string opt;
+    std::string val;
 	int quoted;
 };
 
 // Generic option handlers
 std::string FetchOpt(std::string in_key, std::vector<opt_pair> *in_vec);
 int FetchOptBoolean(std::string in_key, std::vector<opt_pair> *in_vec, int dvalue);
-std::vector<string> FetchOptVec(std::string in_key, std::vector<opt_pair> *in_vec);
+std::vector<std::string> FetchOptVec(std::string in_key, std::vector<opt_pair> *in_vec);
 
 // Quick fetch of strings from a map of options
-std::string FetchOpt(std::string in_key, std::map<string, std::string> in_map, 
+std::string FetchOpt(std::string in_key, std::map<std::string, std::string> in_map, 
         std::string dvalue = "");
-int FetchOptBoolean(std::string in_key, std::map<string, std::string> in_map, int dvalue = 0);
+int FetchOptBoolean(std::string in_key, std::map<std::string, std::string> in_map, int dvalue = 0);
 
 int StringToOpts(std::string in_line, std::string in_sep, std::vector<opt_pair> *in_vec);
 void AddOptToOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec);
@@ -158,7 +136,7 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 std::vector<std::string> StrTokenize(std::string in_str, std::string in_split, 
         int return_partial = 1);
-std::string StrJoin(std::vector<string> in_content, std::string in_delim, 
+std::string StrJoin(std::vector<std::string> in_content, std::string in_delim, 
         bool in_first = false);
 
 // 'smart' tokenizeing with start/end positions
@@ -175,22 +153,22 @@ struct smart_word_token {
     }
 };
 
-vector<smart_word_token> BaseStrTokenize(std::string in_str, 
-										 string in_split, std::string in_quote);
-vector<smart_word_token> NetStrTokenize(std::string in_str, std::string in_split, 
-										int return_partial = 1);
+std::vector<smart_word_token> BaseStrTokenize(std::string in_str, 
+        std::string in_split, std::string in_quote);
+std::vector<smart_word_token> NetStrTokenize(std::string in_str, std::string in_split, 
+        int return_partial = 1);
 
 // Simplified quoted string tokenizer, expects " ' to start at the beginning
 // of the token, no abc"def ghi"
-vector<string> QuoteStrTokenize(std::string in_str, std::string in_split);
+std::vector<std::string> QuoteStrTokenize(std::string in_str, std::string in_split);
 
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 
 std::string InLineWrap(std::string in_txt, unsigned int in_hdr_len,
-				  unsigned int in_max_len);
-vector<string> LineWrap(std::string in_txt, unsigned int in_hdr_len, 
-						unsigned int in_maxlen);
-vector<int> Str2IntVec(std::string in_text);
+        unsigned int in_max_len);
+std::vector<std::string> LineWrap(std::string in_txt, unsigned int in_hdr_len, 
+        unsigned int in_maxlen);
+std::vector<int> Str2IntVec(std::string in_text);
 
 int IsBlank(const char *s);
 
@@ -238,7 +216,7 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 
 typedef struct {
 	int type;
-	string data;
+    std::string data;
 } _kis_lex_rec;
 
 std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr);
@@ -352,7 +330,7 @@ struct membuf : std::streambuf {
 		return gptr() - eback();
 	}
 
-	virtual pos_type seekpos(streampos pos, std::ios_base::openmode mode) override {
+	virtual pos_type seekpos(std::streampos pos, std::ios_base::openmode mode) override {
         return seekoff(pos - pos_type(off_type(0)), std::ios_base::beg, mode);
 	}
 

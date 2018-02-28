@@ -82,8 +82,8 @@ public:
         }
     };
 
-    static shared_ptr<Timetracker> create_timetracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<Timetracker> mon(new Timetracker(in_globalreg));
+    static std::shared_ptr<Timetracker> create_timetracker(GlobalRegistry *in_globalreg) {
+        std::shared_ptr<Timetracker> mon(new Timetracker(in_globalreg));
         in_globalreg->timetracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("TIMETRACKER", mon);
@@ -131,8 +131,8 @@ protected:
     int RemoveTimer_nb(int timer_id);
 
     int next_timer_id;
-    map<int, timer_event *> timer_map;
-    vector<timer_event *> sorted_timers;
+    std::map<int, timer_event *> timer_map;
+    std::vector<timer_event *> sorted_timers;
 };
 
 class TimetrackerEvent {

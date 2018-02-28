@@ -221,7 +221,7 @@ void kis_tracked_location::register_fields() {
     RegisterField("kismet.common.location.loc_fix", TrackerUInt8,
             "location fix precision (2d/3d)", &loc_fix);
 
-    shared_ptr<kis_tracked_location_triplet> 
+    std::shared_ptr<kis_tracked_location_triplet> 
         loc_builder(new kis_tracked_location_triplet(globalreg, 0));
 
     min_loc_id = 
@@ -343,7 +343,7 @@ void kis_location_history::reserve_fields(SharedTrackerElement e) {
     samples_10k_cascade = 0;
 }
 
-void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sample) {
+void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_sample) {
     set_int_last_sample_ts(in_sample->get_time_sec());
 
     samples_100_vec.push_back(in_sample);
@@ -362,8 +362,8 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
         num_signal = num_alt = 0;
 
         for (auto g : samples_100_vec) {
-            shared_ptr<kis_historic_location> gl =
-                static_pointer_cast<kis_historic_location>(g);
+            std::shared_ptr<kis_historic_location> gl =
+                std::static_pointer_cast<kis_historic_location>(g);
 
             lat += gl->get_lat();
             lon += gl->get_lon();
@@ -384,7 +384,7 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
             frequency += gl->get_frequency();
         }
 
-        shared_ptr<kis_historic_location> aggloc(new kis_historic_location(globalreg, 0));
+        std::shared_ptr<kis_historic_location> aggloc(new kis_historic_location(globalreg, 0));
 
         aggloc->set_lat(lat / samples_100_vec.size());
         aggloc->set_lon(lon / samples_100_vec.size());
@@ -410,8 +410,8 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
             num_alt = num_signal = 0;
 
             for (auto g : samples_10k_vec) {
-                shared_ptr<kis_historic_location> gl =
-                    static_pointer_cast<kis_historic_location>(g);
+                std::shared_ptr<kis_historic_location> gl =
+                    std::static_pointer_cast<kis_historic_location>(g);
 
                 lat += gl->get_lat();
                 lon += gl->get_lon();
@@ -433,7 +433,7 @@ void kis_location_history::add_sample(shared_ptr<kis_historic_location> in_sampl
                 frequency += gl->get_frequency();
             }
 
-            shared_ptr<kis_historic_location> 
+            std::shared_ptr<kis_historic_location> 
                 aggloc10(new kis_historic_location(globalreg, 0));
 
             aggloc10->set_lat(lat / samples_10k_vec.size());

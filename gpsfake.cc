@@ -26,16 +26,16 @@ GPSFake::GPSFake(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
 
 GPSFake::~GPSFake() { }
 
-bool GPSFake::open_gps(string in_opts) {
+bool GPSFake::open_gps(std::string in_opts) {
     local_locker lock(&gps_mutex);
 
     if (!KisGps::open_gps(in_opts)) {
         return false;
     }
 
-    string proto_lat;
-    string proto_lon;
-    string proto_alt;
+    std::string proto_lat;
+    std::string proto_lon;
+    std::string proto_alt;
 
     proto_lat = FetchOpt("lat", source_definition_opts);
     proto_lon = FetchOpt("lon", source_definition_opts);
@@ -69,7 +69,7 @@ bool GPSFake::open_gps(string in_opts) {
         gps_location->fix = 3;
     }
 
-    stringstream msg;
+    std::stringstream msg;
     msg << "GPSVirtual setting location to " << gps_location->lat << "," <<
         gps_location->lon << " @ " << gps_location->alt << "m";
     _MSG(msg.str(), MSGFLAG_INFO);

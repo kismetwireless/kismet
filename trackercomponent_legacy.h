@@ -90,12 +90,12 @@ public:
 	uint32_t num_packets;
 
 	// Map of frequencies seen by this device
-	map<unsigned int, unsigned int> freq_mhz_map;
+    std::map<unsigned int, unsigned int> freq_mhz_map;
 };
 
 class kis_tag_data {
 public:
-	string value;
+    std::string value;
 	bool dirty;
 };
 

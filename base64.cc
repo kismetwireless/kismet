@@ -32,8 +32,8 @@ void Base64::decodeblock(unsigned char *in, unsigned char *out) {
     out[3] = 0;
 }
 
-string Base64::decode(string in_str) {
-    string out;
+std::string Base64::decode(std::string in_str) {
+    std::string out;
     unsigned char obuf[4], ibuf[4];
     int phase, c;
     unsigned int i;

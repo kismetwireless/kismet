@@ -38,13 +38,13 @@ Timetracker::~Timetracker() {
     globalreg->timetracker = NULL;
 
     // Free the events
-    for (map<int, timer_event *>::iterator x = timer_map.begin();
+    for (std::map<int, timer_event *>::iterator x = timer_map.begin();
          x != timer_map.end(); ++x)
         delete x->second;
 }
 
 int Timetracker::Tick() {
-    vector<timer_event *> action_timers;
+    std::vector<timer_event *> action_timers;
 
     local_demand_locker lock(&time_mutex);
 
@@ -257,7 +257,7 @@ int Timetracker::RemoveTimer(int in_timerid) {
 }
 
 int Timetracker::RemoveTimer_nb(int in_timerid) {
-    map<int, timer_event *>::iterator itr;
+    std::map<int, timer_event *>::iterator itr;
 
     itr = timer_map.find(in_timerid);
 

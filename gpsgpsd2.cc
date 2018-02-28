@@ -64,12 +64,12 @@ GPSGpsdV2::~GPSGpsdV2() {
 
     delete(tcphandler);
 
-    shared_ptr<Timetracker> timetracker = 
+    std::shared_ptr<Timetracker> timetracker = 
         Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     timetracker->RemoveTimer(error_reconnect_timer);
 }
 
-bool GPSGpsdV2::open_gps(string in_opts) {
+bool GPSGpsdV2::open_gps(std::string in_opts) {
     local_locker lock(&gps_mutex);
 
     if (!KisGps::open_gps(in_opts))
@@ -88,8 +88,8 @@ bool GPSGpsdV2::open_gps(string in_opts) {
         tcpclient.reset();
     }
 
-    string proto_host;
-    string proto_port_s;
+    std::string proto_host;
+    std::string proto_port_s;
     unsigned int proto_port;
 
     proto_host = FetchOpt("host", source_definition_opts);
@@ -121,12 +121,12 @@ bool GPSGpsdV2::open_gps(string in_opts) {
     tcpclient->Connect(proto_host, proto_port);
 
     // Register a pollable event
-    pollabletracker->RegisterPollable(static_pointer_cast<Pollable>(tcpclient));
+    pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
 
     host = proto_host;
     port = proto_port;
 
-    stringstream msg;
+    std::stringstream msg;
     msg << "GPSGpsdV2 connecting to GPSD server on " << host << ":" << port;
     _MSG(msg.str(), MSGFLAG_INFO);
 
@@ -183,7 +183,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     bool set_fix;
     bool set_heading;
 
-    vector<string> inptok = StrTokenize(string(buf, buf_sz), "\n", 0);
+    std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
     tcphandler->PeekFreeReadBufferData(buf);
 
     if (inptok.size() < 1) {
@@ -226,7 +226,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                     si_units = 1;
 
                     // Send a JSON message that we want future communication in JSON
-                    string json_msg = "?WATCH={\"json\":true};\n";
+                    std::string json_msg = "?WATCH={\"json\":true};\n";
 
                     if (tcphandler->PutWriteBufferData((void *) json_msg.c_str(), 
                                 json_msg.length(), true) < json_msg.length()) {
@@ -350,7 +350,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             poll_mode = 1;
 
-            string init_cmd = "L\n";
+            std::string init_cmd = "L\n";
             if (tcphandler->PutWriteBufferData((void *) init_cmd.c_str(), 
                         init_cmd.length(), true) < init_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write NMEA enable command",
@@ -363,7 +363,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             // and results in no alt or fix in watcher or polling modes, so we
             // have to detect this version and kick it into debug R=1 mode
             // and do NMEA ourselves.
-            string cmd = "R=1\n";
+            std::string cmd = "R=1\n";
             if (tcphandler->PutWriteBufferData((void *) cmd.c_str(), 
                         cmd.length(), true) < cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write NMEA enable command",
@@ -374,7 +374,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             si_raw = 1;
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,L=") {
             // Look for the version response
-            vector<string> lvec = StrTokenize(inptok[it], " ");
+            std::vector<std::string> lvec = StrTokenize(inptok[it], " ");
             int gma, gmi;
 
             if (lvec.size() < 3) {
@@ -397,7 +397,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             // If we're still in poll mode 0, write the watcher command.
             // This has been merged into one command because gpsd apparently
             // silently drops the second command sent too quickly
-            string watch_cmd = "J=1,W=1,R=1\n";
+            std::string watch_cmd = "J=1,W=1,R=1\n";
             if (tcphandler->PutWriteBufferData((void *) watch_cmd.c_str(), 
                         watch_cmd.length(), true) < watch_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
@@ -405,7 +405,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             }
 
             // Go into poll mode
-            string poll_cmd = "PAVM\n";
+            std::string poll_cmd = "PAVM\n";
             if (tcphandler->PutWriteBufferData((void *) poll_cmd.c_str(), 
                         poll_cmd.length(), true) < poll_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
@@ -415,7 +415,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
             // Poll lines
-            vector<string> pollvec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> pollvec = StrTokenize(inptok[it], ",");
 
             if (pollvec.size() < 5) {
                 continue;
@@ -452,7 +452,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,O=") {
             // Look for O= watch lines
-            vector<string> ggavec = StrTokenize(inptok[it], " ");
+            std::vector<std::string> ggavec = StrTokenize(inptok[it], " ");
 
             if (ggavec.size() < 15) {
                 continue;
@@ -506,7 +506,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             set_fix = true;
             set_lat_lon = true;
         } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
-            vector<string> savec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> savec = StrTokenize(inptok[it], ",");
 
             if (savec.size() != 18)
                 continue;
@@ -516,7 +516,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             set_fix = true;
         } else if (si_raw && inptok[it].substr(0, 6) == "$GPVTG") {
-            vector<string> vtvec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> vtvec = StrTokenize(inptok[it], ",");
 
             if (vtvec.size() != 10)
                 continue;
@@ -526,7 +526,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             set_speed = true;
         } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
-            vector<string> gavec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> gavec = StrTokenize(inptok[it], ",");
             int tint;
             float tfloat;
 
@@ -653,7 +653,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     update_locations();
 }
 
-void GPSGpsdV2::BufferError(string in_error) {
+void GPSGpsdV2::BufferError(std::string in_error) {
     local_locker lock(&gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,

@@ -39,9 +39,9 @@
 
 class PollableTracker : public LifetimeGlobal {
 public:
-    static shared_ptr<PollableTracker> 
+    static std::shared_ptr<PollableTracker> 
         create_pollabletracker(GlobalRegistry *in_globalreg) {
-        shared_ptr<PollableTracker> mon(new PollableTracker(in_globalreg));
+            std::shared_ptr<PollableTracker> mon(new PollableTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
         in_globalreg->InsertGlobal("POLLABLETRACKER", mon);
         return mon;
@@ -54,12 +54,12 @@ public:
     virtual ~PollableTracker();
 
     // Add a pollable item
-    void RegisterPollable(shared_ptr<Pollable> in_pollable);
+    void RegisterPollable(std::shared_ptr<Pollable> in_pollable);
 
     // Schedule a pollable item to be removed as soon as the current
     // operation completes (or the next one begins); This allows errored sources
     // to remove themselves once their tasks are complete.
-    void RemovePollable(shared_ptr<Pollable> in_pollable);
+    void RemovePollable(std::shared_ptr<Pollable> in_pollable);
 
     // populate the FD sets for polling, populates rset and wset
     //
@@ -80,9 +80,9 @@ protected:
 
     kis_recursive_timed_mutex pollable_mutex;
 
-    vector<shared_ptr<Pollable> > pollable_vec;
-    vector<shared_ptr<Pollable> > add_vec;
-    vector<shared_ptr<Pollable> > remove_vec;
+    std::vector<std::shared_ptr<Pollable> > pollable_vec;
+    std::vector<std::shared_ptr<Pollable> > add_vec;
+    std::vector<std::shared_ptr<Pollable> > remove_vec;
 
     void Maintenance();
 };

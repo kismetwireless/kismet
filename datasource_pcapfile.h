@@ -24,7 +24,7 @@
 #include "kis_datasource.h"
 
 class KisDatasourcePcapfile;
-typedef shared_ptr<KisDatasourcePcapfile> SharedDatasourcePcapfile;
+typedef std::shared_ptr<KisDatasourcePcapfile> SharedDatasourcePcapfile;
 
 class KisDatasourcePcapfile : public KisDatasource {
 public:
@@ -45,7 +45,7 @@ public:
    
     // Override defaults for pcapfile - we don't want to reload a pcapfile once
     // it finishes unless we're explicitly told to loop it
-    virtual string override_default_option(string in_opt) {
+    virtual std::string override_default_option(std::string in_opt) {
         if (in_opt == "retry")
             return "false";
 

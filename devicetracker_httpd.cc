@@ -55,7 +55,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // Simple fixed URLS
 
-        string stripped = Httpd_StripSuffix(path);
+        std::string stripped = Httpd_StripSuffix(path);
         bool can_serialize = Httpd_CanSerialize(path);
 
         // Explicit compare for .ekjson because it doesn't serialize the 
@@ -70,7 +70,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             return true;
 
         // Split URL and process
-        vector<string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = StrTokenize(path, "/");
         if (tokenurl.size() < 2)
             return false;
 
@@ -97,14 +97,14 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (tmi == NULL)
                     return false;
 
-                string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = Httpd_StripSuffix(tokenurl[4]);
 
                 if (target == "device") {
                     // Try to find the exact field
                     if (tokenurl.size() > 5) {
-                        vector<string>::const_iterator first = tokenurl.begin() + 5;
-                        vector<string>::const_iterator last = tokenurl.end();
-                        vector<string> fpath(first, last);
+                        std::vector<std::string>::const_iterator first = tokenurl.begin() + 5;
+                        std::vector<std::string>::const_iterator last = tokenurl.end();
+                        std::vector<std::string> fpath(first, last);
 
                         if (tmi->get_child_path(fpath) == NULL) {
                             return false;
@@ -155,7 +155,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
         }
     } else if (strcmp(method, "POST") == 0) {
         // Split URL and process
-        vector<string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = StrTokenize(path, "/");
         if (tokenurl.size() < 2)
             return false;
 
@@ -193,7 +193,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (FetchDevice(key) == NULL)
                     return false;
 
-                string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = Httpd_StripSuffix(tokenurl[4]);
 
                 if (target == "device") {
                     return true;
@@ -245,8 +245,8 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Devicetracker::httpd_all_phys(string path, std::ostream &stream,
-        string in_wrapper_key) {
+void Devicetracker::httpd_all_phys(std::string path, std::ostream &stream,
+        std::string in_wrapper_key) {
 
     SharedTrackerElement phyvec =
         globalreg->entrytracker->GetTrackedInstance(phy_base_id);
@@ -261,13 +261,13 @@ void Devicetracker::httpd_all_phys(string path, std::ostream &stream,
         wrapper = phyvec;
     }
 
-    shared_ptr<kis_tracked_phy> anyphy(new kis_tracked_phy(globalreg, phy_base_id));
+    std::shared_ptr<kis_tracked_phy> anyphy(new kis_tracked_phy(globalreg, phy_base_id));
     anyphy->set_from_phy(this, KIS_PHY_ANY);
     phyvec->add_vector(anyphy);
 
-    map<int, Kis_Phy_Handler *>::iterator mi;
+    std::map<int, Kis_Phy_Handler *>::iterator mi;
     for (mi = phy_handler_map.begin(); mi != phy_handler_map.end(); ++mi) {
-        shared_ptr<kis_tracked_phy> p(new kis_tracked_phy(globalreg, phy_base_id));
+        std::shared_ptr<kis_tracked_phy> p(new kis_tracked_phy(globalreg, phy_base_id));
         p->set_from_phy(this, mi->first);
         phyvec->add_vector(p);
     }
@@ -314,7 +314,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
         JsonAdapter::Serializer serial(globalreg); 
 
         devicetracker_function_worker fw(globalreg, 
-                [this, &stream, &serial](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                [this, &stream, &serial](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                     serial.serialize(d, stream);
                     stream << "\n";
 
@@ -327,7 +327,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
         return MHD_YES;
     }
 
-    string stripped = Httpd_StripSuffix(path);
+    std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/phy/all_phys") {
         httpd_all_phys(path, stream);
@@ -339,7 +339,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
         return MHD_YES;
     }
 
-    vector<string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
     if (tokenurl.size() < 2)
         return MHD_YES;
@@ -364,14 +364,14 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 return MHD_YES;
             }
 
-            string target = Httpd_StripSuffix(tokenurl[4]);
+            std::string target = Httpd_StripSuffix(tokenurl[4]);
 
             if (target == "device") {
                 // Try to find the exact field
                 if (tokenurl.size() > 5) {
-                    vector<string>::const_iterator first = tokenurl.begin() + 5;
-                    vector<string>::const_iterator last = tokenurl.end();
-                    vector<string> fpath(first, last);
+                    std::vector<std::string>::const_iterator first = tokenurl.begin() + 5;
+                    std::vector<std::string>::const_iterator last = tokenurl.end();
+                    std::vector<std::string> fpath(first, last);
 
                     local_locker devlocker(&(dev->device_mutex));
 
@@ -439,7 +439,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
             devicetracker_function_worker fw(globalreg, 
                     [this, &stream, devvec, lastts](Devicetracker *, 
-                        shared_ptr<kis_tracked_device_base> d) -> bool {
+                        std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
 
@@ -460,7 +460,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
 int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     // Split URL and process
-    vector<string> tokenurl = StrTokenize(concls->url, "/");
+    std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
@@ -494,10 +494,10 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     SharedStructured structdata;
 
     // Summarization vector
-    vector<SharedElementSummary> summary_vec;
+    std::vector<SharedElementSummary> summary_vec;
 
     // Wrapper, if any
-    string wrapper_name;
+    std::string wrapper_name;
 
     // Rename cache generated during simplification
     TrackerElementSerializer::rename_map rename_map;
@@ -613,7 +613,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
                 lock.unlock();
 
-                string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = Httpd_StripSuffix(tokenurl[4]);
 
                 if (target == "devices") {
                     SharedTrackerElement devvec(new TrackerElement(TrackerVector));
@@ -663,7 +663,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     return MHD_YES;
                 }
 
-                string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = Httpd_StripSuffix(tokenurl[4]);
 
                 if (target == "device") {
                     SharedTrackerElement simple;
@@ -744,7 +744,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 int in_dt_length = 0, in_dt_start = 0;
 
                 // Search string
-                string dt_search;
+                std::string dt_search;
 
                 // Resolved paths to fields we search
                 std::vector<std::vector<int> > dt_search_paths;
@@ -799,7 +799,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     if (dt_order_col >= 0 &&
                             concls->variable_cache.find("order[0][dir]") !=
                             concls->variable_cache.end()) {
-                        string ord = concls->variable_cache["order[0][dir]"]->str();
+                        std::string ord = concls->variable_cache["order[0][dir]"]->str();
 
                         if (ord == "asc")
                             dt_order_dir = 1;
@@ -1044,8 +1044,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 });
                     }
 
-                    vector<shared_ptr<kis_tracked_device_base> >::iterator vi;
-                    vector<shared_ptr<kis_tracked_device_base> >::iterator ei;
+                    std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator vi;
+                    std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator ei;
 
                     // Set the iterator endpoint for our length
                     if (dt_length == 0 ||
@@ -1112,7 +1112,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 SharedTrackerElement regexdevs(new TrackerElement(TrackerVector));
 
                 devicetracker_function_worker tw(globalreg, 
-                        [this, &stream, lastts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        [this, &stream, lastts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
                         return false;
@@ -1180,7 +1180,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 // Filter by time first, it's fast
                 devicetracker_function_worker tw(globalreg, 
-                        [this, &stream, post_ts](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        [this, &stream, post_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= post_ts)
                         return false;
@@ -1189,7 +1189,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         }, NULL);
 
                 devicetracker_function_worker pw(globalreg, 
-                        [this, &stream, phydevs, phy](Devicetracker *, shared_ptr<kis_tracked_device_base> d) -> bool {
+                        [this, &stream, phydevs, phy](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_phyname() != phy->FetchPhyName())
                         return false;
 

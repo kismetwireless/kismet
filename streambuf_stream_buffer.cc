@@ -19,7 +19,7 @@
 #include "streambuf_stream_buffer.h"
 
 Streambuf_Stream_Buffer::Streambuf_Stream_Buffer(GlobalRegistry *in_globalreg,
-        shared_ptr<BufferHandlerGeneric> in_handler,
+        std::shared_ptr<BufferHandlerGeneric> in_handler,
         bool in_blocking) :
         globalreg(in_globalreg), handler(in_handler), 
         streambuf(in_handler, in_blocking) { }
@@ -28,11 +28,11 @@ Streambuf_Stream_Buffer::~Streambuf_Stream_Buffer() {
     handler->ProtocolError();
 }
 
-void Streambuf_Stream_Buffer::stop_stream(string in_reason __attribute__((unused))) {
+void Streambuf_Stream_Buffer::stop_stream(std::string in_reason __attribute__((unused))) {
     handler->ProtocolError();
 }
 
-ostream *Streambuf_Stream_Buffer::get_ostream() {
-    return (ostream *) &streambuf;
+std::ostream *Streambuf_Stream_Buffer::get_ostream() {
+    return (std::ostream *) &streambuf;
 }
 

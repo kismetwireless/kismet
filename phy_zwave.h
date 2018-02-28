@@ -104,8 +104,8 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
-    shared_ptr<Packetchain> packetchain;
-    shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<EntryTracker> entrytracker;
 
     int zwave_device_id;
 

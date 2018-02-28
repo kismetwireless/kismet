@@ -46,23 +46,23 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         entrytracker->RegisterField("rtl433.device", TrackerMap, 
                 "rtl_433 device");
 
-    shared_ptr<rtl433_tracked_common> commonbuilder(new rtl433_tracked_common(globalreg, 0));
+    std::shared_ptr<rtl433_tracked_common> commonbuilder(new rtl433_tracked_common(globalreg, 0));
     rtl433_common_id =
         entrytracker->RegisterField("rtl433.device.common",
                 commonbuilder, "Shared RTL433 device info");
 
-    shared_ptr<rtl433_tracked_thermometer> thermbuilder(new rtl433_tracked_thermometer(globalreg, 0));
+    std::shared_ptr<rtl433_tracked_thermometer> thermbuilder(new rtl433_tracked_thermometer(globalreg, 0));
     rtl433_thermometer_id =
         entrytracker->RegisterField("rtl433.device.thermometer",
                 thermbuilder, "RTL433 thermometer");
 
-    shared_ptr<rtl433_tracked_weatherstation> weatherbuilder(new rtl433_tracked_weatherstation(globalreg, 0));
+    std::shared_ptr<rtl433_tracked_weatherstation> weatherbuilder(new rtl433_tracked_weatherstation(globalreg, 0));
     rtl433_weatherstation_id =
         entrytracker->RegisterField("rtl433.device.weatherstation",
                 weatherbuilder, "RTL433 weather station");
 
     // Register js module for UI
-    shared_ptr<Kis_Httpd_Registry> httpregistry = 
+    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_rtl433", 
             "/js/kismet.ui.rtl433.js");
@@ -129,8 +129,8 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
 }
 
 bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
-    string err;
-    string v;
+    std::string err;
+    std::string v;
 
     // synth a mac out of it
     mac_addr rtlmac = json_to_mac(json);
@@ -197,12 +197,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         newrtl = true;
     }
 
-    shared_ptr<rtl433_tracked_common> commondev = 
-        static_pointer_cast<rtl433_tracked_common>(rtlholder->get_map_value(rtl433_common_id));
+    std::shared_ptr<rtl433_tracked_common> commondev = 
+        std::static_pointer_cast<rtl433_tracked_common>(rtlholder->get_map_value(rtl433_common_id));
 
     if (commondev == NULL) {
         commondev = 
-            static_pointer_cast<rtl433_tracked_common>(entrytracker->GetTrackedInstance(rtl433_common_id));
+            std::static_pointer_cast<rtl433_tracked_common>(entrytracker->GetTrackedInstance(rtl433_common_id));
         rtlholder->add_map(commondev);
 
         commondev->set_model(dn);
@@ -252,12 +252,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     auto temp_c_j = json["temperature_C"];
 
     if (!humidity_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
-        shared_ptr<rtl433_tracked_thermometer> thermdev = 
-            static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
+        std::shared_ptr<rtl433_tracked_thermometer> thermdev = 
+            std::static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
 
         if (thermdev == NULL) {
             thermdev = 
-                static_pointer_cast<rtl433_tracked_thermometer>(entrytracker->GetTrackedInstance(rtl433_thermometer_id));
+                std::static_pointer_cast<rtl433_tracked_thermometer>(entrytracker->GetTrackedInstance(rtl433_thermometer_id));
             rtlholder->add_map(thermdev);
         }
 
@@ -284,12 +284,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     if (!direction_j.isNull() || !windstrength_j.isNull() || !winddirection_j.isNull() ||
             !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull()) {
 
-        shared_ptr<rtl433_tracked_weatherstation> weatherdev = 
-            static_pointer_cast<rtl433_tracked_weatherstation>(rtlholder->get_map_value(rtl433_weatherstation_id));
+        std::shared_ptr<rtl433_tracked_weatherstation> weatherdev = 
+            std::static_pointer_cast<rtl433_tracked_weatherstation>(rtlholder->get_map_value(rtl433_weatherstation_id));
 
         if (weatherdev == NULL) {
             weatherdev = 
-                static_pointer_cast<rtl433_tracked_weatherstation>(entrytracker->GetTrackedInstance(rtl433_weatherstation_id));
+                std::static_pointer_cast<rtl433_tracked_weatherstation>(entrytracker->GetTrackedInstance(rtl433_weatherstation_id));
             rtlholder->add_map(weatherdev);
         }
 
@@ -328,7 +328,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     }
 
     if (newrtl && commondev != NULL) {
-        string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
+        std::string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
 
         if (commondev->get_rtlid() != 0) 
             info += " ID " + IntToString(commondev->get_rtlid());

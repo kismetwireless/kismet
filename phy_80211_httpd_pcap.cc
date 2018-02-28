@@ -26,7 +26,7 @@
 
 bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        vector<string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
         // /phy/phy80211/by-bssid/[mac]/pcap/[mac].pcapng
         if (tokenurl.size() < 7)
@@ -54,8 +54,8 @@ bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method
         if (tokenurl[6] != tokenurl[4] + ".pcapng")
             return false;
 
-        shared_ptr<Devicetracker> devicetracker =
-            static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
+        std::shared_ptr<Devicetracker> devicetracker =
+            std::static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
 
         Kis_Phy_Handler *dot11phy = 
             devicetracker->FetchPhyHandlerByName("IEEE802.11");
@@ -86,8 +86,8 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
-    shared_ptr<Devicetracker> devicetracker =
-        static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
+    std::shared_ptr<Devicetracker> devicetracker =
+        std::static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
 
     Kis_Phy_Handler *dot11phy = 
         devicetracker->FetchPhyHandlerByName("IEEE802.11");
@@ -95,7 +95,7 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (dot11phy == NULL)
         return MHD_YES;
 
-    vector<string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = StrTokenize(url, "/");
 
     // /phy/phy80211/by-bssid/[mac]/pcap/[mac].pcapng
     if (tokenurl.size() < 7)
@@ -126,14 +126,14 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             dot11phy->FetchPhynameHash(), 
             dmac);
 
-    shared_ptr<kis_tracked_device_base> dev;
+    std::shared_ptr<kis_tracked_device_base> dev;
     if ((dev = devicetracker->FetchDevice(targetkey)) == NULL)
         return MHD_YES;
 
-    shared_ptr<StreamTracker> streamtracker =
-        static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
-    shared_ptr<Packetchain> packetchain = 
-        static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+    std::shared_ptr<StreamTracker> streamtracker =
+        std::static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
+    std::shared_ptr<Packetchain> packetchain = 
+        std::static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
     int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 

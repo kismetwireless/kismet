@@ -27,8 +27,8 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
 
     globalreg = in_globalreg;
 
-    shared_ptr<EntryTracker> entrytracker = 
-        static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+    std::shared_ptr<EntryTracker> entrytracker = 
+        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
     info_builder.reset(new streaming_info_record(globalreg, 0));
     info_builder_id = entrytracker->RegisterField("kismet.stream.stream",
@@ -53,13 +53,13 @@ bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;
 
-    string stripped = httpd->StripSuffix(path);
+    std::string stripped = httpd->StripSuffix(path);
 
     if (stripped == "/streams/all_streams") {
         return true;
     }
 
-    vector<string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 
     // /streams/by-id/[NUM]/stream_info
     // /streams/by-id/[NUM]/close_stream
@@ -106,7 +106,7 @@ void StreamTracker::Httpd_CreateStreamResponse(
     if (!Httpd_CanSerialize(path))
         return;
 
-    string stripped = httpd->StripSuffix(path);
+    std::string stripped = httpd->StripSuffix(path);
 
     if (stripped == "/streams/all_streams") {
         SharedTrackerElement outvec(new TrackerElement(TrackerVector));
@@ -120,7 +120,7 @@ void StreamTracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    vector<string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 
     // /streams/by-id/[NUM]/stream_info
     // /streams/by-id/[NUM]/close_stream
@@ -154,8 +154,8 @@ void StreamTracker::Httpd_CreateStreamResponse(
             return;
         }
 
-        shared_ptr<streaming_info_record> ir = 
-            static_pointer_cast<streaming_info_record>(smi->second);
+        std::shared_ptr<streaming_info_record> ir = 
+            std::static_pointer_cast<streaming_info_record>(smi->second);
 
         ir->get_agent()->stop_stream("stream closed from web");
 
@@ -166,12 +166,12 @@ void StreamTracker::Httpd_CreateStreamResponse(
 }
 
 void StreamTracker::register_streamer(streaming_agent *in_agent,
-        string in_name, string in_type, string in_path, string in_description) {
+        std::string in_name, std::string in_type, std::string in_path, std::string in_description) {
 
     local_locker lock(&mutex);
 
-    shared_ptr<streaming_info_record> streamrec = 
-        static_pointer_cast<streaming_info_record>(info_builder->clone_type());
+    std::shared_ptr<streaming_info_record> streamrec = 
+        std::static_pointer_cast<streaming_info_record>(info_builder->clone_type());
 
     streamrec->set_agent(in_agent);
     in_agent->set_stream_id(next_stream_id++);
@@ -193,8 +193,8 @@ void StreamTracker::remove_streamer(double in_id) {
     if (si == stream_map.end())
         return;
 
-    shared_ptr<streaming_info_record> a =
-        static_pointer_cast<streaming_info_record>(si->second);
+    std::shared_ptr<streaming_info_record> a =
+        std::static_pointer_cast<streaming_info_record>(si->second);
     a->get_agent()->stop_stream("stream removed");
 
     stream_map.erase(si);

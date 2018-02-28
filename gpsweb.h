@@ -36,7 +36,7 @@ public:
     GPSWeb(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
     virtual ~GPSWeb();
 
-    virtual bool open_gps(string in_opts);
+    virtual bool open_gps(std::string in_opts);
 
     virtual bool get_location_valid();
     virtual bool get_device_connected();
