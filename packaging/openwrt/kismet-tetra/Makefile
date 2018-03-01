@@ -39,9 +39,10 @@ CONFIGURE_ARGS += \
 	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
 
+# Override libs to force lpthread because we don't detect it properly on openwrt
 CONFIGURE_VARS += \
 	CXXFLAGS="$$$$CXXFLAGS"  \
-	LIBS="-lm" 
+	LIBS="-lm -lpthread" 
 
 define Build/Compile
 	$(MAKE) -C $(PKG_BUILD_DIR) \
