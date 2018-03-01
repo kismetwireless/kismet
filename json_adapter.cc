@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <string>
 #include <math.h>
+#include <cmath>
 
 #include "globalregistry.h"
 #include "trackedelement.h"
