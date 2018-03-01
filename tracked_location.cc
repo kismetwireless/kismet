@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <math.h>
+#include <cmath>
 
 #include "tracked_location.h"
 #include "gpstracker.h"
