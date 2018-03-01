@@ -679,10 +679,17 @@ function ScheduleDeviceSummary() {
     kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
     kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
 
-    /*
-    dt.draw('page');
-    */
+    // Snapshot where we are, because the 'don't reset page' in ajax.reload
+    // DOES still reset the scroll position
+    var prev_pos = {
+        'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+        'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+    };
     dt.ajax.reload(function(d) {
+            // Restore our scroll position
+            $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
+            $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+            // Set our timer
             deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
         }, false);
 
