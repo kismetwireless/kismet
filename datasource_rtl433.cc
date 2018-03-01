@@ -28,6 +28,8 @@ KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
     pack_comp_rtl433 = packetchain->RegisterPacketComponent("RTL433JSON");
+    pack_comp_metablob = packetchain->RegisterPacketComponent("METABLOB");
+    pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
     std::string devnum = MungeToPrintable(get_definition_opt("device"));
     if (devnum != "") {
@@ -193,8 +195,14 @@ int KisDatasourceRtl433::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             return MHD_YES;
         }
 
+        // Put the parsed JSON in a rtl433
         packet_info_rtl433 *r433info = new packet_info_rtl433(device_json);
         packet->insert(pack_comp_rtl433, r433info);
+
+        // Put the raw JSON in a metablob
+        packet_metablob *metablob = new packet_metablob("RTL433", 
+                concls->variable_cache["device"]->str());
+        packet->insert(pack_comp_metablob, metablob);
 
         packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
         datasrcinfo->ref_source = this;

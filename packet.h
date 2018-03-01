@@ -100,6 +100,7 @@ protected:
 	GlobalRegistry *globalreg;
 };
 
+
 // A generic tracked packet, which allows us to save some frames in a way we
 // can recall and expose via the REST interface, for instance
 class kis_tracked_packet : public tracker_component {
@@ -219,6 +220,18 @@ public:
 
 		length = in_length;
 
+    }
+};
+
+// Arbitrary data blob which gets logged into the DATA table in the kismet log
+class packet_metablob : public packet_component {
+public:
+    std::string meta_type;
+    std::string meta_data;
+
+    packet_metablob(std::string in_type, std::string in_data) {
+        meta_type = in_type;
+        meta_data = in_data;
     }
 };
 

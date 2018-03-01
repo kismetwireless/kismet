@@ -49,7 +49,7 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
-    int pack_comp_rtl433;
+    int pack_comp_rtl433, pack_comp_metablob;
 
 };
 

@@ -42,6 +42,7 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_datasource = packetchain->RegisterPacketComponent("KISDATASRC");
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
+    pack_comp_metablob = packetchain->RegisterPacketComponent("METABLOB");
 
     last_device_log = 0;
 
@@ -313,6 +314,8 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
             "datasource TEXT, " // UUID of data source
 
+            "type TEXT, " // Type of arbitrary record
+
             "json BLOB " // Arbitrary JSON record
             ")";
 
@@ -434,7 +437,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     }
 
-    Database_SetDBVersion(2);
+    Database_SetDBVersion(4);
 
     // Prepare the statements we'll need later
     //
@@ -483,8 +486,8 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         "phyname, devmac, "
         "lat, lon, "
         "datasource, "
-        "json) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        "type, json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
@@ -679,6 +682,9 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     packetchain_comp_datasource *datasrc =
         (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasource);
 
+    packet_metablob *metablob =
+        (packet_metablob *) in_pack->fetch(pack_comp_metablob);
+
     Kis_Phy_Handler *phyh = NULL;
 
 
@@ -754,12 +760,27 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
 
     sqlite3_step(packet_stmt);
 
+    // If the packet has a metablob record, log that
+    if (metablob != NULL) {
+        mac_addr smac("00:00:00:00:00:00");
+        uuid puuid;
+
+        if (commoninfo != NULL)
+            smac = commoninfo->source;
+
+        if (datasrc != NULL) 
+            puuid = datasrc->ref_source->get_source_uuid();
+
+        log_data(gpsdata, in_pack->ts, phystring, smac, puuid,
+                metablob->meta_type, metablob->meta_data);
+    }
+
     return 1;
 }
 
 int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
         std::string phystring, mac_addr devmac, uuid datasource_uuid, 
-        std::string json) {
+        std::string type, std::string json) {
     local_locker lock(&data_mutex);
 
     if (!db_enabled)
@@ -786,7 +807,8 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
 
     sqlite3_bind_text(data_stmt, 7, uuidstring.c_str(), uuidstring.length(), 0);
 
-    sqlite3_bind_text(data_stmt, 8, json.data(), json.length(), 0);
+    sqlite3_bind_text(data_stmt, 8, type.data(), type.length(), 0);
+    sqlite3_bind_text(data_stmt, 9, json.data(), json.length(), 0);
 
     sqlite3_step(data_stmt);
 

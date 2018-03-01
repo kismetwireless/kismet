@@ -90,7 +90,7 @@ public:
     // and other attributes may be empty, if that data is not available
     virtual int log_data(kis_gps_packinfo *gps, struct timeval tv, 
             std::string phystring, mac_addr devmac, uuid datasource_uuid, 
-            std::string json);
+            std::string type, std::string json);
 
     // Log datasources
     virtual int log_datasources(SharedTrackerElement in_datasource_vec);
@@ -130,7 +130,8 @@ protected:
     std::shared_ptr<Devicetracker> devicetracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
-        pack_comp_device, pack_comp_datasource, pack_comp_common;
+        pack_comp_device, pack_comp_datasource, pack_comp_common,
+        pack_comp_metablob;
 
     time_t last_device_log;
 

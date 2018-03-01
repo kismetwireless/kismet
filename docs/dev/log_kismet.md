@@ -79,6 +79,7 @@ The `data` section holds arbitrary data records which are *not* packets but whic
 | lat        | *gps integer* | GPS latitude, as normalized integer                    |
 | lon        | *gps integer* | GPS longitude, as normalized integer                   |
 | datasource |        *uuid* | UUID of capturing datasource, as text                  |
+| type       |        *text* | Type of data record, as text                           |
 | json       |        *json* | Arbitrary JSON record of event                         |
 
 #### Datasource
@@ -126,7 +127,7 @@ The `messages` section holds text messages from Kismet; typically printed to the
 | lat     | *gps integer* | GPS latitude, as normalized integer                       |
 | lon     | *gps integer* | GPS longitude, as normalized integer                      |
 | msgtype |        *text* | Message type/category (`INFO`, `ERROR`, `ALERT`, `FATAL`) |
-| message |          text | Arbitrary message as printed by Kismet                    |
+| message |        *text* | Arbitrary message as printed by Kismet                    |
 
 #### Packets
 
