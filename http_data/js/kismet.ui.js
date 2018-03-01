@@ -672,7 +672,6 @@ exports.renderTemperature = function(c, precision = 5) {
 var deviceTid;
 
 function ScheduleDeviceSummary() {
-    deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
     var dt = $('#devices').DataTable();
 
     // Save the state.  We can't use proper state saving because it seems to break
@@ -680,7 +679,12 @@ function ScheduleDeviceSummary() {
     kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
     kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
 
+    /*
     dt.draw('page');
+    */
+    dt.ajax.reload(function(d) {
+            deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
+        }, false);
 
     return;
 }
@@ -765,7 +769,7 @@ exports.InitializeDeviceTable = function(element) {
                 json: JSON.stringify(json)
             },
             method: "POST",
-            timeout: 10000,
+            timeout: 5000,
         },
 
         "deferRender": true,
