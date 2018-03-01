@@ -487,9 +487,10 @@ AC_CHECK_LIB([z], [deflate],
 LIBS="$LIBS -lz"
 
 # We need threads
-AX_PTHREAD([],AC_MSG_ERROR([could not detect pthreads support]))
-KSLIBS="$KSLIBS $PTHREAD_LIBS"
-CPPFLAGS="$CPPFLAGS $PTHREAD_CFLAGS"
+PTHREAD_CFLAGS="-pthread"
+PTHREAD_LIBS="-lpthread"
+AC_SUBST(PTHREAD_CFLAGS)
+AC_SUBST(PTHREAD_LIBS)
 
 AC_MSG_CHECKING([for pthread_mutex_timedlock])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
