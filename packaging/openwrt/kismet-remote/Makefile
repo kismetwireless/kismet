@@ -43,6 +43,10 @@ CONFIGURE_ARGS += \
 	--enable-capture-tools-only \
 	--with-netlink-tiny 
 
+# Override libs to force lpthread because we don't detect it properly on openwrt
+CONFIGURE_VARS += \
+	LIBS="-lpthread" 
+
 TARGET_CFLAGS+=-I$(STAGING_DIR)/usr/include/libnl-tiny
 TARGET_CPPFLAGS+=-I$(STAGING_DIR)/usr/include/libnl-tiny
 
