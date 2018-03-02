@@ -198,6 +198,9 @@ class kismet_rtl433:
             "json": json.dumps(cmd)
         }
 
+        if self.debug:
+            print "DEBUG - Attempting to create a datasource with the definition '{}'".format(datasource)
+
         try:
             r = self.session.post("{}/datasource/add_source.json".format(self.config.uri), data=pd)
         except requests.exceptions.ConnectionError:
@@ -285,7 +288,7 @@ class kismet_rtl433:
             d_created = rtl.create_datasource()
 
             if not d_created:
-                print "ERROR - Could not create rtl433 data source"
+                print "ERROR - Could not create rtl433 data source; check your login credentials and make sure Kismet is running."
                 return False
            
         if self.config.debug:
