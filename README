@@ -719,6 +719,48 @@ xx. Datasource: Linux Bluetooth
         Assign a custom UUID to this source.  If no custom UUID is provided,
         a purely random UUID is generated.
 
+xx. Data source: OSX Wifi
+
+    Kismet can use the built-in Wi-Fi on a Mac, but ONLY the built-in Wi-Fi;
+    Unfortunately currently there appear to be no drivers for OSX for USB
+    devices which support monitor mode.
+
+    Kismet uses the kismet_cap_osx_corewlan_wifi tool for capturing on OSX.
+
+    OSX Wifi Parameters
+
+    channel=channel-def
+
+        When channel hopping is disabled, set a specific channel.
+
+    channels="channel list"
+
+        A comma-separated list of channels to be used on this source, instead of
+        the default channels automatically detected. 
+
+        This list MUST BE IN QUOTES, for example:
+
+            source=en1:name=foo,channels="1,2,6HT40+,53,57",hop_rate=1/sec
+
+        If you are providing this source via the command line '-c' option, you
+        will need to escape the quotes to keep your shell from hiding them,
+        for example:
+
+            $ kismet -c en1:name=foo,channels=\"1,2,6HT40+,53\",hop_rate=1/sec
+
+        You may specify channels which are not detected by the source probe, however
+        if the source cannot tune to them, there will be errors.
+
+    channel_hop=true | false
+
+        Enable channel hopping on this source.  If this is omitted, the source
+        will use the global hopping option.
+
+    channel_hoprate=channels/sec | channels/min
+
+        Like the global channel_hop_rate configuration option, this sets the 
+        speed of channel hopping on this source only.  If this is omitted,
+        the source will use the global hop rate.
 
 xx. Data source: Pcapfile
 
@@ -758,6 +800,32 @@ xx. Data source: Pcapfile
 
         Assign a custom UUID to this source.  If no custom UUID is provided,
         a purely random UUID is generated.
+
+xx. Data source: SDR RTL433
+
+    The rtl-sdr radio is an extremely cheap USB SDR (software defined radio).  While
+    very limited, it is still capable of performing some useful monitoring.
+
+    Kismet is able to take data from the rtl_433 tool, which can read the broadcasts
+    of an multitude of wireless thermometer, weather, electrical, tire pressure,
+    and other sensors.
+
+    More information about the rtl-sdr is available at:
+        https://www.rtl-sdr.com
+
+    The rtl_433 tool can be downloaded from:
+        https://github.com/merbanan/rtl_433
+    or as a package in your distribution.
+
+    The Kismet rtl433 interface is managed by the kismet_cap_sdr_rtl433 tool, which is
+    a Python-based Kismet driver which is installed, by default, in:
+        /usr/local/bin/kismet_cap_tools/kismet_cap_sdr_rtl433
+
+    This tool can connect to a USB rtl-sdr directly, using the rtl_433 tool, or it can
+    subscribe to a MQTT server with published rtl433 data.
+
+    For more information about the rtl433 support, see the README in the 
+    capture_sdr_rtl433 directory.
 
 xx. Remote Packet Capture
 

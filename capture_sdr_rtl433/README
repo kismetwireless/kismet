@@ -1,0 +1,90 @@
+Kismet RTL433 Support
+
+- RTL-SDR -
+
+    The Kismet rtl_433 SDR capture requires a RTL-SDR USB device; you 
+    can learn more about these on the main RTL-SDR website:
+        https://www.rtl-sdr.com
+
+    The RTL-SDR is typically an extremely low-cost USB device which
+    can perform limited raw radio capture.  While often *extremely*
+    limited, the RTL-SDR is still capable of a surprising amount of
+    useful capture.
+
+- RTL_433 -
+
+    Kismet also requires the rtl_433 tool be installed.  The rtl_433
+    tool can typically be installed as package by your distribution,
+    compiled as part of the pybombs system, or installed manually
+    from the source at:
+        https://github.com/merbanan/rtl_433
+
+    The rtl_433 tool uses the RTL-SDR hardware to sniff for broadcasts
+    from a wide variety of sensors found on the 433MHz ISM spectrum
+    (one of the segments of the radio bands which is reserved for
+     non-licensed applications, similar to the bands Wi-Fi and
+     Bluetooth live in).
+
+    These sensors include a variety of temperature and humidity 
+    sensors, power and water meter systems, radio-controlled power
+    switches, weather stations, tire pressure monitoring systems,
+    and more.
+
+- CONFIGURING KISMET -
+
+    Due to the reliance on external tools, the Kismet RTL433 data
+    source functions slightly differently.
+
+    The primary driver is implemented in the kismet_cap_sdr_rtl433
+    tool, which is, by default, installed in:
+        /usr/local/bin/kismet_capture_tools/kismet_cap_sdr_rtl433
+
+    This tool connects to either a local RTL-SDR device, by launching
+    the rtl_433 tool, or can monitor remote devices via a MQTT channel.
+
+    To publish rtl433 data to Kismet, the simplest configuration is to
+    run the kismet_cap_sdr_rtl433 tool and provide the Kismet login
+    information:
+        $ kismet_cap_sdr_rtl433 --user kismet --password some-password
+
+    This will create the capture source in Kismet automatically and 
+    launch the rtl_433 tool.
+
+- ADVANCED CONFIGURATION -
+
+    The kismet_cap_sdr_rtl433 tool accepts a number of configuration 
+    options, which can be seen with the `--help` option.  
+
+    General options:
+        --debug         Turn on full debugging; this prints every message
+                        from the rtl_433 and connection state info.
+
+    Kismet configuration options:
+        --user          Kismet username
+        --password      Kismet password
+
+        --uuid          Custom UUID for the datasource; by default, a new source
+                        is created every time kismet_cap_sdr_rtl433 is run; to
+                        use the same data source every time, pass a fixed UUID
+        --name          Give the rtl433 data source a specific name
+        --no-reconnect  Do not automatically reconnect to Kismet if there was
+                        an error
+
+    rtl_433 configuration options:
+        --rtl433        If rtl_433 is not installed in a standard directory, you
+                        can specify a path to your rtl_433 binary
+        --device        RTL-SDR device number, if multiple RTL-SDR devices are
+                        present; This is the same as the `-d` option to rtl_433
+        --gain          Radio gain; this is the same as the `-g` option to
+                        rtl_433
+        --frequency     Radio frequency, this is the same as the `-f` option to
+                        rtl_433
+
+    MQTT options:
+        --use-mqtt      Connect to a MQTT server publishing rtl_433 JSON messages,
+                        cannot be combined with a local rtl_433 device
+        --mqtt-server   Host MQTT is running on
+        --mqtt-port     Alternate port for MQTT
+        --mqtt-client-id Custom MQTT client name
+        --mqtt-channel  MQTT channel to subscribe to
+
