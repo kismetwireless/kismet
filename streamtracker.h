@@ -85,12 +85,16 @@ public:
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
+
+        set_stream_time(time(0));
     }
 
     streaming_info_record(GlobalRegistry *in_globalreg, int in_id, 
             SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
+
+        set_stream_time(time(0));
     }
 
     virtual SharedTrackerElement clone_type() {
@@ -98,6 +102,8 @@ public:
     }
 
     __Proxy(stream_id, double, double, double, stream_id);
+
+    __Proxy(stream_time, uint64_t, uint64_t, uint64_t, stream_time);
 
     __Proxy(log_name, std::string, std::string, std::string, log_name);
     __Proxy(log_type, std::string, std::string, std::string, log_type);
@@ -142,6 +148,9 @@ protected:
         RegisterField("kismet.stream.stream_id", TrackerDouble,
                 "Stream ID", &stream_id);
 
+        RegisterField("kismet.stream.time", TrackerUInt64,
+                "Start time of stream (second since epoch)", &stream_time);
+
         RegisterField("kismet.stream.name", TrackerString,
                 "Stream / Log name", &log_name);
 
@@ -170,25 +179,13 @@ protected:
                 "Stream processing paused", &log_paused);
     }
 
-    // Internal ID
     SharedTrackerElement stream_id;
-
-    // Log name
+    SharedTrackerElement stream_time;
     SharedTrackerElement log_name;
-
-    // Arbitrary log type ('pcapng', 'netxml', 'foo')
     SharedTrackerElement log_type;
-
-    // Log path (local directory or remote client
     SharedTrackerElement log_path;
-
-    // Arbitrary description
     SharedTrackerElement log_description;
-
-    // Number of packets, if known
     SharedTrackerElement log_packets;
-
-    // Size of log, if known
     SharedTrackerElement log_size;
 
     // Maximum values, if any

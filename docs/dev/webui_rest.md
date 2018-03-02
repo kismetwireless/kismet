@@ -697,7 +697,9 @@ Returns a vector of all activated Kismet plugins.
 
 ### Streams
 
-A Kismet stream is any continually exporting entity - it can be a pcap file logged to disk, other disk logs, or logs streaming over the web interface.
+A Kismet stream is linked to an export of indeterminate length - for instance, packet capture logs streamed over the web UI.
+
+Streams can be monitored and managed via the streaming API; for instance a privileged user can close an ongoing stream via the close_stream API
 
 ##### /streams/all_streams `/streams/all_streams.msgpack`, `/streams/all_streams.json`
 
