@@ -222,7 +222,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 }
 
                 if ((ret = read(i->first, buf, r_sz)) <= 0) {
-                    if (errno != EINTR && errno != EAGAIN) {
+                    if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                         // Push the error upstream if we failed to read here
                         if (ret == 0) {
                             msg << "TCP server closing connection from client " << i->first <<
@@ -279,7 +279,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
             if (ret > 0) {
                 if ((iret = write(i->first, buf, ret)) <= 0) {
-                    if (errno != EINTR && errno != EAGAIN) {
+                    if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                         // Push the error upstream
                         msg << "TCP server error writing to client " << i->first <<
                             " - " << kis_strerror_r(errno);

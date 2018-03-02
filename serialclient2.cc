@@ -156,7 +156,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     handler->GetReadBufferAvailable());
 
             if ((ret = read(device_fd, buf, len)) <= 0) {
-                if (errno != EINTR && errno != EAGAIN) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     // Push the error upstream if we failed to read here
                     if (ret == 0) {
                         msg << "Serial client closing " << device << "@" << baud <<

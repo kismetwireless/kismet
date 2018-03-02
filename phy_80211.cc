@@ -2367,7 +2367,7 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
 
     while ((len = read(readfd, buf, 128)) >= 0) {
         if (len == 0) {
-            if (errno == EAGAIN || errno == EINTR)
+            if (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK)
                 continue;
             break;
         }

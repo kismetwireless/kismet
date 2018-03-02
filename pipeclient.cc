@@ -127,7 +127,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
             // fprintf(stderr, "debug - read buffer available reserved %lu\n", len);
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
-                if (errno != EINTR && errno != EAGAIN) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
 
                     if (ret == 0) {
                         msg << "Pipe client closing - remote side closed pipe";
@@ -172,7 +172,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         // fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
 
         if ((iret = write(write_fd, buf, ret)) < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 msg << "Pipe client error writing - " << kis_strerror_r(errno);
 
                 handler->PeekFreeWriteBufferData(buf);

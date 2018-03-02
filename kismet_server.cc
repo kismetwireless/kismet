@@ -276,7 +276,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
         tm.tv_usec = 100000;
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 break;
             }
         }
@@ -553,7 +553,7 @@ void ncurses_wrapper_fork() {
             tm.tv_usec = 100000;
 
             if (select(pipefd[0] + 1, &rset, NULL, NULL, &tm) < 0) {
-                if (errno != EINTR && errno != EAGAIN) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     break;
                 }
             }
@@ -571,7 +571,7 @@ void ncurses_wrapper_fork() {
                     ncurses_exitbuf.erase(ncurses_exitbuf.begin());
             }
 
-            if (errno != EINTR && errno != EAGAIN) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 break;
             }
 
@@ -1073,7 +1073,7 @@ int main(int argc, char *argv[], char *envp[]) {
         tm.tv_usec = 100000;
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 fprintf(stderr, "Main select failed: %s\n", strerror(errno));
                 snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
                          strerror(errno));

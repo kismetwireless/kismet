@@ -212,7 +212,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     handler->GetReadBufferAvailable());
 
             if ((ret = read(cli_fd, buf, len)) <= 0) {
-                if (errno != EINTR && errno != EAGAIN) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     // Push the error upstream if we failed to read here
                     if (ret == 0) {
                         msg << "TCP client closing " << host << ":" << port <<
@@ -229,7 +229,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     Disconnect();
                     return 0;
                 } else {
-                    // Dump the commit
+                    // Dump the commit, we didn't get any data
                     handler->CommitReadBufferData(buf, 0);
 
                     break;
@@ -258,7 +258,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
         if ((iret = write(cli_fd, buf, len)) < 0) {
-            if (errno != EINTR && errno != EAGAIN) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 // Push the error upstream
                 msg << "TCP client error writing to " << host << ":" << port <<
                     " - " << kis_strerror_r(errno);
