@@ -82,20 +82,6 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
         return -1;
     }
 
-    // Bind the local socket
-    memset(&local_sock, 0, sizeof(local_sock));
-    local_sock.sin_family = AF_INET;
-    local_sock.sin_addr.s_addr = htonl(INADDR_ANY);
-    local_sock.sin_port = htons(0);
-
-    if (::bind(cli_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
-        msg << "TCP client could not connect to " << in_host << ":" << in_port <<
-            " - " << kis_strerror_r(errno);
-        _MSG(msg.str(), MSGFLAG_ERROR);
-        close(cli_fd);
-        return -1;
-    }
-
     // Set the connection to nonblocking
     fcntl(cli_fd, F_SETFL, fcntl(cli_fd, F_GETFL, 0) | O_NONBLOCK | FD_CLOEXEC);
 
@@ -210,6 +196,13 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         while (handler->GetReadBufferAvailable() > 0) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
                     handler->GetReadBufferAvailable());
+
+            // We ought to never hit this because it ought to always be available
+            // from the above while loop, but lets be extra cautious
+            if (len <= 0) {
+                handler->CommitReadBufferData(buf, 0);
+                break;
+            }
 
             if ((ret = read(cli_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
