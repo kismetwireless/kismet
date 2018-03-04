@@ -124,7 +124,7 @@ public:
     }
 
     __Proxy(model, std::string, std::string, std::string, model);
-    __Proxy(rtlid, uint64_t, uint64_t, uint64_t, rtlid);
+    __Proxy(rtlid, std::string, std::string, std::string, rtlid);
     __Proxy(rtlchannel, std::string, std::string, std::string, rtlchannel);
     __Proxy(battery, std::string, std::string, std::string, battery);
 
@@ -137,7 +137,7 @@ protected:
                     "Sensor model", &model);
 
         rtlid_id =
-            RegisterField("rtl433.device.id", TrackerUInt64,
+            RegisterField("rtl433.device.id", TrackerString,
                     "Sensor ID", &rtlid);
 
         rtlchannel_id =
@@ -272,51 +272,64 @@ public:
     __Proxy(wind_speed, int32_t, int32_t, int32_t, wind_speed);
     __Proxy(wind_gust, int32_t, int32_t, int32_t, wind_gust);
     __Proxy(rain, int32_t, int32_t, int32_t, rain);
+    __Proxy(uv_index, int32_t, int32_t, int32_t, uv_index);
+    __Proxy(lux, int32_t, int32_t, int32_t, lux);
 
     typedef kis_tracked_rrd<rtl433_empty_aggregator> rrdt;
     __ProxyTrackable(wind_dir_rrd, rrdt, wind_dir_rrd);
     __ProxyTrackable(wind_speed_rrd, rrdt, wind_speed_rrd);
     __ProxyTrackable(wind_gust_rrd, rrdt, wind_gust_rrd);
     __ProxyTrackable(rain_rrd, rrdt, rain_rrd);
+    __ProxyTrackable(uv_index_rrd, rrdt, uv_index_rrd);
+    __ProxyTrackable(lux_rrd, rrdt, lux_rrd);
 
 protected:
     virtual void register_fields() {
-        wind_dir_id =
-            RegisterField("rtl433.device.wind_dir", TrackerInt32,
-                    "Wind direction in degrees", &wind_dir);
+        RegisterField("rtl433.device.wind_dir", TrackerInt32,
+                "Wind direction in degrees", &wind_dir);
 
         std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rrd_builder(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
         wind_dir_rrd_id =
             RegisterComplexField("rtl433.device.wind_dir_rrd", rrd_builder,
                     "Wind direction RRD");
 
-        wind_speed_id =
-            RegisterField("rtl433.device.wind_speed", TrackerInt32,
-                    "Wind speed in Kph", &wind_speed);
+        RegisterField("rtl433.device.wind_speed", TrackerInt32,
+                "Wind speed in Kph", &wind_speed);
 
         rrd_builder.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
         wind_speed_rrd_id =
             RegisterComplexField("rtl433.device.wind_speed_rrd", rrd_builder,
                     "Wind speed RRD");
 
-        wind_gust_id =
-            RegisterField("rtl433.device.wind_gust", TrackerInt32,
-                    "Wind gust in Kph", &wind_gust);
+        RegisterField("rtl433.device.wind_gust", TrackerInt32,
+                "Wind gust in Kph", &wind_gust);
 
         rrd_builder.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
         wind_gust_rrd_id =
             RegisterComplexField("rtl433.device.wind_gust_rrd", rrd_builder,
                     "Wind gust RRD");
 
-        rain_id =
-            RegisterField("rtl433.device.rain", TrackerInt32,
-                    "Measured rain", &rain);
+        RegisterField("rtl433.device.rain", TrackerInt32,
+                "Measured rain", &rain);
 
         rrd_builder.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
         rain_rrd_id =
             RegisterComplexField("rtl433.device.rain_rrd", rrd_builder,
                     "Rain RRD");
 
+        RegisterField("rtl433.device.uv_index", TrackerInt32,
+                "UV index", &uv_index);
+        rrd_builder.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
+        uv_index_rrd_id =
+            RegisterComplexField("rtl433.device.uv_index_rrd", rrd_builder,
+                    "UV index RRD");
+
+        RegisterField("rtl433.device.lux", TrackerInt32,
+                "Lux", &lux);
+        rrd_builder.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
+        lux_rrd_id =
+            RegisterComplexField("rtl433.device.lux_rrd", rrd_builder,
+                    "Lux RRD");
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
@@ -334,6 +347,14 @@ protected:
 
             rain_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, rain_rrd_id, e->get_map_value(rain_rrd_id)));
             add_map(rain_rrd);
+
+            uv_index_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, uv_index_rrd_id,
+                        e->get_map_value(uv_index_rrd_id)));
+            add_map(uv_index_rrd);
+
+            lux_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, lux_rrd_id,
+                        e->get_map_value(lux_rrd_id)));
+            add_map(lux_rrd);
         } else {
             wind_dir_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_dir_rrd_id));
             add_map(wind_dir_rrd);
@@ -346,36 +367,90 @@ protected:
 
             rain_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, rain_rrd_id));
             add_map(rain_rrd);
+
+            uv_index_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, uv_index_rrd_id));
+            add_map(uv_index_rrd);
+
+            lux_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, lux_rrd_id));
+            add_map(lux_rrd);
         }
     }
 
     // Wind direction in degrees
-    int wind_dir_id;
     SharedTrackerElement wind_dir;
 
     int wind_dir_rrd_id;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_dir_rrd;
 
     // Wind speed in kph (might have to convert for some sensors)
-    int wind_speed_id;
     SharedTrackerElement wind_speed;
 
     int wind_speed_rrd_id;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_speed_rrd;
 
     // Wind gust in kph (might have to convert for some sensors)
-    int wind_gust_id;
     SharedTrackerElement wind_gust;
 
     int wind_gust_rrd_id;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > wind_gust_rrd;
 
     // Rain (in whatever the sensor reports it in)
-    int rain_id;
     SharedTrackerElement rain;
 
     int rain_rrd_id;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > rain_rrd;
+
+    // UV
+    SharedTrackerElement uv_index;
+
+    int uv_index_rrd_id;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > uv_index_rrd;
+
+    // Lux
+    SharedTrackerElement lux;
+
+    int lux_rrd_id;
+    std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator> > lux_rrd;
+};
+
+// TPMS tire pressure sensors
+class rtl433_tracked_tpms : public tracker_component {
+public:
+    rtl433_tracked_tpms(GlobalRegistry *in_globalreg, int in_id) :
+       tracker_component(in_globalreg, in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new rtl433_tracked_tpms(globalreg, get_id()));
+    }
+
+    rtl433_tracked_tpms(GlobalRegistry *in_globalreg, int in_id, 
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    __Proxy(temperature, double, double, double, temperature);
+    __Proxy(pressure_bar, double, double, double, pressure_bar);
+
+protected:
+    virtual void register_fields() {
+        RegisterField("rtl433.device.temperature", TrackerDouble,
+                "Temperature in degrees Celsius", &temperature);
+
+        RegisterField("rtl433.device.pressure_bar", TrackerDouble,
+                "Pressure, in bars", &pressure_bar);
+    }
+
+    virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+    }
+
+    SharedTrackerElement temperature;
+    SharedTrackerElement pressure_bar;
 };
 
 class Kis_RTL433_Phy : public Kis_Phy_Handler {

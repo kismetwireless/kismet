@@ -211,7 +211,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         if (json.isMember("id")) {
             Json::Value id_j = json["id"];
             if (id_j.isNumeric()) {
-                commondev->set_rtlid(id_j.asUInt64());
+                std::stringstream ss;
+                ss << id_j.asUInt64();
+                commondev->set_rtlid(ss.str());
+                set_id = true;
+            } else if (id_j.isString()) {
+                commondev->set_rtlid(id_j.asString());
                 set_id = true;
             }
         }
@@ -219,7 +224,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         if (!set_id && json.isMember("device")) {
             Json::Value device_j = json["device"];
             if (device_j.isNumeric()) {
-                commondev->set_rtlid(device_j.asUInt64());
+                std::stringstream ss;
+                ss << device_j.asUInt64();
+                commondev->set_rtlid(ss.str());
+                set_id = true;
+            } else if (device_j.isString()) {
+                commondev->set_rtlid(device_j.asString());
                 set_id = true;
             }
         }
@@ -248,10 +258,11 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     }
 
     auto humidity_j = json["humidity"];
+    auto moisture_j = json["moisture"];
     auto temp_f_j = json["temperature_F"];
     auto temp_c_j = json["temperature_C"];
 
-    if (!humidity_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
+    if (!humidity_j.isNull() || !moisture_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
         std::shared_ptr<rtl433_tracked_thermometer> thermdev = 
             std::static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
 
@@ -263,6 +274,10 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
 
         if (humidity_j.isNumeric()) {
             thermdev->set_humidity(humidity_j.asInt());
+        }
+
+        if (moisture_j.isNumeric()) {
+            thermdev->set_humidity(moisture_j.asInt());
         }
 
         if (temp_f_j.isNumeric()) {
@@ -280,9 +295,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     auto windspeed_j = json["speed"];
     auto gust_j = json["gust"];
     auto rain_j = json["rain"];
+    auto uv_index_j = json["uv_index"];
+    auto lux_j = json["lux"];
 
     if (!direction_j.isNull() || !windstrength_j.isNull() || !winddirection_j.isNull() ||
-            !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull()) {
+            !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull() || !uv_index_j.isNull() ||
+            !lux_j.isNull()) {
 
         std::shared_ptr<rtl433_tracked_weatherstation> weatherdev = 
             std::static_pointer_cast<rtl433_tracked_weatherstation>(rtlholder->get_map_value(rtl433_weatherstation_id));
@@ -321,8 +339,17 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
 
         if (rain_j.isNumeric()) {
             weatherdev->set_rain((int32_t) rain_j.asInt());
-            weatherdev->get_rain_rrd()->add_sample((int64_t) rain_j.asInt(),
-                    globalreg->timestamp.tv_sec);
+            weatherdev->get_rain_rrd()->add_sample((int64_t) rain_j.asInt(), time(0));
+        }
+
+        if (uv_index_j.isNumeric()) {
+            weatherdev->set_uv_index((int32_t) uv_index_j.asInt());
+            weatherdev->get_uv_index_rrd()->add_sample((int64_t) uv_index_j.asInt(), time(0));
+        }
+
+        if (lux_j.isNumeric()) {
+            weatherdev->set_lux((int32_t) lux_j.asInt());
+            weatherdev->get_lux_rrd()->add_sample((int64_t) lux_j.asInt(), time(0));
         }
 
     }
@@ -330,8 +357,8 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     if (newrtl && commondev != NULL) {
         std::string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
 
-        if (commondev->get_rtlid() != 0) 
-            info += " ID " + IntToString(commondev->get_rtlid());
+        if (commondev->get_rtlid() != "") 
+            info += " ID " + commondev->get_rtlid();
 
         if (commondev->get_rtlchannel() != "0")
             info += " Channel " + commondev->get_rtlchannel();
