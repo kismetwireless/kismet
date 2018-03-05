@@ -247,10 +247,11 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (FD_ISSET(cli_fd, &in_wset)) {
         len = handler->GetWriteBufferUsed();
 
-        // Peek the data into our buffer
+        // Peek the entire data 
         ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
-        if ((iret = write(cli_fd, buf, len)) < 0) {
+        // Write the amount we actually peeked, regardless of the amount used
+        if ((iret = write(cli_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 // Push the error upstream
                 msg << "TCP client error writing to " << host << ":" << port <<
