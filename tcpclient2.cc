@@ -204,16 +204,18 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 break;
             }
 
-            if ((ret = read(cli_fd, buf, len)) <= 0) {
-                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+            ret = recv(cli_fd, buf, len, MSG_DONTWAIT);
+
+            if (ret < 0) {
+                if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+                    // Dump the commit, we didn't get any data
+                    handler->CommitReadBufferData(buf, 0);
+
+                    break;
+                } else {
                     // Push the error upstream if we failed to read here
-                    if (ret == 0) {
-                        msg << "TCP client closing " << host << ":" << port <<
-                            " - connection closed by remote side.";
-                    } else {
-                        msg << "TCP client error reading from " << host << ":" << port <<
-                            " - " << kis_strerror_r(errno);
-                    }
+                    msg << "TCP client error reading from " << host << ":" << port <<
+                        " - " << kis_strerror_r(errno);
 
                     // Dump the commit
                     handler->CommitReadBufferData(buf, 0);
@@ -221,14 +223,18 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                     Disconnect();
                     return 0;
-                } else {
-                    // Dump the commit, we didn't get any data
-                    handler->CommitReadBufferData(buf, 0);
-
-                    break;
                 }
+            } else if (ret == 0) {
+                msg << "TCP client closing " << host << ":" << port <<
+                    " - connection closed by remote side.";
+                // Dump the commit
+                handler->CommitReadBufferData(buf, 0);
+                handler->BufferError(msg.str());
+
+                Disconnect();
+                return 0;
             } else {
-                // Finalize buffer
+                // Process the data we got
                 iret = handler->CommitReadBufferData(buf, ret);
 
                 if (!iret) {
@@ -238,20 +244,45 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     return 0;
                 }
             }
-
-            // Should never get here
-            // delete[] buf;
         }
     }
 
     if (FD_ISSET(cli_fd, &in_wset)) {
-        len = handler->GetWriteBufferUsed();
-
         // Peek the entire data 
-        ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+        len = handler->ZeroCopyPeekWriteBufferData((void **) &buf, 
+                handler->GetWriteBufferUsed());
+
+        ret = send(cli_fd, buf, len, MSG_DONTWAIT);
+
+        if (ret < 0) {
+            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+                handler->PeekFreeWriteBufferData(buf);
+                return 0;
+            } else {
+                msg << "TCP client error writing to " << host << ":" << port <<
+                    " - " << kis_strerror_r(errno);
+
+                handler->PeekFreeWriteBufferData(buf);
+                handler->BufferError(msg.str());
+
+                Disconnect();
+                return 0;
+            }
+        } else if (ret == 0) {
+            msg << "TCP client closing " << host << ":" << port << 
+                " - connection closed by remote side.";
+            handler->PeekFreeWriteBufferData(buf);
+            handler->BufferError(msg.str());
+            Disconnect();
+            return 0;
+        } else {
+            // Consume whatever we managed to write
+            handler->PeekFreeWriteBufferData(buf);
+            handler->ConsumeWriteBufferData(iret);
+        }
 
         // Write the amount we actually peeked, regardless of the amount used
-        if ((iret = write(cli_fd, buf, ret)) < 0) {
+        if ((iret = send(cli_fd, buf, ret, MSG_DONTWAIT)) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                 // Push the error upstream
                 msg << "TCP client error writing to " << host << ":" << port <<
@@ -264,9 +295,6 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 return 0;
             }
         } else {
-            // Consume whatever we managed to write
-            handler->PeekFreeWriteBufferData(buf);
-            handler->ConsumeWriteBufferData(iret);
         }
     }
 
