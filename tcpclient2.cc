@@ -280,22 +280,6 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             handler->PeekFreeWriteBufferData(buf);
             handler->ConsumeWriteBufferData(iret);
         }
-
-        // Write the amount we actually peeked, regardless of the amount used
-        if ((iret = send(cli_fd, buf, ret, MSG_DONTWAIT)) < 0) {
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                // Push the error upstream
-                msg << "TCP client error writing to " << host << ":" << port <<
-                    " - " << kis_strerror_r(errno);
-
-                handler->PeekFreeWriteBufferData(buf);
-                handler->BufferError(msg.str());
-
-                Disconnect();
-                return 0;
-            }
-        } else {
-        }
     }
 
     return 0;
