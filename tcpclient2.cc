@@ -64,6 +64,9 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
         return -1;
     }
 
+    host = in_host;
+    port = in_port;
+
     // Don't handle connecting to all possible IPs a name can resolve to.
     // We may need to revisit this in the future if we're going to connect
     // to RR services
@@ -75,7 +78,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
             client_host->h_length);
     client_sock.sin_port = htons(in_port);
 
-    if ((cli_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((cli_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         msg << "TCP client could not connect to " << in_host << ":" << in_port <<
             " - " << kis_strerror_r(errno);
         _MSG(msg.str(), MSGFLAG_ERROR);
@@ -111,9 +114,6 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
         connected = true;
         pending_connect = false;
     }
-
-    host = in_host;
-    port = in_port;
 
     return 0;
 }
