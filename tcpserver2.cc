@@ -214,40 +214,40 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         i->second->GetReadBufferAvailable());
 
                 if (r_sz < 0) {
-                    msg << "TCP server closing connection from client " << i->first << 
-                        " unable to reserve space in buffer, something went wrong";
-                    i->second->CommitReadBufferData(buf, 0);
-                    i->second->BufferError(msg.str());
-                    KillConnection(i->first);
+                    break;
                 }
 
-                if ((ret = read(i->first, buf, r_sz)) <= 0) {
-                    if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+
+                ret = recv(i->first, buf, r_sz, MSG_DONTWAIT);
+
+                if (ret < 0) {
+                    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+                        // Dump the commit, we didn't get any data
+                        i->second->CommitReadBufferData(buf, 0);
+
+                        break;
+                    } else {
                         // Push the error upstream if we failed to read here
-                        if (ret == 0) {
-                            msg << "TCP server closing connection from client " << i->first <<
-                                " - connection closed by remote side";
-                            _MSG(msg.str(), MSGFLAG_ERROR);
-                        } else {
-                            msg << "TCP server error reading from client " << i->first << 
-                                " - " << kis_strerror_r(errno);
-                            _MSG(msg.str(), MSGFLAG_ERROR);
-                        }
 
                         // Dump the commit
                         i->second->CommitReadBufferData(buf, 0);
                         i->second->BufferError(msg.str());
-                        
+
                         KillConnection(i->first);
-                        return 0;
-                    } else {
-                        // Drop out of while loop
-                        
-                        // Dump the commit
-                        i->second->CommitReadBufferData(buf, 0);
 
                         break;
                     }
+                } else if (ret == 0) {
+                    msg << "TCP server closing connection from client " << i->first <<
+                        " - connection closed by remote side";
+                    _MSG(msg.str(), MSGFLAG_ERROR);
+                    // Dump the commit
+                    i->second->CommitReadBufferData(buf, 0);
+                    i->second->BufferError(msg.str());
+
+                    KillConnection(i->first);
+
+                    break;
                 } else {
                     // Commit the data
                     iret = i->second->CommitReadBufferData(buf, ret);
@@ -261,43 +261,45 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         _MSG(msg.str(), MSGFLAG_ERROR);
 
                         KillConnection(i->first);
-                        return 0;
+                        break;
                     }
                 }
-
-                // We never get here; delete 
-                // delete[] buf;
             }
         }
 
         if (FD_ISSET(i->first, &in_wset)) {
-            len = i->second->GetWriteBufferUsed();
+            len = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, 
+                    i->second->GetWriteBufferUsed());
 
-            // Peek the data into our buffer as a zero-copy op whenever possible; we
-            // don't care how much we get
-            ret = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+            if (len > 0) {
+                ret = send(i->first, buf, len, MSG_DONTWAIT);
 
-            if (ret > 0) {
-                if ((iret = write(i->first, buf, ret)) <= 0) {
-                    if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                        // Push the error upstream
+                if (ret < 0) {
+                    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+                        i->second->PeekFreeWriteBufferData(buf);
+                        continue;
+                    } else {
                         msg << "TCP server error writing to client " << i->first <<
                             " - " << kis_strerror_r(errno);
-                        _MSG(msg.str(), MSGFLAG_ERROR);
 
                         i->second->PeekFreeWriteBufferData(buf);
                         i->second->BufferError(msg.str());
 
                         KillConnection(i->first);
-                        return 0;
+                        continue;
                     }
+                } else if (ret == 0) {
+                    msg << "TCP server closing client " << i->first <<
+                        " - connection closed by remote side.";
+                    i->second->PeekFreeWriteBufferData(buf);
+                    i->second->BufferError(msg.str());
+                    KillConnection(i->first);
+                    continue;
                 } else {
                     // Consume whatever we managed to write
                     i->second->PeekFreeWriteBufferData(buf);
                     i->second->ConsumeWriteBufferData(iret);
                 }
-            } else {
-                i->second->PeekFreeWriteBufferData(buf);
             }
         }
     }
