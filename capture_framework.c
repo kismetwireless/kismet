@@ -1902,7 +1902,15 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 /* We deliberately read as much as we need and try to put it in the 
                  * buffer, if the buffer fills up something has gone wrong anyhow */
 
-                if ((amt_read = read(read_fd, rbuf, 1024)) <= 0) {
+                /* If it looks like we're doing remote cap over tcp, use recv because
+                 * OSX seems to ignore O_NONBLOCK; on the other hand, if it's IPC over
+                 * pipes, we HAVE to use read because recv will fail! */
+                if (caph->remote_host != NULL)
+                    amt_read = recv(read_fd, rbuf, 1024, MSG_DONTWAIT);
+                else
+                    amt_read = read(read_fd, rbuf, 1024);
+
+                if (amt_read <= 0) {
                     if (errno != EINTR && errno != EAGAIN) {
                         /* Bail entirely */
                         if (amt_read == 0) {
@@ -1972,7 +1980,13 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
 
-            if ((written_sz = write(write_fd, peek_buf, peeked_sz)) < 0) {
+            /* Same nonsense as before - send on tcp, write on pipes */
+            if (caph->remote_host != NULL)
+                written_sz = send(write_fd, peek_buf, peeked_sz, MSG_DONTWAIT);
+            else
+                written_sz = write(write_fd, peek_buf, peeked_sz);
+
+            if (written_sz < 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                     fprintf(stderr,
