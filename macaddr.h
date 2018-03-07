@@ -138,7 +138,8 @@ struct mac_addr {
         longmask = (uint64_t) -1;
 
         for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
-            longmac |= (uint64_t) in[x] << ((MAC_LEN_MAX - x - 1) * 8);
+            uint64_t v = in[x];
+            longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
     }
 

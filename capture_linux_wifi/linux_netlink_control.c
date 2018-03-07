@@ -623,30 +623,37 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
             snprintf(errstr, STATUS_MAX, 
                     "failed to get channels from interface '%s': interface does "
                     "not exist.", interface);
+            free(cblock.phyname);
             return -1;
         } 
 
         snprintf(errstr, STATUS_MAX, 
                 "failed to find parent phy interface for interface '%s': interface "
                 "may not be a mac80211 wifi device?", interface);
+        free(cblock.phyname);
         return -1;
     }
 
     nl_sock = nl_socket_alloc();
     if (!nl_sock) {
         snprintf(errstr, STATUS_MAX, "FATAL: Failed to allocate netlink socket");
+        free(cblock.phyname);
         return -1;
     }
 
     if (genl_connect(nl_sock)) {
         snprintf(errstr, STATUS_MAX, "FATAL: Failed to connect to generic netlink");
         nl_socket_free(nl_sock);
+        free(cblock.phyname);
+        return -1;
     }
 
     nl80211_id = genl_ctrl_resolve(nl_sock, "nl80211");
     if (nl80211_id < 0) {
         snprintf(errstr, STATUS_MAX, "FATAL: Failed to resolve nl80211");
         nl_socket_free(nl_sock);
+        free(cblock.phyname);
+        return -1;
     }
 
     msg = nlmsg_alloc();
@@ -675,6 +682,7 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
         nlmsg_free(msg);
         nl_cb_put(cb);
         nl_socket_free(nl_sock);
+        free(cblock.phyname);
         return -1;
     }
 
@@ -777,7 +785,8 @@ char *mac80211_find_parent(const char *interface) {
                 }
             }
 
-            closedir(ieeedir);
+            if (ieeedir != NULL)
+                closedir(ieeedir);
         }
     }
 

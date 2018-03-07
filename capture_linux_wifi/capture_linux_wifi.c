@@ -748,6 +748,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         nexmon = init_nexmon(local_wifi->interface);
 
         if (nexmon == NULL) {
+            free(interface);
             return -1;
         }
 
@@ -1476,6 +1477,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_message(caph, errstr, MSGFLAG_INFO);
 
         if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+            free(localchan);
             return -1;
         }
     }

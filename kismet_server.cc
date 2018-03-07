@@ -259,7 +259,6 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     while (1) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
-        max_fd = 0;
 
         if (globalregistry->fatal_condition) {
             break;
