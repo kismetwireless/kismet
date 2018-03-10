@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <time.h>
+
 #include "globalregistry.h"
 #include "kis_net_microhttpd.h"
 #include "messagebus.h"
@@ -30,6 +32,7 @@
 #include "gpsgpsd2.h"
 #include "gpsfake.h"
 #include "gpsweb.h"
+#include "kis_databaselogfile.h"
 
 GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
@@ -54,6 +57,25 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     gps_instances.reset(new TrackerElement(TrackerVector));
     gps_instances_vec = TrackerElementVector(gps_instances);
 
+    // Manage logging
+    log_snapshot_timer = -1;
+
+    database_logging = 
+        globalreg->kismet_config->FetchOptBoolean("kis_log_gps_track", true);
+
+    if (database_logging) {
+        _MSG("GPS track will be logged to the Kismet logfile", MSGFLAG_INFO);
+
+        std::shared_ptr<Timetracker> timetracker = 
+            Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+
+        log_snapshot_timer =
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
+                    [this](int) -> int { log_snapshot_gps(); return 1; });
+    } else {
+        _MSG("GPS track logging disabled", MSGFLAG_INFO);
+    }
+
     // Register the built-in GPS drivers
     register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder(globalreg)));
     register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder(globalreg)));
@@ -75,6 +97,42 @@ GpsTracker::~GpsTracker() {
     httpd->RemoveHandler(this);
 
     globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
+
+    std::shared_ptr<Timetracker> timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+
+    timetracker->RemoveTimer(log_snapshot_timer);
+}
+
+void GpsTracker::log_snapshot_gps() {
+    // Look for the log file driver, if it's not available, we
+    // just exit until the next time
+    std::shared_ptr<KisDatabaseLogfile> dbf =
+        Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+
+    if (dbf == NULL)
+        return;
+
+    std::shared_ptr<EntryTracker> entrytracker =
+        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+
+    if (entrytracker == NULL)
+        return;
+
+    local_locker lock(&gpsmanager_mutex);
+
+    // Log each GPS
+    for (auto d : gps_instances_vec) {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+
+        std::stringstream ss;
+        entrytracker->Serialize("json", ss, d, NULL);
+
+        dbf->log_snapshot(NULL, tv, "GPS", ss.str());
+    }
+
+    return;
 }
 
 void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {

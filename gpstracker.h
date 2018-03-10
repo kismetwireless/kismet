@@ -160,6 +160,14 @@ protected:
 
     // Extra field we insert into a location triplet
     int tracked_uuid_addition_id;
+
+    // Logging function
+    void log_snapshot_gps();
+
+    // Do we log to the Kismet log?
+    bool database_logging;
+    // Timer for logging GPS path as a snapshot
+    int log_snapshot_timer;
 };
 
 #endif
