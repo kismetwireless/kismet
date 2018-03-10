@@ -129,3 +129,53 @@ Converting to JSON: kismet_log_devices_to_json
         $ ./kismet_log_devices_to_json.py --in foo.kismet \
             --min-signal -40
 
+Converting to KML: kismet_log_devices_to_kml
+
+    The KML format (Keyhole Markup Language) is used by Google Earth
+    for displaying geo points.
+
+    The KML converter for Kismet is in its very early stages - if 
+    you'd like to contribute, please get in touch and send a pull
+    request!
+
+    0.  Dependencies
+
+        The KML converter uses simple-kml to assist in creating the
+        KML file.  This can be installed with pip, via:
+
+        $ pip install simplekml
+
+        or system-wide via:
+
+        $ sudo pip install simplekml
+
+
+    1. Outputting to a file
+
+        $ ./kismet_log_to_kml.py --in foo.kismet --out foo.kml
+
+    2. Selecting devices based on time
+
+        Device export can be limited to devices which were seen after
+        a specific time:
+
+        $ ./kismet_log_devices_to_kml.py --in foo.kismet \
+            --start-time 'Nov 20 2017'
+
+    3. Selecting devices based on signal
+
+        Device export can also be limited to devices which have
+        been seen with a minimum signal level with `--min-signal`:
+
+        $ ./kismet_log_devices_to_kml.py --in foo.kismet \
+            --min-signal -40
+
+    4. Plotting based on strongest signal
+
+        By default the KML will place devices based on the 
+        running average location; this is not the most precise 
+        measurement of a network location.
+
+        Using the '--strongest-location' option, the device point
+        will be based on the location of the strongest signal.
+
