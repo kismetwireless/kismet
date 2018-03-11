@@ -11,6 +11,7 @@ import struct
 import sqlite3
 import sys
 import simplekml
+import re
 
 parser = argparse.ArgumentParser(description="Kismet to KML Log Converter")
 parser.add_argument("--in", action="store", dest="infile", help='Input (.kismet) file')
@@ -19,6 +20,7 @@ parser.add_argument("--start-time", action="store", dest="starttime", help='Only
 parser.add_argument("--min-signal", action="store", dest="minsignal", help='Only list devices with a best signal higher than min-signal')
 parser.add_argument("--strongest-point", action="store_true", dest="strongest", default=False, help='Plot points based on strongest signal')
 parser.add_argument("--title", action="store", dest="title", default="Kismet", help='Title embedded in KML file')
+parser.add_argument("--ssid", action="store", dest="ssid", help='Only plot networks which match the SSID (or SSID regex)')
 
 results = parser.parse_args()
 
@@ -77,14 +79,57 @@ devs = []
 kml = simplekml.Kml()
 kml.document.name = results.title
 
+num_plotted = 0
+
 for row in c.execute(sql, replacements):
-    dev = json.loads(row[0])
+    try:
+        dev = json.loads(row[0])
 
-    avgloc = dev['kismet.device.base.location']['kismet.common.location.avg_loc']
-    mac = dev['kismet.device.base.macaddr']
+        # Check for the SSID if we're doing that; allow it to trip
+        # a KeyError and jump out of processing this device
+        if not results.ssid is None:
+            matched = False
+            for s in dev['dot11.device']['dot11.device.advertised_ssid_map']:
+                if re.match(results.ssid, 
+                        dev['dot11.device']['dot11.device.advertised_ssid_map'][s]['dot11.advertisedssid.ssid']):
+                    matched = True
+                    break
 
-    pt = kml.newpoint(name = mac, 
-            coords = [(avgloc['kismet.common.location.lon'], avgloc['kismet.common.location.lat'])])
+            if not matched:
+                continue
+
+        loc = None
+
+        if results.strongest:
+            loc = dev['kismet.device.base.signal']['kismet.common.signal.peak_loc']
+        else:
+            loc = dev['kismet.device.base.location']['kismet.common.location.avg_loc']
+
+        mac = dev['kismet.device.base.macaddr']
+
+        title = ""
+
+        if 'kismet.device.base.name' in dev:
+            title = dev['kismet.device.base.name']
+
+        if title is "":
+            if 'dot11.device' in dev:
+                if 'dot11.device.last_beaconed_ssid' in dev['dot11.device']:
+                    title = dev['dot11.device']['dot11.device.last_beaconed_ssid']
+
+        if title is "":
+            title = mac
+
+        pt = kml.newpoint(name = title, 
+                coords = [(loc['kismet.common.location.lon'], 
+                    loc['kismet.common.location.lat'], 
+                    loc['kismet.common.location.alt'])])
+
+        num_plotted = num_plotted + 1
+
+    except KeyError:
+        continue
 
 kml.save(results.outfile)
 
+print "Exported {} devices to {}".format(num_plotted, results.outfile)
