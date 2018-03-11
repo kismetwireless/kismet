@@ -340,6 +340,10 @@ clean:
 	# @-rm -f kaitai_parsers/*.d
 	@-rm -f dot11_parsers/*.o
 	@-rm -f dot11_parsers/*.d
+	@-rm -f protobuf_cpp/*.o
+	@-rm -f protobuf_cpp/*.d
+	@-rm -f protobuf_c/*.o
+	@-rm -f protobuf_c/*.d
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
@@ -408,6 +412,11 @@ all-plugins-clean: Makefile
 # 	@echo "kaitai_struct compiler; see http://http://kaitai.io/ for more info!"
 # 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 # 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
+
+protobuf-parsers:
+	@echo "Re-generating the protobuf parsers; this requires the protobuf and protobuf-c compilers"
+	protoc --cpp_out=protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/*.proto
+	protoc-c --c_out=protobuf_c/ -I protobuf_definitions/ protobuf_definitions/*.proto
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

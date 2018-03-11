@@ -924,7 +924,6 @@ fi
 
 # Don't check for sqlite3 if we're only building datasources
 if test "$caponly" = 0; then
-
 # Check for sqlite3
 sql3l=no
 AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
@@ -949,41 +948,6 @@ else
 fi # sqlite3
 
 fi # caponly
-
-# Handle airpcap/winpcap on cygwin
-if test "$cygwin" = yes; then
-AC_CHECK_HEADERS([windows.h Win32-Extensions.h])
-
-AC_ARG_ENABLE(airpcap,
-	[  --enable-airpcap        enable checking for CACE airpcap],
-	[case "${enableval}" in
-	 yes) want_airpcap=yes ;;
-	   *) want_airpcap=no ;;
-	 esac],
-	[want_airpcap=yes]
-)
-
-if test "$want_airpcap" = "yes"; then
-airpcap_devpack="Airpcap_Devpack"
-AC_ARG_WITH(airpcap-devpack,
-[  --with-airpcap[=DIR]     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory],
-[ airpcap_devpack="$withval" ])
-
-# Set the libs and includes
-LDFLAGS="$LDFLAGS -L$airpcap_devpack/Lib"
-CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/Include"
-fi # want_airpcap
-
-winpcap_devpack="Winpcap_Devpack"
-AC_ARG_WITH(winpcap-devpack,
-[  --with-winpcap[=DIR]     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory],
-[ winpcap_devpack="$withval" ])
-
-# Set the libs and includes
-LDFLAGS="$LDFLAGS -L$winpcap_devpack/Lib"
-CPPFLAGS="$CPPFLAGS -I$winpcap_devpack/Include"
-
-fi # cygwin
 
 AC_ARG_ENABLE(prelude,
               AS_HELP_STRING([--enable-prelude],
@@ -1150,6 +1114,23 @@ AC_CHECK_PROG(havepkgconfig, [pkg-config], yes, no)
 if test "$havepkgconfig" = "no"; then
   AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
 fi
+
+if test "$caponly" = 0; then
+# We only *require* protobuf for C++
+PKG_CHECK_MODULES(protobuf, [protobuf], [], AC_MSG_ERROR([missing google libprotobuf]))
+PROTOLIBS=`pkg-config --libs protobuf`
+PROTOCFLAGS=`pkg-config --cflags protobuf`
+fi
+
+# We need protobuf-c all the time
+PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], [], AC_MSG_ERROR([missing libprotobuf-c]))
+PROTOCLIBS=`pkg-config --libs libprotobuf-c`
+PROTOCFLAGS=`pkg-config --cflags libprotobuf-c`
+
+AC_SUBST(PROTOLIBS)
+AC_SUBST(PROTOCFLAGS)
+AC_SUBST(PROTOCLIBS)
+AC_SUBST(PROTOCFLAGS)
 
 NMLIBS=""
 NMCFLAGS=""

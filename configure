@@ -645,6 +645,13 @@ NMCFLAGS
 NMLIBS
 libnm_LIBS
 libnm_CFLAGS
+PROTOCLIBS
+PROTOCFLAGS
+PROTOLIBS
+libprotobufc_LIBS
+libprotobufc_CFLAGS
+protobuf_LIBS
+protobuf_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
@@ -748,9 +755,6 @@ with_linuxheaders
 enable_linuxwext
 with_pcreheaders
 enable_pcre
-enable_airpcap
-with_airpcap_devpack
-with_winpcap_devpack
 enable_prelude
 with_libprelude_prefix
 enable_pcap
@@ -776,6 +780,10 @@ CXXCPP
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
+protobuf_CFLAGS
+protobuf_LIBS
+libprotobufc_CFLAGS
+libprotobufc_LIBS
 libnm_CFLAGS
 libnm_LIBS
 libnl30_CFLAGS
@@ -1413,7 +1421,6 @@ Optional Features:
   --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
   --disable-pcre          disable building pcre components
-  --enable-airpcap        enable checking for CACE airpcap
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-pcap          disable libpcap (most sources) capture support
   --disable-optimization        disable -Ox gcc optimization
@@ -1425,8 +1432,6 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
-  --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
-  --with-winpcap=DIR     Location of the WinPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
   --with-netlink-tiny                       Force libnl-tiny
@@ -1449,6 +1454,14 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
+  protobuf_CFLAGS
+              C compiler flags for protobuf, overriding pkg-config
+  protobuf_LIBS
+              linker flags for protobuf, overriding pkg-config
+  libprotobufc_CFLAGS
+              C compiler flags for libprotobufc, overriding pkg-config
+  libprotobufc_LIBS
+              linker flags for libprotobufc, overriding pkg-config
   libnm_CFLAGS
               C compiler flags for libnm, overriding pkg-config
   libnm_LIBS  linker flags for libnm, overriding pkg-config
@@ -8215,7 +8228,6 @@ fi
 
 # Don't check for sqlite3 if we're only building datasources
 if test "$caponly" = 0; then
-
 # Check for sqlite3
 sql3l=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
@@ -8290,62 +8302,6 @@ else
 fi # sqlite3
 
 fi # caponly
-
-# Handle airpcap/winpcap on cygwin
-if test "$cygwin" = yes; then
-for ac_header in windows.h Win32-Extensions.h
-do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_cxx_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
-_ACEOF
-
-fi
-
-done
-
-
-# Check whether --enable-airpcap was given.
-if test "${enable_airpcap+set}" = set; then :
-  enableval=$enable_airpcap; case "${enableval}" in
-	 yes) want_airpcap=yes ;;
-	   *) want_airpcap=no ;;
-	 esac
-else
-  want_airpcap=yes
-
-fi
-
-
-if test "$want_airpcap" = "yes"; then
-airpcap_devpack="Airpcap_Devpack"
-
-# Check whether --with-airpcap-devpack was given.
-if test "${with_airpcap_devpack+set}" = set; then :
-  withval=$with_airpcap_devpack;  airpcap_devpack="$withval"
-fi
-
-
-# Set the libs and includes
-LDFLAGS="$LDFLAGS -L$airpcap_devpack/Lib"
-CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/Include"
-fi # want_airpcap
-
-winpcap_devpack="Winpcap_Devpack"
-
-# Check whether --with-winpcap-devpack was given.
-if test "${with_winpcap_devpack+set}" = set; then :
-  withval=$with_winpcap_devpack;  winpcap_devpack="$withval"
-fi
-
-
-# Set the libs and includes
-LDFLAGS="$LDFLAGS -L$winpcap_devpack/Lib"
-CPPFLAGS="$CPPFLAGS -I$winpcap_devpack/Include"
-
-fi # cygwin
 
 # Check whether --enable-prelude was given.
 if test "${enable_prelude+set}" = set; then :
@@ -9088,9 +9044,8 @@ if test "$havepkgconfig" = "no"; then
 $as_echo "$as_me: WARNING: Missing pkg-config will lead to multiple other checks failing" >&2;}
 fi
 
-NMLIBS=""
-NMCFLAGS=""
-
+if test "$caponly" = 0; then
+# We only *require* protobuf for C++
 
 
 
@@ -9211,6 +9166,164 @@ $as_echo "no" >&6; }
 		PKG_CONFIG=""
 	fi
 fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5
+$as_echo_n "checking for protobuf... " >&6; }
+
+if test -n "$protobuf_CFLAGS"; then
+    pkg_cv_protobuf_CFLAGS="$protobuf_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"protobuf\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "protobuf") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_protobuf_CFLAGS=`$PKG_CONFIG --cflags "protobuf" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$protobuf_LIBS"; then
+    pkg_cv_protobuf_LIBS="$protobuf_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"protobuf\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "protobuf") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_protobuf_LIBS=`$PKG_CONFIG --libs "protobuf" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        protobuf_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "protobuf" 2>&1`
+        else
+	        protobuf_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "protobuf" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$protobuf_PKG_ERRORS" >&5
+
+	as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+else
+	protobuf_CFLAGS=$pkg_cv_protobuf_CFLAGS
+	protobuf_LIBS=$pkg_cv_protobuf_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+fi
+PROTOLIBS=`pkg-config --libs protobuf`
+PROTOCFLAGS=`pkg-config --cflags protobuf`
+fi
+
+# We need protobuf-c all the time
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libprotobufc" >&5
+$as_echo_n "checking for libprotobufc... " >&6; }
+
+if test -n "$libprotobufc_CFLAGS"; then
+    pkg_cv_libprotobufc_CFLAGS="$libprotobufc_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libprotobuf-c\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libprotobuf-c") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libprotobufc_CFLAGS=`$PKG_CONFIG --cflags "libprotobuf-c" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libprotobufc_LIBS"; then
+    pkg_cv_libprotobufc_LIBS="$libprotobufc_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libprotobuf-c\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libprotobuf-c") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libprotobufc_LIBS=`$PKG_CONFIG --libs "libprotobuf-c" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libprotobufc_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libprotobuf-c" 2>&1`
+        else
+	        libprotobufc_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libprotobuf-c" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libprotobufc_PKG_ERRORS" >&5
+
+	as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+else
+	libprotobufc_CFLAGS=$pkg_cv_libprotobufc_CFLAGS
+	libprotobufc_LIBS=$pkg_cv_libprotobufc_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+fi
+PROTOCLIBS=`pkg-config --libs libprotobuf-c`
+PROTOCFLAGS=`pkg-config --cflags libprotobuf-c`
+
+
+
+
+
+
+NMLIBS=""
+NMCFLAGS=""
+
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnm" >&5

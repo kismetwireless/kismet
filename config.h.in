@@ -259,12 +259,6 @@
 /* Define to 1 if you have the <unwind.h> header file. */
 #undef HAVE_UNWIND_H
 
-/* Define to 1 if you have the <Win32-Extensions.h> header file. */
-#undef HAVE_WIN32_EXTENSIONS_H
-
-/* Define to 1 if you have the <windows.h> header file. */
-#undef HAVE_WINDOWS_H
-
 /* __PROGNAME glibc macro available */
 #undef HAVE___PROGNAME
 
