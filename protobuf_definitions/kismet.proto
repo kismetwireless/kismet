@@ -5,9 +5,14 @@ package Kismet;
 // Overall command structure used for all Kismet helper binaries;  Each command
 // is an arbitrary string (command type), with a unique sequence number which is
 // used in responses to the command.
+//
 // The payload of the command (content) is arbitrary, however Kismet uses 
 // Google Protobuf for all embedded commands, and it strongly recommended that
 // other implementations do as well.
+// 
+// This command is wrapped inside the kismet network structure which defines
+// total length, embeds a checksum, and so on.
+
 message Command {
     required string command = 1; // Command type
     required uint32 seqno = 2; // Unique command sequence number
