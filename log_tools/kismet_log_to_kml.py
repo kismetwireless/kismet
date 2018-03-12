@@ -105,6 +105,9 @@ for row in c.execute(sql, replacements):
         else:
             loc = dev['kismet.device.base.location']['kismet.common.location.avg_loc']
 
+        if loc is 0:
+            continue
+
         mac = dev['kismet.device.base.macaddr']
 
         title = ""
@@ -126,7 +129,9 @@ for row in c.execute(sql, replacements):
                     loc['kismet.common.location.alt'])])
 
         num_plotted = num_plotted + 1
-
+    
+    except TypeError:
+        continue
     except KeyError:
         continue
 
