@@ -25,6 +25,14 @@ message HttpRegisterUri {
     required bool auth_required = 3;
 }
 
+// Sub-block of HTTP post data, per-field
+message SubHttpPostData {
+    // POST field sent to Kismet
+    required string field = 1;
+    // Content of POST data, as parsed by microhttpd
+    required string content = 2;
+}
+
 // Handle an incoming HTTP request (Kismet->Helper)
 message HttpRequest {
     // Unique ID of request, must be returned in the HttpResponse
@@ -34,7 +42,15 @@ message HttpRequest {
     // Method
     required string method = 3;
     // If post, a map of post variables
-    map<string, string> post_data = 4;
+    repeated SubHttpPostData post_data = 4;
+}
+
+// Sub-block of headers to send with the first response
+message SubHttpHeader {
+    // Header type to send
+    required string header = 1;
+    // Content of header
+    required string content = 2;
 }
 
 // Respond to HTTP data (Helper->Kismet)

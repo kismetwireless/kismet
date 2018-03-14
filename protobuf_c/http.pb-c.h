@@ -17,8 +17,9 @@ PROTOBUF_C__BEGIN_DECLS
 
 typedef struct _KismetExternalHttp__HttpAuthToken KismetExternalHttp__HttpAuthToken;
 typedef struct _KismetExternalHttp__HttpRegisterUri KismetExternalHttp__HttpRegisterUri;
+typedef struct _KismetExternalHttp__SubHttpPostData KismetExternalHttp__SubHttpPostData;
 typedef struct _KismetExternalHttp__HttpRequest KismetExternalHttp__HttpRequest;
-typedef struct _KismetExternalHttp__HttpRequest__PostDataEntry KismetExternalHttp__HttpRequest__PostDataEntry;
+typedef struct _KismetExternalHttp__SubHttpHeader KismetExternalHttp__SubHttpHeader;
 typedef struct _KismetExternalHttp__HttpResponse KismetExternalHttp__HttpResponse;
 typedef struct _KismetExternalHttp__HttpResponse__HeaderContentEntry KismetExternalHttp__HttpResponse__HeaderContentEntry;
 
@@ -73,14 +74,23 @@ struct  _KismetExternalHttp__HttpRegisterUri
     , NULL, NULL, 0 }
 
 
-struct  _KismetExternalHttp__HttpRequest__PostDataEntry
+/*
+ * Sub-block of HTTP post data, per-field
+ */
+struct  _KismetExternalHttp__SubHttpPostData
 {
   ProtobufCMessage base;
-  char *key;
-  char *value;
+  /*
+   * POST field sent to Kismet
+   */
+  char *field;
+  /*
+   * Content of POST data, as parsed by microhttpd
+   */
+  char *content;
 };
-#define KISMET_EXTERNAL_HTTP__HTTP_REQUEST__POST_DATA_ENTRY__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet_external_http__http_request__post_data_entry__descriptor) \
+#define KISMET_EXTERNAL_HTTP__SUB_HTTP_POST_DATA__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external_http__sub_http_post_data__descriptor) \
     , NULL, NULL }
 
 
@@ -106,11 +116,31 @@ struct  _KismetExternalHttp__HttpRequest
    * If post, a map of post variables
    */
   size_t n_post_data;
-  KismetExternalHttp__HttpRequest__PostDataEntry **post_data;
+  KismetExternalHttp__SubHttpPostData **post_data;
 };
 #define KISMET_EXTERNAL_HTTP__HTTP_REQUEST__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&kismet_external_http__http_request__descriptor) \
     , 0, NULL, NULL, 0,NULL }
+
+
+/*
+ * Sub-block of headers to send with the first response
+ */
+struct  _KismetExternalHttp__SubHttpHeader
+{
+  ProtobufCMessage base;
+  /*
+   * Header type to send
+   */
+  char *header;
+  /*
+   * Content of header
+   */
+  char *content;
+};
+#define KISMET_EXTERNAL_HTTP__SUB_HTTP_HEADER__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external_http__sub_http_header__descriptor) \
+    , NULL, NULL }
 
 
 struct  _KismetExternalHttp__HttpResponse__HeaderContentEntry
@@ -198,9 +228,25 @@ KismetExternalHttp__HttpRegisterUri *
 void   kismet_external_http__http_register_uri__free_unpacked
                      (KismetExternalHttp__HttpRegisterUri *message,
                       ProtobufCAllocator *allocator);
-/* KismetExternalHttp__HttpRequest__PostDataEntry methods */
-void   kismet_external_http__http_request__post_data_entry__init
-                     (KismetExternalHttp__HttpRequest__PostDataEntry         *message);
+/* KismetExternalHttp__SubHttpPostData methods */
+void   kismet_external_http__sub_http_post_data__init
+                     (KismetExternalHttp__SubHttpPostData         *message);
+size_t kismet_external_http__sub_http_post_data__get_packed_size
+                     (const KismetExternalHttp__SubHttpPostData   *message);
+size_t kismet_external_http__sub_http_post_data__pack
+                     (const KismetExternalHttp__SubHttpPostData   *message,
+                      uint8_t             *out);
+size_t kismet_external_http__sub_http_post_data__pack_to_buffer
+                     (const KismetExternalHttp__SubHttpPostData   *message,
+                      ProtobufCBuffer     *buffer);
+KismetExternalHttp__SubHttpPostData *
+       kismet_external_http__sub_http_post_data__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   kismet_external_http__sub_http_post_data__free_unpacked
+                     (KismetExternalHttp__SubHttpPostData *message,
+                      ProtobufCAllocator *allocator);
 /* KismetExternalHttp__HttpRequest methods */
 void   kismet_external_http__http_request__init
                      (KismetExternalHttp__HttpRequest         *message);
@@ -219,6 +265,25 @@ KismetExternalHttp__HttpRequest *
                       const uint8_t       *data);
 void   kismet_external_http__http_request__free_unpacked
                      (KismetExternalHttp__HttpRequest *message,
+                      ProtobufCAllocator *allocator);
+/* KismetExternalHttp__SubHttpHeader methods */
+void   kismet_external_http__sub_http_header__init
+                     (KismetExternalHttp__SubHttpHeader         *message);
+size_t kismet_external_http__sub_http_header__get_packed_size
+                     (const KismetExternalHttp__SubHttpHeader   *message);
+size_t kismet_external_http__sub_http_header__pack
+                     (const KismetExternalHttp__SubHttpHeader   *message,
+                      uint8_t             *out);
+size_t kismet_external_http__sub_http_header__pack_to_buffer
+                     (const KismetExternalHttp__SubHttpHeader   *message,
+                      ProtobufCBuffer     *buffer);
+KismetExternalHttp__SubHttpHeader *
+       kismet_external_http__sub_http_header__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   kismet_external_http__sub_http_header__free_unpacked
+                     (KismetExternalHttp__SubHttpHeader *message,
                       ProtobufCAllocator *allocator);
 /* KismetExternalHttp__HttpResponse__HeaderContentEntry methods */
 void   kismet_external_http__http_response__header_content_entry__init
@@ -250,11 +315,14 @@ typedef void (*KismetExternalHttp__HttpAuthToken_Closure)
 typedef void (*KismetExternalHttp__HttpRegisterUri_Closure)
                  (const KismetExternalHttp__HttpRegisterUri *message,
                   void *closure_data);
-typedef void (*KismetExternalHttp__HttpRequest__PostDataEntry_Closure)
-                 (const KismetExternalHttp__HttpRequest__PostDataEntry *message,
+typedef void (*KismetExternalHttp__SubHttpPostData_Closure)
+                 (const KismetExternalHttp__SubHttpPostData *message,
                   void *closure_data);
 typedef void (*KismetExternalHttp__HttpRequest_Closure)
                  (const KismetExternalHttp__HttpRequest *message,
+                  void *closure_data);
+typedef void (*KismetExternalHttp__SubHttpHeader_Closure)
+                 (const KismetExternalHttp__SubHttpHeader *message,
                   void *closure_data);
 typedef void (*KismetExternalHttp__HttpResponse__HeaderContentEntry_Closure)
                  (const KismetExternalHttp__HttpResponse__HeaderContentEntry *message,
@@ -270,8 +338,9 @@ typedef void (*KismetExternalHttp__HttpResponse_Closure)
 
 extern const ProtobufCMessageDescriptor kismet_external_http__http_auth_token__descriptor;
 extern const ProtobufCMessageDescriptor kismet_external_http__http_register_uri__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external_http__sub_http_post_data__descriptor;
 extern const ProtobufCMessageDescriptor kismet_external_http__http_request__descriptor;
-extern const ProtobufCMessageDescriptor kismet_external_http__http_request__post_data_entry__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external_http__sub_http_header__descriptor;
 extern const ProtobufCMessageDescriptor kismet_external_http__http_response__descriptor;
 extern const ProtobufCMessageDescriptor kismet_external_http__http_response__header_content_entry__descriptor;
 
