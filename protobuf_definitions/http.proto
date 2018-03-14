@@ -1,0 +1,41 @@
+syntax = "proto2";
+
+package KismetHttp;
+
+// Define an endpoint (Helper->Kismet)
+// Registers a HTTP endpoint; requests to this endpoint will be sent to the
+// helper via the HttpRequest message, which will, in turn, expect replies
+// via the HttpResponse message.
+message HttpRegisterUri {
+    // Full URI, including file type; Helpers cannot take advantage of the Kismet
+    // multi-serialization types so they must define a URI for each type
+    required string uri = 1;
+    // Method; ie GET or POST; a URI can only implement a single method and
+    // must register multiple URIs for multiple methods.
+    required string method = 2;
+}
+
+// Handle an incoming HTTP request (Kismet->Helper)
+message HttpRequest {
+    // Unique ID of request, must be returned in the HttpResponse
+    required uint32 req_id = 1;
+    // Full URI of request
+    required string uri = 2;
+    // Method
+    required string method = 3;
+    // If post, a map of post variables
+    map<string, string> post_data = 4;
+}
+
+// Respond to HTTP data (Helper->Kismet)
+message HttpResponse {
+    // Unique ID of request we're responding to
+    required uint32 req_id = 1;
+    // Content being sent, if any
+    optional bytes content = 2;
+    // Result code, if we're concluding this connection
+    optional uint32 resultcode = 3;
+    // Is this the end of this connection?
+    optional bool close_response = 4;
+}
+

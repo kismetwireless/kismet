@@ -16,10 +16,6 @@ PROTOBUF_C__BEGIN_DECLS
 
 
 typedef struct _KismetExternal__Command KismetExternal__Command;
-typedef struct _KismetExternal__HttpRegisterUri KismetExternal__HttpRegisterUri;
-typedef struct _KismetExternal__HttpRequest KismetExternal__HttpRequest;
-typedef struct _KismetExternal__HttpRequest__PostDataEntry KismetExternal__HttpRequest__PostDataEntry;
-typedef struct _KismetExternal__HttpResponse KismetExternal__HttpResponse;
 typedef struct _KismetExternal__MsgbusMessage KismetExternal__MsgbusMessage;
 typedef struct _KismetExternal__Ping KismetExternal__Ping;
 typedef struct _KismetExternal__Pong KismetExternal__Pong;
@@ -59,102 +55,6 @@ struct  _KismetExternal__Command
 #define KISMET_EXTERNAL__COMMAND__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&kismet_external__command__descriptor) \
     , NULL, 0, {0,NULL} }
-
-
-/*
- * Define an endpoint (Helper->Kismet)
- * Registers a HTTP endpoint; requests to this endpoint will be sent to the
- * helper via the HttpRequest message, which will, in turn, expect replies
- * via the HttpResponse message.
- */
-struct  _KismetExternal__HttpRegisterUri
-{
-  ProtobufCMessage base;
-  /*
-   * Full URI, including file type; Helpers cannot take advantage of the Kismet
-   * multi-serialization types so they must define a URI for each type
-   */
-  char *uri;
-  /*
-   * Method; ie GET or POST; a URI can only implement a single method and
-   * must register multiple URIs for multiple methods.
-   */
-  char *method;
-};
-#define KISMET_EXTERNAL__HTTP_REGISTER_URI__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet_external__http_register_uri__descriptor) \
-    , NULL, NULL }
-
-
-struct  _KismetExternal__HttpRequest__PostDataEntry
-{
-  ProtobufCMessage base;
-  char *key;
-  char *value;
-};
-#define KISMET_EXTERNAL__HTTP_REQUEST__POST_DATA_ENTRY__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet_external__http_request__post_data_entry__descriptor) \
-    , NULL, NULL }
-
-
-/*
- * Handle an incoming HTTP request (Kismet->Helper)
- */
-struct  _KismetExternal__HttpRequest
-{
-  ProtobufCMessage base;
-  /*
-   * Unique ID of request, must be returned in the HttpResponse
-   */
-  uint32_t req_id;
-  /*
-   * Full URI of request
-   */
-  char *uri;
-  /*
-   * Method
-   */
-  char *method;
-  /*
-   * If post, a map of post variables
-   */
-  size_t n_post_data;
-  KismetExternal__HttpRequest__PostDataEntry **post_data;
-};
-#define KISMET_EXTERNAL__HTTP_REQUEST__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet_external__http_request__descriptor) \
-    , 0, NULL, NULL, 0,NULL }
-
-
-/*
- * Respond to HTTP data (Helper->Kismet)
- */
-struct  _KismetExternal__HttpResponse
-{
-  ProtobufCMessage base;
-  /*
-   * Unique ID of request we're responding to
-   */
-  uint32_t req_id;
-  /*
-   * Content being sent, if any
-   */
-  protobuf_c_boolean has_content;
-  ProtobufCBinaryData content;
-  /*
-   * Result code, if we're concluding this connection
-   */
-  protobuf_c_boolean has_resultcode;
-  uint32_t resultcode;
-  /*
-   * Is this the end of this connection?
-   */
-  protobuf_c_boolean has_close_response;
-  protobuf_c_boolean close_response;
-};
-#define KISMET_EXTERNAL__HTTP_RESPONSE__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet_external__http_response__descriptor) \
-    , 0, 0,{0,NULL}, 0,0, 0,0 }
 
 
 /*
@@ -245,66 +145,6 @@ KismetExternal__Command *
                       const uint8_t       *data);
 void   kismet_external__command__free_unpacked
                      (KismetExternal__Command *message,
-                      ProtobufCAllocator *allocator);
-/* KismetExternal__HttpRegisterUri methods */
-void   kismet_external__http_register_uri__init
-                     (KismetExternal__HttpRegisterUri         *message);
-size_t kismet_external__http_register_uri__get_packed_size
-                     (const KismetExternal__HttpRegisterUri   *message);
-size_t kismet_external__http_register_uri__pack
-                     (const KismetExternal__HttpRegisterUri   *message,
-                      uint8_t             *out);
-size_t kismet_external__http_register_uri__pack_to_buffer
-                     (const KismetExternal__HttpRegisterUri   *message,
-                      ProtobufCBuffer     *buffer);
-KismetExternal__HttpRegisterUri *
-       kismet_external__http_register_uri__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data);
-void   kismet_external__http_register_uri__free_unpacked
-                     (KismetExternal__HttpRegisterUri *message,
-                      ProtobufCAllocator *allocator);
-/* KismetExternal__HttpRequest__PostDataEntry methods */
-void   kismet_external__http_request__post_data_entry__init
-                     (KismetExternal__HttpRequest__PostDataEntry         *message);
-/* KismetExternal__HttpRequest methods */
-void   kismet_external__http_request__init
-                     (KismetExternal__HttpRequest         *message);
-size_t kismet_external__http_request__get_packed_size
-                     (const KismetExternal__HttpRequest   *message);
-size_t kismet_external__http_request__pack
-                     (const KismetExternal__HttpRequest   *message,
-                      uint8_t             *out);
-size_t kismet_external__http_request__pack_to_buffer
-                     (const KismetExternal__HttpRequest   *message,
-                      ProtobufCBuffer     *buffer);
-KismetExternal__HttpRequest *
-       kismet_external__http_request__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data);
-void   kismet_external__http_request__free_unpacked
-                     (KismetExternal__HttpRequest *message,
-                      ProtobufCAllocator *allocator);
-/* KismetExternal__HttpResponse methods */
-void   kismet_external__http_response__init
-                     (KismetExternal__HttpResponse         *message);
-size_t kismet_external__http_response__get_packed_size
-                     (const KismetExternal__HttpResponse   *message);
-size_t kismet_external__http_response__pack
-                     (const KismetExternal__HttpResponse   *message,
-                      uint8_t             *out);
-size_t kismet_external__http_response__pack_to_buffer
-                     (const KismetExternal__HttpResponse   *message,
-                      ProtobufCBuffer     *buffer);
-KismetExternal__HttpResponse *
-       kismet_external__http_response__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data);
-void   kismet_external__http_response__free_unpacked
-                     (KismetExternal__HttpResponse *message,
                       ProtobufCAllocator *allocator);
 /* KismetExternal__MsgbusMessage methods */
 void   kismet_external__msgbus_message__init
@@ -406,18 +246,6 @@ void   kismet_external__system_register__free_unpacked
 typedef void (*KismetExternal__Command_Closure)
                  (const KismetExternal__Command *message,
                   void *closure_data);
-typedef void (*KismetExternal__HttpRegisterUri_Closure)
-                 (const KismetExternal__HttpRegisterUri *message,
-                  void *closure_data);
-typedef void (*KismetExternal__HttpRequest__PostDataEntry_Closure)
-                 (const KismetExternal__HttpRequest__PostDataEntry *message,
-                  void *closure_data);
-typedef void (*KismetExternal__HttpRequest_Closure)
-                 (const KismetExternal__HttpRequest *message,
-                  void *closure_data);
-typedef void (*KismetExternal__HttpResponse_Closure)
-                 (const KismetExternal__HttpResponse *message,
-                  void *closure_data);
 typedef void (*KismetExternal__MsgbusMessage_Closure)
                  (const KismetExternal__MsgbusMessage *message,
                   void *closure_data);
@@ -440,10 +268,6 @@ typedef void (*KismetExternal__SystemRegister_Closure)
 /* --- descriptors --- */
 
 extern const ProtobufCMessageDescriptor kismet_external__command__descriptor;
-extern const ProtobufCMessageDescriptor kismet_external__http_register_uri__descriptor;
-extern const ProtobufCMessageDescriptor kismet_external__http_request__descriptor;
-extern const ProtobufCMessageDescriptor kismet_external__http_request__post_data_entry__descriptor;
-extern const ProtobufCMessageDescriptor kismet_external__http_response__descriptor;
 extern const ProtobufCMessageDescriptor kismet_external__msgbus_message__descriptor;
 extern const ProtobufCEnumDescriptor    kismet_external__msgbus_message__message_type__descriptor;
 extern const ProtobufCMessageDescriptor kismet_external__ping__descriptor;
