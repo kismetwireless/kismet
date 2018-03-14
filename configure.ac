@@ -1081,6 +1081,23 @@ if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 fi
 AC_SUBST(airpcaplib)
 
+if test "$caponly" = 0; then
+# We only *require* protobuf for C++
+PKG_CHECK_MODULES(protobuf, [protobuf], [], AC_MSG_ERROR([missing google libprotobuf]))
+PROTOLIBS=`pkg-config --libs protobuf`
+PROTOCFLAGS=`pkg-config --cflags protobuf`
+fi
+
+# We need protobuf-c all the time
+PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], [], AC_MSG_ERROR([missing libprotobuf-c]))
+PROTOCLIBS=`pkg-config --libs libprotobuf-c`
+PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
+
+AC_SUBST(PROTOLIBS)
+AC_SUBST(PROTOCFLAGS)
+AC_SUBST(PROTOCLIBS)
+AC_SUBST(PROTOCCFLAGS)
+
 if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for BSD net80211/radiotap support)
 	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
@@ -1114,23 +1131,6 @@ AC_CHECK_PROG(havepkgconfig, [pkg-config], yes, no)
 if test "$havepkgconfig" = "no"; then
   AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
 fi
-
-if test "$caponly" = 0; then
-# We only *require* protobuf for C++
-PKG_CHECK_MODULES(protobuf, [protobuf], [], AC_MSG_ERROR([missing google libprotobuf]))
-PROTOLIBS=`pkg-config --libs protobuf`
-PROTOCFLAGS=`pkg-config --cflags protobuf`
-fi
-
-# We need protobuf-c all the time
-PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], [], AC_MSG_ERROR([missing libprotobuf-c]))
-PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
-
-AC_SUBST(PROTOLIBS)
-AC_SUBST(PROTOCFLAGS)
-AC_SUBST(PROTOCLIBS)
-AC_SUBST(PROTOCCFLAGS)
 
 NMLIBS=""
 NMCFLAGS=""
