@@ -445,7 +445,7 @@ all-plugins-clean: Makefile
 %.cc.d: %.cc
 	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
 
-.PRECIOUS: %.Td %.c.d %.cc.d
+.PRECIOUS: %.Td %.c.d %.cc.d %.pb.cc %.pb.h %.pb-c.c %.pb-c.h
 
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
