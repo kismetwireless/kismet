@@ -37,10 +37,11 @@
 #include "globalregistry.h"
 #include "buffer_handler.h"
 #include "ipc_remote2.h"
+#include "kis_net_microhttpd.h"
 
 #include "protobuf_cpp/kismet.pb.h"
 
-class KisExternalInterface : public BufferInterface {
+class KisExternalInterface : public BufferInterface, Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     KisExternalInterface(GlobalRegistry *in_globalreg);
     virtual ~KisExternalInterface();
@@ -66,6 +67,33 @@ public:
 
     // Close the external interface
     virtual void close_external();
+
+    // Webserver proxy interface - standard verifypath
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+
+    // Called as a connection is being set up;  brokers access with the http
+    // proxy
+    //
+    // Returns:
+    //  MHD_NO  - Streambuffer should not automatically close out the buffer; this
+    //            is used when spawning an independent thread for managing the stream,
+    //            for example with pcap streaming
+    //  MHD_YES - Streambuffer should automatically close the buffer when the
+    //            streamresponse is complete, typically used when streaming a finite
+    //            amount of data through a memchunk buffer like a json serialization
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) = 0;
+
+    // Called when a POST event is complete - all data has been uploaded and
+    // cached in the connection info; brokers connections to to the proxy
+    //
+    // Returns:
+    //  MHD_NO  - Streambuffer should not automatically close out the buffer
+    //  MHD_YES - Streambuffer should automatically close the buffer when the
+    //            streamresponse is complete
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
 
 protected:
     // Wrap a protobuf'd packet in our network framing and send it
