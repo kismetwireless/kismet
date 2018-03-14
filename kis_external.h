@@ -39,7 +39,7 @@
 #include "ipc_remote2.h"
 #include "kis_net_microhttpd.h"
 
-#include "protobuf_cpp/kismet.pb.h"
+#include "kismet.pb.h"
 
 struct KisExternalHttpSession {
     

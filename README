@@ -18,7 +18,8 @@ https://www.kismetwireless.net
         $ sudo apt-get install build-essential git libmicrohttpd-dev \
             zlib1g-dev libnl-3-dev libnl-genl-3-dev libcap-dev \
             libpcap-dev libncurses5-dev libnm-dev libdw-dev \
-            libsqlite3-dev libprotobuf-dev libprotobuf-c-dev
+            libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
+            protobuf-compiler protobuf-c-compiler
 
     2.  Clone Kismet from git.  If you haven't cloned Kismet before:
 

@@ -87,9 +87,9 @@ DOT11_PARSERS = \
 	dot11_parsers/dot11_wpa_eap.cc.o
 
 PROTOBUF_CPP = \
-	protobuf_cpp/kismet.pb.cc.o \
-	protobuf_cpp/http.pb.cc.o \
-	protobuf_cpp/datasource.pb.cc.o 
+	kismet.pb.cc.o \
+	http.pb.cc.o \
+	datasource.pb.cc.o 
 
 PROFOBUF_C = \
 	protobuf_c/kismet.pb-c.c.o \
@@ -423,14 +423,13 @@ all-plugins-clean: Makefile
 # 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 # 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 
-PROTOC ?= "protoc2"
-protobuf-parsers:
-	@echo "Re-generating the protobuf parsers; this requires the protobuf and protobuf-c compilers"
-	@echo "This expects protobuf 2.6.1 for compatibility across platforms which lack protobuf 3"
-	@echo "and explicitly calls a protobuf2 version; you may use any newer version of protobuf "
-	@echo "by setting the PROTOC environment variable, ie PROTOC=protoc make protobuf-parsers"
-	$(PROTOC) --cpp_out=protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/*.proto
-	protoc-c --c_out=protobuf_c/ -I protobuf_definitions/ protobuf_definitions/*.proto
+%.pb.cc.o: %.pb.cc
+%.pb.cc: protobuf_definitions/%.proto
+	protoc --cpp_out=./ -I protobuf_definitions/ protobuf_definitions/$*.proto
+
+%.pb-c.o: %pb-c.c
+%.pb-c.c: protobuf_definitions/%.proto
+	protoc-c --c_out=./ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

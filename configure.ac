@@ -1083,13 +1083,27 @@ AC_SUBST(airpcaplib)
 
 if test "$caponly" = 0; then
 # We only *require* protobuf for C++
-PKG_CHECK_MODULES(protobuf, [protobuf], [], AC_MSG_ERROR([missing google libprotobuf]))
+PKG_CHECK_MODULES(protobuf, [protobuf], have_protobuf_pkg=yes)
+if test x"$have_protobuf_pkg" != "xyes"; then
+    AC_MSG_ERROR([missing google libprotobuf])
+fi
+AC_CHECK_PROG(protoc, [protoc], yes)
+if test x"$protoc" != x"yes"; then
+    AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+fi
 PROTOLIBS=`pkg-config --libs protobuf`
 PROTOCFLAGS=`pkg-config --cflags protobuf`
 fi
 
 # We need protobuf-c all the time
-PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], [], AC_MSG_ERROR([missing libprotobuf-c]))
+PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], have_protobufc_pkg=yes)
+if test x"$have_protobufc_pkg" != "xyes"; then
+    AC_MSG_ERROR([missing libprotobuf-c])
+fi
+AC_CHECK_PROG(protocc, [protoc-c], yes)
+if test x"$protocc" != x"yes"; then
+    AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
+fi
 PROTOCLIBS=`pkg-config --libs libprotobuf-c`
 PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 

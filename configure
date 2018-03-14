@@ -650,8 +650,10 @@ PROTOCCFLAGS
 PROTOCLIBS
 PROTOCFLAGS
 PROTOLIBS
+protocc
 libprotobufc_LIBS
 libprotobufc_CFLAGS
+protoc
 protobuf_LIBS
 protobuf_CFLAGS
 PKG_CONFIG_LIBDIR
@@ -9130,17 +9132,80 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$protobuf_PKG_ERRORS" >&5
 
-	as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+	as_fn_error $? "Package requirements (protobuf) were not met:
+
+$protobuf_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables protobuf_CFLAGS
+and protobuf_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
      	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables protobuf_CFLAGS
+and protobuf_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
 else
 	protobuf_CFLAGS=$pkg_cv_protobuf_CFLAGS
 	protobuf_LIBS=$pkg_cv_protobuf_LIBS
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+	have_protobuf_pkg=yes
+fi
+if test x"$have_protobuf_pkg" != "xyes"; then
+    as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+fi
+# Extract the first word of "protoc", so it can be a program name with args.
+set dummy protoc; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_protoc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$protoc"; then
+  ac_cv_prog_protoc="$protoc" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_protoc="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
 
+fi
+fi
+protoc=$ac_cv_prog_protoc
+if test -n "$protoc"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $protoc" >&5
+$as_echo "$protoc" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$protoc" != x"yes"; then
+    as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
 fi
 PROTOLIBS=`pkg-config --libs protobuf`
 PROTOCFLAGS=`pkg-config --cflags protobuf`
@@ -9206,20 +9271,85 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libprotobufc_PKG_ERRORS" >&5
 
-	as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+	as_fn_error $? "Package requirements (libprotobuf-c) were not met:
+
+$libprotobufc_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables libprotobufc_CFLAGS
+and libprotobufc_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
      	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables libprotobufc_CFLAGS
+and libprotobufc_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
 else
 	libprotobufc_CFLAGS=$pkg_cv_libprotobufc_CFLAGS
 	libprotobufc_LIBS=$pkg_cv_libprotobufc_LIBS
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+	have_protobufc_pkg=yes
+fi
+if test x"$have_protobufc_pkg" != "xyes"; then
+    as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+fi
+# Extract the first word of "protoc-c", so it can be a program name with args.
+set dummy protoc-c; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_protocc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$protocc"; then
+  ac_cv_prog_protocc="$protocc" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_protocc="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
 
+fi
+fi
+protocc=$ac_cv_prog_protocc
+if test -n "$protocc"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $protocc" >&5
+$as_echo "$protocc" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$protocc" != x"yes"; then
+    as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
 fi
 PROTOCLIBS=`pkg-config --libs libprotobuf-c`
 PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
+
+
 
 
 
