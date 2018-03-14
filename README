@@ -403,6 +403,51 @@ xx. Kismet Data Sources
         local timestamp of the server; this is the default behavior for
         remote capture sources but can be turned off either on a per-source
         basis or by turning it off in kismet.conf
+
+
+    Datasources allow for annotations; these have no role in how Kismet operates,
+    but the information is stored alongside the source definition and is available
+    in the Kismet logs and in the web interface.
+
+    The following information can be set in a source, but is not required:
+
+    info_antenna_type=arbitrary string type
+
+        Denotes the antenna type; this is a string which should have some
+        sort of meaning to you, for example:
+
+        source=wlan0:info_antenna_type=omni
+
+    info_antenna_gain=value in dB
+
+        Antenna gain in dB, for example:
+
+        source=wlan0:info_antenna_type=omni,info_antenna_gain=5.5
+
+    info_antenna_orientation=degrees
+
+        Antenna orientation, if a fixed antenna, in degrees:
+
+        source=wlan0:info_antenna_orientation=180
+
+    info_antenna_beamwidth=width in degrees
+
+        Antenna beamwidth
+
+        source=wlan0:info_antenna_type=yagi,info_antenna_beamwidth=30
+
+    info_amp_type=amplifier type
+
+        Arbitrary string type of amplifier, if one is present:
+
+        source=wlan0:info_amp_type=custom_duplex
+
+    info_amp_gain=gain in dB
+
+        Amplifier gain in dB:
+
+        source=wlan0:info_amp_gain=20
+
        
 xx. Datasource: Linux Wi-Fi
 

@@ -153,7 +153,7 @@ public:
     // Get an option from the definition
     virtual std::string get_definition_opt(std::string in_opt);
     virtual bool get_definition_opt_bool(std::string in_opt, bool in_default);
-
+    virtual double get_definition_opt_double(std::string in_opt, double in_default);
 
 
     // Buffer interface - called when the attached ringbuffer has data available.
@@ -233,6 +233,17 @@ public:
     __Proxy(source_number, uint64_t, uint64_t, uint64_t, source_number);
 
     __Proxy(source_paused, uint8_t, bool, bool, source_paused);
+
+
+    // Random metadata
+    __Proxy(source_info_antenna_type, std::string, std::string, std::string, source_info_antenna_type);
+    __Proxy(source_info_antenna_gain, double, double, double, source_info_antenna_gain);
+    __Proxy(source_info_antenna_orientation, double, double, double, source_info_antenna_orientation);
+    __Proxy(source_info_antenna_beamwidth, double, double, double, source_info_antenna_beamwidth);
+    __Proxy(source_info_amp_type, std::string, std::string, std::string, source_info_amp_type);
+    __Proxy(source_info_amp_gain, double, double, double, source_info_amp_gain);
+
+
     
     // Perform a checksum on a packet after it's decapsulated; this is always
     // called; a source should override it and check flags in the source
@@ -532,6 +543,15 @@ protected:
     virtual void handle_source_error();
 
 
+    // Arbitrary data stored about the source, entered by the user
+    SharedTrackerElement source_info_antenna_type;
+    SharedTrackerElement source_info_antenna_gain;
+    SharedTrackerElement source_info_antenna_orientation;
+    SharedTrackerElement source_info_antenna_beamwidth;
+
+    SharedTrackerElement source_info_amp_type;
+    SharedTrackerElement source_info_amp_gain;
+    
 
 
     // Communications API.  We implement a buffer interface and listen to the

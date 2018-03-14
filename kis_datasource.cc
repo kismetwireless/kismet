@@ -612,6 +612,24 @@ bool KisDatasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
     return StringToBool(opt, in_def);
 }
 
+double KisDatasource::get_definition_opt_double(std::string in_opt, double in_def) {
+    auto i = source_definition_opts.find(StrLower(in_opt));
+    std::string opt;
+
+    if (i != source_definition_opts.end())
+        opt = i->second;
+    else
+        return in_def;
+
+    std::stringstream ss;
+    ss << opt << std::endl;
+
+    double d;
+    ss >> d;
+
+    return d;
+}
+
 bool KisDatasource::parse_interface_definition(std::string in_definition) {
     local_locker lock(&source_lock);
 
@@ -675,6 +693,13 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
 
     clobber_timestamp = get_definition_opt_bool("timestamp", 
             datasourcetracker->get_config_defaults()->get_remote_cap_timestamp());
+
+    set_source_info_antenna_type(get_definition_opt("info_antenna_type"));
+    set_source_info_antenna_gain(get_definition_opt_double("info_antenna_gain", 0.0f));
+    set_source_info_antenna_orientation(get_definition_opt_double("info_antenna_orientation", 0.0f));
+    set_source_info_antenna_beamwidth(get_definition_opt_double("info_antenna_beamwidth", 0.0f));
+    set_source_info_amp_type(get_definition_opt("info_amp_type"));
+    set_source_info_amp_gain(get_definition_opt_double("info_amp_gain", 0.0f));
    
     return true;
 }
@@ -2062,6 +2087,20 @@ void KisDatasource::register_fields() {
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
     RegisterField("kismet.datasource.total_retry_attempts", TrackerUInt32,
             "Total unsuccessful retry attempts", &source_total_retry_attempts);
+
+    RegisterField("kismet.datasource.info.antenna_type", TrackerString,
+            "User-supplied antenna type", &source_info_antenna_type);
+    RegisterField("kismet.datasource.info.antenna_gain", TrackerDouble,
+            "User-supplied antenna gain in dB", &source_info_antenna_gain);
+    RegisterField("kismet.datasource.info.antenna_orientation", TrackerDouble,
+            "User-supplied antenna orientation", &source_info_antenna_orientation);
+    RegisterField("kismet.datasource.info.antenna_beamwidth", TrackerDouble,
+            "User-supplied antenna beamwidth", &source_info_antenna_beamwidth);
+    RegisterField("kismet.datasource.info.amp_type", TrackerString,
+            "User-supplied amplifier type", &source_info_amp_type);
+    RegisterField("kismet.datasource.info.amp_gain", TrackerDouble,
+            "User-supplied amplifier gain in dB", &source_info_amp_gain);
+
 }
 
 void KisDatasource::reserve_fields(SharedTrackerElement e) {
