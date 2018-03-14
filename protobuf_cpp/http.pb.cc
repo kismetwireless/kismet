@@ -39,7 +39,6 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* HttpResponse_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   HttpResponse_reflection_ = NULL;
-const ::google::protobuf::Descriptor* HttpResponse_HeaderContentEntry_descriptor_ = NULL;
 
 }  // namespace
 
@@ -152,7 +151,6 @@ void protobuf_AssignDesc_http_2eproto() {
       sizeof(HttpResponse),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, _internal_metadata_),
       -1);
-  HttpResponse_HeaderContentEntry_descriptor_ = HttpResponse_descriptor_->nested_type(0);
 }
 
 namespace {
@@ -178,15 +176,6 @@ void protobuf_RegisterTypes(const ::std::string&) {
       SubHttpHeader_descriptor_, &SubHttpHeader::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       HttpResponse_descriptor_, &HttpResponse::default_instance());
-  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-        HttpResponse_HeaderContentEntry_descriptor_,
-        ::google::protobuf::internal::MapEntry<
-            ::std::string,
-            ::std::string,
-            ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-            ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-            0>::CreateDefaultInstance(
-                HttpResponse_HeaderContentEntry_descriptor_));
 }
 
 }  // namespace
@@ -222,13 +211,11 @@ void protobuf_AddDesc_http_2eproto() {
     "t\022\016\n\006req_id\030\001 \002(\r\022\013\n\003uri\030\002 \002(\t\022\016\n\006method"
     "\030\003 \002(\t\0226\n\tpost_data\030\004 \003(\0132#.KismetExtern"
     "alHttp.SubHttpPostData\"0\n\rSubHttpHeader\022"
-    "\016\n\006header\030\001 \002(\t\022\017\n\007content\030\002 \002(\t\"\336\001\n\014Htt"
-    "pResponse\022\016\n\006req_id\030\001 \002(\r\022K\n\016header_cont"
-    "ent\030\002 \003(\01323.KismetExternalHttp.HttpRespo"
-    "nse.HeaderContentEntry\022\017\n\007content\030\003 \001(\014\022"
-    "\022\n\nresultcode\030\004 \001(\r\022\026\n\016close_response\030\005 "
-    "\001(\010\0324\n\022HeaderContentEntry\022\013\n\003key\030\001 \001(\t\022\r"
-    "\n\005value\030\002 \001(\t:\0028\001", 577);
+    "\016\n\006header\030\001 \002(\t\022\017\n\007content\030\002 \002(\t\"\226\001\n\014Htt"
+    "pResponse\022\016\n\006req_id\030\001 \002(\r\0229\n\016header_cont"
+    "ent\030\002 \003(\0132!.KismetExternalHttp.SubHttpHe"
+    "ader\022\017\n\007content\030\003 \001(\014\022\022\n\nresultcode\030\004 \001("
+    "\r\022\026\n\016close_response\030\005 \001(\010", 505);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "http.proto", &protobuf_RegisterTypes);
   HttpAuthToken::default_instance_ = new HttpAuthToken();
@@ -2616,10 +2603,6 @@ void HttpResponse::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   req_id_ = 0u;
-  header_content_.SetAssignDescriptorCallback(
-      protobuf_AssignDescriptorsOnce);
-  header_content_.SetEntryDescriptor(
-      &::KismetExternalHttp::HttpResponse_HeaderContentEntry_descriptor_);
   content_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   resultcode_ = 0u;
   close_response_ = false;
@@ -2722,28 +2705,14 @@ bool HttpResponse::MergePartialFromCodedStream(
         break;
       }
 
-      // map<string, string> header_content = 2;
+      // repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
       case 2: {
         if (tag == 18) {
          parse_header_content:
           DO_(input->IncrementRecursionDepth());
          parse_loop_header_content:
-          HttpResponse_HeaderContentEntry::Parser< ::google::protobuf::internal::MapField<
-              ::std::string, ::std::string,
-              ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-              ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-              0 >,
-            ::google::protobuf::Map< ::std::string, ::std::string > > parser(&header_content_);
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
-              input, &parser));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-            parser.key().data(), parser.key().length(),
-            ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetExternalHttp.HttpResponse.HeaderContentEntry.key");
-          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-            parser.value().data(), parser.value().length(),
-            ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetExternalHttp.HttpResponse.HeaderContentEntry.value");
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtualNoRecursionDepth(
+                input, add_header_content()));
         } else {
           goto handle_unusual;
         }
@@ -2826,57 +2795,10 @@ void HttpResponse::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->req_id(), output);
   }
 
-  // map<string, string> header_content = 2;
-  if (!this->header_content().empty()) {
-    typedef ::google::protobuf::Map< ::std::string, ::std::string >::const_pointer
-        ConstPtr;
-    typedef ConstPtr SortItem;
-    typedef ::google::protobuf::internal::CompareByDerefFirst<SortItem> Less;
-    struct Utf8Check {
-      static void Check(ConstPtr p) {
-        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-          p->first.data(), p->first.length(),
-          ::google::protobuf::internal::WireFormat::SERIALIZE,
-          "KismetExternalHttp.HttpResponse.HeaderContentEntry.key");
-        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-          p->second.data(), p->second.length(),
-          ::google::protobuf::internal::WireFormat::SERIALIZE,
-          "KismetExternalHttp.HttpResponse.HeaderContentEntry.value");
-      }
-    };
-
-    if (output->IsSerializationDeterminstic() &&
-        this->header_content().size() > 1) {
-      ::google::protobuf::scoped_array<SortItem> items(
-          new SortItem[this->header_content().size()]);
-      typedef ::google::protobuf::Map< ::std::string, ::std::string >::size_type size_type;
-      size_type n = 0;
-      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
-          it = this->header_content().begin();
-          it != this->header_content().end(); ++it, ++n) {
-        items[n] = SortItem(&*it);
-      }
-      ::std::sort(&items[0], &items[n], Less());
-      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
-      for (size_type i = 0; i < n; i++) {
-        entry.reset(header_content_.NewEntryWrapper(
-            items[i]->first, items[i]->second));
-        ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-            2, *entry, output);
-        Utf8Check::Check(items[i]);
-      }
-    } else {
-      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
-      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
-          it = this->header_content().begin();
-          it != this->header_content().end(); ++it) {
-        entry.reset(header_content_.NewEntryWrapper(
-            it->first, it->second));
-        ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-            2, *entry, output);
-        Utf8Check::Check(&*it);
-      }
-    }
+  // repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
+  for (unsigned int i = 0, n = this->header_content_size(); i < n; i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+      2, this->header_content(i), output);
   }
 
   // optional bytes content = 3;
@@ -2910,61 +2832,11 @@ void HttpResponse::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->req_id(), target);
   }
 
-  // map<string, string> header_content = 2;
-  if (!this->header_content().empty()) {
-    typedef ::google::protobuf::Map< ::std::string, ::std::string >::const_pointer
-        ConstPtr;
-    typedef ConstPtr SortItem;
-    typedef ::google::protobuf::internal::CompareByDerefFirst<SortItem> Less;
-    struct Utf8Check {
-      static void Check(ConstPtr p) {
-        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-          p->first.data(), p->first.length(),
-          ::google::protobuf::internal::WireFormat::SERIALIZE,
-          "KismetExternalHttp.HttpResponse.HeaderContentEntry.key");
-        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-          p->second.data(), p->second.length(),
-          ::google::protobuf::internal::WireFormat::SERIALIZE,
-          "KismetExternalHttp.HttpResponse.HeaderContentEntry.value");
-      }
-    };
-
-    if (deterministic &&
-        this->header_content().size() > 1) {
-      ::google::protobuf::scoped_array<SortItem> items(
-          new SortItem[this->header_content().size()]);
-      typedef ::google::protobuf::Map< ::std::string, ::std::string >::size_type size_type;
-      size_type n = 0;
-      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
-          it = this->header_content().begin();
-          it != this->header_content().end(); ++it, ++n) {
-        items[n] = SortItem(&*it);
-      }
-      ::std::sort(&items[0], &items[n], Less());
-      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
-      for (size_type i = 0; i < n; i++) {
-        entry.reset(header_content_.NewEntryWrapper(
-            items[i]->first, items[i]->second));
-        target = ::google::protobuf::internal::WireFormatLite::
-                   InternalWriteMessageNoVirtualToArray(
-                       2, *entry, deterministic, target);
-;
-        Utf8Check::Check(items[i]);
-      }
-    } else {
-      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
-      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
-          it = this->header_content().begin();
-          it != this->header_content().end(); ++it) {
-        entry.reset(header_content_.NewEntryWrapper(
-            it->first, it->second));
-        target = ::google::protobuf::internal::WireFormatLite::
-                   InternalWriteMessageNoVirtualToArray(
-                       2, *entry, deterministic, target);
-;
-        Utf8Check::Check(&*it);
-      }
-    }
+  // repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
+  for (unsigned int i = 0, n = this->header_content_size(); i < n; i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      InternalWriteMessageNoVirtualToArray(
+        2, this->header_content(i), false, target);
   }
 
   // optional bytes content = 3;
@@ -3023,17 +2895,12 @@ int HttpResponse::ByteSize() const {
     }
 
   }
-  // map<string, string> header_content = 2;
+  // repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
   total_size += 1 * this->header_content_size();
-  {
-    ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
-    for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
-        it = this->header_content().begin();
-        it != this->header_content().end(); ++it) {
-      entry.reset(header_content_.NewEntryWrapper(it->first, it->second));
-      total_size += ::google::protobuf::internal::WireFormatLite::
-          MessageSizeNoVirtual(*entry);
-    }
+  for (int i = 0; i < this->header_content_size(); i++) {
+    total_size +=
+      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+        this->header_content(i));
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -3107,6 +2974,7 @@ void HttpResponse::CopyFrom(const HttpResponse& from) {
 bool HttpResponse::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
+  if (!::google::protobuf::internal::AllAreInitialized(this->header_content())) return false;
   return true;
 }
 
@@ -3116,7 +2984,7 @@ void HttpResponse::Swap(HttpResponse* other) {
 }
 void HttpResponse::InternalSwap(HttpResponse* other) {
   std::swap(req_id_, other->req_id_);
-  header_content_.Swap(&other->header_content_);
+  header_content_.UnsafeArenaSwap(&other->header_content_);
   content_.Swap(&other->content_);
   std::swap(resultcode_, other->resultcode_);
   std::swap(close_response_, other->close_response_);
@@ -3160,22 +3028,34 @@ void HttpResponse::clear_req_id() {
   // @@protoc_insertion_point(field_set:KismetExternalHttp.HttpResponse.req_id)
 }
 
-// map<string, string> header_content = 2;
+// repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
 int HttpResponse::header_content_size() const {
   return header_content_.size();
 }
 void HttpResponse::clear_header_content() {
   header_content_.Clear();
 }
- const ::google::protobuf::Map< ::std::string, ::std::string >&
-HttpResponse::header_content() const {
-  // @@protoc_insertion_point(field_map:KismetExternalHttp.HttpResponse.header_content)
-  return header_content_.GetMap();
+const ::KismetExternalHttp::SubHttpHeader& HttpResponse::header_content(int index) const {
+  // @@protoc_insertion_point(field_get:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_.Get(index);
 }
- ::google::protobuf::Map< ::std::string, ::std::string >*
+::KismetExternalHttp::SubHttpHeader* HttpResponse::mutable_header_content(int index) {
+  // @@protoc_insertion_point(field_mutable:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_.Mutable(index);
+}
+::KismetExternalHttp::SubHttpHeader* HttpResponse::add_header_content() {
+  // @@protoc_insertion_point(field_add:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_.Add();
+}
+::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader >*
 HttpResponse::mutable_header_content() {
-  // @@protoc_insertion_point(field_mutable_map:KismetExternalHttp.HttpResponse.header_content)
-  return header_content_.MutableMap();
+  // @@protoc_insertion_point(field_mutable_list:KismetExternalHttp.HttpResponse.header_content)
+  return &header_content_;
+}
+const ::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader >&
+HttpResponse::header_content() const {
+  // @@protoc_insertion_point(field_list:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_;
 }
 
 // optional bytes content = 3;

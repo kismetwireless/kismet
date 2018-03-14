@@ -26,8 +26,6 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
-#include <google/protobuf/map.h>
-#include <google/protobuf/map_field_inl.h>
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
 
@@ -708,7 +706,6 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
 
   // nested types ----------------------------------------------------
 
-
   // accessors -------------------------------------------------------
 
   // required uint32 req_id = 1;
@@ -718,14 +715,17 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
   ::google::protobuf::uint32 req_id() const;
   void set_req_id(::google::protobuf::uint32 value);
 
-  // map<string, string> header_content = 2;
+  // repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
   int header_content_size() const;
   void clear_header_content();
   static const int kHeaderContentFieldNumber = 2;
-  const ::google::protobuf::Map< ::std::string, ::std::string >&
-      header_content() const;
-  ::google::protobuf::Map< ::std::string, ::std::string >*
+  const ::KismetExternalHttp::SubHttpHeader& header_content(int index) const;
+  ::KismetExternalHttp::SubHttpHeader* mutable_header_content(int index);
+  ::KismetExternalHttp::SubHttpHeader* add_header_content();
+  ::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader >*
       mutable_header_content();
+  const ::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader >&
+      header_content() const;
 
   // optional bytes content = 3;
   bool has_content() const;
@@ -767,17 +767,7 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
-  typedef ::google::protobuf::internal::MapEntryLite<
-      ::std::string, ::std::string,
-      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-      0 >
-      HttpResponse_HeaderContentEntry;
-  ::google::protobuf::internal::MapField<
-      ::std::string, ::std::string,
-      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
-      0 > header_content_;
+  ::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader > header_content_;
   ::google::protobuf::uint32 req_id_;
   ::google::protobuf::uint32 resultcode_;
   ::google::protobuf::internal::ArenaStringPtr content_;
@@ -1405,22 +1395,34 @@ inline void HttpResponse::set_req_id(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:KismetExternalHttp.HttpResponse.req_id)
 }
 
-// map<string, string> header_content = 2;
+// repeated .KismetExternalHttp.SubHttpHeader header_content = 2;
 inline int HttpResponse::header_content_size() const {
   return header_content_.size();
 }
 inline void HttpResponse::clear_header_content() {
   header_content_.Clear();
 }
-inline const ::google::protobuf::Map< ::std::string, ::std::string >&
-HttpResponse::header_content() const {
-  // @@protoc_insertion_point(field_map:KismetExternalHttp.HttpResponse.header_content)
-  return header_content_.GetMap();
+inline const ::KismetExternalHttp::SubHttpHeader& HttpResponse::header_content(int index) const {
+  // @@protoc_insertion_point(field_get:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_.Get(index);
 }
-inline ::google::protobuf::Map< ::std::string, ::std::string >*
+inline ::KismetExternalHttp::SubHttpHeader* HttpResponse::mutable_header_content(int index) {
+  // @@protoc_insertion_point(field_mutable:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_.Mutable(index);
+}
+inline ::KismetExternalHttp::SubHttpHeader* HttpResponse::add_header_content() {
+  // @@protoc_insertion_point(field_add:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_.Add();
+}
+inline ::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader >*
 HttpResponse::mutable_header_content() {
-  // @@protoc_insertion_point(field_mutable_map:KismetExternalHttp.HttpResponse.header_content)
-  return header_content_.MutableMap();
+  // @@protoc_insertion_point(field_mutable_list:KismetExternalHttp.HttpResponse.header_content)
+  return &header_content_;
+}
+inline const ::google::protobuf::RepeatedPtrField< ::KismetExternalHttp::SubHttpHeader >&
+HttpResponse::header_content() const {
+  // @@protoc_insertion_point(field_list:KismetExternalHttp.HttpResponse.header_content)
+  return header_content_;
 }
 
 // optional bytes content = 3;

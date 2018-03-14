@@ -58,7 +58,7 @@ message HttpResponse {
     // Unique ID of request we're responding to
     required uint32 req_id = 1;
     // Headers being sent, if any
-    map<string, string> header_content = 2;
+    repeated SubHttpHeader header_content = 2;
     // Content being sent, if any
     optional bytes content = 3;
     // Result code, if we're concluding this connection
