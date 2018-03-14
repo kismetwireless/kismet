@@ -47,6 +47,12 @@ struct KisExternalHttpSession {
 
 };
 
+struct KisExternalHttpUri {
+    std::string uri;
+    std::string method;
+    bool auth_req;
+};
+
 class KisExternalInterface : public BufferInterface, Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     KisExternalInterface(GlobalRegistry *in_globalreg);
@@ -110,6 +116,8 @@ protected:
 
     // Packet handlers
     virtual void handle_packet_message(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_http_register(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_http_response(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_ping(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_pong(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_shutdown(uint32_t in_seqno, std::string in_content);
@@ -117,7 +125,6 @@ protected:
     void send_ping();
     void send_pong(uint32_t ping_seqno);
     void send_shutdown(std::string reason);
-
 
     kis_recursive_timed_mutex ext_mutex;
 
@@ -140,6 +147,14 @@ protected:
     std::string external_binary;
 
     int ping_timer_id;
+
+    // Webserver proxy code
+    
+    // Valid URIs, mapped by method (GET, POST, etc); these are matched in
+    // Httpd_VerifyPath and then passed on; if a URI is present here, it's mapped
+    // to true
+    std::map<std::string, std::vector<struct KisExternalHttpUri *> > http_proxy_uri_map;
+
 };
 
 

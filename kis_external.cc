@@ -23,6 +23,9 @@
 
 #include "endian_magic.h"
 
+#include "protobuf_cpp/kismet.pb.h"
+#include "protobuf_cpp/http.pb.h"
+
 KisExternalInterface::KisExternalInterface(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
@@ -276,6 +279,41 @@ void KisExternalInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Co
     } else if (c->command() == "SHUTDOWN") {
         handle_packet_shutdown(c->seqno(), c->content());
     }
+}
+
+void KisExternalInterface::handle_packet_http_register(uint32_t in_seqno, std::string in_content) {
+    local_locker lock(&ext_mutex);
+
+    KismetExternalHttp::HttpRegisterUri uri;
+
+    if (!uri.ParseFromString(in_content)) {
+        _MSG("Kismet external interface got an unparseable HTTPREGISTERURI", MSGFLAG_ERROR);
+        trigger_error("Invalid HTTPREGISTERURI");
+        return;
+    }
+
+    struct KisExternalHttpUri *exturi = new KisExternalHttpUri();
+    
+    exturi->uri = uri.uri();
+    exturi->method = uri.method();
+    exturi->auth_req = uri.auth_required();
+
+    // Add it to the map of valid URIs
+    http_proxy_uri_map[exturi->method].push_back(exturi);
+}
+
+void KisExternalInterface::handle_packet_http_response(uint32_t in_seqno, std::string in_content) {
+    local_locker lock(&ext_mutex);
+
+    KismetExternalHttp::HttpResponse resp;
+
+    if (!resp.ParseFromString(in_content)) {
+        _MSG("Kismet external interface got an unparseable HTTPRESPONSE", MSGFLAG_ERROR);
+        trigger_error("Invalid  HTTPRESPONSE");
+        return;
+    }
+
+    // TODO handle response
 }
 
 void KisExternalInterface::handle_packet_message(uint32_t in_seqno, std::string in_content) {

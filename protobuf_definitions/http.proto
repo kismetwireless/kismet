@@ -1,6 +1,13 @@
 syntax = "proto2";
 
-package KismetHttp;
+package KismetExternalHttp;
+
+// Send a HTTP session auth token to the helper (Kismet->Helper)
+// This lets the helper access administrative functions on the server
+// without having to pass an actual login password
+message HttpAuthToken {
+    required string token = 1;
+}
 
 // Define an endpoint (Helper->Kismet)
 // Registers a HTTP endpoint; requests to this endpoint will be sent to the
@@ -13,6 +20,9 @@ message HttpRegisterUri {
     // Method; ie GET or POST; a URI can only implement a single method and
     // must register multiple URIs for multiple methods.
     required string method = 2;
+    // Authentication - does the URI require authentication?  The proxy can 
+    // handle this automatically.
+    required bool auth_required = 3;
 }
 
 // Handle an incoming HTTP request (Kismet->Helper)
