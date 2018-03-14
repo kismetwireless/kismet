@@ -423,9 +423,13 @@ all-plugins-clean: Makefile
 # 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 # 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 
+PROTOC ?= "protoc2"
 protobuf-parsers:
 	@echo "Re-generating the protobuf parsers; this requires the protobuf and protobuf-c compilers"
-	protoc --cpp_out=protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/*.proto
+	@echo "This expects protobuf 2.6.1 for compatibility across platforms which lack protobuf 3"
+	@echo "and explicitly calls a protobuf2 version; you may use any newer version of protobuf "
+	@echo "by setting the PROTOC environment variable, ie PROTOC=protoc make protobuf-parsers"
+	$(PROTOC) --cpp_out=protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/*.proto
 	protoc-c --c_out=protobuf_c/ -I protobuf_definitions/ protobuf_definitions/*.proto
 
 %.c.o:	%.c

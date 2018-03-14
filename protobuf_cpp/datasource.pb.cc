@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include <google/protobuf/stubs/common.h>
-#include <google/protobuf/stubs/port.h>
 #include <google/protobuf/stubs/once.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite_inl.h>
@@ -97,7 +96,6 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 }  // namespace
 
 
-void protobuf_AssignDesc_datasource_2eproto() GOOGLE_ATTRIBUTE_COLD;
 void protobuf_AssignDesc_datasource_2eproto() {
   protobuf_AddDesc_datasource_2eproto();
   const ::google::protobuf::FileDescriptor* file =
@@ -109,31 +107,31 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChannels, channels_),
   };
   SubChannels_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubChannels_descriptor_,
       SubChannels::default_instance_,
       SubChannels_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChannels, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChannels, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubChannels),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChannels, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubChannels));
   SubChanset_descriptor_ = file->message_type(1);
   static const int SubChanset_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanset, channel_),
   };
   SubChanset_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubChanset_descriptor_,
       SubChanset::default_instance_,
       SubChanset_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanset, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanset, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubChanset),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanset, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubChanset));
   SubChanhop_descriptor_ = file->message_type(2);
   static const int SubChanhop_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanhop, channels_),
@@ -143,16 +141,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanhop, offset_),
   };
   SubChanhop_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubChanhop_descriptor_,
       SubChanhop::default_instance_,
       SubChanhop_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanhop, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanhop, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubChanhop),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubChanhop, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubChanhop));
   SubGps_descriptor_ = file->message_type(3);
   static const int SubGps_offsets_[11] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubGps, lat_),
@@ -168,16 +166,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubGps, name_),
   };
   SubGps_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubGps_descriptor_,
       SubGps::default_instance_,
       SubGps_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubGps, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubGps, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubGps),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubGps, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubGps));
   SubInterface_descriptor_ = file->message_type(4);
   static const int SubInterface_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubInterface, interface_),
@@ -185,16 +183,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubInterface, hardware_),
   };
   SubInterface_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubInterface_descriptor_,
       SubInterface::default_instance_,
       SubInterface_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubInterface, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubInterface, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubInterface),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubInterface, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubInterface));
   SubPacket_descriptor_ = file->message_type(5);
   static const int SubPacket_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, time_sec_),
@@ -204,16 +202,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, data_),
   };
   SubPacket_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubPacket_descriptor_,
       SubPacket::default_instance_,
       SubPacket_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubPacket),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubPacket));
   SubSignal_descriptor_ = file->message_type(6);
   static const int SubSignal_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, signal_dbm_),
@@ -225,16 +223,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, datarate_),
   };
   SubSignal_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubSignal_descriptor_,
       SubSignal::default_instance_,
       SubSignal_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubSignal),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubSignal));
   SubSpecset_descriptor_ = file->message_type(7);
   static const int SubSpecset_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, start_mhz_),
@@ -246,16 +244,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, baseband_amp_),
   };
   SubSpecset_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubSpecset_descriptor_,
       SubSpecset::default_instance_,
       SubSpecset_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubSpecset),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubSpecset));
   SubSpectrum_descriptor_ = file->message_type(8);
   static const int SubSpectrum_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, time_sec_),
@@ -266,61 +264,61 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, data_),
   };
   SubSpectrum_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubSpectrum_descriptor_,
       SubSpectrum::default_instance_,
       SubSpectrum_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubSpectrum),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubSpectrum));
   SubSuccess_descriptor_ = file->message_type(9);
   static const int SubSuccess_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, command_num_),
   };
   SubSuccess_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       SubSuccess_descriptor_,
       SubSuccess::default_instance_,
       SubSuccess_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, _unknown_fields_),
       -1,
-      -1,
-      sizeof(SubSuccess),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(SubSuccess));
   Channels_descriptor_ = file->message_type(10);
   static const int Channels_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Channels, channels_),
   };
   Channels_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       Channels_descriptor_,
       Channels::default_instance_,
       Channels_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Channels, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Channels, _unknown_fields_),
       -1,
-      -1,
-      sizeof(Channels),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Channels, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(Channels));
   CloseDatasource_descriptor_ = file->message_type(11);
   static const int CloseDatasource_offsets_[1] = {
   };
   CloseDatasource_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       CloseDatasource_descriptor_,
       CloseDatasource::default_instance_,
       CloseDatasource_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CloseDatasource, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CloseDatasource, _unknown_fields_),
       -1,
-      -1,
-      sizeof(CloseDatasource),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CloseDatasource, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(CloseDatasource));
   Configure_descriptor_ = file->message_type(12);
   static const int Configure_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, channel_),
@@ -328,16 +326,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, spectrum_),
   };
   Configure_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       Configure_descriptor_,
       Configure::default_instance_,
       Configure_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, _unknown_fields_),
       -1,
-      -1,
-      sizeof(Configure),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(Configure));
   ConfigureReport_descriptor_ = file->message_type(13);
   static const int ConfigureReport_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, success_),
@@ -347,16 +345,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, warning_),
   };
   ConfigureReport_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       ConfigureReport_descriptor_,
       ConfigureReport::default_instance_,
       ConfigureReport_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, _unknown_fields_),
       -1,
-      -1,
-      sizeof(ConfigureReport),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(ConfigureReport));
   DataReport_descriptor_ = file->message_type(14);
   static const int DataReport_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, gps_),
@@ -367,46 +365,46 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, warning_),
   };
   DataReport_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       DataReport_descriptor_,
       DataReport::default_instance_,
       DataReport_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, _unknown_fields_),
       -1,
-      -1,
-      sizeof(DataReport),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(DataReport));
   ErrorReport_descriptor_ = file->message_type(15);
   static const int ErrorReport_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, message_),
   };
   ErrorReport_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       ErrorReport_descriptor_,
       ErrorReport::default_instance_,
       ErrorReport_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, _unknown_fields_),
       -1,
-      -1,
-      sizeof(ErrorReport),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(ErrorReport));
   ListInterfaces_descriptor_ = file->message_type(16);
   static const int ListInterfaces_offsets_[1] = {
   };
   ListInterfaces_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       ListInterfaces_descriptor_,
       ListInterfaces::default_instance_,
       ListInterfaces_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ListInterfaces, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ListInterfaces, _unknown_fields_),
       -1,
-      -1,
-      sizeof(ListInterfaces),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ListInterfaces, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(ListInterfaces));
   InterfacesReport_descriptor_ = file->message_type(17);
   static const int InterfacesReport_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, success_),
@@ -414,32 +412,32 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, interfaces_),
   };
   InterfacesReport_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       InterfacesReport_descriptor_,
       InterfacesReport::default_instance_,
       InterfacesReport_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, _unknown_fields_),
       -1,
-      -1,
-      sizeof(InterfacesReport),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(InterfacesReport));
   Message_descriptor_ = file->message_type(18);
   static const int Message_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, message_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, warning_),
   };
   Message_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       Message_descriptor_,
       Message::default_instance_,
       Message_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, _unknown_fields_),
       -1,
-      -1,
-      sizeof(Message),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(Message));
   NewSource_descriptor_ = file->message_type(19);
   static const int NewSource_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, definition_),
@@ -447,31 +445,31 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, uuid_),
   };
   NewSource_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       NewSource_descriptor_,
       NewSource::default_instance_,
       NewSource_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, _unknown_fields_),
       -1,
-      -1,
-      sizeof(NewSource),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(NewSource));
   OpenSource_descriptor_ = file->message_type(20);
   static const int OpenSource_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSource, definition_),
   };
   OpenSource_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       OpenSource_descriptor_,
       OpenSource::default_instance_,
       OpenSource_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSource, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSource, _unknown_fields_),
       -1,
-      -1,
-      sizeof(OpenSource),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSource, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(OpenSource));
   OpenSourceReport_descriptor_ = file->message_type(21);
   static const int OpenSourceReport_offsets_[10] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, success_),
@@ -486,31 +484,31 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, warning_),
   };
   OpenSourceReport_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       OpenSourceReport_descriptor_,
       OpenSourceReport::default_instance_,
       OpenSourceReport_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, _unknown_fields_),
       -1,
-      -1,
-      sizeof(OpenSourceReport),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(OpenSourceReport));
   ProbeSource_descriptor_ = file->message_type(22);
   static const int ProbeSource_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSource, definition_),
   };
   ProbeSource_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       ProbeSource_descriptor_,
       ProbeSource::default_instance_,
       ProbeSource_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSource, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSource, _unknown_fields_),
       -1,
-      -1,
-      sizeof(ProbeSource),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSource, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(ProbeSource));
   ProbeSourceReport_descriptor_ = file->message_type(23);
   static const int ProbeSourceReport_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, success_),
@@ -521,16 +519,16 @@ void protobuf_AssignDesc_datasource_2eproto() {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, hardware_),
   };
   ProbeSourceReport_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+    new ::google::protobuf::internal::GeneratedMessageReflection(
       ProbeSourceReport_descriptor_,
       ProbeSourceReport::default_instance_,
       ProbeSourceReport_offsets_,
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, _has_bits_[0]),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, _unknown_fields_),
       -1,
-      -1,
-      sizeof(ProbeSourceReport),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, _internal_metadata_),
-      -1);
+      ::google::protobuf::DescriptorPool::generated_pool(),
+      ::google::protobuf::MessageFactory::generated_factory(),
+      sizeof(ProbeSourceReport));
 }
 
 namespace {
@@ -541,57 +539,56 @@ inline void protobuf_AssignDescriptorsOnce() {
                  &protobuf_AssignDesc_datasource_2eproto);
 }
 
-void protobuf_RegisterTypes(const ::std::string&) GOOGLE_ATTRIBUTE_COLD;
 void protobuf_RegisterTypes(const ::std::string&) {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubChannels_descriptor_, &SubChannels::default_instance());
+    SubChannels_descriptor_, &SubChannels::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubChanset_descriptor_, &SubChanset::default_instance());
+    SubChanset_descriptor_, &SubChanset::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubChanhop_descriptor_, &SubChanhop::default_instance());
+    SubChanhop_descriptor_, &SubChanhop::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubGps_descriptor_, &SubGps::default_instance());
+    SubGps_descriptor_, &SubGps::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubInterface_descriptor_, &SubInterface::default_instance());
+    SubInterface_descriptor_, &SubInterface::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubPacket_descriptor_, &SubPacket::default_instance());
+    SubPacket_descriptor_, &SubPacket::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubSignal_descriptor_, &SubSignal::default_instance());
+    SubSignal_descriptor_, &SubSignal::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubSpecset_descriptor_, &SubSpecset::default_instance());
+    SubSpecset_descriptor_, &SubSpecset::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubSpectrum_descriptor_, &SubSpectrum::default_instance());
+    SubSpectrum_descriptor_, &SubSpectrum::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubSuccess_descriptor_, &SubSuccess::default_instance());
+    SubSuccess_descriptor_, &SubSuccess::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      Channels_descriptor_, &Channels::default_instance());
+    Channels_descriptor_, &Channels::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      CloseDatasource_descriptor_, &CloseDatasource::default_instance());
+    CloseDatasource_descriptor_, &CloseDatasource::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      Configure_descriptor_, &Configure::default_instance());
+    Configure_descriptor_, &Configure::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      ConfigureReport_descriptor_, &ConfigureReport::default_instance());
+    ConfigureReport_descriptor_, &ConfigureReport::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      DataReport_descriptor_, &DataReport::default_instance());
+    DataReport_descriptor_, &DataReport::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      ErrorReport_descriptor_, &ErrorReport::default_instance());
+    ErrorReport_descriptor_, &ErrorReport::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      ListInterfaces_descriptor_, &ListInterfaces::default_instance());
+    ListInterfaces_descriptor_, &ListInterfaces::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      InterfacesReport_descriptor_, &InterfacesReport::default_instance());
+    InterfacesReport_descriptor_, &InterfacesReport::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      Message_descriptor_, &Message::default_instance());
+    Message_descriptor_, &Message::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      NewSource_descriptor_, &NewSource::default_instance());
+    NewSource_descriptor_, &NewSource::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      OpenSource_descriptor_, &OpenSource::default_instance());
+    OpenSource_descriptor_, &OpenSource::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      OpenSourceReport_descriptor_, &OpenSourceReport::default_instance());
+    OpenSourceReport_descriptor_, &OpenSourceReport::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      ProbeSource_descriptor_, &ProbeSource::default_instance());
+    ProbeSource_descriptor_, &ProbeSource::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      ProbeSourceReport_descriptor_, &ProbeSourceReport::default_instance());
+    ProbeSourceReport_descriptor_, &ProbeSourceReport::default_instance());
 }
 
 }  // namespace
@@ -647,7 +644,6 @@ void protobuf_ShutdownFile_datasource_2eproto() {
   delete ProbeSourceReport_reflection_;
 }
 
-void protobuf_AddDesc_datasource_2eproto() GOOGLE_ATTRIBUTE_COLD;
 void protobuf_AddDesc_datasource_2eproto() {
   static bool already_here = false;
   if (already_here) return;
@@ -791,12 +787,12 @@ struct StaticDescriptorInitializer_datasource_2eproto {
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubChannels::kChannelsFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubChannels::SubChannels()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubChannels)
 }
@@ -805,8 +801,7 @@ void SubChannels::InitAsDefaultInstance() {
 }
 
 SubChannels::SubChannels(const SubChannels& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubChannels)
@@ -845,26 +840,19 @@ const SubChannels& SubChannels::default_instance() {
 
 SubChannels* SubChannels::default_instance_ = NULL;
 
-SubChannels* SubChannels::New(::google::protobuf::Arena* arena) const {
-  SubChannels* n = new SubChannels;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubChannels* SubChannels::New() const {
+  return new SubChannels;
 }
 
 void SubChannels::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubChannels)
   channels_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubChannels::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubChannels)
   for (;;) {
@@ -882,7 +870,7 @@ bool SubChannels::MergePartialFromCodedStream(
             this->channels(this->channels_size() - 1).data(),
             this->channels(this->channels_size() - 1).length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubChannels.channels");
+            "channels");
         } else {
           goto handle_unusual;
         }
@@ -918,35 +906,35 @@ void SubChannels::SerializeWithCachedSizes(
   // @@protoc_insertion_point(serialize_start:KismetDatasource.SubChannels)
   // repeated string channels = 1;
   for (int i = 0; i < this->channels_size(); i++) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-      this->channels(i).data(), this->channels(i).length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubChannels.channels");
+  ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+    this->channels(i).data(), this->channels(i).length(),
+    ::google::protobuf::internal::WireFormat::SERIALIZE,
+    "channels");
     ::google::protobuf::internal::WireFormatLite::WriteString(
       1, this->channels(i), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubChannels)
 }
 
-::google::protobuf::uint8* SubChannels::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubChannels::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubChannels)
   // repeated string channels = 1;
   for (int i = 0; i < this->channels_size(); i++) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->channels(i).data(), this->channels(i).length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubChannels.channels");
+      "channels");
     target = ::google::protobuf::internal::WireFormatLite::
       WriteStringToArray(1, this->channels(i), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -955,7 +943,6 @@ void SubChannels::SerializeWithCachedSizes(
 }
 
 int SubChannels::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubChannels)
   int total_size = 0;
 
   // repeated string channels = 1;
@@ -965,7 +952,7 @@ int SubChannels::ByteSize() const {
       this->channels(i));
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -977,42 +964,30 @@ int SubChannels::ByteSize() const {
 }
 
 void SubChannels::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubChannels)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubChannels* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubChannels>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubChannels* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubChannels*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubChannels)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubChannels)
     MergeFrom(*source);
   }
 }
 
 void SubChannels::MergeFrom(const SubChannels& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubChannels)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   channels_.MergeFrom(from.channels_);
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubChannels::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubChannels)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubChannels::CopyFrom(const SubChannels& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubChannels)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -1024,14 +999,12 @@ bool SubChannels::IsInitialized() const {
 }
 
 void SubChannels::Swap(SubChannels* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubChannels::InternalSwap(SubChannels* other) {
-  channels_.UnsafeArenaSwap(&other->channels_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    channels_.Swap(&other->channels_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubChannels::GetMetadata() const {
@@ -1042,74 +1015,15 @@ void SubChannels::InternalSwap(SubChannels* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubChannels
-
-// repeated string channels = 1;
-int SubChannels::channels_size() const {
-  return channels_.size();
-}
-void SubChannels::clear_channels() {
-  channels_.Clear();
-}
- const ::std::string& SubChannels::channels(int index) const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChannels.channels)
-  return channels_.Get(index);
-}
- ::std::string* SubChannels::mutable_channels(int index) {
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubChannels.channels)
-  return channels_.Mutable(index);
-}
- void SubChannels::set_channels(int index, const ::std::string& value) {
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChannels.channels)
-  channels_.Mutable(index)->assign(value);
-}
- void SubChannels::set_channels(int index, const char* value) {
-  channels_.Mutable(index)->assign(value);
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubChannels.channels)
-}
- void SubChannels::set_channels(int index, const char* value, size_t size) {
-  channels_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubChannels.channels)
-}
- ::std::string* SubChannels::add_channels() {
-  // @@protoc_insertion_point(field_add_mutable:KismetDatasource.SubChannels.channels)
-  return channels_.Add();
-}
- void SubChannels::add_channels(const ::std::string& value) {
-  channels_.Add()->assign(value);
-  // @@protoc_insertion_point(field_add:KismetDatasource.SubChannels.channels)
-}
- void SubChannels::add_channels(const char* value) {
-  channels_.Add()->assign(value);
-  // @@protoc_insertion_point(field_add_char:KismetDatasource.SubChannels.channels)
-}
- void SubChannels::add_channels(const char* value, size_t size) {
-  channels_.Add()->assign(reinterpret_cast<const char*>(value), size);
-  // @@protoc_insertion_point(field_add_pointer:KismetDatasource.SubChannels.channels)
-}
- const ::google::protobuf::RepeatedPtrField< ::std::string>&
-SubChannels::channels() const {
-  // @@protoc_insertion_point(field_list:KismetDatasource.SubChannels.channels)
-  return channels_;
-}
- ::google::protobuf::RepeatedPtrField< ::std::string>*
-SubChannels::mutable_channels() {
-  // @@protoc_insertion_point(field_mutable_list:KismetDatasource.SubChannels.channels)
-  return &channels_;
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubChanset::kChannelFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubChanset::SubChanset()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubChanset)
 }
@@ -1118,8 +1032,7 @@ void SubChanset::InitAsDefaultInstance() {
 }
 
 SubChanset::SubChanset(const SubChanset& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubChanset)
@@ -1128,7 +1041,7 @@ SubChanset::SubChanset(const SubChanset& from)
 void SubChanset::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  channel_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  channel_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1138,7 +1051,9 @@ SubChanset::~SubChanset() {
 }
 
 void SubChanset::SharedDtor() {
-  channel_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (channel_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete channel_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -1160,28 +1075,23 @@ const SubChanset& SubChanset::default_instance() {
 
 SubChanset* SubChanset::default_instance_ = NULL;
 
-SubChanset* SubChanset::New(::google::protobuf::Arena* arena) const {
-  SubChanset* n = new SubChanset;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubChanset* SubChanset::New() const {
+  return new SubChanset;
 }
 
 void SubChanset::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubChanset)
   if (has_channel()) {
-    channel_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    if (channel_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+      channel_->clear();
+    }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubChanset::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubChanset)
   for (;;) {
@@ -1197,7 +1107,7 @@ bool SubChanset::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->channel().data(), this->channel().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubChanset.channel");
+            "channel");
         } else {
           goto handle_unusual;
         }
@@ -1235,33 +1145,33 @@ void SubChanset::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->channel().data(), this->channel().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubChanset.channel");
+      "channel");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->channel(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubChanset)
 }
 
-::google::protobuf::uint8* SubChanset::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubChanset::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubChanset)
   // required string channel = 1;
   if (has_channel()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->channel().data(), this->channel().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubChanset.channel");
+      "channel");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->channel(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -1270,16 +1180,18 @@ void SubChanset::SerializeWithCachedSizes(
 }
 
 int SubChanset::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubChanset)
   int total_size = 0;
 
-  // required string channel = 1;
-  if (has_channel()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->channel());
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required string channel = 1;
+    if (has_channel()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->channel());
+    }
+
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -1291,47 +1203,34 @@ int SubChanset::ByteSize() const {
 }
 
 void SubChanset::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubChanset)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubChanset* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubChanset>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubChanset* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubChanset*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubChanset)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubChanset)
     MergeFrom(*source);
   }
 }
 
 void SubChanset::MergeFrom(const SubChanset& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubChanset)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_channel()) {
-      set_has_channel();
-      channel_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.channel_);
+      set_channel(from.channel());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubChanset::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubChanset)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubChanset::CopyFrom(const SubChanset& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubChanset)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -1344,14 +1243,12 @@ bool SubChanset::IsInitialized() const {
 }
 
 void SubChanset::Swap(SubChanset* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubChanset::InternalSwap(SubChanset* other) {
-  channel_.Swap(&other->channel_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(channel_, other->channel_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubChanset::GetMetadata() const {
@@ -1362,77 +1259,19 @@ void SubChanset::InternalSwap(SubChanset* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubChanset
-
-// required string channel = 1;
-bool SubChanset::has_channel() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubChanset::set_has_channel() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubChanset::clear_has_channel() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubChanset::clear_channel() {
-  channel_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_channel();
-}
- const ::std::string& SubChanset::channel() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChanset.channel)
-  return channel_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubChanset::set_channel(const ::std::string& value) {
-  set_has_channel();
-  channel_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChanset.channel)
-}
- void SubChanset::set_channel(const char* value) {
-  set_has_channel();
-  channel_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubChanset.channel)
-}
- void SubChanset::set_channel(const char* value, size_t size) {
-  set_has_channel();
-  channel_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubChanset.channel)
-}
- ::std::string* SubChanset::mutable_channel() {
-  set_has_channel();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubChanset.channel)
-  return channel_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubChanset::release_channel() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubChanset.channel)
-  clear_has_channel();
-  return channel_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubChanset::set_allocated_channel(::std::string* channel) {
-  if (channel != NULL) {
-    set_has_channel();
-  } else {
-    clear_has_channel();
-  }
-  channel_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), channel);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubChanset.channel)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubChanhop::kChannelsFieldNumber;
 const int SubChanhop::kRateFieldNumber;
 const int SubChanhop::kShuffleFieldNumber;
 const int SubChanhop::kShuffleSkipFieldNumber;
 const int SubChanhop::kOffsetFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubChanhop::SubChanhop()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubChanhop)
 }
@@ -1441,8 +1280,7 @@ void SubChanhop::InitAsDefaultInstance() {
 }
 
 SubChanhop::SubChanhop(const SubChanhop& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubChanhop)
@@ -1485,47 +1323,34 @@ const SubChanhop& SubChanhop::default_instance() {
 
 SubChanhop* SubChanhop::default_instance_ = NULL;
 
-SubChanhop* SubChanhop::New(::google::protobuf::Arena* arena) const {
-  SubChanhop* n = new SubChanhop;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubChanhop* SubChanhop::New() const {
+  return new SubChanhop;
 }
 
 void SubChanhop::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubChanhop)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubChanhop, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubChanhop*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubChanhop*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
   ZR_(rate_, offset_);
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   channels_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubChanhop::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubChanhop)
   for (;;) {
@@ -1543,7 +1368,7 @@ bool SubChanhop::MergePartialFromCodedStream(
             this->channels(this->channels_size() - 1).data(),
             this->channels(this->channels_size() - 1).length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubChanhop.channels");
+            "channels");
         } else {
           goto handle_unusual;
         }
@@ -1639,10 +1464,10 @@ void SubChanhop::SerializeWithCachedSizes(
   // @@protoc_insertion_point(serialize_start:KismetDatasource.SubChanhop)
   // repeated string channels = 1;
   for (int i = 0; i < this->channels_size(); i++) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-      this->channels(i).data(), this->channels(i).length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubChanhop.channels");
+  ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+    this->channels(i).data(), this->channels(i).length(),
+    ::google::protobuf::internal::WireFormat::SERIALIZE,
+    "channels");
     ::google::protobuf::internal::WireFormatLite::WriteString(
       1, this->channels(i), output);
   }
@@ -1667,22 +1492,22 @@ void SubChanhop::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(5, this->offset(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubChanhop)
 }
 
-::google::protobuf::uint8* SubChanhop::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubChanhop::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubChanhop)
   // repeated string channels = 1;
   for (int i = 0; i < this->channels_size(); i++) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->channels(i).data(), this->channels(i).length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubChanhop.channels");
+      "channels");
     target = ::google::protobuf::internal::WireFormatLite::
       WriteStringToArray(1, this->channels(i), target);
   }
@@ -1707,7 +1532,7 @@ void SubChanhop::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(5, this->offset(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -1716,10 +1541,9 @@ void SubChanhop::SerializeWithCachedSizes(
 }
 
 int SubChanhop::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubChanhop)
   int total_size = 0;
 
-  if (_has_bits_[1 / 32] & 30u) {
+  if (_has_bits_[1 / 32] & (0xffu << (1 % 32))) {
     // optional double rate = 2;
     if (has_rate()) {
       total_size += 1 + 8;
@@ -1752,7 +1576,7 @@ int SubChanhop::ByteSize() const {
       this->channels(i));
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -1764,27 +1588,19 @@ int SubChanhop::ByteSize() const {
 }
 
 void SubChanhop::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubChanhop)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubChanhop* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubChanhop>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubChanhop* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubChanhop*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubChanhop)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubChanhop)
     MergeFrom(*source);
   }
 }
 
 void SubChanhop::MergeFrom(const SubChanhop& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubChanhop)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   channels_.MergeFrom(from.channels_);
   if (from._has_bits_[1 / 32] & (0xffu << (1 % 32))) {
     if (from.has_rate()) {
@@ -1800,20 +1616,16 @@ void SubChanhop::MergeFrom(const SubChanhop& from) {
       set_offset(from.offset());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubChanhop::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubChanhop)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubChanhop::CopyFrom(const SubChanhop& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubChanhop)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -1825,18 +1637,16 @@ bool SubChanhop::IsInitialized() const {
 }
 
 void SubChanhop::Swap(SubChanhop* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubChanhop::InternalSwap(SubChanhop* other) {
-  channels_.UnsafeArenaSwap(&other->channels_);
-  std::swap(rate_, other->rate_);
-  std::swap(shuffle_, other->shuffle_);
-  std::swap(shuffle_skip_, other->shuffle_skip_);
-  std::swap(offset_, other->offset_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    channels_.Swap(&other->channels_);
+    std::swap(rate_, other->rate_);
+    std::swap(shuffle_, other->shuffle_);
+    std::swap(shuffle_skip_, other->shuffle_skip_);
+    std::swap(offset_, other->offset_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubChanhop::GetMetadata() const {
@@ -1847,165 +1657,10 @@ void SubChanhop::InternalSwap(SubChanhop* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubChanhop
-
-// repeated string channels = 1;
-int SubChanhop::channels_size() const {
-  return channels_.size();
-}
-void SubChanhop::clear_channels() {
-  channels_.Clear();
-}
- const ::std::string& SubChanhop::channels(int index) const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChanhop.channels)
-  return channels_.Get(index);
-}
- ::std::string* SubChanhop::mutable_channels(int index) {
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubChanhop.channels)
-  return channels_.Mutable(index);
-}
- void SubChanhop::set_channels(int index, const ::std::string& value) {
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChanhop.channels)
-  channels_.Mutable(index)->assign(value);
-}
- void SubChanhop::set_channels(int index, const char* value) {
-  channels_.Mutable(index)->assign(value);
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubChanhop.channels)
-}
- void SubChanhop::set_channels(int index, const char* value, size_t size) {
-  channels_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubChanhop.channels)
-}
- ::std::string* SubChanhop::add_channels() {
-  // @@protoc_insertion_point(field_add_mutable:KismetDatasource.SubChanhop.channels)
-  return channels_.Add();
-}
- void SubChanhop::add_channels(const ::std::string& value) {
-  channels_.Add()->assign(value);
-  // @@protoc_insertion_point(field_add:KismetDatasource.SubChanhop.channels)
-}
- void SubChanhop::add_channels(const char* value) {
-  channels_.Add()->assign(value);
-  // @@protoc_insertion_point(field_add_char:KismetDatasource.SubChanhop.channels)
-}
- void SubChanhop::add_channels(const char* value, size_t size) {
-  channels_.Add()->assign(reinterpret_cast<const char*>(value), size);
-  // @@protoc_insertion_point(field_add_pointer:KismetDatasource.SubChanhop.channels)
-}
- const ::google::protobuf::RepeatedPtrField< ::std::string>&
-SubChanhop::channels() const {
-  // @@protoc_insertion_point(field_list:KismetDatasource.SubChanhop.channels)
-  return channels_;
-}
- ::google::protobuf::RepeatedPtrField< ::std::string>*
-SubChanhop::mutable_channels() {
-  // @@protoc_insertion_point(field_mutable_list:KismetDatasource.SubChanhop.channels)
-  return &channels_;
-}
-
-// optional double rate = 2;
-bool SubChanhop::has_rate() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubChanhop::set_has_rate() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubChanhop::clear_has_rate() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubChanhop::clear_rate() {
-  rate_ = 0;
-  clear_has_rate();
-}
- double SubChanhop::rate() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChanhop.rate)
-  return rate_;
-}
- void SubChanhop::set_rate(double value) {
-  set_has_rate();
-  rate_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChanhop.rate)
-}
-
-// optional bool shuffle = 3;
-bool SubChanhop::has_shuffle() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubChanhop::set_has_shuffle() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubChanhop::clear_has_shuffle() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubChanhop::clear_shuffle() {
-  shuffle_ = false;
-  clear_has_shuffle();
-}
- bool SubChanhop::shuffle() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChanhop.shuffle)
-  return shuffle_;
-}
- void SubChanhop::set_shuffle(bool value) {
-  set_has_shuffle();
-  shuffle_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChanhop.shuffle)
-}
-
-// optional uint32 shuffle_skip = 4;
-bool SubChanhop::has_shuffle_skip() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void SubChanhop::set_has_shuffle_skip() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void SubChanhop::clear_has_shuffle_skip() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void SubChanhop::clear_shuffle_skip() {
-  shuffle_skip_ = 0u;
-  clear_has_shuffle_skip();
-}
- ::google::protobuf::uint32 SubChanhop::shuffle_skip() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChanhop.shuffle_skip)
-  return shuffle_skip_;
-}
- void SubChanhop::set_shuffle_skip(::google::protobuf::uint32 value) {
-  set_has_shuffle_skip();
-  shuffle_skip_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChanhop.shuffle_skip)
-}
-
-// optional uint32 offset = 5;
-bool SubChanhop::has_offset() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void SubChanhop::set_has_offset() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void SubChanhop::clear_has_offset() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void SubChanhop::clear_offset() {
-  offset_ = 0u;
-  clear_has_offset();
-}
- ::google::protobuf::uint32 SubChanhop::offset() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubChanhop.offset)
-  return offset_;
-}
- void SubChanhop::set_offset(::google::protobuf::uint32 value) {
-  set_has_offset();
-  offset_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubChanhop.offset)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubGps::kLatFieldNumber;
 const int SubGps::kLonFieldNumber;
 const int SubGps::kAltFieldNumber;
@@ -2017,10 +1672,10 @@ const int SubGps::kTimeSecFieldNumber;
 const int SubGps::kTimeUsecFieldNumber;
 const int SubGps::kTypeFieldNumber;
 const int SubGps::kNameFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubGps::SubGps()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubGps)
 }
@@ -2029,8 +1684,7 @@ void SubGps::InitAsDefaultInstance() {
 }
 
 SubGps::SubGps(const SubGps& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubGps)
@@ -2048,8 +1702,8 @@ void SubGps::SharedCtor() {
   fix_ = 0u;
   time_sec_ = GOOGLE_ULONGLONG(0);
   time_usec_ = GOOGLE_ULONGLONG(0);
-  type_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  name_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  type_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  name_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -2059,8 +1713,12 @@ SubGps::~SubGps() {
 }
 
 void SubGps::SharedDtor() {
-  type_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  name_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (type_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete type_;
+  }
+  if (name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete name_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -2082,58 +1740,49 @@ const SubGps& SubGps::default_instance() {
 
 SubGps* SubGps::default_instance_ = NULL;
 
-SubGps* SubGps::New(::google::protobuf::Arena* arena) const {
-  SubGps* n = new SubGps;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubGps* SubGps::New() const {
+  return new SubGps;
 }
 
 void SubGps::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubGps)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubGps, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubGps*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubGps*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
-  if (_has_bits_[0 / 32] & 255u) {
+  if (_has_bits_[0 / 32] & 255) {
     ZR_(lat_, time_sec_);
     fix_ = 0u;
   }
-  if (_has_bits_[8 / 32] & 1792u) {
+  if (_has_bits_[8 / 32] & 1792) {
     time_usec_ = GOOGLE_ULONGLONG(0);
     if (has_type()) {
-      type_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (type_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        type_->clear();
+      }
     }
     if (has_name()) {
-      name_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (name_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        name_->clear();
+      }
     }
   }
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubGps::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubGps)
   for (;;) {
@@ -2284,7 +1933,7 @@ bool SubGps::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->type().data(), this->type().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubGps.type");
+            "type");
         } else {
           goto handle_unusual;
         }
@@ -2301,7 +1950,7 @@ bool SubGps::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->name().data(), this->name().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubGps.name");
+            "name");
         } else {
           goto handle_unusual;
         }
@@ -2384,7 +2033,7 @@ void SubGps::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->type().data(), this->type().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubGps.type");
+      "type");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       10, this->type(), output);
   }
@@ -2394,20 +2043,20 @@ void SubGps::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->name().data(), this->name().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubGps.name");
+      "name");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       11, this->name(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubGps)
 }
 
-::google::protobuf::uint8* SubGps::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubGps::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubGps)
   // required double lat = 1;
   if (has_lat()) {
@@ -2459,7 +2108,7 @@ void SubGps::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->type().data(), this->type().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubGps.type");
+      "type");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         10, this->type(), target);
@@ -2470,13 +2119,13 @@ void SubGps::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->name().data(), this->name().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubGps.name");
+      "name");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         11, this->name(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -2484,129 +2133,79 @@ void SubGps::SerializeWithCachedSizes(
   return target;
 }
 
-int SubGps::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetDatasource.SubGps)
-  int total_size = 0;
-
-  if (has_lat()) {
-    // required double lat = 1;
-    total_size += 1 + 8;
-  }
-
-  if (has_lon()) {
-    // required double lon = 2;
-    total_size += 1 + 8;
-  }
-
-  if (has_alt()) {
-    // required double alt = 3;
-    total_size += 1 + 8;
-  }
-
-  if (has_speed()) {
-    // required double speed = 4;
-    total_size += 1 + 8;
-  }
-
-  if (has_heading()) {
-    // required double heading = 5;
-    total_size += 1 + 8;
-  }
-
-  if (has_precision()) {
-    // required double precision = 6;
-    total_size += 1 + 8;
-  }
-
-  if (has_fix()) {
-    // required uint32 fix = 7;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->fix());
-  }
-
-  if (has_time_sec()) {
-    // required uint64 time_sec = 8;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_sec());
-  }
-
-  if (has_time_usec()) {
-    // required uint64 time_usec = 9;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_usec());
-  }
-
-  if (has_type()) {
-    // required string type = 10;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->type());
-  }
-
-  if (has_name()) {
-    // required string name = 11;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->name());
-  }
-
-  return total_size;
-}
 int SubGps::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubGps)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x000007ff) ^ 0x000007ff) == 0) {  // All required fields are present.
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // required double lat = 1;
-    total_size += 1 + 8;
+    if (has_lat()) {
+      total_size += 1 + 8;
+    }
 
     // required double lon = 2;
-    total_size += 1 + 8;
+    if (has_lon()) {
+      total_size += 1 + 8;
+    }
 
     // required double alt = 3;
-    total_size += 1 + 8;
+    if (has_alt()) {
+      total_size += 1 + 8;
+    }
 
     // required double speed = 4;
-    total_size += 1 + 8;
+    if (has_speed()) {
+      total_size += 1 + 8;
+    }
 
     // required double heading = 5;
-    total_size += 1 + 8;
+    if (has_heading()) {
+      total_size += 1 + 8;
+    }
 
     // required double precision = 6;
-    total_size += 1 + 8;
+    if (has_precision()) {
+      total_size += 1 + 8;
+    }
 
     // required uint32 fix = 7;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->fix());
+    if (has_fix()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->fix());
+    }
 
     // required uint64 time_sec = 8;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_sec());
+    if (has_time_sec()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->time_sec());
+    }
 
+  }
+  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     // required uint64 time_usec = 9;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_usec());
+    if (has_time_usec()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->time_usec());
+    }
 
     // required string type = 10;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->type());
+    if (has_type()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->type());
+    }
 
     // required string name = 11;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->name());
+    if (has_name()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->name());
+    }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -2618,27 +2217,19 @@ int SubGps::ByteSize() const {
 }
 
 void SubGps::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubGps)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubGps* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubGps>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubGps* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubGps*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubGps)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubGps)
     MergeFrom(*source);
   }
 }
 
 void SubGps::MergeFrom(const SubGps& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubGps)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_lat()) {
       set_lat(from.lat());
@@ -2670,28 +2261,22 @@ void SubGps::MergeFrom(const SubGps& from) {
       set_time_usec(from.time_usec());
     }
     if (from.has_type()) {
-      set_has_type();
-      type_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.type_);
+      set_type(from.type());
     }
     if (from.has_name()) {
-      set_has_name();
-      name_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.name_);
+      set_name(from.name());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubGps::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubGps)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubGps::CopyFrom(const SubGps& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubGps)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -2704,24 +2289,22 @@ bool SubGps::IsInitialized() const {
 }
 
 void SubGps::Swap(SubGps* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubGps::InternalSwap(SubGps* other) {
-  std::swap(lat_, other->lat_);
-  std::swap(lon_, other->lon_);
-  std::swap(alt_, other->alt_);
-  std::swap(speed_, other->speed_);
-  std::swap(heading_, other->heading_);
-  std::swap(precision_, other->precision_);
-  std::swap(fix_, other->fix_);
-  std::swap(time_sec_, other->time_sec_);
-  std::swap(time_usec_, other->time_usec_);
-  type_.Swap(&other->type_);
-  name_.Swap(&other->name_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(lat_, other->lat_);
+    std::swap(lon_, other->lon_);
+    std::swap(alt_, other->alt_);
+    std::swap(speed_, other->speed_);
+    std::swap(heading_, other->heading_);
+    std::swap(precision_, other->precision_);
+    std::swap(fix_, other->fix_);
+    std::swap(time_sec_, other->time_sec_);
+    std::swap(time_usec_, other->time_usec_);
+    std::swap(type_, other->type_);
+    std::swap(name_, other->name_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubGps::GetMetadata() const {
@@ -2732,345 +2315,17 @@ void SubGps::InternalSwap(SubGps* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubGps
-
-// required double lat = 1;
-bool SubGps::has_lat() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubGps::set_has_lat() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubGps::clear_has_lat() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubGps::clear_lat() {
-  lat_ = 0;
-  clear_has_lat();
-}
- double SubGps::lat() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.lat)
-  return lat_;
-}
- void SubGps::set_lat(double value) {
-  set_has_lat();
-  lat_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.lat)
-}
-
-// required double lon = 2;
-bool SubGps::has_lon() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubGps::set_has_lon() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubGps::clear_has_lon() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubGps::clear_lon() {
-  lon_ = 0;
-  clear_has_lon();
-}
- double SubGps::lon() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.lon)
-  return lon_;
-}
- void SubGps::set_lon(double value) {
-  set_has_lon();
-  lon_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.lon)
-}
-
-// required double alt = 3;
-bool SubGps::has_alt() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubGps::set_has_alt() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubGps::clear_has_alt() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubGps::clear_alt() {
-  alt_ = 0;
-  clear_has_alt();
-}
- double SubGps::alt() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.alt)
-  return alt_;
-}
- void SubGps::set_alt(double value) {
-  set_has_alt();
-  alt_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.alt)
-}
-
-// required double speed = 4;
-bool SubGps::has_speed() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void SubGps::set_has_speed() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void SubGps::clear_has_speed() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void SubGps::clear_speed() {
-  speed_ = 0;
-  clear_has_speed();
-}
- double SubGps::speed() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.speed)
-  return speed_;
-}
- void SubGps::set_speed(double value) {
-  set_has_speed();
-  speed_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.speed)
-}
-
-// required double heading = 5;
-bool SubGps::has_heading() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void SubGps::set_has_heading() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void SubGps::clear_has_heading() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void SubGps::clear_heading() {
-  heading_ = 0;
-  clear_has_heading();
-}
- double SubGps::heading() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.heading)
-  return heading_;
-}
- void SubGps::set_heading(double value) {
-  set_has_heading();
-  heading_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.heading)
-}
-
-// required double precision = 6;
-bool SubGps::has_precision() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-void SubGps::set_has_precision() {
-  _has_bits_[0] |= 0x00000020u;
-}
-void SubGps::clear_has_precision() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-void SubGps::clear_precision() {
-  precision_ = 0;
-  clear_has_precision();
-}
- double SubGps::precision() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.precision)
-  return precision_;
-}
- void SubGps::set_precision(double value) {
-  set_has_precision();
-  precision_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.precision)
-}
-
-// required uint32 fix = 7;
-bool SubGps::has_fix() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
-}
-void SubGps::set_has_fix() {
-  _has_bits_[0] |= 0x00000040u;
-}
-void SubGps::clear_has_fix() {
-  _has_bits_[0] &= ~0x00000040u;
-}
-void SubGps::clear_fix() {
-  fix_ = 0u;
-  clear_has_fix();
-}
- ::google::protobuf::uint32 SubGps::fix() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.fix)
-  return fix_;
-}
- void SubGps::set_fix(::google::protobuf::uint32 value) {
-  set_has_fix();
-  fix_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.fix)
-}
-
-// required uint64 time_sec = 8;
-bool SubGps::has_time_sec() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
-}
-void SubGps::set_has_time_sec() {
-  _has_bits_[0] |= 0x00000080u;
-}
-void SubGps::clear_has_time_sec() {
-  _has_bits_[0] &= ~0x00000080u;
-}
-void SubGps::clear_time_sec() {
-  time_sec_ = GOOGLE_ULONGLONG(0);
-  clear_has_time_sec();
-}
- ::google::protobuf::uint64 SubGps::time_sec() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.time_sec)
-  return time_sec_;
-}
- void SubGps::set_time_sec(::google::protobuf::uint64 value) {
-  set_has_time_sec();
-  time_sec_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.time_sec)
-}
-
-// required uint64 time_usec = 9;
-bool SubGps::has_time_usec() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
-}
-void SubGps::set_has_time_usec() {
-  _has_bits_[0] |= 0x00000100u;
-}
-void SubGps::clear_has_time_usec() {
-  _has_bits_[0] &= ~0x00000100u;
-}
-void SubGps::clear_time_usec() {
-  time_usec_ = GOOGLE_ULONGLONG(0);
-  clear_has_time_usec();
-}
- ::google::protobuf::uint64 SubGps::time_usec() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.time_usec)
-  return time_usec_;
-}
- void SubGps::set_time_usec(::google::protobuf::uint64 value) {
-  set_has_time_usec();
-  time_usec_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.time_usec)
-}
-
-// required string type = 10;
-bool SubGps::has_type() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
-}
-void SubGps::set_has_type() {
-  _has_bits_[0] |= 0x00000200u;
-}
-void SubGps::clear_has_type() {
-  _has_bits_[0] &= ~0x00000200u;
-}
-void SubGps::clear_type() {
-  type_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_type();
-}
- const ::std::string& SubGps::type() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.type)
-  return type_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubGps::set_type(const ::std::string& value) {
-  set_has_type();
-  type_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.type)
-}
- void SubGps::set_type(const char* value) {
-  set_has_type();
-  type_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubGps.type)
-}
- void SubGps::set_type(const char* value, size_t size) {
-  set_has_type();
-  type_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubGps.type)
-}
- ::std::string* SubGps::mutable_type() {
-  set_has_type();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubGps.type)
-  return type_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubGps::release_type() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubGps.type)
-  clear_has_type();
-  return type_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubGps::set_allocated_type(::std::string* type) {
-  if (type != NULL) {
-    set_has_type();
-  } else {
-    clear_has_type();
-  }
-  type_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), type);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubGps.type)
-}
-
-// required string name = 11;
-bool SubGps::has_name() const {
-  return (_has_bits_[0] & 0x00000400u) != 0;
-}
-void SubGps::set_has_name() {
-  _has_bits_[0] |= 0x00000400u;
-}
-void SubGps::clear_has_name() {
-  _has_bits_[0] &= ~0x00000400u;
-}
-void SubGps::clear_name() {
-  name_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_name();
-}
- const ::std::string& SubGps::name() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubGps.name)
-  return name_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubGps::set_name(const ::std::string& value) {
-  set_has_name();
-  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubGps.name)
-}
- void SubGps::set_name(const char* value) {
-  set_has_name();
-  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubGps.name)
-}
- void SubGps::set_name(const char* value, size_t size) {
-  set_has_name();
-  name_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubGps.name)
-}
- ::std::string* SubGps::mutable_name() {
-  set_has_name();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubGps.name)
-  return name_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubGps::release_name() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubGps.name)
-  clear_has_name();
-  return name_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubGps::set_allocated_name(::std::string* name) {
-  if (name != NULL) {
-    set_has_name();
-  } else {
-    clear_has_name();
-  }
-  name_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), name);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubGps.name)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubInterface::kInterfaceFieldNumber;
 const int SubInterface::kFlagsFieldNumber;
 const int SubInterface::kHardwareFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubInterface::SubInterface()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubInterface)
 }
@@ -3079,8 +2334,7 @@ void SubInterface::InitAsDefaultInstance() {
 }
 
 SubInterface::SubInterface(const SubInterface& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubInterface)
@@ -3089,9 +2343,9 @@ SubInterface::SubInterface(const SubInterface& from)
 void SubInterface::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  interface_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  flags_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  hardware_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  interface_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  flags_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  hardware_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -3101,9 +2355,15 @@ SubInterface::~SubInterface() {
 }
 
 void SubInterface::SharedDtor() {
-  interface_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  flags_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  hardware_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (interface_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete interface_;
+  }
+  if (flags_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete flags_;
+  }
+  if (hardware_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete hardware_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -3125,36 +2385,35 @@ const SubInterface& SubInterface::default_instance() {
 
 SubInterface* SubInterface::default_instance_ = NULL;
 
-SubInterface* SubInterface::New(::google::protobuf::Arena* arena) const {
-  SubInterface* n = new SubInterface;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubInterface* SubInterface::New() const {
+  return new SubInterface;
 }
 
 void SubInterface::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubInterface)
-  if (_has_bits_[0 / 32] & 7u) {
+  if (_has_bits_[0 / 32] & 7) {
     if (has_interface()) {
-      interface_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (interface_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        interface_->clear();
+      }
     }
     if (has_flags()) {
-      flags_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (flags_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        flags_->clear();
+      }
     }
     if (has_hardware()) {
-      hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (hardware_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        hardware_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubInterface::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubInterface)
   for (;;) {
@@ -3170,7 +2429,7 @@ bool SubInterface::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->interface().data(), this->interface().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubInterface.interface");
+            "interface");
         } else {
           goto handle_unusual;
         }
@@ -3187,7 +2446,7 @@ bool SubInterface::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->flags().data(), this->flags().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubInterface.flags");
+            "flags");
         } else {
           goto handle_unusual;
         }
@@ -3204,7 +2463,7 @@ bool SubInterface::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->hardware().data(), this->hardware().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubInterface.hardware");
+            "hardware");
         } else {
           goto handle_unusual;
         }
@@ -3242,7 +2501,7 @@ void SubInterface::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->interface().data(), this->interface().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubInterface.interface");
+      "interface");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->interface(), output);
   }
@@ -3252,7 +2511,7 @@ void SubInterface::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->flags().data(), this->flags().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubInterface.flags");
+      "flags");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       2, this->flags(), output);
   }
@@ -3262,27 +2521,27 @@ void SubInterface::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->hardware().data(), this->hardware().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubInterface.hardware");
+      "hardware");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       3, this->hardware(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubInterface)
 }
 
-::google::protobuf::uint8* SubInterface::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubInterface::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubInterface)
   // required string interface = 1;
   if (has_interface()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->interface().data(), this->interface().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubInterface.interface");
+      "interface");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->interface(), target);
@@ -3293,7 +2552,7 @@ void SubInterface::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->flags().data(), this->flags().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubInterface.flags");
+      "flags");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         2, this->flags(), target);
@@ -3304,13 +2563,13 @@ void SubInterface::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->hardware().data(), this->hardware().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubInterface.hardware");
+      "hardware");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         3, this->hardware(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -3318,52 +2577,33 @@ void SubInterface::SerializeWithCachedSizes(
   return target;
 }
 
-int SubInterface::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetDatasource.SubInterface)
-  int total_size = 0;
-
-  if (has_interface()) {
-    // required string interface = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->interface());
-  }
-
-  if (has_flags()) {
-    // required string flags = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->flags());
-  }
-
-  return total_size;
-}
 int SubInterface::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubInterface)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // required string interface = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->interface());
+    if (has_interface()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->interface());
+    }
 
     // required string flags = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->flags());
+    if (has_flags()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->flags());
+    }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
-  }
-  // optional string hardware = 3;
-  if (has_hardware()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->hardware());
-  }
+    // optional string hardware = 3;
+    if (has_hardware()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->hardware());
+    }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  }
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -3375,55 +2615,40 @@ int SubInterface::ByteSize() const {
 }
 
 void SubInterface::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubInterface)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubInterface* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubInterface>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubInterface* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubInterface*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubInterface)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubInterface)
     MergeFrom(*source);
   }
 }
 
 void SubInterface::MergeFrom(const SubInterface& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubInterface)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_interface()) {
-      set_has_interface();
-      interface_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.interface_);
+      set_interface(from.interface());
     }
     if (from.has_flags()) {
-      set_has_flags();
-      flags_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.flags_);
+      set_flags(from.flags());
     }
     if (from.has_hardware()) {
-      set_has_hardware();
-      hardware_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.hardware_);
+      set_hardware(from.hardware());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubInterface::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubInterface)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubInterface::CopyFrom(const SubInterface& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubInterface)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -3436,16 +2661,14 @@ bool SubInterface::IsInitialized() const {
 }
 
 void SubInterface::Swap(SubInterface* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubInterface::InternalSwap(SubInterface* other) {
-  interface_.Swap(&other->interface_);
-  flags_.Swap(&other->flags_);
-  hardware_.Swap(&other->hardware_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(interface_, other->interface_);
+    std::swap(flags_, other->flags_);
+    std::swap(hardware_, other->hardware_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubInterface::GetMetadata() const {
@@ -3456,185 +2679,19 @@ void SubInterface::InternalSwap(SubInterface* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubInterface
-
-// required string interface = 1;
-bool SubInterface::has_interface() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubInterface::set_has_interface() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubInterface::clear_has_interface() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubInterface::clear_interface() {
-  interface_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_interface();
-}
- const ::std::string& SubInterface::interface() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubInterface.interface)
-  return interface_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubInterface::set_interface(const ::std::string& value) {
-  set_has_interface();
-  interface_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubInterface.interface)
-}
- void SubInterface::set_interface(const char* value) {
-  set_has_interface();
-  interface_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubInterface.interface)
-}
- void SubInterface::set_interface(const char* value, size_t size) {
-  set_has_interface();
-  interface_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubInterface.interface)
-}
- ::std::string* SubInterface::mutable_interface() {
-  set_has_interface();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubInterface.interface)
-  return interface_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubInterface::release_interface() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubInterface.interface)
-  clear_has_interface();
-  return interface_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubInterface::set_allocated_interface(::std::string* interface) {
-  if (interface != NULL) {
-    set_has_interface();
-  } else {
-    clear_has_interface();
-  }
-  interface_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), interface);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubInterface.interface)
-}
-
-// required string flags = 2;
-bool SubInterface::has_flags() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubInterface::set_has_flags() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubInterface::clear_has_flags() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubInterface::clear_flags() {
-  flags_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_flags();
-}
- const ::std::string& SubInterface::flags() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubInterface.flags)
-  return flags_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubInterface::set_flags(const ::std::string& value) {
-  set_has_flags();
-  flags_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubInterface.flags)
-}
- void SubInterface::set_flags(const char* value) {
-  set_has_flags();
-  flags_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubInterface.flags)
-}
- void SubInterface::set_flags(const char* value, size_t size) {
-  set_has_flags();
-  flags_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubInterface.flags)
-}
- ::std::string* SubInterface::mutable_flags() {
-  set_has_flags();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubInterface.flags)
-  return flags_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubInterface::release_flags() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubInterface.flags)
-  clear_has_flags();
-  return flags_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubInterface::set_allocated_flags(::std::string* flags) {
-  if (flags != NULL) {
-    set_has_flags();
-  } else {
-    clear_has_flags();
-  }
-  flags_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), flags);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubInterface.flags)
-}
-
-// optional string hardware = 3;
-bool SubInterface::has_hardware() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubInterface::set_has_hardware() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubInterface::clear_has_hardware() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubInterface::clear_hardware() {
-  hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_hardware();
-}
- const ::std::string& SubInterface::hardware() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubInterface.hardware)
-  return hardware_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubInterface::set_hardware(const ::std::string& value) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubInterface.hardware)
-}
- void SubInterface::set_hardware(const char* value) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubInterface.hardware)
-}
- void SubInterface::set_hardware(const char* value, size_t size) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubInterface.hardware)
-}
- ::std::string* SubInterface::mutable_hardware() {
-  set_has_hardware();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubInterface.hardware)
-  return hardware_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubInterface::release_hardware() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubInterface.hardware)
-  clear_has_hardware();
-  return hardware_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubInterface::set_allocated_hardware(::std::string* hardware) {
-  if (hardware != NULL) {
-    set_has_hardware();
-  } else {
-    clear_has_hardware();
-  }
-  hardware_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), hardware);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubInterface.hardware)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubPacket::kTimeSecFieldNumber;
 const int SubPacket::kTimeUsecFieldNumber;
 const int SubPacket::kDltFieldNumber;
 const int SubPacket::kSizeFieldNumber;
 const int SubPacket::kDataFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubPacket::SubPacket()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubPacket)
 }
@@ -3643,8 +2700,7 @@ void SubPacket::InitAsDefaultInstance() {
 }
 
 SubPacket::SubPacket(const SubPacket& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubPacket)
@@ -3657,7 +2713,7 @@ void SubPacket::SharedCtor() {
   time_usec_ = GOOGLE_ULONGLONG(0);
   dlt_ = 0u;
   size_ = GOOGLE_ULONGLONG(0);
-  data_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  data_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -3667,7 +2723,9 @@ SubPacket::~SubPacket() {
 }
 
 void SubPacket::SharedDtor() {
-  data_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (data_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete data_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -3689,52 +2747,41 @@ const SubPacket& SubPacket::default_instance() {
 
 SubPacket* SubPacket::default_instance_ = NULL;
 
-SubPacket* SubPacket::New(::google::protobuf::Arena* arena) const {
-  SubPacket* n = new SubPacket;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubPacket* SubPacket::New() const {
+  return new SubPacket;
 }
 
 void SubPacket::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubPacket)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubPacket, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubPacket*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubPacket*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
-  if (_has_bits_[0 / 32] & 31u) {
+  if (_has_bits_[0 / 32] & 31) {
     ZR_(time_sec_, size_);
     dlt_ = 0u;
     if (has_data()) {
-      data_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (data_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        data_->clear();
+      }
     }
   }
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubPacket::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubPacket)
   for (;;) {
@@ -3865,15 +2912,15 @@ void SubPacket::SerializeWithCachedSizes(
       5, this->data(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubPacket)
 }
 
-::google::protobuf::uint8* SubPacket::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubPacket::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubPacket)
   // required uint64 time_sec = 1;
   if (has_time_sec()) {
@@ -3902,7 +2949,7 @@ void SubPacket::SerializeWithCachedSizes(
         5, this->data(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -3910,81 +2957,47 @@ void SubPacket::SerializeWithCachedSizes(
   return target;
 }
 
-int SubPacket::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetDatasource.SubPacket)
-  int total_size = 0;
-
-  if (has_time_sec()) {
-    // required uint64 time_sec = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_sec());
-  }
-
-  if (has_time_usec()) {
-    // required uint64 time_usec = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_usec());
-  }
-
-  if (has_dlt()) {
-    // required uint32 dlt = 3;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->dlt());
-  }
-
-  if (has_size()) {
-    // required uint64 size = 4;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->size());
-  }
-
-  if (has_data()) {
-    // required bytes data = 5;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::BytesSize(
-        this->data());
-  }
-
-  return total_size;
-}
 int SubPacket::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubPacket)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x0000001f) ^ 0x0000001f) == 0) {  // All required fields are present.
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // required uint64 time_sec = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_sec());
+    if (has_time_sec()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->time_sec());
+    }
 
     // required uint64 time_usec = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->time_usec());
+    if (has_time_usec()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->time_usec());
+    }
 
     // required uint32 dlt = 3;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->dlt());
+    if (has_dlt()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->dlt());
+    }
 
     // required uint64 size = 4;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt64Size(
-        this->size());
+    if (has_size()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt64Size(
+          this->size());
+    }
 
     // required bytes data = 5;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::BytesSize(
-        this->data());
+    if (has_data()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::BytesSize(
+          this->data());
+    }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -3996,27 +3009,19 @@ int SubPacket::ByteSize() const {
 }
 
 void SubPacket::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubPacket)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubPacket* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubPacket>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubPacket* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubPacket*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubPacket)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubPacket)
     MergeFrom(*source);
   }
 }
 
 void SubPacket::MergeFrom(const SubPacket& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubPacket)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_time_sec()) {
       set_time_sec(from.time_sec());
@@ -4031,24 +3036,19 @@ void SubPacket::MergeFrom(const SubPacket& from) {
       set_size(from.size());
     }
     if (from.has_data()) {
-      set_has_data();
-      data_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.data_);
+      set_data(from.data());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubPacket::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubPacket)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubPacket::CopyFrom(const SubPacket& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubPacket)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -4061,18 +3061,16 @@ bool SubPacket::IsInitialized() const {
 }
 
 void SubPacket::Swap(SubPacket* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubPacket::InternalSwap(SubPacket* other) {
-  std::swap(time_sec_, other->time_sec_);
-  std::swap(time_usec_, other->time_usec_);
-  std::swap(dlt_, other->dlt_);
-  std::swap(size_, other->size_);
-  data_.Swap(&other->data_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(time_sec_, other->time_sec_);
+    std::swap(time_usec_, other->time_usec_);
+    std::swap(dlt_, other->dlt_);
+    std::swap(size_, other->size_);
+    std::swap(data_, other->data_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubPacket::GetMetadata() const {
@@ -4083,164 +3081,10 @@ void SubPacket::InternalSwap(SubPacket* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubPacket
-
-// required uint64 time_sec = 1;
-bool SubPacket::has_time_sec() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubPacket::set_has_time_sec() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubPacket::clear_has_time_sec() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubPacket::clear_time_sec() {
-  time_sec_ = GOOGLE_ULONGLONG(0);
-  clear_has_time_sec();
-}
- ::google::protobuf::uint64 SubPacket::time_sec() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubPacket.time_sec)
-  return time_sec_;
-}
- void SubPacket::set_time_sec(::google::protobuf::uint64 value) {
-  set_has_time_sec();
-  time_sec_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubPacket.time_sec)
-}
-
-// required uint64 time_usec = 2;
-bool SubPacket::has_time_usec() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubPacket::set_has_time_usec() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubPacket::clear_has_time_usec() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubPacket::clear_time_usec() {
-  time_usec_ = GOOGLE_ULONGLONG(0);
-  clear_has_time_usec();
-}
- ::google::protobuf::uint64 SubPacket::time_usec() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubPacket.time_usec)
-  return time_usec_;
-}
- void SubPacket::set_time_usec(::google::protobuf::uint64 value) {
-  set_has_time_usec();
-  time_usec_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubPacket.time_usec)
-}
-
-// required uint32 dlt = 3;
-bool SubPacket::has_dlt() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubPacket::set_has_dlt() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubPacket::clear_has_dlt() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubPacket::clear_dlt() {
-  dlt_ = 0u;
-  clear_has_dlt();
-}
- ::google::protobuf::uint32 SubPacket::dlt() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubPacket.dlt)
-  return dlt_;
-}
- void SubPacket::set_dlt(::google::protobuf::uint32 value) {
-  set_has_dlt();
-  dlt_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubPacket.dlt)
-}
-
-// required uint64 size = 4;
-bool SubPacket::has_size() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void SubPacket::set_has_size() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void SubPacket::clear_has_size() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void SubPacket::clear_size() {
-  size_ = GOOGLE_ULONGLONG(0);
-  clear_has_size();
-}
- ::google::protobuf::uint64 SubPacket::size() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubPacket.size)
-  return size_;
-}
- void SubPacket::set_size(::google::protobuf::uint64 value) {
-  set_has_size();
-  size_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubPacket.size)
-}
-
-// required bytes data = 5;
-bool SubPacket::has_data() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void SubPacket::set_has_data() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void SubPacket::clear_has_data() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void SubPacket::clear_data() {
-  data_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_data();
-}
- const ::std::string& SubPacket::data() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubPacket.data)
-  return data_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubPacket::set_data(const ::std::string& value) {
-  set_has_data();
-  data_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubPacket.data)
-}
- void SubPacket::set_data(const char* value) {
-  set_has_data();
-  data_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubPacket.data)
-}
- void SubPacket::set_data(const void* value, size_t size) {
-  set_has_data();
-  data_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubPacket.data)
-}
- ::std::string* SubPacket::mutable_data() {
-  set_has_data();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubPacket.data)
-  return data_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubPacket::release_data() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubPacket.data)
-  clear_has_data();
-  return data_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubPacket::set_allocated_data(::std::string* data) {
-  if (data != NULL) {
-    set_has_data();
-  } else {
-    clear_has_data();
-  }
-  data_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), data);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubPacket.data)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubSignal::kSignalDbmFieldNumber;
 const int SubSignal::kNoiseDbmFieldNumber;
 const int SubSignal::kSignalRssiFieldNumber;
@@ -4248,10 +3092,10 @@ const int SubSignal::kNoiseRssiFieldNumber;
 const int SubSignal::kFreqKhzFieldNumber;
 const int SubSignal::kChannelFieldNumber;
 const int SubSignal::kDatarateFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubSignal::SubSignal()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubSignal)
 }
@@ -4260,8 +3104,7 @@ void SubSignal::InitAsDefaultInstance() {
 }
 
 SubSignal::SubSignal(const SubSignal& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubSignal)
@@ -4275,7 +3118,7 @@ void SubSignal::SharedCtor() {
   signal_rssi_ = 0;
   noise_rssi_ = 0;
   freq_khz_ = 0;
-  channel_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  channel_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   datarate_ = 0;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
@@ -4286,7 +3129,9 @@ SubSignal::~SubSignal() {
 }
 
 void SubSignal::SharedDtor() {
-  channel_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (channel_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete channel_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -4308,52 +3153,41 @@ const SubSignal& SubSignal::default_instance() {
 
 SubSignal* SubSignal::default_instance_ = NULL;
 
-SubSignal* SubSignal::New(::google::protobuf::Arena* arena) const {
-  SubSignal* n = new SubSignal;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubSignal* SubSignal::New() const {
+  return new SubSignal;
 }
 
 void SubSignal::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubSignal)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubSignal, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubSignal*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubSignal*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
-  if (_has_bits_[0 / 32] & 127u) {
+  if (_has_bits_[0 / 32] & 127) {
     ZR_(signal_dbm_, freq_khz_);
     if (has_channel()) {
-      channel_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (channel_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        channel_->clear();
+      }
     }
     datarate_ = 0;
   }
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubSignal::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubSignal)
   for (;;) {
@@ -4444,7 +3278,7 @@ bool SubSignal::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->channel().data(), this->channel().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubSignal.channel");
+            "channel");
         } else {
           goto handle_unusual;
         }
@@ -4522,7 +3356,7 @@ void SubSignal::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->channel().data(), this->channel().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubSignal.channel");
+      "channel");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       6, this->channel(), output);
   }
@@ -4532,15 +3366,15 @@ void SubSignal::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteDouble(7, this->datarate(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubSignal)
 }
 
-::google::protobuf::uint8* SubSignal::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubSignal::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubSignal)
   // optional double signal_dbm = 1;
   if (has_signal_dbm()) {
@@ -4572,7 +3406,7 @@ void SubSignal::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->channel().data(), this->channel().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubSignal.channel");
+      "channel");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         6, this->channel(), target);
@@ -4583,7 +3417,7 @@ void SubSignal::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(7, this->datarate(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -4592,10 +3426,9 @@ void SubSignal::SerializeWithCachedSizes(
 }
 
 int SubSignal::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubSignal)
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 127u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional double signal_dbm = 1;
     if (has_signal_dbm()) {
       total_size += 1 + 8;
@@ -4634,7 +3467,7 @@ int SubSignal::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -4646,27 +3479,19 @@ int SubSignal::ByteSize() const {
 }
 
 void SubSignal::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubSignal)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubSignal* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubSignal>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubSignal* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubSignal*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubSignal)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubSignal)
     MergeFrom(*source);
   }
 }
 
 void SubSignal::MergeFrom(const SubSignal& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubSignal)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_signal_dbm()) {
       set_signal_dbm(from.signal_dbm());
@@ -4684,27 +3509,22 @@ void SubSignal::MergeFrom(const SubSignal& from) {
       set_freq_khz(from.freq_khz());
     }
     if (from.has_channel()) {
-      set_has_channel();
-      channel_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.channel_);
+      set_channel(from.channel());
     }
     if (from.has_datarate()) {
       set_datarate(from.datarate());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubSignal::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubSignal)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubSignal::CopyFrom(const SubSignal& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubSignal)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -4716,20 +3536,18 @@ bool SubSignal::IsInitialized() const {
 }
 
 void SubSignal::Swap(SubSignal* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubSignal::InternalSwap(SubSignal* other) {
-  std::swap(signal_dbm_, other->signal_dbm_);
-  std::swap(noise_dbm_, other->noise_dbm_);
-  std::swap(signal_rssi_, other->signal_rssi_);
-  std::swap(noise_rssi_, other->noise_rssi_);
-  std::swap(freq_khz_, other->freq_khz_);
-  channel_.Swap(&other->channel_);
-  std::swap(datarate_, other->datarate_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(signal_dbm_, other->signal_dbm_);
+    std::swap(noise_dbm_, other->noise_dbm_);
+    std::swap(signal_rssi_, other->signal_rssi_);
+    std::swap(noise_rssi_, other->noise_rssi_);
+    std::swap(freq_khz_, other->freq_khz_);
+    std::swap(channel_, other->channel_);
+    std::swap(datarate_, other->datarate_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubSignal::GetMetadata() const {
@@ -4740,212 +3558,10 @@ void SubSignal::InternalSwap(SubSignal* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubSignal
-
-// optional double signal_dbm = 1;
-bool SubSignal::has_signal_dbm() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubSignal::set_has_signal_dbm() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubSignal::clear_has_signal_dbm() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubSignal::clear_signal_dbm() {
-  signal_dbm_ = 0;
-  clear_has_signal_dbm();
-}
- double SubSignal::signal_dbm() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.signal_dbm)
-  return signal_dbm_;
-}
- void SubSignal::set_signal_dbm(double value) {
-  set_has_signal_dbm();
-  signal_dbm_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.signal_dbm)
-}
-
-// optional double noise_dbm = 2;
-bool SubSignal::has_noise_dbm() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubSignal::set_has_noise_dbm() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubSignal::clear_has_noise_dbm() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubSignal::clear_noise_dbm() {
-  noise_dbm_ = 0;
-  clear_has_noise_dbm();
-}
- double SubSignal::noise_dbm() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.noise_dbm)
-  return noise_dbm_;
-}
- void SubSignal::set_noise_dbm(double value) {
-  set_has_noise_dbm();
-  noise_dbm_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.noise_dbm)
-}
-
-// optional double signal_rssi = 3;
-bool SubSignal::has_signal_rssi() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubSignal::set_has_signal_rssi() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubSignal::clear_has_signal_rssi() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubSignal::clear_signal_rssi() {
-  signal_rssi_ = 0;
-  clear_has_signal_rssi();
-}
- double SubSignal::signal_rssi() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.signal_rssi)
-  return signal_rssi_;
-}
- void SubSignal::set_signal_rssi(double value) {
-  set_has_signal_rssi();
-  signal_rssi_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.signal_rssi)
-}
-
-// optional double noise_rssi = 4;
-bool SubSignal::has_noise_rssi() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void SubSignal::set_has_noise_rssi() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void SubSignal::clear_has_noise_rssi() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void SubSignal::clear_noise_rssi() {
-  noise_rssi_ = 0;
-  clear_has_noise_rssi();
-}
- double SubSignal::noise_rssi() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.noise_rssi)
-  return noise_rssi_;
-}
- void SubSignal::set_noise_rssi(double value) {
-  set_has_noise_rssi();
-  noise_rssi_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.noise_rssi)
-}
-
-// optional double freq_khz = 5;
-bool SubSignal::has_freq_khz() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void SubSignal::set_has_freq_khz() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void SubSignal::clear_has_freq_khz() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void SubSignal::clear_freq_khz() {
-  freq_khz_ = 0;
-  clear_has_freq_khz();
-}
- double SubSignal::freq_khz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.freq_khz)
-  return freq_khz_;
-}
- void SubSignal::set_freq_khz(double value) {
-  set_has_freq_khz();
-  freq_khz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.freq_khz)
-}
-
-// optional string channel = 6;
-bool SubSignal::has_channel() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-void SubSignal::set_has_channel() {
-  _has_bits_[0] |= 0x00000020u;
-}
-void SubSignal::clear_has_channel() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-void SubSignal::clear_channel() {
-  channel_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_channel();
-}
- const ::std::string& SubSignal::channel() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.channel)
-  return channel_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubSignal::set_channel(const ::std::string& value) {
-  set_has_channel();
-  channel_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.channel)
-}
- void SubSignal::set_channel(const char* value) {
-  set_has_channel();
-  channel_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubSignal.channel)
-}
- void SubSignal::set_channel(const char* value, size_t size) {
-  set_has_channel();
-  channel_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubSignal.channel)
-}
- ::std::string* SubSignal::mutable_channel() {
-  set_has_channel();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubSignal.channel)
-  return channel_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubSignal::release_channel() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubSignal.channel)
-  clear_has_channel();
-  return channel_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubSignal::set_allocated_channel(::std::string* channel) {
-  if (channel != NULL) {
-    set_has_channel();
-  } else {
-    clear_has_channel();
-  }
-  channel_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), channel);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubSignal.channel)
-}
-
-// optional double datarate = 7;
-bool SubSignal::has_datarate() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
-}
-void SubSignal::set_has_datarate() {
-  _has_bits_[0] |= 0x00000040u;
-}
-void SubSignal::clear_has_datarate() {
-  _has_bits_[0] &= ~0x00000040u;
-}
-void SubSignal::clear_datarate() {
-  datarate_ = 0;
-  clear_has_datarate();
-}
- double SubSignal::datarate() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSignal.datarate)
-  return datarate_;
-}
- void SubSignal::set_datarate(double value) {
-  set_has_datarate();
-  datarate_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSignal.datarate)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubSpecset::kStartMhzFieldNumber;
 const int SubSpecset::kEndMhzFieldNumber;
 const int SubSpecset::kSamplesPerBucketFieldNumber;
@@ -4953,10 +3569,10 @@ const int SubSpecset::kBucketWidthHzFieldNumber;
 const int SubSpecset::kEnableAmpFieldNumber;
 const int SubSpecset::kIfAmpFieldNumber;
 const int SubSpecset::kBasebandAmpFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubSpecset::SubSpecset()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubSpecset)
 }
@@ -4965,8 +3581,7 @@ void SubSpecset::InitAsDefaultInstance() {
 }
 
 SubSpecset::SubSpecset(const SubSpecset& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubSpecset)
@@ -5011,48 +3626,35 @@ const SubSpecset& SubSpecset::default_instance() {
 
 SubSpecset* SubSpecset::default_instance_ = NULL;
 
-SubSpecset* SubSpecset::New(::google::protobuf::Arena* arena) const {
-  SubSpecset* n = new SubSpecset;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubSpecset* SubSpecset::New() const {
+  return new SubSpecset;
 }
 
 void SubSpecset::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubSpecset)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubSpecset, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubSpecset*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubSpecset*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
-  if (_has_bits_[0 / 32] & 127u) {
+  if (_has_bits_[0 / 32] & 127) {
     ZR_(start_mhz_, enable_amp_);
   }
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubSpecset::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubSpecset)
   for (;;) {
@@ -5224,15 +3826,15 @@ void SubSpecset::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt64(7, this->baseband_amp(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubSpecset)
 }
 
-::google::protobuf::uint8* SubSpecset::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubSpecset::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubSpecset)
   // optional double start_mhz = 1;
   if (has_start_mhz()) {
@@ -5269,7 +3871,7 @@ void SubSpecset::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt64ToArray(7, this->baseband_amp(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -5278,10 +3880,9 @@ void SubSpecset::SerializeWithCachedSizes(
 }
 
 int SubSpecset::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubSpecset)
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 127u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional double start_mhz = 1;
     if (has_start_mhz()) {
       total_size += 1 + 8;
@@ -5322,7 +3923,7 @@ int SubSpecset::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -5334,27 +3935,19 @@ int SubSpecset::ByteSize() const {
 }
 
 void SubSpecset::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubSpecset)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubSpecset* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubSpecset>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubSpecset* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubSpecset*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubSpecset)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubSpecset)
     MergeFrom(*source);
   }
 }
 
 void SubSpecset::MergeFrom(const SubSpecset& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubSpecset)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_start_mhz()) {
       set_start_mhz(from.start_mhz());
@@ -5378,20 +3971,16 @@ void SubSpecset::MergeFrom(const SubSpecset& from) {
       set_baseband_amp(from.baseband_amp());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubSpecset::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubSpecset)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubSpecset::CopyFrom(const SubSpecset& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubSpecset)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -5403,20 +3992,18 @@ bool SubSpecset::IsInitialized() const {
 }
 
 void SubSpecset::Swap(SubSpecset* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubSpecset::InternalSwap(SubSpecset* other) {
-  std::swap(start_mhz_, other->start_mhz_);
-  std::swap(end_mhz_, other->end_mhz_);
-  std::swap(samples_per_bucket_, other->samples_per_bucket_);
-  std::swap(bucket_width_hz_, other->bucket_width_hz_);
-  std::swap(enable_amp_, other->enable_amp_);
-  std::swap(if_amp_, other->if_amp_);
-  std::swap(baseband_amp_, other->baseband_amp_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(start_mhz_, other->start_mhz_);
+    std::swap(end_mhz_, other->end_mhz_);
+    std::swap(samples_per_bucket_, other->samples_per_bucket_);
+    std::swap(bucket_width_hz_, other->bucket_width_hz_);
+    std::swap(enable_amp_, other->enable_amp_);
+    std::swap(if_amp_, other->if_amp_);
+    std::swap(baseband_amp_, other->baseband_amp_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubSpecset::GetMetadata() const {
@@ -5427,192 +4014,20 @@ void SubSpecset::InternalSwap(SubSpecset* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubSpecset
-
-// optional double start_mhz = 1;
-bool SubSpecset::has_start_mhz() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubSpecset::set_has_start_mhz() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubSpecset::clear_has_start_mhz() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubSpecset::clear_start_mhz() {
-  start_mhz_ = 0;
-  clear_has_start_mhz();
-}
- double SubSpecset::start_mhz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.start_mhz)
-  return start_mhz_;
-}
- void SubSpecset::set_start_mhz(double value) {
-  set_has_start_mhz();
-  start_mhz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.start_mhz)
-}
-
-// optional double end_mhz = 2;
-bool SubSpecset::has_end_mhz() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubSpecset::set_has_end_mhz() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubSpecset::clear_has_end_mhz() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubSpecset::clear_end_mhz() {
-  end_mhz_ = 0;
-  clear_has_end_mhz();
-}
- double SubSpecset::end_mhz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.end_mhz)
-  return end_mhz_;
-}
- void SubSpecset::set_end_mhz(double value) {
-  set_has_end_mhz();
-  end_mhz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.end_mhz)
-}
-
-// optional double samples_per_bucket = 3;
-bool SubSpecset::has_samples_per_bucket() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubSpecset::set_has_samples_per_bucket() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubSpecset::clear_has_samples_per_bucket() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubSpecset::clear_samples_per_bucket() {
-  samples_per_bucket_ = 0;
-  clear_has_samples_per_bucket();
-}
- double SubSpecset::samples_per_bucket() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.samples_per_bucket)
-  return samples_per_bucket_;
-}
- void SubSpecset::set_samples_per_bucket(double value) {
-  set_has_samples_per_bucket();
-  samples_per_bucket_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.samples_per_bucket)
-}
-
-// optional double bucket_width_hz = 4;
-bool SubSpecset::has_bucket_width_hz() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void SubSpecset::set_has_bucket_width_hz() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void SubSpecset::clear_has_bucket_width_hz() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void SubSpecset::clear_bucket_width_hz() {
-  bucket_width_hz_ = 0;
-  clear_has_bucket_width_hz();
-}
- double SubSpecset::bucket_width_hz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.bucket_width_hz)
-  return bucket_width_hz_;
-}
- void SubSpecset::set_bucket_width_hz(double value) {
-  set_has_bucket_width_hz();
-  bucket_width_hz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.bucket_width_hz)
-}
-
-// optional bool enable_amp = 5;
-bool SubSpecset::has_enable_amp() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void SubSpecset::set_has_enable_amp() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void SubSpecset::clear_has_enable_amp() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void SubSpecset::clear_enable_amp() {
-  enable_amp_ = false;
-  clear_has_enable_amp();
-}
- bool SubSpecset::enable_amp() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.enable_amp)
-  return enable_amp_;
-}
- void SubSpecset::set_enable_amp(bool value) {
-  set_has_enable_amp();
-  enable_amp_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.enable_amp)
-}
-
-// optional uint64 if_amp = 6;
-bool SubSpecset::has_if_amp() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-void SubSpecset::set_has_if_amp() {
-  _has_bits_[0] |= 0x00000020u;
-}
-void SubSpecset::clear_has_if_amp() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-void SubSpecset::clear_if_amp() {
-  if_amp_ = GOOGLE_ULONGLONG(0);
-  clear_has_if_amp();
-}
- ::google::protobuf::uint64 SubSpecset::if_amp() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.if_amp)
-  return if_amp_;
-}
- void SubSpecset::set_if_amp(::google::protobuf::uint64 value) {
-  set_has_if_amp();
-  if_amp_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.if_amp)
-}
-
-// optional uint64 baseband_amp = 7;
-bool SubSpecset::has_baseband_amp() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
-}
-void SubSpecset::set_has_baseband_amp() {
-  _has_bits_[0] |= 0x00000040u;
-}
-void SubSpecset::clear_has_baseband_amp() {
-  _has_bits_[0] &= ~0x00000040u;
-}
-void SubSpecset::clear_baseband_amp() {
-  baseband_amp_ = GOOGLE_ULONGLONG(0);
-  clear_has_baseband_amp();
-}
- ::google::protobuf::uint64 SubSpecset::baseband_amp() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpecset.baseband_amp)
-  return baseband_amp_;
-}
- void SubSpecset::set_baseband_amp(::google::protobuf::uint64 value) {
-  set_has_baseband_amp();
-  baseband_amp_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpecset.baseband_amp)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubSpectrum::kTimeSecFieldNumber;
 const int SubSpectrum::kTimeUsecFieldNumber;
 const int SubSpectrum::kStartMhzFieldNumber;
 const int SubSpectrum::kEndMhzFieldNumber;
 const int SubSpectrum::kBucketWidthHzFieldNumber;
 const int SubSpectrum::kDataFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubSpectrum::SubSpectrum()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubSpectrum)
 }
@@ -5621,8 +4036,7 @@ void SubSpectrum::InitAsDefaultInstance() {
 }
 
 SubSpectrum::SubSpectrum(const SubSpectrum& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubSpectrum)
@@ -5665,49 +4079,36 @@ const SubSpectrum& SubSpectrum::default_instance() {
 
 SubSpectrum* SubSpectrum::default_instance_ = NULL;
 
-SubSpectrum* SubSpectrum::New(::google::protobuf::Arena* arena) const {
-  SubSpectrum* n = new SubSpectrum;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubSpectrum* SubSpectrum::New() const {
+  return new SubSpectrum;
 }
 
 void SubSpectrum::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubSpectrum)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubSpectrum, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubSpectrum*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubSpectrum*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
-  if (_has_bits_[0 / 32] & 31u) {
+  if (_has_bits_[0 / 32] & 31) {
     ZR_(time_sec_, bucket_width_hz_);
   }
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   data_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubSpectrum::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubSpectrum)
   for (;;) {
@@ -5864,15 +4265,15 @@ void SubSpectrum::SerializeWithCachedSizes(
       6, this->data(i), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubSpectrum)
 }
 
-::google::protobuf::uint8* SubSpectrum::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubSpectrum::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubSpectrum)
   // optional uint64 time_sec = 1;
   if (has_time_sec()) {
@@ -5905,7 +4306,7 @@ void SubSpectrum::SerializeWithCachedSizes(
       WriteInt32ToArray(6, this->data(i), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -5914,10 +4315,9 @@ void SubSpectrum::SerializeWithCachedSizes(
 }
 
 int SubSpectrum::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubSpectrum)
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 31u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional uint64 time_sec = 1;
     if (has_time_sec()) {
       total_size += 1 +
@@ -5958,7 +4358,7 @@ int SubSpectrum::ByteSize() const {
     total_size += 1 * this->data_size() + data_size;
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -5970,27 +4370,19 @@ int SubSpectrum::ByteSize() const {
 }
 
 void SubSpectrum::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubSpectrum)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubSpectrum* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubSpectrum>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubSpectrum* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubSpectrum*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubSpectrum)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubSpectrum)
     MergeFrom(*source);
   }
 }
 
 void SubSpectrum::MergeFrom(const SubSpectrum& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubSpectrum)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   data_.MergeFrom(from.data_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_time_sec()) {
@@ -6009,20 +4401,16 @@ void SubSpectrum::MergeFrom(const SubSpectrum& from) {
       set_bucket_width_hz(from.bucket_width_hz());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubSpectrum::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubSpectrum)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubSpectrum::CopyFrom(const SubSpectrum& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubSpectrum)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -6034,19 +4422,17 @@ bool SubSpectrum::IsInitialized() const {
 }
 
 void SubSpectrum::Swap(SubSpectrum* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubSpectrum::InternalSwap(SubSpectrum* other) {
-  std::swap(time_sec_, other->time_sec_);
-  std::swap(time_usec_, other->time_usec_);
-  std::swap(start_mhz_, other->start_mhz_);
-  std::swap(end_mhz_, other->end_mhz_);
-  std::swap(bucket_width_hz_, other->bucket_width_hz_);
-  data_.UnsafeArenaSwap(&other->data_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(time_sec_, other->time_sec_);
+    std::swap(time_usec_, other->time_usec_);
+    std::swap(start_mhz_, other->start_mhz_);
+    std::swap(end_mhz_, other->end_mhz_);
+    std::swap(bucket_width_hz_, other->bucket_width_hz_);
+    data_.Swap(&other->data_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubSpectrum::GetMetadata() const {
@@ -6057,170 +4443,16 @@ void SubSpectrum::InternalSwap(SubSpectrum* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubSpectrum
-
-// optional uint64 time_sec = 1;
-bool SubSpectrum::has_time_sec() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubSpectrum::set_has_time_sec() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubSpectrum::clear_has_time_sec() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubSpectrum::clear_time_sec() {
-  time_sec_ = GOOGLE_ULONGLONG(0);
-  clear_has_time_sec();
-}
- ::google::protobuf::uint64 SubSpectrum::time_sec() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpectrum.time_sec)
-  return time_sec_;
-}
- void SubSpectrum::set_time_sec(::google::protobuf::uint64 value) {
-  set_has_time_sec();
-  time_sec_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpectrum.time_sec)
-}
-
-// optional uint64 time_usec = 2;
-bool SubSpectrum::has_time_usec() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubSpectrum::set_has_time_usec() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubSpectrum::clear_has_time_usec() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubSpectrum::clear_time_usec() {
-  time_usec_ = GOOGLE_ULONGLONG(0);
-  clear_has_time_usec();
-}
- ::google::protobuf::uint64 SubSpectrum::time_usec() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpectrum.time_usec)
-  return time_usec_;
-}
- void SubSpectrum::set_time_usec(::google::protobuf::uint64 value) {
-  set_has_time_usec();
-  time_usec_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpectrum.time_usec)
-}
-
-// optional double start_mhz = 3;
-bool SubSpectrum::has_start_mhz() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void SubSpectrum::set_has_start_mhz() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void SubSpectrum::clear_has_start_mhz() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void SubSpectrum::clear_start_mhz() {
-  start_mhz_ = 0;
-  clear_has_start_mhz();
-}
- double SubSpectrum::start_mhz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpectrum.start_mhz)
-  return start_mhz_;
-}
- void SubSpectrum::set_start_mhz(double value) {
-  set_has_start_mhz();
-  start_mhz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpectrum.start_mhz)
-}
-
-// optional double end_mhz = 4;
-bool SubSpectrum::has_end_mhz() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void SubSpectrum::set_has_end_mhz() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void SubSpectrum::clear_has_end_mhz() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void SubSpectrum::clear_end_mhz() {
-  end_mhz_ = 0;
-  clear_has_end_mhz();
-}
- double SubSpectrum::end_mhz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpectrum.end_mhz)
-  return end_mhz_;
-}
- void SubSpectrum::set_end_mhz(double value) {
-  set_has_end_mhz();
-  end_mhz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpectrum.end_mhz)
-}
-
-// optional double bucket_width_hz = 5;
-bool SubSpectrum::has_bucket_width_hz() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void SubSpectrum::set_has_bucket_width_hz() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void SubSpectrum::clear_has_bucket_width_hz() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void SubSpectrum::clear_bucket_width_hz() {
-  bucket_width_hz_ = 0;
-  clear_has_bucket_width_hz();
-}
- double SubSpectrum::bucket_width_hz() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpectrum.bucket_width_hz)
-  return bucket_width_hz_;
-}
- void SubSpectrum::set_bucket_width_hz(double value) {
-  set_has_bucket_width_hz();
-  bucket_width_hz_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpectrum.bucket_width_hz)
-}
-
-// repeated int32 data = 6;
-int SubSpectrum::data_size() const {
-  return data_.size();
-}
-void SubSpectrum::clear_data() {
-  data_.Clear();
-}
- ::google::protobuf::int32 SubSpectrum::data(int index) const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSpectrum.data)
-  return data_.Get(index);
-}
- void SubSpectrum::set_data(int index, ::google::protobuf::int32 value) {
-  data_.Set(index, value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSpectrum.data)
-}
- void SubSpectrum::add_data(::google::protobuf::int32 value) {
-  data_.Add(value);
-  // @@protoc_insertion_point(field_add:KismetDatasource.SubSpectrum.data)
-}
- const ::google::protobuf::RepeatedField< ::google::protobuf::int32 >&
-SubSpectrum::data() const {
-  // @@protoc_insertion_point(field_list:KismetDatasource.SubSpectrum.data)
-  return data_;
-}
- ::google::protobuf::RepeatedField< ::google::protobuf::int32 >*
-SubSpectrum::mutable_data() {
-  // @@protoc_insertion_point(field_mutable_list:KismetDatasource.SubSpectrum.data)
-  return &data_;
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int SubSuccess::kSuccessFieldNumber;
 const int SubSuccess::kCommandNumFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 SubSuccess::SubSuccess()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.SubSuccess)
 }
@@ -6229,8 +4461,7 @@ void SubSuccess::InitAsDefaultInstance() {
 }
 
 SubSuccess::SubSuccess(const SubSuccess& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubSuccess)
@@ -6270,46 +4501,33 @@ const SubSuccess& SubSuccess::default_instance() {
 
 SubSuccess* SubSuccess::default_instance_ = NULL;
 
-SubSuccess* SubSuccess::New(::google::protobuf::Arena* arena) const {
-  SubSuccess* n = new SubSuccess;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+SubSuccess* SubSuccess::New() const {
+  return new SubSuccess;
 }
 
 void SubSuccess::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubSuccess)
-#if defined(__clang__)
-#define ZR_HELPER_(f) \
-  _Pragma("clang diagnostic push") \
-  _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"") \
-  __builtin_offsetof(SubSuccess, f) \
-  _Pragma("clang diagnostic pop")
-#else
-#define ZR_HELPER_(f) reinterpret_cast<char*>(\
-  &reinterpret_cast<SubSuccess*>(16)->f)
-#endif
+#define OFFSET_OF_FIELD_(f) (reinterpret_cast<char*>(      \
+  &reinterpret_cast<SubSuccess*>(16)->f) - \
+   reinterpret_cast<char*>(16))
 
-#define ZR_(first, last) do {\
-  ::memset(&first, 0,\
-           ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
-} while (0)
+#define ZR_(first, last) do {                              \
+    size_t f = OFFSET_OF_FIELD_(first);                    \
+    size_t n = OFFSET_OF_FIELD_(last) - f + sizeof(last);  \
+    ::memset(&first, 0, n);                                \
+  } while (0)
 
   ZR_(success_, command_num_);
 
-#undef ZR_HELPER_
+#undef OFFSET_OF_FIELD_
 #undef ZR_
 
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool SubSuccess::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.SubSuccess)
   for (;;) {
@@ -6381,15 +4599,15 @@ void SubSuccess::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(2, this->command_num(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.SubSuccess)
 }
 
-::google::protobuf::uint8* SubSuccess::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* SubSuccess::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubSuccess)
   // required bool success = 1;
   if (has_success()) {
@@ -6401,7 +4619,7 @@ void SubSuccess::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(2, this->command_num(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -6409,41 +4627,24 @@ void SubSuccess::SerializeWithCachedSizes(
   return target;
 }
 
-int SubSuccess::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetDatasource.SubSuccess)
-  int total_size = 0;
-
-  if (has_success()) {
-    // required bool success = 1;
-    total_size += 1 + 1;
-  }
-
-  if (has_command_num()) {
-    // required uint32 command_num = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->command_num());
-  }
-
-  return total_size;
-}
 int SubSuccess::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubSuccess)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // required bool success = 1;
-    total_size += 1 + 1;
+    if (has_success()) {
+      total_size += 1 + 1;
+    }
 
     // required uint32 command_num = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::UInt32Size(
-        this->command_num());
+    if (has_command_num()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::UInt32Size(
+          this->command_num());
+    }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -6455,27 +4656,19 @@ int SubSuccess::ByteSize() const {
 }
 
 void SubSuccess::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubSuccess)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubSuccess* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubSuccess>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const SubSuccess* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const SubSuccess*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubSuccess)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubSuccess)
     MergeFrom(*source);
   }
 }
 
 void SubSuccess::MergeFrom(const SubSuccess& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubSuccess)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_success()) {
       set_success(from.success());
@@ -6484,20 +4677,16 @@ void SubSuccess::MergeFrom(const SubSuccess& from) {
       set_command_num(from.command_num());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void SubSuccess::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubSuccess)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void SubSuccess::CopyFrom(const SubSuccess& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubSuccess)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -6510,15 +4699,13 @@ bool SubSuccess::IsInitialized() const {
 }
 
 void SubSuccess::Swap(SubSuccess* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubSuccess::InternalSwap(SubSuccess* other) {
-  std::swap(success_, other->success_);
-  std::swap(command_num_, other->command_num_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(success_, other->success_);
+    std::swap(command_num_, other->command_num_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata SubSuccess::GetMetadata() const {
@@ -6529,67 +4716,15 @@ void SubSuccess::InternalSwap(SubSuccess* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubSuccess
-
-// required bool success = 1;
-bool SubSuccess::has_success() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubSuccess::set_has_success() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubSuccess::clear_has_success() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubSuccess::clear_success() {
-  success_ = false;
-  clear_has_success();
-}
- bool SubSuccess::success() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSuccess.success)
-  return success_;
-}
- void SubSuccess::set_success(bool value) {
-  set_has_success();
-  success_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSuccess.success)
-}
-
-// required uint32 command_num = 2;
-bool SubSuccess::has_command_num() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubSuccess::set_has_command_num() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubSuccess::clear_has_command_num() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubSuccess::clear_command_num() {
-  command_num_ = 0u;
-  clear_has_command_num();
-}
- ::google::protobuf::uint32 SubSuccess::command_num() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubSuccess.command_num)
-  return command_num_;
-}
- void SubSuccess::set_command_num(::google::protobuf::uint32 value) {
-  set_has_command_num();
-  command_num_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubSuccess.command_num)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int Channels::kChannelsFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 Channels::Channels()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.Channels)
 }
@@ -6599,8 +4734,7 @@ void Channels::InitAsDefaultInstance() {
 }
 
 Channels::Channels(const Channels& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.Channels)
@@ -6640,28 +4774,21 @@ const Channels& Channels::default_instance() {
 
 Channels* Channels::default_instance_ = NULL;
 
-Channels* Channels::New(::google::protobuf::Arena* arena) const {
-  Channels* n = new Channels;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+Channels* Channels::New() const {
+  return new Channels;
 }
 
 void Channels::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.Channels)
   if (has_channels()) {
     if (channels_ != NULL) channels_->::KismetDatasource::SubChannels::Clear();
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool Channels::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.Channels)
   for (;;) {
@@ -6709,27 +4836,27 @@ void Channels::SerializeWithCachedSizes(
   // required .KismetDatasource.SubChannels channels = 1;
   if (has_channels()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->channels_, output);
+      1, this->channels(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.Channels)
 }
 
-::google::protobuf::uint8* Channels::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* Channels::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.Channels)
   // required .KismetDatasource.SubChannels channels = 1;
   if (has_channels()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->channels_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->channels(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -6738,16 +4865,18 @@ void Channels::SerializeWithCachedSizes(
 }
 
 int Channels::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.Channels)
   int total_size = 0;
 
-  // required .KismetDatasource.SubChannels channels = 1;
-  if (has_channels()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->channels_);
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .KismetDatasource.SubChannels channels = 1;
+    if (has_channels()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->channels());
+    }
+
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -6759,46 +4888,34 @@ int Channels::ByteSize() const {
 }
 
 void Channels::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.Channels)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const Channels* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const Channels>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const Channels* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Channels*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.Channels)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.Channels)
     MergeFrom(*source);
   }
 }
 
 void Channels::MergeFrom(const Channels& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.Channels)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_channels()) {
       mutable_channels()->::KismetDatasource::SubChannels::MergeFrom(from.channels());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void Channels::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.Channels)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void Channels::CopyFrom(const Channels& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.Channels)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -6811,14 +4928,12 @@ bool Channels::IsInitialized() const {
 }
 
 void Channels::Swap(Channels* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void Channels::InternalSwap(Channels* other) {
-  std::swap(channels_, other->channels_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(channels_, other->channels_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata Channels::GetMetadata() const {
@@ -6829,62 +4944,14 @@ void Channels::InternalSwap(Channels* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// Channels
-
-// required .KismetDatasource.SubChannels channels = 1;
-bool Channels::has_channels() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void Channels::set_has_channels() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void Channels::clear_has_channels() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void Channels::clear_channels() {
-  if (channels_ != NULL) channels_->::KismetDatasource::SubChannels::Clear();
-  clear_has_channels();
-}
-const ::KismetDatasource::SubChannels& Channels::channels() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.Channels.channels)
-  return channels_ != NULL ? *channels_ : *default_instance_->channels_;
-}
-::KismetDatasource::SubChannels* Channels::mutable_channels() {
-  set_has_channels();
-  if (channels_ == NULL) {
-    channels_ = new ::KismetDatasource::SubChannels;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.Channels.channels)
-  return channels_;
-}
-::KismetDatasource::SubChannels* Channels::release_channels() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.Channels.channels)
-  clear_has_channels();
-  ::KismetDatasource::SubChannels* temp = channels_;
-  channels_ = NULL;
-  return temp;
-}
-void Channels::set_allocated_channels(::KismetDatasource::SubChannels* channels) {
-  delete channels_;
-  channels_ = channels;
-  if (channels) {
-    set_has_channels();
-  } else {
-    clear_has_channels();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.Channels.channels)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
+#endif  // !_MSC_VER
 
 CloseDatasource::CloseDatasource()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.CloseDatasource)
 }
@@ -6893,8 +4960,7 @@ void CloseDatasource::InitAsDefaultInstance() {
 }
 
 CloseDatasource::CloseDatasource(const CloseDatasource& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.CloseDatasource)
@@ -6932,25 +4998,18 @@ const CloseDatasource& CloseDatasource::default_instance() {
 
 CloseDatasource* CloseDatasource::default_instance_ = NULL;
 
-CloseDatasource* CloseDatasource::New(::google::protobuf::Arena* arena) const {
-  CloseDatasource* n = new CloseDatasource;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+CloseDatasource* CloseDatasource::New() const {
+  return new CloseDatasource;
 }
 
 void CloseDatasource::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.CloseDatasource)
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool CloseDatasource::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.CloseDatasource)
   for (;;) {
@@ -6978,17 +5037,17 @@ failure:
 void CloseDatasource::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // @@protoc_insertion_point(serialize_start:KismetDatasource.CloseDatasource)
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.CloseDatasource)
 }
 
-::google::protobuf::uint8* CloseDatasource::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* CloseDatasource::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.CloseDatasource)
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -6997,10 +5056,9 @@ void CloseDatasource::SerializeWithCachedSizes(
 }
 
 int CloseDatasource::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.CloseDatasource)
   int total_size = 0;
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -7012,41 +5070,29 @@ int CloseDatasource::ByteSize() const {
 }
 
 void CloseDatasource::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.CloseDatasource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const CloseDatasource* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const CloseDatasource>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const CloseDatasource* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const CloseDatasource*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.CloseDatasource)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.CloseDatasource)
     MergeFrom(*source);
   }
 }
 
 void CloseDatasource::MergeFrom(const CloseDatasource& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.CloseDatasource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  GOOGLE_CHECK_NE(&from, this);
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void CloseDatasource::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.CloseDatasource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void CloseDatasource::CopyFrom(const CloseDatasource& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.CloseDatasource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -7058,12 +5104,10 @@ bool CloseDatasource::IsInitialized() const {
 }
 
 void CloseDatasource::Swap(CloseDatasource* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void CloseDatasource::InternalSwap(CloseDatasource* other) {
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata CloseDatasource::GetMetadata() const {
@@ -7074,21 +5118,17 @@ void CloseDatasource::InternalSwap(CloseDatasource* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// CloseDatasource
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int Configure::kChannelFieldNumber;
 const int Configure::kHoppingFieldNumber;
 const int Configure::kSpectrumFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 Configure::Configure()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.Configure)
 }
@@ -7100,8 +5140,7 @@ void Configure::InitAsDefaultInstance() {
 }
 
 Configure::Configure(const Configure& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.Configure)
@@ -7145,17 +5184,12 @@ const Configure& Configure::default_instance() {
 
 Configure* Configure::default_instance_ = NULL;
 
-Configure* Configure::New(::google::protobuf::Arena* arena) const {
-  Configure* n = new Configure;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+Configure* Configure::New() const {
+  return new Configure;
 }
 
 void Configure::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.Configure)
-  if (_has_bits_[0 / 32] & 7u) {
+  if (_has_bits_[0 / 32] & 7) {
     if (has_channel()) {
       if (channel_ != NULL) channel_->::KismetDatasource::SubChanset::Clear();
     }
@@ -7167,14 +5201,12 @@ void Configure::Clear() {
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool Configure::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.Configure)
   for (;;) {
@@ -7248,53 +5280,53 @@ void Configure::SerializeWithCachedSizes(
   // optional .KismetDatasource.SubChanset channel = 1;
   if (has_channel()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->channel_, output);
+      1, this->channel(), output);
   }
 
   // optional .KismetDatasource.SubChanhop hopping = 2;
   if (has_hopping()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->hopping_, output);
+      2, this->hopping(), output);
   }
 
   // optional .KismetDatasource.SubSpecset spectrum = 3;
   if (has_spectrum()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      3, *this->spectrum_, output);
+      3, this->spectrum(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.Configure)
 }
 
-::google::protobuf::uint8* Configure::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* Configure::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.Configure)
   // optional .KismetDatasource.SubChanset channel = 1;
   if (has_channel()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->channel_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->channel(), target);
   }
 
   // optional .KismetDatasource.SubChanhop hopping = 2;
   if (has_hopping()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, *this->hopping_, false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->hopping(), target);
   }
 
   // optional .KismetDatasource.SubSpecset spectrum = 3;
   if (has_spectrum()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        3, *this->spectrum_, false, target);
+      WriteMessageNoVirtualToArray(
+        3, this->spectrum(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -7303,33 +5335,32 @@ void Configure::SerializeWithCachedSizes(
 }
 
 int Configure::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.Configure)
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 7u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional .KismetDatasource.SubChanset channel = 1;
     if (has_channel()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->channel_);
+          this->channel());
     }
 
     // optional .KismetDatasource.SubChanhop hopping = 2;
     if (has_hopping()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->hopping_);
+          this->hopping());
     }
 
     // optional .KismetDatasource.SubSpecset spectrum = 3;
     if (has_spectrum()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->spectrum_);
+          this->spectrum());
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -7341,27 +5372,19 @@ int Configure::ByteSize() const {
 }
 
 void Configure::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.Configure)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const Configure* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const Configure>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const Configure* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Configure*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.Configure)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.Configure)
     MergeFrom(*source);
   }
 }
 
 void Configure::MergeFrom(const Configure& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.Configure)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_channel()) {
       mutable_channel()->::KismetDatasource::SubChanset::MergeFrom(from.channel());
@@ -7373,20 +5396,16 @@ void Configure::MergeFrom(const Configure& from) {
       mutable_spectrum()->::KismetDatasource::SubSpecset::MergeFrom(from.spectrum());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void Configure::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.Configure)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void Configure::CopyFrom(const Configure& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.Configure)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -7395,22 +5414,20 @@ void Configure::CopyFrom(const Configure& from) {
 bool Configure::IsInitialized() const {
 
   if (has_channel()) {
-    if (!this->channel_->IsInitialized()) return false;
+    if (!this->channel().IsInitialized()) return false;
   }
   return true;
 }
 
 void Configure::Swap(Configure* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void Configure::InternalSwap(Configure* other) {
-  std::swap(channel_, other->channel_);
-  std::swap(hopping_, other->hopping_);
-  std::swap(spectrum_, other->spectrum_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(channel_, other->channel_);
+    std::swap(hopping_, other->hopping_);
+    std::swap(spectrum_, other->spectrum_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata Configure::GetMetadata() const {
@@ -7421,155 +5438,19 @@ void Configure::InternalSwap(Configure* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// Configure
-
-// optional .KismetDatasource.SubChanset channel = 1;
-bool Configure::has_channel() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void Configure::set_has_channel() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void Configure::clear_has_channel() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void Configure::clear_channel() {
-  if (channel_ != NULL) channel_->::KismetDatasource::SubChanset::Clear();
-  clear_has_channel();
-}
-const ::KismetDatasource::SubChanset& Configure::channel() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.Configure.channel)
-  return channel_ != NULL ? *channel_ : *default_instance_->channel_;
-}
-::KismetDatasource::SubChanset* Configure::mutable_channel() {
-  set_has_channel();
-  if (channel_ == NULL) {
-    channel_ = new ::KismetDatasource::SubChanset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.Configure.channel)
-  return channel_;
-}
-::KismetDatasource::SubChanset* Configure::release_channel() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.Configure.channel)
-  clear_has_channel();
-  ::KismetDatasource::SubChanset* temp = channel_;
-  channel_ = NULL;
-  return temp;
-}
-void Configure::set_allocated_channel(::KismetDatasource::SubChanset* channel) {
-  delete channel_;
-  channel_ = channel;
-  if (channel) {
-    set_has_channel();
-  } else {
-    clear_has_channel();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.Configure.channel)
-}
-
-// optional .KismetDatasource.SubChanhop hopping = 2;
-bool Configure::has_hopping() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void Configure::set_has_hopping() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void Configure::clear_has_hopping() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void Configure::clear_hopping() {
-  if (hopping_ != NULL) hopping_->::KismetDatasource::SubChanhop::Clear();
-  clear_has_hopping();
-}
-const ::KismetDatasource::SubChanhop& Configure::hopping() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.Configure.hopping)
-  return hopping_ != NULL ? *hopping_ : *default_instance_->hopping_;
-}
-::KismetDatasource::SubChanhop* Configure::mutable_hopping() {
-  set_has_hopping();
-  if (hopping_ == NULL) {
-    hopping_ = new ::KismetDatasource::SubChanhop;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.Configure.hopping)
-  return hopping_;
-}
-::KismetDatasource::SubChanhop* Configure::release_hopping() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.Configure.hopping)
-  clear_has_hopping();
-  ::KismetDatasource::SubChanhop* temp = hopping_;
-  hopping_ = NULL;
-  return temp;
-}
-void Configure::set_allocated_hopping(::KismetDatasource::SubChanhop* hopping) {
-  delete hopping_;
-  hopping_ = hopping;
-  if (hopping) {
-    set_has_hopping();
-  } else {
-    clear_has_hopping();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.Configure.hopping)
-}
-
-// optional .KismetDatasource.SubSpecset spectrum = 3;
-bool Configure::has_spectrum() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void Configure::set_has_spectrum() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void Configure::clear_has_spectrum() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void Configure::clear_spectrum() {
-  if (spectrum_ != NULL) spectrum_->::KismetDatasource::SubSpecset::Clear();
-  clear_has_spectrum();
-}
-const ::KismetDatasource::SubSpecset& Configure::spectrum() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.Configure.spectrum)
-  return spectrum_ != NULL ? *spectrum_ : *default_instance_->spectrum_;
-}
-::KismetDatasource::SubSpecset* Configure::mutable_spectrum() {
-  set_has_spectrum();
-  if (spectrum_ == NULL) {
-    spectrum_ = new ::KismetDatasource::SubSpecset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.Configure.spectrum)
-  return spectrum_;
-}
-::KismetDatasource::SubSpecset* Configure::release_spectrum() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.Configure.spectrum)
-  clear_has_spectrum();
-  ::KismetDatasource::SubSpecset* temp = spectrum_;
-  spectrum_ = NULL;
-  return temp;
-}
-void Configure::set_allocated_spectrum(::KismetDatasource::SubSpecset* spectrum) {
-  delete spectrum_;
-  spectrum_ = spectrum;
-  if (spectrum) {
-    set_has_spectrum();
-  } else {
-    clear_has_spectrum();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.Configure.spectrum)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int ConfigureReport::kSuccessFieldNumber;
 const int ConfigureReport::kChannelFieldNumber;
 const int ConfigureReport::kHoppingFieldNumber;
 const int ConfigureReport::kMessageFieldNumber;
 const int ConfigureReport::kWarningFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 ConfigureReport::ConfigureReport()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.ConfigureReport)
 }
@@ -7582,8 +5463,7 @@ void ConfigureReport::InitAsDefaultInstance() {
 }
 
 ConfigureReport::ConfigureReport(const ConfigureReport& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.ConfigureReport)
@@ -7596,7 +5476,7 @@ void ConfigureReport::SharedCtor() {
   channel_ = NULL;
   hopping_ = NULL;
   message_ = NULL;
-  warning_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  warning_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -7606,7 +5486,9 @@ ConfigureReport::~ConfigureReport() {
 }
 
 void ConfigureReport::SharedDtor() {
-  warning_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete warning_;
+  }
   if (this != default_instance_) {
     delete success_;
     delete channel_;
@@ -7632,17 +5514,12 @@ const ConfigureReport& ConfigureReport::default_instance() {
 
 ConfigureReport* ConfigureReport::default_instance_ = NULL;
 
-ConfigureReport* ConfigureReport::New(::google::protobuf::Arena* arena) const {
-  ConfigureReport* n = new ConfigureReport;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+ConfigureReport* ConfigureReport::New() const {
+  return new ConfigureReport;
 }
 
 void ConfigureReport::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.ConfigureReport)
-  if (_has_bits_[0 / 32] & 31u) {
+  if (_has_bits_[0 / 32] & 31) {
     if (has_success()) {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
@@ -7656,18 +5533,18 @@ void ConfigureReport::Clear() {
       if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_warning()) {
-      warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        warning_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool ConfigureReport::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.ConfigureReport)
   for (;;) {
@@ -7735,7 +5612,7 @@ bool ConfigureReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->warning().data(), this->warning().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.ConfigureReport.warning");
+            "warning");
         } else {
           goto handle_unusual;
         }
@@ -7771,25 +5648,25 @@ void ConfigureReport::SerializeWithCachedSizes(
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->success_, output);
+      1, this->success(), output);
   }
 
   // optional .KismetDatasource.SubChanset channel = 2;
   if (has_channel()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->channel_, output);
+      2, this->channel(), output);
   }
 
   // optional .KismetDatasource.SubChanhop hopping = 3;
   if (has_hopping()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      3, *this->hopping_, output);
+      3, this->hopping(), output);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 4;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      4, *this->message_, output);
+      4, this->message(), output);
   }
 
   // optional string warning = 5;
@@ -7797,47 +5674,47 @@ void ConfigureReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.ConfigureReport.warning");
+      "warning");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       5, this->warning(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.ConfigureReport)
 }
 
-::google::protobuf::uint8* ConfigureReport::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* ConfigureReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.ConfigureReport)
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->success_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->success(), target);
   }
 
   // optional .KismetDatasource.SubChanset channel = 2;
   if (has_channel()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, *this->channel_, false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->channel(), target);
   }
 
   // optional .KismetDatasource.SubChanhop hopping = 3;
   if (has_hopping()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        3, *this->hopping_, false, target);
+      WriteMessageNoVirtualToArray(
+        3, this->hopping(), target);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 4;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        4, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        4, this->message(), target);
   }
 
   // optional string warning = 5;
@@ -7845,13 +5722,13 @@ void ConfigureReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.ConfigureReport.warning");
+      "warning");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         5, this->warning(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -7860,35 +5737,35 @@ void ConfigureReport::SerializeWithCachedSizes(
 }
 
 int ConfigureReport::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.ConfigureReport)
   int total_size = 0;
 
-  // required .KismetDatasource.SubSuccess success = 1;
-  if (has_success()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->success_);
-  }
-  if (_has_bits_[1 / 32] & 30u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .KismetDatasource.SubSuccess success = 1;
+    if (has_success()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->success());
+    }
+
     // optional .KismetDatasource.SubChanset channel = 2;
     if (has_channel()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->channel_);
+          this->channel());
     }
 
     // optional .KismetDatasource.SubChanhop hopping = 3;
     if (has_hopping()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->hopping_);
+          this->hopping());
     }
 
     // optional .KismetExternal.MsgbusMessage message = 4;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->message_);
+          this->message());
     }
 
     // optional string warning = 5;
@@ -7899,7 +5776,7 @@ int ConfigureReport::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -7911,27 +5788,19 @@ int ConfigureReport::ByteSize() const {
 }
 
 void ConfigureReport::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.ConfigureReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const ConfigureReport* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const ConfigureReport>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const ConfigureReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const ConfigureReport*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.ConfigureReport)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.ConfigureReport)
     MergeFrom(*source);
   }
 }
 
 void ConfigureReport::MergeFrom(const ConfigureReport& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.ConfigureReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_success()) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
@@ -7946,24 +5815,19 @@ void ConfigureReport::MergeFrom(const ConfigureReport& from) {
       mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_warning()) {
-      set_has_warning();
-      warning_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.warning_);
+      set_warning(from.warning());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void ConfigureReport::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.ConfigureReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void ConfigureReport::CopyFrom(const ConfigureReport& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.ConfigureReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -7973,30 +5837,28 @@ bool ConfigureReport::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   if (has_success()) {
-    if (!this->success_->IsInitialized()) return false;
+    if (!this->success().IsInitialized()) return false;
   }
   if (has_channel()) {
-    if (!this->channel_->IsInitialized()) return false;
+    if (!this->channel().IsInitialized()) return false;
   }
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   return true;
 }
 
 void ConfigureReport::Swap(ConfigureReport* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void ConfigureReport::InternalSwap(ConfigureReport* other) {
-  std::swap(success_, other->success_);
-  std::swap(channel_, other->channel_);
-  std::swap(hopping_, other->hopping_);
-  std::swap(message_, other->message_);
-  warning_.Swap(&other->warning_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(success_, other->success_);
+    std::swap(channel_, other->channel_);
+    std::swap(hopping_, other->hopping_);
+    std::swap(message_, other->message_);
+    std::swap(warning_, other->warning_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata ConfigureReport::GetMetadata() const {
@@ -8007,254 +5869,20 @@ void ConfigureReport::InternalSwap(ConfigureReport* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// ConfigureReport
-
-// required .KismetDatasource.SubSuccess success = 1;
-bool ConfigureReport::has_success() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void ConfigureReport::set_has_success() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void ConfigureReport::clear_has_success() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void ConfigureReport::clear_success() {
-  if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
-  clear_has_success();
-}
-const ::KismetDatasource::SubSuccess& ConfigureReport::success() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ConfigureReport.success)
-  return success_ != NULL ? *success_ : *default_instance_->success_;
-}
-::KismetDatasource::SubSuccess* ConfigureReport::mutable_success() {
-  set_has_success();
-  if (success_ == NULL) {
-    success_ = new ::KismetDatasource::SubSuccess;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ConfigureReport.success)
-  return success_;
-}
-::KismetDatasource::SubSuccess* ConfigureReport::release_success() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ConfigureReport.success)
-  clear_has_success();
-  ::KismetDatasource::SubSuccess* temp = success_;
-  success_ = NULL;
-  return temp;
-}
-void ConfigureReport::set_allocated_success(::KismetDatasource::SubSuccess* success) {
-  delete success_;
-  success_ = success;
-  if (success) {
-    set_has_success();
-  } else {
-    clear_has_success();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ConfigureReport.success)
-}
-
-// optional .KismetDatasource.SubChanset channel = 2;
-bool ConfigureReport::has_channel() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void ConfigureReport::set_has_channel() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void ConfigureReport::clear_has_channel() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void ConfigureReport::clear_channel() {
-  if (channel_ != NULL) channel_->::KismetDatasource::SubChanset::Clear();
-  clear_has_channel();
-}
-const ::KismetDatasource::SubChanset& ConfigureReport::channel() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ConfigureReport.channel)
-  return channel_ != NULL ? *channel_ : *default_instance_->channel_;
-}
-::KismetDatasource::SubChanset* ConfigureReport::mutable_channel() {
-  set_has_channel();
-  if (channel_ == NULL) {
-    channel_ = new ::KismetDatasource::SubChanset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ConfigureReport.channel)
-  return channel_;
-}
-::KismetDatasource::SubChanset* ConfigureReport::release_channel() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ConfigureReport.channel)
-  clear_has_channel();
-  ::KismetDatasource::SubChanset* temp = channel_;
-  channel_ = NULL;
-  return temp;
-}
-void ConfigureReport::set_allocated_channel(::KismetDatasource::SubChanset* channel) {
-  delete channel_;
-  channel_ = channel;
-  if (channel) {
-    set_has_channel();
-  } else {
-    clear_has_channel();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ConfigureReport.channel)
-}
-
-// optional .KismetDatasource.SubChanhop hopping = 3;
-bool ConfigureReport::has_hopping() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void ConfigureReport::set_has_hopping() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void ConfigureReport::clear_has_hopping() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void ConfigureReport::clear_hopping() {
-  if (hopping_ != NULL) hopping_->::KismetDatasource::SubChanhop::Clear();
-  clear_has_hopping();
-}
-const ::KismetDatasource::SubChanhop& ConfigureReport::hopping() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ConfigureReport.hopping)
-  return hopping_ != NULL ? *hopping_ : *default_instance_->hopping_;
-}
-::KismetDatasource::SubChanhop* ConfigureReport::mutable_hopping() {
-  set_has_hopping();
-  if (hopping_ == NULL) {
-    hopping_ = new ::KismetDatasource::SubChanhop;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ConfigureReport.hopping)
-  return hopping_;
-}
-::KismetDatasource::SubChanhop* ConfigureReport::release_hopping() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ConfigureReport.hopping)
-  clear_has_hopping();
-  ::KismetDatasource::SubChanhop* temp = hopping_;
-  hopping_ = NULL;
-  return temp;
-}
-void ConfigureReport::set_allocated_hopping(::KismetDatasource::SubChanhop* hopping) {
-  delete hopping_;
-  hopping_ = hopping;
-  if (hopping) {
-    set_has_hopping();
-  } else {
-    clear_has_hopping();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ConfigureReport.hopping)
-}
-
-// optional .KismetExternal.MsgbusMessage message = 4;
-bool ConfigureReport::has_message() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void ConfigureReport::set_has_message() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void ConfigureReport::clear_has_message() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void ConfigureReport::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& ConfigureReport::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ConfigureReport.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* ConfigureReport::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ConfigureReport.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* ConfigureReport::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ConfigureReport.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void ConfigureReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ConfigureReport.message)
-}
-
-// optional string warning = 5;
-bool ConfigureReport::has_warning() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void ConfigureReport::set_has_warning() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void ConfigureReport::clear_has_warning() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void ConfigureReport::clear_warning() {
-  warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_warning();
-}
- const ::std::string& ConfigureReport::warning() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ConfigureReport.warning)
-  return warning_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void ConfigureReport::set_warning(const ::std::string& value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.ConfigureReport.warning)
-}
- void ConfigureReport::set_warning(const char* value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.ConfigureReport.warning)
-}
- void ConfigureReport::set_warning(const char* value, size_t size) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.ConfigureReport.warning)
-}
- ::std::string* ConfigureReport::mutable_warning() {
-  set_has_warning();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ConfigureReport.warning)
-  return warning_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* ConfigureReport::release_warning() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ConfigureReport.warning)
-  clear_has_warning();
-  return warning_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void ConfigureReport::set_allocated_warning(::std::string* warning) {
-  if (warning != NULL) {
-    set_has_warning();
-  } else {
-    clear_has_warning();
-  }
-  warning_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), warning);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ConfigureReport.warning)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int DataReport::kGpsFieldNumber;
 const int DataReport::kMessageFieldNumber;
 const int DataReport::kPacketFieldNumber;
 const int DataReport::kSignalFieldNumber;
 const int DataReport::kSpectrumFieldNumber;
 const int DataReport::kWarningFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 DataReport::DataReport()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.DataReport)
 }
@@ -8268,8 +5896,7 @@ void DataReport::InitAsDefaultInstance() {
 }
 
 DataReport::DataReport(const DataReport& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.DataReport)
@@ -8283,7 +5910,7 @@ void DataReport::SharedCtor() {
   packet_ = NULL;
   signal_ = NULL;
   spectrum_ = NULL;
-  warning_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  warning_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -8293,7 +5920,9 @@ DataReport::~DataReport() {
 }
 
 void DataReport::SharedDtor() {
-  warning_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete warning_;
+  }
   if (this != default_instance_) {
     delete gps_;
     delete message_;
@@ -8320,17 +5949,12 @@ const DataReport& DataReport::default_instance() {
 
 DataReport* DataReport::default_instance_ = NULL;
 
-DataReport* DataReport::New(::google::protobuf::Arena* arena) const {
-  DataReport* n = new DataReport;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+DataReport* DataReport::New() const {
+  return new DataReport;
 }
 
 void DataReport::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.DataReport)
-  if (_has_bits_[0 / 32] & 63u) {
+  if (_has_bits_[0 / 32] & 63) {
     if (has_gps()) {
       if (gps_ != NULL) gps_->::KismetDatasource::SubGps::Clear();
     }
@@ -8347,18 +5971,18 @@ void DataReport::Clear() {
       if (spectrum_ != NULL) spectrum_->::KismetDatasource::SubSpectrum::Clear();
     }
     if (has_warning()) {
-      warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        warning_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool DataReport::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.DataReport)
   for (;;) {
@@ -8439,7 +6063,7 @@ bool DataReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->warning().data(), this->warning().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.DataReport.warning");
+            "warning");
         } else {
           goto handle_unusual;
         }
@@ -8475,31 +6099,31 @@ void DataReport::SerializeWithCachedSizes(
   // optional .KismetDatasource.SubGps gps = 1;
   if (has_gps()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->gps_, output);
+      1, this->gps(), output);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->message_, output);
+      2, this->message(), output);
   }
 
   // optional .KismetDatasource.SubPacket packet = 3;
   if (has_packet()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      3, *this->packet_, output);
+      3, this->packet(), output);
   }
 
   // optional .KismetDatasource.SubSignal signal = 4;
   if (has_signal()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      4, *this->signal_, output);
+      4, this->signal(), output);
   }
 
   // optional .KismetDatasource.SubSpectrum spectrum = 5;
   if (has_spectrum()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      5, *this->spectrum_, output);
+      5, this->spectrum(), output);
   }
 
   // optional string warning = 6;
@@ -8507,54 +6131,54 @@ void DataReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.DataReport.warning");
+      "warning");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       6, this->warning(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.DataReport)
 }
 
-::google::protobuf::uint8* DataReport::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* DataReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.DataReport)
   // optional .KismetDatasource.SubGps gps = 1;
   if (has_gps()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->gps_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->gps(), target);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->message(), target);
   }
 
   // optional .KismetDatasource.SubPacket packet = 3;
   if (has_packet()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        3, *this->packet_, false, target);
+      WriteMessageNoVirtualToArray(
+        3, this->packet(), target);
   }
 
   // optional .KismetDatasource.SubSignal signal = 4;
   if (has_signal()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        4, *this->signal_, false, target);
+      WriteMessageNoVirtualToArray(
+        4, this->signal(), target);
   }
 
   // optional .KismetDatasource.SubSpectrum spectrum = 5;
   if (has_spectrum()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        5, *this->spectrum_, false, target);
+      WriteMessageNoVirtualToArray(
+        5, this->spectrum(), target);
   }
 
   // optional string warning = 6;
@@ -8562,13 +6186,13 @@ void DataReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.DataReport.warning");
+      "warning");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         6, this->warning(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -8577,43 +6201,42 @@ void DataReport::SerializeWithCachedSizes(
 }
 
 int DataReport::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.DataReport)
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 63u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional .KismetDatasource.SubGps gps = 1;
     if (has_gps()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->gps_);
+          this->gps());
     }
 
     // optional .KismetExternal.MsgbusMessage message = 2;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->message_);
+          this->message());
     }
 
     // optional .KismetDatasource.SubPacket packet = 3;
     if (has_packet()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->packet_);
+          this->packet());
     }
 
     // optional .KismetDatasource.SubSignal signal = 4;
     if (has_signal()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->signal_);
+          this->signal());
     }
 
     // optional .KismetDatasource.SubSpectrum spectrum = 5;
     if (has_spectrum()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->spectrum_);
+          this->spectrum());
     }
 
     // optional string warning = 6;
@@ -8624,7 +6247,7 @@ int DataReport::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -8636,27 +6259,19 @@ int DataReport::ByteSize() const {
 }
 
 void DataReport::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.DataReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const DataReport* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const DataReport>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const DataReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const DataReport*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.DataReport)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.DataReport)
     MergeFrom(*source);
   }
 }
 
 void DataReport::MergeFrom(const DataReport& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.DataReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_gps()) {
       mutable_gps()->::KismetDatasource::SubGps::MergeFrom(from.gps());
@@ -8674,24 +6289,19 @@ void DataReport::MergeFrom(const DataReport& from) {
       mutable_spectrum()->::KismetDatasource::SubSpectrum::MergeFrom(from.spectrum());
     }
     if (from.has_warning()) {
-      set_has_warning();
-      warning_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.warning_);
+      set_warning(from.warning());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void DataReport::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.DataReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void DataReport::CopyFrom(const DataReport& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.DataReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -8700,31 +6310,29 @@ void DataReport::CopyFrom(const DataReport& from) {
 bool DataReport::IsInitialized() const {
 
   if (has_gps()) {
-    if (!this->gps_->IsInitialized()) return false;
+    if (!this->gps().IsInitialized()) return false;
   }
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   if (has_packet()) {
-    if (!this->packet_->IsInitialized()) return false;
+    if (!this->packet().IsInitialized()) return false;
   }
   return true;
 }
 
 void DataReport::Swap(DataReport* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void DataReport::InternalSwap(DataReport* other) {
-  std::swap(gps_, other->gps_);
-  std::swap(message_, other->message_);
-  std::swap(packet_, other->packet_);
-  std::swap(signal_, other->signal_);
-  std::swap(spectrum_, other->spectrum_);
-  warning_.Swap(&other->warning_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(gps_, other->gps_);
+    std::swap(message_, other->message_);
+    std::swap(packet_, other->packet_);
+    std::swap(signal_, other->signal_);
+    std::swap(spectrum_, other->spectrum_);
+    std::swap(warning_, other->warning_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata DataReport::GetMetadata() const {
@@ -8735,294 +6343,16 @@ void DataReport::InternalSwap(DataReport* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// DataReport
-
-// optional .KismetDatasource.SubGps gps = 1;
-bool DataReport::has_gps() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void DataReport::set_has_gps() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void DataReport::clear_has_gps() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void DataReport::clear_gps() {
-  if (gps_ != NULL) gps_->::KismetDatasource::SubGps::Clear();
-  clear_has_gps();
-}
-const ::KismetDatasource::SubGps& DataReport::gps() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.gps)
-  return gps_ != NULL ? *gps_ : *default_instance_->gps_;
-}
-::KismetDatasource::SubGps* DataReport::mutable_gps() {
-  set_has_gps();
-  if (gps_ == NULL) {
-    gps_ = new ::KismetDatasource::SubGps;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.gps)
-  return gps_;
-}
-::KismetDatasource::SubGps* DataReport::release_gps() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.gps)
-  clear_has_gps();
-  ::KismetDatasource::SubGps* temp = gps_;
-  gps_ = NULL;
-  return temp;
-}
-void DataReport::set_allocated_gps(::KismetDatasource::SubGps* gps) {
-  delete gps_;
-  gps_ = gps;
-  if (gps) {
-    set_has_gps();
-  } else {
-    clear_has_gps();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.gps)
-}
-
-// optional .KismetExternal.MsgbusMessage message = 2;
-bool DataReport::has_message() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void DataReport::set_has_message() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void DataReport::clear_has_message() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void DataReport::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& DataReport::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* DataReport::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* DataReport::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void DataReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.message)
-}
-
-// optional .KismetDatasource.SubPacket packet = 3;
-bool DataReport::has_packet() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void DataReport::set_has_packet() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void DataReport::clear_has_packet() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void DataReport::clear_packet() {
-  if (packet_ != NULL) packet_->::KismetDatasource::SubPacket::Clear();
-  clear_has_packet();
-}
-const ::KismetDatasource::SubPacket& DataReport::packet() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.packet)
-  return packet_ != NULL ? *packet_ : *default_instance_->packet_;
-}
-::KismetDatasource::SubPacket* DataReport::mutable_packet() {
-  set_has_packet();
-  if (packet_ == NULL) {
-    packet_ = new ::KismetDatasource::SubPacket;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.packet)
-  return packet_;
-}
-::KismetDatasource::SubPacket* DataReport::release_packet() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.packet)
-  clear_has_packet();
-  ::KismetDatasource::SubPacket* temp = packet_;
-  packet_ = NULL;
-  return temp;
-}
-void DataReport::set_allocated_packet(::KismetDatasource::SubPacket* packet) {
-  delete packet_;
-  packet_ = packet;
-  if (packet) {
-    set_has_packet();
-  } else {
-    clear_has_packet();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.packet)
-}
-
-// optional .KismetDatasource.SubSignal signal = 4;
-bool DataReport::has_signal() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void DataReport::set_has_signal() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void DataReport::clear_has_signal() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void DataReport::clear_signal() {
-  if (signal_ != NULL) signal_->::KismetDatasource::SubSignal::Clear();
-  clear_has_signal();
-}
-const ::KismetDatasource::SubSignal& DataReport::signal() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.signal)
-  return signal_ != NULL ? *signal_ : *default_instance_->signal_;
-}
-::KismetDatasource::SubSignal* DataReport::mutable_signal() {
-  set_has_signal();
-  if (signal_ == NULL) {
-    signal_ = new ::KismetDatasource::SubSignal;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.signal)
-  return signal_;
-}
-::KismetDatasource::SubSignal* DataReport::release_signal() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.signal)
-  clear_has_signal();
-  ::KismetDatasource::SubSignal* temp = signal_;
-  signal_ = NULL;
-  return temp;
-}
-void DataReport::set_allocated_signal(::KismetDatasource::SubSignal* signal) {
-  delete signal_;
-  signal_ = signal;
-  if (signal) {
-    set_has_signal();
-  } else {
-    clear_has_signal();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.signal)
-}
-
-// optional .KismetDatasource.SubSpectrum spectrum = 5;
-bool DataReport::has_spectrum() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void DataReport::set_has_spectrum() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void DataReport::clear_has_spectrum() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void DataReport::clear_spectrum() {
-  if (spectrum_ != NULL) spectrum_->::KismetDatasource::SubSpectrum::Clear();
-  clear_has_spectrum();
-}
-const ::KismetDatasource::SubSpectrum& DataReport::spectrum() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.spectrum)
-  return spectrum_ != NULL ? *spectrum_ : *default_instance_->spectrum_;
-}
-::KismetDatasource::SubSpectrum* DataReport::mutable_spectrum() {
-  set_has_spectrum();
-  if (spectrum_ == NULL) {
-    spectrum_ = new ::KismetDatasource::SubSpectrum;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.spectrum)
-  return spectrum_;
-}
-::KismetDatasource::SubSpectrum* DataReport::release_spectrum() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.spectrum)
-  clear_has_spectrum();
-  ::KismetDatasource::SubSpectrum* temp = spectrum_;
-  spectrum_ = NULL;
-  return temp;
-}
-void DataReport::set_allocated_spectrum(::KismetDatasource::SubSpectrum* spectrum) {
-  delete spectrum_;
-  spectrum_ = spectrum;
-  if (spectrum) {
-    set_has_spectrum();
-  } else {
-    clear_has_spectrum();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.spectrum)
-}
-
-// optional string warning = 6;
-bool DataReport::has_warning() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-void DataReport::set_has_warning() {
-  _has_bits_[0] |= 0x00000020u;
-}
-void DataReport::clear_has_warning() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-void DataReport::clear_warning() {
-  warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_warning();
-}
- const ::std::string& DataReport::warning() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.warning)
-  return warning_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void DataReport::set_warning(const ::std::string& value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.DataReport.warning)
-}
- void DataReport::set_warning(const char* value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.DataReport.warning)
-}
- void DataReport::set_warning(const char* value, size_t size) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.DataReport.warning)
-}
- ::std::string* DataReport::mutable_warning() {
-  set_has_warning();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.warning)
-  return warning_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* DataReport::release_warning() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.warning)
-  clear_has_warning();
-  return warning_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void DataReport::set_allocated_warning(::std::string* warning) {
-  if (warning != NULL) {
-    set_has_warning();
-  } else {
-    clear_has_warning();
-  }
-  warning_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), warning);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.warning)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int ErrorReport::kSuccessFieldNumber;
 const int ErrorReport::kMessageFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 ErrorReport::ErrorReport()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.ErrorReport)
 }
@@ -9033,8 +6363,7 @@ void ErrorReport::InitAsDefaultInstance() {
 }
 
 ErrorReport::ErrorReport(const ErrorReport& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.ErrorReport)
@@ -9076,17 +6405,12 @@ const ErrorReport& ErrorReport::default_instance() {
 
 ErrorReport* ErrorReport::default_instance_ = NULL;
 
-ErrorReport* ErrorReport::New(::google::protobuf::Arena* arena) const {
-  ErrorReport* n = new ErrorReport;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+ErrorReport* ErrorReport::New() const {
+  return new ErrorReport;
 }
 
 void ErrorReport::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.ErrorReport)
-  if (_has_bits_[0 / 32] & 3u) {
+  if (_has_bits_[0 / 32] & 3) {
     if (has_success()) {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
@@ -9095,14 +6419,12 @@ void ErrorReport::Clear() {
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool ErrorReport::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.ErrorReport)
   for (;;) {
@@ -9163,40 +6485,40 @@ void ErrorReport::SerializeWithCachedSizes(
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->success_, output);
+      1, this->success(), output);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->message_, output);
+      2, this->message(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.ErrorReport)
 }
 
-::google::protobuf::uint8* ErrorReport::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* ErrorReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.ErrorReport)
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->success_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->success(), target);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->message(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -9205,23 +6527,25 @@ void ErrorReport::SerializeWithCachedSizes(
 }
 
 int ErrorReport::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.ErrorReport)
   int total_size = 0;
 
-  // required .KismetDatasource.SubSuccess success = 1;
-  if (has_success()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->success_);
-  }
-  // optional .KismetExternal.MsgbusMessage message = 2;
-  if (has_message()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->message_);
-  }
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .KismetDatasource.SubSuccess success = 1;
+    if (has_success()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->success());
+    }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+    // optional .KismetExternal.MsgbusMessage message = 2;
+    if (has_message()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->message());
+    }
+
+  }
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -9233,27 +6557,19 @@ int ErrorReport::ByteSize() const {
 }
 
 void ErrorReport::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.ErrorReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const ErrorReport* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const ErrorReport>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const ErrorReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const ErrorReport*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.ErrorReport)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.ErrorReport)
     MergeFrom(*source);
   }
 }
 
 void ErrorReport::MergeFrom(const ErrorReport& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.ErrorReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_success()) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
@@ -9262,20 +6578,16 @@ void ErrorReport::MergeFrom(const ErrorReport& from) {
       mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void ErrorReport::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.ErrorReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void ErrorReport::CopyFrom(const ErrorReport& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.ErrorReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -9285,24 +6597,22 @@ bool ErrorReport::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   if (has_success()) {
-    if (!this->success_->IsInitialized()) return false;
+    if (!this->success().IsInitialized()) return false;
   }
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   return true;
 }
 
 void ErrorReport::Swap(ErrorReport* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void ErrorReport::InternalSwap(ErrorReport* other) {
-  std::swap(success_, other->success_);
-  std::swap(message_, other->message_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(success_, other->success_);
+    std::swap(message_, other->message_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata ErrorReport::GetMetadata() const {
@@ -9313,106 +6623,14 @@ void ErrorReport::InternalSwap(ErrorReport* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// ErrorReport
-
-// required .KismetDatasource.SubSuccess success = 1;
-bool ErrorReport::has_success() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void ErrorReport::set_has_success() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void ErrorReport::clear_has_success() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void ErrorReport::clear_success() {
-  if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
-  clear_has_success();
-}
-const ::KismetDatasource::SubSuccess& ErrorReport::success() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ErrorReport.success)
-  return success_ != NULL ? *success_ : *default_instance_->success_;
-}
-::KismetDatasource::SubSuccess* ErrorReport::mutable_success() {
-  set_has_success();
-  if (success_ == NULL) {
-    success_ = new ::KismetDatasource::SubSuccess;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ErrorReport.success)
-  return success_;
-}
-::KismetDatasource::SubSuccess* ErrorReport::release_success() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ErrorReport.success)
-  clear_has_success();
-  ::KismetDatasource::SubSuccess* temp = success_;
-  success_ = NULL;
-  return temp;
-}
-void ErrorReport::set_allocated_success(::KismetDatasource::SubSuccess* success) {
-  delete success_;
-  success_ = success;
-  if (success) {
-    set_has_success();
-  } else {
-    clear_has_success();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ErrorReport.success)
-}
-
-// optional .KismetExternal.MsgbusMessage message = 2;
-bool ErrorReport::has_message() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void ErrorReport::set_has_message() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void ErrorReport::clear_has_message() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void ErrorReport::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& ErrorReport::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ErrorReport.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* ErrorReport::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ErrorReport.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* ErrorReport::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ErrorReport.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void ErrorReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ErrorReport.message)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
+#endif  // !_MSC_VER
 
 ListInterfaces::ListInterfaces()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.ListInterfaces)
 }
@@ -9421,8 +6639,7 @@ void ListInterfaces::InitAsDefaultInstance() {
 }
 
 ListInterfaces::ListInterfaces(const ListInterfaces& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.ListInterfaces)
@@ -9460,25 +6677,18 @@ const ListInterfaces& ListInterfaces::default_instance() {
 
 ListInterfaces* ListInterfaces::default_instance_ = NULL;
 
-ListInterfaces* ListInterfaces::New(::google::protobuf::Arena* arena) const {
-  ListInterfaces* n = new ListInterfaces;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+ListInterfaces* ListInterfaces::New() const {
+  return new ListInterfaces;
 }
 
 void ListInterfaces::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.ListInterfaces)
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool ListInterfaces::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.ListInterfaces)
   for (;;) {
@@ -9506,17 +6716,17 @@ failure:
 void ListInterfaces::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // @@protoc_insertion_point(serialize_start:KismetDatasource.ListInterfaces)
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.ListInterfaces)
 }
 
-::google::protobuf::uint8* ListInterfaces::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* ListInterfaces::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.ListInterfaces)
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -9525,10 +6735,9 @@ void ListInterfaces::SerializeWithCachedSizes(
 }
 
 int ListInterfaces::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.ListInterfaces)
   int total_size = 0;
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -9540,41 +6749,29 @@ int ListInterfaces::ByteSize() const {
 }
 
 void ListInterfaces::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.ListInterfaces)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const ListInterfaces* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const ListInterfaces>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const ListInterfaces* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const ListInterfaces*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.ListInterfaces)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.ListInterfaces)
     MergeFrom(*source);
   }
 }
 
 void ListInterfaces::MergeFrom(const ListInterfaces& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.ListInterfaces)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  GOOGLE_CHECK_NE(&from, this);
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void ListInterfaces::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.ListInterfaces)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void ListInterfaces::CopyFrom(const ListInterfaces& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.ListInterfaces)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -9586,12 +6783,10 @@ bool ListInterfaces::IsInitialized() const {
 }
 
 void ListInterfaces::Swap(ListInterfaces* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void ListInterfaces::InternalSwap(ListInterfaces* other) {
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata ListInterfaces::GetMetadata() const {
@@ -9602,21 +6797,17 @@ void ListInterfaces::InternalSwap(ListInterfaces* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// ListInterfaces
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int InterfacesReport::kSuccessFieldNumber;
 const int InterfacesReport::kMessageFieldNumber;
 const int InterfacesReport::kInterfacesFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 InterfacesReport::InterfacesReport()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.InterfacesReport)
 }
@@ -9627,8 +6818,7 @@ void InterfacesReport::InitAsDefaultInstance() {
 }
 
 InterfacesReport::InterfacesReport(const InterfacesReport& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.InterfacesReport)
@@ -9670,17 +6860,12 @@ const InterfacesReport& InterfacesReport::default_instance() {
 
 InterfacesReport* InterfacesReport::default_instance_ = NULL;
 
-InterfacesReport* InterfacesReport::New(::google::protobuf::Arena* arena) const {
-  InterfacesReport* n = new InterfacesReport;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+InterfacesReport* InterfacesReport::New() const {
+  return new InterfacesReport;
 }
 
 void InterfacesReport::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.InterfacesReport)
-  if (_has_bits_[0 / 32] & 3u) {
+  if (_has_bits_[0 / 32] & 3) {
     if (has_success()) {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
@@ -9690,14 +6875,12 @@ void InterfacesReport::Clear() {
   }
   interfaces_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool InterfacesReport::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.InterfacesReport)
   for (;;) {
@@ -9734,15 +6917,12 @@ bool InterfacesReport::MergePartialFromCodedStream(
       case 3: {
         if (tag == 26) {
          parse_interfaces:
-          DO_(input->IncrementRecursionDepth());
-         parse_loop_interfaces:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtualNoRecursionDepth(
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
                 input, add_interfaces()));
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(26)) goto parse_loop_interfaces;
-        input->UnsafeDecrementRecursionDepth();
+        if (input->ExpectTag(26)) goto parse_interfaces;
         if (input->ExpectAtEnd()) goto success;
         break;
       }
@@ -9775,53 +6955,53 @@ void InterfacesReport::SerializeWithCachedSizes(
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->success_, output);
+      1, this->success(), output);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->message_, output);
+      2, this->message(), output);
   }
 
   // repeated .KismetDatasource.SubInterface interfaces = 3;
-  for (unsigned int i = 0, n = this->interfaces_size(); i < n; i++) {
+  for (int i = 0; i < this->interfaces_size(); i++) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       3, this->interfaces(i), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.InterfacesReport)
 }
 
-::google::protobuf::uint8* InterfacesReport::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* InterfacesReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.InterfacesReport)
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->success_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->success(), target);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->message(), target);
   }
 
   // repeated .KismetDatasource.SubInterface interfaces = 3;
-  for (unsigned int i = 0, n = this->interfaces_size(); i < n; i++) {
+  for (int i = 0; i < this->interfaces_size(); i++) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        3, this->interfaces(i), false, target);
+      WriteMessageNoVirtualToArray(
+        3, this->interfaces(i), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -9830,22 +7010,24 @@ void InterfacesReport::SerializeWithCachedSizes(
 }
 
 int InterfacesReport::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.InterfacesReport)
   int total_size = 0;
 
-  // required .KismetDatasource.SubSuccess success = 1;
-  if (has_success()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->success_);
-  }
-  // optional .KismetExternal.MsgbusMessage message = 2;
-  if (has_message()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->message_);
-  }
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .KismetDatasource.SubSuccess success = 1;
+    if (has_success()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->success());
+    }
 
+    // optional .KismetExternal.MsgbusMessage message = 2;
+    if (has_message()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->message());
+    }
+
+  }
   // repeated .KismetDatasource.SubInterface interfaces = 3;
   total_size += 1 * this->interfaces_size();
   for (int i = 0; i < this->interfaces_size(); i++) {
@@ -9854,7 +7036,7 @@ int InterfacesReport::ByteSize() const {
         this->interfaces(i));
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -9866,27 +7048,19 @@ int InterfacesReport::ByteSize() const {
 }
 
 void InterfacesReport::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.InterfacesReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const InterfacesReport* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const InterfacesReport>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const InterfacesReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const InterfacesReport*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.InterfacesReport)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.InterfacesReport)
     MergeFrom(*source);
   }
 }
 
 void InterfacesReport::MergeFrom(const InterfacesReport& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.InterfacesReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   interfaces_.MergeFrom(from.interfaces_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_success()) {
@@ -9896,20 +7070,16 @@ void InterfacesReport::MergeFrom(const InterfacesReport& from) {
       mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void InterfacesReport::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.InterfacesReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void InterfacesReport::CopyFrom(const InterfacesReport& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.InterfacesReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -9919,26 +7089,24 @@ bool InterfacesReport::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   if (has_success()) {
-    if (!this->success_->IsInitialized()) return false;
+    if (!this->success().IsInitialized()) return false;
   }
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   if (!::google::protobuf::internal::AllAreInitialized(this->interfaces())) return false;
   return true;
 }
 
 void InterfacesReport::Swap(InterfacesReport* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void InterfacesReport::InternalSwap(InterfacesReport* other) {
-  std::swap(success_, other->success_);
-  std::swap(message_, other->message_);
-  interfaces_.UnsafeArenaSwap(&other->interfaces_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(success_, other->success_);
+    std::swap(message_, other->message_);
+    interfaces_.Swap(&other->interfaces_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata InterfacesReport::GetMetadata() const {
@@ -9949,138 +7117,16 @@ void InterfacesReport::InternalSwap(InterfacesReport* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// InterfacesReport
-
-// required .KismetDatasource.SubSuccess success = 1;
-bool InterfacesReport::has_success() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void InterfacesReport::set_has_success() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void InterfacesReport::clear_has_success() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void InterfacesReport::clear_success() {
-  if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
-  clear_has_success();
-}
-const ::KismetDatasource::SubSuccess& InterfacesReport::success() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.InterfacesReport.success)
-  return success_ != NULL ? *success_ : *default_instance_->success_;
-}
-::KismetDatasource::SubSuccess* InterfacesReport::mutable_success() {
-  set_has_success();
-  if (success_ == NULL) {
-    success_ = new ::KismetDatasource::SubSuccess;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.InterfacesReport.success)
-  return success_;
-}
-::KismetDatasource::SubSuccess* InterfacesReport::release_success() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.InterfacesReport.success)
-  clear_has_success();
-  ::KismetDatasource::SubSuccess* temp = success_;
-  success_ = NULL;
-  return temp;
-}
-void InterfacesReport::set_allocated_success(::KismetDatasource::SubSuccess* success) {
-  delete success_;
-  success_ = success;
-  if (success) {
-    set_has_success();
-  } else {
-    clear_has_success();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.InterfacesReport.success)
-}
-
-// optional .KismetExternal.MsgbusMessage message = 2;
-bool InterfacesReport::has_message() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void InterfacesReport::set_has_message() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void InterfacesReport::clear_has_message() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void InterfacesReport::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& InterfacesReport::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.InterfacesReport.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* InterfacesReport::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.InterfacesReport.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* InterfacesReport::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.InterfacesReport.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void InterfacesReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.InterfacesReport.message)
-}
-
-// repeated .KismetDatasource.SubInterface interfaces = 3;
-int InterfacesReport::interfaces_size() const {
-  return interfaces_.size();
-}
-void InterfacesReport::clear_interfaces() {
-  interfaces_.Clear();
-}
-const ::KismetDatasource::SubInterface& InterfacesReport::interfaces(int index) const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.InterfacesReport.interfaces)
-  return interfaces_.Get(index);
-}
-::KismetDatasource::SubInterface* InterfacesReport::mutable_interfaces(int index) {
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.InterfacesReport.interfaces)
-  return interfaces_.Mutable(index);
-}
-::KismetDatasource::SubInterface* InterfacesReport::add_interfaces() {
-  // @@protoc_insertion_point(field_add:KismetDatasource.InterfacesReport.interfaces)
-  return interfaces_.Add();
-}
-::google::protobuf::RepeatedPtrField< ::KismetDatasource::SubInterface >*
-InterfacesReport::mutable_interfaces() {
-  // @@protoc_insertion_point(field_mutable_list:KismetDatasource.InterfacesReport.interfaces)
-  return &interfaces_;
-}
-const ::google::protobuf::RepeatedPtrField< ::KismetDatasource::SubInterface >&
-InterfacesReport::interfaces() const {
-  // @@protoc_insertion_point(field_list:KismetDatasource.InterfacesReport.interfaces)
-  return interfaces_;
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int Message::kMessageFieldNumber;
 const int Message::kWarningFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 Message::Message()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.Message)
 }
@@ -10090,8 +7136,7 @@ void Message::InitAsDefaultInstance() {
 }
 
 Message::Message(const Message& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.Message)
@@ -10101,7 +7146,7 @@ void Message::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   message_ = NULL;
-  warning_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  warning_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -10111,7 +7156,9 @@ Message::~Message() {
 }
 
 void Message::SharedDtor() {
-  warning_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete warning_;
+  }
   if (this != default_instance_) {
     delete message_;
   }
@@ -10134,33 +7181,28 @@ const Message& Message::default_instance() {
 
 Message* Message::default_instance_ = NULL;
 
-Message* Message::New(::google::protobuf::Arena* arena) const {
-  Message* n = new Message;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+Message* Message::New() const {
+  return new Message;
 }
 
 void Message::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.Message)
-  if (_has_bits_[0 / 32] & 3u) {
+  if (_has_bits_[0 / 32] & 3) {
     if (has_message()) {
       if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_warning()) {
-      warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        warning_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool Message::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.Message)
   for (;;) {
@@ -10189,7 +7231,7 @@ bool Message::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->warning().data(), this->warning().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.Message.warning");
+            "warning");
         } else {
           goto handle_unusual;
         }
@@ -10225,7 +7267,7 @@ void Message::SerializeWithCachedSizes(
   // optional .KismetExternal.MsgbusMessage message = 1;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->message_, output);
+      1, this->message(), output);
   }
 
   // optional string warning = 2;
@@ -10233,26 +7275,26 @@ void Message::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.Message.warning");
+      "warning");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       2, this->warning(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.Message)
 }
 
-::google::protobuf::uint8* Message::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* Message::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.Message)
   // optional .KismetExternal.MsgbusMessage message = 1;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->message(), target);
   }
 
   // optional string warning = 2;
@@ -10260,13 +7302,13 @@ void Message::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.Message.warning");
+      "warning");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         2, this->warning(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -10275,15 +7317,14 @@ void Message::SerializeWithCachedSizes(
 }
 
 int Message::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.Message)
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & 3u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // optional .KismetExternal.MsgbusMessage message = 1;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->message_);
+          this->message());
     }
 
     // optional string warning = 2;
@@ -10294,7 +7335,7 @@ int Message::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -10306,50 +7347,37 @@ int Message::ByteSize() const {
 }
 
 void Message::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.Message)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const Message* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const Message>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const Message* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const Message*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.Message)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.Message)
     MergeFrom(*source);
   }
 }
 
 void Message::MergeFrom(const Message& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.Message)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_message()) {
       mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_warning()) {
-      set_has_warning();
-      warning_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.warning_);
+      set_warning(from.warning());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void Message::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.Message)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void Message::CopyFrom(const Message& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.Message)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -10358,21 +7386,19 @@ void Message::CopyFrom(const Message& from) {
 bool Message::IsInitialized() const {
 
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   return true;
 }
 
 void Message::Swap(Message* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void Message::InternalSwap(Message* other) {
-  std::swap(message_, other->message_);
-  warning_.Swap(&other->warning_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(message_, other->message_);
+    std::swap(warning_, other->warning_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata Message::GetMetadata() const {
@@ -10383,119 +7409,17 @@ void Message::InternalSwap(Message* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// Message
-
-// optional .KismetExternal.MsgbusMessage message = 1;
-bool Message::has_message() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void Message::set_has_message() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void Message::clear_has_message() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void Message::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& Message::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.Message.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* Message::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.Message.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* Message::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.Message.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void Message::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.Message.message)
-}
-
-// optional string warning = 2;
-bool Message::has_warning() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void Message::set_has_warning() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void Message::clear_has_warning() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void Message::clear_warning() {
-  warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_warning();
-}
- const ::std::string& Message::warning() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.Message.warning)
-  return warning_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void Message::set_warning(const ::std::string& value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.Message.warning)
-}
- void Message::set_warning(const char* value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.Message.warning)
-}
- void Message::set_warning(const char* value, size_t size) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.Message.warning)
-}
- ::std::string* Message::mutable_warning() {
-  set_has_warning();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.Message.warning)
-  return warning_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* Message::release_warning() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.Message.warning)
-  clear_has_warning();
-  return warning_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void Message::set_allocated_warning(::std::string* warning) {
-  if (warning != NULL) {
-    set_has_warning();
-  } else {
-    clear_has_warning();
-  }
-  warning_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), warning);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.Message.warning)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int NewSource::kDefinitionFieldNumber;
 const int NewSource::kSourcetypeFieldNumber;
 const int NewSource::kUuidFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 NewSource::NewSource()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.NewSource)
 }
@@ -10504,8 +7428,7 @@ void NewSource::InitAsDefaultInstance() {
 }
 
 NewSource::NewSource(const NewSource& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.NewSource)
@@ -10514,9 +7437,9 @@ NewSource::NewSource(const NewSource& from)
 void NewSource::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  definition_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  sourcetype_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  uuid_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  definition_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  sourcetype_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  uuid_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -10526,9 +7449,15 @@ NewSource::~NewSource() {
 }
 
 void NewSource::SharedDtor() {
-  definition_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  sourcetype_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  uuid_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (definition_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete definition_;
+  }
+  if (sourcetype_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete sourcetype_;
+  }
+  if (uuid_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete uuid_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -10550,36 +7479,35 @@ const NewSource& NewSource::default_instance() {
 
 NewSource* NewSource::default_instance_ = NULL;
 
-NewSource* NewSource::New(::google::protobuf::Arena* arena) const {
-  NewSource* n = new NewSource;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+NewSource* NewSource::New() const {
+  return new NewSource;
 }
 
 void NewSource::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.NewSource)
-  if (_has_bits_[0 / 32] & 7u) {
+  if (_has_bits_[0 / 32] & 7) {
     if (has_definition()) {
-      definition_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (definition_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        definition_->clear();
+      }
     }
     if (has_sourcetype()) {
-      sourcetype_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (sourcetype_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        sourcetype_->clear();
+      }
     }
     if (has_uuid()) {
-      uuid_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (uuid_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        uuid_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool NewSource::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.NewSource)
   for (;;) {
@@ -10595,7 +7523,7 @@ bool NewSource::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->definition().data(), this->definition().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.NewSource.definition");
+            "definition");
         } else {
           goto handle_unusual;
         }
@@ -10612,7 +7540,7 @@ bool NewSource::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->sourcetype().data(), this->sourcetype().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.NewSource.sourcetype");
+            "sourcetype");
         } else {
           goto handle_unusual;
         }
@@ -10629,7 +7557,7 @@ bool NewSource::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->uuid().data(), this->uuid().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.NewSource.uuid");
+            "uuid");
         } else {
           goto handle_unusual;
         }
@@ -10667,7 +7595,7 @@ void NewSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->definition().data(), this->definition().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.NewSource.definition");
+      "definition");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->definition(), output);
   }
@@ -10677,7 +7605,7 @@ void NewSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->sourcetype().data(), this->sourcetype().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.NewSource.sourcetype");
+      "sourcetype");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       2, this->sourcetype(), output);
   }
@@ -10687,27 +7615,27 @@ void NewSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->uuid().data(), this->uuid().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.NewSource.uuid");
+      "uuid");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       3, this->uuid(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.NewSource)
 }
 
-::google::protobuf::uint8* NewSource::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* NewSource::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.NewSource)
   // required string definition = 1;
   if (has_definition()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->definition().data(), this->definition().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.NewSource.definition");
+      "definition");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->definition(), target);
@@ -10718,7 +7646,7 @@ void NewSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->sourcetype().data(), this->sourcetype().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.NewSource.sourcetype");
+      "sourcetype");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         2, this->sourcetype(), target);
@@ -10729,13 +7657,13 @@ void NewSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->uuid().data(), this->uuid().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.NewSource.uuid");
+      "uuid");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         3, this->uuid(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -10743,57 +7671,33 @@ void NewSource::SerializeWithCachedSizes(
   return target;
 }
 
-int NewSource::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetDatasource.NewSource)
-  int total_size = 0;
-
-  if (has_definition()) {
-    // required string definition = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->definition());
-  }
-
-  if (has_sourcetype()) {
-    // required string sourcetype = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->sourcetype());
-  }
-
-  if (has_uuid()) {
-    // required string uuid = 3;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->uuid());
-  }
-
-  return total_size;
-}
 int NewSource::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.NewSource)
   int total_size = 0;
 
-  if (((_has_bits_[0] & 0x00000007) ^ 0x00000007) == 0) {  // All required fields are present.
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     // required string definition = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->definition());
+    if (has_definition()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->definition());
+    }
 
     // required string sourcetype = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->sourcetype());
+    if (has_sourcetype()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->sourcetype());
+    }
 
     // required string uuid = 3;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->uuid());
+    if (has_uuid()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->uuid());
+    }
 
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -10805,55 +7709,40 @@ int NewSource::ByteSize() const {
 }
 
 void NewSource::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.NewSource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const NewSource* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const NewSource>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const NewSource* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const NewSource*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.NewSource)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.NewSource)
     MergeFrom(*source);
   }
 }
 
 void NewSource::MergeFrom(const NewSource& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.NewSource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_definition()) {
-      set_has_definition();
-      definition_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.definition_);
+      set_definition(from.definition());
     }
     if (from.has_sourcetype()) {
-      set_has_sourcetype();
-      sourcetype_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.sourcetype_);
+      set_sourcetype(from.sourcetype());
     }
     if (from.has_uuid()) {
-      set_has_uuid();
-      uuid_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.uuid_);
+      set_uuid(from.uuid());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void NewSource::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.NewSource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void NewSource::CopyFrom(const NewSource& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.NewSource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -10866,16 +7755,14 @@ bool NewSource::IsInitialized() const {
 }
 
 void NewSource::Swap(NewSource* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void NewSource::InternalSwap(NewSource* other) {
-  definition_.Swap(&other->definition_);
-  sourcetype_.Swap(&other->sourcetype_);
-  uuid_.Swap(&other->uuid_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(definition_, other->definition_);
+    std::swap(sourcetype_, other->sourcetype_);
+    std::swap(uuid_, other->uuid_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata NewSource::GetMetadata() const {
@@ -10886,181 +7773,15 @@ void NewSource::InternalSwap(NewSource* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// NewSource
-
-// required string definition = 1;
-bool NewSource::has_definition() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void NewSource::set_has_definition() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void NewSource::clear_has_definition() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void NewSource::clear_definition() {
-  definition_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_definition();
-}
- const ::std::string& NewSource::definition() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.NewSource.definition)
-  return definition_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void NewSource::set_definition(const ::std::string& value) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.NewSource.definition)
-}
- void NewSource::set_definition(const char* value) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.NewSource.definition)
-}
- void NewSource::set_definition(const char* value, size_t size) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.NewSource.definition)
-}
- ::std::string* NewSource::mutable_definition() {
-  set_has_definition();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.NewSource.definition)
-  return definition_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* NewSource::release_definition() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.NewSource.definition)
-  clear_has_definition();
-  return definition_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void NewSource::set_allocated_definition(::std::string* definition) {
-  if (definition != NULL) {
-    set_has_definition();
-  } else {
-    clear_has_definition();
-  }
-  definition_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), definition);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.NewSource.definition)
-}
-
-// required string sourcetype = 2;
-bool NewSource::has_sourcetype() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void NewSource::set_has_sourcetype() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void NewSource::clear_has_sourcetype() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void NewSource::clear_sourcetype() {
-  sourcetype_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_sourcetype();
-}
- const ::std::string& NewSource::sourcetype() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.NewSource.sourcetype)
-  return sourcetype_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void NewSource::set_sourcetype(const ::std::string& value) {
-  set_has_sourcetype();
-  sourcetype_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.NewSource.sourcetype)
-}
- void NewSource::set_sourcetype(const char* value) {
-  set_has_sourcetype();
-  sourcetype_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.NewSource.sourcetype)
-}
- void NewSource::set_sourcetype(const char* value, size_t size) {
-  set_has_sourcetype();
-  sourcetype_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.NewSource.sourcetype)
-}
- ::std::string* NewSource::mutable_sourcetype() {
-  set_has_sourcetype();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.NewSource.sourcetype)
-  return sourcetype_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* NewSource::release_sourcetype() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.NewSource.sourcetype)
-  clear_has_sourcetype();
-  return sourcetype_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void NewSource::set_allocated_sourcetype(::std::string* sourcetype) {
-  if (sourcetype != NULL) {
-    set_has_sourcetype();
-  } else {
-    clear_has_sourcetype();
-  }
-  sourcetype_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), sourcetype);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.NewSource.sourcetype)
-}
-
-// required string uuid = 3;
-bool NewSource::has_uuid() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void NewSource::set_has_uuid() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void NewSource::clear_has_uuid() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void NewSource::clear_uuid() {
-  uuid_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_uuid();
-}
- const ::std::string& NewSource::uuid() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.NewSource.uuid)
-  return uuid_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void NewSource::set_uuid(const ::std::string& value) {
-  set_has_uuid();
-  uuid_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.NewSource.uuid)
-}
- void NewSource::set_uuid(const char* value) {
-  set_has_uuid();
-  uuid_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.NewSource.uuid)
-}
- void NewSource::set_uuid(const char* value, size_t size) {
-  set_has_uuid();
-  uuid_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.NewSource.uuid)
-}
- ::std::string* NewSource::mutable_uuid() {
-  set_has_uuid();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.NewSource.uuid)
-  return uuid_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* NewSource::release_uuid() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.NewSource.uuid)
-  clear_has_uuid();
-  return uuid_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void NewSource::set_allocated_uuid(::std::string* uuid) {
-  if (uuid != NULL) {
-    set_has_uuid();
-  } else {
-    clear_has_uuid();
-  }
-  uuid_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), uuid);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.NewSource.uuid)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int OpenSource::kDefinitionFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 OpenSource::OpenSource()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.OpenSource)
 }
@@ -11069,8 +7790,7 @@ void OpenSource::InitAsDefaultInstance() {
 }
 
 OpenSource::OpenSource(const OpenSource& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.OpenSource)
@@ -11079,7 +7799,7 @@ OpenSource::OpenSource(const OpenSource& from)
 void OpenSource::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  definition_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  definition_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -11089,7 +7809,9 @@ OpenSource::~OpenSource() {
 }
 
 void OpenSource::SharedDtor() {
-  definition_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (definition_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete definition_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -11111,28 +7833,23 @@ const OpenSource& OpenSource::default_instance() {
 
 OpenSource* OpenSource::default_instance_ = NULL;
 
-OpenSource* OpenSource::New(::google::protobuf::Arena* arena) const {
-  OpenSource* n = new OpenSource;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+OpenSource* OpenSource::New() const {
+  return new OpenSource;
 }
 
 void OpenSource::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.OpenSource)
   if (has_definition()) {
-    definition_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    if (definition_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+      definition_->clear();
+    }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool OpenSource::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.OpenSource)
   for (;;) {
@@ -11148,7 +7865,7 @@ bool OpenSource::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->definition().data(), this->definition().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.OpenSource.definition");
+            "definition");
         } else {
           goto handle_unusual;
         }
@@ -11186,33 +7903,33 @@ void OpenSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->definition().data(), this->definition().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSource.definition");
+      "definition");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->definition(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.OpenSource)
 }
 
-::google::protobuf::uint8* OpenSource::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* OpenSource::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.OpenSource)
   // required string definition = 1;
   if (has_definition()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->definition().data(), this->definition().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSource.definition");
+      "definition");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->definition(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -11221,16 +7938,18 @@ void OpenSource::SerializeWithCachedSizes(
 }
 
 int OpenSource::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.OpenSource)
   int total_size = 0;
 
-  // required string definition = 1;
-  if (has_definition()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->definition());
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required string definition = 1;
+    if (has_definition()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->definition());
+    }
+
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -11242,47 +7961,34 @@ int OpenSource::ByteSize() const {
 }
 
 void OpenSource::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.OpenSource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const OpenSource* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const OpenSource>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const OpenSource* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const OpenSource*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.OpenSource)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.OpenSource)
     MergeFrom(*source);
   }
 }
 
 void OpenSource::MergeFrom(const OpenSource& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.OpenSource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_definition()) {
-      set_has_definition();
-      definition_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.definition_);
+      set_definition(from.definition());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void OpenSource::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.OpenSource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void OpenSource::CopyFrom(const OpenSource& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.OpenSource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -11295,14 +8001,12 @@ bool OpenSource::IsInitialized() const {
 }
 
 void OpenSource::Swap(OpenSource* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void OpenSource::InternalSwap(OpenSource* other) {
-  definition_.Swap(&other->definition_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(definition_, other->definition_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata OpenSource::GetMetadata() const {
@@ -11313,68 +8017,10 @@ void OpenSource::InternalSwap(OpenSource* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// OpenSource
-
-// required string definition = 1;
-bool OpenSource::has_definition() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void OpenSource::set_has_definition() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void OpenSource::clear_has_definition() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void OpenSource::clear_definition() {
-  definition_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_definition();
-}
- const ::std::string& OpenSource::definition() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSource.definition)
-  return definition_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSource::set_definition(const ::std::string& value) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.OpenSource.definition)
-}
- void OpenSource::set_definition(const char* value) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.OpenSource.definition)
-}
- void OpenSource::set_definition(const char* value, size_t size) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.OpenSource.definition)
-}
- ::std::string* OpenSource::mutable_definition() {
-  set_has_definition();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSource.definition)
-  return definition_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* OpenSource::release_definition() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSource.definition)
-  clear_has_definition();
-  return definition_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSource::set_allocated_definition(::std::string* definition) {
-  if (definition != NULL) {
-    set_has_definition();
-  } else {
-    clear_has_definition();
-  }
-  definition_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), definition);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSource.definition)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int OpenSourceReport::kSuccessFieldNumber;
 const int OpenSourceReport::kDltFieldNumber;
 const int OpenSourceReport::kCaptureInterfaceFieldNumber;
@@ -11385,10 +8031,10 @@ const int OpenSourceReport::kMessageFieldNumber;
 const int OpenSourceReport::kSpecsetFieldNumber;
 const int OpenSourceReport::kUuidFieldNumber;
 const int OpenSourceReport::kWarningFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 OpenSourceReport::OpenSourceReport()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.OpenSourceReport)
 }
@@ -11402,8 +8048,7 @@ void OpenSourceReport::InitAsDefaultInstance() {
 }
 
 OpenSourceReport::OpenSourceReport(const OpenSourceReport& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.OpenSourceReport)
@@ -11414,14 +8059,14 @@ void OpenSourceReport::SharedCtor() {
   _cached_size_ = 0;
   success_ = NULL;
   dlt_ = 0u;
-  capture_interface_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  capture_interface_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   channels_ = NULL;
   channel_ = NULL;
-  hardware_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  hardware_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   message_ = NULL;
   specset_ = NULL;
-  uuid_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  warning_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  uuid_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  warning_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -11431,10 +8076,18 @@ OpenSourceReport::~OpenSourceReport() {
 }
 
 void OpenSourceReport::SharedDtor() {
-  capture_interface_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  hardware_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  uuid_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  warning_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (capture_interface_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete capture_interface_;
+  }
+  if (hardware_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete hardware_;
+  }
+  if (uuid_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete uuid_;
+  }
+  if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete warning_;
+  }
   if (this != default_instance_) {
     delete success_;
     delete channels_;
@@ -11461,23 +8114,20 @@ const OpenSourceReport& OpenSourceReport::default_instance() {
 
 OpenSourceReport* OpenSourceReport::default_instance_ = NULL;
 
-OpenSourceReport* OpenSourceReport::New(::google::protobuf::Arena* arena) const {
-  OpenSourceReport* n = new OpenSourceReport;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+OpenSourceReport* OpenSourceReport::New() const {
+  return new OpenSourceReport;
 }
 
 void OpenSourceReport::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.OpenSourceReport)
-  if (_has_bits_[0 / 32] & 255u) {
+  if (_has_bits_[0 / 32] & 255) {
     if (has_success()) {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
     dlt_ = 0u;
     if (has_capture_interface()) {
-      capture_interface_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (capture_interface_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        capture_interface_->clear();
+      }
     }
     if (has_channels()) {
       if (channels_ != NULL) channels_->::KismetDatasource::SubChannels::Clear();
@@ -11486,7 +8136,9 @@ void OpenSourceReport::Clear() {
       if (channel_ != NULL) channel_->::KismetDatasource::SubChanset::Clear();
     }
     if (has_hardware()) {
-      hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (hardware_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        hardware_->clear();
+      }
     }
     if (has_message()) {
       if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
@@ -11495,23 +8147,25 @@ void OpenSourceReport::Clear() {
       if (specset_ != NULL) specset_->::KismetDatasource::SubSpecset::Clear();
     }
   }
-  if (_has_bits_[8 / 32] & 768u) {
+  if (_has_bits_[8 / 32] & 768) {
     if (has_uuid()) {
-      uuid_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (uuid_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        uuid_->clear();
+      }
     }
     if (has_warning()) {
-      warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (warning_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        warning_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool OpenSourceReport::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.OpenSourceReport)
   for (;;) {
@@ -11555,7 +8209,7 @@ bool OpenSourceReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->capture_interface().data(), this->capture_interface().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.OpenSourceReport.capture_interface");
+            "capture_interface");
         } else {
           goto handle_unusual;
         }
@@ -11598,7 +8252,7 @@ bool OpenSourceReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->hardware().data(), this->hardware().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.OpenSourceReport.hardware");
+            "hardware");
         } else {
           goto handle_unusual;
         }
@@ -11641,7 +8295,7 @@ bool OpenSourceReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->uuid().data(), this->uuid().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.OpenSourceReport.uuid");
+            "uuid");
         } else {
           goto handle_unusual;
         }
@@ -11658,7 +8312,7 @@ bool OpenSourceReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->warning().data(), this->warning().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.OpenSourceReport.warning");
+            "warning");
         } else {
           goto handle_unusual;
         }
@@ -11694,7 +8348,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->success_, output);
+      1, this->success(), output);
   }
 
   // optional uint32 dlt = 2;
@@ -11707,7 +8361,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->capture_interface().data(), this->capture_interface().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.capture_interface");
+      "capture_interface");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       3, this->capture_interface(), output);
   }
@@ -11715,13 +8369,13 @@ void OpenSourceReport::SerializeWithCachedSizes(
   // optional .KismetDatasource.SubChannels channels = 4;
   if (has_channels()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      4, *this->channels_, output);
+      4, this->channels(), output);
   }
 
   // optional .KismetDatasource.SubChanset channel = 5;
   if (has_channel()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      5, *this->channel_, output);
+      5, this->channel(), output);
   }
 
   // optional string hardware = 6;
@@ -11729,7 +8383,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->hardware().data(), this->hardware().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.hardware");
+      "hardware");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       6, this->hardware(), output);
   }
@@ -11737,13 +8391,13 @@ void OpenSourceReport::SerializeWithCachedSizes(
   // optional .KismetExternal.MsgbusMessage message = 7;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      7, *this->message_, output);
+      7, this->message(), output);
   }
 
   // optional .KismetDatasource.SubSpecset specset = 8;
   if (has_specset()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      8, *this->specset_, output);
+      8, this->specset(), output);
   }
 
   // optional string uuid = 9;
@@ -11751,7 +8405,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->uuid().data(), this->uuid().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.uuid");
+      "uuid");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       9, this->uuid(), output);
   }
@@ -11761,26 +8415,26 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.warning");
+      "warning");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       10, this->warning(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.OpenSourceReport)
 }
 
-::google::protobuf::uint8* OpenSourceReport::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* OpenSourceReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.OpenSourceReport)
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->success_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->success(), target);
   }
 
   // optional uint32 dlt = 2;
@@ -11793,7 +8447,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->capture_interface().data(), this->capture_interface().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.capture_interface");
+      "capture_interface");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         3, this->capture_interface(), target);
@@ -11802,15 +8456,15 @@ void OpenSourceReport::SerializeWithCachedSizes(
   // optional .KismetDatasource.SubChannels channels = 4;
   if (has_channels()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        4, *this->channels_, false, target);
+      WriteMessageNoVirtualToArray(
+        4, this->channels(), target);
   }
 
   // optional .KismetDatasource.SubChanset channel = 5;
   if (has_channel()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        5, *this->channel_, false, target);
+      WriteMessageNoVirtualToArray(
+        5, this->channel(), target);
   }
 
   // optional string hardware = 6;
@@ -11818,7 +8472,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->hardware().data(), this->hardware().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.hardware");
+      "hardware");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         6, this->hardware(), target);
@@ -11827,15 +8481,15 @@ void OpenSourceReport::SerializeWithCachedSizes(
   // optional .KismetExternal.MsgbusMessage message = 7;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        7, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        7, this->message(), target);
   }
 
   // optional .KismetDatasource.SubSpecset specset = 8;
   if (has_specset()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        8, *this->specset_, false, target);
+      WriteMessageNoVirtualToArray(
+        8, this->specset(), target);
   }
 
   // optional string uuid = 9;
@@ -11843,7 +8497,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->uuid().data(), this->uuid().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.uuid");
+      "uuid");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         9, this->uuid(), target);
@@ -11854,13 +8508,13 @@ void OpenSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->warning().data(), this->warning().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.OpenSourceReport.warning");
+      "warning");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         10, this->warning(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -11869,16 +8523,16 @@ void OpenSourceReport::SerializeWithCachedSizes(
 }
 
 int OpenSourceReport::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.OpenSourceReport)
   int total_size = 0;
 
-  // required .KismetDatasource.SubSuccess success = 1;
-  if (has_success()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->success_);
-  }
-  if (_has_bits_[1 / 32] & 254u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .KismetDatasource.SubSuccess success = 1;
+    if (has_success()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->success());
+    }
+
     // optional uint32 dlt = 2;
     if (has_dlt()) {
       total_size += 1 +
@@ -11897,14 +8551,14 @@ int OpenSourceReport::ByteSize() const {
     if (has_channels()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->channels_);
+          this->channels());
     }
 
     // optional .KismetDatasource.SubChanset channel = 5;
     if (has_channel()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->channel_);
+          this->channel());
     }
 
     // optional string hardware = 6;
@@ -11918,18 +8572,18 @@ int OpenSourceReport::ByteSize() const {
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->message_);
+          this->message());
     }
 
     // optional .KismetDatasource.SubSpecset specset = 8;
     if (has_specset()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->specset_);
+          this->specset());
     }
 
   }
-  if (_has_bits_[8 / 32] & 768u) {
+  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     // optional string uuid = 9;
     if (has_uuid()) {
       total_size += 1 +
@@ -11945,7 +8599,7 @@ int OpenSourceReport::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -11957,27 +8611,19 @@ int OpenSourceReport::ByteSize() const {
 }
 
 void OpenSourceReport::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.OpenSourceReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const OpenSourceReport* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const OpenSourceReport>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const OpenSourceReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const OpenSourceReport*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.OpenSourceReport)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.OpenSourceReport)
     MergeFrom(*source);
   }
 }
 
 void OpenSourceReport::MergeFrom(const OpenSourceReport& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.OpenSourceReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_success()) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
@@ -11986,8 +8632,7 @@ void OpenSourceReport::MergeFrom(const OpenSourceReport& from) {
       set_dlt(from.dlt());
     }
     if (from.has_capture_interface()) {
-      set_has_capture_interface();
-      capture_interface_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.capture_interface_);
+      set_capture_interface(from.capture_interface());
     }
     if (from.has_channels()) {
       mutable_channels()->::KismetDatasource::SubChannels::MergeFrom(from.channels());
@@ -11996,8 +8641,7 @@ void OpenSourceReport::MergeFrom(const OpenSourceReport& from) {
       mutable_channel()->::KismetDatasource::SubChanset::MergeFrom(from.channel());
     }
     if (from.has_hardware()) {
-      set_has_hardware();
-      hardware_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.hardware_);
+      set_hardware(from.hardware());
     }
     if (from.has_message()) {
       mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
@@ -12008,28 +8652,22 @@ void OpenSourceReport::MergeFrom(const OpenSourceReport& from) {
   }
   if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
     if (from.has_uuid()) {
-      set_has_uuid();
-      uuid_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.uuid_);
+      set_uuid(from.uuid());
     }
     if (from.has_warning()) {
-      set_has_warning();
-      warning_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.warning_);
+      set_warning(from.warning());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void OpenSourceReport::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.OpenSourceReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void OpenSourceReport::CopyFrom(const OpenSourceReport& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.OpenSourceReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -12039,35 +8677,33 @@ bool OpenSourceReport::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   if (has_success()) {
-    if (!this->success_->IsInitialized()) return false;
+    if (!this->success().IsInitialized()) return false;
   }
   if (has_channel()) {
-    if (!this->channel_->IsInitialized()) return false;
+    if (!this->channel().IsInitialized()) return false;
   }
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   return true;
 }
 
 void OpenSourceReport::Swap(OpenSourceReport* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void OpenSourceReport::InternalSwap(OpenSourceReport* other) {
-  std::swap(success_, other->success_);
-  std::swap(dlt_, other->dlt_);
-  capture_interface_.Swap(&other->capture_interface_);
-  std::swap(channels_, other->channels_);
-  std::swap(channel_, other->channel_);
-  hardware_.Swap(&other->hardware_);
-  std::swap(message_, other->message_);
-  std::swap(specset_, other->specset_);
-  uuid_.Swap(&other->uuid_);
-  warning_.Swap(&other->warning_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(success_, other->success_);
+    std::swap(dlt_, other->dlt_);
+    std::swap(capture_interface_, other->capture_interface_);
+    std::swap(channels_, other->channels_);
+    std::swap(channel_, other->channel_);
+    std::swap(hardware_, other->hardware_);
+    std::swap(message_, other->message_);
+    std::swap(specset_, other->specset_);
+    std::swap(uuid_, other->uuid_);
+    std::swap(warning_, other->warning_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata OpenSourceReport::GetMetadata() const {
@@ -12078,479 +8714,15 @@ void OpenSourceReport::InternalSwap(OpenSourceReport* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// OpenSourceReport
-
-// required .KismetDatasource.SubSuccess success = 1;
-bool OpenSourceReport::has_success() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void OpenSourceReport::set_has_success() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void OpenSourceReport::clear_has_success() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void OpenSourceReport::clear_success() {
-  if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
-  clear_has_success();
-}
-const ::KismetDatasource::SubSuccess& OpenSourceReport::success() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.success)
-  return success_ != NULL ? *success_ : *default_instance_->success_;
-}
-::KismetDatasource::SubSuccess* OpenSourceReport::mutable_success() {
-  set_has_success();
-  if (success_ == NULL) {
-    success_ = new ::KismetDatasource::SubSuccess;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.success)
-  return success_;
-}
-::KismetDatasource::SubSuccess* OpenSourceReport::release_success() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.success)
-  clear_has_success();
-  ::KismetDatasource::SubSuccess* temp = success_;
-  success_ = NULL;
-  return temp;
-}
-void OpenSourceReport::set_allocated_success(::KismetDatasource::SubSuccess* success) {
-  delete success_;
-  success_ = success;
-  if (success) {
-    set_has_success();
-  } else {
-    clear_has_success();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.success)
-}
-
-// optional uint32 dlt = 2;
-bool OpenSourceReport::has_dlt() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void OpenSourceReport::set_has_dlt() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void OpenSourceReport::clear_has_dlt() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void OpenSourceReport::clear_dlt() {
-  dlt_ = 0u;
-  clear_has_dlt();
-}
- ::google::protobuf::uint32 OpenSourceReport::dlt() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.dlt)
-  return dlt_;
-}
- void OpenSourceReport::set_dlt(::google::protobuf::uint32 value) {
-  set_has_dlt();
-  dlt_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.OpenSourceReport.dlt)
-}
-
-// optional string capture_interface = 3;
-bool OpenSourceReport::has_capture_interface() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void OpenSourceReport::set_has_capture_interface() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void OpenSourceReport::clear_has_capture_interface() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void OpenSourceReport::clear_capture_interface() {
-  capture_interface_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_capture_interface();
-}
- const ::std::string& OpenSourceReport::capture_interface() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.capture_interface)
-  return capture_interface_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_capture_interface(const ::std::string& value) {
-  set_has_capture_interface();
-  capture_interface_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.OpenSourceReport.capture_interface)
-}
- void OpenSourceReport::set_capture_interface(const char* value) {
-  set_has_capture_interface();
-  capture_interface_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.OpenSourceReport.capture_interface)
-}
- void OpenSourceReport::set_capture_interface(const char* value, size_t size) {
-  set_has_capture_interface();
-  capture_interface_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.OpenSourceReport.capture_interface)
-}
- ::std::string* OpenSourceReport::mutable_capture_interface() {
-  set_has_capture_interface();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.capture_interface)
-  return capture_interface_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* OpenSourceReport::release_capture_interface() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.capture_interface)
-  clear_has_capture_interface();
-  return capture_interface_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_allocated_capture_interface(::std::string* capture_interface) {
-  if (capture_interface != NULL) {
-    set_has_capture_interface();
-  } else {
-    clear_has_capture_interface();
-  }
-  capture_interface_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), capture_interface);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.capture_interface)
-}
-
-// optional .KismetDatasource.SubChannels channels = 4;
-bool OpenSourceReport::has_channels() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void OpenSourceReport::set_has_channels() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void OpenSourceReport::clear_has_channels() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void OpenSourceReport::clear_channels() {
-  if (channels_ != NULL) channels_->::KismetDatasource::SubChannels::Clear();
-  clear_has_channels();
-}
-const ::KismetDatasource::SubChannels& OpenSourceReport::channels() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.channels)
-  return channels_ != NULL ? *channels_ : *default_instance_->channels_;
-}
-::KismetDatasource::SubChannels* OpenSourceReport::mutable_channels() {
-  set_has_channels();
-  if (channels_ == NULL) {
-    channels_ = new ::KismetDatasource::SubChannels;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.channels)
-  return channels_;
-}
-::KismetDatasource::SubChannels* OpenSourceReport::release_channels() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.channels)
-  clear_has_channels();
-  ::KismetDatasource::SubChannels* temp = channels_;
-  channels_ = NULL;
-  return temp;
-}
-void OpenSourceReport::set_allocated_channels(::KismetDatasource::SubChannels* channels) {
-  delete channels_;
-  channels_ = channels;
-  if (channels) {
-    set_has_channels();
-  } else {
-    clear_has_channels();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.channels)
-}
-
-// optional .KismetDatasource.SubChanset channel = 5;
-bool OpenSourceReport::has_channel() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void OpenSourceReport::set_has_channel() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void OpenSourceReport::clear_has_channel() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void OpenSourceReport::clear_channel() {
-  if (channel_ != NULL) channel_->::KismetDatasource::SubChanset::Clear();
-  clear_has_channel();
-}
-const ::KismetDatasource::SubChanset& OpenSourceReport::channel() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.channel)
-  return channel_ != NULL ? *channel_ : *default_instance_->channel_;
-}
-::KismetDatasource::SubChanset* OpenSourceReport::mutable_channel() {
-  set_has_channel();
-  if (channel_ == NULL) {
-    channel_ = new ::KismetDatasource::SubChanset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.channel)
-  return channel_;
-}
-::KismetDatasource::SubChanset* OpenSourceReport::release_channel() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.channel)
-  clear_has_channel();
-  ::KismetDatasource::SubChanset* temp = channel_;
-  channel_ = NULL;
-  return temp;
-}
-void OpenSourceReport::set_allocated_channel(::KismetDatasource::SubChanset* channel) {
-  delete channel_;
-  channel_ = channel;
-  if (channel) {
-    set_has_channel();
-  } else {
-    clear_has_channel();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.channel)
-}
-
-// optional string hardware = 6;
-bool OpenSourceReport::has_hardware() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-void OpenSourceReport::set_has_hardware() {
-  _has_bits_[0] |= 0x00000020u;
-}
-void OpenSourceReport::clear_has_hardware() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-void OpenSourceReport::clear_hardware() {
-  hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_hardware();
-}
- const ::std::string& OpenSourceReport::hardware() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.hardware)
-  return hardware_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_hardware(const ::std::string& value) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.OpenSourceReport.hardware)
-}
- void OpenSourceReport::set_hardware(const char* value) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.OpenSourceReport.hardware)
-}
- void OpenSourceReport::set_hardware(const char* value, size_t size) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.OpenSourceReport.hardware)
-}
- ::std::string* OpenSourceReport::mutable_hardware() {
-  set_has_hardware();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.hardware)
-  return hardware_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* OpenSourceReport::release_hardware() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.hardware)
-  clear_has_hardware();
-  return hardware_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_allocated_hardware(::std::string* hardware) {
-  if (hardware != NULL) {
-    set_has_hardware();
-  } else {
-    clear_has_hardware();
-  }
-  hardware_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), hardware);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.hardware)
-}
-
-// optional .KismetExternal.MsgbusMessage message = 7;
-bool OpenSourceReport::has_message() const {
-  return (_has_bits_[0] & 0x00000040u) != 0;
-}
-void OpenSourceReport::set_has_message() {
-  _has_bits_[0] |= 0x00000040u;
-}
-void OpenSourceReport::clear_has_message() {
-  _has_bits_[0] &= ~0x00000040u;
-}
-void OpenSourceReport::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& OpenSourceReport::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* OpenSourceReport::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* OpenSourceReport::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void OpenSourceReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.message)
-}
-
-// optional .KismetDatasource.SubSpecset specset = 8;
-bool OpenSourceReport::has_specset() const {
-  return (_has_bits_[0] & 0x00000080u) != 0;
-}
-void OpenSourceReport::set_has_specset() {
-  _has_bits_[0] |= 0x00000080u;
-}
-void OpenSourceReport::clear_has_specset() {
-  _has_bits_[0] &= ~0x00000080u;
-}
-void OpenSourceReport::clear_specset() {
-  if (specset_ != NULL) specset_->::KismetDatasource::SubSpecset::Clear();
-  clear_has_specset();
-}
-const ::KismetDatasource::SubSpecset& OpenSourceReport::specset() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.specset)
-  return specset_ != NULL ? *specset_ : *default_instance_->specset_;
-}
-::KismetDatasource::SubSpecset* OpenSourceReport::mutable_specset() {
-  set_has_specset();
-  if (specset_ == NULL) {
-    specset_ = new ::KismetDatasource::SubSpecset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.specset)
-  return specset_;
-}
-::KismetDatasource::SubSpecset* OpenSourceReport::release_specset() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.specset)
-  clear_has_specset();
-  ::KismetDatasource::SubSpecset* temp = specset_;
-  specset_ = NULL;
-  return temp;
-}
-void OpenSourceReport::set_allocated_specset(::KismetDatasource::SubSpecset* specset) {
-  delete specset_;
-  specset_ = specset;
-  if (specset) {
-    set_has_specset();
-  } else {
-    clear_has_specset();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.specset)
-}
-
-// optional string uuid = 9;
-bool OpenSourceReport::has_uuid() const {
-  return (_has_bits_[0] & 0x00000100u) != 0;
-}
-void OpenSourceReport::set_has_uuid() {
-  _has_bits_[0] |= 0x00000100u;
-}
-void OpenSourceReport::clear_has_uuid() {
-  _has_bits_[0] &= ~0x00000100u;
-}
-void OpenSourceReport::clear_uuid() {
-  uuid_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_uuid();
-}
- const ::std::string& OpenSourceReport::uuid() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.uuid)
-  return uuid_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_uuid(const ::std::string& value) {
-  set_has_uuid();
-  uuid_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.OpenSourceReport.uuid)
-}
- void OpenSourceReport::set_uuid(const char* value) {
-  set_has_uuid();
-  uuid_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.OpenSourceReport.uuid)
-}
- void OpenSourceReport::set_uuid(const char* value, size_t size) {
-  set_has_uuid();
-  uuid_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.OpenSourceReport.uuid)
-}
- ::std::string* OpenSourceReport::mutable_uuid() {
-  set_has_uuid();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.uuid)
-  return uuid_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* OpenSourceReport::release_uuid() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.uuid)
-  clear_has_uuid();
-  return uuid_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_allocated_uuid(::std::string* uuid) {
-  if (uuid != NULL) {
-    set_has_uuid();
-  } else {
-    clear_has_uuid();
-  }
-  uuid_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), uuid);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.uuid)
-}
-
-// optional string warning = 10;
-bool OpenSourceReport::has_warning() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
-}
-void OpenSourceReport::set_has_warning() {
-  _has_bits_[0] |= 0x00000200u;
-}
-void OpenSourceReport::clear_has_warning() {
-  _has_bits_[0] &= ~0x00000200u;
-}
-void OpenSourceReport::clear_warning() {
-  warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_warning();
-}
- const ::std::string& OpenSourceReport::warning() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.warning)
-  return warning_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_warning(const ::std::string& value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.OpenSourceReport.warning)
-}
- void OpenSourceReport::set_warning(const char* value) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.OpenSourceReport.warning)
-}
- void OpenSourceReport::set_warning(const char* value, size_t size) {
-  set_has_warning();
-  warning_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.OpenSourceReport.warning)
-}
- ::std::string* OpenSourceReport::mutable_warning() {
-  set_has_warning();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.warning)
-  return warning_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* OpenSourceReport::release_warning() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.warning)
-  clear_has_warning();
-  return warning_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void OpenSourceReport::set_allocated_warning(::std::string* warning) {
-  if (warning != NULL) {
-    set_has_warning();
-  } else {
-    clear_has_warning();
-  }
-  warning_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), warning);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.warning)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int ProbeSource::kDefinitionFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 ProbeSource::ProbeSource()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.ProbeSource)
 }
@@ -12559,8 +8731,7 @@ void ProbeSource::InitAsDefaultInstance() {
 }
 
 ProbeSource::ProbeSource(const ProbeSource& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.ProbeSource)
@@ -12569,7 +8740,7 @@ ProbeSource::ProbeSource(const ProbeSource& from)
 void ProbeSource::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
-  definition_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  definition_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -12579,7 +8750,9 @@ ProbeSource::~ProbeSource() {
 }
 
 void ProbeSource::SharedDtor() {
-  definition_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (definition_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete definition_;
+  }
   if (this != default_instance_) {
   }
 }
@@ -12601,28 +8774,23 @@ const ProbeSource& ProbeSource::default_instance() {
 
 ProbeSource* ProbeSource::default_instance_ = NULL;
 
-ProbeSource* ProbeSource::New(::google::protobuf::Arena* arena) const {
-  ProbeSource* n = new ProbeSource;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+ProbeSource* ProbeSource::New() const {
+  return new ProbeSource;
 }
 
 void ProbeSource::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.ProbeSource)
   if (has_definition()) {
-    definition_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    if (definition_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+      definition_->clear();
+    }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool ProbeSource::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.ProbeSource)
   for (;;) {
@@ -12638,7 +8806,7 @@ bool ProbeSource::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->definition().data(), this->definition().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.ProbeSource.definition");
+            "definition");
         } else {
           goto handle_unusual;
         }
@@ -12676,33 +8844,33 @@ void ProbeSource::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->definition().data(), this->definition().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.ProbeSource.definition");
+      "definition");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->definition(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.ProbeSource)
 }
 
-::google::protobuf::uint8* ProbeSource::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* ProbeSource::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.ProbeSource)
   // required string definition = 1;
   if (has_definition()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->definition().data(), this->definition().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.ProbeSource.definition");
+      "definition");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->definition(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -12711,16 +8879,18 @@ void ProbeSource::SerializeWithCachedSizes(
 }
 
 int ProbeSource::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.ProbeSource)
   int total_size = 0;
 
-  // required string definition = 1;
-  if (has_definition()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->definition());
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required string definition = 1;
+    if (has_definition()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::StringSize(
+          this->definition());
+    }
+
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -12732,47 +8902,34 @@ int ProbeSource::ByteSize() const {
 }
 
 void ProbeSource::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.ProbeSource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const ProbeSource* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const ProbeSource>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const ProbeSource* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const ProbeSource*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.ProbeSource)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.ProbeSource)
     MergeFrom(*source);
   }
 }
 
 void ProbeSource::MergeFrom(const ProbeSource& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.ProbeSource)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_definition()) {
-      set_has_definition();
-      definition_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.definition_);
+      set_definition(from.definition());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void ProbeSource::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.ProbeSource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void ProbeSource::CopyFrom(const ProbeSource& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.ProbeSource)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -12785,14 +8942,12 @@ bool ProbeSource::IsInitialized() const {
 }
 
 void ProbeSource::Swap(ProbeSource* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void ProbeSource::InternalSwap(ProbeSource* other) {
-  definition_.Swap(&other->definition_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(definition_, other->definition_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata ProbeSource::GetMetadata() const {
@@ -12803,78 +8958,20 @@ void ProbeSource::InternalSwap(ProbeSource* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// ProbeSource
-
-// required string definition = 1;
-bool ProbeSource::has_definition() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void ProbeSource::set_has_definition() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void ProbeSource::clear_has_definition() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void ProbeSource::clear_definition() {
-  definition_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_definition();
-}
- const ::std::string& ProbeSource::definition() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSource.definition)
-  return definition_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void ProbeSource::set_definition(const ::std::string& value) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.ProbeSource.definition)
-}
- void ProbeSource::set_definition(const char* value) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.ProbeSource.definition)
-}
- void ProbeSource::set_definition(const char* value, size_t size) {
-  set_has_definition();
-  definition_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.ProbeSource.definition)
-}
- ::std::string* ProbeSource::mutable_definition() {
-  set_has_definition();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSource.definition)
-  return definition_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* ProbeSource::release_definition() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSource.definition)
-  clear_has_definition();
-  return definition_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void ProbeSource::set_allocated_definition(::std::string* definition) {
-  if (definition != NULL) {
-    set_has_definition();
-  } else {
-    clear_has_definition();
-  }
-  definition_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), definition);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSource.definition)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#ifndef _MSC_VER
 const int ProbeSourceReport::kSuccessFieldNumber;
 const int ProbeSourceReport::kMessageFieldNumber;
 const int ProbeSourceReport::kChannelsFieldNumber;
 const int ProbeSourceReport::kChansetFieldNumber;
 const int ProbeSourceReport::kSpecsetFieldNumber;
 const int ProbeSourceReport::kHardwareFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !_MSC_VER
 
 ProbeSourceReport::ProbeSourceReport()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   // @@protoc_insertion_point(constructor:KismetDatasource.ProbeSourceReport)
 }
@@ -12888,8 +8985,7 @@ void ProbeSourceReport::InitAsDefaultInstance() {
 }
 
 ProbeSourceReport::ProbeSourceReport(const ProbeSourceReport& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
+  : ::google::protobuf::Message() {
   SharedCtor();
   MergeFrom(from);
   // @@protoc_insertion_point(copy_constructor:KismetDatasource.ProbeSourceReport)
@@ -12903,7 +8999,7 @@ void ProbeSourceReport::SharedCtor() {
   channels_ = NULL;
   chanset_ = NULL;
   specset_ = NULL;
-  hardware_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  hardware_ = const_cast< ::std::string*>(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -12913,7 +9009,9 @@ ProbeSourceReport::~ProbeSourceReport() {
 }
 
 void ProbeSourceReport::SharedDtor() {
-  hardware_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (hardware_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+    delete hardware_;
+  }
   if (this != default_instance_) {
     delete success_;
     delete message_;
@@ -12940,17 +9038,12 @@ const ProbeSourceReport& ProbeSourceReport::default_instance() {
 
 ProbeSourceReport* ProbeSourceReport::default_instance_ = NULL;
 
-ProbeSourceReport* ProbeSourceReport::New(::google::protobuf::Arena* arena) const {
-  ProbeSourceReport* n = new ProbeSourceReport;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
+ProbeSourceReport* ProbeSourceReport::New() const {
+  return new ProbeSourceReport;
 }
 
 void ProbeSourceReport::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.ProbeSourceReport)
-  if (_has_bits_[0 / 32] & 63u) {
+  if (_has_bits_[0 / 32] & 63) {
     if (has_success()) {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
@@ -12967,18 +9060,18 @@ void ProbeSourceReport::Clear() {
       if (specset_ != NULL) specset_->::KismetDatasource::SubSpecset::Clear();
     }
     if (has_hardware()) {
-      hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+      if (hardware_ != &::google::protobuf::internal::GetEmptyStringAlreadyInited()) {
+        hardware_->clear();
+      }
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
+  mutable_unknown_fields()->Clear();
 }
 
 bool ProbeSourceReport::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+#define DO_(EXPRESSION) if (!(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
   // @@protoc_insertion_point(parse_start:KismetDatasource.ProbeSourceReport)
   for (;;) {
@@ -13059,7 +9152,7 @@ bool ProbeSourceReport::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->hardware().data(), this->hardware().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.ProbeSourceReport.hardware");
+            "hardware");
         } else {
           goto handle_unusual;
         }
@@ -13095,31 +9188,31 @@ void ProbeSourceReport::SerializeWithCachedSizes(
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      1, *this->success_, output);
+      1, this->success(), output);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      2, *this->message_, output);
+      2, this->message(), output);
   }
 
   // optional .KismetDatasource.SubChannels channels = 3;
   if (has_channels()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      3, *this->channels_, output);
+      3, this->channels(), output);
   }
 
   // optional .KismetDatasource.SubChanset chanset = 4;
   if (has_chanset()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      4, *this->chanset_, output);
+      4, this->chanset(), output);
   }
 
   // optional .KismetDatasource.SubSpecset specset = 5;
   if (has_specset()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
-      5, *this->specset_, output);
+      5, this->specset(), output);
   }
 
   // optional string hardware = 6;
@@ -13127,54 +9220,54 @@ void ProbeSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->hardware().data(), this->hardware().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.ProbeSourceReport.hardware");
+      "hardware");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       6, this->hardware(), output);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
   // @@protoc_insertion_point(serialize_end:KismetDatasource.ProbeSourceReport)
 }
 
-::google::protobuf::uint8* ProbeSourceReport::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
+::google::protobuf::uint8* ProbeSourceReport::SerializeWithCachedSizesToArray(
+    ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.ProbeSourceReport)
   // required .KismetDatasource.SubSuccess success = 1;
   if (has_success()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        1, *this->success_, false, target);
+      WriteMessageNoVirtualToArray(
+        1, this->success(), target);
   }
 
   // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        2, *this->message_, false, target);
+      WriteMessageNoVirtualToArray(
+        2, this->message(), target);
   }
 
   // optional .KismetDatasource.SubChannels channels = 3;
   if (has_channels()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        3, *this->channels_, false, target);
+      WriteMessageNoVirtualToArray(
+        3, this->channels(), target);
   }
 
   // optional .KismetDatasource.SubChanset chanset = 4;
   if (has_chanset()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        4, *this->chanset_, false, target);
+      WriteMessageNoVirtualToArray(
+        4, this->chanset(), target);
   }
 
   // optional .KismetDatasource.SubSpecset specset = 5;
   if (has_specset()) {
     target = ::google::protobuf::internal::WireFormatLite::
-      InternalWriteMessageNoVirtualToArray(
-        5, *this->specset_, false, target);
+      WriteMessageNoVirtualToArray(
+        5, this->specset(), target);
   }
 
   // optional string hardware = 6;
@@ -13182,13 +9275,13 @@ void ProbeSourceReport::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->hardware().data(), this->hardware().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.ProbeSourceReport.hardware");
+      "hardware");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         6, this->hardware(), target);
   }
 
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
@@ -13197,42 +9290,42 @@ void ProbeSourceReport::SerializeWithCachedSizes(
 }
 
 int ProbeSourceReport::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.ProbeSourceReport)
   int total_size = 0;
 
-  // required .KismetDatasource.SubSuccess success = 1;
-  if (has_success()) {
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        *this->success_);
-  }
-  if (_has_bits_[1 / 32] & 62u) {
+  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    // required .KismetDatasource.SubSuccess success = 1;
+    if (has_success()) {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
+          this->success());
+    }
+
     // optional .KismetExternal.MsgbusMessage message = 2;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->message_);
+          this->message());
     }
 
     // optional .KismetDatasource.SubChannels channels = 3;
     if (has_channels()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->channels_);
+          this->channels());
     }
 
     // optional .KismetDatasource.SubChanset chanset = 4;
     if (has_chanset()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->chanset_);
+          this->chanset());
     }
 
     // optional .KismetDatasource.SubSpecset specset = 5;
     if (has_specset()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-          *this->specset_);
+          this->specset());
     }
 
     // optional string hardware = 6;
@@ -13243,7 +9336,7 @@ int ProbeSourceReport::ByteSize() const {
     }
 
   }
-  if (_internal_metadata_.have_unknown_fields()) {
+  if (!unknown_fields().empty()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
         unknown_fields());
@@ -13255,27 +9348,19 @@ int ProbeSourceReport::ByteSize() const {
 }
 
 void ProbeSourceReport::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.ProbeSourceReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const ProbeSourceReport* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const ProbeSourceReport>(
-          &from);
+  GOOGLE_CHECK_NE(&from, this);
+  const ProbeSourceReport* source =
+    ::google::protobuf::internal::dynamic_cast_if_available<const ProbeSourceReport*>(
+      &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.ProbeSourceReport)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.ProbeSourceReport)
     MergeFrom(*source);
   }
 }
 
 void ProbeSourceReport::MergeFrom(const ProbeSourceReport& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.ProbeSourceReport)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
+  GOOGLE_CHECK_NE(&from, this);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_success()) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
@@ -13293,24 +9378,19 @@ void ProbeSourceReport::MergeFrom(const ProbeSourceReport& from) {
       mutable_specset()->::KismetDatasource::SubSpecset::MergeFrom(from.specset());
     }
     if (from.has_hardware()) {
-      set_has_hardware();
-      hardware_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.hardware_);
+      set_hardware(from.hardware());
     }
   }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
+  mutable_unknown_fields()->MergeFrom(from.unknown_fields());
 }
 
 void ProbeSourceReport::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.ProbeSourceReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void ProbeSourceReport::CopyFrom(const ProbeSourceReport& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.ProbeSourceReport)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -13320,31 +9400,29 @@ bool ProbeSourceReport::IsInitialized() const {
   if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   if (has_success()) {
-    if (!this->success_->IsInitialized()) return false;
+    if (!this->success().IsInitialized()) return false;
   }
   if (has_message()) {
-    if (!this->message_->IsInitialized()) return false;
+    if (!this->message().IsInitialized()) return false;
   }
   if (has_chanset()) {
-    if (!this->chanset_->IsInitialized()) return false;
+    if (!this->chanset().IsInitialized()) return false;
   }
   return true;
 }
 
 void ProbeSourceReport::Swap(ProbeSourceReport* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void ProbeSourceReport::InternalSwap(ProbeSourceReport* other) {
-  std::swap(success_, other->success_);
-  std::swap(message_, other->message_);
-  std::swap(channels_, other->channels_);
-  std::swap(chanset_, other->chanset_);
-  std::swap(specset_, other->specset_);
-  hardware_.Swap(&other->hardware_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
+  if (other != this) {
+    std::swap(success_, other->success_);
+    std::swap(message_, other->message_);
+    std::swap(channels_, other->channels_);
+    std::swap(chanset_, other->chanset_);
+    std::swap(specset_, other->specset_);
+    std::swap(hardware_, other->hardware_);
+    std::swap(_has_bits_[0], other->_has_bits_[0]);
+    _unknown_fields_.Swap(&other->_unknown_fields_);
+    std::swap(_cached_size_, other->_cached_size_);
+  }
 }
 
 ::google::protobuf::Metadata ProbeSourceReport::GetMetadata() const {
@@ -13355,284 +9433,6 @@ void ProbeSourceReport::InternalSwap(ProbeSourceReport* other) {
   return metadata;
 }
 
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// ProbeSourceReport
-
-// required .KismetDatasource.SubSuccess success = 1;
-bool ProbeSourceReport::has_success() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void ProbeSourceReport::set_has_success() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void ProbeSourceReport::clear_has_success() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void ProbeSourceReport::clear_success() {
-  if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
-  clear_has_success();
-}
-const ::KismetDatasource::SubSuccess& ProbeSourceReport::success() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.success)
-  return success_ != NULL ? *success_ : *default_instance_->success_;
-}
-::KismetDatasource::SubSuccess* ProbeSourceReport::mutable_success() {
-  set_has_success();
-  if (success_ == NULL) {
-    success_ = new ::KismetDatasource::SubSuccess;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.success)
-  return success_;
-}
-::KismetDatasource::SubSuccess* ProbeSourceReport::release_success() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.success)
-  clear_has_success();
-  ::KismetDatasource::SubSuccess* temp = success_;
-  success_ = NULL;
-  return temp;
-}
-void ProbeSourceReport::set_allocated_success(::KismetDatasource::SubSuccess* success) {
-  delete success_;
-  success_ = success;
-  if (success) {
-    set_has_success();
-  } else {
-    clear_has_success();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.success)
-}
-
-// optional .KismetExternal.MsgbusMessage message = 2;
-bool ProbeSourceReport::has_message() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void ProbeSourceReport::set_has_message() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void ProbeSourceReport::clear_has_message() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void ProbeSourceReport::clear_message() {
-  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
-  clear_has_message();
-}
-const ::KismetExternal::MsgbusMessage& ProbeSourceReport::message() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.message)
-  return message_ != NULL ? *message_ : *default_instance_->message_;
-}
-::KismetExternal::MsgbusMessage* ProbeSourceReport::mutable_message() {
-  set_has_message();
-  if (message_ == NULL) {
-    message_ = new ::KismetExternal::MsgbusMessage;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.message)
-  return message_;
-}
-::KismetExternal::MsgbusMessage* ProbeSourceReport::release_message() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.message)
-  clear_has_message();
-  ::KismetExternal::MsgbusMessage* temp = message_;
-  message_ = NULL;
-  return temp;
-}
-void ProbeSourceReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
-  delete message_;
-  message_ = message;
-  if (message) {
-    set_has_message();
-  } else {
-    clear_has_message();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.message)
-}
-
-// optional .KismetDatasource.SubChannels channels = 3;
-bool ProbeSourceReport::has_channels() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
-}
-void ProbeSourceReport::set_has_channels() {
-  _has_bits_[0] |= 0x00000004u;
-}
-void ProbeSourceReport::clear_has_channels() {
-  _has_bits_[0] &= ~0x00000004u;
-}
-void ProbeSourceReport::clear_channels() {
-  if (channels_ != NULL) channels_->::KismetDatasource::SubChannels::Clear();
-  clear_has_channels();
-}
-const ::KismetDatasource::SubChannels& ProbeSourceReport::channels() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.channels)
-  return channels_ != NULL ? *channels_ : *default_instance_->channels_;
-}
-::KismetDatasource::SubChannels* ProbeSourceReport::mutable_channels() {
-  set_has_channels();
-  if (channels_ == NULL) {
-    channels_ = new ::KismetDatasource::SubChannels;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.channels)
-  return channels_;
-}
-::KismetDatasource::SubChannels* ProbeSourceReport::release_channels() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.channels)
-  clear_has_channels();
-  ::KismetDatasource::SubChannels* temp = channels_;
-  channels_ = NULL;
-  return temp;
-}
-void ProbeSourceReport::set_allocated_channels(::KismetDatasource::SubChannels* channels) {
-  delete channels_;
-  channels_ = channels;
-  if (channels) {
-    set_has_channels();
-  } else {
-    clear_has_channels();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.channels)
-}
-
-// optional .KismetDatasource.SubChanset chanset = 4;
-bool ProbeSourceReport::has_chanset() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
-}
-void ProbeSourceReport::set_has_chanset() {
-  _has_bits_[0] |= 0x00000008u;
-}
-void ProbeSourceReport::clear_has_chanset() {
-  _has_bits_[0] &= ~0x00000008u;
-}
-void ProbeSourceReport::clear_chanset() {
-  if (chanset_ != NULL) chanset_->::KismetDatasource::SubChanset::Clear();
-  clear_has_chanset();
-}
-const ::KismetDatasource::SubChanset& ProbeSourceReport::chanset() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.chanset)
-  return chanset_ != NULL ? *chanset_ : *default_instance_->chanset_;
-}
-::KismetDatasource::SubChanset* ProbeSourceReport::mutable_chanset() {
-  set_has_chanset();
-  if (chanset_ == NULL) {
-    chanset_ = new ::KismetDatasource::SubChanset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.chanset)
-  return chanset_;
-}
-::KismetDatasource::SubChanset* ProbeSourceReport::release_chanset() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.chanset)
-  clear_has_chanset();
-  ::KismetDatasource::SubChanset* temp = chanset_;
-  chanset_ = NULL;
-  return temp;
-}
-void ProbeSourceReport::set_allocated_chanset(::KismetDatasource::SubChanset* chanset) {
-  delete chanset_;
-  chanset_ = chanset;
-  if (chanset) {
-    set_has_chanset();
-  } else {
-    clear_has_chanset();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.chanset)
-}
-
-// optional .KismetDatasource.SubSpecset specset = 5;
-bool ProbeSourceReport::has_specset() const {
-  return (_has_bits_[0] & 0x00000010u) != 0;
-}
-void ProbeSourceReport::set_has_specset() {
-  _has_bits_[0] |= 0x00000010u;
-}
-void ProbeSourceReport::clear_has_specset() {
-  _has_bits_[0] &= ~0x00000010u;
-}
-void ProbeSourceReport::clear_specset() {
-  if (specset_ != NULL) specset_->::KismetDatasource::SubSpecset::Clear();
-  clear_has_specset();
-}
-const ::KismetDatasource::SubSpecset& ProbeSourceReport::specset() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.specset)
-  return specset_ != NULL ? *specset_ : *default_instance_->specset_;
-}
-::KismetDatasource::SubSpecset* ProbeSourceReport::mutable_specset() {
-  set_has_specset();
-  if (specset_ == NULL) {
-    specset_ = new ::KismetDatasource::SubSpecset;
-  }
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.specset)
-  return specset_;
-}
-::KismetDatasource::SubSpecset* ProbeSourceReport::release_specset() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.specset)
-  clear_has_specset();
-  ::KismetDatasource::SubSpecset* temp = specset_;
-  specset_ = NULL;
-  return temp;
-}
-void ProbeSourceReport::set_allocated_specset(::KismetDatasource::SubSpecset* specset) {
-  delete specset_;
-  specset_ = specset;
-  if (specset) {
-    set_has_specset();
-  } else {
-    clear_has_specset();
-  }
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.specset)
-}
-
-// optional string hardware = 6;
-bool ProbeSourceReport::has_hardware() const {
-  return (_has_bits_[0] & 0x00000020u) != 0;
-}
-void ProbeSourceReport::set_has_hardware() {
-  _has_bits_[0] |= 0x00000020u;
-}
-void ProbeSourceReport::clear_has_hardware() {
-  _has_bits_[0] &= ~0x00000020u;
-}
-void ProbeSourceReport::clear_hardware() {
-  hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_hardware();
-}
- const ::std::string& ProbeSourceReport::hardware() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.hardware)
-  return hardware_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void ProbeSourceReport::set_hardware(const ::std::string& value) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.ProbeSourceReport.hardware)
-}
- void ProbeSourceReport::set_hardware(const char* value) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.ProbeSourceReport.hardware)
-}
- void ProbeSourceReport::set_hardware(const char* value, size_t size) {
-  set_has_hardware();
-  hardware_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.ProbeSourceReport.hardware)
-}
- ::std::string* ProbeSourceReport::mutable_hardware() {
-  set_has_hardware();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.hardware)
-  return hardware_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* ProbeSourceReport::release_hardware() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.hardware)
-  clear_has_hardware();
-  return hardware_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void ProbeSourceReport::set_allocated_hardware(::std::string* hardware) {
-  if (hardware != NULL) {
-    set_has_hardware();
-  } else {
-    clear_has_hardware();
-  }
-  hardware_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), hardware);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.hardware)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // @@protoc_insertion_point(namespace_scope)
 
