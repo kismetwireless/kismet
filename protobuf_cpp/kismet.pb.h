@@ -26,6 +26,8 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
+#include <google/protobuf/map.h>
+#include <google/protobuf/map_field_inl.h>
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
@@ -38,6 +40,9 @@ void protobuf_AssignDesc_kismet_2eproto();
 void protobuf_ShutdownFile_kismet_2eproto();
 
 class Command;
+class HttpRegisterUri;
+class HttpRequest;
+class HttpResponse;
 class MsgbusMessage;
 class Ping;
 class Pong;
@@ -194,14 +199,14 @@ class Command : public ::google::protobuf::Message /* @@protoc_insertion_point(c
 };
 // -------------------------------------------------------------------
 
-class SystemRegister : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.SystemRegister) */ {
+class HttpRegisterUri : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.HttpRegisterUri) */ {
  public:
-  SystemRegister();
-  virtual ~SystemRegister();
+  HttpRegisterUri();
+  virtual ~HttpRegisterUri();
 
-  SystemRegister(const SystemRegister& from);
+  HttpRegisterUri(const HttpRegisterUri& from);
 
-  inline SystemRegister& operator=(const SystemRegister& from) {
+  inline HttpRegisterUri& operator=(const HttpRegisterUri& from) {
     CopyFrom(from);
     return *this;
   }
@@ -215,19 +220,19 @@ class SystemRegister : public ::google::protobuf::Message /* @@protoc_insertion_
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const SystemRegister& default_instance();
+  static const HttpRegisterUri& default_instance();
 
-  void Swap(SystemRegister* other);
+  void Swap(HttpRegisterUri* other);
 
   // implements Message ----------------------------------------------
 
-  inline SystemRegister* New() const { return New(NULL); }
+  inline HttpRegisterUri* New() const { return New(NULL); }
 
-  SystemRegister* New(::google::protobuf::Arena* arena) const;
+  HttpRegisterUri* New(::google::protobuf::Arena* arena) const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const SystemRegister& from);
-  void MergeFrom(const SystemRegister& from);
+  void CopyFrom(const HttpRegisterUri& from);
+  void MergeFrom(const HttpRegisterUri& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -246,7 +251,7 @@ class SystemRegister : public ::google::protobuf::Message /* @@protoc_insertion_
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
-  void InternalSwap(SystemRegister* other);
+  void InternalSwap(HttpRegisterUri* other);
   private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _internal_metadata_.arena();
@@ -262,44 +267,62 @@ class SystemRegister : public ::google::protobuf::Message /* @@protoc_insertion_
 
   // accessors -------------------------------------------------------
 
-  // required string subsystem = 1;
-  bool has_subsystem() const;
-  void clear_subsystem();
-  static const int kSubsystemFieldNumber = 1;
-  const ::std::string& subsystem() const;
-  void set_subsystem(const ::std::string& value);
-  void set_subsystem(const char* value);
-  void set_subsystem(const char* value, size_t size);
-  ::std::string* mutable_subsystem();
-  ::std::string* release_subsystem();
-  void set_allocated_subsystem(::std::string* subsystem);
+  // required string uri = 1;
+  bool has_uri() const;
+  void clear_uri();
+  static const int kUriFieldNumber = 1;
+  const ::std::string& uri() const;
+  void set_uri(const ::std::string& value);
+  void set_uri(const char* value);
+  void set_uri(const char* value, size_t size);
+  ::std::string* mutable_uri();
+  ::std::string* release_uri();
+  void set_allocated_uri(::std::string* uri);
 
-  // @@protoc_insertion_point(class_scope:KismetExternal.SystemRegister)
+  // required string method = 2;
+  bool has_method() const;
+  void clear_method();
+  static const int kMethodFieldNumber = 2;
+  const ::std::string& method() const;
+  void set_method(const ::std::string& value);
+  void set_method(const char* value);
+  void set_method(const char* value, size_t size);
+  ::std::string* mutable_method();
+  ::std::string* release_method();
+  void set_allocated_method(::std::string* method);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.HttpRegisterUri)
  private:
-  inline void set_has_subsystem();
-  inline void clear_has_subsystem();
+  inline void set_has_uri();
+  inline void clear_has_uri();
+  inline void set_has_method();
+  inline void clear_has_method();
+
+  // helper for ByteSize()
+  int RequiredFieldsByteSizeFallback() const;
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
-  ::google::protobuf::internal::ArenaStringPtr subsystem_;
+  ::google::protobuf::internal::ArenaStringPtr uri_;
+  ::google::protobuf::internal::ArenaStringPtr method_;
   friend void  protobuf_AddDesc_kismet_2eproto();
   friend void protobuf_AssignDesc_kismet_2eproto();
   friend void protobuf_ShutdownFile_kismet_2eproto();
 
   void InitAsDefaultInstance();
-  static SystemRegister* default_instance_;
+  static HttpRegisterUri* default_instance_;
 };
 // -------------------------------------------------------------------
 
-class Shutdown : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.Shutdown) */ {
+class HttpRequest : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.HttpRequest) */ {
  public:
-  Shutdown();
-  virtual ~Shutdown();
+  HttpRequest();
+  virtual ~HttpRequest();
 
-  Shutdown(const Shutdown& from);
+  HttpRequest(const HttpRequest& from);
 
-  inline Shutdown& operator=(const Shutdown& from) {
+  inline HttpRequest& operator=(const HttpRequest& from) {
     CopyFrom(from);
     return *this;
   }
@@ -313,19 +336,19 @@ class Shutdown : public ::google::protobuf::Message /* @@protoc_insertion_point(
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const Shutdown& default_instance();
+  static const HttpRequest& default_instance();
 
-  void Swap(Shutdown* other);
+  void Swap(HttpRequest* other);
 
   // implements Message ----------------------------------------------
 
-  inline Shutdown* New() const { return New(NULL); }
+  inline HttpRequest* New() const { return New(NULL); }
 
-  Shutdown* New(::google::protobuf::Arena* arena) const;
+  HttpRequest* New(::google::protobuf::Arena* arena) const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const Shutdown& from);
-  void MergeFrom(const Shutdown& from);
+  void CopyFrom(const HttpRequest& from);
+  void MergeFrom(const HttpRequest& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -344,7 +367,154 @@ class Shutdown : public ::google::protobuf::Message /* @@protoc_insertion_point(
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
-  void InternalSwap(Shutdown* other);
+  void InternalSwap(HttpRequest* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+
+  // accessors -------------------------------------------------------
+
+  // required uint32 req_id = 1;
+  bool has_req_id() const;
+  void clear_req_id();
+  static const int kReqIdFieldNumber = 1;
+  ::google::protobuf::uint32 req_id() const;
+  void set_req_id(::google::protobuf::uint32 value);
+
+  // required string uri = 2;
+  bool has_uri() const;
+  void clear_uri();
+  static const int kUriFieldNumber = 2;
+  const ::std::string& uri() const;
+  void set_uri(const ::std::string& value);
+  void set_uri(const char* value);
+  void set_uri(const char* value, size_t size);
+  ::std::string* mutable_uri();
+  ::std::string* release_uri();
+  void set_allocated_uri(::std::string* uri);
+
+  // required string method = 3;
+  bool has_method() const;
+  void clear_method();
+  static const int kMethodFieldNumber = 3;
+  const ::std::string& method() const;
+  void set_method(const ::std::string& value);
+  void set_method(const char* value);
+  void set_method(const char* value, size_t size);
+  ::std::string* mutable_method();
+  ::std::string* release_method();
+  void set_allocated_method(::std::string* method);
+
+  // map<string, string> post_data = 4;
+  int post_data_size() const;
+  void clear_post_data();
+  static const int kPostDataFieldNumber = 4;
+  const ::google::protobuf::Map< ::std::string, ::std::string >&
+      post_data() const;
+  ::google::protobuf::Map< ::std::string, ::std::string >*
+      mutable_post_data();
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.HttpRequest)
+ private:
+  inline void set_has_req_id();
+  inline void clear_has_req_id();
+  inline void set_has_uri();
+  inline void clear_has_uri();
+  inline void set_has_method();
+  inline void clear_has_method();
+
+  // helper for ByteSize()
+  int RequiredFieldsByteSizeFallback() const;
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::google::protobuf::internal::ArenaStringPtr uri_;
+  ::google::protobuf::internal::ArenaStringPtr method_;
+  typedef ::google::protobuf::internal::MapEntryLite<
+      ::std::string, ::std::string,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      0 >
+      HttpRequest_PostDataEntry;
+  ::google::protobuf::internal::MapField<
+      ::std::string, ::std::string,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      0 > post_data_;
+  ::google::protobuf::uint32 req_id_;
+  friend void  protobuf_AddDesc_kismet_2eproto();
+  friend void protobuf_AssignDesc_kismet_2eproto();
+  friend void protobuf_ShutdownFile_kismet_2eproto();
+
+  void InitAsDefaultInstance();
+  static HttpRequest* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.HttpResponse) */ {
+ public:
+  HttpResponse();
+  virtual ~HttpResponse();
+
+  HttpResponse(const HttpResponse& from);
+
+  inline HttpResponse& operator=(const HttpResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields();
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const HttpResponse& default_instance();
+
+  void Swap(HttpResponse* other);
+
+  // implements Message ----------------------------------------------
+
+  inline HttpResponse* New() const { return New(NULL); }
+
+  HttpResponse* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const HttpResponse& from);
+  void MergeFrom(const HttpResponse& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const {
+    return InternalSerializeWithCachedSizesToArray(false, output);
+  }
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(HttpResponse* other);
   private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _internal_metadata_.arena();
@@ -360,33 +530,63 @@ class Shutdown : public ::google::protobuf::Message /* @@protoc_insertion_point(
 
   // accessors -------------------------------------------------------
 
-  // required string reason = 1;
-  bool has_reason() const;
-  void clear_reason();
-  static const int kReasonFieldNumber = 1;
-  const ::std::string& reason() const;
-  void set_reason(const ::std::string& value);
-  void set_reason(const char* value);
-  void set_reason(const char* value, size_t size);
-  ::std::string* mutable_reason();
-  ::std::string* release_reason();
-  void set_allocated_reason(::std::string* reason);
+  // required uint32 req_id = 1;
+  bool has_req_id() const;
+  void clear_req_id();
+  static const int kReqIdFieldNumber = 1;
+  ::google::protobuf::uint32 req_id() const;
+  void set_req_id(::google::protobuf::uint32 value);
 
-  // @@protoc_insertion_point(class_scope:KismetExternal.Shutdown)
+  // optional bytes content = 2;
+  bool has_content() const;
+  void clear_content();
+  static const int kContentFieldNumber = 2;
+  const ::std::string& content() const;
+  void set_content(const ::std::string& value);
+  void set_content(const char* value);
+  void set_content(const void* value, size_t size);
+  ::std::string* mutable_content();
+  ::std::string* release_content();
+  void set_allocated_content(::std::string* content);
+
+  // optional uint32 resultcode = 3;
+  bool has_resultcode() const;
+  void clear_resultcode();
+  static const int kResultcodeFieldNumber = 3;
+  ::google::protobuf::uint32 resultcode() const;
+  void set_resultcode(::google::protobuf::uint32 value);
+
+  // optional bool close_response = 4;
+  bool has_close_response() const;
+  void clear_close_response();
+  static const int kCloseResponseFieldNumber = 4;
+  bool close_response() const;
+  void set_close_response(bool value);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.HttpResponse)
  private:
-  inline void set_has_reason();
-  inline void clear_has_reason();
+  inline void set_has_req_id();
+  inline void clear_has_req_id();
+  inline void set_has_content();
+  inline void clear_has_content();
+  inline void set_has_resultcode();
+  inline void clear_has_resultcode();
+  inline void set_has_close_response();
+  inline void clear_has_close_response();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
-  ::google::protobuf::internal::ArenaStringPtr reason_;
+  ::google::protobuf::internal::ArenaStringPtr content_;
+  ::google::protobuf::uint32 req_id_;
+  ::google::protobuf::uint32 resultcode_;
+  bool close_response_;
   friend void  protobuf_AddDesc_kismet_2eproto();
   friend void protobuf_AssignDesc_kismet_2eproto();
   friend void protobuf_ShutdownFile_kismet_2eproto();
 
   void InitAsDefaultInstance();
-  static Shutdown* default_instance_;
+  static HttpResponse* default_instance_;
 };
 // -------------------------------------------------------------------
 
@@ -707,6 +907,202 @@ class Pong : public ::google::protobuf::Message /* @@protoc_insertion_point(clas
   void InitAsDefaultInstance();
   static Pong* default_instance_;
 };
+// -------------------------------------------------------------------
+
+class Shutdown : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.Shutdown) */ {
+ public:
+  Shutdown();
+  virtual ~Shutdown();
+
+  Shutdown(const Shutdown& from);
+
+  inline Shutdown& operator=(const Shutdown& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields();
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Shutdown& default_instance();
+
+  void Swap(Shutdown* other);
+
+  // implements Message ----------------------------------------------
+
+  inline Shutdown* New() const { return New(NULL); }
+
+  Shutdown* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Shutdown& from);
+  void MergeFrom(const Shutdown& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const {
+    return InternalSerializeWithCachedSizesToArray(false, output);
+  }
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(Shutdown* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string reason = 1;
+  bool has_reason() const;
+  void clear_reason();
+  static const int kReasonFieldNumber = 1;
+  const ::std::string& reason() const;
+  void set_reason(const ::std::string& value);
+  void set_reason(const char* value);
+  void set_reason(const char* value, size_t size);
+  ::std::string* mutable_reason();
+  ::std::string* release_reason();
+  void set_allocated_reason(::std::string* reason);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.Shutdown)
+ private:
+  inline void set_has_reason();
+  inline void clear_has_reason();
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::google::protobuf::internal::ArenaStringPtr reason_;
+  friend void  protobuf_AddDesc_kismet_2eproto();
+  friend void protobuf_AssignDesc_kismet_2eproto();
+  friend void protobuf_ShutdownFile_kismet_2eproto();
+
+  void InitAsDefaultInstance();
+  static Shutdown* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class SystemRegister : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.SystemRegister) */ {
+ public:
+  SystemRegister();
+  virtual ~SystemRegister();
+
+  SystemRegister(const SystemRegister& from);
+
+  inline SystemRegister& operator=(const SystemRegister& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields();
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const SystemRegister& default_instance();
+
+  void Swap(SystemRegister* other);
+
+  // implements Message ----------------------------------------------
+
+  inline SystemRegister* New() const { return New(NULL); }
+
+  SystemRegister* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const SystemRegister& from);
+  void MergeFrom(const SystemRegister& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const {
+    return InternalSerializeWithCachedSizesToArray(false, output);
+  }
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(SystemRegister* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required string subsystem = 1;
+  bool has_subsystem() const;
+  void clear_subsystem();
+  static const int kSubsystemFieldNumber = 1;
+  const ::std::string& subsystem() const;
+  void set_subsystem(const ::std::string& value);
+  void set_subsystem(const char* value);
+  void set_subsystem(const char* value, size_t size);
+  ::std::string* mutable_subsystem();
+  ::std::string* release_subsystem();
+  void set_allocated_subsystem(::std::string* subsystem);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.SystemRegister)
+ private:
+  inline void set_has_subsystem();
+  inline void clear_has_subsystem();
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::google::protobuf::internal::ArenaStringPtr subsystem_;
+  friend void  protobuf_AddDesc_kismet_2eproto();
+  friend void protobuf_AssignDesc_kismet_2eproto();
+  friend void protobuf_ShutdownFile_kismet_2eproto();
+
+  void InitAsDefaultInstance();
+  static SystemRegister* default_instance_;
+};
 // ===================================================================
 
 
@@ -849,118 +1245,398 @@ inline void Command::set_allocated_content(::std::string* content) {
 
 // -------------------------------------------------------------------
 
-// SystemRegister
+// HttpRegisterUri
 
-// required string subsystem = 1;
-inline bool SystemRegister::has_subsystem() const {
+// required string uri = 1;
+inline bool HttpRegisterUri::has_uri() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void SystemRegister::set_has_subsystem() {
+inline void HttpRegisterUri::set_has_uri() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void SystemRegister::clear_has_subsystem() {
+inline void HttpRegisterUri::clear_has_uri() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void SystemRegister::clear_subsystem() {
-  subsystem_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_subsystem();
+inline void HttpRegisterUri::clear_uri() {
+  uri_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_uri();
 }
-inline const ::std::string& SystemRegister::subsystem() const {
-  // @@protoc_insertion_point(field_get:KismetExternal.SystemRegister.subsystem)
-  return subsystem_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+inline const ::std::string& HttpRegisterUri::uri() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpRegisterUri.uri)
+  return uri_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline void SystemRegister::set_subsystem(const ::std::string& value) {
-  set_has_subsystem();
-  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetExternal.SystemRegister.subsystem)
+inline void HttpRegisterUri::set_uri(const ::std::string& value) {
+  set_has_uri();
+  uri_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpRegisterUri.uri)
 }
-inline void SystemRegister::set_subsystem(const char* value) {
-  set_has_subsystem();
-  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetExternal.SystemRegister.subsystem)
+inline void HttpRegisterUri::set_uri(const char* value) {
+  set_has_uri();
+  uri_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.HttpRegisterUri.uri)
 }
-inline void SystemRegister::set_subsystem(const char* value, size_t size) {
-  set_has_subsystem();
-  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+inline void HttpRegisterUri::set_uri(const char* value, size_t size) {
+  set_has_uri();
+  uri_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetExternal.SystemRegister.subsystem)
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.HttpRegisterUri.uri)
 }
-inline ::std::string* SystemRegister::mutable_subsystem() {
-  set_has_subsystem();
-  // @@protoc_insertion_point(field_mutable:KismetExternal.SystemRegister.subsystem)
-  return subsystem_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+inline ::std::string* HttpRegisterUri::mutable_uri() {
+  set_has_uri();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.HttpRegisterUri.uri)
+  return uri_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline ::std::string* SystemRegister::release_subsystem() {
-  // @@protoc_insertion_point(field_release:KismetExternal.SystemRegister.subsystem)
-  clear_has_subsystem();
-  return subsystem_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+inline ::std::string* HttpRegisterUri::release_uri() {
+  // @@protoc_insertion_point(field_release:KismetExternal.HttpRegisterUri.uri)
+  clear_has_uri();
+  return uri_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline void SystemRegister::set_allocated_subsystem(::std::string* subsystem) {
-  if (subsystem != NULL) {
-    set_has_subsystem();
+inline void HttpRegisterUri::set_allocated_uri(::std::string* uri) {
+  if (uri != NULL) {
+    set_has_uri();
   } else {
-    clear_has_subsystem();
+    clear_has_uri();
   }
-  subsystem_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), subsystem);
-  // @@protoc_insertion_point(field_set_allocated:KismetExternal.SystemRegister.subsystem)
+  uri_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), uri);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.HttpRegisterUri.uri)
+}
+
+// required string method = 2;
+inline bool HttpRegisterUri::has_method() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void HttpRegisterUri::set_has_method() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void HttpRegisterUri::clear_has_method() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void HttpRegisterUri::clear_method() {
+  method_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_method();
+}
+inline const ::std::string& HttpRegisterUri::method() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpRegisterUri.method)
+  return method_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpRegisterUri::set_method(const ::std::string& value) {
+  set_has_method();
+  method_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpRegisterUri.method)
+}
+inline void HttpRegisterUri::set_method(const char* value) {
+  set_has_method();
+  method_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.HttpRegisterUri.method)
+}
+inline void HttpRegisterUri::set_method(const char* value, size_t size) {
+  set_has_method();
+  method_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.HttpRegisterUri.method)
+}
+inline ::std::string* HttpRegisterUri::mutable_method() {
+  set_has_method();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.HttpRegisterUri.method)
+  return method_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* HttpRegisterUri::release_method() {
+  // @@protoc_insertion_point(field_release:KismetExternal.HttpRegisterUri.method)
+  clear_has_method();
+  return method_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpRegisterUri::set_allocated_method(::std::string* method) {
+  if (method != NULL) {
+    set_has_method();
+  } else {
+    clear_has_method();
+  }
+  method_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), method);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.HttpRegisterUri.method)
 }
 
 // -------------------------------------------------------------------
 
-// Shutdown
+// HttpRequest
 
-// required string reason = 1;
-inline bool Shutdown::has_reason() const {
+// required uint32 req_id = 1;
+inline bool HttpRequest::has_req_id() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
-inline void Shutdown::set_has_reason() {
+inline void HttpRequest::set_has_req_id() {
   _has_bits_[0] |= 0x00000001u;
 }
-inline void Shutdown::clear_has_reason() {
+inline void HttpRequest::clear_has_req_id() {
   _has_bits_[0] &= ~0x00000001u;
 }
-inline void Shutdown::clear_reason() {
-  reason_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_reason();
+inline void HttpRequest::clear_req_id() {
+  req_id_ = 0u;
+  clear_has_req_id();
 }
-inline const ::std::string& Shutdown::reason() const {
-  // @@protoc_insertion_point(field_get:KismetExternal.Shutdown.reason)
-  return reason_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+inline ::google::protobuf::uint32 HttpRequest::req_id() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpRequest.req_id)
+  return req_id_;
 }
-inline void Shutdown::set_reason(const ::std::string& value) {
-  set_has_reason();
-  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetExternal.Shutdown.reason)
+inline void HttpRequest::set_req_id(::google::protobuf::uint32 value) {
+  set_has_req_id();
+  req_id_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpRequest.req_id)
 }
-inline void Shutdown::set_reason(const char* value) {
-  set_has_reason();
-  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetExternal.Shutdown.reason)
+
+// required string uri = 2;
+inline bool HttpRequest::has_uri() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
 }
-inline void Shutdown::set_reason(const char* value, size_t size) {
-  set_has_reason();
-  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+inline void HttpRequest::set_has_uri() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void HttpRequest::clear_has_uri() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void HttpRequest::clear_uri() {
+  uri_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_uri();
+}
+inline const ::std::string& HttpRequest::uri() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpRequest.uri)
+  return uri_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpRequest::set_uri(const ::std::string& value) {
+  set_has_uri();
+  uri_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpRequest.uri)
+}
+inline void HttpRequest::set_uri(const char* value) {
+  set_has_uri();
+  uri_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.HttpRequest.uri)
+}
+inline void HttpRequest::set_uri(const char* value, size_t size) {
+  set_has_uri();
+  uri_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Shutdown.reason)
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.HttpRequest.uri)
 }
-inline ::std::string* Shutdown::mutable_reason() {
-  set_has_reason();
-  // @@protoc_insertion_point(field_mutable:KismetExternal.Shutdown.reason)
-  return reason_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+inline ::std::string* HttpRequest::mutable_uri() {
+  set_has_uri();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.HttpRequest.uri)
+  return uri_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline ::std::string* Shutdown::release_reason() {
-  // @@protoc_insertion_point(field_release:KismetExternal.Shutdown.reason)
-  clear_has_reason();
-  return reason_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+inline ::std::string* HttpRequest::release_uri() {
+  // @@protoc_insertion_point(field_release:KismetExternal.HttpRequest.uri)
+  clear_has_uri();
+  return uri_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
-inline void Shutdown::set_allocated_reason(::std::string* reason) {
-  if (reason != NULL) {
-    set_has_reason();
+inline void HttpRequest::set_allocated_uri(::std::string* uri) {
+  if (uri != NULL) {
+    set_has_uri();
   } else {
-    clear_has_reason();
+    clear_has_uri();
   }
-  reason_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), reason);
-  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Shutdown.reason)
+  uri_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), uri);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.HttpRequest.uri)
+}
+
+// required string method = 3;
+inline bool HttpRequest::has_method() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void HttpRequest::set_has_method() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void HttpRequest::clear_has_method() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void HttpRequest::clear_method() {
+  method_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_method();
+}
+inline const ::std::string& HttpRequest::method() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpRequest.method)
+  return method_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpRequest::set_method(const ::std::string& value) {
+  set_has_method();
+  method_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpRequest.method)
+}
+inline void HttpRequest::set_method(const char* value) {
+  set_has_method();
+  method_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.HttpRequest.method)
+}
+inline void HttpRequest::set_method(const char* value, size_t size) {
+  set_has_method();
+  method_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.HttpRequest.method)
+}
+inline ::std::string* HttpRequest::mutable_method() {
+  set_has_method();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.HttpRequest.method)
+  return method_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* HttpRequest::release_method() {
+  // @@protoc_insertion_point(field_release:KismetExternal.HttpRequest.method)
+  clear_has_method();
+  return method_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpRequest::set_allocated_method(::std::string* method) {
+  if (method != NULL) {
+    set_has_method();
+  } else {
+    clear_has_method();
+  }
+  method_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), method);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.HttpRequest.method)
+}
+
+// map<string, string> post_data = 4;
+inline int HttpRequest::post_data_size() const {
+  return post_data_.size();
+}
+inline void HttpRequest::clear_post_data() {
+  post_data_.Clear();
+}
+inline const ::google::protobuf::Map< ::std::string, ::std::string >&
+HttpRequest::post_data() const {
+  // @@protoc_insertion_point(field_map:KismetExternal.HttpRequest.post_data)
+  return post_data_.GetMap();
+}
+inline ::google::protobuf::Map< ::std::string, ::std::string >*
+HttpRequest::mutable_post_data() {
+  // @@protoc_insertion_point(field_mutable_map:KismetExternal.HttpRequest.post_data)
+  return post_data_.MutableMap();
+}
+
+// -------------------------------------------------------------------
+
+// HttpResponse
+
+// required uint32 req_id = 1;
+inline bool HttpResponse::has_req_id() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void HttpResponse::set_has_req_id() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void HttpResponse::clear_has_req_id() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void HttpResponse::clear_req_id() {
+  req_id_ = 0u;
+  clear_has_req_id();
+}
+inline ::google::protobuf::uint32 HttpResponse::req_id() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpResponse.req_id)
+  return req_id_;
+}
+inline void HttpResponse::set_req_id(::google::protobuf::uint32 value) {
+  set_has_req_id();
+  req_id_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpResponse.req_id)
+}
+
+// optional bytes content = 2;
+inline bool HttpResponse::has_content() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void HttpResponse::set_has_content() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void HttpResponse::clear_has_content() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void HttpResponse::clear_content() {
+  content_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_content();
+}
+inline const ::std::string& HttpResponse::content() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpResponse.content)
+  return content_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpResponse::set_content(const ::std::string& value) {
+  set_has_content();
+  content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpResponse.content)
+}
+inline void HttpResponse::set_content(const char* value) {
+  set_has_content();
+  content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.HttpResponse.content)
+}
+inline void HttpResponse::set_content(const void* value, size_t size) {
+  set_has_content();
+  content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.HttpResponse.content)
+}
+inline ::std::string* HttpResponse::mutable_content() {
+  set_has_content();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.HttpResponse.content)
+  return content_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* HttpResponse::release_content() {
+  // @@protoc_insertion_point(field_release:KismetExternal.HttpResponse.content)
+  clear_has_content();
+  return content_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void HttpResponse::set_allocated_content(::std::string* content) {
+  if (content != NULL) {
+    set_has_content();
+  } else {
+    clear_has_content();
+  }
+  content_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), content);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.HttpResponse.content)
+}
+
+// optional uint32 resultcode = 3;
+inline bool HttpResponse::has_resultcode() const {
+  return (_has_bits_[0] & 0x00000004u) != 0;
+}
+inline void HttpResponse::set_has_resultcode() {
+  _has_bits_[0] |= 0x00000004u;
+}
+inline void HttpResponse::clear_has_resultcode() {
+  _has_bits_[0] &= ~0x00000004u;
+}
+inline void HttpResponse::clear_resultcode() {
+  resultcode_ = 0u;
+  clear_has_resultcode();
+}
+inline ::google::protobuf::uint32 HttpResponse::resultcode() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpResponse.resultcode)
+  return resultcode_;
+}
+inline void HttpResponse::set_resultcode(::google::protobuf::uint32 value) {
+  set_has_resultcode();
+  resultcode_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpResponse.resultcode)
+}
+
+// optional bool close_response = 4;
+inline bool HttpResponse::has_close_response() const {
+  return (_has_bits_[0] & 0x00000008u) != 0;
+}
+inline void HttpResponse::set_has_close_response() {
+  _has_bits_[0] |= 0x00000008u;
+}
+inline void HttpResponse::clear_has_close_response() {
+  _has_bits_[0] &= ~0x00000008u;
+}
+inline void HttpResponse::clear_close_response() {
+  close_response_ = false;
+  clear_has_close_response();
+}
+inline bool HttpResponse::close_response() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.HttpResponse.close_response)
+  return close_response_;
+}
+inline void HttpResponse::set_close_response(bool value) {
+  set_has_close_response();
+  close_response_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.HttpResponse.close_response)
 }
 
 // -------------------------------------------------------------------
@@ -1078,7 +1754,129 @@ inline void Pong::set_ping_seqno(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:KismetExternal.Pong.ping_seqno)
 }
 
+// -------------------------------------------------------------------
+
+// Shutdown
+
+// required string reason = 1;
+inline bool Shutdown::has_reason() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Shutdown::set_has_reason() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Shutdown::clear_has_reason() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Shutdown::clear_reason() {
+  reason_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_reason();
+}
+inline const ::std::string& Shutdown::reason() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.Shutdown.reason)
+  return reason_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void Shutdown::set_reason(const ::std::string& value) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.Shutdown.reason)
+}
+inline void Shutdown::set_reason(const char* value) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Shutdown.reason)
+}
+inline void Shutdown::set_reason(const char* value, size_t size) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Shutdown.reason)
+}
+inline ::std::string* Shutdown::mutable_reason() {
+  set_has_reason();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Shutdown.reason)
+  return reason_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* Shutdown::release_reason() {
+  // @@protoc_insertion_point(field_release:KismetExternal.Shutdown.reason)
+  clear_has_reason();
+  return reason_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void Shutdown::set_allocated_reason(::std::string* reason) {
+  if (reason != NULL) {
+    set_has_reason();
+  } else {
+    clear_has_reason();
+  }
+  reason_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), reason);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Shutdown.reason)
+}
+
+// -------------------------------------------------------------------
+
+// SystemRegister
+
+// required string subsystem = 1;
+inline bool SystemRegister::has_subsystem() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void SystemRegister::set_has_subsystem() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void SystemRegister::clear_has_subsystem() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void SystemRegister::clear_subsystem() {
+  subsystem_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_subsystem();
+}
+inline const ::std::string& SystemRegister::subsystem() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.SystemRegister.subsystem)
+  return subsystem_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void SystemRegister::set_subsystem(const ::std::string& value) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.SystemRegister.subsystem)
+}
+inline void SystemRegister::set_subsystem(const char* value) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.SystemRegister.subsystem)
+}
+inline void SystemRegister::set_subsystem(const char* value, size_t size) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.SystemRegister.subsystem)
+}
+inline ::std::string* SystemRegister::mutable_subsystem() {
+  set_has_subsystem();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.SystemRegister.subsystem)
+  return subsystem_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* SystemRegister::release_subsystem() {
+  // @@protoc_insertion_point(field_release:KismetExternal.SystemRegister.subsystem)
+  clear_has_subsystem();
+  return subsystem_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void SystemRegister::set_allocated_subsystem(::std::string* subsystem) {
+  if (subsystem != NULL) {
+    set_has_subsystem();
+  } else {
+    clear_has_subsystem();
+  }
+  subsystem_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), subsystem);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.SystemRegister.subsystem)
+}
+
 #endif  // !PROTOBUF_INLINE_NOT_IN_HEADERS
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

@@ -50,90 +50,139 @@ void   kismet_external__command__free_unpacked
   assert(message->base.descriptor == &kismet_external__command__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-void   kismet_external__system_register__init
-                     (KismetExternal__SystemRegister         *message)
+void   kismet_external__http_register_uri__init
+                     (KismetExternal__HttpRegisterUri         *message)
 {
-  static KismetExternal__SystemRegister init_value = KISMET_EXTERNAL__SYSTEM_REGISTER__INIT;
+  static KismetExternal__HttpRegisterUri init_value = KISMET_EXTERNAL__HTTP_REGISTER_URI__INIT;
   *message = init_value;
 }
-size_t kismet_external__system_register__get_packed_size
-                     (const KismetExternal__SystemRegister *message)
+size_t kismet_external__http_register_uri__get_packed_size
+                     (const KismetExternal__HttpRegisterUri *message)
 {
-  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_register_uri__descriptor);
   return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
 }
-size_t kismet_external__system_register__pack
-                     (const KismetExternal__SystemRegister *message,
+size_t kismet_external__http_register_uri__pack
+                     (const KismetExternal__HttpRegisterUri *message,
                       uint8_t       *out)
 {
-  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_register_uri__descriptor);
   return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
 }
-size_t kismet_external__system_register__pack_to_buffer
-                     (const KismetExternal__SystemRegister *message,
+size_t kismet_external__http_register_uri__pack_to_buffer
+                     (const KismetExternal__HttpRegisterUri *message,
                       ProtobufCBuffer *buffer)
 {
-  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_register_uri__descriptor);
   return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
 }
-KismetExternal__SystemRegister *
-       kismet_external__system_register__unpack
+KismetExternal__HttpRegisterUri *
+       kismet_external__http_register_uri__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data)
 {
-  return (KismetExternal__SystemRegister *)
-     protobuf_c_message_unpack (&kismet_external__system_register__descriptor,
+  return (KismetExternal__HttpRegisterUri *)
+     protobuf_c_message_unpack (&kismet_external__http_register_uri__descriptor,
                                 allocator, len, data);
 }
-void   kismet_external__system_register__free_unpacked
-                     (KismetExternal__SystemRegister *message,
+void   kismet_external__http_register_uri__free_unpacked
+                     (KismetExternal__HttpRegisterUri *message,
                       ProtobufCAllocator *allocator)
 {
-  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_register_uri__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-void   kismet_external__shutdown__init
-                     (KismetExternal__Shutdown         *message)
+void   kismet_external__http_request__post_data_entry__init
+                     (KismetExternal__HttpRequest__PostDataEntry         *message)
 {
-  static KismetExternal__Shutdown init_value = KISMET_EXTERNAL__SHUTDOWN__INIT;
+  static KismetExternal__HttpRequest__PostDataEntry init_value = KISMET_EXTERNAL__HTTP_REQUEST__POST_DATA_ENTRY__INIT;
   *message = init_value;
 }
-size_t kismet_external__shutdown__get_packed_size
-                     (const KismetExternal__Shutdown *message)
+void   kismet_external__http_request__init
+                     (KismetExternal__HttpRequest         *message)
 {
-  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  static KismetExternal__HttpRequest init_value = KISMET_EXTERNAL__HTTP_REQUEST__INIT;
+  *message = init_value;
+}
+size_t kismet_external__http_request__get_packed_size
+                     (const KismetExternal__HttpRequest *message)
+{
+  assert(message->base.descriptor == &kismet_external__http_request__descriptor);
   return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
 }
-size_t kismet_external__shutdown__pack
-                     (const KismetExternal__Shutdown *message,
+size_t kismet_external__http_request__pack
+                     (const KismetExternal__HttpRequest *message,
                       uint8_t       *out)
 {
-  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_request__descriptor);
   return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
 }
-size_t kismet_external__shutdown__pack_to_buffer
-                     (const KismetExternal__Shutdown *message,
+size_t kismet_external__http_request__pack_to_buffer
+                     (const KismetExternal__HttpRequest *message,
                       ProtobufCBuffer *buffer)
 {
-  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_request__descriptor);
   return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
 }
-KismetExternal__Shutdown *
-       kismet_external__shutdown__unpack
+KismetExternal__HttpRequest *
+       kismet_external__http_request__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data)
 {
-  return (KismetExternal__Shutdown *)
-     protobuf_c_message_unpack (&kismet_external__shutdown__descriptor,
+  return (KismetExternal__HttpRequest *)
+     protobuf_c_message_unpack (&kismet_external__http_request__descriptor,
                                 allocator, len, data);
 }
-void   kismet_external__shutdown__free_unpacked
-                     (KismetExternal__Shutdown *message,
+void   kismet_external__http_request__free_unpacked
+                     (KismetExternal__HttpRequest *message,
                       ProtobufCAllocator *allocator)
 {
-  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  assert(message->base.descriptor == &kismet_external__http_request__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   kismet_external__http_response__init
+                     (KismetExternal__HttpResponse         *message)
+{
+  static KismetExternal__HttpResponse init_value = KISMET_EXTERNAL__HTTP_RESPONSE__INIT;
+  *message = init_value;
+}
+size_t kismet_external__http_response__get_packed_size
+                     (const KismetExternal__HttpResponse *message)
+{
+  assert(message->base.descriptor == &kismet_external__http_response__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t kismet_external__http_response__pack
+                     (const KismetExternal__HttpResponse *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &kismet_external__http_response__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t kismet_external__http_response__pack_to_buffer
+                     (const KismetExternal__HttpResponse *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &kismet_external__http_response__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+KismetExternal__HttpResponse *
+       kismet_external__http_response__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (KismetExternal__HttpResponse *)
+     protobuf_c_message_unpack (&kismet_external__http_response__descriptor,
+                                allocator, len, data);
+}
+void   kismet_external__http_response__free_unpacked
+                     (KismetExternal__HttpResponse *message,
+                      ProtobufCAllocator *allocator)
+{
+  assert(message->base.descriptor == &kismet_external__http_response__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
 void   kismet_external__msgbus_message__init
@@ -265,6 +314,92 @@ void   kismet_external__pong__free_unpacked
   assert(message->base.descriptor == &kismet_external__pong__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   kismet_external__shutdown__init
+                     (KismetExternal__Shutdown         *message)
+{
+  static KismetExternal__Shutdown init_value = KISMET_EXTERNAL__SHUTDOWN__INIT;
+  *message = init_value;
+}
+size_t kismet_external__shutdown__get_packed_size
+                     (const KismetExternal__Shutdown *message)
+{
+  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t kismet_external__shutdown__pack
+                     (const KismetExternal__Shutdown *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t kismet_external__shutdown__pack_to_buffer
+                     (const KismetExternal__Shutdown *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+KismetExternal__Shutdown *
+       kismet_external__shutdown__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (KismetExternal__Shutdown *)
+     protobuf_c_message_unpack (&kismet_external__shutdown__descriptor,
+                                allocator, len, data);
+}
+void   kismet_external__shutdown__free_unpacked
+                     (KismetExternal__Shutdown *message,
+                      ProtobufCAllocator *allocator)
+{
+  assert(message->base.descriptor == &kismet_external__shutdown__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   kismet_external__system_register__init
+                     (KismetExternal__SystemRegister         *message)
+{
+  static KismetExternal__SystemRegister init_value = KISMET_EXTERNAL__SYSTEM_REGISTER__INIT;
+  *message = init_value;
+}
+size_t kismet_external__system_register__get_packed_size
+                     (const KismetExternal__SystemRegister *message)
+{
+  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t kismet_external__system_register__pack
+                     (const KismetExternal__SystemRegister *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t kismet_external__system_register__pack_to_buffer
+                     (const KismetExternal__SystemRegister *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+KismetExternal__SystemRegister *
+       kismet_external__system_register__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (KismetExternal__SystemRegister *)
+     protobuf_c_message_unpack (&kismet_external__system_register__descriptor,
+                                allocator, len, data);
+}
+void   kismet_external__system_register__free_unpacked
+                     (KismetExternal__SystemRegister *message,
+                      ProtobufCAllocator *allocator)
+{
+  assert(message->base.descriptor == &kismet_external__system_register__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor kismet_external__command__field_descriptors[3] =
 {
   {
@@ -329,80 +464,260 @@ const ProtobufCMessageDescriptor kismet_external__command__descriptor =
   (ProtobufCMessageInit) kismet_external__command__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor kismet_external__system_register__field_descriptors[1] =
+static const ProtobufCFieldDescriptor kismet_external__http_register_uri__field_descriptors[2] =
 {
   {
-    "subsystem",
+    "uri",
     1,
     PROTOBUF_C_LABEL_REQUIRED,
     PROTOBUF_C_TYPE_STRING,
     0,   /* quantifier_offset */
-    offsetof(KismetExternal__SystemRegister, subsystem),
+    offsetof(KismetExternal__HttpRegisterUri, uri),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "method",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__HttpRegisterUri, method),
     NULL,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
 };
-static const unsigned kismet_external__system_register__field_indices_by_name[] = {
-  0,   /* field[0] = subsystem */
+static const unsigned kismet_external__http_register_uri__field_indices_by_name[] = {
+  1,   /* field[1] = method */
+  0,   /* field[0] = uri */
 };
-static const ProtobufCIntRange kismet_external__system_register__number_ranges[1 + 1] =
+static const ProtobufCIntRange kismet_external__http_register_uri__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 1 }
+  { 0, 2 }
 };
-const ProtobufCMessageDescriptor kismet_external__system_register__descriptor =
+const ProtobufCMessageDescriptor kismet_external__http_register_uri__descriptor =
 {
   PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "KismetExternal.SystemRegister",
-  "SystemRegister",
-  "KismetExternal__SystemRegister",
+  "KismetExternal.HttpRegisterUri",
+  "HttpRegisterUri",
+  "KismetExternal__HttpRegisterUri",
   "KismetExternal",
-  sizeof(KismetExternal__SystemRegister),
-  1,
-  kismet_external__system_register__field_descriptors,
-  kismet_external__system_register__field_indices_by_name,
-  1,  kismet_external__system_register__number_ranges,
-  (ProtobufCMessageInit) kismet_external__system_register__init,
+  sizeof(KismetExternal__HttpRegisterUri),
+  2,
+  kismet_external__http_register_uri__field_descriptors,
+  kismet_external__http_register_uri__field_indices_by_name,
+  1,  kismet_external__http_register_uri__number_ranges,
+  (ProtobufCMessageInit) kismet_external__http_register_uri__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor kismet_external__shutdown__field_descriptors[1] =
+static const ProtobufCFieldDescriptor kismet_external__http_request__post_data_entry__field_descriptors[2] =
 {
   {
-    "reason",
+    "key",
     1,
-    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_LABEL_OPTIONAL,
     PROTOBUF_C_TYPE_STRING,
     0,   /* quantifier_offset */
-    offsetof(KismetExternal__Shutdown, reason),
+    offsetof(KismetExternal__HttpRequest__PostDataEntry, key),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__HttpRequest__PostDataEntry, value),
     NULL,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
 };
-static const unsigned kismet_external__shutdown__field_indices_by_name[] = {
-  0,   /* field[0] = reason */
+static const unsigned kismet_external__http_request__post_data_entry__field_indices_by_name[] = {
+  0,   /* field[0] = key */
+  1,   /* field[1] = value */
 };
-static const ProtobufCIntRange kismet_external__shutdown__number_ranges[1 + 1] =
+static const ProtobufCIntRange kismet_external__http_request__post_data_entry__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 1 }
+  { 0, 2 }
 };
-const ProtobufCMessageDescriptor kismet_external__shutdown__descriptor =
+const ProtobufCMessageDescriptor kismet_external__http_request__post_data_entry__descriptor =
 {
   PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "KismetExternal.Shutdown",
-  "Shutdown",
-  "KismetExternal__Shutdown",
+  "KismetExternal.HttpRequest.PostDataEntry",
+  "PostDataEntry",
+  "KismetExternal__HttpRequest__PostDataEntry",
   "KismetExternal",
-  sizeof(KismetExternal__Shutdown),
-  1,
-  kismet_external__shutdown__field_descriptors,
-  kismet_external__shutdown__field_indices_by_name,
-  1,  kismet_external__shutdown__number_ranges,
-  (ProtobufCMessageInit) kismet_external__shutdown__init,
+  sizeof(KismetExternal__HttpRequest__PostDataEntry),
+  2,
+  kismet_external__http_request__post_data_entry__field_descriptors,
+  kismet_external__http_request__post_data_entry__field_indices_by_name,
+  1,  kismet_external__http_request__post_data_entry__number_ranges,
+  (ProtobufCMessageInit) kismet_external__http_request__post_data_entry__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor kismet_external__http_request__field_descriptors[4] =
+{
+  {
+    "req_id",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__HttpRequest, req_id),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "uri",
+    2,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__HttpRequest, uri),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "method",
+    3,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__HttpRequest, method),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "post_data",
+    4,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(KismetExternal__HttpRequest, n_post_data),
+    offsetof(KismetExternal__HttpRequest, post_data),
+    &kismet_external__http_request__post_data_entry__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned kismet_external__http_request__field_indices_by_name[] = {
+  2,   /* field[2] = method */
+  3,   /* field[3] = post_data */
+  0,   /* field[0] = req_id */
+  1,   /* field[1] = uri */
+};
+static const ProtobufCIntRange kismet_external__http_request__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor kismet_external__http_request__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "KismetExternal.HttpRequest",
+  "HttpRequest",
+  "KismetExternal__HttpRequest",
+  "KismetExternal",
+  sizeof(KismetExternal__HttpRequest),
+  4,
+  kismet_external__http_request__field_descriptors,
+  kismet_external__http_request__field_indices_by_name,
+  1,  kismet_external__http_request__number_ranges,
+  (ProtobufCMessageInit) kismet_external__http_request__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor kismet_external__http_response__field_descriptors[4] =
+{
+  {
+    "req_id",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_UINT32,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__HttpResponse, req_id),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "content",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_BYTES,
+    offsetof(KismetExternal__HttpResponse, has_content),
+    offsetof(KismetExternal__HttpResponse, content),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "resultcode",
+    3,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_UINT32,
+    offsetof(KismetExternal__HttpResponse, has_resultcode),
+    offsetof(KismetExternal__HttpResponse, resultcode),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "close_response",
+    4,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_BOOL,
+    offsetof(KismetExternal__HttpResponse, has_close_response),
+    offsetof(KismetExternal__HttpResponse, close_response),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned kismet_external__http_response__field_indices_by_name[] = {
+  3,   /* field[3] = close_response */
+  1,   /* field[1] = content */
+  0,   /* field[0] = req_id */
+  2,   /* field[2] = resultcode */
+};
+static const ProtobufCIntRange kismet_external__http_response__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 4 }
+};
+const ProtobufCMessageDescriptor kismet_external__http_response__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "KismetExternal.HttpResponse",
+  "HttpResponse",
+  "KismetExternal__HttpResponse",
+  "KismetExternal",
+  sizeof(KismetExternal__HttpResponse),
+  4,
+  kismet_external__http_response__field_descriptors,
+  kismet_external__http_response__field_indices_by_name,
+  1,  kismet_external__http_response__number_ranges,
+  (ProtobufCMessageInit) kismet_external__http_response__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
 static const ProtobufCEnumValue kismet_external__msgbus_message__message_type__enum_values_by_number[5] =
@@ -544,5 +859,81 @@ const ProtobufCMessageDescriptor kismet_external__pong__descriptor =
   kismet_external__pong__field_indices_by_name,
   1,  kismet_external__pong__number_ranges,
   (ProtobufCMessageInit) kismet_external__pong__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor kismet_external__shutdown__field_descriptors[1] =
+{
+  {
+    "reason",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__Shutdown, reason),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned kismet_external__shutdown__field_indices_by_name[] = {
+  0,   /* field[0] = reason */
+};
+static const ProtobufCIntRange kismet_external__shutdown__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor kismet_external__shutdown__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "KismetExternal.Shutdown",
+  "Shutdown",
+  "KismetExternal__Shutdown",
+  "KismetExternal",
+  sizeof(KismetExternal__Shutdown),
+  1,
+  kismet_external__shutdown__field_descriptors,
+  kismet_external__shutdown__field_indices_by_name,
+  1,  kismet_external__shutdown__number_ranges,
+  (ProtobufCMessageInit) kismet_external__shutdown__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor kismet_external__system_register__field_descriptors[1] =
+{
+  {
+    "subsystem",
+    1,
+    PROTOBUF_C_LABEL_REQUIRED,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetExternal__SystemRegister, subsystem),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned kismet_external__system_register__field_indices_by_name[] = {
+  0,   /* field[0] = subsystem */
+};
+static const ProtobufCIntRange kismet_external__system_register__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor kismet_external__system_register__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "KismetExternal.SystemRegister",
+  "SystemRegister",
+  "KismetExternal__SystemRegister",
+  "KismetExternal",
+  sizeof(KismetExternal__SystemRegister),
+  1,
+  kismet_external__system_register__field_descriptors,
+  kismet_external__system_register__field_indices_by_name,
+  1,  kismet_external__system_register__number_ranges,
+  (ProtobufCMessageInit) kismet_external__system_register__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
