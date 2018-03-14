@@ -26,23 +26,49 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/extension_set.h>
+#include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
 
-namespace Kismet {
+namespace KismetExternal {
 
 // Internal implementation detail -- do not call these.
 void protobuf_AddDesc_kismet_2eproto();
 void protobuf_AssignDesc_kismet_2eproto();
 void protobuf_ShutdownFile_kismet_2eproto();
 
-class CmdPing;
-class CmdPong;
 class Command;
+class MsgbusMessage;
+class Ping;
+class Pong;
+class Shutdown;
+class SystemRegister;
 
+enum MsgbusMessage_MessageType {
+  MsgbusMessage_MessageType_DEBUG = 1,
+  MsgbusMessage_MessageType_INFO = 2,
+  MsgbusMessage_MessageType_ERROR = 4,
+  MsgbusMessage_MessageType_ALERT = 8,
+  MsgbusMessage_MessageType_FATAL = 16
+};
+bool MsgbusMessage_MessageType_IsValid(int value);
+const MsgbusMessage_MessageType MsgbusMessage_MessageType_MessageType_MIN = MsgbusMessage_MessageType_DEBUG;
+const MsgbusMessage_MessageType MsgbusMessage_MessageType_MessageType_MAX = MsgbusMessage_MessageType_FATAL;
+const int MsgbusMessage_MessageType_MessageType_ARRAYSIZE = MsgbusMessage_MessageType_MessageType_MAX + 1;
+
+const ::google::protobuf::EnumDescriptor* MsgbusMessage_MessageType_descriptor();
+inline const ::std::string& MsgbusMessage_MessageType_Name(MsgbusMessage_MessageType value) {
+  return ::google::protobuf::internal::NameOfEnum(
+    MsgbusMessage_MessageType_descriptor(), value);
+}
+inline bool MsgbusMessage_MessageType_Parse(
+    const ::std::string& name, MsgbusMessage_MessageType* value) {
+  return ::google::protobuf::internal::ParseNamedEnum<MsgbusMessage_MessageType>(
+    MsgbusMessage_MessageType_descriptor(), name, value);
+}
 // ===================================================================
 
-class Command : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:Kismet.Command) */ {
+class Command : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.Command) */ {
  public:
   Command();
   virtual ~Command();
@@ -141,7 +167,7 @@ class Command : public ::google::protobuf::Message /* @@protoc_insertion_point(c
   ::std::string* release_content();
   void set_allocated_content(::std::string* content);
 
-  // @@protoc_insertion_point(class_scope:Kismet.Command)
+  // @@protoc_insertion_point(class_scope:KismetExternal.Command)
  private:
   inline void set_has_command();
   inline void clear_has_command();
@@ -168,14 +194,14 @@ class Command : public ::google::protobuf::Message /* @@protoc_insertion_point(c
 };
 // -------------------------------------------------------------------
 
-class CmdPing : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:Kismet.CmdPing) */ {
+class SystemRegister : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.SystemRegister) */ {
  public:
-  CmdPing();
-  virtual ~CmdPing();
+  SystemRegister();
+  virtual ~SystemRegister();
 
-  CmdPing(const CmdPing& from);
+  SystemRegister(const SystemRegister& from);
 
-  inline CmdPing& operator=(const CmdPing& from) {
+  inline SystemRegister& operator=(const SystemRegister& from) {
     CopyFrom(from);
     return *this;
   }
@@ -189,19 +215,19 @@ class CmdPing : public ::google::protobuf::Message /* @@protoc_insertion_point(c
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const CmdPing& default_instance();
+  static const SystemRegister& default_instance();
 
-  void Swap(CmdPing* other);
+  void Swap(SystemRegister* other);
 
   // implements Message ----------------------------------------------
 
-  inline CmdPing* New() const { return New(NULL); }
+  inline SystemRegister* New() const { return New(NULL); }
 
-  CmdPing* New(::google::protobuf::Arena* arena) const;
+  SystemRegister* New(::google::protobuf::Arena* arena) const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const CmdPing& from);
-  void MergeFrom(const CmdPing& from);
+  void CopyFrom(const SystemRegister& from);
+  void MergeFrom(const SystemRegister& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -220,7 +246,7 @@ class CmdPing : public ::google::protobuf::Message /* @@protoc_insertion_point(c
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
-  void InternalSwap(CmdPing* other);
+  void InternalSwap(SystemRegister* other);
   private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _internal_metadata_.arena();
@@ -236,29 +262,44 @@ class CmdPing : public ::google::protobuf::Message /* @@protoc_insertion_point(c
 
   // accessors -------------------------------------------------------
 
-  // @@protoc_insertion_point(class_scope:Kismet.CmdPing)
+  // required string subsystem = 1;
+  bool has_subsystem() const;
+  void clear_subsystem();
+  static const int kSubsystemFieldNumber = 1;
+  const ::std::string& subsystem() const;
+  void set_subsystem(const ::std::string& value);
+  void set_subsystem(const char* value);
+  void set_subsystem(const char* value, size_t size);
+  ::std::string* mutable_subsystem();
+  ::std::string* release_subsystem();
+  void set_allocated_subsystem(::std::string* subsystem);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.SystemRegister)
  private:
+  inline void set_has_subsystem();
+  inline void clear_has_subsystem();
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
+  ::google::protobuf::internal::ArenaStringPtr subsystem_;
   friend void  protobuf_AddDesc_kismet_2eproto();
   friend void protobuf_AssignDesc_kismet_2eproto();
   friend void protobuf_ShutdownFile_kismet_2eproto();
 
   void InitAsDefaultInstance();
-  static CmdPing* default_instance_;
+  static SystemRegister* default_instance_;
 };
 // -------------------------------------------------------------------
 
-class CmdPong : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:Kismet.CmdPong) */ {
+class Shutdown : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.Shutdown) */ {
  public:
-  CmdPong();
-  virtual ~CmdPong();
+  Shutdown();
+  virtual ~Shutdown();
 
-  CmdPong(const CmdPong& from);
+  Shutdown(const Shutdown& from);
 
-  inline CmdPong& operator=(const CmdPong& from) {
+  inline Shutdown& operator=(const Shutdown& from) {
     CopyFrom(from);
     return *this;
   }
@@ -272,19 +313,19 @@ class CmdPong : public ::google::protobuf::Message /* @@protoc_insertion_point(c
   }
 
   static const ::google::protobuf::Descriptor* descriptor();
-  static const CmdPong& default_instance();
+  static const Shutdown& default_instance();
 
-  void Swap(CmdPong* other);
+  void Swap(Shutdown* other);
 
   // implements Message ----------------------------------------------
 
-  inline CmdPong* New() const { return New(NULL); }
+  inline Shutdown* New() const { return New(NULL); }
 
-  CmdPong* New(::google::protobuf::Arena* arena) const;
+  Shutdown* New(::google::protobuf::Arena* arena) const;
   void CopyFrom(const ::google::protobuf::Message& from);
   void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const CmdPong& from);
-  void MergeFrom(const CmdPong& from);
+  void CopyFrom(const Shutdown& from);
+  void MergeFrom(const Shutdown& from);
   void Clear();
   bool IsInitialized() const;
 
@@ -303,7 +344,7 @@ class CmdPong : public ::google::protobuf::Message /* @@protoc_insertion_point(c
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const;
-  void InternalSwap(CmdPong* other);
+  void InternalSwap(Shutdown* other);
   private:
   inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
     return _internal_metadata_.arena();
@@ -319,7 +360,248 @@ class CmdPong : public ::google::protobuf::Message /* @@protoc_insertion_point(c
 
   // accessors -------------------------------------------------------
 
-  // @@protoc_insertion_point(class_scope:Kismet.CmdPong)
+  // required string reason = 1;
+  bool has_reason() const;
+  void clear_reason();
+  static const int kReasonFieldNumber = 1;
+  const ::std::string& reason() const;
+  void set_reason(const ::std::string& value);
+  void set_reason(const char* value);
+  void set_reason(const char* value, size_t size);
+  ::std::string* mutable_reason();
+  ::std::string* release_reason();
+  void set_allocated_reason(::std::string* reason);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.Shutdown)
+ private:
+  inline void set_has_reason();
+  inline void clear_has_reason();
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::google::protobuf::internal::ArenaStringPtr reason_;
+  friend void  protobuf_AddDesc_kismet_2eproto();
+  friend void protobuf_AssignDesc_kismet_2eproto();
+  friend void protobuf_ShutdownFile_kismet_2eproto();
+
+  void InitAsDefaultInstance();
+  static Shutdown* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class MsgbusMessage : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.MsgbusMessage) */ {
+ public:
+  MsgbusMessage();
+  virtual ~MsgbusMessage();
+
+  MsgbusMessage(const MsgbusMessage& from);
+
+  inline MsgbusMessage& operator=(const MsgbusMessage& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields();
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const MsgbusMessage& default_instance();
+
+  void Swap(MsgbusMessage* other);
+
+  // implements Message ----------------------------------------------
+
+  inline MsgbusMessage* New() const { return New(NULL); }
+
+  MsgbusMessage* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const MsgbusMessage& from);
+  void MergeFrom(const MsgbusMessage& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const {
+    return InternalSerializeWithCachedSizesToArray(false, output);
+  }
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(MsgbusMessage* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  typedef MsgbusMessage_MessageType MessageType;
+  static const MessageType DEBUG =
+    MsgbusMessage_MessageType_DEBUG;
+  static const MessageType INFO =
+    MsgbusMessage_MessageType_INFO;
+  static const MessageType ERROR =
+    MsgbusMessage_MessageType_ERROR;
+  static const MessageType ALERT =
+    MsgbusMessage_MessageType_ALERT;
+  static const MessageType FATAL =
+    MsgbusMessage_MessageType_FATAL;
+  static inline bool MessageType_IsValid(int value) {
+    return MsgbusMessage_MessageType_IsValid(value);
+  }
+  static const MessageType MessageType_MIN =
+    MsgbusMessage_MessageType_MessageType_MIN;
+  static const MessageType MessageType_MAX =
+    MsgbusMessage_MessageType_MessageType_MAX;
+  static const int MessageType_ARRAYSIZE =
+    MsgbusMessage_MessageType_MessageType_ARRAYSIZE;
+  static inline const ::google::protobuf::EnumDescriptor*
+  MessageType_descriptor() {
+    return MsgbusMessage_MessageType_descriptor();
+  }
+  static inline const ::std::string& MessageType_Name(MessageType value) {
+    return MsgbusMessage_MessageType_Name(value);
+  }
+  static inline bool MessageType_Parse(const ::std::string& name,
+      MessageType* value) {
+    return MsgbusMessage_MessageType_Parse(name, value);
+  }
+
+  // accessors -------------------------------------------------------
+
+  // required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+  bool has_msgtype() const;
+  void clear_msgtype();
+  static const int kMsgtypeFieldNumber = 1;
+  ::KismetExternal::MsgbusMessage_MessageType msgtype() const;
+  void set_msgtype(::KismetExternal::MsgbusMessage_MessageType value);
+
+  // required string msgtext = 2;
+  bool has_msgtext() const;
+  void clear_msgtext();
+  static const int kMsgtextFieldNumber = 2;
+  const ::std::string& msgtext() const;
+  void set_msgtext(const ::std::string& value);
+  void set_msgtext(const char* value);
+  void set_msgtext(const char* value, size_t size);
+  ::std::string* mutable_msgtext();
+  ::std::string* release_msgtext();
+  void set_allocated_msgtext(::std::string* msgtext);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.MsgbusMessage)
+ private:
+  inline void set_has_msgtype();
+  inline void clear_has_msgtype();
+  inline void set_has_msgtext();
+  inline void clear_has_msgtext();
+
+  // helper for ByteSize()
+  int RequiredFieldsByteSizeFallback() const;
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::google::protobuf::internal::ArenaStringPtr msgtext_;
+  int msgtype_;
+  friend void  protobuf_AddDesc_kismet_2eproto();
+  friend void protobuf_AssignDesc_kismet_2eproto();
+  friend void protobuf_ShutdownFile_kismet_2eproto();
+
+  void InitAsDefaultInstance();
+  static MsgbusMessage* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class Ping : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.Ping) */ {
+ public:
+  Ping();
+  virtual ~Ping();
+
+  Ping(const Ping& from);
+
+  inline Ping& operator=(const Ping& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields();
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Ping& default_instance();
+
+  void Swap(Ping* other);
+
+  // implements Message ----------------------------------------------
+
+  inline Ping* New() const { return New(NULL); }
+
+  Ping* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Ping& from);
+  void MergeFrom(const Ping& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const {
+    return InternalSerializeWithCachedSizesToArray(false, output);
+  }
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(Ping* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.Ping)
  private:
 
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
@@ -330,7 +612,100 @@ class CmdPong : public ::google::protobuf::Message /* @@protoc_insertion_point(c
   friend void protobuf_ShutdownFile_kismet_2eproto();
 
   void InitAsDefaultInstance();
-  static CmdPong* default_instance_;
+  static Ping* default_instance_;
+};
+// -------------------------------------------------------------------
+
+class Pong : public ::google::protobuf::Message /* @@protoc_insertion_point(class_definition:KismetExternal.Pong) */ {
+ public:
+  Pong();
+  virtual ~Pong();
+
+  Pong(const Pong& from);
+
+  inline Pong& operator=(const Pong& from) {
+    CopyFrom(from);
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields();
+  }
+
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor();
+  static const Pong& default_instance();
+
+  void Swap(Pong* other);
+
+  // implements Message ----------------------------------------------
+
+  inline Pong* New() const { return New(NULL); }
+
+  Pong* New(::google::protobuf::Arena* arena) const;
+  void CopyFrom(const ::google::protobuf::Message& from);
+  void MergeFrom(const ::google::protobuf::Message& from);
+  void CopyFrom(const Pong& from);
+  void MergeFrom(const Pong& from);
+  void Clear();
+  bool IsInitialized() const;
+
+  int ByteSize() const;
+  bool MergePartialFromCodedStream(
+      ::google::protobuf::io::CodedInputStream* input);
+  void SerializeWithCachedSizes(
+      ::google::protobuf::io::CodedOutputStream* output) const;
+  ::google::protobuf::uint8* InternalSerializeWithCachedSizesToArray(
+      bool deterministic, ::google::protobuf::uint8* output) const;
+  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const {
+    return InternalSerializeWithCachedSizesToArray(false, output);
+  }
+  int GetCachedSize() const { return _cached_size_; }
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(Pong* other);
+  private:
+  inline ::google::protobuf::Arena* GetArenaNoVirtual() const {
+    return _internal_metadata_.arena();
+  }
+  inline void* MaybeArenaPtr() const {
+    return _internal_metadata_.raw_arena_ptr();
+  }
+  public:
+
+  ::google::protobuf::Metadata GetMetadata() const;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // required uint32 ping_seqno = 1;
+  bool has_ping_seqno() const;
+  void clear_ping_seqno();
+  static const int kPingSeqnoFieldNumber = 1;
+  ::google::protobuf::uint32 ping_seqno() const;
+  void set_ping_seqno(::google::protobuf::uint32 value);
+
+  // @@protoc_insertion_point(class_scope:KismetExternal.Pong)
+ private:
+  inline void set_has_ping_seqno();
+  inline void clear_has_ping_seqno();
+
+  ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
+  ::google::protobuf::uint32 _has_bits_[1];
+  mutable int _cached_size_;
+  ::google::protobuf::uint32 ping_seqno_;
+  friend void  protobuf_AddDesc_kismet_2eproto();
+  friend void protobuf_AssignDesc_kismet_2eproto();
+  friend void protobuf_ShutdownFile_kismet_2eproto();
+
+  void InitAsDefaultInstance();
+  static Pong* default_instance_;
 };
 // ===================================================================
 
@@ -355,32 +730,32 @@ inline void Command::clear_command() {
   clear_has_command();
 }
 inline const ::std::string& Command::command() const {
-  // @@protoc_insertion_point(field_get:Kismet.Command.command)
+  // @@protoc_insertion_point(field_get:KismetExternal.Command.command)
   return command_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Command::set_command(const ::std::string& value) {
   set_has_command();
   command_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set:KismetExternal.Command.command)
 }
 inline void Command::set_command(const char* value) {
   set_has_command();
   command_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Command.command)
 }
 inline void Command::set_command(const char* value, size_t size) {
   set_has_command();
   command_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Command.command)
 }
 inline ::std::string* Command::mutable_command() {
   set_has_command();
-  // @@protoc_insertion_point(field_mutable:Kismet.Command.command)
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Command.command)
   return command_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* Command::release_command() {
-  // @@protoc_insertion_point(field_release:Kismet.Command.command)
+  // @@protoc_insertion_point(field_release:KismetExternal.Command.command)
   clear_has_command();
   return command_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
@@ -391,7 +766,7 @@ inline void Command::set_allocated_command(::std::string* command) {
     clear_has_command();
   }
   command_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), command);
-  // @@protoc_insertion_point(field_set_allocated:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Command.command)
 }
 
 // required uint32 seqno = 2;
@@ -409,13 +784,13 @@ inline void Command::clear_seqno() {
   clear_has_seqno();
 }
 inline ::google::protobuf::uint32 Command::seqno() const {
-  // @@protoc_insertion_point(field_get:Kismet.Command.seqno)
+  // @@protoc_insertion_point(field_get:KismetExternal.Command.seqno)
   return seqno_;
 }
 inline void Command::set_seqno(::google::protobuf::uint32 value) {
   set_has_seqno();
   seqno_ = value;
-  // @@protoc_insertion_point(field_set:Kismet.Command.seqno)
+  // @@protoc_insertion_point(field_set:KismetExternal.Command.seqno)
 }
 
 // required bytes content = 3;
@@ -433,32 +808,32 @@ inline void Command::clear_content() {
   clear_has_content();
 }
 inline const ::std::string& Command::content() const {
-  // @@protoc_insertion_point(field_get:Kismet.Command.content)
+  // @@protoc_insertion_point(field_get:KismetExternal.Command.content)
   return content_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline void Command::set_content(const ::std::string& value) {
   set_has_content();
   content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set:KismetExternal.Command.content)
 }
 inline void Command::set_content(const char* value) {
   set_has_content();
   content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Command.content)
 }
 inline void Command::set_content(const void* value, size_t size) {
   set_has_content();
   content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Command.content)
 }
 inline ::std::string* Command::mutable_content() {
   set_has_content();
-  // @@protoc_insertion_point(field_mutable:Kismet.Command.content)
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Command.content)
   return content_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
 inline ::std::string* Command::release_content() {
-  // @@protoc_insertion_point(field_release:Kismet.Command.content)
+  // @@protoc_insertion_point(field_release:KismetExternal.Command.content)
   clear_has_content();
   return content_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
@@ -469,18 +844,247 @@ inline void Command::set_allocated_content(::std::string* content) {
     clear_has_content();
   }
   content_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), content);
-  // @@protoc_insertion_point(field_set_allocated:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Command.content)
 }
 
 // -------------------------------------------------------------------
 
-// CmdPing
+// SystemRegister
+
+// required string subsystem = 1;
+inline bool SystemRegister::has_subsystem() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void SystemRegister::set_has_subsystem() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void SystemRegister::clear_has_subsystem() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void SystemRegister::clear_subsystem() {
+  subsystem_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_subsystem();
+}
+inline const ::std::string& SystemRegister::subsystem() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.SystemRegister.subsystem)
+  return subsystem_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void SystemRegister::set_subsystem(const ::std::string& value) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.SystemRegister.subsystem)
+}
+inline void SystemRegister::set_subsystem(const char* value) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.SystemRegister.subsystem)
+}
+inline void SystemRegister::set_subsystem(const char* value, size_t size) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.SystemRegister.subsystem)
+}
+inline ::std::string* SystemRegister::mutable_subsystem() {
+  set_has_subsystem();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.SystemRegister.subsystem)
+  return subsystem_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* SystemRegister::release_subsystem() {
+  // @@protoc_insertion_point(field_release:KismetExternal.SystemRegister.subsystem)
+  clear_has_subsystem();
+  return subsystem_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void SystemRegister::set_allocated_subsystem(::std::string* subsystem) {
+  if (subsystem != NULL) {
+    set_has_subsystem();
+  } else {
+    clear_has_subsystem();
+  }
+  subsystem_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), subsystem);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.SystemRegister.subsystem)
+}
 
 // -------------------------------------------------------------------
 
-// CmdPong
+// Shutdown
+
+// required string reason = 1;
+inline bool Shutdown::has_reason() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Shutdown::set_has_reason() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Shutdown::clear_has_reason() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Shutdown::clear_reason() {
+  reason_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_reason();
+}
+inline const ::std::string& Shutdown::reason() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.Shutdown.reason)
+  return reason_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void Shutdown::set_reason(const ::std::string& value) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.Shutdown.reason)
+}
+inline void Shutdown::set_reason(const char* value) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Shutdown.reason)
+}
+inline void Shutdown::set_reason(const char* value, size_t size) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Shutdown.reason)
+}
+inline ::std::string* Shutdown::mutable_reason() {
+  set_has_reason();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Shutdown.reason)
+  return reason_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* Shutdown::release_reason() {
+  // @@protoc_insertion_point(field_release:KismetExternal.Shutdown.reason)
+  clear_has_reason();
+  return reason_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void Shutdown::set_allocated_reason(::std::string* reason) {
+  if (reason != NULL) {
+    set_has_reason();
+  } else {
+    clear_has_reason();
+  }
+  reason_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), reason);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Shutdown.reason)
+}
+
+// -------------------------------------------------------------------
+
+// MsgbusMessage
+
+// required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+inline bool MsgbusMessage::has_msgtype() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void MsgbusMessage::set_has_msgtype() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void MsgbusMessage::clear_has_msgtype() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void MsgbusMessage::clear_msgtype() {
+  msgtype_ = 1;
+  clear_has_msgtype();
+}
+inline ::KismetExternal::MsgbusMessage_MessageType MsgbusMessage::msgtype() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.MsgbusMessage.msgtype)
+  return static_cast< ::KismetExternal::MsgbusMessage_MessageType >(msgtype_);
+}
+inline void MsgbusMessage::set_msgtype(::KismetExternal::MsgbusMessage_MessageType value) {
+  assert(::KismetExternal::MsgbusMessage_MessageType_IsValid(value));
+  set_has_msgtype();
+  msgtype_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.MsgbusMessage.msgtype)
+}
+
+// required string msgtext = 2;
+inline bool MsgbusMessage::has_msgtext() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+inline void MsgbusMessage::set_has_msgtext() {
+  _has_bits_[0] |= 0x00000002u;
+}
+inline void MsgbusMessage::clear_has_msgtext() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+inline void MsgbusMessage::clear_msgtext() {
+  msgtext_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_msgtext();
+}
+inline const ::std::string& MsgbusMessage::msgtext() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.MsgbusMessage.msgtext)
+  return msgtext_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void MsgbusMessage::set_msgtext(const ::std::string& value) {
+  set_has_msgtext();
+  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.MsgbusMessage.msgtext)
+}
+inline void MsgbusMessage::set_msgtext(const char* value) {
+  set_has_msgtext();
+  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.MsgbusMessage.msgtext)
+}
+inline void MsgbusMessage::set_msgtext(const char* value, size_t size) {
+  set_has_msgtext();
+  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.MsgbusMessage.msgtext)
+}
+inline ::std::string* MsgbusMessage::mutable_msgtext() {
+  set_has_msgtext();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.MsgbusMessage.msgtext)
+  return msgtext_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline ::std::string* MsgbusMessage::release_msgtext() {
+  // @@protoc_insertion_point(field_release:KismetExternal.MsgbusMessage.msgtext)
+  clear_has_msgtext();
+  return msgtext_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+inline void MsgbusMessage::set_allocated_msgtext(::std::string* msgtext) {
+  if (msgtext != NULL) {
+    set_has_msgtext();
+  } else {
+    clear_has_msgtext();
+  }
+  msgtext_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msgtext);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.MsgbusMessage.msgtext)
+}
+
+// -------------------------------------------------------------------
+
+// Ping
+
+// -------------------------------------------------------------------
+
+// Pong
+
+// required uint32 ping_seqno = 1;
+inline bool Pong::has_ping_seqno() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+inline void Pong::set_has_ping_seqno() {
+  _has_bits_[0] |= 0x00000001u;
+}
+inline void Pong::clear_has_ping_seqno() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+inline void Pong::clear_ping_seqno() {
+  ping_seqno_ = 0u;
+  clear_has_ping_seqno();
+}
+inline ::google::protobuf::uint32 Pong::ping_seqno() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.Pong.ping_seqno)
+  return ping_seqno_;
+}
+inline void Pong::set_ping_seqno(::google::protobuf::uint32 value) {
+  set_has_ping_seqno();
+  ping_seqno_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.Pong.ping_seqno)
+}
 
 #endif  // !PROTOBUF_INLINE_NOT_IN_HEADERS
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------
@@ -488,7 +1092,21 @@ inline void Command::set_allocated_content(::std::string* content) {
 
 // @@protoc_insertion_point(namespace_scope)
 
-}  // namespace Kismet
+}  // namespace KismetExternal
+
+#ifndef SWIG
+namespace google {
+namespace protobuf {
+
+template <> struct is_proto_enum< ::KismetExternal::MsgbusMessage_MessageType> : ::google::protobuf::internal::true_type {};
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::KismetExternal::MsgbusMessage_MessageType>() {
+  return ::KismetExternal::MsgbusMessage_MessageType_descriptor();
+}
+
+}  // namespace protobuf
+}  // namespace google
+#endif  // SWIG
 
 // @@protoc_insertion_point(global_scope)
 

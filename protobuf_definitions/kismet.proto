@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-package Kismet;
+package KismetExternal;
 
 // Overall command structure used for all Kismet helper binaries;  Each command
 // is an arbitrary string (command type), with a unique sequence number which is
@@ -19,12 +19,39 @@ message Command {
     required bytes content = 3;
 }
 
+// Register helper; this helps us identify what we're talking to if we need to
+// dispatch the helpers
+message SystemRegister {
+    required string subsystem = 1;
+}
+
+// Shut down the connection
+message Shutdown {
+    required string reason = 1;
+}
+
+// User-readable message
+message MsgbusMessage {
+    // Match the Kismet messagebus types
+    enum MessageType {
+        DEBUG = 1;
+        INFO = 2;
+        ERROR = 4;
+        ALERT = 8;
+        FATAL = 16;
+    }
+
+    required MessageType msgtype = 1;
+    required string msgtext = 2;
+}
+
+
 // Request other end send a PONG (bidirectional)
-message CmdPing {
+message Ping {
 
 }
 
 // Respond to PING (bidirectional)
-message CmdPong {
-
+message Pong {
+    required uint32 ping_seqno = 1; // PING sequence that reached out to us
 }

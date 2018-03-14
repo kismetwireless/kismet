@@ -36,10 +36,6 @@ const ::google::protobuf::internal::GeneratedMessageReflection*
 const ::google::protobuf::Descriptor* SubInterface_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   SubInterface_reflection_ = NULL;
-const ::google::protobuf::Descriptor* SubMsgbus_descriptor_ = NULL;
-const ::google::protobuf::internal::GeneratedMessageReflection*
-  SubMsgbus_reflection_ = NULL;
-const ::google::protobuf::EnumDescriptor* SubMsgbus_MessageType_descriptor_ = NULL;
 const ::google::protobuf::Descriptor* SubPacket_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   SubPacket_reflection_ = NULL;
@@ -199,24 +195,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(SubInterface),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubInterface, _internal_metadata_),
       -1);
-  SubMsgbus_descriptor_ = file->message_type(5);
-  static const int SubMsgbus_offsets_[2] = {
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubMsgbus, msgtype_),
-    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubMsgbus, msgtext_),
-  };
-  SubMsgbus_reflection_ =
-    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
-      SubMsgbus_descriptor_,
-      SubMsgbus::default_instance_,
-      SubMsgbus_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubMsgbus, _has_bits_[0]),
-      -1,
-      -1,
-      sizeof(SubMsgbus),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubMsgbus, _internal_metadata_),
-      -1);
-  SubMsgbus_MessageType_descriptor_ = SubMsgbus_descriptor_->enum_type(0);
-  SubPacket_descriptor_ = file->message_type(6);
+  SubPacket_descriptor_ = file->message_type(5);
   static const int SubPacket_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, time_sec_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, time_usec_),
@@ -235,7 +214,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(SubPacket),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubPacket, _internal_metadata_),
       -1);
-  SubSignal_descriptor_ = file->message_type(7);
+  SubSignal_descriptor_ = file->message_type(6);
   static const int SubSignal_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, signal_dbm_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, noise_dbm_),
@@ -256,7 +235,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(SubSignal),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSignal, _internal_metadata_),
       -1);
-  SubSpecset_descriptor_ = file->message_type(8);
+  SubSpecset_descriptor_ = file->message_type(7);
   static const int SubSpecset_offsets_[7] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, start_mhz_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, end_mhz_),
@@ -277,7 +256,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(SubSpecset),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpecset, _internal_metadata_),
       -1);
-  SubSpectrum_descriptor_ = file->message_type(9);
+  SubSpectrum_descriptor_ = file->message_type(8);
   static const int SubSpectrum_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, time_sec_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, time_usec_),
@@ -297,7 +276,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(SubSpectrum),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSpectrum, _internal_metadata_),
       -1);
-  SubSuccess_descriptor_ = file->message_type(10);
+  SubSuccess_descriptor_ = file->message_type(9);
   static const int SubSuccess_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, command_num_),
@@ -313,7 +292,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(SubSuccess),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SubSuccess, _internal_metadata_),
       -1);
-  Channels_descriptor_ = file->message_type(11);
+  Channels_descriptor_ = file->message_type(10);
   static const int Channels_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Channels, channels_),
   };
@@ -328,7 +307,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(Channels),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Channels, _internal_metadata_),
       -1);
-  CloseDatasource_descriptor_ = file->message_type(12);
+  CloseDatasource_descriptor_ = file->message_type(11);
   static const int CloseDatasource_offsets_[1] = {
   };
   CloseDatasource_reflection_ =
@@ -342,7 +321,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(CloseDatasource),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CloseDatasource, _internal_metadata_),
       -1);
-  Configure_descriptor_ = file->message_type(13);
+  Configure_descriptor_ = file->message_type(12);
   static const int Configure_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, channel_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, hopping_),
@@ -359,7 +338,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(Configure),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Configure, _internal_metadata_),
       -1);
-  ConfigureReport_descriptor_ = file->message_type(14);
+  ConfigureReport_descriptor_ = file->message_type(13);
   static const int ConfigureReport_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, channel_),
@@ -378,7 +357,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(ConfigureReport),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ConfigureReport, _internal_metadata_),
       -1);
-  DataReport_descriptor_ = file->message_type(15);
+  DataReport_descriptor_ = file->message_type(14);
   static const int DataReport_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, gps_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, message_),
@@ -398,7 +377,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(DataReport),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(DataReport, _internal_metadata_),
       -1);
-  ErrorReport_descriptor_ = file->message_type(16);
+  ErrorReport_descriptor_ = file->message_type(15);
   static const int ErrorReport_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, message_),
@@ -414,7 +393,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(ErrorReport),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ErrorReport, _internal_metadata_),
       -1);
-  ListInterfaces_descriptor_ = file->message_type(17);
+  ListInterfaces_descriptor_ = file->message_type(16);
   static const int ListInterfaces_offsets_[1] = {
   };
   ListInterfaces_reflection_ =
@@ -428,7 +407,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(ListInterfaces),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ListInterfaces, _internal_metadata_),
       -1);
-  InterfacesReport_descriptor_ = file->message_type(18);
+  InterfacesReport_descriptor_ = file->message_type(17);
   static const int InterfacesReport_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, message_),
@@ -445,7 +424,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(InterfacesReport),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(InterfacesReport, _internal_metadata_),
       -1);
-  Message_descriptor_ = file->message_type(19);
+  Message_descriptor_ = file->message_type(18);
   static const int Message_offsets_[2] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, message_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, warning_),
@@ -461,7 +440,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(Message),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Message, _internal_metadata_),
       -1);
-  NewSource_descriptor_ = file->message_type(20);
+  NewSource_descriptor_ = file->message_type(19);
   static const int NewSource_offsets_[3] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, definition_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, sourcetype_),
@@ -478,7 +457,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(NewSource),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(NewSource, _internal_metadata_),
       -1);
-  OpenSource_descriptor_ = file->message_type(21);
+  OpenSource_descriptor_ = file->message_type(20);
   static const int OpenSource_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSource, definition_),
   };
@@ -493,7 +472,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(OpenSource),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSource, _internal_metadata_),
       -1);
-  OpenSourceReport_descriptor_ = file->message_type(22);
+  OpenSourceReport_descriptor_ = file->message_type(21);
   static const int OpenSourceReport_offsets_[10] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, dlt_),
@@ -517,7 +496,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(OpenSourceReport),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(OpenSourceReport, _internal_metadata_),
       -1);
-  ProbeSource_descriptor_ = file->message_type(23);
+  ProbeSource_descriptor_ = file->message_type(22);
   static const int ProbeSource_offsets_[1] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSource, definition_),
   };
@@ -532,7 +511,7 @@ void protobuf_AssignDesc_datasource_2eproto() {
       sizeof(ProbeSource),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSource, _internal_metadata_),
       -1);
-  ProbeSourceReport_descriptor_ = file->message_type(24);
+  ProbeSourceReport_descriptor_ = file->message_type(23);
   static const int ProbeSourceReport_offsets_[6] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, success_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(ProbeSourceReport, message_),
@@ -575,8 +554,6 @@ void protobuf_RegisterTypes(const ::std::string&) {
       SubGps_descriptor_, &SubGps::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       SubInterface_descriptor_, &SubInterface::default_instance());
-  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      SubMsgbus_descriptor_, &SubMsgbus::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       SubPacket_descriptor_, &SubPacket::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
@@ -630,8 +607,6 @@ void protobuf_ShutdownFile_datasource_2eproto() {
   delete SubGps_reflection_;
   delete SubInterface::default_instance_;
   delete SubInterface_reflection_;
-  delete SubMsgbus::default_instance_;
-  delete SubMsgbus_reflection_;
   delete SubPacket::default_instance_;
   delete SubPacket_reflection_;
   delete SubSignal::default_instance_;
@@ -679,83 +654,81 @@ void protobuf_AddDesc_datasource_2eproto() {
   already_here = true;
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+  ::KismetExternal::protobuf_AddDesc_kismet_2eproto();
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\020datasource.proto\022\020KismetDatasource\"\037\n\013"
-    "SubChannels\022\020\n\010channels\030\001 \003(\t\"\035\n\nSubChan"
-    "set\022\017\n\007channel\030\001 \002(\t\"c\n\nSubChanhop\022\020\n\010ch"
-    "annels\030\001 \003(\t\022\014\n\004rate\030\002 \001(\001\022\017\n\007shuffle\030\003 "
-    "\001(\010\022\024\n\014shuffle_skip\030\004 \001(\r\022\016\n\006offset\030\005 \001("
-    "\r\"\260\001\n\006SubGps\022\013\n\003lat\030\001 \002(\001\022\013\n\003lon\030\002 \002(\001\022\013"
-    "\n\003alt\030\003 \002(\001\022\r\n\005speed\030\004 \002(\001\022\017\n\007heading\030\005 "
-    "\002(\001\022\021\n\tprecision\030\006 \002(\001\022\013\n\003fix\030\007 \002(\r\022\020\n\010t"
-    "ime_sec\030\010 \002(\004\022\021\n\ttime_usec\030\t \002(\004\022\014\n\004type"
-    "\030\n \002(\t\022\014\n\004name\030\013 \002(\t\"B\n\014SubInterface\022\021\n\t"
-    "interface\030\001 \002(\t\022\r\n\005flags\030\002 \002(\t\022\020\n\010hardwa"
-    "re\030\003 \001(\t\"\233\001\n\tSubMsgbus\0228\n\007msgtype\030\001 \002(\0162"
-    "\'.KismetDatasource.SubMsgbus.MessageType"
-    "\022\017\n\007msgtext\030\002 \002(\t\"C\n\013MessageType\022\t\n\005DEBU"
-    "G\020\001\022\010\n\004INFO\020\002\022\t\n\005ERROR\020\004\022\t\n\005ALERT\020\010\022\t\n\005F"
-    "ATAL\020\020\"Y\n\tSubPacket\022\020\n\010time_sec\030\001 \002(\004\022\021\n"
-    "\ttime_usec\030\002 \002(\004\022\013\n\003dlt\030\003 \002(\r\022\014\n\004size\030\004 "
-    "\002(\004\022\014\n\004data\030\005 \002(\014\"\220\001\n\tSubSignal\022\022\n\nsigna"
-    "l_dbm\030\001 \001(\001\022\021\n\tnoise_dbm\030\002 \001(\001\022\023\n\013signal"
-    "_rssi\030\003 \001(\001\022\022\n\nnoise_rssi\030\004 \001(\001\022\020\n\010freq_"
-    "khz\030\005 \001(\001\022\017\n\007channel\030\006 \001(\t\022\020\n\010datarate\030\007"
-    " \001(\001\"\237\001\n\nSubSpecset\022\021\n\tstart_mhz\030\001 \001(\001\022\017"
-    "\n\007end_mhz\030\002 \001(\001\022\032\n\022samples_per_bucket\030\003 "
-    "\001(\001\022\027\n\017bucket_width_hz\030\004 \001(\001\022\022\n\nenable_a"
-    "mp\030\005 \001(\010\022\016\n\006if_amp\030\006 \001(\004\022\024\n\014baseband_amp"
-    "\030\007 \001(\004\"}\n\013SubSpectrum\022\020\n\010time_sec\030\001 \001(\004\022"
-    "\021\n\ttime_usec\030\002 \001(\004\022\021\n\tstart_mhz\030\003 \001(\001\022\017\n"
-    "\007end_mhz\030\004 \001(\001\022\027\n\017bucket_width_hz\030\005 \001(\001\022"
-    "\014\n\004data\030\006 \003(\005\"2\n\nSubSuccess\022\017\n\007success\030\001"
-    " \002(\010\022\023\n\013command_num\030\002 \002(\r\";\n\010Channels\022/\n"
-    "\010channels\030\001 \002(\0132\035.KismetDatasource.SubCh"
-    "annels\"\021\n\017CloseDatasource\"\231\001\n\tConfigure\022"
-    "-\n\007channel\030\001 \001(\0132\034.KismetDatasource.SubC"
-    "hanset\022-\n\007hopping\030\002 \001(\0132\034.KismetDatasour"
-    "ce.SubChanhop\022.\n\010spectrum\030\003 \001(\0132\034.Kismet"
-    "Datasource.SubSpecset\"\335\001\n\017ConfigureRepor"
-    "t\022-\n\007success\030\001 \002(\0132\034.KismetDatasource.Su"
-    "bSuccess\022-\n\007channel\030\002 \001(\0132\034.KismetDataso"
-    "urce.SubChanset\022-\n\007hopping\030\003 \001(\0132\034.Kisme"
-    "tDatasource.SubChanhop\022,\n\007message\030\004 \001(\0132"
-    "\033.KismetDatasource.SubMsgbus\022\017\n\007warning\030"
-    "\005 \001(\t\"\375\001\n\nDataReport\022%\n\003gps\030\001 \001(\0132\030.Kism"
-    "etDatasource.SubGps\022,\n\007message\030\002 \001(\0132\033.K"
-    "ismetDatasource.SubMsgbus\022+\n\006packet\030\003 \001("
-    "\0132\033.KismetDatasource.SubPacket\022+\n\006signal"
-    "\030\004 \001(\0132\033.KismetDatasource.SubSignal\022/\n\010s"
-    "pectrum\030\005 \001(\0132\035.KismetDatasource.SubSpec"
-    "trum\022\017\n\007warning\030\006 \001(\t\"j\n\013ErrorReport\022-\n\007"
-    "success\030\001 \002(\0132\034.KismetDatasource.SubSucc"
-    "ess\022,\n\007message\030\002 \001(\0132\033.KismetDatasource."
-    "SubMsgbus\"\020\n\016ListInterfaces\"\243\001\n\020Interfac"
-    "esReport\022-\n\007success\030\001 \002(\0132\034.KismetDataso"
-    "urce.SubSuccess\022,\n\007message\030\002 \001(\0132\033.Kisme"
-    "tDatasource.SubMsgbus\0222\n\ninterfaces\030\003 \003("
-    "\0132\036.KismetDatasource.SubInterface\"H\n\007Mes"
-    "sage\022,\n\007message\030\001 \001(\0132\033.KismetDatasource"
-    ".SubMsgbus\022\017\n\007warning\030\002 \001(\t\"A\n\tNewSource"
-    "\022\022\n\ndefinition\030\001 \002(\t\022\022\n\nsourcetype\030\002 \002(\t"
-    "\022\014\n\004uuid\030\003 \002(\t\" \n\nOpenSource\022\022\n\ndefiniti"
-    "on\030\001 \002(\t\"\327\002\n\020OpenSourceReport\022-\n\007success"
-    "\030\001 \002(\0132\034.KismetDatasource.SubSuccess\022\013\n\003"
-    "dlt\030\002 \001(\r\022\031\n\021capture_interface\030\003 \001(\t\022/\n\010"
-    "channels\030\004 \001(\0132\035.KismetDatasource.SubCha"
-    "nnels\022-\n\007channel\030\005 \001(\0132\034.KismetDatasourc"
-    "e.SubChanset\022\020\n\010hardware\030\006 \001(\t\022,\n\007messag"
-    "e\030\007 \001(\0132\033.KismetDatasource.SubMsgbus\022-\n\007"
-    "specset\030\010 \001(\0132\034.KismetDatasource.SubSpec"
-    "set\022\014\n\004uuid\030\t \001(\t\022\017\n\007warning\030\n \001(\t\"!\n\013Pr"
-    "obeSource\022\022\n\ndefinition\030\001 \002(\t\"\221\002\n\021ProbeS"
-    "ourceReport\022-\n\007success\030\001 \002(\0132\034.KismetDat"
-    "asource.SubSuccess\022,\n\007message\030\002 \001(\0132\033.Ki"
-    "smetDatasource.SubMsgbus\022/\n\010channels\030\003 \001"
-    "(\0132\035.KismetDatasource.SubChannels\022-\n\007cha"
-    "nset\030\004 \001(\0132\034.KismetDatasource.SubChanset"
-    "\022-\n\007specset\030\005 \001(\0132\034.KismetDatasource.Sub"
-    "Specset\022\020\n\010hardware\030\006 \001(\t", 3025);
+    "\n\020datasource.proto\022\020KismetDatasource\032\014ki"
+    "smet.proto\"\037\n\013SubChannels\022\020\n\010channels\030\001 "
+    "\003(\t\"\035\n\nSubChanset\022\017\n\007channel\030\001 \002(\t\"c\n\nSu"
+    "bChanhop\022\020\n\010channels\030\001 \003(\t\022\014\n\004rate\030\002 \001(\001"
+    "\022\017\n\007shuffle\030\003 \001(\010\022\024\n\014shuffle_skip\030\004 \001(\r\022"
+    "\016\n\006offset\030\005 \001(\r\"\260\001\n\006SubGps\022\013\n\003lat\030\001 \002(\001\022"
+    "\013\n\003lon\030\002 \002(\001\022\013\n\003alt\030\003 \002(\001\022\r\n\005speed\030\004 \002(\001"
+    "\022\017\n\007heading\030\005 \002(\001\022\021\n\tprecision\030\006 \002(\001\022\013\n\003"
+    "fix\030\007 \002(\r\022\020\n\010time_sec\030\010 \002(\004\022\021\n\ttime_usec"
+    "\030\t \002(\004\022\014\n\004type\030\n \002(\t\022\014\n\004name\030\013 \002(\t\"B\n\014Su"
+    "bInterface\022\021\n\tinterface\030\001 \002(\t\022\r\n\005flags\030\002"
+    " \002(\t\022\020\n\010hardware\030\003 \001(\t\"Y\n\tSubPacket\022\020\n\010t"
+    "ime_sec\030\001 \002(\004\022\021\n\ttime_usec\030\002 \002(\004\022\013\n\003dlt\030"
+    "\003 \002(\r\022\014\n\004size\030\004 \002(\004\022\014\n\004data\030\005 \002(\014\"\220\001\n\tSu"
+    "bSignal\022\022\n\nsignal_dbm\030\001 \001(\001\022\021\n\tnoise_dbm"
+    "\030\002 \001(\001\022\023\n\013signal_rssi\030\003 \001(\001\022\022\n\nnoise_rss"
+    "i\030\004 \001(\001\022\020\n\010freq_khz\030\005 \001(\001\022\017\n\007channel\030\006 \001"
+    "(\t\022\020\n\010datarate\030\007 \001(\001\"\237\001\n\nSubSpecset\022\021\n\ts"
+    "tart_mhz\030\001 \001(\001\022\017\n\007end_mhz\030\002 \001(\001\022\032\n\022sampl"
+    "es_per_bucket\030\003 \001(\001\022\027\n\017bucket_width_hz\030\004"
+    " \001(\001\022\022\n\nenable_amp\030\005 \001(\010\022\016\n\006if_amp\030\006 \001(\004"
+    "\022\024\n\014baseband_amp\030\007 \001(\004\"}\n\013SubSpectrum\022\020\n"
+    "\010time_sec\030\001 \001(\004\022\021\n\ttime_usec\030\002 \001(\004\022\021\n\tst"
+    "art_mhz\030\003 \001(\001\022\017\n\007end_mhz\030\004 \001(\001\022\027\n\017bucket"
+    "_width_hz\030\005 \001(\001\022\014\n\004data\030\006 \003(\005\"2\n\nSubSucc"
+    "ess\022\017\n\007success\030\001 \002(\010\022\023\n\013command_num\030\002 \002("
+    "\r\";\n\010Channels\022/\n\010channels\030\001 \002(\0132\035.Kismet"
+    "Datasource.SubChannels\"\021\n\017CloseDatasourc"
+    "e\"\231\001\n\tConfigure\022-\n\007channel\030\001 \001(\0132\034.Kisme"
+    "tDatasource.SubChanset\022-\n\007hopping\030\002 \001(\0132"
+    "\034.KismetDatasource.SubChanhop\022.\n\010spectru"
+    "m\030\003 \001(\0132\034.KismetDatasource.SubSpecset\"\337\001"
+    "\n\017ConfigureReport\022-\n\007success\030\001 \002(\0132\034.Kis"
+    "metDatasource.SubSuccess\022-\n\007channel\030\002 \001("
+    "\0132\034.KismetDatasource.SubChanset\022-\n\007hoppi"
+    "ng\030\003 \001(\0132\034.KismetDatasource.SubChanhop\022."
+    "\n\007message\030\004 \001(\0132\035.KismetExternal.MsgbusM"
+    "essage\022\017\n\007warning\030\005 \001(\t\"\377\001\n\nDataReport\022%"
+    "\n\003gps\030\001 \001(\0132\030.KismetDatasource.SubGps\022.\n"
+    "\007message\030\002 \001(\0132\035.KismetExternal.MsgbusMe"
+    "ssage\022+\n\006packet\030\003 \001(\0132\033.KismetDatasource"
+    ".SubPacket\022+\n\006signal\030\004 \001(\0132\033.KismetDatas"
+    "ource.SubSignal\022/\n\010spectrum\030\005 \001(\0132\035.Kism"
+    "etDatasource.SubSpectrum\022\017\n\007warning\030\006 \001("
+    "\t\"l\n\013ErrorReport\022-\n\007success\030\001 \002(\0132\034.Kism"
+    "etDatasource.SubSuccess\022.\n\007message\030\002 \001(\013"
+    "2\035.KismetExternal.MsgbusMessage\"\020\n\016ListI"
+    "nterfaces\"\245\001\n\020InterfacesReport\022-\n\007succes"
+    "s\030\001 \002(\0132\034.KismetDatasource.SubSuccess\022.\n"
+    "\007message\030\002 \001(\0132\035.KismetExternal.MsgbusMe"
+    "ssage\0222\n\ninterfaces\030\003 \003(\0132\036.KismetDataso"
+    "urce.SubInterface\"J\n\007Message\022.\n\007message\030"
+    "\001 \001(\0132\035.KismetExternal.MsgbusMessage\022\017\n\007"
+    "warning\030\002 \001(\t\"A\n\tNewSource\022\022\n\ndefinition"
+    "\030\001 \002(\t\022\022\n\nsourcetype\030\002 \002(\t\022\014\n\004uuid\030\003 \002(\t"
+    "\" \n\nOpenSource\022\022\n\ndefinition\030\001 \002(\t\"\331\002\n\020O"
+    "penSourceReport\022-\n\007success\030\001 \002(\0132\034.Kisme"
+    "tDatasource.SubSuccess\022\013\n\003dlt\030\002 \001(\r\022\031\n\021c"
+    "apture_interface\030\003 \001(\t\022/\n\010channels\030\004 \001(\013"
+    "2\035.KismetDatasource.SubChannels\022-\n\007chann"
+    "el\030\005 \001(\0132\034.KismetDatasource.SubChanset\022\020"
+    "\n\010hardware\030\006 \001(\t\022.\n\007message\030\007 \001(\0132\035.Kism"
+    "etExternal.MsgbusMessage\022-\n\007specset\030\010 \001("
+    "\0132\034.KismetDatasource.SubSpecset\022\014\n\004uuid\030"
+    "\t \001(\t\022\017\n\007warning\030\n \001(\t\"!\n\013ProbeSource\022\022\n"
+    "\ndefinition\030\001 \002(\t\"\223\002\n\021ProbeSourceReport\022"
+    "-\n\007success\030\001 \002(\0132\034.KismetDatasource.SubS"
+    "uccess\022.\n\007message\030\002 \001(\0132\035.KismetExternal"
+    ".MsgbusMessage\022/\n\010channels\030\003 \001(\0132\035.Kisme"
+    "tDatasource.SubChannels\022-\n\007chanset\030\004 \001(\013"
+    "2\034.KismetDatasource.SubChanset\022-\n\007specse"
+    "t\030\005 \001(\0132\034.KismetDatasource.SubSpecset\022\020\n"
+    "\010hardware\030\006 \001(\t", 2895);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "datasource.proto", &protobuf_RegisterTypes);
   SubChannels::default_instance_ = new SubChannels();
@@ -763,7 +736,6 @@ void protobuf_AddDesc_datasource_2eproto() {
   SubChanhop::default_instance_ = new SubChanhop();
   SubGps::default_instance_ = new SubGps();
   SubInterface::default_instance_ = new SubInterface();
-  SubMsgbus::default_instance_ = new SubMsgbus();
   SubPacket::default_instance_ = new SubPacket();
   SubSignal::default_instance_ = new SubSignal();
   SubSpecset::default_instance_ = new SubSpecset();
@@ -788,7 +760,6 @@ void protobuf_AddDesc_datasource_2eproto() {
   SubChanhop::default_instance_->InitAsDefaultInstance();
   SubGps::default_instance_->InitAsDefaultInstance();
   SubInterface::default_instance_->InitAsDefaultInstance();
-  SubMsgbus::default_instance_->InitAsDefaultInstance();
   SubPacket::default_instance_->InitAsDefaultInstance();
   SubSignal::default_instance_->InitAsDefaultInstance();
   SubSpecset::default_instance_->InitAsDefaultInstance();
@@ -3648,444 +3619,6 @@ void SubInterface::clear_hardware() {
   }
   hardware_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), hardware);
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubInterface.hardware)
-}
-
-#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
-
-// ===================================================================
-
-const ::google::protobuf::EnumDescriptor* SubMsgbus_MessageType_descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return SubMsgbus_MessageType_descriptor_;
-}
-bool SubMsgbus_MessageType_IsValid(int value) {
-  switch(value) {
-    case 1:
-    case 2:
-    case 4:
-    case 8:
-    case 16:
-      return true;
-    default:
-      return false;
-  }
-}
-
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
-const SubMsgbus_MessageType SubMsgbus::DEBUG;
-const SubMsgbus_MessageType SubMsgbus::INFO;
-const SubMsgbus_MessageType SubMsgbus::ERROR;
-const SubMsgbus_MessageType SubMsgbus::ALERT;
-const SubMsgbus_MessageType SubMsgbus::FATAL;
-const SubMsgbus_MessageType SubMsgbus::MessageType_MIN;
-const SubMsgbus_MessageType SubMsgbus::MessageType_MAX;
-const int SubMsgbus::MessageType_ARRAYSIZE;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
-#if !defined(_MSC_VER) || _MSC_VER >= 1900
-const int SubMsgbus::kMsgtypeFieldNumber;
-const int SubMsgbus::kMsgtextFieldNumber;
-#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
-
-SubMsgbus::SubMsgbus()
-  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
-  SharedCtor();
-  // @@protoc_insertion_point(constructor:KismetDatasource.SubMsgbus)
-}
-
-void SubMsgbus::InitAsDefaultInstance() {
-}
-
-SubMsgbus::SubMsgbus(const SubMsgbus& from)
-  : ::google::protobuf::Message(),
-    _internal_metadata_(NULL) {
-  SharedCtor();
-  MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:KismetDatasource.SubMsgbus)
-}
-
-void SubMsgbus::SharedCtor() {
-  ::google::protobuf::internal::GetEmptyString();
-  _cached_size_ = 0;
-  msgtype_ = 1;
-  msgtext_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-SubMsgbus::~SubMsgbus() {
-  // @@protoc_insertion_point(destructor:KismetDatasource.SubMsgbus)
-  SharedDtor();
-}
-
-void SubMsgbus::SharedDtor() {
-  msgtext_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  if (this != default_instance_) {
-  }
-}
-
-void SubMsgbus::SetCachedSize(int size) const {
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-}
-const ::google::protobuf::Descriptor* SubMsgbus::descriptor() {
-  protobuf_AssignDescriptorsOnce();
-  return SubMsgbus_descriptor_;
-}
-
-const SubMsgbus& SubMsgbus::default_instance() {
-  if (default_instance_ == NULL) protobuf_AddDesc_datasource_2eproto();
-  return *default_instance_;
-}
-
-SubMsgbus* SubMsgbus::default_instance_ = NULL;
-
-SubMsgbus* SubMsgbus::New(::google::protobuf::Arena* arena) const {
-  SubMsgbus* n = new SubMsgbus;
-  if (arena != NULL) {
-    arena->Own(n);
-  }
-  return n;
-}
-
-void SubMsgbus::Clear() {
-// @@protoc_insertion_point(message_clear_start:KismetDatasource.SubMsgbus)
-  if (_has_bits_[0 / 32] & 3u) {
-    msgtype_ = 1;
-    if (has_msgtext()) {
-      msgtext_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-    }
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-  if (_internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->Clear();
-  }
-}
-
-bool SubMsgbus::MergePartialFromCodedStream(
-    ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
-  ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:KismetDatasource.SubMsgbus)
-  for (;;) {
-    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
-    tag = p.first;
-    if (!p.second) goto handle_unusual;
-    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required .KismetDatasource.SubMsgbus.MessageType msgtype = 1;
-      case 1: {
-        if (tag == 8) {
-          int value;
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
-                 input, &value)));
-          if (::KismetDatasource::SubMsgbus_MessageType_IsValid(value)) {
-            set_msgtype(static_cast< ::KismetDatasource::SubMsgbus_MessageType >(value));
-          } else {
-            mutable_unknown_fields()->AddVarint(1, value);
-          }
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectTag(18)) goto parse_msgtext;
-        break;
-      }
-
-      // required string msgtext = 2;
-      case 2: {
-        if (tag == 18) {
-         parse_msgtext:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_msgtext()));
-          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-            this->msgtext().data(), this->msgtext().length(),
-            ::google::protobuf::internal::WireFormat::PARSE,
-            "KismetDatasource.SubMsgbus.msgtext");
-        } else {
-          goto handle_unusual;
-        }
-        if (input->ExpectAtEnd()) goto success;
-        break;
-      }
-
-      default: {
-      handle_unusual:
-        if (tag == 0 ||
-            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          goto success;
-        }
-        DO_(::google::protobuf::internal::WireFormat::SkipField(
-              input, tag, mutable_unknown_fields()));
-        break;
-      }
-    }
-  }
-success:
-  // @@protoc_insertion_point(parse_success:KismetDatasource.SubMsgbus)
-  return true;
-failure:
-  // @@protoc_insertion_point(parse_failure:KismetDatasource.SubMsgbus)
-  return false;
-#undef DO_
-}
-
-void SubMsgbus::SerializeWithCachedSizes(
-    ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:KismetDatasource.SubMsgbus)
-  // required .KismetDatasource.SubMsgbus.MessageType msgtype = 1;
-  if (has_msgtype()) {
-    ::google::protobuf::internal::WireFormatLite::WriteEnum(
-      1, this->msgtype(), output);
-  }
-
-  // required string msgtext = 2;
-  if (has_msgtext()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-      this->msgtext().data(), this->msgtext().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubMsgbus.msgtext");
-    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
-      2, this->msgtext(), output);
-  }
-
-  if (_internal_metadata_.have_unknown_fields()) {
-    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
-        unknown_fields(), output);
-  }
-  // @@protoc_insertion_point(serialize_end:KismetDatasource.SubMsgbus)
-}
-
-::google::protobuf::uint8* SubMsgbus::InternalSerializeWithCachedSizesToArray(
-    bool deterministic, ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.SubMsgbus)
-  // required .KismetDatasource.SubMsgbus.MessageType msgtype = 1;
-  if (has_msgtype()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
-      1, this->msgtype(), target);
-  }
-
-  // required string msgtext = 2;
-  if (has_msgtext()) {
-    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
-      this->msgtext().data(), this->msgtext().length(),
-      ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "KismetDatasource.SubMsgbus.msgtext");
-    target =
-      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
-        2, this->msgtext(), target);
-  }
-
-  if (_internal_metadata_.have_unknown_fields()) {
-    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
-        unknown_fields(), target);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:KismetDatasource.SubMsgbus)
-  return target;
-}
-
-int SubMsgbus::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetDatasource.SubMsgbus)
-  int total_size = 0;
-
-  if (has_msgtype()) {
-    // required .KismetDatasource.SubMsgbus.MessageType msgtype = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::EnumSize(this->msgtype());
-  }
-
-  if (has_msgtext()) {
-    // required string msgtext = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->msgtext());
-  }
-
-  return total_size;
-}
-int SubMsgbus::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:KismetDatasource.SubMsgbus)
-  int total_size = 0;
-
-  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
-    // required .KismetDatasource.SubMsgbus.MessageType msgtype = 1;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::EnumSize(this->msgtype());
-
-    // required string msgtext = 2;
-    total_size += 1 +
-      ::google::protobuf::internal::WireFormatLite::StringSize(
-        this->msgtext());
-
-  } else {
-    total_size += RequiredFieldsByteSizeFallback();
-  }
-  if (_internal_metadata_.have_unknown_fields()) {
-    total_size +=
-      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
-        unknown_fields());
-  }
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = total_size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-  return total_size;
-}
-
-void SubMsgbus::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:KismetDatasource.SubMsgbus)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  const SubMsgbus* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const SubMsgbus>(
-          &from);
-  if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetDatasource.SubMsgbus)
-    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
-  } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetDatasource.SubMsgbus)
-    MergeFrom(*source);
-  }
-}
-
-void SubMsgbus::MergeFrom(const SubMsgbus& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:KismetDatasource.SubMsgbus)
-  if (GOOGLE_PREDICT_FALSE(&from == this)) {
-    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
-  }
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_msgtype()) {
-      set_msgtype(from.msgtype());
-    }
-    if (from.has_msgtext()) {
-      set_has_msgtext();
-      msgtext_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.msgtext_);
-    }
-  }
-  if (from._internal_metadata_.have_unknown_fields()) {
-    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
-  }
-}
-
-void SubMsgbus::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:KismetDatasource.SubMsgbus)
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-void SubMsgbus::CopyFrom(const SubMsgbus& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:KismetDatasource.SubMsgbus)
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool SubMsgbus::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
-
-  return true;
-}
-
-void SubMsgbus::Swap(SubMsgbus* other) {
-  if (other == this) return;
-  InternalSwap(other);
-}
-void SubMsgbus::InternalSwap(SubMsgbus* other) {
-  std::swap(msgtype_, other->msgtype_);
-  msgtext_.Swap(&other->msgtext_);
-  std::swap(_has_bits_[0], other->_has_bits_[0]);
-  _internal_metadata_.Swap(&other->_internal_metadata_);
-  std::swap(_cached_size_, other->_cached_size_);
-}
-
-::google::protobuf::Metadata SubMsgbus::GetMetadata() const {
-  protobuf_AssignDescriptorsOnce();
-  ::google::protobuf::Metadata metadata;
-  metadata.descriptor = SubMsgbus_descriptor_;
-  metadata.reflection = SubMsgbus_reflection_;
-  return metadata;
-}
-
-#if PROTOBUF_INLINE_NOT_IN_HEADERS
-// SubMsgbus
-
-// required .KismetDatasource.SubMsgbus.MessageType msgtype = 1;
-bool SubMsgbus::has_msgtype() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-void SubMsgbus::set_has_msgtype() {
-  _has_bits_[0] |= 0x00000001u;
-}
-void SubMsgbus::clear_has_msgtype() {
-  _has_bits_[0] &= ~0x00000001u;
-}
-void SubMsgbus::clear_msgtype() {
-  msgtype_ = 1;
-  clear_has_msgtype();
-}
- ::KismetDatasource::SubMsgbus_MessageType SubMsgbus::msgtype() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubMsgbus.msgtype)
-  return static_cast< ::KismetDatasource::SubMsgbus_MessageType >(msgtype_);
-}
- void SubMsgbus::set_msgtype(::KismetDatasource::SubMsgbus_MessageType value) {
-  assert(::KismetDatasource::SubMsgbus_MessageType_IsValid(value));
-  set_has_msgtype();
-  msgtype_ = value;
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubMsgbus.msgtype)
-}
-
-// required string msgtext = 2;
-bool SubMsgbus::has_msgtext() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
-}
-void SubMsgbus::set_has_msgtext() {
-  _has_bits_[0] |= 0x00000002u;
-}
-void SubMsgbus::clear_has_msgtext() {
-  _has_bits_[0] &= ~0x00000002u;
-}
-void SubMsgbus::clear_msgtext() {
-  msgtext_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  clear_has_msgtext();
-}
- const ::std::string& SubMsgbus::msgtext() const {
-  // @@protoc_insertion_point(field_get:KismetDatasource.SubMsgbus.msgtext)
-  return msgtext_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubMsgbus::set_msgtext(const ::std::string& value) {
-  set_has_msgtext();
-  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:KismetDatasource.SubMsgbus.msgtext)
-}
- void SubMsgbus::set_msgtext(const char* value) {
-  set_has_msgtext();
-  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:KismetDatasource.SubMsgbus.msgtext)
-}
- void SubMsgbus::set_msgtext(const char* value, size_t size) {
-  set_has_msgtext();
-  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
-      ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:KismetDatasource.SubMsgbus.msgtext)
-}
- ::std::string* SubMsgbus::mutable_msgtext() {
-  set_has_msgtext();
-  // @@protoc_insertion_point(field_mutable:KismetDatasource.SubMsgbus.msgtext)
-  return msgtext_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- ::std::string* SubMsgbus::release_msgtext() {
-  // @@protoc_insertion_point(field_release:KismetDatasource.SubMsgbus.msgtext)
-  clear_has_msgtext();
-  return msgtext_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
-}
- void SubMsgbus::set_allocated_msgtext(::std::string* msgtext) {
-  if (msgtext != NULL) {
-    set_has_msgtext();
-  } else {
-    clear_has_msgtext();
-  }
-  msgtext_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msgtext);
-  // @@protoc_insertion_point(field_set_allocated:KismetDatasource.SubMsgbus.msgtext)
 }
 
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
@@ -8045,7 +7578,7 @@ void ConfigureReport::InitAsDefaultInstance() {
   success_ = const_cast< ::KismetDatasource::SubSuccess*>(&::KismetDatasource::SubSuccess::default_instance());
   channel_ = const_cast< ::KismetDatasource::SubChanset*>(&::KismetDatasource::SubChanset::default_instance());
   hopping_ = const_cast< ::KismetDatasource::SubChanhop*>(&::KismetDatasource::SubChanhop::default_instance());
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
 }
 
 ConfigureReport::ConfigureReport(const ConfigureReport& from)
@@ -8120,7 +7653,7 @@ void ConfigureReport::Clear() {
       if (hopping_ != NULL) hopping_->::KismetDatasource::SubChanhop::Clear();
     }
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_warning()) {
       warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
@@ -8180,7 +7713,7 @@ bool ConfigureReport::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .KismetDatasource.SubMsgbus message = 4;
+      // optional .KismetExternal.MsgbusMessage message = 4;
       case 4: {
         if (tag == 34) {
          parse_message:
@@ -8253,7 +7786,7 @@ void ConfigureReport::SerializeWithCachedSizes(
       3, *this->hopping_, output);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 4;
+  // optional .KismetExternal.MsgbusMessage message = 4;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       4, *this->message_, output);
@@ -8300,7 +7833,7 @@ void ConfigureReport::SerializeWithCachedSizes(
         3, *this->hopping_, false, target);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 4;
+  // optional .KismetExternal.MsgbusMessage message = 4;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -8351,7 +7884,7 @@ int ConfigureReport::ByteSize() const {
           *this->hopping_);
     }
 
-    // optional .KismetDatasource.SubMsgbus message = 4;
+    // optional .KismetExternal.MsgbusMessage message = 4;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -8410,7 +7943,7 @@ void ConfigureReport::MergeFrom(const ConfigureReport& from) {
       mutable_hopping()->::KismetDatasource::SubChanhop::MergeFrom(from.hopping());
     }
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_warning()) {
       set_has_warning();
@@ -8609,7 +8142,7 @@ void ConfigureReport::set_allocated_hopping(::KismetDatasource::SubChanhop* hopp
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ConfigureReport.hopping)
 }
 
-// optional .KismetDatasource.SubMsgbus message = 4;
+// optional .KismetExternal.MsgbusMessage message = 4;
 bool ConfigureReport::has_message() const {
   return (_has_bits_[0] & 0x00000008u) != 0;
 }
@@ -8620,29 +8153,29 @@ void ConfigureReport::clear_has_message() {
   _has_bits_[0] &= ~0x00000008u;
 }
 void ConfigureReport::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& ConfigureReport::message() const {
+const ::KismetExternal::MsgbusMessage& ConfigureReport::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.ConfigureReport.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* ConfigureReport::mutable_message() {
+::KismetExternal::MsgbusMessage* ConfigureReport::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.ConfigureReport.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* ConfigureReport::release_message() {
+::KismetExternal::MsgbusMessage* ConfigureReport::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.ConfigureReport.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void ConfigureReport::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void ConfigureReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {
@@ -8728,7 +8261,7 @@ DataReport::DataReport()
 
 void DataReport::InitAsDefaultInstance() {
   gps_ = const_cast< ::KismetDatasource::SubGps*>(&::KismetDatasource::SubGps::default_instance());
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
   packet_ = const_cast< ::KismetDatasource::SubPacket*>(&::KismetDatasource::SubPacket::default_instance());
   signal_ = const_cast< ::KismetDatasource::SubSignal*>(&::KismetDatasource::SubSignal::default_instance());
   spectrum_ = const_cast< ::KismetDatasource::SubSpectrum*>(&::KismetDatasource::SubSpectrum::default_instance());
@@ -8802,7 +8335,7 @@ void DataReport::Clear() {
       if (gps_ != NULL) gps_->::KismetDatasource::SubGps::Clear();
     }
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_packet()) {
       if (packet_ != NULL) packet_->::KismetDatasource::SubPacket::Clear();
@@ -8845,7 +8378,7 @@ bool DataReport::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .KismetDatasource.SubMsgbus message = 2;
+      // optional .KismetExternal.MsgbusMessage message = 2;
       case 2: {
         if (tag == 18) {
          parse_message:
@@ -8945,7 +8478,7 @@ void DataReport::SerializeWithCachedSizes(
       1, *this->gps_, output);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       2, *this->message_, output);
@@ -8996,7 +8529,7 @@ void DataReport::SerializeWithCachedSizes(
         1, *this->gps_, false, target);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -9055,7 +8588,7 @@ int DataReport::ByteSize() const {
           *this->gps_);
     }
 
-    // optional .KismetDatasource.SubMsgbus message = 2;
+    // optional .KismetExternal.MsgbusMessage message = 2;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -9129,7 +8662,7 @@ void DataReport::MergeFrom(const DataReport& from) {
       mutable_gps()->::KismetDatasource::SubGps::MergeFrom(from.gps());
     }
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_packet()) {
       mutable_packet()->::KismetDatasource::SubPacket::MergeFrom(from.packet());
@@ -9249,7 +8782,7 @@ void DataReport::set_allocated_gps(::KismetDatasource::SubGps* gps) {
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.DataReport.gps)
 }
 
-// optional .KismetDatasource.SubMsgbus message = 2;
+// optional .KismetExternal.MsgbusMessage message = 2;
 bool DataReport::has_message() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -9260,29 +8793,29 @@ void DataReport::clear_has_message() {
   _has_bits_[0] &= ~0x00000002u;
 }
 void DataReport::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& DataReport::message() const {
+const ::KismetExternal::MsgbusMessage& DataReport::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.DataReport.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* DataReport::mutable_message() {
+::KismetExternal::MsgbusMessage* DataReport::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.DataReport.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* DataReport::release_message() {
+::KismetExternal::MsgbusMessage* DataReport::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.DataReport.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void DataReport::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void DataReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {
@@ -9496,7 +9029,7 @@ ErrorReport::ErrorReport()
 
 void ErrorReport::InitAsDefaultInstance() {
   success_ = const_cast< ::KismetDatasource::SubSuccess*>(&::KismetDatasource::SubSuccess::default_instance());
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
 }
 
 ErrorReport::ErrorReport(const ErrorReport& from)
@@ -9558,7 +9091,7 @@ void ErrorReport::Clear() {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
   }
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -9589,7 +9122,7 @@ bool ErrorReport::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .KismetDatasource.SubMsgbus message = 2;
+      // optional .KismetExternal.MsgbusMessage message = 2;
       case 2: {
         if (tag == 18) {
          parse_message:
@@ -9633,7 +9166,7 @@ void ErrorReport::SerializeWithCachedSizes(
       1, *this->success_, output);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       2, *this->message_, output);
@@ -9656,7 +9189,7 @@ void ErrorReport::SerializeWithCachedSizes(
         1, *this->success_, false, target);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -9681,7 +9214,7 @@ int ErrorReport::ByteSize() const {
       ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
         *this->success_);
   }
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -9726,7 +9259,7 @@ void ErrorReport::MergeFrom(const ErrorReport& from) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
     }
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
   }
   if (from._internal_metadata_.have_unknown_fields()) {
@@ -9827,7 +9360,7 @@ void ErrorReport::set_allocated_success(::KismetDatasource::SubSuccess* success)
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ErrorReport.success)
 }
 
-// optional .KismetDatasource.SubMsgbus message = 2;
+// optional .KismetExternal.MsgbusMessage message = 2;
 bool ErrorReport::has_message() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -9838,29 +9371,29 @@ void ErrorReport::clear_has_message() {
   _has_bits_[0] &= ~0x00000002u;
 }
 void ErrorReport::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& ErrorReport::message() const {
+const ::KismetExternal::MsgbusMessage& ErrorReport::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.ErrorReport.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* ErrorReport::mutable_message() {
+::KismetExternal::MsgbusMessage* ErrorReport::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.ErrorReport.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* ErrorReport::release_message() {
+::KismetExternal::MsgbusMessage* ErrorReport::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.ErrorReport.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void ErrorReport::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void ErrorReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {
@@ -10090,7 +9623,7 @@ InterfacesReport::InterfacesReport()
 
 void InterfacesReport::InitAsDefaultInstance() {
   success_ = const_cast< ::KismetDatasource::SubSuccess*>(&::KismetDatasource::SubSuccess::default_instance());
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
 }
 
 InterfacesReport::InterfacesReport(const InterfacesReport& from)
@@ -10152,7 +9685,7 @@ void InterfacesReport::Clear() {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
   }
   interfaces_.Clear();
@@ -10184,7 +9717,7 @@ bool InterfacesReport::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .KismetDatasource.SubMsgbus message = 2;
+      // optional .KismetExternal.MsgbusMessage message = 2;
       case 2: {
         if (tag == 18) {
          parse_message:
@@ -10245,7 +9778,7 @@ void InterfacesReport::SerializeWithCachedSizes(
       1, *this->success_, output);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       2, *this->message_, output);
@@ -10274,7 +9807,7 @@ void InterfacesReport::SerializeWithCachedSizes(
         1, *this->success_, false, target);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -10306,7 +9839,7 @@ int InterfacesReport::ByteSize() const {
       ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
         *this->success_);
   }
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     total_size += 1 +
       ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -10360,7 +9893,7 @@ void InterfacesReport::MergeFrom(const InterfacesReport& from) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
     }
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
   }
   if (from._internal_metadata_.have_unknown_fields()) {
@@ -10463,7 +9996,7 @@ void InterfacesReport::set_allocated_success(::KismetDatasource::SubSuccess* suc
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.InterfacesReport.success)
 }
 
-// optional .KismetDatasource.SubMsgbus message = 2;
+// optional .KismetExternal.MsgbusMessage message = 2;
 bool InterfacesReport::has_message() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -10474,29 +10007,29 @@ void InterfacesReport::clear_has_message() {
   _has_bits_[0] &= ~0x00000002u;
 }
 void InterfacesReport::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& InterfacesReport::message() const {
+const ::KismetExternal::MsgbusMessage& InterfacesReport::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.InterfacesReport.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* InterfacesReport::mutable_message() {
+::KismetExternal::MsgbusMessage* InterfacesReport::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.InterfacesReport.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* InterfacesReport::release_message() {
+::KismetExternal::MsgbusMessage* InterfacesReport::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.InterfacesReport.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void InterfacesReport::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void InterfacesReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {
@@ -10553,7 +10086,7 @@ Message::Message()
 }
 
 void Message::InitAsDefaultInstance() {
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
 }
 
 Message::Message(const Message& from)
@@ -10613,7 +10146,7 @@ void Message::Clear() {
 // @@protoc_insertion_point(message_clear_start:KismetDatasource.Message)
   if (_has_bits_[0 / 32] & 3u) {
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_warning()) {
       warning_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
@@ -10635,7 +10168,7 @@ bool Message::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional .KismetDatasource.SubMsgbus message = 1;
+      // optional .KismetExternal.MsgbusMessage message = 1;
       case 1: {
         if (tag == 10) {
           DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
@@ -10689,7 +10222,7 @@ failure:
 void Message::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
   // @@protoc_insertion_point(serialize_start:KismetDatasource.Message)
-  // optional .KismetDatasource.SubMsgbus message = 1;
+  // optional .KismetExternal.MsgbusMessage message = 1;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       1, *this->message_, output);
@@ -10715,7 +10248,7 @@ void Message::SerializeWithCachedSizes(
 ::google::protobuf::uint8* Message::InternalSerializeWithCachedSizesToArray(
     bool deterministic, ::google::protobuf::uint8* target) const {
   // @@protoc_insertion_point(serialize_to_array_start:KismetDatasource.Message)
-  // optional .KismetDatasource.SubMsgbus message = 1;
+  // optional .KismetExternal.MsgbusMessage message = 1;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -10746,7 +10279,7 @@ int Message::ByteSize() const {
   int total_size = 0;
 
   if (_has_bits_[0 / 32] & 3u) {
-    // optional .KismetDatasource.SubMsgbus message = 1;
+    // optional .KismetExternal.MsgbusMessage message = 1;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -10796,7 +10329,7 @@ void Message::MergeFrom(const Message& from) {
   }
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_warning()) {
       set_has_warning();
@@ -10853,7 +10386,7 @@ void Message::InternalSwap(Message* other) {
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
 // Message
 
-// optional .KismetDatasource.SubMsgbus message = 1;
+// optional .KismetExternal.MsgbusMessage message = 1;
 bool Message::has_message() const {
   return (_has_bits_[0] & 0x00000001u) != 0;
 }
@@ -10864,29 +10397,29 @@ void Message::clear_has_message() {
   _has_bits_[0] &= ~0x00000001u;
 }
 void Message::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& Message::message() const {
+const ::KismetExternal::MsgbusMessage& Message::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.Message.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* Message::mutable_message() {
+::KismetExternal::MsgbusMessage* Message::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.Message.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* Message::release_message() {
+::KismetExternal::MsgbusMessage* Message::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.Message.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void Message::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void Message::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {
@@ -11864,7 +11397,7 @@ void OpenSourceReport::InitAsDefaultInstance() {
   success_ = const_cast< ::KismetDatasource::SubSuccess*>(&::KismetDatasource::SubSuccess::default_instance());
   channels_ = const_cast< ::KismetDatasource::SubChannels*>(&::KismetDatasource::SubChannels::default_instance());
   channel_ = const_cast< ::KismetDatasource::SubChanset*>(&::KismetDatasource::SubChanset::default_instance());
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
   specset_ = const_cast< ::KismetDatasource::SubSpecset*>(&::KismetDatasource::SubSpecset::default_instance());
 }
 
@@ -11956,7 +11489,7 @@ void OpenSourceReport::Clear() {
       hardware_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
     }
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_specset()) {
       if (specset_ != NULL) specset_->::KismetDatasource::SubSpecset::Clear();
@@ -12073,7 +11606,7 @@ bool OpenSourceReport::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .KismetDatasource.SubMsgbus message = 7;
+      // optional .KismetExternal.MsgbusMessage message = 7;
       case 7: {
         if (tag == 58) {
          parse_message:
@@ -12201,7 +11734,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
       6, this->hardware(), output);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 7;
+  // optional .KismetExternal.MsgbusMessage message = 7;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       7, *this->message_, output);
@@ -12291,7 +11824,7 @@ void OpenSourceReport::SerializeWithCachedSizes(
         6, this->hardware(), target);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 7;
+  // optional .KismetExternal.MsgbusMessage message = 7;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -12381,7 +11914,7 @@ int OpenSourceReport::ByteSize() const {
           this->hardware());
     }
 
-    // optional .KismetDatasource.SubMsgbus message = 7;
+    // optional .KismetExternal.MsgbusMessage message = 7;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -12467,7 +12000,7 @@ void OpenSourceReport::MergeFrom(const OpenSourceReport& from) {
       hardware_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.hardware_);
     }
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_specset()) {
       mutable_specset()->::KismetDatasource::SubSpecset::MergeFrom(from.specset());
@@ -12812,7 +12345,7 @@ void OpenSourceReport::clear_hardware() {
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.OpenSourceReport.hardware)
 }
 
-// optional .KismetDatasource.SubMsgbus message = 7;
+// optional .KismetExternal.MsgbusMessage message = 7;
 bool OpenSourceReport::has_message() const {
   return (_has_bits_[0] & 0x00000040u) != 0;
 }
@@ -12823,29 +12356,29 @@ void OpenSourceReport::clear_has_message() {
   _has_bits_[0] &= ~0x00000040u;
 }
 void OpenSourceReport::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& OpenSourceReport::message() const {
+const ::KismetExternal::MsgbusMessage& OpenSourceReport::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.OpenSourceReport.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* OpenSourceReport::mutable_message() {
+::KismetExternal::MsgbusMessage* OpenSourceReport::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.OpenSourceReport.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* OpenSourceReport::release_message() {
+::KismetExternal::MsgbusMessage* OpenSourceReport::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.OpenSourceReport.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void OpenSourceReport::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void OpenSourceReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {
@@ -13348,7 +12881,7 @@ ProbeSourceReport::ProbeSourceReport()
 
 void ProbeSourceReport::InitAsDefaultInstance() {
   success_ = const_cast< ::KismetDatasource::SubSuccess*>(&::KismetDatasource::SubSuccess::default_instance());
-  message_ = const_cast< ::KismetDatasource::SubMsgbus*>(&::KismetDatasource::SubMsgbus::default_instance());
+  message_ = const_cast< ::KismetExternal::MsgbusMessage*>(&::KismetExternal::MsgbusMessage::default_instance());
   channels_ = const_cast< ::KismetDatasource::SubChannels*>(&::KismetDatasource::SubChannels::default_instance());
   chanset_ = const_cast< ::KismetDatasource::SubChanset*>(&::KismetDatasource::SubChanset::default_instance());
   specset_ = const_cast< ::KismetDatasource::SubSpecset*>(&::KismetDatasource::SubSpecset::default_instance());
@@ -13422,7 +12955,7 @@ void ProbeSourceReport::Clear() {
       if (success_ != NULL) success_->::KismetDatasource::SubSuccess::Clear();
     }
     if (has_message()) {
-      if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+      if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
     }
     if (has_channels()) {
       if (channels_ != NULL) channels_->::KismetDatasource::SubChannels::Clear();
@@ -13465,7 +12998,7 @@ bool ProbeSourceReport::MergePartialFromCodedStream(
         break;
       }
 
-      // optional .KismetDatasource.SubMsgbus message = 2;
+      // optional .KismetExternal.MsgbusMessage message = 2;
       case 2: {
         if (tag == 18) {
          parse_message:
@@ -13565,7 +13098,7 @@ void ProbeSourceReport::SerializeWithCachedSizes(
       1, *this->success_, output);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
       2, *this->message_, output);
@@ -13616,7 +13149,7 @@ void ProbeSourceReport::SerializeWithCachedSizes(
         1, *this->success_, false, target);
   }
 
-  // optional .KismetDatasource.SubMsgbus message = 2;
+  // optional .KismetExternal.MsgbusMessage message = 2;
   if (has_message()) {
     target = ::google::protobuf::internal::WireFormatLite::
       InternalWriteMessageNoVirtualToArray(
@@ -13674,7 +13207,7 @@ int ProbeSourceReport::ByteSize() const {
         *this->success_);
   }
   if (_has_bits_[1 / 32] & 62u) {
-    // optional .KismetDatasource.SubMsgbus message = 2;
+    // optional .KismetExternal.MsgbusMessage message = 2;
     if (has_message()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
@@ -13748,7 +13281,7 @@ void ProbeSourceReport::MergeFrom(const ProbeSourceReport& from) {
       mutable_success()->::KismetDatasource::SubSuccess::MergeFrom(from.success());
     }
     if (from.has_message()) {
-      mutable_message()->::KismetDatasource::SubMsgbus::MergeFrom(from.message());
+      mutable_message()->::KismetExternal::MsgbusMessage::MergeFrom(from.message());
     }
     if (from.has_channels()) {
       mutable_channels()->::KismetDatasource::SubChannels::MergeFrom(from.channels());
@@ -13869,7 +13402,7 @@ void ProbeSourceReport::set_allocated_success(::KismetDatasource::SubSuccess* su
   // @@protoc_insertion_point(field_set_allocated:KismetDatasource.ProbeSourceReport.success)
 }
 
-// optional .KismetDatasource.SubMsgbus message = 2;
+// optional .KismetExternal.MsgbusMessage message = 2;
 bool ProbeSourceReport::has_message() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -13880,29 +13413,29 @@ void ProbeSourceReport::clear_has_message() {
   _has_bits_[0] &= ~0x00000002u;
 }
 void ProbeSourceReport::clear_message() {
-  if (message_ != NULL) message_->::KismetDatasource::SubMsgbus::Clear();
+  if (message_ != NULL) message_->::KismetExternal::MsgbusMessage::Clear();
   clear_has_message();
 }
-const ::KismetDatasource::SubMsgbus& ProbeSourceReport::message() const {
+const ::KismetExternal::MsgbusMessage& ProbeSourceReport::message() const {
   // @@protoc_insertion_point(field_get:KismetDatasource.ProbeSourceReport.message)
   return message_ != NULL ? *message_ : *default_instance_->message_;
 }
-::KismetDatasource::SubMsgbus* ProbeSourceReport::mutable_message() {
+::KismetExternal::MsgbusMessage* ProbeSourceReport::mutable_message() {
   set_has_message();
   if (message_ == NULL) {
-    message_ = new ::KismetDatasource::SubMsgbus;
+    message_ = new ::KismetExternal::MsgbusMessage;
   }
   // @@protoc_insertion_point(field_mutable:KismetDatasource.ProbeSourceReport.message)
   return message_;
 }
-::KismetDatasource::SubMsgbus* ProbeSourceReport::release_message() {
+::KismetExternal::MsgbusMessage* ProbeSourceReport::release_message() {
   // @@protoc_insertion_point(field_release:KismetDatasource.ProbeSourceReport.message)
   clear_has_message();
-  ::KismetDatasource::SubMsgbus* temp = message_;
+  ::KismetExternal::MsgbusMessage* temp = message_;
   message_ = NULL;
   return temp;
 }
-void ProbeSourceReport::set_allocated_message(::KismetDatasource::SubMsgbus* message) {
+void ProbeSourceReport::set_allocated_message(::KismetExternal::MsgbusMessage* message) {
   delete message_;
   message_ = message;
   if (message) {

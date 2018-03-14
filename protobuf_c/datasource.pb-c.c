@@ -222,49 +222,6 @@ void   kismet_datasource__sub_interface__free_unpacked
   assert(message->base.descriptor == &kismet_datasource__sub_interface__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-void   kismet_datasource__sub_msgbus__init
-                     (KismetDatasource__SubMsgbus         *message)
-{
-  static KismetDatasource__SubMsgbus init_value = KISMET_DATASOURCE__SUB_MSGBUS__INIT;
-  *message = init_value;
-}
-size_t kismet_datasource__sub_msgbus__get_packed_size
-                     (const KismetDatasource__SubMsgbus *message)
-{
-  assert(message->base.descriptor == &kismet_datasource__sub_msgbus__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
-}
-size_t kismet_datasource__sub_msgbus__pack
-                     (const KismetDatasource__SubMsgbus *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &kismet_datasource__sub_msgbus__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
-}
-size_t kismet_datasource__sub_msgbus__pack_to_buffer
-                     (const KismetDatasource__SubMsgbus *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &kismet_datasource__sub_msgbus__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
-}
-KismetDatasource__SubMsgbus *
-       kismet_datasource__sub_msgbus__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (KismetDatasource__SubMsgbus *)
-     protobuf_c_message_unpack (&kismet_datasource__sub_msgbus__descriptor,
-                                allocator, len, data);
-}
-void   kismet_datasource__sub_msgbus__free_unpacked
-                     (KismetDatasource__SubMsgbus *message,
-                      ProtobufCAllocator *allocator)
-{
-  assert(message->base.descriptor == &kismet_datasource__sub_msgbus__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
-}
 void   kismet_datasource__sub_packet__init
                      (KismetDatasource__SubPacket         *message)
 {
@@ -1480,91 +1437,6 @@ const ProtobufCMessageDescriptor kismet_datasource__sub_interface__descriptor =
   (ProtobufCMessageInit) kismet_datasource__sub_interface__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCEnumValue kismet_datasource__sub_msgbus__message_type__enum_values_by_number[5] =
-{
-  { "DEBUG", "KISMET_DATASOURCE__SUB_MSGBUS__MESSAGE_TYPE__DEBUG", 1 },
-  { "INFO", "KISMET_DATASOURCE__SUB_MSGBUS__MESSAGE_TYPE__INFO", 2 },
-  { "ERROR", "KISMET_DATASOURCE__SUB_MSGBUS__MESSAGE_TYPE__ERROR", 4 },
-  { "ALERT", "KISMET_DATASOURCE__SUB_MSGBUS__MESSAGE_TYPE__ALERT", 8 },
-  { "FATAL", "KISMET_DATASOURCE__SUB_MSGBUS__MESSAGE_TYPE__FATAL", 16 },
-};
-static const ProtobufCIntRange kismet_datasource__sub_msgbus__message_type__value_ranges[] = {
-{1, 0},{4, 2},{8, 3},{16, 4},{0, 5}
-};
-static const ProtobufCEnumValueIndex kismet_datasource__sub_msgbus__message_type__enum_values_by_name[5] =
-{
-  { "ALERT", 3 },
-  { "DEBUG", 0 },
-  { "ERROR", 2 },
-  { "FATAL", 4 },
-  { "INFO", 1 },
-};
-const ProtobufCEnumDescriptor kismet_datasource__sub_msgbus__message_type__descriptor =
-{
-  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
-  "KismetDatasource.SubMsgbus.MessageType",
-  "MessageType",
-  "KismetDatasource__SubMsgbus__MessageType",
-  "KismetDatasource",
-  5,
-  kismet_datasource__sub_msgbus__message_type__enum_values_by_number,
-  5,
-  kismet_datasource__sub_msgbus__message_type__enum_values_by_name,
-  4,
-  kismet_datasource__sub_msgbus__message_type__value_ranges,
-  NULL,NULL,NULL,NULL   /* reserved[1234] */
-};
-static const ProtobufCFieldDescriptor kismet_datasource__sub_msgbus__field_descriptors[2] =
-{
-  {
-    "msgtype",
-    1,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_ENUM,
-    0,   /* quantifier_offset */
-    offsetof(KismetDatasource__SubMsgbus, msgtype),
-    &kismet_datasource__sub_msgbus__message_type__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "msgtext",
-    2,
-    PROTOBUF_C_LABEL_REQUIRED,
-    PROTOBUF_C_TYPE_STRING,
-    0,   /* quantifier_offset */
-    offsetof(KismetDatasource__SubMsgbus, msgtext),
-    NULL,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-};
-static const unsigned kismet_datasource__sub_msgbus__field_indices_by_name[] = {
-  1,   /* field[1] = msgtext */
-  0,   /* field[0] = msgtype */
-};
-static const ProtobufCIntRange kismet_datasource__sub_msgbus__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 2 }
-};
-const ProtobufCMessageDescriptor kismet_datasource__sub_msgbus__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "KismetDatasource.SubMsgbus",
-  "SubMsgbus",
-  "KismetDatasource__SubMsgbus",
-  "KismetDatasource",
-  sizeof(KismetDatasource__SubMsgbus),
-  2,
-  kismet_datasource__sub_msgbus__field_descriptors,
-  kismet_datasource__sub_msgbus__field_indices_by_name,
-  1,  kismet_datasource__sub_msgbus__number_ranges,
-  (ProtobufCMessageInit) kismet_datasource__sub_msgbus__init,
-  NULL,NULL,NULL    /* reserved[123] */
-};
 static const ProtobufCFieldDescriptor kismet_datasource__sub_packet__field_descriptors[5] =
 {
   {
@@ -2206,7 +2078,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__configure_report__field
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__ConfigureReport, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -2272,7 +2144,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__data_report__field_desc
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__DataReport, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -2375,7 +2247,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__error_report__field_des
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__ErrorReport, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -2444,7 +2316,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__interfaces_report__fiel
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__InterfacesReport, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -2496,7 +2368,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__message__field_descript
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__Message, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -2721,7 +2593,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__open_source_report__fie
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__OpenSourceReport, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
@@ -2854,7 +2726,7 @@ static const ProtobufCFieldDescriptor kismet_datasource__probe_source_report__fi
     PROTOBUF_C_TYPE_MESSAGE,
     0,   /* quantifier_offset */
     offsetof(KismetDatasource__ProbeSourceReport, message),
-    &kismet_datasource__sub_msgbus__descriptor,
+    &kismet_external__msgbus_message__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */

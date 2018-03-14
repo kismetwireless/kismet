@@ -17,19 +17,29 @@
 #include <google/protobuf/wire_format.h>
 // @@protoc_insertion_point(includes)
 
-namespace Kismet {
+namespace KismetExternal {
 
 namespace {
 
 const ::google::protobuf::Descriptor* Command_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   Command_reflection_ = NULL;
-const ::google::protobuf::Descriptor* CmdPing_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* SystemRegister_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
-  CmdPing_reflection_ = NULL;
-const ::google::protobuf::Descriptor* CmdPong_descriptor_ = NULL;
+  SystemRegister_reflection_ = NULL;
+const ::google::protobuf::Descriptor* Shutdown_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
-  CmdPong_reflection_ = NULL;
+  Shutdown_reflection_ = NULL;
+const ::google::protobuf::Descriptor* MsgbusMessage_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  MsgbusMessage_reflection_ = NULL;
+const ::google::protobuf::EnumDescriptor* MsgbusMessage_MessageType_descriptor_ = NULL;
+const ::google::protobuf::Descriptor* Ping_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  Ping_reflection_ = NULL;
+const ::google::protobuf::Descriptor* Pong_descriptor_ = NULL;
+const ::google::protobuf::internal::GeneratedMessageReflection*
+  Pong_reflection_ = NULL;
 
 }  // namespace
 
@@ -58,33 +68,81 @@ void protobuf_AssignDesc_kismet_2eproto() {
       sizeof(Command),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Command, _internal_metadata_),
       -1);
-  CmdPing_descriptor_ = file->message_type(1);
-  static const int CmdPing_offsets_[1] = {
+  SystemRegister_descriptor_ = file->message_type(1);
+  static const int SystemRegister_offsets_[1] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SystemRegister, subsystem_),
   };
-  CmdPing_reflection_ =
+  SystemRegister_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
-      CmdPing_descriptor_,
-      CmdPing::default_instance_,
-      CmdPing_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CmdPing, _has_bits_[0]),
+      SystemRegister_descriptor_,
+      SystemRegister::default_instance_,
+      SystemRegister_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SystemRegister, _has_bits_[0]),
       -1,
       -1,
-      sizeof(CmdPing),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CmdPing, _internal_metadata_),
+      sizeof(SystemRegister),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(SystemRegister, _internal_metadata_),
       -1);
-  CmdPong_descriptor_ = file->message_type(2);
-  static const int CmdPong_offsets_[1] = {
+  Shutdown_descriptor_ = file->message_type(2);
+  static const int Shutdown_offsets_[1] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Shutdown, reason_),
   };
-  CmdPong_reflection_ =
+  Shutdown_reflection_ =
     ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
-      CmdPong_descriptor_,
-      CmdPong::default_instance_,
-      CmdPong_offsets_,
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CmdPong, _has_bits_[0]),
+      Shutdown_descriptor_,
+      Shutdown::default_instance_,
+      Shutdown_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Shutdown, _has_bits_[0]),
       -1,
       -1,
-      sizeof(CmdPong),
-      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(CmdPong, _internal_metadata_),
+      sizeof(Shutdown),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Shutdown, _internal_metadata_),
+      -1);
+  MsgbusMessage_descriptor_ = file->message_type(3);
+  static const int MsgbusMessage_offsets_[2] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(MsgbusMessage, msgtype_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(MsgbusMessage, msgtext_),
+  };
+  MsgbusMessage_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      MsgbusMessage_descriptor_,
+      MsgbusMessage::default_instance_,
+      MsgbusMessage_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(MsgbusMessage, _has_bits_[0]),
+      -1,
+      -1,
+      sizeof(MsgbusMessage),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(MsgbusMessage, _internal_metadata_),
+      -1);
+  MsgbusMessage_MessageType_descriptor_ = MsgbusMessage_descriptor_->enum_type(0);
+  Ping_descriptor_ = file->message_type(4);
+  static const int Ping_offsets_[1] = {
+  };
+  Ping_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      Ping_descriptor_,
+      Ping::default_instance_,
+      Ping_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Ping, _has_bits_[0]),
+      -1,
+      -1,
+      sizeof(Ping),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Ping, _internal_metadata_),
+      -1);
+  Pong_descriptor_ = file->message_type(5);
+  static const int Pong_offsets_[1] = {
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Pong, ping_seqno_),
+  };
+  Pong_reflection_ =
+    ::google::protobuf::internal::GeneratedMessageReflection::NewGeneratedMessageReflection(
+      Pong_descriptor_,
+      Pong::default_instance_,
+      Pong_offsets_,
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Pong, _has_bits_[0]),
+      -1,
+      -1,
+      sizeof(Pong),
+      GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(Pong, _internal_metadata_),
       -1);
 }
 
@@ -102,9 +160,15 @@ void protobuf_RegisterTypes(const ::std::string&) {
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       Command_descriptor_, &Command::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      CmdPing_descriptor_, &CmdPing::default_instance());
+      SystemRegister_descriptor_, &SystemRegister::default_instance());
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
-      CmdPong_descriptor_, &CmdPong::default_instance());
+      Shutdown_descriptor_, &Shutdown::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      MsgbusMessage_descriptor_, &MsgbusMessage::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      Ping_descriptor_, &Ping::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+      Pong_descriptor_, &Pong::default_instance());
 }
 
 }  // namespace
@@ -112,10 +176,16 @@ void protobuf_RegisterTypes(const ::std::string&) {
 void protobuf_ShutdownFile_kismet_2eproto() {
   delete Command::default_instance_;
   delete Command_reflection_;
-  delete CmdPing::default_instance_;
-  delete CmdPing_reflection_;
-  delete CmdPong::default_instance_;
-  delete CmdPong_reflection_;
+  delete SystemRegister::default_instance_;
+  delete SystemRegister_reflection_;
+  delete Shutdown::default_instance_;
+  delete Shutdown_reflection_;
+  delete MsgbusMessage::default_instance_;
+  delete MsgbusMessage_reflection_;
+  delete Ping::default_instance_;
+  delete Ping_reflection_;
+  delete Pong::default_instance_;
+  delete Pong_reflection_;
 }
 
 void protobuf_AddDesc_kismet_2eproto() GOOGLE_ATTRIBUTE_COLD;
@@ -126,17 +196,29 @@ void protobuf_AddDesc_kismet_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-    "\n\014kismet.proto\022\006Kismet\":\n\007Command\022\017\n\007com"
-    "mand\030\001 \002(\t\022\r\n\005seqno\030\002 \002(\r\022\017\n\007content\030\003 \002"
-    "(\014\"\t\n\007CmdPing\"\t\n\007CmdPong", 104);
+    "\n\014kismet.proto\022\016KismetExternal\":\n\007Comman"
+    "d\022\017\n\007command\030\001 \002(\t\022\r\n\005seqno\030\002 \002(\r\022\017\n\007con"
+    "tent\030\003 \002(\014\"#\n\016SystemRegister\022\021\n\tsubsyste"
+    "m\030\001 \002(\t\"\032\n\010Shutdown\022\016\n\006reason\030\001 \002(\t\"\241\001\n\r"
+    "MsgbusMessage\022:\n\007msgtype\030\001 \002(\0162).KismetE"
+    "xternal.MsgbusMessage.MessageType\022\017\n\007msg"
+    "text\030\002 \002(\t\"C\n\013MessageType\022\t\n\005DEBUG\020\001\022\010\n\004"
+    "INFO\020\002\022\t\n\005ERROR\020\004\022\t\n\005ALERT\020\010\022\t\n\005FATAL\020\020\""
+    "\006\n\004Ping\"\032\n\004Pong\022\022\n\nping_seqno\030\001 \002(\r", 355);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "kismet.proto", &protobuf_RegisterTypes);
   Command::default_instance_ = new Command();
-  CmdPing::default_instance_ = new CmdPing();
-  CmdPong::default_instance_ = new CmdPong();
+  SystemRegister::default_instance_ = new SystemRegister();
+  Shutdown::default_instance_ = new Shutdown();
+  MsgbusMessage::default_instance_ = new MsgbusMessage();
+  Ping::default_instance_ = new Ping();
+  Pong::default_instance_ = new Pong();
   Command::default_instance_->InitAsDefaultInstance();
-  CmdPing::default_instance_->InitAsDefaultInstance();
-  CmdPong::default_instance_->InitAsDefaultInstance();
+  SystemRegister::default_instance_->InitAsDefaultInstance();
+  Shutdown::default_instance_->InitAsDefaultInstance();
+  MsgbusMessage::default_instance_->InitAsDefaultInstance();
+  Ping::default_instance_->InitAsDefaultInstance();
+  Pong::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_kismet_2eproto);
 }
 
@@ -158,7 +240,7 @@ const int Command::kContentFieldNumber;
 Command::Command()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:Kismet.Command)
+  // @@protoc_insertion_point(constructor:KismetExternal.Command)
 }
 
 void Command::InitAsDefaultInstance() {
@@ -169,7 +251,7 @@ Command::Command(const Command& from)
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:Kismet.Command)
+  // @@protoc_insertion_point(copy_constructor:KismetExternal.Command)
 }
 
 void Command::SharedCtor() {
@@ -182,7 +264,7 @@ void Command::SharedCtor() {
 }
 
 Command::~Command() {
-  // @@protoc_insertion_point(destructor:Kismet.Command)
+  // @@protoc_insertion_point(destructor:KismetExternal.Command)
   SharedDtor();
 }
 
@@ -219,7 +301,7 @@ Command* Command::New(::google::protobuf::Arena* arena) const {
 }
 
 void Command::Clear() {
-// @@protoc_insertion_point(message_clear_start:Kismet.Command)
+// @@protoc_insertion_point(message_clear_start:KismetExternal.Command)
   if (_has_bits_[0 / 32] & 7u) {
     if (has_command()) {
       command_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
@@ -239,7 +321,7 @@ bool Command::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:Kismet.Command)
+  // @@protoc_insertion_point(parse_start:KismetExternal.Command)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
@@ -253,7 +335,7 @@ bool Command::MergePartialFromCodedStream(
           ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
             this->command().data(), this->command().length(),
             ::google::protobuf::internal::WireFormat::PARSE,
-            "Kismet.Command.command");
+            "KismetExternal.Command.command");
         } else {
           goto handle_unusual;
         }
@@ -303,23 +385,23 @@ bool Command::MergePartialFromCodedStream(
     }
   }
 success:
-  // @@protoc_insertion_point(parse_success:Kismet.Command)
+  // @@protoc_insertion_point(parse_success:KismetExternal.Command)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:Kismet.Command)
+  // @@protoc_insertion_point(parse_failure:KismetExternal.Command)
   return false;
 #undef DO_
 }
 
 void Command::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:Kismet.Command)
+  // @@protoc_insertion_point(serialize_start:KismetExternal.Command)
   // required string command = 1;
   if (has_command()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->command().data(), this->command().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "Kismet.Command.command");
+      "KismetExternal.Command.command");
     ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
       1, this->command(), output);
   }
@@ -339,18 +421,18 @@ void Command::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
-  // @@protoc_insertion_point(serialize_end:Kismet.Command)
+  // @@protoc_insertion_point(serialize_end:KismetExternal.Command)
 }
 
 ::google::protobuf::uint8* Command::InternalSerializeWithCachedSizesToArray(
     bool deterministic, ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:Kismet.Command)
+  // @@protoc_insertion_point(serialize_to_array_start:KismetExternal.Command)
   // required string command = 1;
   if (has_command()) {
     ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
       this->command().data(), this->command().length(),
       ::google::protobuf::internal::WireFormat::SERIALIZE,
-      "Kismet.Command.command");
+      "KismetExternal.Command.command");
     target =
       ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
         1, this->command(), target);
@@ -372,12 +454,12 @@ void Command::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:Kismet.Command)
+  // @@protoc_insertion_point(serialize_to_array_end:KismetExternal.Command)
   return target;
 }
 
 int Command::RequiredFieldsByteSizeFallback() const {
-// @@protoc_insertion_point(required_fields_byte_size_fallback_start:Kismet.Command)
+// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetExternal.Command)
   int total_size = 0;
 
   if (has_command()) {
@@ -404,7 +486,7 @@ int Command::RequiredFieldsByteSizeFallback() const {
   return total_size;
 }
 int Command::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:Kismet.Command)
+// @@protoc_insertion_point(message_byte_size_start:KismetExternal.Command)
   int total_size = 0;
 
   if (((_has_bits_[0] & 0x00000007) ^ 0x00000007) == 0) {  // All required fields are present.
@@ -438,7 +520,7 @@ int Command::ByteSize() const {
 }
 
 void Command::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:Kismet.Command)
+// @@protoc_insertion_point(generalized_merge_from_start:KismetExternal.Command)
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
   }
@@ -446,16 +528,16 @@ void Command::MergeFrom(const ::google::protobuf::Message& from) {
       ::google::protobuf::internal::DynamicCastToGenerated<const Command>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:Kismet.Command)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetExternal.Command)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:Kismet.Command)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetExternal.Command)
     MergeFrom(*source);
   }
 }
 
 void Command::MergeFrom(const Command& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:Kismet.Command)
+// @@protoc_insertion_point(class_specific_merge_from_start:KismetExternal.Command)
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
   }
@@ -478,14 +560,14 @@ void Command::MergeFrom(const Command& from) {
 }
 
 void Command::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:Kismet.Command)
+// @@protoc_insertion_point(generalized_copy_from_start:KismetExternal.Command)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
 void Command::CopyFrom(const Command& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:Kismet.Command)
+// @@protoc_insertion_point(class_specific_copy_from_start:KismetExternal.Command)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
@@ -536,32 +618,32 @@ void Command::clear_command() {
   clear_has_command();
 }
  const ::std::string& Command::command() const {
-  // @@protoc_insertion_point(field_get:Kismet.Command.command)
+  // @@protoc_insertion_point(field_get:KismetExternal.Command.command)
   return command_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  void Command::set_command(const ::std::string& value) {
   set_has_command();
   command_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set:KismetExternal.Command.command)
 }
  void Command::set_command(const char* value) {
   set_has_command();
   command_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Command.command)
 }
  void Command::set_command(const char* value, size_t size) {
   set_has_command();
   command_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Command.command)
 }
  ::std::string* Command::mutable_command() {
   set_has_command();
-  // @@protoc_insertion_point(field_mutable:Kismet.Command.command)
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Command.command)
   return command_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  ::std::string* Command::release_command() {
-  // @@protoc_insertion_point(field_release:Kismet.Command.command)
+  // @@protoc_insertion_point(field_release:KismetExternal.Command.command)
   clear_has_command();
   return command_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
@@ -572,7 +654,7 @@ void Command::clear_command() {
     clear_has_command();
   }
   command_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), command);
-  // @@protoc_insertion_point(field_set_allocated:Kismet.Command.command)
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Command.command)
 }
 
 // required uint32 seqno = 2;
@@ -590,13 +672,13 @@ void Command::clear_seqno() {
   clear_has_seqno();
 }
  ::google::protobuf::uint32 Command::seqno() const {
-  // @@protoc_insertion_point(field_get:Kismet.Command.seqno)
+  // @@protoc_insertion_point(field_get:KismetExternal.Command.seqno)
   return seqno_;
 }
  void Command::set_seqno(::google::protobuf::uint32 value) {
   set_has_seqno();
   seqno_ = value;
-  // @@protoc_insertion_point(field_set:Kismet.Command.seqno)
+  // @@protoc_insertion_point(field_set:KismetExternal.Command.seqno)
 }
 
 // required bytes content = 3;
@@ -614,32 +696,32 @@ void Command::clear_content() {
   clear_has_content();
 }
  const ::std::string& Command::content() const {
-  // @@protoc_insertion_point(field_get:Kismet.Command.content)
+  // @@protoc_insertion_point(field_get:KismetExternal.Command.content)
   return content_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  void Command::set_content(const ::std::string& value) {
   set_has_content();
   content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set:KismetExternal.Command.content)
 }
  void Command::set_content(const char* value) {
   set_has_content();
   content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Command.content)
 }
  void Command::set_content(const void* value, size_t size) {
   set_has_content();
   content_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Command.content)
 }
  ::std::string* Command::mutable_content() {
   set_has_content();
-  // @@protoc_insertion_point(field_mutable:Kismet.Command.content)
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Command.content)
   return content_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
  ::std::string* Command::release_content() {
-  // @@protoc_insertion_point(field_release:Kismet.Command.content)
+  // @@protoc_insertion_point(field_release:KismetExternal.Command.content)
   clear_has_content();
   return content_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
 }
@@ -650,7 +732,1083 @@ void Command::clear_content() {
     clear_has_content();
   }
   content_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), content);
-  // @@protoc_insertion_point(field_set_allocated:Kismet.Command.content)
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Command.content)
+}
+
+#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
+
+// ===================================================================
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int SystemRegister::kSubsystemFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+SystemRegister::SystemRegister()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:KismetExternal.SystemRegister)
+}
+
+void SystemRegister::InitAsDefaultInstance() {
+}
+
+SystemRegister::SystemRegister(const SystemRegister& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:KismetExternal.SystemRegister)
+}
+
+void SystemRegister::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
+  _cached_size_ = 0;
+  subsystem_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+SystemRegister::~SystemRegister() {
+  // @@protoc_insertion_point(destructor:KismetExternal.SystemRegister)
+  SharedDtor();
+}
+
+void SystemRegister::SharedDtor() {
+  subsystem_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (this != default_instance_) {
+  }
+}
+
+void SystemRegister::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* SystemRegister::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return SystemRegister_descriptor_;
+}
+
+const SystemRegister& SystemRegister::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_kismet_2eproto();
+  return *default_instance_;
+}
+
+SystemRegister* SystemRegister::default_instance_ = NULL;
+
+SystemRegister* SystemRegister::New(::google::protobuf::Arena* arena) const {
+  SystemRegister* n = new SystemRegister;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void SystemRegister::Clear() {
+// @@protoc_insertion_point(message_clear_start:KismetExternal.SystemRegister)
+  if (has_subsystem()) {
+    subsystem_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  if (_internal_metadata_.have_unknown_fields()) {
+    mutable_unknown_fields()->Clear();
+  }
+}
+
+bool SystemRegister::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:KismetExternal.SystemRegister)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required string subsystem = 1;
+      case 1: {
+        if (tag == 10) {
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_subsystem()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            this->subsystem().data(), this->subsystem().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "KismetExternal.SystemRegister.subsystem");
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:KismetExternal.SystemRegister)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:KismetExternal.SystemRegister)
+  return false;
+#undef DO_
+}
+
+void SystemRegister::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:KismetExternal.SystemRegister)
+  // required string subsystem = 1;
+  if (has_subsystem()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->subsystem().data(), this->subsystem().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "KismetExternal.SystemRegister.subsystem");
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      1, this->subsystem(), output);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:KismetExternal.SystemRegister)
+}
+
+::google::protobuf::uint8* SystemRegister::InternalSerializeWithCachedSizesToArray(
+    bool deterministic, ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:KismetExternal.SystemRegister)
+  // required string subsystem = 1;
+  if (has_subsystem()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->subsystem().data(), this->subsystem().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "KismetExternal.SystemRegister.subsystem");
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        1, this->subsystem(), target);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:KismetExternal.SystemRegister)
+  return target;
+}
+
+int SystemRegister::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:KismetExternal.SystemRegister)
+  int total_size = 0;
+
+  // required string subsystem = 1;
+  if (has_subsystem()) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::StringSize(
+        this->subsystem());
+  }
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void SystemRegister::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:KismetExternal.SystemRegister)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) {
+    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  const SystemRegister* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const SystemRegister>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetExternal.SystemRegister)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetExternal.SystemRegister)
+    MergeFrom(*source);
+  }
+}
+
+void SystemRegister::MergeFrom(const SystemRegister& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:KismetExternal.SystemRegister)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) {
+    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_subsystem()) {
+      set_has_subsystem();
+      subsystem_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.subsystem_);
+    }
+  }
+  if (from._internal_metadata_.have_unknown_fields()) {
+    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  }
+}
+
+void SystemRegister::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:KismetExternal.SystemRegister)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void SystemRegister::CopyFrom(const SystemRegister& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:KismetExternal.SystemRegister)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SystemRegister::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
+
+  return true;
+}
+
+void SystemRegister::Swap(SystemRegister* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void SystemRegister::InternalSwap(SystemRegister* other) {
+  subsystem_.Swap(&other->subsystem_);
+  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata SystemRegister::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = SystemRegister_descriptor_;
+  metadata.reflection = SystemRegister_reflection_;
+  return metadata;
+}
+
+#if PROTOBUF_INLINE_NOT_IN_HEADERS
+// SystemRegister
+
+// required string subsystem = 1;
+bool SystemRegister::has_subsystem() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+void SystemRegister::set_has_subsystem() {
+  _has_bits_[0] |= 0x00000001u;
+}
+void SystemRegister::clear_has_subsystem() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+void SystemRegister::clear_subsystem() {
+  subsystem_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_subsystem();
+}
+ const ::std::string& SystemRegister::subsystem() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.SystemRegister.subsystem)
+  return subsystem_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void SystemRegister::set_subsystem(const ::std::string& value) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.SystemRegister.subsystem)
+}
+ void SystemRegister::set_subsystem(const char* value) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.SystemRegister.subsystem)
+}
+ void SystemRegister::set_subsystem(const char* value, size_t size) {
+  set_has_subsystem();
+  subsystem_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.SystemRegister.subsystem)
+}
+ ::std::string* SystemRegister::mutable_subsystem() {
+  set_has_subsystem();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.SystemRegister.subsystem)
+  return subsystem_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ ::std::string* SystemRegister::release_subsystem() {
+  // @@protoc_insertion_point(field_release:KismetExternal.SystemRegister.subsystem)
+  clear_has_subsystem();
+  return subsystem_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void SystemRegister::set_allocated_subsystem(::std::string* subsystem) {
+  if (subsystem != NULL) {
+    set_has_subsystem();
+  } else {
+    clear_has_subsystem();
+  }
+  subsystem_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), subsystem);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.SystemRegister.subsystem)
+}
+
+#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
+
+// ===================================================================
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int Shutdown::kReasonFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+Shutdown::Shutdown()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:KismetExternal.Shutdown)
+}
+
+void Shutdown::InitAsDefaultInstance() {
+}
+
+Shutdown::Shutdown(const Shutdown& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:KismetExternal.Shutdown)
+}
+
+void Shutdown::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
+  _cached_size_ = 0;
+  reason_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+Shutdown::~Shutdown() {
+  // @@protoc_insertion_point(destructor:KismetExternal.Shutdown)
+  SharedDtor();
+}
+
+void Shutdown::SharedDtor() {
+  reason_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (this != default_instance_) {
+  }
+}
+
+void Shutdown::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* Shutdown::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return Shutdown_descriptor_;
+}
+
+const Shutdown& Shutdown::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_kismet_2eproto();
+  return *default_instance_;
+}
+
+Shutdown* Shutdown::default_instance_ = NULL;
+
+Shutdown* Shutdown::New(::google::protobuf::Arena* arena) const {
+  Shutdown* n = new Shutdown;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void Shutdown::Clear() {
+// @@protoc_insertion_point(message_clear_start:KismetExternal.Shutdown)
+  if (has_reason()) {
+    reason_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  if (_internal_metadata_.have_unknown_fields()) {
+    mutable_unknown_fields()->Clear();
+  }
+}
+
+bool Shutdown::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:KismetExternal.Shutdown)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required string reason = 1;
+      case 1: {
+        if (tag == 10) {
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_reason()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            this->reason().data(), this->reason().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "KismetExternal.Shutdown.reason");
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:KismetExternal.Shutdown)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:KismetExternal.Shutdown)
+  return false;
+#undef DO_
+}
+
+void Shutdown::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:KismetExternal.Shutdown)
+  // required string reason = 1;
+  if (has_reason()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->reason().data(), this->reason().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "KismetExternal.Shutdown.reason");
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      1, this->reason(), output);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:KismetExternal.Shutdown)
+}
+
+::google::protobuf::uint8* Shutdown::InternalSerializeWithCachedSizesToArray(
+    bool deterministic, ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:KismetExternal.Shutdown)
+  // required string reason = 1;
+  if (has_reason()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->reason().data(), this->reason().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "KismetExternal.Shutdown.reason");
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        1, this->reason(), target);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:KismetExternal.Shutdown)
+  return target;
+}
+
+int Shutdown::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:KismetExternal.Shutdown)
+  int total_size = 0;
+
+  // required string reason = 1;
+  if (has_reason()) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::StringSize(
+        this->reason());
+  }
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void Shutdown::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:KismetExternal.Shutdown)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) {
+    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  const Shutdown* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const Shutdown>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetExternal.Shutdown)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetExternal.Shutdown)
+    MergeFrom(*source);
+  }
+}
+
+void Shutdown::MergeFrom(const Shutdown& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:KismetExternal.Shutdown)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) {
+    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_reason()) {
+      set_has_reason();
+      reason_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.reason_);
+    }
+  }
+  if (from._internal_metadata_.have_unknown_fields()) {
+    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  }
+}
+
+void Shutdown::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:KismetExternal.Shutdown)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void Shutdown::CopyFrom(const Shutdown& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:KismetExternal.Shutdown)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Shutdown::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
+
+  return true;
+}
+
+void Shutdown::Swap(Shutdown* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void Shutdown::InternalSwap(Shutdown* other) {
+  reason_.Swap(&other->reason_);
+  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata Shutdown::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = Shutdown_descriptor_;
+  metadata.reflection = Shutdown_reflection_;
+  return metadata;
+}
+
+#if PROTOBUF_INLINE_NOT_IN_HEADERS
+// Shutdown
+
+// required string reason = 1;
+bool Shutdown::has_reason() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+void Shutdown::set_has_reason() {
+  _has_bits_[0] |= 0x00000001u;
+}
+void Shutdown::clear_has_reason() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+void Shutdown::clear_reason() {
+  reason_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_reason();
+}
+ const ::std::string& Shutdown::reason() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.Shutdown.reason)
+  return reason_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void Shutdown::set_reason(const ::std::string& value) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.Shutdown.reason)
+}
+ void Shutdown::set_reason(const char* value) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.Shutdown.reason)
+}
+ void Shutdown::set_reason(const char* value, size_t size) {
+  set_has_reason();
+  reason_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.Shutdown.reason)
+}
+ ::std::string* Shutdown::mutable_reason() {
+  set_has_reason();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.Shutdown.reason)
+  return reason_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ ::std::string* Shutdown::release_reason() {
+  // @@protoc_insertion_point(field_release:KismetExternal.Shutdown.reason)
+  clear_has_reason();
+  return reason_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void Shutdown::set_allocated_reason(::std::string* reason) {
+  if (reason != NULL) {
+    set_has_reason();
+  } else {
+    clear_has_reason();
+  }
+  reason_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), reason);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.Shutdown.reason)
+}
+
+#endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
+
+// ===================================================================
+
+const ::google::protobuf::EnumDescriptor* MsgbusMessage_MessageType_descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return MsgbusMessage_MessageType_descriptor_;
+}
+bool MsgbusMessage_MessageType_IsValid(int value) {
+  switch(value) {
+    case 1:
+    case 2:
+    case 4:
+    case 8:
+    case 16:
+      return true;
+    default:
+      return false;
+  }
+}
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const MsgbusMessage_MessageType MsgbusMessage::DEBUG;
+const MsgbusMessage_MessageType MsgbusMessage::INFO;
+const MsgbusMessage_MessageType MsgbusMessage::ERROR;
+const MsgbusMessage_MessageType MsgbusMessage::ALERT;
+const MsgbusMessage_MessageType MsgbusMessage::FATAL;
+const MsgbusMessage_MessageType MsgbusMessage::MessageType_MIN;
+const MsgbusMessage_MessageType MsgbusMessage::MessageType_MAX;
+const int MsgbusMessage::MessageType_ARRAYSIZE;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int MsgbusMessage::kMsgtypeFieldNumber;
+const int MsgbusMessage::kMsgtextFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+MsgbusMessage::MsgbusMessage()
+  : ::google::protobuf::Message(), _internal_metadata_(NULL) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:KismetExternal.MsgbusMessage)
+}
+
+void MsgbusMessage::InitAsDefaultInstance() {
+}
+
+MsgbusMessage::MsgbusMessage(const MsgbusMessage& from)
+  : ::google::protobuf::Message(),
+    _internal_metadata_(NULL) {
+  SharedCtor();
+  MergeFrom(from);
+  // @@protoc_insertion_point(copy_constructor:KismetExternal.MsgbusMessage)
+}
+
+void MsgbusMessage::SharedCtor() {
+  ::google::protobuf::internal::GetEmptyString();
+  _cached_size_ = 0;
+  msgtype_ = 1;
+  msgtext_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+}
+
+MsgbusMessage::~MsgbusMessage() {
+  // @@protoc_insertion_point(destructor:KismetExternal.MsgbusMessage)
+  SharedDtor();
+}
+
+void MsgbusMessage::SharedDtor() {
+  msgtext_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  if (this != default_instance_) {
+  }
+}
+
+void MsgbusMessage::SetCachedSize(int size) const {
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+}
+const ::google::protobuf::Descriptor* MsgbusMessage::descriptor() {
+  protobuf_AssignDescriptorsOnce();
+  return MsgbusMessage_descriptor_;
+}
+
+const MsgbusMessage& MsgbusMessage::default_instance() {
+  if (default_instance_ == NULL) protobuf_AddDesc_kismet_2eproto();
+  return *default_instance_;
+}
+
+MsgbusMessage* MsgbusMessage::default_instance_ = NULL;
+
+MsgbusMessage* MsgbusMessage::New(::google::protobuf::Arena* arena) const {
+  MsgbusMessage* n = new MsgbusMessage;
+  if (arena != NULL) {
+    arena->Own(n);
+  }
+  return n;
+}
+
+void MsgbusMessage::Clear() {
+// @@protoc_insertion_point(message_clear_start:KismetExternal.MsgbusMessage)
+  if (_has_bits_[0 / 32] & 3u) {
+    msgtype_ = 1;
+    if (has_msgtext()) {
+      msgtext_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+    }
+  }
+  ::memset(_has_bits_, 0, sizeof(_has_bits_));
+  if (_internal_metadata_.have_unknown_fields()) {
+    mutable_unknown_fields()->Clear();
+  }
+}
+
+bool MsgbusMessage::MergePartialFromCodedStream(
+    ::google::protobuf::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::google::protobuf::uint32 tag;
+  // @@protoc_insertion_point(parse_start:KismetExternal.MsgbusMessage)
+  for (;;) {
+    ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+      case 1: {
+        if (tag == 8) {
+          int value;
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   int, ::google::protobuf::internal::WireFormatLite::TYPE_ENUM>(
+                 input, &value)));
+          if (::KismetExternal::MsgbusMessage_MessageType_IsValid(value)) {
+            set_msgtype(static_cast< ::KismetExternal::MsgbusMessage_MessageType >(value));
+          } else {
+            mutable_unknown_fields()->AddVarint(1, value);
+          }
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(18)) goto parse_msgtext;
+        break;
+      }
+
+      // required string msgtext = 2;
+      case 2: {
+        if (tag == 18) {
+         parse_msgtext:
+          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
+                input, this->mutable_msgtext()));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            this->msgtext().data(), this->msgtext().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "KismetExternal.MsgbusMessage.msgtext");
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:KismetExternal.MsgbusMessage)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:KismetExternal.MsgbusMessage)
+  return false;
+#undef DO_
+}
+
+void MsgbusMessage::SerializeWithCachedSizes(
+    ::google::protobuf::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:KismetExternal.MsgbusMessage)
+  // required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+  if (has_msgtype()) {
+    ::google::protobuf::internal::WireFormatLite::WriteEnum(
+      1, this->msgtype(), output);
+  }
+
+  // required string msgtext = 2;
+  if (has_msgtext()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->msgtext().data(), this->msgtext().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "KismetExternal.MsgbusMessage.msgtext");
+    ::google::protobuf::internal::WireFormatLite::WriteStringMaybeAliased(
+      2, this->msgtext(), output);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
+        unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:KismetExternal.MsgbusMessage)
+}
+
+::google::protobuf::uint8* MsgbusMessage::InternalSerializeWithCachedSizesToArray(
+    bool deterministic, ::google::protobuf::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:KismetExternal.MsgbusMessage)
+  // required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+  if (has_msgtype()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteEnumToArray(
+      1, this->msgtype(), target);
+  }
+
+  // required string msgtext = 2;
+  if (has_msgtext()) {
+    ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+      this->msgtext().data(), this->msgtext().length(),
+      ::google::protobuf::internal::WireFormat::SERIALIZE,
+      "KismetExternal.MsgbusMessage.msgtext");
+    target =
+      ::google::protobuf::internal::WireFormatLite::WriteStringToArray(
+        2, this->msgtext(), target);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
+        unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:KismetExternal.MsgbusMessage)
+  return target;
+}
+
+int MsgbusMessage::RequiredFieldsByteSizeFallback() const {
+// @@protoc_insertion_point(required_fields_byte_size_fallback_start:KismetExternal.MsgbusMessage)
+  int total_size = 0;
+
+  if (has_msgtype()) {
+    // required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::EnumSize(this->msgtype());
+  }
+
+  if (has_msgtext()) {
+    // required string msgtext = 2;
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::StringSize(
+        this->msgtext());
+  }
+
+  return total_size;
+}
+int MsgbusMessage::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:KismetExternal.MsgbusMessage)
+  int total_size = 0;
+
+  if (((_has_bits_[0] & 0x00000003) ^ 0x00000003) == 0) {  // All required fields are present.
+    // required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::EnumSize(this->msgtype());
+
+    // required string msgtext = 2;
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::StringSize(
+        this->msgtext());
+
+  } else {
+    total_size += RequiredFieldsByteSizeFallback();
+  }
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
+        unknown_fields());
+  }
+  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
+  _cached_size_ = total_size;
+  GOOGLE_SAFE_CONCURRENT_WRITES_END();
+  return total_size;
+}
+
+void MsgbusMessage::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:KismetExternal.MsgbusMessage)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) {
+    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  const MsgbusMessage* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const MsgbusMessage>(
+          &from);
+  if (source == NULL) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetExternal.MsgbusMessage)
+    ::google::protobuf::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetExternal.MsgbusMessage)
+    MergeFrom(*source);
+  }
+}
+
+void MsgbusMessage::MergeFrom(const MsgbusMessage& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:KismetExternal.MsgbusMessage)
+  if (GOOGLE_PREDICT_FALSE(&from == this)) {
+    ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_msgtype()) {
+      set_msgtype(from.msgtype());
+    }
+    if (from.has_msgtext()) {
+      set_has_msgtext();
+      msgtext_.AssignWithDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), from.msgtext_);
+    }
+  }
+  if (from._internal_metadata_.have_unknown_fields()) {
+    mutable_unknown_fields()->MergeFrom(from.unknown_fields());
+  }
+}
+
+void MsgbusMessage::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:KismetExternal.MsgbusMessage)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void MsgbusMessage::CopyFrom(const MsgbusMessage& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:KismetExternal.MsgbusMessage)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool MsgbusMessage::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000003) != 0x00000003) return false;
+
+  return true;
+}
+
+void MsgbusMessage::Swap(MsgbusMessage* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void MsgbusMessage::InternalSwap(MsgbusMessage* other) {
+  std::swap(msgtype_, other->msgtype_);
+  msgtext_.Swap(&other->msgtext_);
+  std::swap(_has_bits_[0], other->_has_bits_[0]);
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  std::swap(_cached_size_, other->_cached_size_);
+}
+
+::google::protobuf::Metadata MsgbusMessage::GetMetadata() const {
+  protobuf_AssignDescriptorsOnce();
+  ::google::protobuf::Metadata metadata;
+  metadata.descriptor = MsgbusMessage_descriptor_;
+  metadata.reflection = MsgbusMessage_reflection_;
+  return metadata;
+}
+
+#if PROTOBUF_INLINE_NOT_IN_HEADERS
+// MsgbusMessage
+
+// required .KismetExternal.MsgbusMessage.MessageType msgtype = 1;
+bool MsgbusMessage::has_msgtype() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+void MsgbusMessage::set_has_msgtype() {
+  _has_bits_[0] |= 0x00000001u;
+}
+void MsgbusMessage::clear_has_msgtype() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+void MsgbusMessage::clear_msgtype() {
+  msgtype_ = 1;
+  clear_has_msgtype();
+}
+ ::KismetExternal::MsgbusMessage_MessageType MsgbusMessage::msgtype() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.MsgbusMessage.msgtype)
+  return static_cast< ::KismetExternal::MsgbusMessage_MessageType >(msgtype_);
+}
+ void MsgbusMessage::set_msgtype(::KismetExternal::MsgbusMessage_MessageType value) {
+  assert(::KismetExternal::MsgbusMessage_MessageType_IsValid(value));
+  set_has_msgtype();
+  msgtype_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.MsgbusMessage.msgtype)
+}
+
+// required string msgtext = 2;
+bool MsgbusMessage::has_msgtext() const {
+  return (_has_bits_[0] & 0x00000002u) != 0;
+}
+void MsgbusMessage::set_has_msgtext() {
+  _has_bits_[0] |= 0x00000002u;
+}
+void MsgbusMessage::clear_has_msgtext() {
+  _has_bits_[0] &= ~0x00000002u;
+}
+void MsgbusMessage::clear_msgtext() {
+  msgtext_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+  clear_has_msgtext();
+}
+ const ::std::string& MsgbusMessage::msgtext() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.MsgbusMessage.msgtext)
+  return msgtext_.GetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void MsgbusMessage::set_msgtext(const ::std::string& value) {
+  set_has_msgtext();
+  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:KismetExternal.MsgbusMessage.msgtext)
+}
+ void MsgbusMessage::set_msgtext(const char* value) {
+  set_has_msgtext();
+  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:KismetExternal.MsgbusMessage.msgtext)
+}
+ void MsgbusMessage::set_msgtext(const char* value, size_t size) {
+  set_has_msgtext();
+  msgtext_.SetNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:KismetExternal.MsgbusMessage.msgtext)
+}
+ ::std::string* MsgbusMessage::mutable_msgtext() {
+  set_has_msgtext();
+  // @@protoc_insertion_point(field_mutable:KismetExternal.MsgbusMessage.msgtext)
+  return msgtext_.MutableNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ ::std::string* MsgbusMessage::release_msgtext() {
+  // @@protoc_insertion_point(field_release:KismetExternal.MsgbusMessage.msgtext)
+  clear_has_msgtext();
+  return msgtext_.ReleaseNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
+}
+ void MsgbusMessage::set_allocated_msgtext(::std::string* msgtext) {
+  if (msgtext != NULL) {
+    set_has_msgtext();
+  } else {
+    clear_has_msgtext();
+  }
+  msgtext_.SetAllocatedNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited(), msgtext);
+  // @@protoc_insertion_point(field_set_allocated:KismetExternal.MsgbusMessage.msgtext)
 }
 
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
@@ -660,76 +1818,76 @@ void Command::clear_content() {
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
-CmdPing::CmdPing()
+Ping::Ping()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:Kismet.CmdPing)
+  // @@protoc_insertion_point(constructor:KismetExternal.Ping)
 }
 
-void CmdPing::InitAsDefaultInstance() {
+void Ping::InitAsDefaultInstance() {
 }
 
-CmdPing::CmdPing(const CmdPing& from)
+Ping::Ping(const Ping& from)
   : ::google::protobuf::Message(),
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:Kismet.CmdPing)
+  // @@protoc_insertion_point(copy_constructor:KismetExternal.Ping)
 }
 
-void CmdPing::SharedCtor() {
+void Ping::SharedCtor() {
   _cached_size_ = 0;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
-CmdPing::~CmdPing() {
-  // @@protoc_insertion_point(destructor:Kismet.CmdPing)
+Ping::~Ping() {
+  // @@protoc_insertion_point(destructor:KismetExternal.Ping)
   SharedDtor();
 }
 
-void CmdPing::SharedDtor() {
+void Ping::SharedDtor() {
   if (this != default_instance_) {
   }
 }
 
-void CmdPing::SetCachedSize(int size) const {
+void Ping::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* CmdPing::descriptor() {
+const ::google::protobuf::Descriptor* Ping::descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return CmdPing_descriptor_;
+  return Ping_descriptor_;
 }
 
-const CmdPing& CmdPing::default_instance() {
+const Ping& Ping::default_instance() {
   if (default_instance_ == NULL) protobuf_AddDesc_kismet_2eproto();
   return *default_instance_;
 }
 
-CmdPing* CmdPing::default_instance_ = NULL;
+Ping* Ping::default_instance_ = NULL;
 
-CmdPing* CmdPing::New(::google::protobuf::Arena* arena) const {
-  CmdPing* n = new CmdPing;
+Ping* Ping::New(::google::protobuf::Arena* arena) const {
+  Ping* n = new Ping;
   if (arena != NULL) {
     arena->Own(n);
   }
   return n;
 }
 
-void CmdPing::Clear() {
-// @@protoc_insertion_point(message_clear_start:Kismet.CmdPing)
+void Ping::Clear() {
+// @@protoc_insertion_point(message_clear_start:KismetExternal.Ping)
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   if (_internal_metadata_.have_unknown_fields()) {
     mutable_unknown_fields()->Clear();
   }
 }
 
-bool CmdPing::MergePartialFromCodedStream(
+bool Ping::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:Kismet.CmdPing)
+  // @@protoc_insertion_point(parse_start:KismetExternal.Ping)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
@@ -744,37 +1902,37 @@ bool CmdPing::MergePartialFromCodedStream(
           input, tag, mutable_unknown_fields()));
   }
 success:
-  // @@protoc_insertion_point(parse_success:Kismet.CmdPing)
+  // @@protoc_insertion_point(parse_success:KismetExternal.Ping)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:Kismet.CmdPing)
+  // @@protoc_insertion_point(parse_failure:KismetExternal.Ping)
   return false;
 #undef DO_
 }
 
-void CmdPing::SerializeWithCachedSizes(
+void Ping::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:Kismet.CmdPing)
+  // @@protoc_insertion_point(serialize_start:KismetExternal.Ping)
   if (_internal_metadata_.have_unknown_fields()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
-  // @@protoc_insertion_point(serialize_end:Kismet.CmdPing)
+  // @@protoc_insertion_point(serialize_end:KismetExternal.Ping)
 }
 
-::google::protobuf::uint8* CmdPing::InternalSerializeWithCachedSizesToArray(
+::google::protobuf::uint8* Ping::InternalSerializeWithCachedSizesToArray(
     bool deterministic, ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:Kismet.CmdPing)
+  // @@protoc_insertion_point(serialize_to_array_start:KismetExternal.Ping)
   if (_internal_metadata_.have_unknown_fields()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:Kismet.CmdPing)
+  // @@protoc_insertion_point(serialize_to_array_end:KismetExternal.Ping)
   return target;
 }
 
-int CmdPing::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:Kismet.CmdPing)
+int Ping::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:KismetExternal.Ping)
   int total_size = 0;
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -788,25 +1946,25 @@ int CmdPing::ByteSize() const {
   return total_size;
 }
 
-void CmdPing::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:Kismet.CmdPing)
+void Ping::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:KismetExternal.Ping)
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
   }
-  const CmdPing* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const CmdPing>(
+  const Ping* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const Ping>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:Kismet.CmdPing)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetExternal.Ping)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:Kismet.CmdPing)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetExternal.Ping)
     MergeFrom(*source);
   }
 }
 
-void CmdPing::MergeFrom(const CmdPing& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:Kismet.CmdPing)
+void Ping::MergeFrom(const Ping& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:KismetExternal.Ping)
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
   }
@@ -815,169 +1973,207 @@ void CmdPing::MergeFrom(const CmdPing& from) {
   }
 }
 
-void CmdPing::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:Kismet.CmdPing)
+void Ping::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:KismetExternal.Ping)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void CmdPing::CopyFrom(const CmdPing& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:Kismet.CmdPing)
+void Ping::CopyFrom(const Ping& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:KismetExternal.Ping)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool CmdPing::IsInitialized() const {
+bool Ping::IsInitialized() const {
 
   return true;
 }
 
-void CmdPing::Swap(CmdPing* other) {
+void Ping::Swap(Ping* other) {
   if (other == this) return;
   InternalSwap(other);
 }
-void CmdPing::InternalSwap(CmdPing* other) {
+void Ping::InternalSwap(Ping* other) {
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
 
-::google::protobuf::Metadata CmdPing::GetMetadata() const {
+::google::protobuf::Metadata Ping::GetMetadata() const {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::Metadata metadata;
-  metadata.descriptor = CmdPing_descriptor_;
-  metadata.reflection = CmdPing_reflection_;
+  metadata.descriptor = Ping_descriptor_;
+  metadata.reflection = Ping_reflection_;
   return metadata;
 }
 
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
-// CmdPing
+// Ping
 
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // ===================================================================
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int Pong::kPingSeqnoFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
-CmdPong::CmdPong()
+Pong::Pong()
   : ::google::protobuf::Message(), _internal_metadata_(NULL) {
   SharedCtor();
-  // @@protoc_insertion_point(constructor:Kismet.CmdPong)
+  // @@protoc_insertion_point(constructor:KismetExternal.Pong)
 }
 
-void CmdPong::InitAsDefaultInstance() {
+void Pong::InitAsDefaultInstance() {
 }
 
-CmdPong::CmdPong(const CmdPong& from)
+Pong::Pong(const Pong& from)
   : ::google::protobuf::Message(),
     _internal_metadata_(NULL) {
   SharedCtor();
   MergeFrom(from);
-  // @@protoc_insertion_point(copy_constructor:Kismet.CmdPong)
+  // @@protoc_insertion_point(copy_constructor:KismetExternal.Pong)
 }
 
-void CmdPong::SharedCtor() {
+void Pong::SharedCtor() {
   _cached_size_ = 0;
+  ping_seqno_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
-CmdPong::~CmdPong() {
-  // @@protoc_insertion_point(destructor:Kismet.CmdPong)
+Pong::~Pong() {
+  // @@protoc_insertion_point(destructor:KismetExternal.Pong)
   SharedDtor();
 }
 
-void CmdPong::SharedDtor() {
+void Pong::SharedDtor() {
   if (this != default_instance_) {
   }
 }
 
-void CmdPong::SetCachedSize(int size) const {
+void Pong::SetCachedSize(int size) const {
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
 }
-const ::google::protobuf::Descriptor* CmdPong::descriptor() {
+const ::google::protobuf::Descriptor* Pong::descriptor() {
   protobuf_AssignDescriptorsOnce();
-  return CmdPong_descriptor_;
+  return Pong_descriptor_;
 }
 
-const CmdPong& CmdPong::default_instance() {
+const Pong& Pong::default_instance() {
   if (default_instance_ == NULL) protobuf_AddDesc_kismet_2eproto();
   return *default_instance_;
 }
 
-CmdPong* CmdPong::default_instance_ = NULL;
+Pong* Pong::default_instance_ = NULL;
 
-CmdPong* CmdPong::New(::google::protobuf::Arena* arena) const {
-  CmdPong* n = new CmdPong;
+Pong* Pong::New(::google::protobuf::Arena* arena) const {
+  Pong* n = new Pong;
   if (arena != NULL) {
     arena->Own(n);
   }
   return n;
 }
 
-void CmdPong::Clear() {
-// @@protoc_insertion_point(message_clear_start:Kismet.CmdPong)
+void Pong::Clear() {
+// @@protoc_insertion_point(message_clear_start:KismetExternal.Pong)
+  ping_seqno_ = 0u;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   if (_internal_metadata_.have_unknown_fields()) {
     mutable_unknown_fields()->Clear();
   }
 }
 
-bool CmdPong::MergePartialFromCodedStream(
+bool Pong::MergePartialFromCodedStream(
     ::google::protobuf::io::CodedInputStream* input) {
 #define DO_(EXPRESSION) if (!GOOGLE_PREDICT_TRUE(EXPRESSION)) goto failure
   ::google::protobuf::uint32 tag;
-  // @@protoc_insertion_point(parse_start:Kismet.CmdPong)
+  // @@protoc_insertion_point(parse_start:KismetExternal.Pong)
   for (;;) {
     ::std::pair< ::google::protobuf::uint32, bool> p = input->ReadTagWithCutoff(127);
     tag = p.first;
     if (!p.second) goto handle_unusual;
-  handle_unusual:
-    if (tag == 0 ||
-        ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-        ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-      goto success;
+    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // required uint32 ping_seqno = 1;
+      case 1: {
+        if (tag == 8) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, &ping_seqno_)));
+          set_has_ping_seqno();
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectAtEnd()) goto success;
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0 ||
+            ::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
+            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
+          goto success;
+        }
+        DO_(::google::protobuf::internal::WireFormat::SkipField(
+              input, tag, mutable_unknown_fields()));
+        break;
+      }
     }
-    DO_(::google::protobuf::internal::WireFormat::SkipField(
-          input, tag, mutable_unknown_fields()));
   }
 success:
-  // @@protoc_insertion_point(parse_success:Kismet.CmdPong)
+  // @@protoc_insertion_point(parse_success:KismetExternal.Pong)
   return true;
 failure:
-  // @@protoc_insertion_point(parse_failure:Kismet.CmdPong)
+  // @@protoc_insertion_point(parse_failure:KismetExternal.Pong)
   return false;
 #undef DO_
 }
 
-void CmdPong::SerializeWithCachedSizes(
+void Pong::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // @@protoc_insertion_point(serialize_start:Kismet.CmdPong)
+  // @@protoc_insertion_point(serialize_start:KismetExternal.Pong)
+  // required uint32 ping_seqno = 1;
+  if (has_ping_seqno()) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->ping_seqno(), output);
+  }
+
   if (_internal_metadata_.have_unknown_fields()) {
     ::google::protobuf::internal::WireFormat::SerializeUnknownFields(
         unknown_fields(), output);
   }
-  // @@protoc_insertion_point(serialize_end:Kismet.CmdPong)
+  // @@protoc_insertion_point(serialize_end:KismetExternal.Pong)
 }
 
-::google::protobuf::uint8* CmdPong::InternalSerializeWithCachedSizesToArray(
+::google::protobuf::uint8* Pong::InternalSerializeWithCachedSizesToArray(
     bool deterministic, ::google::protobuf::uint8* target) const {
-  // @@protoc_insertion_point(serialize_to_array_start:Kismet.CmdPong)
+  // @@protoc_insertion_point(serialize_to_array_start:KismetExternal.Pong)
+  // required uint32 ping_seqno = 1;
+  if (has_ping_seqno()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->ping_seqno(), target);
+  }
+
   if (_internal_metadata_.have_unknown_fields()) {
     target = ::google::protobuf::internal::WireFormat::SerializeUnknownFieldsToArray(
         unknown_fields(), target);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:Kismet.CmdPong)
+  // @@protoc_insertion_point(serialize_to_array_end:KismetExternal.Pong)
   return target;
 }
 
-int CmdPong::ByteSize() const {
-// @@protoc_insertion_point(message_byte_size_start:Kismet.CmdPong)
+int Pong::ByteSize() const {
+// @@protoc_insertion_point(message_byte_size_start:KismetExternal.Pong)
   int total_size = 0;
 
+  // required uint32 ping_seqno = 1;
+  if (has_ping_seqno()) {
+    total_size += 1 +
+      ::google::protobuf::internal::WireFormatLite::UInt32Size(
+        this->ping_seqno());
+  }
   if (_internal_metadata_.have_unknown_fields()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
@@ -989,76 +2185,108 @@ int CmdPong::ByteSize() const {
   return total_size;
 }
 
-void CmdPong::MergeFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_merge_from_start:Kismet.CmdPong)
+void Pong::MergeFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:KismetExternal.Pong)
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
   }
-  const CmdPong* source = 
-      ::google::protobuf::internal::DynamicCastToGenerated<const CmdPong>(
+  const Pong* source = 
+      ::google::protobuf::internal::DynamicCastToGenerated<const Pong>(
           &from);
   if (source == NULL) {
-  // @@protoc_insertion_point(generalized_merge_from_cast_fail:Kismet.CmdPong)
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:KismetExternal.Pong)
     ::google::protobuf::internal::ReflectionOps::Merge(from, this);
   } else {
-  // @@protoc_insertion_point(generalized_merge_from_cast_success:Kismet.CmdPong)
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:KismetExternal.Pong)
     MergeFrom(*source);
   }
 }
 
-void CmdPong::MergeFrom(const CmdPong& from) {
-// @@protoc_insertion_point(class_specific_merge_from_start:Kismet.CmdPong)
+void Pong::MergeFrom(const Pong& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:KismetExternal.Pong)
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
+  }
+  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
+    if (from.has_ping_seqno()) {
+      set_ping_seqno(from.ping_seqno());
+    }
   }
   if (from._internal_metadata_.have_unknown_fields()) {
     mutable_unknown_fields()->MergeFrom(from.unknown_fields());
   }
 }
 
-void CmdPong::CopyFrom(const ::google::protobuf::Message& from) {
-// @@protoc_insertion_point(generalized_copy_from_start:Kismet.CmdPong)
+void Pong::CopyFrom(const ::google::protobuf::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:KismetExternal.Pong)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-void CmdPong::CopyFrom(const CmdPong& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:Kismet.CmdPong)
+void Pong::CopyFrom(const Pong& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:KismetExternal.Pong)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool CmdPong::IsInitialized() const {
+bool Pong::IsInitialized() const {
+  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
 
   return true;
 }
 
-void CmdPong::Swap(CmdPong* other) {
+void Pong::Swap(Pong* other) {
   if (other == this) return;
   InternalSwap(other);
 }
-void CmdPong::InternalSwap(CmdPong* other) {
+void Pong::InternalSwap(Pong* other) {
+  std::swap(ping_seqno_, other->ping_seqno_);
+  std::swap(_has_bits_[0], other->_has_bits_[0]);
   _internal_metadata_.Swap(&other->_internal_metadata_);
   std::swap(_cached_size_, other->_cached_size_);
 }
 
-::google::protobuf::Metadata CmdPong::GetMetadata() const {
+::google::protobuf::Metadata Pong::GetMetadata() const {
   protobuf_AssignDescriptorsOnce();
   ::google::protobuf::Metadata metadata;
-  metadata.descriptor = CmdPong_descriptor_;
-  metadata.reflection = CmdPong_reflection_;
+  metadata.descriptor = Pong_descriptor_;
+  metadata.reflection = Pong_reflection_;
   return metadata;
 }
 
 #if PROTOBUF_INLINE_NOT_IN_HEADERS
-// CmdPong
+// Pong
+
+// required uint32 ping_seqno = 1;
+bool Pong::has_ping_seqno() const {
+  return (_has_bits_[0] & 0x00000001u) != 0;
+}
+void Pong::set_has_ping_seqno() {
+  _has_bits_[0] |= 0x00000001u;
+}
+void Pong::clear_has_ping_seqno() {
+  _has_bits_[0] &= ~0x00000001u;
+}
+void Pong::clear_ping_seqno() {
+  ping_seqno_ = 0u;
+  clear_has_ping_seqno();
+}
+ ::google::protobuf::uint32 Pong::ping_seqno() const {
+  // @@protoc_insertion_point(field_get:KismetExternal.Pong.ping_seqno)
+  return ping_seqno_;
+}
+ void Pong::set_ping_seqno(::google::protobuf::uint32 value) {
+  set_has_ping_seqno();
+  ping_seqno_ = value;
+  // @@protoc_insertion_point(field_set:KismetExternal.Pong.ping_seqno)
+}
 
 #endif  // PROTOBUF_INLINE_NOT_IN_HEADERS
 
 // @@protoc_insertion_point(namespace_scope)
 
-}  // namespace Kismet
+}  // namespace KismetExternal
 
 // @@protoc_insertion_point(global_scope)

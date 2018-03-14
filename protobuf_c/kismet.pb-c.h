@@ -15,25 +15,31 @@ PROTOBUF_C__BEGIN_DECLS
 #endif
 
 
-typedef struct _Kismet__Command Kismet__Command;
-typedef struct _Kismet__CmdPing Kismet__CmdPing;
-typedef struct _Kismet__CmdPong Kismet__CmdPong;
+typedef struct _KismetExternal__Command KismetExternal__Command;
+typedef struct _KismetExternal__SystemRegister KismetExternal__SystemRegister;
+typedef struct _KismetExternal__Shutdown KismetExternal__Shutdown;
+typedef struct _KismetExternal__MsgbusMessage KismetExternal__MsgbusMessage;
+typedef struct _KismetExternal__Ping KismetExternal__Ping;
+typedef struct _KismetExternal__Pong KismetExternal__Pong;
 
 
 /* --- enums --- */
 
+/*
+ * Match the Kismet messagebus types
+ */
+typedef enum _KismetExternal__MsgbusMessage__MessageType {
+  KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__DEBUG = 1,
+  KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__INFO = 2,
+  KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ERROR = 4,
+  KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ALERT = 8,
+  KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__FATAL = 16
+    PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE)
+} KismetExternal__MsgbusMessage__MessageType;
 
 /* --- messages --- */
 
-/*
- * Overall command structure used for all Kismet helper binaries;  Each command
- * is an arbitrary string (command type), with a unique sequence number which is
- * used in responses to the command.
- * The payload of the command (content) is arbitrary, however Kismet uses 
- * Google Protobuf for all embedded commands, and it strongly recommended that
- * other implementations do as well.
- */
-struct  _Kismet__Command
+struct  _KismetExternal__Command
 {
   ProtobufCMessage base;
   /*
@@ -46,102 +52,213 @@ struct  _Kismet__Command
   uint32_t seqno;
   ProtobufCBinaryData content;
 };
-#define KISMET__COMMAND__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet__command__descriptor) \
+#define KISMET_EXTERNAL__COMMAND__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external__command__descriptor) \
     , NULL, 0, {0,NULL} }
+
+
+/*
+ * Register helper; this helps us identify what we're talking to if we need to
+ * dispatch the helpers
+ */
+struct  _KismetExternal__SystemRegister
+{
+  ProtobufCMessage base;
+  char *subsystem;
+};
+#define KISMET_EXTERNAL__SYSTEM_REGISTER__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external__system_register__descriptor) \
+    , NULL }
+
+
+/*
+ * Shut down the connection
+ */
+struct  _KismetExternal__Shutdown
+{
+  ProtobufCMessage base;
+  char *reason;
+};
+#define KISMET_EXTERNAL__SHUTDOWN__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external__shutdown__descriptor) \
+    , NULL }
+
+
+/*
+ * User-readable message
+ */
+struct  _KismetExternal__MsgbusMessage
+{
+  ProtobufCMessage base;
+  KismetExternal__MsgbusMessage__MessageType msgtype;
+  char *msgtext;
+};
+#define KISMET_EXTERNAL__MSGBUS_MESSAGE__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external__msgbus_message__descriptor) \
+    , 0, NULL }
 
 
 /*
  * Request other end send a PONG (bidirectional)
  */
-struct  _Kismet__CmdPing
+struct  _KismetExternal__Ping
 {
   ProtobufCMessage base;
 };
-#define KISMET__CMD_PING__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet__cmd_ping__descriptor) \
+#define KISMET_EXTERNAL__PING__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external__ping__descriptor) \
      }
 
 
 /*
  * Respond to PING (bidirectional)
  */
-struct  _Kismet__CmdPong
+struct  _KismetExternal__Pong
 {
   ProtobufCMessage base;
+  /*
+   * PING sequence that reached out to us
+   */
+  uint32_t ping_seqno;
 };
-#define KISMET__CMD_PONG__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&kismet__cmd_pong__descriptor) \
-     }
+#define KISMET_EXTERNAL__PONG__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_external__pong__descriptor) \
+    , 0 }
 
 
-/* Kismet__Command methods */
-void   kismet__command__init
-                     (Kismet__Command         *message);
-size_t kismet__command__get_packed_size
-                     (const Kismet__Command   *message);
-size_t kismet__command__pack
-                     (const Kismet__Command   *message,
+/* KismetExternal__Command methods */
+void   kismet_external__command__init
+                     (KismetExternal__Command         *message);
+size_t kismet_external__command__get_packed_size
+                     (const KismetExternal__Command   *message);
+size_t kismet_external__command__pack
+                     (const KismetExternal__Command   *message,
                       uint8_t             *out);
-size_t kismet__command__pack_to_buffer
-                     (const Kismet__Command   *message,
+size_t kismet_external__command__pack_to_buffer
+                     (const KismetExternal__Command   *message,
                       ProtobufCBuffer     *buffer);
-Kismet__Command *
-       kismet__command__unpack
+KismetExternal__Command *
+       kismet_external__command__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data);
-void   kismet__command__free_unpacked
-                     (Kismet__Command *message,
+void   kismet_external__command__free_unpacked
+                     (KismetExternal__Command *message,
                       ProtobufCAllocator *allocator);
-/* Kismet__CmdPing methods */
-void   kismet__cmd_ping__init
-                     (Kismet__CmdPing         *message);
-size_t kismet__cmd_ping__get_packed_size
-                     (const Kismet__CmdPing   *message);
-size_t kismet__cmd_ping__pack
-                     (const Kismet__CmdPing   *message,
+/* KismetExternal__SystemRegister methods */
+void   kismet_external__system_register__init
+                     (KismetExternal__SystemRegister         *message);
+size_t kismet_external__system_register__get_packed_size
+                     (const KismetExternal__SystemRegister   *message);
+size_t kismet_external__system_register__pack
+                     (const KismetExternal__SystemRegister   *message,
                       uint8_t             *out);
-size_t kismet__cmd_ping__pack_to_buffer
-                     (const Kismet__CmdPing   *message,
+size_t kismet_external__system_register__pack_to_buffer
+                     (const KismetExternal__SystemRegister   *message,
                       ProtobufCBuffer     *buffer);
-Kismet__CmdPing *
-       kismet__cmd_ping__unpack
+KismetExternal__SystemRegister *
+       kismet_external__system_register__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data);
-void   kismet__cmd_ping__free_unpacked
-                     (Kismet__CmdPing *message,
+void   kismet_external__system_register__free_unpacked
+                     (KismetExternal__SystemRegister *message,
                       ProtobufCAllocator *allocator);
-/* Kismet__CmdPong methods */
-void   kismet__cmd_pong__init
-                     (Kismet__CmdPong         *message);
-size_t kismet__cmd_pong__get_packed_size
-                     (const Kismet__CmdPong   *message);
-size_t kismet__cmd_pong__pack
-                     (const Kismet__CmdPong   *message,
+/* KismetExternal__Shutdown methods */
+void   kismet_external__shutdown__init
+                     (KismetExternal__Shutdown         *message);
+size_t kismet_external__shutdown__get_packed_size
+                     (const KismetExternal__Shutdown   *message);
+size_t kismet_external__shutdown__pack
+                     (const KismetExternal__Shutdown   *message,
                       uint8_t             *out);
-size_t kismet__cmd_pong__pack_to_buffer
-                     (const Kismet__CmdPong   *message,
+size_t kismet_external__shutdown__pack_to_buffer
+                     (const KismetExternal__Shutdown   *message,
                       ProtobufCBuffer     *buffer);
-Kismet__CmdPong *
-       kismet__cmd_pong__unpack
+KismetExternal__Shutdown *
+       kismet_external__shutdown__unpack
                      (ProtobufCAllocator  *allocator,
                       size_t               len,
                       const uint8_t       *data);
-void   kismet__cmd_pong__free_unpacked
-                     (Kismet__CmdPong *message,
+void   kismet_external__shutdown__free_unpacked
+                     (KismetExternal__Shutdown *message,
+                      ProtobufCAllocator *allocator);
+/* KismetExternal__MsgbusMessage methods */
+void   kismet_external__msgbus_message__init
+                     (KismetExternal__MsgbusMessage         *message);
+size_t kismet_external__msgbus_message__get_packed_size
+                     (const KismetExternal__MsgbusMessage   *message);
+size_t kismet_external__msgbus_message__pack
+                     (const KismetExternal__MsgbusMessage   *message,
+                      uint8_t             *out);
+size_t kismet_external__msgbus_message__pack_to_buffer
+                     (const KismetExternal__MsgbusMessage   *message,
+                      ProtobufCBuffer     *buffer);
+KismetExternal__MsgbusMessage *
+       kismet_external__msgbus_message__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   kismet_external__msgbus_message__free_unpacked
+                     (KismetExternal__MsgbusMessage *message,
+                      ProtobufCAllocator *allocator);
+/* KismetExternal__Ping methods */
+void   kismet_external__ping__init
+                     (KismetExternal__Ping         *message);
+size_t kismet_external__ping__get_packed_size
+                     (const KismetExternal__Ping   *message);
+size_t kismet_external__ping__pack
+                     (const KismetExternal__Ping   *message,
+                      uint8_t             *out);
+size_t kismet_external__ping__pack_to_buffer
+                     (const KismetExternal__Ping   *message,
+                      ProtobufCBuffer     *buffer);
+KismetExternal__Ping *
+       kismet_external__ping__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   kismet_external__ping__free_unpacked
+                     (KismetExternal__Ping *message,
+                      ProtobufCAllocator *allocator);
+/* KismetExternal__Pong methods */
+void   kismet_external__pong__init
+                     (KismetExternal__Pong         *message);
+size_t kismet_external__pong__get_packed_size
+                     (const KismetExternal__Pong   *message);
+size_t kismet_external__pong__pack
+                     (const KismetExternal__Pong   *message,
+                      uint8_t             *out);
+size_t kismet_external__pong__pack_to_buffer
+                     (const KismetExternal__Pong   *message,
+                      ProtobufCBuffer     *buffer);
+KismetExternal__Pong *
+       kismet_external__pong__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   kismet_external__pong__free_unpacked
+                     (KismetExternal__Pong *message,
                       ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
-typedef void (*Kismet__Command_Closure)
-                 (const Kismet__Command *message,
+typedef void (*KismetExternal__Command_Closure)
+                 (const KismetExternal__Command *message,
                   void *closure_data);
-typedef void (*Kismet__CmdPing_Closure)
-                 (const Kismet__CmdPing *message,
+typedef void (*KismetExternal__SystemRegister_Closure)
+                 (const KismetExternal__SystemRegister *message,
                   void *closure_data);
-typedef void (*Kismet__CmdPong_Closure)
-                 (const Kismet__CmdPong *message,
+typedef void (*KismetExternal__Shutdown_Closure)
+                 (const KismetExternal__Shutdown *message,
+                  void *closure_data);
+typedef void (*KismetExternal__MsgbusMessage_Closure)
+                 (const KismetExternal__MsgbusMessage *message,
+                  void *closure_data);
+typedef void (*KismetExternal__Ping_Closure)
+                 (const KismetExternal__Ping *message,
+                  void *closure_data);
+typedef void (*KismetExternal__Pong_Closure)
+                 (const KismetExternal__Pong *message,
                   void *closure_data);
 
 /* --- services --- */
@@ -149,9 +266,13 @@ typedef void (*Kismet__CmdPong_Closure)
 
 /* --- descriptors --- */
 
-extern const ProtobufCMessageDescriptor kismet__command__descriptor;
-extern const ProtobufCMessageDescriptor kismet__cmd_ping__descriptor;
-extern const ProtobufCMessageDescriptor kismet__cmd_pong__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external__command__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external__system_register__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external__shutdown__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external__msgbus_message__descriptor;
+extern const ProtobufCEnumDescriptor    kismet_external__msgbus_message__message_type__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external__ping__descriptor;
+extern const ProtobufCMessageDescriptor kismet_external__pong__descriptor;
 
 PROTOBUF_C__END_DECLS
 

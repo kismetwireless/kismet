@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+import "kismet.proto";
+
 package KismetDatasource;
 
 // Multiple channels
@@ -41,21 +43,6 @@ message SubInterface {
     required string interface = 1;
     required string flags = 2;
     optional string hardware = 3;
-}
-
-// User-readable message
-message SubMsgbus {
-    // Match the Kismet messagebus types
-    enum MessageType {
-        DEBUG = 1;
-        INFO = 2;
-        ERROR = 4;
-        ALERT = 8;
-        FATAL = 16;
-    }
-
-    required MessageType msgtype = 1;
-    required string msgtext = 2;
 }
 
 // Packetized data
@@ -126,14 +113,14 @@ message ConfigureReport {
     required SubSuccess success = 1;
     optional SubChanset channel = 2;
     optional SubChanhop hopping = 3;
-    optional SubMsgbus message = 4;
+    optional KismetExternal.MsgbusMessage message = 4;
     optional string warning = 5;
 }
 
 // Packet payload (Driver->Kismet)
 message DataReport {
     optional SubGps gps = 1;
-    optional SubMsgbus message = 2;
+    optional KismetExternal.MsgbusMessage message = 2;
     optional SubPacket packet = 3;
     optional SubSignal signal = 4;
     optional SubSpectrum spectrum = 5;
@@ -143,7 +130,7 @@ message DataReport {
 // Fatal error (Driver->Kismet)
 message ErrorReport {
     required SubSuccess success = 1;
-    optional SubMsgbus message = 2;
+    optional KismetExternal.MsgbusMessage message = 2;
 }
 
 // Request interface list (Kismet->Driver)
@@ -154,13 +141,13 @@ message ListInterfaces {
 // Interface list (Driver->Kismet)
 message InterfacesReport {
     required SubSuccess success = 1;
-    optional SubMsgbus message = 2;
+    optional KismetExternal.MsgbusMessage message = 2;
     repeated SubInterface interfaces = 3;
 }
 
 // User-visible message (Driver->Kismet)
 message Message {
-    optional SubMsgbus message = 1;
+    optional KismetExternal.MsgbusMessage message = 1;
     optional string warning = 2;
 }
 
@@ -184,7 +171,7 @@ message OpenSourceReport {
     optional SubChannels channels = 4;
     optional SubChanset channel = 5;
     optional string hardware = 6;
-    optional SubMsgbus message = 7;
+    optional KismetExternal.MsgbusMessage message = 7;
     optional SubSpecset specset = 8;
     optional string uuid = 9;
     optional string warning = 10;
@@ -198,7 +185,7 @@ message ProbeSource {
 // Respond to a probe (Driver->Kismet)
 message ProbeSourceReport {
     required SubSuccess success = 1;
-    optional SubMsgbus message = 2;
+    optional KismetExternal.MsgbusMessage message = 2;
     optional SubChannels channels = 3;
     optional SubChanset chanset = 4;
     optional SubSpecset specset = 5;
