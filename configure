@@ -645,6 +645,7 @@ NMCFLAGS
 NMLIBS
 libnm_LIBS
 libnm_CFLAGS
+PROTOCCFLAGS
 PROTOCLIBS
 PROTOCFLAGS
 PROTOLIBS
@@ -9314,7 +9315,7 @@ $as_echo "yes" >&6; }
 
 fi
 PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-PROTOCFLAGS=`pkg-config --cflags libprotobuf-c`
+PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 
 
 

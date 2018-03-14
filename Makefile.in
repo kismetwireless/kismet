@@ -86,11 +86,20 @@ DOT11_PARSERS = \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o
 
+PROTOBUF_CPP = \
+	protobuf_cpp/kismet.pb.cc.o \
+	protobuf_cpp/datasource.pb.cc.o 
+
+PROFOBUF_C = \
+	protobuf_c/kismet.pb-c.c.o \
+	protobuf_c/datasource.pb-c.c.o
+
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o filtercore.cc.o \
 	psutils.cc.o battery.cc.o \
 	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
+	$(PROTOBUF_CPP) kis_external.cc.o \
 	datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o \
 	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \

@@ -1125,12 +1125,12 @@ fi
 # We need protobuf-c all the time
 PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], [], AC_MSG_ERROR([missing libprotobuf-c]))
 PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-PROTOCFLAGS=`pkg-config --cflags libprotobuf-c`
+PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 
 AC_SUBST(PROTOLIBS)
 AC_SUBST(PROTOCFLAGS)
 AC_SUBST(PROTOCLIBS)
-AC_SUBST(PROTOCFLAGS)
+AC_SUBST(PROTOCCFLAGS)
 
 NMLIBS=""
 NMCFLAGS=""
