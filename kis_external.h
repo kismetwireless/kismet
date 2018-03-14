@@ -39,7 +39,9 @@
 #include "ipc_remote2.h"
 #include "kis_net_microhttpd.h"
 
-#include "kismet.pb.h"
+namespace KismetExternal {
+    class Command;
+};
 
 struct KisExternalHttpSession {
     

@@ -87,13 +87,22 @@ DOT11_PARSERS = \
 	dot11_parsers/dot11_wpa_eap.cc.o
 
 PROTOBUF_CPP = \
-	kismet.pb.cc.o \
-	http.pb.cc.o \
-	datasource.pb.cc.o 
+	protobuf_cpp/kismet.pb.cc.o \
+	protobuf_cpp/http.pb.cc.o \
+	protobuf_cpp/datasource.pb.cc.o 
+
+PROTOBUF_CPP_H = \
+	protobuf_cpp/kismet.pb.h \
+	protobuf_cpp/http.pb.h \
+	protobuf_cpp/datasource.pb.h
 
 PROFOBUF_C = \
 	protobuf_c/kismet.pb-c.c.o \
 	protobuf_c/datasource.pb-c.c.o
+
+PROTOBUF_C_H = \
+	protobuf_c/kismet.pb-c.h \
+	protobuf_c/datasource.pb-c.h
 
 PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
@@ -142,7 +151,7 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PSO) $(patsubst %c.o,%c.d,$(PSO))
+$(PS):	$(PROTOBUF_CPP_H) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
@@ -350,10 +359,8 @@ clean:
 	# @-rm -f kaitai_parsers/*.d
 	@-rm -f dot11_parsers/*.o
 	@-rm -f dot11_parsers/*.d
-	@-rm -f protobuf_cpp/*.o
-	@-rm -f protobuf_cpp/*.d
-	@-rm -f protobuf_c/*.o
-	@-rm -f protobuf_c/*.d
+	@-rm -f protobuf_cpp/*.pb.*
+	@-rm -f protobuf_c/*.pb-c.*
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
@@ -423,13 +430,18 @@ all-plugins-clean: Makefile
 # 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 # 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 
-%.pb.cc.o: %.pb.cc
-%.pb.cc: protobuf_definitions/%.proto
-	protoc --cpp_out=./ -I protobuf_definitions/ protobuf_definitions/$*.proto
+protobuf_cpp/%.pb.cc.d: %.pb.cc %.pb.h
+protobuf_cpp/%.pb.cc.o: %.pb.cc %.pb.h
+protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
+	protoc --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
+	protoc --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
-%.pb-c.o: %pb-c.c
+%.pb-c.c.o: %.pb-c.c %.pb-c.h
 %.pb-c.c: protobuf_definitions/%.proto
-	protoc-c --c_out=./ -I protobuf_definitions/ protobuf_definitions/$*.proto
+	protoc-c --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+%.pb-c.h: protobuf_definitions/%.proto
+	protoc-c --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

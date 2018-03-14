@@ -23,8 +23,8 @@
 
 #include "endian_magic.h"
 
-#include "kismet.pb.h"
-#include "http.pb.h"
+#include "protobuf_cpp/kismet.pb.h"
+#include "protobuf_cpp/http.pb.h"
 
 KisExternalInterface::KisExternalInterface(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;

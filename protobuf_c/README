@@ -1,0 +1,2 @@
+This directory is populated by the compiled versions of the protobuf parsers; it will be
+automatically generated with protoc-c
