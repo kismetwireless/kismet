@@ -31,11 +31,13 @@ message HttpRequest {
 message HttpResponse {
     // Unique ID of request we're responding to
     required uint32 req_id = 1;
+    // Headers being sent, if any
+    map<string, string> header_content = 2;
     // Content being sent, if any
-    optional bytes content = 2;
+    optional bytes content = 3;
     // Result code, if we're concluding this connection
-    optional uint32 resultcode = 3;
+    optional uint32 resultcode = 4;
     // Is this the end of this connection?
-    optional bool close_response = 4;
+    optional bool close_response = 5;
 }
 

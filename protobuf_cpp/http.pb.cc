@@ -31,6 +31,7 @@ const ::google::protobuf::Descriptor* HttpRequest_PostDataEntry_descriptor_ = NU
 const ::google::protobuf::Descriptor* HttpResponse_descriptor_ = NULL;
 const ::google::protobuf::internal::GeneratedMessageReflection*
   HttpResponse_reflection_ = NULL;
+const ::google::protobuf::Descriptor* HttpResponse_HeaderContentEntry_descriptor_ = NULL;
 
 }  // namespace
 
@@ -78,8 +79,9 @@ void protobuf_AssignDesc_http_2eproto() {
       -1);
   HttpRequest_PostDataEntry_descriptor_ = HttpRequest_descriptor_->nested_type(0);
   HttpResponse_descriptor_ = file->message_type(2);
-  static const int HttpResponse_offsets_[4] = {
+  static const int HttpResponse_offsets_[5] = {
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, req_id_),
+    GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, header_content_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, content_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, resultcode_),
     GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, close_response_),
@@ -95,6 +97,7 @@ void protobuf_AssignDesc_http_2eproto() {
       sizeof(HttpResponse),
       GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(HttpResponse, _internal_metadata_),
       -1);
+  HttpResponse_HeaderContentEntry_descriptor_ = HttpResponse_descriptor_->nested_type(0);
 }
 
 namespace {
@@ -123,6 +126,15 @@ void protobuf_RegisterTypes(const ::std::string&) {
                 HttpRequest_PostDataEntry_descriptor_));
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
       HttpResponse_descriptor_, &HttpResponse::default_instance());
+  ::google::protobuf::MessageFactory::InternalRegisterGeneratedMessage(
+        HttpResponse_HeaderContentEntry_descriptor_,
+        ::google::protobuf::internal::MapEntry<
+            ::std::string,
+            ::std::string,
+            ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+            ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+            0>::CreateDefaultInstance(
+                HttpResponse_HeaderContentEntry_descriptor_));
 }
 
 }  // namespace
@@ -150,9 +162,12 @@ void protobuf_AddDesc_http_2eproto() {
     "\006method\030\003 \002(\t\0228\n\tpost_data\030\004 \003(\0132%.Kisme"
     "tHttp.HttpRequest.PostDataEntry\032/\n\rPostD"
     "ataEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001"
-    "\"[\n\014HttpResponse\022\016\n\006req_id\030\001 \002(\r\022\017\n\007cont"
-    "ent\030\002 \001(\014\022\022\n\nresultcode\030\003 \001(\r\022\026\n\016close_r"
-    "esponse\030\004 \001(\010", 333);
+    "\"\326\001\n\014HttpResponse\022\016\n\006req_id\030\001 \002(\r\022C\n\016hea"
+    "der_content\030\002 \003(\0132+.KismetHttp.HttpRespo"
+    "nse.HeaderContentEntry\022\017\n\007content\030\003 \001(\014\022"
+    "\022\n\nresultcode\030\004 \001(\r\022\026\n\016close_response\030\005 "
+    "\001(\010\0324\n\022HeaderContentEntry\022\013\n\003key\030\001 \001(\t\022\r"
+    "\n\005value\030\002 \001(\t:\0028\001", 457);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "http.proto", &protobuf_RegisterTypes);
   HttpRegisterUri::default_instance_ = new HttpRegisterUri();
@@ -1327,6 +1342,7 @@ HttpRequest::mutable_post_data() {
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int HttpResponse::kReqIdFieldNumber;
+const int HttpResponse::kHeaderContentFieldNumber;
 const int HttpResponse::kContentFieldNumber;
 const int HttpResponse::kResultcodeFieldNumber;
 const int HttpResponse::kCloseResponseFieldNumber;
@@ -1353,6 +1369,10 @@ void HttpResponse::SharedCtor() {
   ::google::protobuf::internal::GetEmptyString();
   _cached_size_ = 0;
   req_id_ = 0u;
+  header_content_.SetAssignDescriptorCallback(
+      protobuf_AssignDescriptorsOnce);
+  header_content_.SetEntryDescriptor(
+      &::KismetHttp::HttpResponse_HeaderContentEntry_descriptor_);
   content_.UnsafeSetDefault(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
   resultcode_ = 0u;
   close_response_ = false;
@@ -1413,16 +1433,18 @@ void HttpResponse::Clear() {
            ZR_HELPER_(last) - ZR_HELPER_(first) + sizeof(last));\
 } while (0)
 
-  if (_has_bits_[0 / 32] & 15u) {
-    ZR_(req_id_, close_response_);
+  if (_has_bits_[0 / 32] & 29u) {
+    ZR_(req_id_, resultcode_);
     if (has_content()) {
       content_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
     }
+    close_response_ = false;
   }
 
 #undef ZR_HELPER_
 #undef ZR_
 
+  header_content_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
   if (_internal_metadata_.have_unknown_fields()) {
     mutable_unknown_fields()->Clear();
@@ -1449,26 +1471,57 @@ bool HttpResponse::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(18)) goto parse_content;
+        if (input->ExpectTag(18)) goto parse_header_content;
         break;
       }
 
-      // optional bytes content = 2;
+      // map<string, string> header_content = 2;
       case 2: {
         if (tag == 18) {
+         parse_header_content:
+          DO_(input->IncrementRecursionDepth());
+         parse_loop_header_content:
+          HttpResponse_HeaderContentEntry::Parser< ::google::protobuf::internal::MapField<
+              ::std::string, ::std::string,
+              ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+              ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+              0 >,
+            ::google::protobuf::Map< ::std::string, ::std::string > > parser(&header_content_);
+          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
+              input, &parser));
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            parser.key().data(), parser.key().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "KismetHttp.HttpResponse.HeaderContentEntry.key");
+          ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+            parser.value().data(), parser.value().length(),
+            ::google::protobuf::internal::WireFormat::PARSE,
+            "KismetHttp.HttpResponse.HeaderContentEntry.value");
+        } else {
+          goto handle_unusual;
+        }
+        if (input->ExpectTag(18)) goto parse_loop_header_content;
+        input->UnsafeDecrementRecursionDepth();
+        if (input->ExpectTag(26)) goto parse_content;
+        break;
+      }
+
+      // optional bytes content = 3;
+      case 3: {
+        if (tag == 26) {
          parse_content:
           DO_(::google::protobuf::internal::WireFormatLite::ReadBytes(
                 input, this->mutable_content()));
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(24)) goto parse_resultcode;
+        if (input->ExpectTag(32)) goto parse_resultcode;
         break;
       }
 
-      // optional uint32 resultcode = 3;
-      case 3: {
-        if (tag == 24) {
+      // optional uint32 resultcode = 4;
+      case 4: {
+        if (tag == 32) {
          parse_resultcode:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
@@ -1477,13 +1530,13 @@ bool HttpResponse::MergePartialFromCodedStream(
         } else {
           goto handle_unusual;
         }
-        if (input->ExpectTag(32)) goto parse_close_response;
+        if (input->ExpectTag(40)) goto parse_close_response;
         break;
       }
 
-      // optional bool close_response = 4;
-      case 4: {
-        if (tag == 32) {
+      // optional bool close_response = 5;
+      case 5: {
+        if (tag == 40) {
          parse_close_response:
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
@@ -1526,20 +1579,73 @@ void HttpResponse::SerializeWithCachedSizes(
     ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->req_id(), output);
   }
 
-  // optional bytes content = 2;
+  // map<string, string> header_content = 2;
+  if (!this->header_content().empty()) {
+    typedef ::google::protobuf::Map< ::std::string, ::std::string >::const_pointer
+        ConstPtr;
+    typedef ConstPtr SortItem;
+    typedef ::google::protobuf::internal::CompareByDerefFirst<SortItem> Less;
+    struct Utf8Check {
+      static void Check(ConstPtr p) {
+        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+          p->first.data(), p->first.length(),
+          ::google::protobuf::internal::WireFormat::SERIALIZE,
+          "KismetHttp.HttpResponse.HeaderContentEntry.key");
+        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+          p->second.data(), p->second.length(),
+          ::google::protobuf::internal::WireFormat::SERIALIZE,
+          "KismetHttp.HttpResponse.HeaderContentEntry.value");
+      }
+    };
+
+    if (output->IsSerializationDeterminstic() &&
+        this->header_content().size() > 1) {
+      ::google::protobuf::scoped_array<SortItem> items(
+          new SortItem[this->header_content().size()]);
+      typedef ::google::protobuf::Map< ::std::string, ::std::string >::size_type size_type;
+      size_type n = 0;
+      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
+          it = this->header_content().begin();
+          it != this->header_content().end(); ++it, ++n) {
+        items[n] = SortItem(&*it);
+      }
+      ::std::sort(&items[0], &items[n], Less());
+      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
+      for (size_type i = 0; i < n; i++) {
+        entry.reset(header_content_.NewEntryWrapper(
+            items[i]->first, items[i]->second));
+        ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+            2, *entry, output);
+        Utf8Check::Check(items[i]);
+      }
+    } else {
+      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
+      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
+          it = this->header_content().begin();
+          it != this->header_content().end(); ++it) {
+        entry.reset(header_content_.NewEntryWrapper(
+            it->first, it->second));
+        ::google::protobuf::internal::WireFormatLite::WriteMessageMaybeToArray(
+            2, *entry, output);
+        Utf8Check::Check(&*it);
+      }
+    }
+  }
+
+  // optional bytes content = 3;
   if (has_content()) {
     ::google::protobuf::internal::WireFormatLite::WriteBytesMaybeAliased(
-      2, this->content(), output);
+      3, this->content(), output);
   }
 
-  // optional uint32 resultcode = 3;
+  // optional uint32 resultcode = 4;
   if (has_resultcode()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt32(3, this->resultcode(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(4, this->resultcode(), output);
   }
 
-  // optional bool close_response = 4;
+  // optional bool close_response = 5;
   if (has_close_response()) {
-    ::google::protobuf::internal::WireFormatLite::WriteBool(4, this->close_response(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteBool(5, this->close_response(), output);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -1557,21 +1663,78 @@ void HttpResponse::SerializeWithCachedSizes(
     target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->req_id(), target);
   }
 
-  // optional bytes content = 2;
+  // map<string, string> header_content = 2;
+  if (!this->header_content().empty()) {
+    typedef ::google::protobuf::Map< ::std::string, ::std::string >::const_pointer
+        ConstPtr;
+    typedef ConstPtr SortItem;
+    typedef ::google::protobuf::internal::CompareByDerefFirst<SortItem> Less;
+    struct Utf8Check {
+      static void Check(ConstPtr p) {
+        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+          p->first.data(), p->first.length(),
+          ::google::protobuf::internal::WireFormat::SERIALIZE,
+          "KismetHttp.HttpResponse.HeaderContentEntry.key");
+        ::google::protobuf::internal::WireFormat::VerifyUTF8StringNamedField(
+          p->second.data(), p->second.length(),
+          ::google::protobuf::internal::WireFormat::SERIALIZE,
+          "KismetHttp.HttpResponse.HeaderContentEntry.value");
+      }
+    };
+
+    if (deterministic &&
+        this->header_content().size() > 1) {
+      ::google::protobuf::scoped_array<SortItem> items(
+          new SortItem[this->header_content().size()]);
+      typedef ::google::protobuf::Map< ::std::string, ::std::string >::size_type size_type;
+      size_type n = 0;
+      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
+          it = this->header_content().begin();
+          it != this->header_content().end(); ++it, ++n) {
+        items[n] = SortItem(&*it);
+      }
+      ::std::sort(&items[0], &items[n], Less());
+      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
+      for (size_type i = 0; i < n; i++) {
+        entry.reset(header_content_.NewEntryWrapper(
+            items[i]->first, items[i]->second));
+        target = ::google::protobuf::internal::WireFormatLite::
+                   InternalWriteMessageNoVirtualToArray(
+                       2, *entry, deterministic, target);
+;
+        Utf8Check::Check(items[i]);
+      }
+    } else {
+      ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
+      for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
+          it = this->header_content().begin();
+          it != this->header_content().end(); ++it) {
+        entry.reset(header_content_.NewEntryWrapper(
+            it->first, it->second));
+        target = ::google::protobuf::internal::WireFormatLite::
+                   InternalWriteMessageNoVirtualToArray(
+                       2, *entry, deterministic, target);
+;
+        Utf8Check::Check(&*it);
+      }
+    }
+  }
+
+  // optional bytes content = 3;
   if (has_content()) {
     target =
       ::google::protobuf::internal::WireFormatLite::WriteBytesToArray(
-        2, this->content(), target);
+        3, this->content(), target);
   }
 
-  // optional uint32 resultcode = 3;
+  // optional uint32 resultcode = 4;
   if (has_resultcode()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(3, this->resultcode(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(4, this->resultcode(), target);
   }
 
-  // optional bool close_response = 4;
+  // optional bool close_response = 5;
   if (has_close_response()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(4, this->close_response(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(5, this->close_response(), target);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -1592,27 +1755,40 @@ int HttpResponse::ByteSize() const {
       ::google::protobuf::internal::WireFormatLite::UInt32Size(
         this->req_id());
   }
-  if (_has_bits_[1 / 32] & 14u) {
-    // optional bytes content = 2;
+  if (_has_bits_[2 / 32] & 28u) {
+    // optional bytes content = 3;
     if (has_content()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::BytesSize(
           this->content());
     }
 
-    // optional uint32 resultcode = 3;
+    // optional uint32 resultcode = 4;
     if (has_resultcode()) {
       total_size += 1 +
         ::google::protobuf::internal::WireFormatLite::UInt32Size(
           this->resultcode());
     }
 
-    // optional bool close_response = 4;
+    // optional bool close_response = 5;
     if (has_close_response()) {
       total_size += 1 + 1;
     }
 
   }
+  // map<string, string> header_content = 2;
+  total_size += 1 * this->header_content_size();
+  {
+    ::google::protobuf::scoped_ptr<HttpResponse_HeaderContentEntry> entry;
+    for (::google::protobuf::Map< ::std::string, ::std::string >::const_iterator
+        it = this->header_content().begin();
+        it != this->header_content().end(); ++it) {
+      entry.reset(header_content_.NewEntryWrapper(it->first, it->second));
+      total_size += ::google::protobuf::internal::WireFormatLite::
+          MessageSizeNoVirtual(*entry);
+    }
+  }
+
   if (_internal_metadata_.have_unknown_fields()) {
     total_size +=
       ::google::protobuf::internal::WireFormat::ComputeUnknownFieldsSize(
@@ -1646,6 +1822,7 @@ void HttpResponse::MergeFrom(const HttpResponse& from) {
   if (GOOGLE_PREDICT_FALSE(&from == this)) {
     ::google::protobuf::internal::MergeFromFail(__FILE__, __LINE__);
   }
+  header_content_.MergeFrom(from.header_content_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_req_id()) {
       set_req_id(from.req_id());
@@ -1692,6 +1869,7 @@ void HttpResponse::Swap(HttpResponse* other) {
 }
 void HttpResponse::InternalSwap(HttpResponse* other) {
   std::swap(req_id_, other->req_id_);
+  header_content_.Swap(&other->header_content_);
   content_.Swap(&other->content_);
   std::swap(resultcode_, other->resultcode_);
   std::swap(close_response_, other->close_response_);
@@ -1735,15 +1913,33 @@ void HttpResponse::clear_req_id() {
   // @@protoc_insertion_point(field_set:KismetHttp.HttpResponse.req_id)
 }
 
-// optional bytes content = 2;
+// map<string, string> header_content = 2;
+int HttpResponse::header_content_size() const {
+  return header_content_.size();
+}
+void HttpResponse::clear_header_content() {
+  header_content_.Clear();
+}
+ const ::google::protobuf::Map< ::std::string, ::std::string >&
+HttpResponse::header_content() const {
+  // @@protoc_insertion_point(field_map:KismetHttp.HttpResponse.header_content)
+  return header_content_.GetMap();
+}
+ ::google::protobuf::Map< ::std::string, ::std::string >*
+HttpResponse::mutable_header_content() {
+  // @@protoc_insertion_point(field_mutable_map:KismetHttp.HttpResponse.header_content)
+  return header_content_.MutableMap();
+}
+
+// optional bytes content = 3;
 bool HttpResponse::has_content() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return (_has_bits_[0] & 0x00000004u) != 0;
 }
 void HttpResponse::set_has_content() {
-  _has_bits_[0] |= 0x00000002u;
+  _has_bits_[0] |= 0x00000004u;
 }
 void HttpResponse::clear_has_content() {
-  _has_bits_[0] &= ~0x00000002u;
+  _has_bits_[0] &= ~0x00000004u;
 }
 void HttpResponse::clear_content() {
   content_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
@@ -1789,15 +1985,15 @@ void HttpResponse::clear_content() {
   // @@protoc_insertion_point(field_set_allocated:KismetHttp.HttpResponse.content)
 }
 
-// optional uint32 resultcode = 3;
+// optional uint32 resultcode = 4;
 bool HttpResponse::has_resultcode() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 void HttpResponse::set_has_resultcode() {
-  _has_bits_[0] |= 0x00000004u;
+  _has_bits_[0] |= 0x00000008u;
 }
 void HttpResponse::clear_has_resultcode() {
-  _has_bits_[0] &= ~0x00000004u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 void HttpResponse::clear_resultcode() {
   resultcode_ = 0u;
@@ -1813,15 +2009,15 @@ void HttpResponse::clear_resultcode() {
   // @@protoc_insertion_point(field_set:KismetHttp.HttpResponse.resultcode)
 }
 
-// optional bool close_response = 4;
+// optional bool close_response = 5;
 bool HttpResponse::has_close_response() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 void HttpResponse::set_has_close_response() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000010u;
 }
 void HttpResponse::clear_has_close_response() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 void HttpResponse::clear_close_response() {
   close_response_ = false;

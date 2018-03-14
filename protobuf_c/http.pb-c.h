@@ -19,6 +19,7 @@ typedef struct _KismetHttp__HttpRegisterUri KismetHttp__HttpRegisterUri;
 typedef struct _KismetHttp__HttpRequest KismetHttp__HttpRequest;
 typedef struct _KismetHttp__HttpRequest__PostDataEntry KismetHttp__HttpRequest__PostDataEntry;
 typedef struct _KismetHttp__HttpResponse KismetHttp__HttpResponse;
+typedef struct _KismetHttp__HttpResponse__HeaderContentEntry KismetHttp__HttpResponse__HeaderContentEntry;
 
 
 /* --- enums --- */
@@ -91,6 +92,17 @@ struct  _KismetHttp__HttpRequest
     , 0, NULL, NULL, 0,NULL }
 
 
+struct  _KismetHttp__HttpResponse__HeaderContentEntry
+{
+  ProtobufCMessage base;
+  char *key;
+  char *value;
+};
+#define KISMET_HTTP__HTTP_RESPONSE__HEADER_CONTENT_ENTRY__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&kismet_http__http_response__header_content_entry__descriptor) \
+    , NULL, NULL }
+
+
 /*
  * Respond to HTTP data (Helper->Kismet)
  */
@@ -101,6 +113,11 @@ struct  _KismetHttp__HttpResponse
    * Unique ID of request we're responding to
    */
   uint32_t req_id;
+  /*
+   * Headers being sent, if any
+   */
+  size_t n_header_content;
+  KismetHttp__HttpResponse__HeaderContentEntry **header_content;
   /*
    * Content being sent, if any
    */
@@ -119,7 +136,7 @@ struct  _KismetHttp__HttpResponse
 };
 #define KISMET_HTTP__HTTP_RESPONSE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&kismet_http__http_response__descriptor) \
-    , 0, 0,{0,NULL}, 0,0, 0,0 }
+    , 0, 0,NULL, 0,{0,NULL}, 0,0, 0,0 }
 
 
 /* KismetHttp__HttpRegisterUri methods */
@@ -163,6 +180,9 @@ KismetHttp__HttpRequest *
 void   kismet_http__http_request__free_unpacked
                      (KismetHttp__HttpRequest *message,
                       ProtobufCAllocator *allocator);
+/* KismetHttp__HttpResponse__HeaderContentEntry methods */
+void   kismet_http__http_response__header_content_entry__init
+                     (KismetHttp__HttpResponse__HeaderContentEntry         *message);
 /* KismetHttp__HttpResponse methods */
 void   kismet_http__http_response__init
                      (KismetHttp__HttpResponse         *message);
@@ -193,6 +213,9 @@ typedef void (*KismetHttp__HttpRequest__PostDataEntry_Closure)
 typedef void (*KismetHttp__HttpRequest_Closure)
                  (const KismetHttp__HttpRequest *message,
                   void *closure_data);
+typedef void (*KismetHttp__HttpResponse__HeaderContentEntry_Closure)
+                 (const KismetHttp__HttpResponse__HeaderContentEntry *message,
+                  void *closure_data);
 typedef void (*KismetHttp__HttpResponse_Closure)
                  (const KismetHttp__HttpResponse *message,
                   void *closure_data);
@@ -206,6 +229,7 @@ extern const ProtobufCMessageDescriptor kismet_http__http_register_uri__descript
 extern const ProtobufCMessageDescriptor kismet_http__http_request__descriptor;
 extern const ProtobufCMessageDescriptor kismet_http__http_request__post_data_entry__descriptor;
 extern const ProtobufCMessageDescriptor kismet_http__http_response__descriptor;
+extern const ProtobufCMessageDescriptor kismet_http__http_response__header_content_entry__descriptor;
 
 PROTOBUF_C__END_DECLS
 

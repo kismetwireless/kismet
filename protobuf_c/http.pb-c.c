@@ -99,6 +99,12 @@ void   kismet_http__http_request__free_unpacked
   assert(message->base.descriptor == &kismet_http__http_request__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   kismet_http__http_response__header_content_entry__init
+                     (KismetHttp__HttpResponse__HeaderContentEntry         *message)
+{
+  static KismetHttp__HttpResponse__HeaderContentEntry init_value = KISMET_HTTP__HTTP_RESPONSE__HEADER_CONTENT_ENTRY__INIT;
+  *message = init_value;
+}
 void   kismet_http__http_response__init
                      (KismetHttp__HttpResponse         *message)
 {
@@ -321,7 +327,58 @@ const ProtobufCMessageDescriptor kismet_http__http_request__descriptor =
   (ProtobufCMessageInit) kismet_http__http_request__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor kismet_http__http_response__field_descriptors[4] =
+static const ProtobufCFieldDescriptor kismet_http__http_response__header_content_entry__field_descriptors[2] =
+{
+  {
+    "key",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetHttp__HttpResponse__HeaderContentEntry, key),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "value",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(KismetHttp__HttpResponse__HeaderContentEntry, value),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned kismet_http__http_response__header_content_entry__field_indices_by_name[] = {
+  0,   /* field[0] = key */
+  1,   /* field[1] = value */
+};
+static const ProtobufCIntRange kismet_http__http_response__header_content_entry__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor kismet_http__http_response__header_content_entry__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "KismetHttp.HttpResponse.HeaderContentEntry",
+  "HeaderContentEntry",
+  "KismetHttp__HttpResponse__HeaderContentEntry",
+  "KismetHttp",
+  sizeof(KismetHttp__HttpResponse__HeaderContentEntry),
+  2,
+  kismet_http__http_response__header_content_entry__field_descriptors,
+  kismet_http__http_response__header_content_entry__field_indices_by_name,
+  1,  kismet_http__http_response__header_content_entry__number_ranges,
+  (ProtobufCMessageInit) kismet_http__http_response__header_content_entry__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor kismet_http__http_response__field_descriptors[5] =
 {
   {
     "req_id",
@@ -336,8 +393,20 @@ static const ProtobufCFieldDescriptor kismet_http__http_response__field_descript
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
-    "content",
+    "header_content",
     2,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(KismetHttp__HttpResponse, n_header_content),
+    offsetof(KismetHttp__HttpResponse, header_content),
+    &kismet_http__http_response__header_content_entry__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "content",
+    3,
     PROTOBUF_C_LABEL_OPTIONAL,
     PROTOBUF_C_TYPE_BYTES,
     offsetof(KismetHttp__HttpResponse, has_content),
@@ -349,7 +418,7 @@ static const ProtobufCFieldDescriptor kismet_http__http_response__field_descript
   },
   {
     "resultcode",
-    3,
+    4,
     PROTOBUF_C_LABEL_OPTIONAL,
     PROTOBUF_C_TYPE_UINT32,
     offsetof(KismetHttp__HttpResponse, has_resultcode),
@@ -361,7 +430,7 @@ static const ProtobufCFieldDescriptor kismet_http__http_response__field_descript
   },
   {
     "close_response",
-    4,
+    5,
     PROTOBUF_C_LABEL_OPTIONAL,
     PROTOBUF_C_TYPE_BOOL,
     offsetof(KismetHttp__HttpResponse, has_close_response),
@@ -373,15 +442,16 @@ static const ProtobufCFieldDescriptor kismet_http__http_response__field_descript
   },
 };
 static const unsigned kismet_http__http_response__field_indices_by_name[] = {
-  3,   /* field[3] = close_response */
-  1,   /* field[1] = content */
+  4,   /* field[4] = close_response */
+  2,   /* field[2] = content */
+  1,   /* field[1] = header_content */
   0,   /* field[0] = req_id */
-  2,   /* field[2] = resultcode */
+  3,   /* field[3] = resultcode */
 };
 static const ProtobufCIntRange kismet_http__http_response__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 4 }
+  { 0, 5 }
 };
 const ProtobufCMessageDescriptor kismet_http__http_response__descriptor =
 {
@@ -391,7 +461,7 @@ const ProtobufCMessageDescriptor kismet_http__http_response__descriptor =
   "KismetHttp__HttpResponse",
   "KismetHttp",
   sizeof(KismetHttp__HttpResponse),
-  4,
+  5,
   kismet_http__http_response__field_descriptors,
   kismet_http__http_response__field_indices_by_name,
   1,  kismet_http__http_response__number_ranges,

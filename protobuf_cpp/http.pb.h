@@ -373,6 +373,7 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
 
   // nested types ----------------------------------------------------
 
+
   // accessors -------------------------------------------------------
 
   // required uint32 req_id = 1;
@@ -382,10 +383,19 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
   ::google::protobuf::uint32 req_id() const;
   void set_req_id(::google::protobuf::uint32 value);
 
-  // optional bytes content = 2;
+  // map<string, string> header_content = 2;
+  int header_content_size() const;
+  void clear_header_content();
+  static const int kHeaderContentFieldNumber = 2;
+  const ::google::protobuf::Map< ::std::string, ::std::string >&
+      header_content() const;
+  ::google::protobuf::Map< ::std::string, ::std::string >*
+      mutable_header_content();
+
+  // optional bytes content = 3;
   bool has_content() const;
   void clear_content();
-  static const int kContentFieldNumber = 2;
+  static const int kContentFieldNumber = 3;
   const ::std::string& content() const;
   void set_content(const ::std::string& value);
   void set_content(const char* value);
@@ -394,17 +404,17 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
   ::std::string* release_content();
   void set_allocated_content(::std::string* content);
 
-  // optional uint32 resultcode = 3;
+  // optional uint32 resultcode = 4;
   bool has_resultcode() const;
   void clear_resultcode();
-  static const int kResultcodeFieldNumber = 3;
+  static const int kResultcodeFieldNumber = 4;
   ::google::protobuf::uint32 resultcode() const;
   void set_resultcode(::google::protobuf::uint32 value);
 
-  // optional bool close_response = 4;
+  // optional bool close_response = 5;
   bool has_close_response() const;
   void clear_close_response();
-  static const int kCloseResponseFieldNumber = 4;
+  static const int kCloseResponseFieldNumber = 5;
   bool close_response() const;
   void set_close_response(bool value);
 
@@ -422,9 +432,20 @@ class HttpResponse : public ::google::protobuf::Message /* @@protoc_insertion_po
   ::google::protobuf::internal::InternalMetadataWithArena _internal_metadata_;
   ::google::protobuf::uint32 _has_bits_[1];
   mutable int _cached_size_;
-  ::google::protobuf::internal::ArenaStringPtr content_;
+  typedef ::google::protobuf::internal::MapEntryLite<
+      ::std::string, ::std::string,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      0 >
+      HttpResponse_HeaderContentEntry;
+  ::google::protobuf::internal::MapField<
+      ::std::string, ::std::string,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      ::google::protobuf::internal::WireFormatLite::TYPE_STRING,
+      0 > header_content_;
   ::google::protobuf::uint32 req_id_;
   ::google::protobuf::uint32 resultcode_;
+  ::google::protobuf::internal::ArenaStringPtr content_;
   bool close_response_;
   friend void  protobuf_AddDesc_http_2eproto();
   friend void protobuf_AssignDesc_http_2eproto();
@@ -731,15 +752,33 @@ inline void HttpResponse::set_req_id(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:KismetHttp.HttpResponse.req_id)
 }
 
-// optional bytes content = 2;
+// map<string, string> header_content = 2;
+inline int HttpResponse::header_content_size() const {
+  return header_content_.size();
+}
+inline void HttpResponse::clear_header_content() {
+  header_content_.Clear();
+}
+inline const ::google::protobuf::Map< ::std::string, ::std::string >&
+HttpResponse::header_content() const {
+  // @@protoc_insertion_point(field_map:KismetHttp.HttpResponse.header_content)
+  return header_content_.GetMap();
+}
+inline ::google::protobuf::Map< ::std::string, ::std::string >*
+HttpResponse::mutable_header_content() {
+  // @@protoc_insertion_point(field_mutable_map:KismetHttp.HttpResponse.header_content)
+  return header_content_.MutableMap();
+}
+
+// optional bytes content = 3;
 inline bool HttpResponse::has_content() const {
-  return (_has_bits_[0] & 0x00000002u) != 0;
+  return (_has_bits_[0] & 0x00000004u) != 0;
 }
 inline void HttpResponse::set_has_content() {
-  _has_bits_[0] |= 0x00000002u;
+  _has_bits_[0] |= 0x00000004u;
 }
 inline void HttpResponse::clear_has_content() {
-  _has_bits_[0] &= ~0x00000002u;
+  _has_bits_[0] &= ~0x00000004u;
 }
 inline void HttpResponse::clear_content() {
   content_.ClearToEmptyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
@@ -785,15 +824,15 @@ inline void HttpResponse::set_allocated_content(::std::string* content) {
   // @@protoc_insertion_point(field_set_allocated:KismetHttp.HttpResponse.content)
 }
 
-// optional uint32 resultcode = 3;
+// optional uint32 resultcode = 4;
 inline bool HttpResponse::has_resultcode() const {
-  return (_has_bits_[0] & 0x00000004u) != 0;
+  return (_has_bits_[0] & 0x00000008u) != 0;
 }
 inline void HttpResponse::set_has_resultcode() {
-  _has_bits_[0] |= 0x00000004u;
+  _has_bits_[0] |= 0x00000008u;
 }
 inline void HttpResponse::clear_has_resultcode() {
-  _has_bits_[0] &= ~0x00000004u;
+  _has_bits_[0] &= ~0x00000008u;
 }
 inline void HttpResponse::clear_resultcode() {
   resultcode_ = 0u;
@@ -809,15 +848,15 @@ inline void HttpResponse::set_resultcode(::google::protobuf::uint32 value) {
   // @@protoc_insertion_point(field_set:KismetHttp.HttpResponse.resultcode)
 }
 
-// optional bool close_response = 4;
+// optional bool close_response = 5;
 inline bool HttpResponse::has_close_response() const {
-  return (_has_bits_[0] & 0x00000008u) != 0;
+  return (_has_bits_[0] & 0x00000010u) != 0;
 }
 inline void HttpResponse::set_has_close_response() {
-  _has_bits_[0] |= 0x00000008u;
+  _has_bits_[0] |= 0x00000010u;
 }
 inline void HttpResponse::clear_has_close_response() {
-  _has_bits_[0] &= ~0x00000008u;
+  _has_bits_[0] &= ~0x00000010u;
 }
 inline void HttpResponse::clear_close_response() {
   close_response_ = false;
