@@ -360,6 +360,21 @@ void KisExternalInterface::send_shutdown(std::string reason) {
 
     send_packet(c);
 }
-    
 
+bool KisExternalInterface::Httpd_VerifyPath(const char *path, const char *method) {
+
+    return false;
+}
+
+int KisExternalInterface::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+        Kis_Net_Httpd_Connection *connection,
+        const char *url, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    return 0;
+}
+
+int KisExternalInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *con) {
+    return 0;
+}
 

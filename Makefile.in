@@ -88,6 +88,7 @@ DOT11_PARSERS = \
 
 PROTOBUF_CPP = \
 	protobuf_cpp/kismet.pb.cc.o \
+	protobuf_cpp/http.pb.cc.o \
 	protobuf_cpp/datasource.pb.cc.o 
 
 PROFOBUF_C = \
