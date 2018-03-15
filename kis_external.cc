@@ -26,13 +26,15 @@
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 
-KisExternalInterface::KisExternalInterface(GlobalRegistry *in_globalreg) {
+KisExternalInterface::KisExternalInterface(GlobalRegistry *in_globalreg) :
+    Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
     timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     seqno = 0;
+    http_session_id = 0;
 
     last_pong = 0;
 
@@ -44,6 +46,15 @@ KisExternalInterface::~KisExternalInterface() {
     local_eol_locker el(&ext_mutex);
 
     timetracker->RemoveTimer(ping_timer_id);
+
+    // Kill any active sessions
+    for (auto s : http_proxy_session_map) {
+        // Fail them
+        s.second->connection->httpcode = 501;
+        // Unlock them and let the cleanup in the thread handle it and close down 
+        // the http server session
+        s.second->locker->unlock();
+    }
 
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
@@ -72,6 +83,15 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     local_locker lock(&ext_mutex);
 
     timetracker->RemoveTimer(ping_timer_id);
+
+    // Kill any active sessions
+    for (auto s : http_proxy_session_map) {
+        // Fail them
+        s.second->connection->httpcode = 501;
+        // Unlock them and let the cleanup in the thread handle it and close down 
+        // the http server session
+        s.second->locker->unlock();
+    }
 
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
@@ -313,7 +333,51 @@ void KisExternalInterface::handle_packet_http_response(uint32_t in_seqno, std::s
         return;
     }
 
-    // TODO handle response
+    auto si = http_proxy_session_map.find(resp.req_id());
+
+    if (si == http_proxy_session_map.end()) {
+        _MSG("Kismet external interface got a HTTPRESPONSE for an unknown session", MSGFLAG_ERROR);
+        trigger_error("Invalid HTTPRESPONSE session");
+        return;
+    }
+
+    auto session = si->second;
+
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) session->connection->custom_extension;
+
+    // First off, process any headers we're trying to add, they need to come 
+    // before data
+    for (int hi = 0; hi < resp.header_content_size() && resp.header_content_size() > 0; hi++) {
+        KismetExternalHttp::SubHttpHeader hh = resp.header_content(hi);
+
+        MHD_add_response_header(session->connection->response, hh.header().c_str(), 
+                hh.content().c_str());
+    }
+
+    // Set any connection state
+    if (resp.has_resultcode()) {
+        session->connection->httpcode = resp.has_resultcode();
+    }
+
+    // Copy any response data
+    if (resp.has_content() && resp.content().size() > 0) {
+        if (!saux->ringbuf_handler->PutWriteBufferData(resp.content())) {
+            _MSG("Kismet external interface could not put response data into the HTTP "
+                    "buffer for a HTTPRESPONSE session", MSGFLAG_ERROR);
+            // We have to kill this session before we shut down everything else
+            session->connection->httpcode = 501;
+            session->locker->unlock();
+            trigger_error("Unable to write to HTTP buffer in HTTPRESPONSE");
+            return;
+        }
+    }
+
+    // Are we finishing the connection?
+    if (resp.has_close_response() && resp.close_response()) {
+        // Unlock this session
+        session->locker->unlock();
+    }
 }
 
 void KisExternalInterface::handle_packet_message(uint32_t in_seqno, std::string in_content) {
@@ -359,6 +423,29 @@ void KisExternalInterface::handle_packet_shutdown(uint32_t in_seqno, std::string
     trigger_error(std::string("Remote connection requesting shutdown: ") + s.reason());
 }
 
+void KisExternalInterface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
+        std::string in_method, std::map<std::string, std::string> in_postdata) {
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+
+    c->set_seqno(seqno++);
+    c->set_command("HTTPREQUEST");
+
+    KismetExternalHttp::HttpRequest r;
+    r.set_req_id(in_http_sequence);
+    r.set_uri(in_uri);
+    r.set_method(in_method);
+
+    for (auto pi : in_postdata) {
+        KismetExternalHttp::SubHttpPostData *pd = r.add_post_data();
+        pd->set_field(pi.first);
+        pd->set_field(pi.second);
+    }
+
+    c->set_content(r.SerializeAsString());
+
+    send_packet(c);
+}
+
 void KisExternalInterface::send_ping() {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
@@ -400,19 +487,123 @@ void KisExternalInterface::send_shutdown(std::string reason) {
 }
 
 bool KisExternalInterface::Httpd_VerifyPath(const char *path, const char *method) {
+    local_locker lock(&ext_mutex);
+
+    // Find all the registered endpoints for this method
+    auto m = http_proxy_uri_map.find(std::string(method));
+
+    if (m == http_proxy_uri_map.end())
+        return false;
+
+    // If an endpoint matches, we're good
+    for (auto e : m->second) {
+        if (e->uri == std::string(path)) {
+            return true;
+        }
+    }
 
     return false;
 }
 
+// When this function gets called, we're inside a thread for the HTTP server;
+// additionally, the HTTP server has it's own thread servicing the chainbuffer
+// on the backend of this connection;
+//
+// Because we are, ourselves, async waiting for the responses from the proxied
+// tool, we need to set a lock and sit on it until the proxy has completed.
+// We don't need to spawn our own thread - we're already our own thread independent
+// of the IO processing system.
 int KisExternalInterface::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    return 0;
+    // Use a demand locker instead of pure scope locker because we need to let it go
+    // before we go into blocking wait
+    local_demand_locker dlock(&ext_mutex);
+    dlock.lock();
+
+    auto m = http_proxy_uri_map.find(std::string(method));
+
+    if (m == http_proxy_uri_map.end()) {
+        connection->httpcode = 501;
+        return MHD_YES;
+    }
+
+    for (auto e : m->second) {
+        if (e->uri == std::string(url)) {
+            // Make sure we're logged in if we need to be
+            if (e->auth_req && !httpd->HasValidSession(connection)) {
+                connection->httpcode = 503;
+                return MHD_YES;
+            }
+
+            // Make a session
+            std::shared_ptr<KisExternalHttpSession> s(new KisExternalHttpSession());
+            s->connection = connection;
+            // Lock the waitlock
+            s->locker.reset(new conditional_locker<int>());
+            s->locker->lock();
+
+            // Log the session number
+            uint32_t sess_id = http_session_id++;
+            http_proxy_session_map[sess_id] = s;
+
+            // Send the proxy response
+            send_http_request(sess_id, connection->url, std::string(method),
+                    std::map<std::string, std::string>());
+
+            // Unlock the demand locker
+            dlock.unlock();
+
+            // Block until the external tool sends a connection end; all of the writing
+            // to the stream will be handled inside the handle_http_response handler
+            // and it will unlock us when we've gotten to the end of the stream.
+            s->locker->block_until();
+
+            // Re-acquire the lock
+            dlock.lock();
+
+            // Remove the session from our map
+            auto mi = http_proxy_session_map.find(sess_id);
+            if (mi != http_proxy_session_map.end())
+                http_proxy_session_map.erase(mi);
+
+            // The session code should have been set already here so we don't have anything
+            // else to do except tell the webserver we're done and let our session
+            // de-scope as we exit...
+            return MHD_YES;
+        }
+    }
+
+    connection->httpcode = 501;
+    return MHD_YES;
 }
 
-int KisExternalInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *con) {
+int KisExternalInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *connection) {
+    auto m = http_proxy_uri_map.find(std::string("POST"));
+
+    if (m == http_proxy_uri_map.end()) {
+        connection->httpcode = 501;
+        return MHD_YES;
+    }
+
+    for (auto e : m->second) {
+        if (e->uri == std::string(connection->url)) {
+            // Make sure we're logged in if we need to be
+            if (e->auth_req && !httpd->HasValidSession(connection)) {
+                connection->httpcode = 503;
+                return MHD_YES;
+            }
+
+            // TODO process POST
+
+        }
+    }
+
+    connection->httpcode = 501;
+    return MHD_YES;
+
     return 0;
 }
 
