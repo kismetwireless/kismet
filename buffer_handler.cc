@@ -198,6 +198,19 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
 
     return ret;
 }
+
+bool BufferHandlerGeneric::PutReadBufferData(std::string in_data) {
+    size_t r =
+        PutReadBufferData((void *) in_data.data(), in_data.length(), true);
+    return (r == in_data.length());
+}
+
+bool BufferHandlerGeneric::PutWriteBufferData(std::string in_data) {
+    size_t r =
+        PutWriteBufferData((void *) in_data.data(), in_data.length(), true);
+    return (r == in_data.length());
+}
+
     
 size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
         bool in_atomic) {

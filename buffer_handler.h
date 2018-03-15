@@ -219,6 +219,11 @@ public:
     virtual size_t PutReadBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
     virtual size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
 
+    // Place data, as a string, into the buffer as an atomic op; returns success 
+    // or failure on placing the entire record.
+    virtual bool PutReadBufferData(std::string in_data);
+    virtual bool PutWriteBufferData(std::string in_data);
+
     // Reserve space in the buffers; the returned pointer is suitable for direct
     // writing.  Whenever possible, this will be a zero-copy operation, however on
     // some buffer structures this may require copying of the data content to the
