@@ -290,7 +290,11 @@ bool KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::Command> 
 void KisExternalInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
-    if (c->command() == "MESSAGE") {
+    if (c->command() == "HTTPREGISTERURI") {
+        handle_packet_http_register(c->seqno(), c->content());
+    } else if (c->command() == "HTTPRESPONSE") {
+        handle_packet_http_response(c->seqno(), c->content());
+    } else if (c->command() == "MESSAGE") {
         handle_packet_message(c->seqno(), c->content());
     } else if (c->command() == "PING") {
         handle_packet_ping(c->seqno(), c->content());
