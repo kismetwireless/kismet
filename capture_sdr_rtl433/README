@@ -37,7 +37,7 @@ Kismet RTL433 Support
 
     The primary driver is implemented in the kismet_cap_sdr_rtl433
     tool, which is, by default, installed in:
-        /usr/local/bin/kismet_capture_tools/kismet_cap_sdr_rtl433
+        /usr/local/bin/kismet_cap_sdr_rtl433
 
     This tool connects to either a local RTL-SDR device, by launching
     the rtl_433 tool, or can monitor remote devices via a MQTT channel.
