@@ -2266,7 +2266,14 @@ void KisDatasource::launch_ipc() {
 
     // Get allowed paths for binaries
     std::vector<std::string> bin_paths = 
-        globalreg->kismet_config->FetchOptVec("capture_binary_path");
+        globalreg->kismet_config->FetchOptVec("helper_binary_path");
+
+    if (bin_paths.size() == 0) {
+        _MSG("No helper_binary_path found in kismet.conf, make sure your config "
+                "files are up to date; using the default binary path where Kismet "
+                "is installed.", MSGFLAG_ERROR);
+        bin_paths.push_back("%B");
+    }
 
     // Explode any expansion macros in the path and add it to the list we search
     for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {

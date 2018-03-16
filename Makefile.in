@@ -183,18 +183,18 @@ Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 
 binsuidinstall: $(DATASOURCE_BINS)
-	mkdir -p $(BIN)/kismet_capture_tools/
+	mkdir -p $(BIN)
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_WIFI)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_WIFI) $(BIN)/`basename $(CAPTURE_LINUX_WIFI)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_OSX_COREWLAN) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_OSX_COREWLAN)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_OSX_COREWLAN) $(BIN)/`basename $(CAPTURE_OSX_COREWLAN)`; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -206,30 +206,30 @@ commoninstall: $(INSTBINS)
 	# Install the alias script
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 kismet_server $(BIN)/kismet_server; 
 
-	mkdir -p $(BIN)/kismet_capture_tools/
+	mkdir -p $(BIN)
 
 	@if test "$(BUILD_CAPTURE_PCAPFILE)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_PCAPFILE) $(BIN)/kismet_capture_tools/$(CAPTURE_PCAPFILE); \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_PCAPFILE) $(BIN)/$(CAPTURE_PCAPFILE); \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_WIFI)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_WIFI) $(BIN)/`basename $(CAPTURE_LINUX_WIFI)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_LINUX_BLUETOOTH)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_LINUX_BLUETOOTH) $(BIN)/`basename $(CAPTURE_LINUX_BLUETOOTH)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_OSX_COREWLAN)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) $(CAPTURE_OSX_COREWLAN) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_OSX_COREWLAN)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) $(CAPTURE_OSX_COREWLAN) $(BIN)/`basename $(CAPTURE_OSX_COREWLAN)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_HACKRF_SWEEP)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HACKRF_SWEEP) $(BIN)/kismet_capture_tools/$(CAPTURE_HACKRF_SWEEP); \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HACKRF_SWEEP) $(BIN)/$(CAPTURE_HACKRF_SWEEP); \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTL433) $(BIN)/kismet_capture_tools/`basename $(CAPTURE_SDR_RTL433)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTL433) $(BIN)/`basename $(CAPTURE_SDR_RTL433)`; \
 	fi;
 
 	mkdir -p $(MAN)/man1

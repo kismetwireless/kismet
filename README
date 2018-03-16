@@ -78,7 +78,7 @@ https://www.kismetwireless.net
 
         You can list the cards Kismet detects on your system with:
 
-        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi --list
+        $ /usr/local/bin/kismet_cap_linux_wifi --list
 
         The results will resemble:
 
@@ -882,12 +882,11 @@ xx. Remote Packet Capture
     192.168.1.2, to capture from a Linux Wi-Fi device on another device you could
     use:
 
-        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi \
+        $ /usr/local/bin/kismet_cap_linux_wifi \
             --connect 192.168.1.2:3501 --source=wlan1
 
     Specifically, this uses the kismet_cap_linux_wifi tool, which is by default 
-    installed in `/usr/local/bin/kismet_capture_tools/`, to connect to the IP
-    192.168.1.2 port 3501.
+    installed in `/usr/local/bin/`, to connect to the IP 192.168.1.2 port 3501.
 
     The --source=... parameter is the same as you would use in a `source=' Kismet
     configuration file entry, or as `-c' to Kismet itself.
@@ -903,7 +902,7 @@ xx. Remote Packet Capture
 
         Then in another terminal:
 
-        $ /usr/local/bin/kismet_capture_tools/kismet_cap_linux_wifi \
+        $ /usr/local/bin/kismet_cap_linux_wifi \
             --connect localhost:3501 --source=wlan1
 
         The `ssh' command places SSH in the background (using `-f'), connects to 
