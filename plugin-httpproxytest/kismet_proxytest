@@ -1,0 +1,27 @@
+#!/usr/bin/env python2
+
+import argparse
+import time
+
+import KismetExternal
+
+parser = argparse.ArgumentParser(description='Kismet External Python Example')
+
+parser.add_argument('--in-fd', action="store", type=int, dest="infd")
+parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
+
+results = parser.parse_args()
+
+print "PYTHON PROXYTEST - KEI got infd {} outfd {}".format(results.infd, results.outfd)
+
+kei = KismetExternal.KismetExternalInterface(results.infd, results.outfd)
+
+kei.start()
+
+while True and kei.is_running():
+    print "PYTHON PROXYTEST - ping"
+    kei.send_ping()
+    time.sleep(1)
+
+kei.kill()
+
