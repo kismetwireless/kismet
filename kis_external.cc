@@ -123,8 +123,9 @@ void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))
         // See if we have enough to get a frame header
         size_t buffamt = ringbuf_handler->GetReadBufferUsed();
 
-        if (buffamt < sizeof(kismet_external_frame_t))
+        if (buffamt < sizeof(kismet_external_frame_t)) {
             return;
+        }
 
         // Peek at the header
         buffamt = ringbuf_handler->PeekReadBufferData((void **) &buf, buffamt);
@@ -164,7 +165,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))
         }
 
         // If we don't have the whole buffer available, bail on this read
-        if (frame_sz < buffamt) {
+        if (frame_sz > buffamt) {
             ringbuf_handler->PeekFreeReadBufferData(buf);
             return;
         }
@@ -282,7 +283,7 @@ bool KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::Command> 
     frame->data_checksum = kis_hton32(data_csum);
 
     // Commit our write buffer
-    ringbuf_handler->CommitReadBufferData((void *) frame, frame_sz);
+    ringbuf_handler->CommitWriteBufferData((void *) frame, frame_sz);
 
     return true;
 }
@@ -397,7 +398,7 @@ void KisExternalInterface::handle_packet_message(uint32_t in_seqno, std::string 
 }
 
 void KisExternalInterface::handle_packet_ping(uint32_t in_seqno, std::string in_content) {
-   send_pong(in_seqno);
+    send_pong(in_seqno);
 }
 
 void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, std::string in_content) {
