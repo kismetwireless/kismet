@@ -6,7 +6,6 @@
 # (c) 2018 Mike Kershaw / Dragorn
 # Licensed under GPL2 or above
 
-import asyncore
 import argparse
 import errno
 import fcntl
