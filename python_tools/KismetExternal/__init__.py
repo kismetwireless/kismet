@@ -44,10 +44,14 @@ class KismetExternalInterface:
 
         self.kill_ioloop = False
 
-        self.iothread = threading.Thread(target=self.__io_loop)
-        self.iothread.start()
+        self.last_pong = 0
 
-    def adler32(self, data):
+        self.handlers = {}
+
+        self.add_handler("PING", self.handle_ping)
+        self.add_handler("PONG", self.handle_pong)
+
+    def __adler32(self, data):
         if len(data) < 4:
             return 0
 
@@ -65,51 +69,11 @@ class KismetExternalInterface:
 
         return (s1 & 0xFFFF) + (s2 << 16)
 
-    def kill(self):
-        self.bufferlock.acquire()
-        try:
-            self.kill_ioloop = True
-        finally:
-            self.bufferlock.release()
-
-    def write_raw_packet(self, kedata):
-        signature = 0xDECAFBAD
-        serial = kedata.SerializeToString()
-        checksum = self.adler32(serial)
-        length = len(serial)
-
-        packet = struct.pack("!III", signature, checksum, length)
-
-        self.bufferlock.acquire()
-        try:
-            self.wbuffer += packet
-            self.wbuffer += serial
-        finally:
-            self.bufferlock.release()
-
-    def write_ext_packet(self, cmdtype, content):
-        cp = kismet_pb2.Command()
-
-        cp.command = cmdtype
-        cp.seqno = self.cmdnum
-        cp.content = content.SerializeToString()
-
-        self.write_raw_packet(cp)
-
-        self.cmdnum = self.cmdnum + 1
-
-    def send_ping(self):
-        ping = kismet_pb2.Ping()
-        self.write_ext_packet("PING", ping)
-
-    def send_pong(self, seqno):
-        pong = kismet_pb2.Pong()
-        pong.ping_seqno = seqno
-        self.write_ext_packet("PONG", pong)
-
     def __io_loop(self):
-        print "looping"
         while not self.kill_ioloop:
+            if not self.last_pong == 0 and time.time() - self.last_pong > 5:
+                raise RuntimeError("No PONG from remote system in 5 seconds")
+
             inputs = [ self.input ]
             outputs = []
 
@@ -137,21 +101,19 @@ class KismetExternalInterface:
                 self.bufferlock.acquire()
                 try:
                     self.rbuffer = self.rbuffer + os.read(self.infd, 4096)
-                    self.recv_packet()
+                    self.__recv_packet()
                 except OSError as e:
                     if not e.errno == errno.EAGAIN:
                         raise BufferError("Input buffer error: {}".format(e))
                 finally:
                     self.bufferlock.release()
 
-    def recv_packet(self):
+    def __recv_packet(self):
         if len(self.rbuffer) < 12:
             return
 
         (signature, checksum, sz) = struct.unpack("!III", self.rbuffer[:12])
 
-        print 0xdecafbad, signature, checksum, sz
-        
         if not signature == 0xDECAFBAD:
             raise BufferError("Invalid signature in packet header")
 
@@ -160,7 +122,7 @@ class KismetExternalInterface:
 
         content = self.rbuffer[12:(12 + sz)]
 
-        calc_csum = self.adler32(content)
+        calc_csum = self.__adler32(content)
 
         if not calc_csum == checksum:
             raise BufferError("Invalid checksum in packet header")
@@ -168,12 +130,84 @@ class KismetExternalInterface:
         cmd = kismet_pb2.Command()
         cmd.ParseFromString(content)
 
-        print "Got: ", cmd.command
+        if cmd.command in self.handlers:
+            self.handlers[cmd.command](cmd.seqno, cmd.content)
+        else:
+            print "Unhandled", cmd.command
 
         self.rbuffer = self.rbuffer[12 + sz:]
 
+    def start(self):
+        self.iothread = threading.Thread(target=self.__io_loop)
+        self.iothread.start()
+
+    def add_handler(self, command, handler):
+        self.handlers[command] = handler
+
+    def kill(self):
+        self.bufferlock.acquire()
+        try:
+            self.kill_ioloop = True
+        finally:
+            self.bufferlock.release()
+
+    def write_raw_packet(self, kedata):
+        signature = 0xDECAFBAD
+        serial = kedata.SerializeToString()
+        checksum = self.__adler32(serial)
+        length = len(serial)
+
+        packet = struct.pack("!III", signature, checksum, length)
+
+        self.bufferlock.acquire()
+        try:
+            self.wbuffer += packet
+            self.wbuffer += serial
+        finally:
+            self.bufferlock.release()
+
+    def write_ext_packet(self, cmdtype, content):
+        cp = kismet_pb2.Command()
+
+        cp.command = cmdtype
+        cp.seqno = self.cmdnum
+        cp.content = content.SerializeToString()
+
+        self.write_raw_packet(cp)
+
+        self.cmdnum = self.cmdnum + 1
+
+
+    def send_ping(self):
+        if self.last_pong == 0:
+            self.last_pong = time.time()
+
+        ping = kismet_pb2.Ping()
+        self.write_ext_packet("PING", ping)
+
+    def send_pong(self, seqno):
+        pong = kismet_pb2.Pong()
+        pong.ping_seqno = seqno
+        self.write_ext_packet("PONG", pong)
+
+    def handle_ping(self, seqno, packet):
+        ping = kismet_pb2.Ping()
+        ping.ParseFromString(packet)
+
+        print "PING: ", seqno
+
+    def handle_pong(self, seqno, packet):
+        pong = kismet_pb2.Pong()
+        pong.ParseFromString(packet)
+
+        self.last_pong = time.time()
+
+
 if __name__ == "__main__":
     kei = KismetExternalInterface(0, 1)
+
+    # Start the IO loop
+    kei.start()
 
     try:
         if sys.argv[1] == 'a':
