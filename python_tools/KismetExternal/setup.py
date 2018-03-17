@@ -8,7 +8,7 @@ setup(name='KismetExternal',
       author='Mike Kershaw / Dragorn',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
-      install_requires=['google.protobuf'],
+      install_requires=['protobuf'],
       packages=['KismetExternal'],
      )
 
