@@ -648,8 +648,10 @@ libnm_CFLAGS
 havepkgconfig
 PROTOCCFLAGS
 PROTOCLIBS
+PROTOCCBIN
 PROTOCFLAGS
 PROTOLIBS
+PROTOCBIN
 protocc
 libprotobufc_LIBS
 libprotobufc_CFLAGS
@@ -761,6 +763,8 @@ enable_pcre
 enable_prelude
 with_libprelude_prefix
 enable_pcap
+with_protocbin
+with_protoccbin
 with_netlink_tiny
 with_suidgroup
 enable_optimization
@@ -1437,6 +1441,8 @@ Optional Packages:
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
+  --with-protoc=PATH     Custom location of the protoc protobuf compiler
+  --with-protoc-c=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
   --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
 
@@ -9167,8 +9173,16 @@ fi
 if test x"$have_protobuf_pkg" != "xyes"; then
     as_fn_error $? "missing google libprotobuf" "$LINENO" 5
 fi
-# Extract the first word of "protoc", so it can be a program name with args.
-set dummy protoc; ac_word=$2
+PROTOCBIN=protoc
+
+# Check whether --with-protocbin was given.
+if test "${with_protocbin+set}" = set; then :
+  withval=$with_protocbin;  PROTOCBIN=$withval
+
+fi
+
+# Extract the first word of "$PROTOCBIN", so it can be a program name with args.
+set dummy $PROTOCBIN; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_prog_protoc+:} false; then :
@@ -9306,8 +9320,16 @@ fi
 if test x"$have_protobufc_pkg" != "xyes"; then
     as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
 fi
-# Extract the first word of "protoc-c", so it can be a program name with args.
-set dummy protoc-c; ac_word=$2
+PROTOCCBIN=protoc-c
+
+# Check whether --with-protoccbin was given.
+if test "${with_protoccbin+set}" = set; then :
+  withval=$with_protoccbin;  PROTOCCBIN=$withval
+
+fi
+
+# Extract the first word of "$PROTOCCBIN", so it can be a program name with args.
+set dummy $PROTOCCBIN; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_prog_protocc+:} false; then :

@@ -433,15 +433,15 @@ all-plugins-clean: Makefile
 protobuf_cpp/%.pb.cc.d: %.pb.cc %.pb.h
 protobuf_cpp/%.pb.cc.o: %.pb.cc %.pb.h
 protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
-	protoc --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
-	protoc --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
 %.pb-c.c.o: %.pb-c.c %.pb-c.h
 %.pb-c.c: protobuf_definitions/%.proto
-	protoc-c --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 %.pb-c.h: protobuf_definitions/%.proto
-	protoc-c --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
+	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
