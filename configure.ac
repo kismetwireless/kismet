@@ -1087,15 +1087,23 @@ PKG_CHECK_MODULES(protobuf, [protobuf], have_protobuf_pkg=yes)
 if test x"$have_protobuf_pkg" != "xyes"; then
     AC_MSG_ERROR([missing google libprotobuf])
 fi
-PROTOCBIN=protoc
-AC_ARG_WITH(protocbin,
+
+AC_ARG_WITH(protoc,
 	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
-	[ PROTOCBIN=$withval ]
-	)
-AC_CHECK_PROG(protoc, [$PROTOCBIN], yes)
-if test x"$protoc" != x"yes"; then
-    AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+    [ echo "with-protoc called" ])
+
+echo $with_protoc
+
+if test x"$with_protoc" == "x"; then
+    PROTOCBIN=protoc
+    AC_CHECK_PROG(protoc, [protoc], yes)
+    if test x"$protoc" != x"yes"; then
+        AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+    fi
+else
+    PROTOCBIN=$with_protoc
 fi
+
 PROTOLIBS=`pkg-config --libs protobuf`
 PROTOCFLAGS=`pkg-config --cflags protobuf`
 fi
@@ -1105,15 +1113,21 @@ PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], have_protobufc_pkg=yes)
 if test x"$have_protobufc_pkg" != "xyes"; then
     AC_MSG_ERROR([missing libprotobuf-c])
 fi
-PROTOCCBIN=protoc-c
-AC_ARG_WITH(protoccbin,
-	[  --with-protoc-c[=PATH]     Custom location of the protoc protobuf compiler],
+
+AC_ARG_WITH(protocc,
+	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
 	[ PROTOCCBIN=$withval ]
 	)
-AC_CHECK_PROG(protocc, [$PROTOCCBIN], yes)
-if test x"$protocc" != x"yes"; then
-    AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
+if test x"$with_protocc" == "x"; then
+    PROTOCCBIN="protoc-c"
+    AC_CHECK_PROG(protocc, [protoc-c], yes)
+    if test x"$protocc" != x"yes"; then
+        AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
+    fi
+else
+    PROTOCCBIN=$with_protocc
 fi
+
 PROTOCLIBS=`pkg-config --libs libprotobuf-c`
 PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 

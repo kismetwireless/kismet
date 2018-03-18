@@ -763,8 +763,8 @@ enable_pcre
 enable_prelude
 with_libprelude_prefix
 enable_pcap
-with_protocbin
-with_protoccbin
+with_protoc
+with_protocc
 with_netlink_tiny
 with_suidgroup
 enable_optimization
@@ -1442,7 +1442,7 @@ Optional Packages:
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
   --with-protoc=PATH     Custom location of the protoc protobuf compiler
-  --with-protoc-c=PATH     Custom location of the protoc protobuf compiler
+  --with-protocc=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
   --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
 
@@ -9173,16 +9173,20 @@ fi
 if test x"$have_protobuf_pkg" != "xyes"; then
     as_fn_error $? "missing google libprotobuf" "$LINENO" 5
 fi
-PROTOCBIN=protoc
 
-# Check whether --with-protocbin was given.
-if test "${with_protocbin+set}" = set; then :
-  withval=$with_protocbin;  PROTOCBIN=$withval
 
+# Check whether --with-protoc was given.
+if test "${with_protoc+set}" = set; then :
+  withval=$with_protoc;  echo "with-protoc called"
 fi
 
-# Extract the first word of "$PROTOCBIN", so it can be a program name with args.
-set dummy $PROTOCBIN; ac_word=$2
+
+echo $with_protoc
+
+if test x"$with_protoc" == "x"; then
+    PROTOCBIN=protoc
+    # Extract the first word of "protoc", so it can be a program name with args.
+set dummy protoc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_prog_protoc+:} false; then :
@@ -9218,9 +9222,13 @@ $as_echo "no" >&6; }
 fi
 
 
-if test x"$protoc" != x"yes"; then
-    as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
+    if test x"$protoc" != x"yes"; then
+        as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
+    fi
+else
+    PROTOCBIN=$with_protoc
 fi
+
 PROTOLIBS=`pkg-config --libs protobuf`
 PROTOCFLAGS=`pkg-config --cflags protobuf`
 fi
@@ -9320,16 +9328,18 @@ fi
 if test x"$have_protobufc_pkg" != "xyes"; then
     as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
 fi
-PROTOCCBIN=protoc-c
 
-# Check whether --with-protoccbin was given.
-if test "${with_protoccbin+set}" = set; then :
-  withval=$with_protoccbin;  PROTOCCBIN=$withval
+
+# Check whether --with-protocc was given.
+if test "${with_protocc+set}" = set; then :
+  withval=$with_protocc;  PROTOCCBIN=$withval
 
 fi
 
-# Extract the first word of "$PROTOCCBIN", so it can be a program name with args.
-set dummy $PROTOCCBIN; ac_word=$2
+if test x"$with_protocc" == "x"; then
+    PROTOCCBIN="protoc-c"
+    # Extract the first word of "protoc-c", so it can be a program name with args.
+set dummy protoc-c; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_prog_protocc+:} false; then :
@@ -9365,9 +9375,13 @@ $as_echo "no" >&6; }
 fi
 
 
-if test x"$protocc" != x"yes"; then
-    as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
+    if test x"$protocc" != x"yes"; then
+        as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
+    fi
+else
+    PROTOCCBIN=$with_protocc
 fi
+
 PROTOCLIBS=`pkg-config --libs libprotobuf-c`
 PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 
