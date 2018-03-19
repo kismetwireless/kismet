@@ -1038,7 +1038,8 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
     return false;
 }
 
-void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection, 
+std::shared_ptr<Kis_Net_Httpd_Session> 
+Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection, 
         struct MHD_Response *response, time_t in_lifetime) {
     
     std::shared_ptr<Kis_Net_Httpd_Session> s;
@@ -1051,14 +1052,14 @@ void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
     if ((urandom = fopen("/dev/urandom", "rb")) == NULL) {
         _MSG("Failed to open /dev/urandom to create a HTTPD session, unable to "
                 "assign a sessionid, not creating session", MSGFLAG_ERROR);
-        return;
+        return NULL;
     }
 
     if (fread(rdata, 16, 1, urandom) != 1) {
         _MSG("Failed to read entropy from /dev/urandom to create a HTTPD session, "
                 "unable to assign a sessionid, not creating session", MSGFLAG_ERROR);
         fclose(urandom);
-        return;
+        return NULL;
     }
     fclose(urandom);
 
@@ -1081,7 +1082,7 @@ void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
                     cookiestr.str().c_str()) == MHD_NO) {
             _MSG("Failed to add session cookie to response header, unable to create "
                     "a session", MSGFLAG_ERROR);
-            return;
+            return NULL;
         }
     }
 
@@ -1095,6 +1096,8 @@ void Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
         connection->session = s;
 
     AddSession(s);
+
+    return s;
 }
 
 bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path, 

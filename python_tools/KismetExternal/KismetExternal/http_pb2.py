@@ -19,11 +19,35 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='http.proto',
   package='KismetExternalHttp',
   syntax='proto2',
-  serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"E\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x15\n\rauth_required\x18\x03 \x02(\x08\"1\n\x0fSubHttpPostData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"r\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12\x36\n\tpost_data\x18\x04 \x03(\x0b\x32#.KismetExternalHttp.SubHttpPostData\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
+  serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x16\n\x14HttpAuthTokenRequest\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"E\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x15\n\rauth_required\x18\x03 \x02(\x08\"1\n\x0fSubHttpPostData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"r\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12\x36\n\tpost_data\x18\x04 \x03(\x0b\x32#.KismetExternalHttp.SubHttpPostData\"#\n\x11HttpRequestCancel\x12\x0e\n\x06req_id\x18\x01 \x02(\r\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
+
+
+_HTTPAUTHTOKENREQUEST = _descriptor.Descriptor(
+  name='HttpAuthTokenRequest',
+  full_name='KismetExternalHttp.HttpAuthTokenRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto2',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=34,
+  serialized_end=56,
+)
 
 
 _HTTPAUTHTOKEN = _descriptor.Descriptor(
@@ -52,8 +76,8 @@ _HTTPAUTHTOKEN = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=34,
-  serialized_end=64,
+  serialized_start=58,
+  serialized_end=88,
 )
 
 
@@ -97,8 +121,8 @@ _HTTPREGISTERURI = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=66,
-  serialized_end=135,
+  serialized_start=90,
+  serialized_end=159,
 )
 
 
@@ -135,8 +159,8 @@ _SUBHTTPPOSTDATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=137,
-  serialized_end=186,
+  serialized_start=161,
+  serialized_end=210,
 )
 
 
@@ -187,8 +211,39 @@ _HTTPREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=188,
-  serialized_end=302,
+  serialized_start=212,
+  serialized_end=326,
+)
+
+
+_HTTPREQUESTCANCEL = _descriptor.Descriptor(
+  name='HttpRequestCancel',
+  full_name='KismetExternalHttp.HttpRequestCancel',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='req_id', full_name='KismetExternalHttp.HttpRequestCancel.req_id', index=0,
+      number=1, type=13, cpp_type=3, label=2,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto2',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=328,
+  serialized_end=363,
 )
 
 
@@ -225,8 +280,8 @@ _SUBHTTPHEADER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=304,
-  serialized_end=352,
+  serialized_start=365,
+  serialized_end=413,
 )
 
 
@@ -284,18 +339,27 @@ _HTTPRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=355,
-  serialized_end=505,
+  serialized_start=416,
+  serialized_end=566,
 )
 
 _HTTPREQUEST.fields_by_name['post_data'].message_type = _SUBHTTPPOSTDATA
 _HTTPRESPONSE.fields_by_name['header_content'].message_type = _SUBHTTPHEADER
+DESCRIPTOR.message_types_by_name['HttpAuthTokenRequest'] = _HTTPAUTHTOKENREQUEST
 DESCRIPTOR.message_types_by_name['HttpAuthToken'] = _HTTPAUTHTOKEN
 DESCRIPTOR.message_types_by_name['HttpRegisterUri'] = _HTTPREGISTERURI
 DESCRIPTOR.message_types_by_name['SubHttpPostData'] = _SUBHTTPPOSTDATA
 DESCRIPTOR.message_types_by_name['HttpRequest'] = _HTTPREQUEST
+DESCRIPTOR.message_types_by_name['HttpRequestCancel'] = _HTTPREQUESTCANCEL
 DESCRIPTOR.message_types_by_name['SubHttpHeader'] = _SUBHTTPHEADER
 DESCRIPTOR.message_types_by_name['HttpResponse'] = _HTTPRESPONSE
+
+HttpAuthTokenRequest = _reflection.GeneratedProtocolMessageType('HttpAuthTokenRequest', (_message.Message,), dict(
+  DESCRIPTOR = _HTTPAUTHTOKENREQUEST,
+  __module__ = 'http_pb2'
+  # @@protoc_insertion_point(class_scope:KismetExternalHttp.HttpAuthTokenRequest)
+  ))
+_sym_db.RegisterMessage(HttpAuthTokenRequest)
 
 HttpAuthToken = _reflection.GeneratedProtocolMessageType('HttpAuthToken', (_message.Message,), dict(
   DESCRIPTOR = _HTTPAUTHTOKEN,
@@ -324,6 +388,13 @@ HttpRequest = _reflection.GeneratedProtocolMessageType('HttpRequest', (_message.
   # @@protoc_insertion_point(class_scope:KismetExternalHttp.HttpRequest)
   ))
 _sym_db.RegisterMessage(HttpRequest)
+
+HttpRequestCancel = _reflection.GeneratedProtocolMessageType('HttpRequestCancel', (_message.Message,), dict(
+  DESCRIPTOR = _HTTPREQUESTCANCEL,
+  __module__ = 'http_pb2'
+  # @@protoc_insertion_point(class_scope:KismetExternalHttp.HttpRequestCancel)
+  ))
+_sym_db.RegisterMessage(HttpRequestCancel)
 
 SubHttpHeader = _reflection.GeneratedProtocolMessageType('SubHttpHeader', (_message.Message,), dict(
   DESCRIPTOR = _SUBHTTPHEADER,

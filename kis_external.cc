@@ -295,6 +295,8 @@ void KisExternalInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Co
         handle_packet_http_register(c->seqno(), c->content());
     } else if (c->command() == "HTTPRESPONSE") {
         handle_packet_http_response(c->seqno(), c->content());
+    } else if (c->command() == "HTTPAUTHREQ") {
+        handle_packet_http_auth_request(c->seqno(), c->content());
     } else if (c->command() == "MESSAGE") {
         handle_packet_message(c->seqno(), c->content());
     } else if (c->command() == "PING") {
@@ -385,6 +387,28 @@ void KisExternalInterface::handle_packet_http_response(uint32_t in_seqno, std::s
     }
 }
 
+void KisExternalInterface::handle_packet_http_auth_request(uint32_t in_seqno, 
+        std::string in_content) {
+    KismetExternalHttp::HttpAuthTokenRequest rt;
+
+    if (!rt.ParseFromString(in_content)) {
+        _MSG("Kismet external interface got an unparseable HTTPAUTHREQ", MSGFLAG_ERROR);
+        trigger_error("Invalid HTTPAUTHREQ");
+        return;
+    }
+
+    std::shared_ptr<Kis_Net_Httpd_Session> s = httpd->CreateSession(NULL, NULL, 0);
+
+    if (s == NULL) {
+        _MSG("Kismet external interface unable to create a HTTP auth", MSGFLAG_ERROR);
+        trigger_error("Unable to create HTTP auth");
+        return;
+    }
+
+    send_http_auth(s->sessionid);
+}
+
+
 void KisExternalInterface::handle_packet_message(uint32_t in_seqno, std::string in_content) {
     KismetExternal::MsgbusMessage m;
 
@@ -447,6 +471,20 @@ void KisExternalInterface::send_http_request(uint32_t in_http_sequence, std::str
     }
 
     c->set_content(r.SerializeAsString());
+
+    send_packet(c);
+}
+
+void KisExternalInterface::send_http_auth(std::string in_cookie) {
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+
+    c->set_seqno(seqno++);
+    c->set_command("HTTPAUTH");
+
+    KismetExternalHttp::HttpAuthToken a;
+    a.set_token(in_cookie);
+
+    c->set_content(a.SerializeAsString());
 
     send_packet(c);
 }

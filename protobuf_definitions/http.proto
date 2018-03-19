@@ -2,6 +2,11 @@ syntax = "proto2";
 
 package KismetExternalHttp;
 
+// Request an auth token be sent in a HttpAuthToken frame
+message HttpAuthTokenRequest {
+
+}
+
 // Send a HTTP session auth token to the helper (Kismet->Helper)
 // This lets the helper access administrative functions on the server
 // without having to pass an actual login password
@@ -43,6 +48,12 @@ message HttpRequest {
     required string method = 3;
     // If post, a map of post variables
     repeated SubHttpPostData post_data = 4;
+}
+
+// Cancel an existing request (remote end went away)
+message HttpRequestCancel {
+    // Unique ID of request
+    required uint32 req_id = 1;
 }
 
 // Sub-block of headers to send with the first response

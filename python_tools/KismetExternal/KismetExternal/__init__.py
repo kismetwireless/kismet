@@ -44,8 +44,12 @@ class KismetExternalInterface:
 
         self.running = False
 
+        self.http_auth_callback = None
+        self.auth_token = None
+
         self.handlers = {}
 
+        self.add_handler("HTTPAUTH", self.handle_http_auth)
         self.add_handler("HTTPREQUEST", self.handle_http_request)
         self.add_handler("PING", self.handle_ping)
         self.add_handler("PONG", self.handle_pong)
@@ -226,6 +230,19 @@ class KismetExternalInterface:
         pong = kismet_pb2.Pong()
         pong.ping_seqno = seqno
         self.write_ext_packet("PONG", pong)
+
+    def request_http_auth(self, callback = None):
+        self.http_auth_callback = callback
+        auth = http_pb2.HttpAuthTokenRequest()
+        self.write_ext_packet("HTTPAUTHREQ", auth)
+
+    def handle_http_auth(self, seqno, packet):
+        auth = http_pb2.HttpAuthToken()
+        auth.ParseFromString(packet)
+        self.auth_token = auth.token
+
+        if not self.http_auth_callback is None:
+            self.http_auth_callback()
 
     def handle_http_request(self, seqno, packet):
         request = http_pb2.HttpRequest()

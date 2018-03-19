@@ -39,6 +39,11 @@ class KismetProxyTest:
         # Initialize our external interface
         self.kei = KismetExternal.KismetExternalInterface(self.results.infd, self.results.outfd)
 
+        # External tools can request a HTTP authentication token; this can be used as the
+        # 'KISMET' session cookie to perform administrative actions against the Kismet
+        # server
+        self.kei.request_http_auth(self.handle_web_auth_token)
+
         # Add a URI handler; it doesn't need a login, and it returns HTML
         self.kei.add_uri_handler("GET", "/proxytest/python.html", False, self.handle_web_python)
 
@@ -47,6 +52,10 @@ class KismetProxyTest:
 
         # Start the external handler
         self.kei.start()
+
+    # Callback for when we've gotten back our auth token for the webserver
+    def handle_web_auth_token(self):
+        print "ProxyTest got HTTP auth token", self.kei.auth_token
 
     # Callback function for handling a req of our python.html endpoint
     def handle_web_python(self, externalhandler, request):

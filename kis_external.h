@@ -121,12 +121,14 @@ protected:
     virtual void handle_packet_message(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_http_register(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_http_response(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_http_auth_request(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_ping(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_pong(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_shutdown(uint32_t in_seqno, std::string in_content);
 
     void send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
+    void send_http_auth(std::string in_session);
     void send_ping();
     void send_pong(uint32_t ping_seqno);
     void send_shutdown(std::string reason);
