@@ -97,6 +97,10 @@ class KismetExternalInterface:
                     self.bufferlock.acquire()
                     try:
                         written = os.write(self.outfd, self.wbuffer)
+
+                        if written == 0:
+                            raise BufferError("Output connection closed")
+
                         self.wbuffer = self.wbuffer[written:]
                     except OSError as e:
                         if not e.errno == errno.EAGAIN:
@@ -107,7 +111,12 @@ class KismetExternalInterface:
                 if self.infd in inputs:
                     self.bufferlock.acquire()
                     try:
-                        self.rbuffer = self.rbuffer + os.read(self.infd, 4096)
+                        readdata = os.read(self.infd, 4096)
+
+                        if len(readdata) == 0:
+                            raise BufferError("Input connection closed")
+
+                        self.rbuffer = self.rbuffer + readdata
                         self.__recv_packet()
                     except OSError as e:
                         if not e.errno == errno.EAGAIN:
