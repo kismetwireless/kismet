@@ -4,8 +4,8 @@ include $(TOPDIR)/rules.mk
 # easily adapted to other OpenWRT builds.
 
 PKG_NAME:=kismet-tetra
-PKG_VERSION:=2017git
-PKG_RELEASE:=1
+PKG_VERSION:=2018git
+PKG_RELEASE:=0
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://www.kismetwireless.net/git/kismet.git
@@ -15,15 +15,17 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp +libsqlite3 +zlib
+PKG_USE_MIPS16:=0
+
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp +libsqlite3 +zlib +libprotobuf +libprotobuf-c
 
 define Package/kismet-tetra
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Kismet (2017)
+  TITLE:=Kismet (2018)
   #DESCRIPTION:=This variable is obsolete. use the Package/name/description define instead!
   URL:=https://www.kismetwireless.net/
-  DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libstdcpp +libncurses +libsqlite3 +zlib
+  DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libstdcpp +libncurses +libsqlite3 +zlib +protobuf +libprotobuf-c
 endef
 
 define Package/kismet-tetra/description
@@ -38,6 +40,8 @@ endef
 CONFIGURE_ARGS += \
 	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
+    --with-protoc=$(STAGING_DIR_HOST)/bin/protoc \
+    --with-protoc-c=$(STAGING_DIR_HOST)/bin/protoc-c
 
 # Override libs to force lpthread because we don't detect it properly on openwrt
 CONFIGURE_VARS += \
