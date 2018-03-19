@@ -56,6 +56,11 @@ class KismetExternalInterface:
 
         self.uri_handlers = {}
 
+        self.MSG_INFO = kismet_pb2.MsgbusMessage.INFO
+        self.MSG_ERROR = kismet_pb2.MsgbusMessage.ERROR
+        self.MSG_ALERT = kismet_pb2.MsgbusMessage.ALERT
+        self.MSG_FATAL = kismet_pb2.MsgbusMessage.FATAL
+
     def __adler32(self, data):
         if len(data) < 4:
             return 0
@@ -218,6 +223,11 @@ class KismetExternalInterface:
 
         self.cmdnum = self.cmdnum + 1
 
+    def send_message(self, message, msgtype = kismet_pb2.MsgbusMessage.INFO):
+        msg = kismet_pb2.MsgbusMessage()
+        msg.msgtext = message
+        msg.msgtype = msgtype
+        self.write_ext_packet("MESSAGE", msg)
 
     def send_ping(self):
         if self.last_pong == 0:

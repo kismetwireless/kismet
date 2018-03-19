@@ -50,6 +50,8 @@ class KismetProxyTest:
         # Add a streaming handler
         self.kei.add_uri_handler("GET", "/proxytest/stream.raw", False, self.handle_web_stream)
 
+        self.kei.send_message("Hello from python!  This is sent over the IPC message bus.")
+
         # Start the external handler
         self.kei.start()
 
