@@ -53,6 +53,7 @@ class KismetExternalInterface:
         self.add_handler("HTTPREQUEST", self.handle_http_request)
         self.add_handler("PING", self.handle_ping)
         self.add_handler("PONG", self.handle_pong)
+        self.add_handler("SHUTDOWN", self.handle_shutdown)
 
         self.uri_handlers = {}
 
@@ -294,6 +295,10 @@ class KismetExternalInterface:
 
         self.last_pong = time.time()
 
+    def handle_shutdown(self, seqno, packet):
+        shutdown = kismet_pb2.Shutdown()
+        shutdown.ParseFromString(packet)
+        self.kill()
 
 if __name__ == "__main__":
     kei = KismetExternalInterface(0, 1)
