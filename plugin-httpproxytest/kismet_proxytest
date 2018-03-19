@@ -1,34 +1,86 @@
 #!/usr/bin/env python2
 
+# A very basic example of how to create a python-native extension to Kismet
+# that interfaces over the external API
+#
+# This uses the python_tools/KismetExternal python module.
+
 import argparse
+import os
 import time
+import sys
+import threading
 
-import KismetExternal
+# Pretty-print the failure
+try:
+    import KismetExternal
+except ImportError:
+    print "ERROR:  Kismet external Python tools require the KismetExternal python "
+    print "        library; you can find it in python_tools/KismetExternal"
+    sys.exit(1)
 
-# Callback function for handling a req of our python.html endpoint
-def handle_web_python(externalhandler, request):
-    print "PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri)
-    externalhandler.send_http_response(request.req_id, "<html><body><b>This is from python!</b></body></html>")
+class KismetProxyTest:
+    def __init__(self):
+        # Try to parse the arguments to find the descriptors we need to give to 
+        # the kismet external tool; Kismet calls external helpers with a pre-made
+        # set of pipes on --in-fd and --out-fd
+        self.parser = argparse.ArgumentParser(description='Kismet External Python Example')
 
-parser = argparse.ArgumentParser(description='Kismet External Python Example')
+        self.parser.add_argument('--in-fd', action="store", type=int, dest="infd")
+        self.parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
 
-parser.add_argument('--in-fd', action="store", type=int, dest="infd")
-parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
+        self.results = self.parser.parse_args()
 
-results = parser.parse_args()
+        if self.results.infd is None or self.results.outfd is None:
+            print "ERROR:  Kismet external python tools are (typically) launched by "
+            print "        Kismet itself; running it on its own won't do what you want"
+            sys.exit(1)
 
-print "PYTHON PROXYTEST - KEI got infd {} outfd {}".format(results.infd, results.outfd)
+        # Initialize our external interface
+        self.kei = KismetExternal.KismetExternalInterface(self.results.infd, self.results.outfd)
 
-kei = KismetExternal.KismetExternalInterface(results.infd, results.outfd)
+        # Add a URI handler; it doesn't need a login, and it returns HTML
+        self.kei.add_uri_handler("GET", "/proxytest/python.html", False, self.handle_web_python)
 
-kei.start()
+        # Add a streaming handler
+        self.kei.add_uri_handler("GET", "/proxytest/stream.raw", False, self.handle_web_stream)
 
-# Add a URI that doesn't need a login
-kei.add_uri_handler("GET", "/proxytest/python.html", False, handle_web_python)
+        # Start the external handler
+        self.kei.start()
 
-while True and kei.is_running():
-    kei.send_ping()
-    time.sleep(1)
+    # Callback function for handling a req of our python.html endpoint
+    def handle_web_python(self, externalhandler, request):
+        print "PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri)
+        # Print a static response
+        externalhandler.send_http_response(request.req_id, "<html><body><b>This is from python!</b></body></html>")
 
-kei.kill()
+    # Callback function to demonstrate streaming
+    def handle_web_stream(self, externalhandler, request):
+        externalhandler.send_http_response(request.req_id, "Stream starting\n", stream = True, finished = False)
+        # Make a thread that streams data out this request
+        webthread = threading.Thread(target=self.stream_web_data, args=(externalhandler, request))
+        webthread.start()
 
+    # Thread that streams a counter
+    def stream_web_data(self, externalhandler, request):
+        counter = 0
+        while self.kei.is_running:
+            externalhandler.send_http_response(request.req_id, "Stream {}\n".format(counter), stream = True, finished = False)
+            counter += 1
+            time.sleep(0.5)
+
+    # Loop forever
+    def loop(self):
+        while self.kei.is_running:
+            self.kei.send_ping()
+            time.sleep(1)
+
+        self.kei.kill()
+
+
+if __name__ == "__main__":
+    # Make a proxytest and loop forever
+    pt = KismetProxyTest()
+
+    # Loop in a detached process
+    pt.loop()
