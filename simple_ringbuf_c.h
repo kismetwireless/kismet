@@ -57,6 +57,10 @@ size_t kis_simple_ringbuf_available(kis_simple_ringbuf_t *ringbuf);
  */
 size_t kis_simple_ringbuf_used(kis_simple_ringbuf_t *ringbuf);
 
+/* Get total size
+ */
+size_t kis_simple_ringbuf_size(kis_simple_ringbuf_t *ringbuf);
+
 /* Append data
  *
  * Returns amount written

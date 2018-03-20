@@ -76,6 +76,12 @@ size_t kis_simple_ringbuf_used(kis_simple_ringbuf_t *ringbuf) {
     return ringbuf->length;
 }
 
+/* Get total space
+ * */
+size_t kis_simple_ringbuf_size(kis_simple_ringbuf_t *ringbuf) {
+    return ringbuf->buffer_sz;
+}
+
 /* Append data
  *
  * Returns amount written
