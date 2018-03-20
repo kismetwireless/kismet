@@ -142,7 +142,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 
 PS	= kismet
 
-ALL	= Makefile $(PROTOBUF_CPP) $(PROTOBUF_CPP_H) $(PS) $(DATASOURCE_BINS)
+ALL	= Makefile $(PROTOBUF_CPP) $(PROTOBUF_CPP_H) $(PROTOBUF_C) $(PROTOBUF_C_H) $(PS) $(DATASOURCE_BINS)
 
 INSTBINS = $(PS) $(DATASOURCE_BINS)
 
@@ -156,7 +156,7 @@ all-with-plugins:
 $(PS):	$(PROTOBUF_CPP_H) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
-$(DATASOURCE_COMMON_A):	$(DATASOURCE_COMMON_C_O)
+$(DATASOURCE_COMMON_A):	$(PROTOBUF_C) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
 
 $(CAPTURE_PCAPFILE):	$(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A)
@@ -439,10 +439,10 @@ protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
 protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
-%.pb-c.c.o: %.pb-c.c %.pb-c.h
-%.pb-c.c: protobuf_definitions/%.proto
+protobuf_c/%.pb-c.c.o: %.pb-c.c %.pb-c.h
+protobuf_c/%.pb-c.c: protobuf_definitions/%.proto
 	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
-%.pb-c.h: protobuf_definitions/%.proto
+protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
 %.c.o:	%.c
