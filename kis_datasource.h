@@ -32,8 +32,11 @@
 #include "packet.h"
 #include "devicetracker_component.h"
 #include "packetchain.h"
-#include "simple_datasource_proto.h"
 #include "entrytracker.h"
+#include "kis_external.h"
+
+#include "protobuf_cpp/kismet.pb.h"
+#include "protobuf_cpp/datasource.pb.h"
 
 // Builder class responsible for making an instance of this datasource
 class KisDatasourceBuilder;
@@ -49,7 +52,7 @@ class KisDatasourceCapKeyedObject;
 // Fwd def for DST
 class Datasourcetracker;
 
-class KisDatasource : public tracker_component, public BufferInterface {
+class KisDatasource : public tracker_component, public KisExternalInterface {
 public:
     // Initialize and tell us what sort of builder
     KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
@@ -130,7 +133,7 @@ public:
     // connection); This doesn't require async because we're just binding the
     // interface; anything we do with the buffer is itself async in the
     // future however
-    virtual void connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
+    virtual void connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
             std::string in_definition, open_callback_t in_cb);
 
 
@@ -155,18 +158,6 @@ public:
     virtual bool get_definition_opt_bool(std::string in_opt, bool in_default);
     virtual double get_definition_opt_double(std::string in_opt, double in_default);
 
-
-    // Buffer interface - called when the attached ringbuffer has data available.
-    // Datasources only bind to the read side of the buffer handler.  This connection
-    // may be made to IPC or network, and speaks the kismet datasource simplified
-    // protocol.  This function does basic framing and then calls the private 
-    // hierarchy of key-value parsers.
-    virtual void BufferAvailable(size_t in_amt);
-
-    // Buffer interface - handles error on IPC or TCP, called when there is a 
-    // low-level error on the communications stack (process death, etc).
-    // Passes error to the the internal source_error function
-    virtual void BufferError(std::string in_error);
 
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
@@ -277,8 +268,6 @@ protected:
     // all commands fundamentally asynchronous.
     // Any set / open / probe / list command takes an optional callback
     // which will be called on completion of the command
-    
-    uint32_t next_cmd_sequence;
 
     // Tracker object for our map of commands which haven't finished
     class tracked_command {
@@ -332,74 +321,37 @@ protected:
     // any pending callbacks get cleared out
     virtual void cancel_all_commands(std::string in_error);
 
-    // Datasource protocol - each datasource is responsible for processing incoming
-    // data, which may come from IPC or may come from the network.  Handling is
-    // dispatched by packet type, then kv pairs.  Packets and kv pair handling
-    // can be overridden to add additional handlers.  When overriding, make sure
-    // to call the parent implementation to get the default packet handling.
-    typedef std::map<std::string, KisDatasourceCapKeyedObject *> KVmap;
 
-    // Datasource protocol - dispatch handler.  Handles dispatching top-level
-    // packet types to helper functions.  Automatically handles the default
-    // packet types, and can be overridden to handle additional types.
-    virtual void proto_dispatch_packet(std::string in_type, KVmap in_kvmap);
+    // Central packet dispatch override to add the datasource commands
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
 
-    // Top-level default packet type handlers for the datasource simplified protocol
-    virtual void proto_packet_list_resp(KVmap in_kvpairs);
-    virtual void proto_packet_probe_resp(KVmap in_kvpairs);
-    virtual void proto_packet_open_resp(KVmap in_kvpairs);
-    virtual void proto_packet_error(KVmap in_kvpairs);
-    virtual void proto_packet_message(KVmap in_kvpairs);
-    virtual void proto_packet_configresp(KVmap in_kvpairs);
-    virtual void proto_packet_data(KVmap in_kvpairs);
+    virtual void handle_packet_configure_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_data_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_error_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_interfaces_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_opensource_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_probesource_report(uint32_t in_seqno, std::string in_packet);
 
-    // Common K-V pair handlers that are likely to be found in multiple types
-    // of packets; these can be used by custom packet handlers to implement automatic
-    // "proper" behavior for existing pairs, or overridden and extended.  In general,
-    // datasources will want to extend proto_dispatch_packet and add their own
-    // packet types, and generally should not override the core pair handlers.
-    //
-    // Default KV handlers have some hidden complexities: they are responsible for
-    // maintaining the async events, filling in the packet responses, etc.
-    virtual bool get_kv_success(KisDatasourceCapKeyedObject *in_obj);
-    virtual uint32_t get_kv_success_sequence(KisDatasourceCapKeyedObject *in_obj);
+    virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
+            configure_callback_t in_cb);
+    virtual unsigned int send_configure_channel_hop(double in_rate, SharedTrackerElement in_chans,
+            bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
+            configure_callback_t in_cb);
+    virtual unsigned int send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
+    virtual unsigned int send_open_source(std::string in_definition, unsigned int in_transaction, 
+            open_callback_t in_cb);
+    virtual unsigned int send_probe_source(std::string in_defintion, unsigned int in_transaction,
+            probe_callback_t in_cb);
 
-    virtual void handle_kv_capif(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_channels(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_config_channel(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_config_hop(KisDatasourceCapKeyedObject *in_obj);
-    virtual unsigned int handle_kv_dlt(KisDatasourceCapKeyedObject *in_obj);
-    virtual kis_gps_packinfo *handle_kv_gps(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_hardware(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_interfacelist(KisDatasourceCapKeyedObject *in_obj);
-    virtual std::string handle_kv_message(KisDatasourceCapKeyedObject *in_obj);
-    virtual kis_packet *handle_kv_packet(KisDatasourceCapKeyedObject *in_obj);
-    virtual kis_layer1_packinfo *handle_kv_signal(KisDatasourceCapKeyedObject *in_obj);
-    virtual void handle_kv_uuid(KisDatasourceCapKeyedObject *in_obj);
-    virtual std::string handle_kv_warning(KisDatasourceCapKeyedObject *in_obj);
+    // Break out packet generation sub-functions so that custom datasources can easily
+    // piggyback onto the decoders
+    virtual kis_packet *handle_sub_packet(KismetDatasource::SubPacket in_packet);
+    virtual kis_gps_packinfo *handle_sub_gps(KismetDatasource::SubGps in_gps);
+    virtual kis_layer1_packinfo *handle_sub_signal(KismetDatasource::SubSignal in_signal);
 
 
-    // Assemble a packet it write it out the buffer, returning a command 
-    // sequence number in ret_seqno.  Returns false on low-level failure such as
-    // inability to write to the buffer
-    virtual bool write_packet(std::string in_cmd, KVmap in_kvpairs, uint32_t &ret_seqno);
-
-
-    // Form basic commands; call the callback with failure if we're unable to
-    // form the low-level command
-    virtual void send_command_list_interfaces(unsigned int in_transaction,
-            list_callback_t in_cb);
-    virtual void send_command_probe_interface(std::string in_definition, 
-            unsigned int in_transaction, probe_callback_t in_cb);
-    virtual void send_command_open_interface(std::string in_definition,
-            unsigned int in_transaction, open_callback_t in_cb);
-    virtual void send_command_set_channel(std::string in_channel,
-            unsigned int in_transaction, configure_callback_t in_cb);
-    virtual void send_command_set_channel_hop(double in_rate,
-            SharedTrackerElement in_chans, bool in_shuffle, unsigned int in_offt,
-            unsigned int in_transaction, configure_callback_t in_cb);
-    virtual void send_command_ping();
-    virtual void send_command_pong();
+    // Launch the IPC binary
+    virtual bool launch_ipc();
 
 
     // TrackerComponent API, we can't ever get instantiated from a saved element
@@ -584,10 +536,6 @@ protected:
     // be derived from the source line, could just be stuff we know
     std::vector<std::string> ipc_binary_args;
 
-    // Launch IPC binary or fail trying
-    virtual void launch_ipc();
-
-
 
     // Interfaces we found via list
     std::vector<SharedInterface> listed_interfaces;
@@ -595,7 +543,6 @@ protected:
 
 
     // Thread
-    kis_recursive_timed_mutex source_lock;
     std::shared_ptr<Timetracker> timetracker;
 
 
@@ -631,9 +578,6 @@ public:
         reserve_fields(NULL);
         initialize();
 
-        entrytracker = 
-            std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
-
         if (in_id == 0) {
             tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
                     TrackerMap, "Datasource type definition / driver");
@@ -646,9 +590,6 @@ public:
         register_fields();
         reserve_fields(e);
         initialize();
-
-        entrytracker = 
-            std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
 
         if (in_id == 0) {
             tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
@@ -726,8 +667,6 @@ protected:
         RegisterField("kismet.datasource.driver.tuning_capable", TrackerUInt8,
                 "Datasource can control channels", &tune_capable);
     }
-
-    std::shared_ptr<EntryTracker> entrytracker;
 
     int datasource_entity_id;
 
@@ -839,21 +778,6 @@ protected:
 
 };
 
-class KisDatasourceCapKeyedObject {
-public:
-    KisDatasourceCapKeyedObject(simple_cap_proto_kv *in_kp);
-    KisDatasourceCapKeyedObject(std::string in_key, const char *in_object, ssize_t in_len);
-    ~KisDatasourceCapKeyedObject();
-
-    simple_cap_proto_kv_t *kv;
-
-    bool allocated;
-
-    std::string key;
-    size_t size;
-    char *object;
-};
-
 // Packet chain component; we need to use a raw pointer here but it only exists
 // for the lifetime of the packet being processed
 class packetchain_comp_datasource : public packet_component {
@@ -867,7 +791,6 @@ public:
 
     virtual ~packetchain_comp_datasource() { }
 };
-
 
 #endif
 

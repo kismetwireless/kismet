@@ -1,0 +1,25 @@
+syntax = "proto2";
+
+import "kismet.proto";
+import "datasource.proto";
+
+package KismetLinuxBluetooth;
+
+message SubLinuxBluetoothDevice {
+    required uint64 time_sec = 1;
+    required uint64 time_usec = 2;
+    required string address = 3;
+    required string name = 4;
+    required int32 txpower = 5;
+    required int32 type = 6;
+    repeated string uuid_list = 7;
+}
+
+message LinuxBluetoothDataReport {
+    optional KismetDatasource.SubGps gps = 1;
+    optional KismetExternal.MsgbusMessage message = 2;
+    optional string warning = 3;
+    optional KismetDatasource.SubSignal signal = 4;
+    required SubLinuxBluetoothDevice btdevice = 5;
+}
+

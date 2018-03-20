@@ -36,11 +36,9 @@ public:
     virtual ~KisDatasourceLinuxBluetooth() { };
 
 protected:
-    virtual void proto_dispatch_packet(std::string in_type, KVmap in_kvmap);
-   
-    void proto_packet_linuxbtdevice(KVmap in_kvpairs);
-
-    kis_packet *handle_kv_btdevice(KisDatasourceCapKeyedObject *in_obj);
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+  
+    virtual void handle_packet_linuxbtdevice(uint32_t in_seqno, std::string in_content);
 
     int pack_comp_btdevice;
 };

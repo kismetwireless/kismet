@@ -1246,7 +1246,7 @@ class tracker_component : public TrackerElement {
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
-            cvar = std::static_pointer_cast<ttype>(entrytracker->GetTrackedInstance(id)); \
+            cvar = std::static_pointer_cast<ttype>(tracker_component::entrytracker->GetTrackedInstance(id)); \
             if (cvar != NULL) \
                 add_map(std::static_pointer_cast<TrackerElement>(cvar)); \
         } \

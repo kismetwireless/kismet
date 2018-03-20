@@ -89,12 +89,7 @@ message SubSpectrum {
 // Command success
 message SubSuccess {
     required bool success = 1;
-    required uint32 command_num = 2;
-}
-
-// Channels (Driver->Kismet)
-message Channels {
-    required SubChannels channels = 1;
+    required uint32 seqno = 2;
 }
 
 // Close open device (Kismet->Driver)
@@ -145,12 +140,6 @@ message InterfacesReport {
     repeated SubInterface interfaces = 3;
 }
 
-// User-visible message (Driver->Kismet)
-message Message {
-    optional KismetExternal.MsgbusMessage message = 1;
-    optional string warning = 2;
-}
-
 // Initiate a new datasource on a remote connection (Driver->Kismet)
 message NewSource {
     required string definition = 1;
@@ -170,11 +159,12 @@ message OpenSourceReport {
     optional string capture_interface = 3;
     optional SubChannels channels = 4;
     optional SubChanset channel = 5;
-    optional string hardware = 6;
-    optional KismetExternal.MsgbusMessage message = 7;
-    optional SubSpecset specset = 8;
-    optional string uuid = 9;
-    optional string warning = 10;
+    optional SubChanhop hop_config = 6;
+    optional string hardware = 7;
+    optional KismetExternal.MsgbusMessage message = 8;
+    optional SubSpecset spectrum = 9;
+    optional string uuid = 10;
+    optional string warning = 11;
 }
 
 // Query if a driver can handle a definition (Kismet->Driver)
@@ -187,8 +177,8 @@ message ProbeSourceReport {
     required SubSuccess success = 1;
     optional KismetExternal.MsgbusMessage message = 2;
     optional SubChannels channels = 3;
-    optional SubChanset chanset = 4;
-    optional SubSpecset specset = 5;
+    optional SubChanset channel = 4;
+    optional SubSpecset spectrum = 5;
     optional string hardware = 6;
 }
 

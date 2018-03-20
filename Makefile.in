@@ -89,12 +89,14 @@ DOT11_PARSERS = \
 PROTOBUF_CPP = \
 	protobuf_cpp/kismet.pb.cc.o \
 	protobuf_cpp/http.pb.cc.o \
-	protobuf_cpp/datasource.pb.cc.o 
+	protobuf_cpp/datasource.pb.cc.o \
+	protobuf_cpp/linuxbluetooth.pb.cc.o 
 
 PROTOBUF_CPP_H = \
 	protobuf_cpp/kismet.pb.h \
 	protobuf_cpp/http.pb.h \
-	protobuf_cpp/datasource.pb.h
+	protobuf_cpp/datasource.pb.h \
+	protobuf_cpp/linuxbluetooth.pb.h
 
 PROFOBUF_C = \
 	protobuf_c/kismet.pb-c.c.o \
@@ -140,7 +142,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 
 PS	= kismet
 
-ALL	= Makefile $(PS) $(DATASOURCE_BINS)
+ALL	= Makefile $(PROTOBUF_CPP) $(PROTOBUF_CPP_H) $(PS) $(DATASOURCE_BINS)
 
 INSTBINS = $(PS) $(DATASOURCE_BINS)
 

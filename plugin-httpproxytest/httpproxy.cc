@@ -42,7 +42,7 @@
 
 GlobalRegistry *globalreg = NULL;
 
-class ExternalProxyTest : public KisExternalInterface {
+class ExternalProxyTest : public KisExternalHttpInterface {
 public:
     ExternalProxyTest(GlobalRegistry *in_globalreg) :
         KisExternalInterface(in_globalreg) {

@@ -291,7 +291,7 @@ protected:
 // simple packet protocol enough to get a NEWSOURCE command; The resulting source
 // type, definition, uuid, and rbufhandler is passed to the callback function; the cb
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public BufferInterface {
+class dst_incoming_remote : public KisExternalInterface {
 public:
     dst_incoming_remote(GlobalRegistry *in_globalreg, 
             std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
@@ -299,8 +299,10 @@ public:
                 uuid srcuuid, std::shared_ptr<BufferHandlerGeneric> handler)> in_cb);
     ~dst_incoming_remote();
 
-    virtual void BufferAvailable(size_t in_amt);
-    virtual void BufferError(std::string in_error);
+    // Override the dispatch commands to handle the newsource
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+
+    virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
 
     virtual void kill();
 
@@ -308,14 +310,11 @@ public:
         std::swap(handshake_thread, t);
     }
 
-protected:
-    GlobalRegistry *globalreg;
+    virtual void BufferError(std::string in_error);
 
+protected:
     // Timeout for killing this connection
     int timerid;
-
-    // buf_handler we're associated with
-    std::shared_ptr<BufferHandlerGeneric> rbuf_handler;
 
     std::function<void (dst_incoming_remote *, std::string, std::string, uuid, 
             std::shared_ptr<BufferHandlerGeneric> )> cb;

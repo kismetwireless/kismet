@@ -25,7 +25,6 @@
 #include "datasourcetracker.h"
 #include "messagebus.h"
 #include "globalregistry.h"
-#include "msgpack_adapter.h"
 #include "alertracker.h"
 #include "kismet_json.h"
 #include "timetracker.h"
@@ -989,7 +988,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         // wait for the buffer to be filled
         incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, 
                     in_definition]  {
-                    merge_target_device->connect_buffer(in_handler, in_definition, NULL);
+                    merge_target_device->connect_remote(in_handler, in_definition, NULL);
                     calculate_source_hopping(merge_target_device);
                 }));
 
@@ -1012,7 +1011,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 
             // Make a data source from the builder
             SharedDatasource ds = b->build_datasource(b);
-            ds->connect_buffer(in_handler, in_definition,
+            ds->connect_remote(in_handler, in_definition,
                 [this, ds](unsigned int, bool success, std::string msg) {
                     if (success)
                         merge_source(ds); 
@@ -1174,7 +1173,7 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
         if (tokenurl.size() < 5)
             return false;
 
-        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
+        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json 
         if (tokenurl[1] == "datasource") {
             if (tokenurl[2] == "by-uuid") {
                 uuid u(tokenurl[3]);
@@ -1224,7 +1223,7 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
         if (tokenurl.size() < 5)
             return false;
 
-        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
+        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json 
         if (tokenurl[1] == "datasource") {
             if (tokenurl[2] == "by-uuid") {
                 uuid u(tokenurl[3]);
@@ -1340,7 +1339,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
-    // /datasource/by-uuid/aaa-bbb-cc-dd/source.json | .msgpack
+    // /datasource/by-uuid/aaa-bbb-cc-dd/source.json 
     if (tokenurl[1] == "datasource") {
         if (tokenurl[2] == "by-uuid") {
             uuid u(tokenurl[3]);
@@ -1456,11 +1455,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     SharedStructured structdata;
 
     try {
-
-        // Parse the msgpack or json paramaters, we'll need them later
-        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
-        } else if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
         } else {
             throw std::runtime_error("unable to find data");
@@ -1909,14 +1904,12 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
 dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
         std::function<void (dst_incoming_remote *, std::string, std::string, 
-            uuid, std::shared_ptr<BufferHandlerGeneric>)> in_cb) {
+            uuid, std::shared_ptr<BufferHandlerGeneric>)> in_cb) :
+    KisExternalInterface(in_globalreg) {
     
-    globalreg = in_globalreg;
-    rbuf_handler = in_rbufhandler;
     cb = in_cb;
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    connect_buffer(in_rbufhandler);
 
     timerid =
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
@@ -1931,36 +1924,35 @@ dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-
     // Kill the error timer
-    if (timetracker != NULL && timerid > 0)
-        timetracker->RemoveTimer(timerid);
+    timetracker->RemoveTimer(timerid);
 
     // Remove ourselves as a handler
-    if (rbuf_handler != NULL)
-        rbuf_handler->RemoveReadBufferInterface();
+    if (ringbuf_handler != NULL)
+        ringbuf_handler->RemoveReadBufferInterface();
 
     // Wait for the thread to finish
     handshake_thread.join();
 }
 
+bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (KisExternalInterface::dispatch_rx_packet(c))
+        return true;
+
+    // Simple dispatch override, all we do is look for the new source
+    if (c->command() == "KDSNEWSOURCE") {
+        handle_packet_newsource(c->seqno(), c->content());
+        return true;
+    }
+
+    return false;
+}
+
+
 void dst_incoming_remote::kill() {
     // Kill the error timer
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    if (timetracker != NULL && timerid > 0)
-        timetracker->RemoveTimer(timerid);
+    timetracker->RemoveTimer(timerid);
 
-    if (rbuf_handler != NULL) {
-        // fprintf(stderr, "debug - dst incoming kill() sending protocol error\n");
-        rbuf_handler->RemoveReadBufferInterface();
-        rbuf_handler->ProtocolError();
-        rbuf_handler = NULL;
-    } else {
-        // fprintf(stderr, "debug - dst incoming rbuf handler null\n");
-    }
+    close_external();
 
     std::shared_ptr<Datasourcetracker> datasourcetracker =
         Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DATASOURCETRACKER");
@@ -1969,180 +1961,25 @@ void dst_incoming_remote::kill() {
         datasourcetracker->queue_dead_remote(this);
 }
 
-void dst_incoming_remote::BufferAvailable(size_t in_amt) {
-    // Handle reading raw frames off the incoming buffer, but we only look for the
-    // NEWSOURCE command; any other frame is an error.
-  
-    simple_cap_proto_frame_t *frame;
-    uint8_t *buf;
-    uint32_t frame_sz;
-    uint32_t header_checksum, data_checksum, calc_checksum;
+void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
+    local_locker lock(&ext_mutex);
 
-    std::string definition;
-    std::string srctype;
-    uuid srcuuid;
-   
-    while (1) {
-        if (rbuf_handler == NULL)
-            return;
+    KismetDatasource::NewSource c;
 
-        size_t buffamt = rbuf_handler->GetReadBufferUsed();
-        if (buffamt < sizeof(simple_cap_proto_t)) {
-            return;
-        }
-
-        // Allocate as much as we can and peek it from the buffer
-        buffamt = rbuf_handler->PeekReadBufferData((void **) &buf, buffamt);
-
-        if (buffamt < sizeof(simple_cap_proto_t)) {
-            rbuf_handler->PeekFreeReadBufferData(buf);
-            return;
-        }
-
-        // Turn it into a frame header
-        frame = (simple_cap_proto_frame_t *) buf;
-
-        if (kis_ntoh32(frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
-            rbuf_handler->PeekFreeReadBufferData(buf);
-            _MSG("Got an invalid remote data source connection, disconnecting.",
-                    MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-            return;
-        }
-
-        // Get the frame header checksum and validate it; to validate we need to clear
-        // both the frame and the data checksum fields so remember them both now
-        header_checksum = kis_ntoh32(frame->header.header_checksum);
-        data_checksum = kis_ntoh32(frame->header.data_checksum);
-
-        // Zero the checksum field in the packet
-        frame->header.header_checksum = 0;
-        frame->header.data_checksum = 0;
-
-        // Calc the checksum of the header
-        calc_checksum = Adler32Checksum((const char *) frame, 
-                sizeof(simple_cap_proto_t));
-
-        // Compare to the saved checksum
-        if (calc_checksum != header_checksum) {
-            rbuf_handler->PeekFreeReadBufferData(buf);
-
-            _MSG("Got an invalid remote data source connection, invalid checksum, "
-                    "disconnecting.", MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-
-            return;
-        }
-
-        // Get the size of the frame
-        frame_sz = kis_ntoh32(frame->header.packet_sz);
-
-        if (frame_sz > buffamt) {
-            // Nothing we can do right now, not enough data to 
-            // make up a complete packet.
-            rbuf_handler->PeekFreeReadBufferData(buf);
-            return;
-        }
-
-        // Calc the checksum of the rest
-        calc_checksum = Adler32Checksum((const char *) buf, frame_sz);
-
-        // Compare to the saved checksum
-        if (calc_checksum != data_checksum) {
-            rbuf_handler->PeekFreeReadBufferData(buf);
-
-            _MSG("Got an invalid remote data source connection, invalid checksum, "
-                    "disconnecting.", MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-
-            return;
-        }
-
-        // Check the header type
-        if (strncmp(frame->header.type, "NEWSOURCE", 16) != 0) {
-            rbuf_handler->PeekFreeReadBufferData(buf);
-            rbuf_handler->ConsumeReadBufferData(frame_sz);
-
-            _MSG("Got an invalid remote data source connection, invalid frame "
-                    "(expected NEWSOURCE), disconnecting.", MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-
-            return;
-        }
-
-        size_t data_offt = 0;
-        for (unsigned int kvn = 0; kvn < kis_ntoh32(frame->header.num_kv_pairs); kvn++) {
-            if (frame_sz < sizeof(simple_cap_proto_t) + 
-                    sizeof(simple_cap_proto_kv_t) + data_offt) {
-
-                rbuf_handler->PeekFreeReadBufferData(buf);
-                rbuf_handler->ConsumeReadBufferData(frame_sz);
-
-                _MSG("Got an invalid remote data source connection, invalid frame "
-                        "(KV too long for frame), disconnecting.", MSGFLAG_ERROR);
-                rbuf_handler->ProtocolError();
-
-                return;
-            }
-
-            simple_cap_proto_kv_t *pkv =
-                (simple_cap_proto_kv_t *) &((frame->data)[data_offt]);
-
-            data_offt += 
-                sizeof(simple_cap_proto_kv_h_t) + kis_ntoh32(pkv->header.obj_sz);
-
-            // We only care about 2 KV types but will skip the rest
-            if (strncmp(pkv->header.key, "DEFINITION", 16) == 0) {
-                definition = std::string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz));
-            } else if (strncmp(pkv->header.key, "SOURCETYPE", 16) == 0) {
-                srctype = std::string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz));
-            } else if (strncmp(pkv->header.key, "UUID", 16) == 0) {
-                std::string inu = 
-                    std::string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz));
-                srcuuid = uuid(std::string((char *) pkv->object, kis_ntoh32(pkv->header.obj_sz)));
-            }
-        }
-
-        // We've now extracted everything we can from the frame, consume it in the 
-        // buffer and delete it
-        rbuf_handler->PeekFreeReadBufferData(buf);
-        rbuf_handler->ConsumeReadBufferData(frame_sz);
-
-        if (definition == "") {
-            _MSG("Got an invalid remote data source connection, invalid frame "
-                    "(missing DEFINITION kv), disconnecting.", MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-
-            return;
-        }
-
-        if (srctype == "") {
-            _MSG("Got an invalid remote data source connection, invalid frame "
-                    "(missing DEFINITION kv), disconnecting.", MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-
-            return;
-
-        }
-
-        if (srcuuid == uuid()) {
-            _MSG("Got an invalid remote data source connection, invalid frame "
-                    "(missing UUID kv), disconnecting.", MSGFLAG_ERROR);
-            rbuf_handler->ProtocolError();
-
-            return;
-        }
-
-        if (cb != NULL)
-            cb(this, srctype, definition, srcuuid, rbuf_handler);
-
-        // Zero out the rbuf handler so that it doesn't get closed
-        rbuf_handler = NULL;
-
+    if (!c.ParseFromString(in_content)) {
+        _MSG("Could not process incoming remote datsource announcement", MSGFLAG_ERROR);
         kill();
 
         return;
     }
+
+    if (cb != NULL)
+        cb(this, c.sourcetype(), c.definition(), c.uuid(), ringbuf_handler);
+
+    // Zero out the rbuf handler so that it doesn't get closed
+    ringbuf_handler.reset();
+
+    kill();
 }
 
 void dst_incoming_remote::BufferError(std::string in_error) {

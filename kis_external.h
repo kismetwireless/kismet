@@ -56,7 +56,8 @@ struct KisExternalHttpUri {
     bool auth_req;
 };
 
-class KisExternalInterface : public BufferInterface, Kis_Net_Httpd_Chain_Stream_Handler {
+// Basic external interface, implements the core ping/pong/id/message/etc protocols
+class KisExternalInterface : public BufferInterface {
 public:
     KisExternalInterface(GlobalRegistry *in_globalreg);
     virtual ~KisExternalInterface();
@@ -82,6 +83,56 @@ public:
 
     // Close the external interface
     virtual void close_external();
+
+protected:
+    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
+    // number
+    virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
+
+    // Central packet dispatch handler
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+
+    // Packet handlers
+    virtual void handle_packet_message(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_ping(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_pong(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, std::string in_content);
+
+    unsigned int send_ping();
+    unsigned int send_pong(uint32_t ping_seqno);
+    unsigned int send_shutdown(std::string reason);
+
+    kis_recursive_timed_mutex ext_mutex;
+
+    // Communications API.  We implement a buffer interface and listen to the
+    // incoming read buffer, we're agnostic if it's a network or IPC buffer.
+    std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;
+
+    // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
+    // with the IPC instance.
+    std::shared_ptr<IPCRemoteV2> ipc_remote;
+
+    GlobalRegistry *globalreg;
+
+    std::shared_ptr<Timetracker> timetracker;
+
+    uint32_t seqno;
+
+    time_t last_pong;
+
+    std::string external_binary;
+    std::vector<std::string> external_binary_args;
+
+    int ping_timer_id;
+};
+
+class KisExternalHttpInterface : public KisExternalInterface, Kis_Net_Httpd_Chain_Stream_Handler {
+public:
+    KisExternalHttpInterface(GlobalRegistry *in_globalreg);
+    virtual ~KisExternalHttpInterface();
+
+    // Trigger an error condition and call all the related functions
+    virtual void trigger_error(std::string reason);
 
     // Webserver proxy interface - standard verifypath
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -111,49 +162,17 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused)));
 
 protected:
-    // Wrap a protobuf'd packet in our network framing and send it
-    virtual bool send_packet(std::shared_ptr<KismetExternal::Command> c);
-
     // Central packet dispatch handler
-    virtual void dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
 
     // Packet handlers
-    virtual void handle_packet_message(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_http_register(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_http_response(uint32_t in_seqno, std::string in_content);
     virtual void handle_packet_http_auth_request(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_ping(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_pong(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_shutdown(uint32_t in_seqno, std::string in_content);
 
-    void send_http_request(uint32_t in_http_sequence, std::string in_uri,
+    unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
-    void send_http_auth(std::string in_session);
-    void send_ping();
-    void send_pong(uint32_t ping_seqno);
-    void send_shutdown(std::string reason);
-
-    kis_recursive_timed_mutex ext_mutex;
-
-    // Communications API.  We implement a buffer interface and listen to the
-    // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;
-
-    // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
-    // with the IPC instance.
-    std::shared_ptr<IPCRemoteV2> ipc_remote;
-
-    GlobalRegistry *globalreg;
-
-    std::shared_ptr<Timetracker> timetracker;
-
-    uint32_t seqno;
-
-    time_t last_pong;
-
-    std::string external_binary;
-
-    int ping_timer_id;
+    unsigned int send_http_auth(std::string in_session);
 
     // Webserver proxy code
     
@@ -165,7 +184,6 @@ protected:
     // Map request identities
     uint32_t http_session_id;
     std::map<uint32_t, std::shared_ptr<KisExternalHttpSession> > http_proxy_session_map;
-
 };
 
 
