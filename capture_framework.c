@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <stdio.h>
 
 #ifdef HAVE_CAPABILITY
 #include <sys/capability.h>
@@ -45,8 +46,40 @@
 #include <sys/mount.h>
 #endif
 
-#include "msgpuck.h"
 #include "capture_framework.h"
+#include "kis_external_packet.h"
+
+uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
+        uint32_t *s1, uint32_t *s2) {
+	size_t i;
+	uint8_t *buf = in_buf;
+	int CHAR_OFFSET = 0;
+
+    if (in_len < 4)
+        return 0;
+
+    for (i = 0; i < (in_len - 4); i += 4) {
+        *s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3] + 
+            10 * CHAR_OFFSET;
+        *s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3] + 4 * CHAR_OFFSET); 
+	}
+
+    for (; i < in_len; i++) {
+        *s1 += (buf[i] + CHAR_OFFSET); 
+        *s2 += *s1;
+	}
+
+	return (*s1 & 0xffff) + (*s2 << 16);
+}
+
+uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
+    uint32_t s1, s2;
+
+    s1 = 0;
+    s2 = 0;
+
+    return adler32_partial_csum(in_buf, in_len, &s1, &s2);
+}
 
 int cf_parse_interface(char **ret_interface, char *definition) {
     char *colonpos;
@@ -98,7 +131,6 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
             /* If it's null we're the last flag, so use the total length after
              * the equals as the value */
             if (comma == NULL && quote == NULL) {
-                printf("comma and quote null\n");
                 *ret_value = equals + 1;
                 return strlen(equals) - 1;
             }
@@ -106,14 +138,11 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
             /* If we've got a quote inside the string, before the terminating comma,
              * find the next quote and return that as the length */
             if (quote != NULL) {
-                printf("quote not null\n");
                 if ((comma != NULL && quote < comma) || comma == NULL) {
-                    printf("quote < comma or comma null %p %p\n", quote, comma);
                     equote = strstr(quote + 1, "\"");
                     *ret_value = quote + 1;
                     return (equote - (quote + 1));
                 } else {
-                    printf("quote out of flag\n");
                 }
             }
 
@@ -1102,10 +1131,10 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
 int cf_handle_rx_data(kis_capture_handler_t *caph) {
     size_t rb_available;
 
-    simple_cap_proto_frame_t *cap_proto_frame;
+    kismet_external_frame_t *external_frame;
 
-    /* Buffer of just the packet header */
-    uint8_t hdr_buf[sizeof(simple_cap_proto_t)];
+    /* Buffer of just the packet header, fixed size */
+    uint8_t hdr_buf[sizeof(kismet_external_frame_t)];
 
     /* Buffer of entire frame, dynamic */
     uint8_t *frame_buf;
@@ -1113,42 +1142,50 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Incoming size */
     uint32_t packet_sz;
 
+    /* Incoming checksum */
+    uint32_t data_checksum;
+
+    /* Calculated checksum */
+    uint32_t calc_checksum;
+
     /* Callback ret */
     int cbret = -1;
 
     /* Status buffer */
     char msgstr[STATUS_MAX];
 
+    /* Kismet command */
+    KismetExternal__Command *kds_cmd;
+
     size_t i;
 
     rb_available = kis_simple_ringbuf_used(caph->in_ringbuf);
 
-    if (rb_available < sizeof(simple_cap_proto_t)) {
+    if (rb_available < sizeof(kismet_external_frame_t)) {
         /* fprintf(stderr, "DEBUG - insufficient data to represent a frame\n"); */
         return 0;
     }
 
     if (kis_simple_ringbuf_peek(caph->in_ringbuf, hdr_buf, 
-                sizeof(simple_cap_proto_t)) != sizeof(simple_cap_proto_t)) {
+                sizeof(kismet_external_frame_t)) != sizeof(kismet_external_frame_t)) {
         return 0;
     }
 
-    cap_proto_frame = (simple_cap_proto_frame_t *) hdr_buf;
+    external_frame = (kismet_external_frame_t *) hdr_buf;
 
     /* Check the signature */
-    if (ntohl(cap_proto_frame->header.signature) != KIS_CAP_SIMPLE_PROTO_SIG) {
+    if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
         fprintf(stderr, "FATAL: Invalid frame header received\n");
         return -1;
     }
 
-    /* Check the header checksum */
-    if (!validate_simple_cap_proto_header(&(cap_proto_frame->header))) {
-        fprintf(stderr, "DEBUG: Invalid checksum on frame header\n");
+    /* If the signature passes, see if we can read the whole frame */
+    packet_sz = ntohl(external_frame->data_sz);
+
+    if (sizeof(kismet_external_frame_t) + packet_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
+        fprintf(stderr, "FATAL: Incoming packet too large for ringbuf\n");
         return -1;
     }
-
-    /* If the signature passes, see if we can read the whole frame */
-    packet_sz = ntohl(cap_proto_frame->header.packet_sz);
 
     if (rb_available < packet_sz) {
         return 0;
@@ -1172,11 +1209,24 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Clear it out from the buffer */
     kis_simple_ringbuf_read(caph->in_ringbuf, NULL, packet_sz);
 
-    cap_proto_frame = (simple_cap_proto_frame_t *) frame_buf;
+    external_frame = (kismet_external_frame_t *) frame_buf;
 
-    /* Validate it */
-    if (!validate_simple_cap_proto(&(cap_proto_frame->header))) {
-        fprintf(stderr, "FATAL:  Invalid control frame\n");
+    /* Checksum it */
+    calc_checksum = adler32_csum(external_frame->data, packet_sz);
+
+    data_checksum = ntohl(external_frame->data_checksum);
+
+    if (calc_checksum != data_checksum) {
+        fprintf(stderr, "FATAL:  Invalid frame received, checksum does not match\n");
+        free(frame_buf);
+        return -1;
+    }
+
+    /* Unpack the protbuf */
+    kds_cmd = kismet_external__command__unpack(NULL, packet_sz, external_frame->data);
+
+    if (kds_cmd == NULL) {
+        fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack command\n");
         free(frame_buf);
         return -1;
     }
@@ -1184,21 +1234,27 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     /* Lock so we can look at callbacks */
     pthread_mutex_lock(&(caph->handler_lock));
 
-    if (strncasecmp(cap_proto_frame->header.type, "LISTINTERFACES", 16) == 0) {
+    /* Split into commands and handle them */
+    if (strcasecmp(kds_cmd->command, "PING") == 0) {
+        caph->last_ping = time(NULL);
+        cf_send_pong(caph, kds_cmd->seqno);
+        cbret = 1;
+        goto finish;
+    } else if (strcasecmp(kds_cmd->command, "PONG") == 0) {
+        cbret = 1;
+        goto finish;
+    } else if (strcasecmp(kds_cmd->command, "KDSLISTINTERFACES") == 0) {
         if (caph->listdevices_cb == NULL) {
-            pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    true, "", NULL, 0);
+            cf_send_listresp(caph, kds_cmd->seqno, true, "", NULL, 0);
             cbret = -1;
+            goto finish;
         } else {
             cf_params_list_interface_t **interfaces = NULL;
             msgstr[0] = 0;
-            cbret = (*(caph->listdevices_cb))(caph, 
-                    ntohl(cap_proto_frame->header.sequence_number),
-                    msgstr, &interfaces);
+            cbret = (*(caph->listdevices_cb))(caph, kds_cmd->seqno, msgstr, &interfaces);
 
-            cf_send_listresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    cbret >= 0, msgstr, interfaces, cbret < 0 ? 0 : cbret);
+            cf_send_listresp(caph, kds_cmd->seqno, cbret >= 0, msgstr, 
+                    interfaces, cbret < 0 ? 0 : cbret);
 
             if (cbret > 0) {
                 for (i = 0; i < (size_t) cbret; i++) {
@@ -1219,94 +1275,43 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
             /* Always spin down after listing */
             cf_handler_spindown(caph);
-
-            pthread_mutex_unlock(&(caph->handler_lock));
+            goto finish;
         }
-    } else if (strncasecmp(cap_proto_frame->header.type, "PROBEDEVICE", 16) == 0) {
-        /* fprintf(stderr, "DEBUG - Got PROBEDEVICE request\n"); */
-
+    } else if (strcasecmp(kds_cmd->command, "KDSPROBESOURCE") == 0) {
         if (caph->probe_cb == NULL) {
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
+            cf_send_proberesp(caph, kds_cmd->seqno,
                     false, "Source does not support probing", NULL, NULL);
             cbret = -1;
+            goto finish;
         } else {
-            char *def, *nuldef = NULL;
-            int def_len;
+            KismetDatasource__ProbeSource *probe_cmd = NULL;
 
             cf_params_interface_t *interfaceparams = NULL;
             cf_params_spectrum_t *spectrumparams = NULL;
 
             char *uuid = NULL;
-            
-            def_len = cf_get_DEFINITION(&def, cap_proto_frame);
 
-            if (def_len > 0) {
-                nuldef = strndup(def, def_len);
+            /* Unpack the protbuf */
+            probe_cmd = kismet_datasource__probe_source__unpack(NULL, kds_cmd->content.len, 
+                    kds_cmd->content.data);
+
+            if (probe_cmd == NULL) {
+                fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
+                        "KDSPROBESOURCE command\n");
+                cbret = -1;
+                goto finish;
             }
-
+            
             msgstr[0] = 0;
             cbret = (*(caph->probe_cb))(caph,
-                    ntohl(cap_proto_frame->header.sequence_number), nuldef,
-                    msgstr, &uuid, cap_proto_frame, &interfaceparams, &spectrumparams);
+                    kds_cmd->seqno, probe_cmd->definition,
+                    msgstr, &uuid, kds_cmd, &interfaceparams, &spectrumparams);
 
-            cf_send_proberesp(caph, ntohl(cap_proto_frame->header.sequence_number),
+            cf_send_proberesp(caph, kds_cmd->seqno,
                     cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
 
-            if (nuldef != NULL)
-                free(nuldef);
-
-            if (interfaceparams != NULL)
-                cf_params_interface_free(interfaceparams);
-
-            if (spectrumparams != NULL)
-                cf_params_spectrum_free(spectrumparams);
-
-            /* Always spin down after probing */
-            cf_handler_spindown(caph);
-
-            pthread_mutex_unlock(&(caph->handler_lock));
-        }
-    } else if (strncasecmp(cap_proto_frame->header.type, "OPENDEVICE", 16) == 0) {
-        /* fprintf(stderr, "DEBUG - Got OPENDEVICE request\n"); */
-
-        if (caph->open_cb == NULL) {
-            pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    false, "source cannot be opened", 0, NULL, NULL, NULL);
-            cbret = -1;
-        } else {
-            char *def, *nuldef = NULL;
-            int def_len;
-
-            uint32_t dlt;
-
-            cf_params_interface_t *interfaceparams = NULL;
-            cf_params_spectrum_t *spectrumparams = NULL;
-
-            char *uuid = NULL;
-            
-            def_len = cf_get_DEFINITION(&def, cap_proto_frame);
-
-            if (def_len > 0) {
-                nuldef = strndup(def, def_len);
-            } else {
-                fprintf(stderr, "FATAL - Got OPENDEVICE with no definition\n");
-                return -1;
-            }
-
-            msgstr[0] = 0;
-            cbret = (*(caph->open_cb))(caph,
-                    ntohl(cap_proto_frame->header.sequence_number), nuldef,
-                    msgstr, &dlt, &uuid, cap_proto_frame,
-                    &interfaceparams, &spectrumparams);
-
-            cf_send_openresp(caph, ntohl(cap_proto_frame->header.sequence_number),
-                    cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
-                    spectrumparams);
-
-            if (nuldef != NULL)
-                free(nuldef);
+            kismet_datasource__probe_source__free_unpacked(probe_cmd, NULL);
 
             if (uuid != NULL)
                 free(uuid);
@@ -1317,6 +1322,58 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             if (spectrumparams != NULL)
                 cf_params_spectrum_free(spectrumparams);
 
+            /* Always spin down after probing */
+            cf_handler_spindown(caph);
+
+            goto finish;
+        }
+    } else if (strcasecmp(kds_cmd->command, "KDSOPENSOURCE") == 0) {
+        if (caph->open_cb == NULL) {
+            pthread_mutex_unlock(&(caph->handler_lock));
+            cf_send_openresp(caph, kds_cmd->seqno,
+                    false, "source cannot be opened", 0, NULL, NULL, NULL);
+            cbret = -1;
+        } else {
+            KismetDatasource__OpenSource *open_cmd = NULL;
+
+            uint32_t dlt;
+
+            cf_params_interface_t *interfaceparams = NULL;
+            cf_params_spectrum_t *spectrumparams = NULL;
+
+            char *uuid = NULL;
+
+            /* Unpack the protbuf */
+            open_cmd = kismet_datasource__open_source__unpack(NULL, kds_cmd->content.len, 
+                    kds_cmd->content.data);
+
+            if (open_cmd == NULL) {
+                fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
+                        "KDSOPENSOURCE command\n");
+                cbret = -1;
+                goto finish;
+            }
+            
+            msgstr[0] = 0;
+            cbret = (*(caph->open_cb))(caph,
+                    kds_cmd->seqno, open_cmd->definition,
+                    msgstr, &dlt, &uuid, kds_cmd,
+                    &interfaceparams, &spectrumparams);
+
+            cf_send_openresp(caph, kds_cmd->seqno,
+                    cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
+                    spectrumparams);
+
+            if (uuid != NULL)
+                free(uuid);
+
+            if (interfaceparams != NULL)
+                cf_params_interface_free(interfaceparams);
+
+            if (spectrumparams != NULL)
+                cf_params_spectrum_free(spectrumparams);
+
+            kismet_datasource__open_source__free_unpacked(open_cmd, NULL);
 
             if (caph->remote_host) {
                 fprintf(stderr, "INFO - %s:%u starting capture...\n",
@@ -1327,8 +1384,155 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 cf_handler_launch_capture_thread(caph);
             }
 
-            pthread_mutex_unlock(&(caph->handler_lock));
+            goto finish;
         }
+    } else if (strcasecmp(kds_cmd->command, "KDSCONFIGURE") == 0) {
+        KismetDatasource__Configure *conf_cmd;
+
+        char *cdef, *chanset_channel;
+        double chanhop_rate;
+        char **chanhop_channels;
+        void **chanhop_priv_channels;
+        size_t chanhop_channels_sz, szi;
+        int chanhop_shuffle = 0, chanhop_offset = 0;
+        void *translate_chan;
+        int r;
+
+        /* Unpack the protbuf */
+        conf_cmd = kismet_datasource__configure__unpack(NULL, kds_cmd->content.len, 
+                kds_cmd->content.data);
+
+        if (conf_cmd == NULL) {
+            fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
+                    "KDSCONFIGURE command\n");
+            cbret = -1;
+            goto finish;
+        }
+
+        if (conf_cmd->channel != NULL) {
+            if (caph->chancontrol_cb == NULL) {
+                pthread_mutex_unlock(&(caph->handler_lock));
+                cf_send_configresp(caph, kds_cmd->seqno,
+                        0, "Source does not support setting channel");
+                cbret = 0;
+
+                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
+                goto finish;
+            } else {
+                if (caph->chantranslate_cb != NULL) {
+                    translate_chan = (*(caph->chantranslate_cb))(caph, conf_cmd->channel->channel);
+                } else {
+                    translate_chan = strdup(conf_cmd->channel->channel);
+                }
+
+                /* Cancel channel hopping */
+                caph->channel_hop_rate = 0;
+
+                if (caph->hopping_running) {
+                    pthread_cancel(caph->hopthread);
+                    caph->hopping_running = 0;
+                }
+
+                msgstr[0] = 0;
+                cbret = (*(caph->chancontrol_cb))(caph,
+                        kds_cmd->seqno,
+                        translate_chan, msgstr);
+
+                /* Send a response based on the channel set success */
+                cf_send_configresp_channel(caph, 
+                        kds_cmd->seqno,
+                        cbret >= 0, msgstr, chanset_channel);
+
+                /* Free our channel copies */
+                if (caph->chanfree_cb != NULL)
+                    (*(caph->chanfree_cb))(translate_chan);
+                else
+                    free(translate_chan);
+
+                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
+
+                goto finish;
+            }
+
+        } else if (conf_cmd->hopping != NULL) {
+            if (conf_cmd->hopping->n_channels == 0) {
+                cf_send_configresp(caph, kds_cmd->seqno, 0, "No channels in hopping configuration");
+                cbret = -1;
+
+                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
+
+                goto finish;
+            }
+
+            if (caph->chancontrol_cb == NULL) {
+                cf_send_configresp(caph, kds_cmd->seqno, 0, "Source does not support setting channel");
+                cbret = -1;
+
+                kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
+
+                goto finish;
+            }
+
+            chanhop_channels_sz = conf_cmd->hopping->n_channels;
+
+            /* Translate all the channels, or dupe them as strings */
+            chanhop_priv_channels = 
+                (void **) malloc(sizeof(void *) * chanhop_channels_sz);
+
+            for (szi = 0; szi < chanhop_channels_sz; szi++) {
+                if (caph->chantranslate_cb != NULL) {
+                    chanhop_priv_channels[szi] = 
+                        (*(caph->chantranslate_cb))(caph, conf_cmd->hopping->channels[szi]);
+                } else {
+                    chanhop_priv_channels[szi] = strdup(conf_cmd->hopping->channels[szi]);
+                }
+            }
+
+            /* Load any configure options or default to what we're already set for */
+            if (conf_cmd->hopping->has_rate)
+                chanhop_rate = conf_cmd->hopping->rate;
+            else
+                chanhop_rate = caph->channel_hop_rate;
+
+            if (conf_cmd->hopping->has_shuffle)
+                chanhop_shuffle = conf_cmd->hopping->shuffle;
+            else
+                chanhop_shuffle = caph->channel_hop_shuffle;
+
+            if (conf_cmd->hopping->has_shuffle_skip)
+                chanhop_offset = conf_cmd->hopping->shuffle_skip;
+            else
+                chanhop_offset = caph->channel_hop_offset;
+
+            /* Set the hop data, which will handle our thread */
+            cf_handler_assign_hop_channels(caph, chanhop_channels,
+                    chanhop_priv_channels, chanhop_channels_sz, chanhop_rate,
+                    chanhop_shuffle, chanhop_offset);
+
+            /* Return a completion, and we do NOT free the channel lists we
+             * dynamically allocated out of the buffer with cf_get_CHANHOP, as
+             * we're now using them for keeping the channel record in the
+             * caph */
+            cf_send_configresp_chanhop(caph, kds_cmd->seqno, 1, NULL,
+                    chanhop_rate, chanhop_channels, chanhop_channels_sz);
+            cbret = 1;
+
+            kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
+
+            goto finish;
+        }
+    }
+    
+
+finish:
+    pthread_mutex_unlock(&(caph->handler_lock));
+    kismet_external__command__free_unpacked(kds_cmd, NULL);
+    free(frame_buf);
+
+    return cbret;
+
+
+#if 0
 
     } else if (strncasecmp(cap_proto_frame->header.type, "CONFIGURE", 16) == 0) {
         char *cdef, *chanset_channel;
@@ -1471,10 +1675,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
         pthread_mutex_unlock(&(caph->handler_lock));
     }
-
-    free(frame_buf);
-
-    return cbret;
+#endif
 }
 
 int cf_get_DEFINITION(char **ret_definition, simple_cap_proto_frame_t *in_frame) {

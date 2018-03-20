@@ -51,9 +51,10 @@
 
 #include <arpa/inet.h>
 
-#include "simple_datasource_proto.h"
 #include "simple_ringbuf_c.h"
-#include "msgpuck_buffer.h"
+
+#include "protobuf_c/kismet.pb-c.h"
+#include "protobuf_c/datasource.pb-c.h"
 
 struct kis_capture_handler;
 typedef struct kis_capture_handler kis_capture_handler_t;
@@ -85,7 +86,9 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
         char *msg, cf_params_list_interface_t ***interfaces);
 
 /* Probe definition callback
- * Called to determine if definition is supported by this datasource
+ * Called to determine if definition is supported by this datasource; the complete command
+ * is passed to the datasource in case a future custom definition needs access to data
+ * stored there.
  *
  * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
@@ -102,7 +105,7 @@ typedef int (*cf_callback_listdevices)(kis_capture_handler_t *, uint32_t seqno,
  *  1   interface supported
  */
 typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno, 
-        char *definition, char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        char *definition, char *msg, char **uuid, KismetExternal__Command *command,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
@@ -126,7 +129,7 @@ typedef int (*cf_callback_probe)(kis_capture_handler_t *, uint32_t seqno,
  */
 typedef int (*cf_callback_open)(kis_capture_handler_t *, uint32_t seqno, 
         char *definition, char *msg, uint32_t *dlt, char **uuid, 
-        simple_cap_proto_frame_t *frame, cf_params_interface_t **ret_interface,
+        KismetExternal__Command *command, cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum);
 
 /* Channel translate
@@ -182,14 +185,15 @@ typedef void (*cf_callback_chanfree)(void *);
 /* Unknown frame callback
  * Called when an unknown frame is received on the protocol
  *
- * This callback is only needed to handle custom frames.
+ * This callback is only needed to handle custom frames.  This allows a capture
+ * handler to define its own custom frames and receive them from the comms later.
  *
  * Returns:
  * -1   Error occurred, close source
  *  0   Success, or frame ignored
  */
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
-        simple_cap_proto_frame_t *);
+        KismetExternal__Command *);
 
 /* Capture callback
  * Called inside the capture thread as the primary capture mechanism for the source.
@@ -224,7 +228,7 @@ typedef void (*cf_callback_capture)(kis_capture_handler_t *);
 typedef int (*cf_callback_spectrumconfig)(kis_capture_handler_t *, uint32_t seqno,
     uint64_t start_mhz, uint64_t end_mhz, uint64_t num_per_freq, uint64_t bin_width,
     unsigned int amp, uint64_t if_amp, uint64_t baseband_amp, 
-    simple_cap_proto_frame_t *in_frame);
+    KismetExternal__Command *command);
 
 struct kis_capture_handler {
     /* Capture source type */
@@ -568,73 +572,6 @@ void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
 int cf_handle_rx_data(kis_capture_handler_t *caph);
 
 
-
-/* Extract a definition string from a packet, assuming it contains a 
- * 'DEFINITION' KV pair.
- *
- * If available, returns a pointer to the definition in the packet in
- * ret_definition, and returns the length of the definition.
- *
- * CALLERS SHOULD ALLOCATE AN ADDITIONAL BYTE FOR NULL TERMINATION when extracting
- * this string, the LENGTH RETURNED IS THE ABSOLUTE LENGTH INSIDE THE DEFINITION.
- * Length is suitable for passing to strndup().
- *
- * Returns:
- * -1   Error
- *  0   No DEFINITION key found
- *  1+  Length of definition
- */
-int cf_get_DEFINITION(char **ret_definition, simple_cap_proto_frame_t *in_frame);
-
-/* Extract a channel set string from a packet, assuming it contains a
- * 'CHANSET' KV pair.
- *
- * If available, returns a pointer to the channel in the packet in
- * ret_channel, and returns the length of the channel.
- *
- * Length is suitable for passing to strndup() to copy the channel string.
- *
- * Returns:
- * -1   Error
- *  0   No CHANSET key found
- *  1+  Length of channel string
- */
-int cf_get_CHANSET(char **ret_definition, simple_cap_proto_frame_t *in_frame);
-
-/* Extract a channel hop command from a packet, assuming it contains a 'CHANHOP'
- * kv pair.
- *
- * Returns the hop rate in *ret_hop_rate.
- *
- * *ALLOCATES* a new array of strings in **ret_channel_list *which the caller is 
- * responsible for freeing*.  The caller must free both the channel string and the
- * overall list.
- *
- * Returns the number of channels in *ret_channel_list_sz.
- *
- * Returns:
- * -1   Error
- *  0   No CHANHOP key found or no channels found
- *  1+  Number of channels in chanhop command
- */
-int cf_get_CHANHOP(double *hop_rate, char ***ret_channel_list, 
-        size_t *ret_channel_list_sz, int *ret_shuffle, int *ret_offset,
-        simple_cap_proto_frame_t *in_frame);
-
-/* Extract a SPECSET kv from a config packet
- *
- * Returns the parameters in the function call.
- *
- * Returns:
- * -1   Error
- *  0   No SPECSET key found
- *  1   Success
- */
-int cf_get_SPECSET(uint64_t *ret_start_mhz, uint64_t *ret_end_mhz,
-        uint64_t *ret_num_freq, uint64_t *ret_bin_width,
-        uint8_t *ret_amp, uint64_t *ret_if_amp, uint64_t *ret_baseband_amp,
-        simple_cap_proto_frame_t *in_frame);
-
 /* Connect to a network socket, if remote connection is specified; this should
  * not be needed by capture tools using the framework; the capture loop will
  * be managed directly via cf_handler_remote_capture
@@ -682,19 +619,15 @@ int cf_handler_loop(kis_capture_handler_t *caph);
  */
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
 
-/* 'stream' a packet to the ringbuf - given a list of KVs, assemble a packet with
- * as little memory copying as possible and place it into the ringbuf.
- *
- * Upon completion, *REGARDLESS OF SUCCESS OR FAILURE*, the provided kv pairs
- * *WILL BE FREED*.
+/* Wrap a sub-packet into a KismetExternal__Command, frame it, and send it
  *
  * Returns:
  * -1   An error occurred
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_stream_packet(kis_capture_handler_t *caph, const char *packtype,
-        simple_cap_proto_kv_t **in_kv_list, unsigned int in_kv_len);
+int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
+        uint8_t *data, size_t len);
 
 /* Send a MESSAGE
  * Can be called from any thread.
@@ -782,7 +715,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  * Can be called from any thread
  *
  * If present, include message_kv, signal_kv, or gps_kv along with the packet data.
- * On failure or transmit, provided accessory KV pairs will be freed.
  *
  * Returns:
  * -1   An error occurred 
@@ -790,9 +722,9 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
  *  1   Success
  */
 int cf_send_data(kis_capture_handler_t *caph,
-        simple_cap_proto_kv_t *kv_message,
-        simple_cap_proto_kv_t *kv_signal,
-        simple_cap_proto_kv_t *kv_gps,
+        KismetExternal__MsgbusMessage *kv_message,
+        KismetDatasource__SubSignal *kv_signal,
+        KismetDatasource__SubGps *kv_gps,
         struct timeval ts, uint32_t packet_sz, uint8_t *pack);
 
 /* Send a CONFIGRESP with only a success and optional message
@@ -842,7 +774,7 @@ int cf_send_ping(kis_capture_handler_t *caph);
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_send_pong(kis_capture_handler_t *caph);
+int cf_send_pong(kis_capture_handler_t *caph, uint32_t in_seqno);
 
 /* Send a NEWSOURCE command to initiate connecting to a remote server
  *
