@@ -331,6 +331,7 @@ protected:
     virtual void handle_packet_interfaces_report(uint32_t in_seqno, std::string in_packet);
     virtual void handle_packet_opensource_report(uint32_t in_seqno, std::string in_packet);
     virtual void handle_packet_probesource_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_warning_report(uint32_t in_seqno, std::string in_packet);
 
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
@@ -505,15 +506,6 @@ protected:
     SharedTrackerElement source_info_amp_gain;
     
 
-
-    // Communications API.  We implement a buffer interface and listen to the
-    // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;
-
-    // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
-    // with the IPC instance.
-    std::shared_ptr<IPCRemoteV2> ipc_remote;
-
     // Do we clobber the remote timestamp?
     bool clobber_timestamp;
 
@@ -532,18 +524,10 @@ protected:
     SharedTrackerElement source_ipc_pid;
     __ProxySet(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid);
 
-    // Local list of additional arguments we pass to the IPC binary - could
-    // be derived from the source line, could just be stuff we know
-    std::vector<std::string> ipc_binary_args;
-
 
     // Interfaces we found via list
     std::vector<SharedInterface> listed_interfaces;
     SharedTrackerElement listed_interface_builder;
-
-
-    // Thread
-    std::shared_ptr<Timetracker> timetracker;
 
 
     // Special modes which suppress error output and retry handling

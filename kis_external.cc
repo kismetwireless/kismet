@@ -179,8 +179,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))
             return;
         }
 
-        fprintf(stderr, "debug - KISEXTERNALAPI got command '%s' seq %u sz %lu\n",
-                cmd->command().c_str(), cmd->seqno(), cmd->content().length());
+        // fprintf(stderr, "debug - KISEXTERNALAPI got command '%s' seq %u sz %lu\n", cmd->command().c_str(), cmd->seqno(), cmd->content().length());
 
         // Consume the buffer now that we're done; we only consume the 
         // frame size because we could have peeked a much larger buffer
@@ -196,7 +195,7 @@ void KisExternalInterface::BufferError(std::string in_error) {
     close_external();
 }
 
-bool KisExternalInterface::launch_ipc() {
+bool KisExternalInterface::run_ipc() {
     local_locker lock(&ext_mutex);
 
     std::stringstream ss;
@@ -267,7 +266,10 @@ unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::C
 
     // Set the sequence if one wasn't provided
     if (c->seqno() == 0) {
-        c->set_seqno(seqno++);
+        if (++seqno == 0)
+            seqno = 1;
+
+        c->set_seqno(seqno);
     }
 
     uint32_t data_csum;

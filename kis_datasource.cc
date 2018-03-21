@@ -112,7 +112,14 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     }
 
     // Launch the IPC
-    launch_ipc();
+    if (!launch_ipc()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, std::vector<SharedInterface>());
+        }
+
+        return;
+    }
+
 
     // Otherwise create and send a list command
     send_list_interfaces(in_transaction, in_cb);
@@ -584,6 +591,9 @@ bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> 
     } else if (c->command() == "KDSPROBESOURCEREPORT") {
         handle_packet_probesource_report(c->seqno(), c->content());
         return true;
+    } else if (c->command() == "KDSWARNINGREPORT") {
+        handle_packet_warning_report(c->seqno(), c->content());
+        return true;
     }
 
     return false;
@@ -688,35 +698,6 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
 
         if (report.hop_config().has_offset())
             set_int_source_hop_offset(report.hop_config().offset());
-
-        // Defer the channel hop configuration until later when we process blocked,
-        // custom, and additional channels
-        if (report.hop_config().channels_size() > 0) {
-            // Get any channels we mask out from the source definition
-            std::vector<std::string> blocked_channel_vec;
-            blocked_channel_vec = StrTokenize(get_definition_opt("blockedchannels"), ",");
-
-            TrackerElementVector hop_vec(get_int_source_hop_vec());
-            hop_vec.clear();
-
-            for (int x = 0; x < report.hop_config().channels_size(); x++) {
-                std::string cchan = report.hop_config().channels(x);
-                bool skip = false;
-
-                for (auto bchan : blocked_channel_vec) {
-                    if (StrLower(bchan) == StrLower(cchan)) {
-                        skip = true;
-                        break;
-                    }
-                }
-
-                if (!skip) {
-                    SharedTrackerElement chanstr = channel_entry_builder->clone_type();
-                    chanstr->set(report.channels().channels(x));
-                    hop_vec.push_back(chanstr);
-                }
-            }
-        }
     }
 
     if (report.has_hardware()) {
@@ -740,121 +721,117 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
         set_int_source_cap_interface(report.capture_interface());
     }
 
-    // If we don't have a hopping config in the open response, it's a basic open,
-    // and it's left up to our local definition
-    if (!report.has_hop_config()) {
-        // If we have a channels= option in the definition, override the
-        // channels list, merge the custom channels list and the supplied channels
-        // list.  Otherwise, copy the source list to the hop list.
-        //
-        // If we have a 'channel=' in the source definition that isn't in the list,
-        // add it.
-        //
-        // If we have a 'add_channels=' in the source, use the provided list + that
-        // for hop, 
-        //
-        // If we have a 'block_channels=' in the source, use the list to mask
-        // out any channels we think we support that are otherwise blocked
+    // If we have a channels= option in the definition, override the
+    // channels list, merge the custom channels list and the supplied channels
+    // list.  Otherwise, copy the source list to the hop list.
+    //
+    // If we have a 'channel=' in the source definition that isn't in the list,
+    // add it.
+    //
+    // If we have a 'add_channels=' in the source, use the provided list + that
+    // for hop, 
+    //
+    // If we have a 'block_channels=' in the source, use the list to mask
+    // out any channels we think we support that are otherwise blocked
 
-        // Grab our source and hop vectors
-        TrackerElementVector source_chan_vec(get_int_source_channels_vec());
-        TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
+    // Grab our source and hop vectors
+    TrackerElementVector source_chan_vec(get_int_source_channels_vec());
+    TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
 
-        hop_chan_vec.clear();
+    hop_chan_vec.clear();
 
-        // Add the channel= to the channels list
-        std::string def_chan = get_definition_opt("channel");
-        if (def_chan != "") {
+    // Add the channel= to the channels list
+    std::string def_chan = get_definition_opt("channel");
+    if (def_chan != "") {
+        bool append = true;
+        for (auto sci : source_chan_vec) {
+            if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+                append = false;
+                break;
+            }
+        }
+
+        if (append) {
+            SharedTrackerElement dce(new TrackerElement(TrackerString));
+            dce->set(def_chan);
+            source_chan_vec.push_back(dce);
+        }
+    }
+
+    std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
+    std::vector<std::string> add_vec = StrTokenize(get_definition_opt("add_channels"), ",");
+    std::vector<std::string> block_vec = StrTokenize(get_definition_opt("block_channels"), ",");
+
+    if (def_vec.size() != 0) {
+        // If we override the channels, use our supplied list entirely, and we don't
+        // care about the blocked channels
+        for (auto dc : def_vec) {
+            SharedTrackerElement dce(new TrackerElement(TrackerString));
+            dce->set(dc);
+
+            hop_chan_vec.push_back(dce);
+
+            // Do we need to add the custom channels to the list of channels the
+            // source supports?
             bool append = true;
             for (auto sci : source_chan_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
+                    append = false;
+                    break;
+                }
+            }
+
+            if (append) 
+                source_chan_vec.push_back(dce);
+        }
+    } else if (add_vec.size() != 0) {
+        // Add all our existing channels, filtering for blocked channels
+        for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+            bool skip = false;
+            for (auto bchan : block_vec) {
+                if (StrLower(GetTrackerValue<std::string>(*c)) == StrLower(bchan)) {
+                    skip = true;
+                    break;
+                }
+            }
+
+            if (!skip)
+                hop_chan_vec.push_back(*c);
+        }
+
+        for (auto ac : add_vec) {
+            // Add any new channels from the add_vec, we don't filter blocked channels here
+            bool append = true;
+            for (auto sci : source_chan_vec) {
+                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
                     append = false;
                     break;
                 }
             }
 
             if (append) {
-                SharedTrackerElement dce(new TrackerElement(TrackerString));
-                dce->set(def_chan);
-                source_chan_vec.push_back(dce);
+                SharedTrackerElement ace(new TrackerElement(TrackerString));
+                ace->set(ac);
+
+                hop_chan_vec.push_back(ace);
+
+                source_chan_vec.push_back(ace);
             }
         }
 
-        std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
-        std::vector<std::string> add_vec = StrTokenize(get_definition_opt("add_channels"), ",");
-        std::vector<std::string> block_vec = StrTokenize(get_definition_opt("block_channels"), ",");
-
-        if (def_vec.size() != 0) {
-            // If we override the channels, use our supplied list entirely, and we don't
-            // care about the blocked channels
-            for (auto dc : def_vec) {
-                SharedTrackerElement dce(new TrackerElement(TrackerString));
-                dce->set(dc);
-
-                hop_chan_vec.push_back(dce);
-
-                // Do we need to add the custom channels to the list of channels the
-                // source supports?
-                bool append = true;
-                for (auto sci : source_chan_vec) {
-                    if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
-                        append = false;
-                        break;
-                    }
-                }
-
-                if (append) 
-                    source_chan_vec.push_back(dce);
-            }
-        } else if (add_vec.size() != 0) {
-            // Add all our existing channels, filtering for blocked channels
-            for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
-                bool skip = false;
-                for (auto bchan : block_vec) {
-                    if (StrLower(GetTrackerValue<std::string>(*c)) == StrLower(bchan)) {
-                        skip = true;
-                        break;
-                    }
-                }
-
-                if (!skip)
-                    hop_chan_vec.push_back(*c);
-            }
-
-            for (auto ac : add_vec) {
-                // Add any new channels from the add_vec, we don't filter blocked channels here
-                bool append = true;
-                for (auto sci : source_chan_vec) {
-                    if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
-                        append = false;
-                        break;
-                    }
-                }
-
-                if (append) {
-                    SharedTrackerElement ace(new TrackerElement(TrackerString));
-                    ace->set(ac);
-
-                    hop_chan_vec.push_back(ace);
-
-                    source_chan_vec.push_back(ace);
+    } else {
+        // Otherwise, or hop list is our channels list, filtering for blocks
+        for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+            bool skip = false;
+            for (auto bchan : block_vec) {
+                if (StrLower(GetTrackerValue<std::string>(*c)) == StrLower(bchan)) {
+                    skip = true;
+                    break;
                 }
             }
 
-        } else {
-            // Otherwise, or hop list is our channels list, filtering for blocks
-            for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
-                bool skip = false;
-                for (auto bchan : block_vec) {
-                    if (StrLower(GetTrackerValue<std::string>(*c)) == StrLower(bchan)) {
-                        skip = true;
-                        break;
-                    }
-                }
-
-                if (!skip)
-                    hop_chan_vec.push_back(*c);
-            }
+            if (!skip)
+                hop_chan_vec.push_back(*c);
         }
     }
 
@@ -920,6 +897,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
     for (auto rintf : report.interfaces()) {
         SharedInterface intf = std::static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
         intf->populate(rintf.interface(), rintf.flags());
+        intf->set_prototype(get_source_builder());
 
         if (rintf.has_hardware())
             intf->set_hardware(rintf.hardware());
@@ -934,6 +912,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
     quiet_errors = true;
 
     uint32_t seq = report.success().seqno();
+
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
         if (ci->second->list_cb != NULL)
@@ -1091,6 +1070,23 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, std::string in_
     // Inject the packet into the packetchain if we have one
     packetchain->ProcessPacket(packet);
 
+}
+
+void KisDatasource::handle_packet_warning_report(uint32_t in_seqno, std::string in_content) {
+    local_locker lock(&ext_mutex);
+
+    KismetDatasource::WarningReport report;
+
+    if (!report.ParseFromString(in_content)) {
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+                std::string(" could not parse the warning report, something is wrong with "
+                    "the remote capture tool"), MSGFLAG_ERROR);
+        trigger_error("Invalid KDSWARNINGREPORT");
+        return;
+    }
+
+    _MSG(report.warning(), MSGFLAG_INFO);
+    set_int_source_warning(report.warning());
 }
 
 kis_layer1_packinfo *KisDatasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
@@ -1294,8 +1290,9 @@ unsigned int KisDatasource::send_configure_channel_hop(double in_rate,
 
     TrackerElementVector ch_vec(in_chans);
 
-    for (auto chi : ch_vec) 
+    for (auto chi : ch_vec)  {
         ch->add_channels(GetTrackerValue<std::string>(chi));
+    }
 
     o.set_allocated_hopping(ch);
 
@@ -1334,6 +1331,8 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
     c->set_content(l.SerializeAsString());
 
     seqno = send_packet(c);
+
+    fprintf(stderr, "debug - sending list with seqno %u\n", seqno);
 
     if (seqno == 0) {
         if (in_cb != NULL) {
@@ -1616,7 +1615,7 @@ bool KisDatasource::launch_ipc() {
 
     external_binary = get_source_ipc_binary();
 
-    if (KisExternalInterface::launch_ipc()) {
+    if (run_ipc()) {
         set_int_source_ipc_pid(ipc_remote->get_pid());
         return true;
     }

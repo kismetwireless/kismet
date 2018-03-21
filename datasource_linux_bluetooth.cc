@@ -19,7 +19,6 @@
 #include "config.h"
 
 #include "kis_datasource.h"
-#include "simple_datasource_proto.h"
 #include "datasource_linux_bluetooth.h"
 #include "phy_bluetooth.h"
 #include "protobuf_cpp/linuxbluetooth.pb.h"

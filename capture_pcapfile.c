@@ -66,7 +66,6 @@
 #include <arpa/inet.h>
 
 #include "config.h"
-#include "simple_datasource_proto.h"
 #include "capture_framework.h"
 
 typedef struct {
@@ -79,7 +78,7 @@ typedef struct {
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
@@ -142,7 +141,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, simple_cap_proto_frame_t *frame,
+        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface, 
         cf_params_spectrum_t **ret_spectrum) {
     char *placeholder = NULL;
@@ -273,9 +272,10 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
                         header->ts, 
+                        local_pcap->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_pcap->pd);
-            cf_send_error(caph, "unable to send DATA frame");
+            cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */

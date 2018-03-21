@@ -93,10 +93,12 @@ message SubSuccess {
 }
 
 // Close open device (Kismet->Driver)
+// KDSCLOSEDATASOURCE
 message CloseDatasource {
 }
 
 // Configure source behavior (Kismet->Driver)
+// KDSCONFIGURE
 message Configure {
     optional SubChanset channel = 1;
     optional SubChanhop hopping = 2;
@@ -104,6 +106,7 @@ message Configure {
 }
 
 // Configuration update (Driver->Kismet)
+// KDSCONFIGUREREORT
 message ConfigureReport {
     required SubSuccess success = 1;
     optional SubChanset channel = 2;
@@ -123,6 +126,7 @@ message DataReport {
 }
 
 // Fatal error (Driver->Kismet)
+// KDSERRORREPORT
 message ErrorReport {
     required SubSuccess success = 1;
     optional KismetExternal.MsgbusMessage message = 2;
@@ -134,6 +138,7 @@ message ListInterfaces {
 }
 
 // Interface list (Driver->Kismet)
+// KDSINTERFACESREPORT
 message InterfacesReport {
     required SubSuccess success = 1;
     optional KismetExternal.MsgbusMessage message = 2;
@@ -141,6 +146,7 @@ message InterfacesReport {
 }
 
 // Initiate a new datasource on a remote connection (Driver->Kismet)
+// KDSNEWSOURCE
 message NewSource {
     required string definition = 1;
     required string sourcetype = 2;
@@ -148,11 +154,13 @@ message NewSource {
 }
 
 // Initiate opening an interface (Kismet->Driver)
+// KDSOPENSOURCE
 message OpenSource {
     required string definition = 1;
 }
 
 // Report success of opening a source, and all source data (Driver->Kismet)
+// KDSOPENSOURCEREPORT
 message OpenSourceReport {
     required SubSuccess success = 1;
     optional uint32 dlt = 2;
@@ -168,11 +176,13 @@ message OpenSourceReport {
 }
 
 // Query if a driver can handle a definition (Kismet->Driver)
+// KDSPROBESOURCE
 message ProbeSource {
     required string definition = 1;
 }
 
 // Respond to a probe (Driver->Kismet)
+// KDSPROBESOURCEREPORT
 message ProbeSourceReport {
     required SubSuccess success = 1;
     optional KismetExternal.MsgbusMessage message = 2;
@@ -180,5 +190,11 @@ message ProbeSourceReport {
     optional SubChanset channel = 4;
     optional SubSpecset spectrum = 5;
     optional string hardware = 6;
+}
+
+// Non-fatal warning (Driver->Kismet)
+// KDSWARNINGREPORT
+message WarningReport {
+    required string warning = 1;
 }
 

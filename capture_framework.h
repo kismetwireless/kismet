@@ -241,6 +241,9 @@ struct kis_capture_handler {
     /* Last time we got a ping */
     time_t last_ping;
 
+    /* Sequence number counter */
+    uint32_t seqno;
+
     /* Descriptor pair */
     int in_fd;
     int out_fd;
@@ -301,6 +304,9 @@ struct kis_capture_handler {
     /* Capture thread */
     int capture_running;
     pthread_t capturethread;
+
+    /* Non-hopping channel */
+    char *channel;
 
     /* Hopping thread */
     int hopping_running;
@@ -619,7 +625,13 @@ int cf_handler_loop(kis_capture_handler_t *caph);
  */
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
 
-/* Wrap a sub-packet into a KismetExternal__Command, frame it, and send it
+/* Wrap a sub-packet into a KismetExternal__Command, frame it, and send it.
+ * May be called from any thread.
+ *
+ * The supplied data buffer will be put into the command payload.
+ *
+ * The supplied data WILL BE FREED regardless of the success of transmitting
+ * the packet.
  *
  * Returns:
  * -1   An error occurred
@@ -654,8 +666,7 @@ int cf_send_message(kis_capture_handler_t *caph, const char *message,
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_send_warning(kis_capture_handler_t *caph, const char *message, 
-        unsigned int flags, const char *warning);
+int cf_send_warning(kis_capture_handler_t *caph, const char *warning);
 
 /* Send an ERROR
  * Can be called from any thread
@@ -667,7 +678,7 @@ int cf_send_warning(kis_capture_handler_t *caph, const char *message,
  *  0   Insufficient space in buffer
  *  1   Success
  */
-int cf_send_error(kis_capture_handler_t *caph, const char *message);
+int cf_send_error(kis_capture_handler_t *caph, uint32_t in_seqno, const char *message);
 
 /* Send a LISTRESP response
  * Can be called from any thread.
@@ -725,7 +736,7 @@ int cf_send_data(kis_capture_handler_t *caph,
         KismetExternal__MsgbusMessage *kv_message,
         KismetDatasource__SubSignal *kv_signal,
         KismetDatasource__SubGps *kv_gps,
-        struct timeval ts, uint32_t packet_sz, uint8_t *pack);
+        struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack);
 
 /* Send a CONFIGRESP with only a success and optional message
  *
@@ -735,28 +746,7 @@ int cf_send_data(kis_capture_handler_t *caph,
  *  1   Success
  */
 int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seq,
-        unsigned int success, const char *msg);
-
-/* Send a CONFIGRESP with a fixed channel and optional message 
- *
- * Returns:
- * -1   An error occurred
- *  0   Insufficient space in buffer
- *  1   Success
- */
-int cf_send_configresp_channel(kis_capture_handler_t *caph,
-        unsigned int seq, unsigned int success, const char *msg, const char *channel);
-
-/* Send a CONFIGRESP with a channel hop and optional message.
- *
- * Returns:
- * -1   An error occurred
- *  0   Insufficient space in buffer
- *  1   Success
- */
-int cf_send_configresp_chanhop(kis_capture_handler_t *caph,
-        unsigned int seq, unsigned int success, const char *msg, 
-        double hop_rate, char **channel_list, size_t channel_list_sz);
+        unsigned int success, const char *msg, const char *warning);
 
 /* Send a PING request
  *
@@ -793,6 +783,18 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid);
  * 1.23e5KHz
  */
 double cf_parse_frequency(const char *freq);
+
+/* Simple redefinition of message flags */
+#define MSGFLAG_DEBUG   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__DEBUG
+#define MSGFLAG_INFO    KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__INFO
+#define MSGFLAG_ERROR   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ERROR
+#define MSGFLAG_ALERT   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ALERT
+#define MSGFLAG_FATAL   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__FATAL
+
+uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
+        uint32_t *s1, uint32_t *s2);
+uint32_t adler32_csum(uint8_t *in_buf, size_t in_len);
+
 
 #endif
 

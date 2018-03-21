@@ -79,7 +79,7 @@ public:
     // Launch the external binary and connect the IPC channel to our buffer
     // interface; most tools will use this unless they support network; 
     // datasources are the primary exception
-    virtual bool launch_ipc();
+    virtual bool run_ipc();
 
     // Close the external interface
     virtual void close_external();

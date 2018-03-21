@@ -62,6 +62,8 @@
 
 #include <ifaddrs.h>
 
+#include <stdbool.h>
+
 #include "../config.h"
 
 #ifdef HAVE_LIBNM
@@ -69,7 +71,6 @@
 #include <glib.h>
 #endif
 
-#include "../simple_datasource_proto.h"
 #include "../capture_framework.h"
 
 #include "../interface_control.h"
@@ -630,7 +631,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                         chanstr, errstr);
 
                 if (seqno == 0) {
-                    cf_send_error(caph, msg);
+                    cf_send_error(caph, 0, msg);
                 }
 
                 return -1;
@@ -642,7 +643,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                 /* Send a config response with a reconstituted channel if we're
                  * configuring the interface; re-use errstr as a buffer */
                 local_channel_to_str(channel, errstr);
-                cf_send_configresp_channel(caph, seqno, 1, NULL, errstr);
+                cf_send_configresp(caph, seqno, 1, NULL, errstr);
             }
         }
 
@@ -687,7 +688,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                         chanstr, errstr);
 
                 if (seqno == 0) {
-                    cf_send_error(caph, msg);
+                    cf_send_error(caph, 0, msg);
                 }
 
                 return -1;
@@ -703,7 +704,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
@@ -799,7 +800,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, simple_cap_proto_frame_t *frame,
+        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     /* Try to open an interface for monitoring
@@ -932,7 +933,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
                 "creation but retaining mac80211 channel controls.", 
                 local_wifi->interface);
-        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+        cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "ath10k_pci") == 0) {
@@ -941,14 +942,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "Kismet will attempt to filter these but it is not possible to "
                 "cleanly filter all of them; you may see large quantities of spurious "
                 "networks.", local_wifi->interface);
-        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+        cf_send_warning(caph, errstr);
     } else if (strcmp(driver, "brcmfmac") == 0 ||
             strcmp(driver, "brcmfmac_sdio") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is a Broadcom "
                 "binary driver found in the Raspberry Pi and some Android devices; "
                 "this will ONLY work with the nexmon patches",
                 local_wifi->interface);
-        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+        cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
 
@@ -967,7 +968,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "channels leading to firmware crashes, disabling HT and VHT channels now. "
                 "You can override this with the source options htchannels=true and "
                 "vhtchannels=true", local_wifi->interface);
-        cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+        cf_send_warning(caph, errstr);
         local_wifi->use_ht_channels = 0;
         local_wifi->use_vht_channels = 0;
     }
@@ -1417,7 +1418,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     "you encounter problems, set the regdom with a command like "
                     "'sudo iw reg set US' or whatever country is appropriate for "
                     "your location.");
-            cf_send_warning(caph, errstr, MSGFLAG_INFO, errstr);
+            cf_send_warning(caph, errstr);
         }
     }
 
@@ -1583,9 +1584,10 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
                         header->ts, 
+                        local_wifi->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_wifi->pd);
-            cf_send_error(caph, "unable to send DATA frame");
+            cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
@@ -1616,7 +1618,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             local_wifi->cap_interface, 
             strlen(pcap_errstr) == 0 ? "interface closed" : pcap_errstr );
 
-    cf_send_error(caph, errstr);
+    cf_send_error(caph, 0, errstr);
 
     ifret = ifconfig_get_flags(local_wifi->cap_interface, iferrstr, &ifflags);
 
@@ -1625,7 +1627,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 "This can happen when it is unplugged, or another service like DHCP or "
                 "NetworKManager has taken over and shut it down on us.", 
                 local_wifi->cap_interface);
-        cf_send_error(caph, errstr);
+        cf_send_error(caph, 0, errstr);
     }
 
     cf_handler_spindown(caph);
@@ -1707,14 +1709,10 @@ int main(int argc, char *argv[]) {
     cf_handler_remote_capture(caph);
 
     /* Jail our ns */
-    if (cf_jail_filesystem(caph) < 1) {
-        fprintf(stderr, "DEBUG - Couldn't jail filesystem\n");
-    }
+    cf_jail_filesystem(caph);
 
     /* Strip our privs */
-    if (cf_drop_most_caps(caph) < 1) {
-        fprintf(stderr, "DEBUG - Didn't drop some privs\n");
-    }
+    cf_drop_most_caps(caph);
 
     cf_handler_loop(caph);
 
