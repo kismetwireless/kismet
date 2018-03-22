@@ -666,6 +666,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
                         header->ts, 
+                        local_wifi->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_wifi->pd);
             cf_send_error(caph, 0, "unable to send DATA frame");
