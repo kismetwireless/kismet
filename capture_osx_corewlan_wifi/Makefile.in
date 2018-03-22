@@ -32,7 +32,7 @@ clean:
 	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 %.m.o: %.m
-	$(CLANG) -c $(FRAMEWORKS) $*.m -o $@
+	$(CLANG) $(CFLAGS) $(CPPFLAGS) -c $(FRAMEWORKS) $*.m -o $@
 
 .PRECIOUS: %.c.d
 

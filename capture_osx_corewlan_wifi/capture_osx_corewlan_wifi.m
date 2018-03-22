@@ -363,7 +363,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                 chanstr, errstr);
 
         if (seqno == 0) {
-            cf_send_error(caph, msg);
+            cf_send_error(caph, 0, msg);
         }
 
         return -1;
@@ -668,7 +668,7 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
                         header->ts, 
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_wifi->pd);
-            cf_send_error(caph, "unable to send DATA frame");
+            cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */
@@ -699,7 +699,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             local_wifi->cap_interface, 
             strlen(pcap_errstr) == 0 ? "interface closed" : pcap_errstr );
 
-    cf_send_error(caph, errstr);
+    cf_send_error(caph, 0, errstr);
 
     ifret = ifconfig_get_flags(local_wifi->cap_interface, iferrstr, &ifflags);
 
@@ -707,7 +707,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' no longer appears to be up; "
                 "This can happen when it is unplugged, or another service like DHCP or "
                 "has taken over and shut it down on us.", local_wifi->cap_interface);
-        cf_send_error(caph, errstr);
+        cf_send_error(caph, 0, errstr);
     }
 
     cf_handler_spindown(caph);
