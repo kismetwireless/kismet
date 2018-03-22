@@ -621,6 +621,8 @@ fi
 AC_SUBST(mangrp)
 
 # We need microhttpd
+if test "$caponly" != 0; then
+
 HAVE_LIBMICROHTTPD=0
 AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
              KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
@@ -661,6 +663,8 @@ if test "$mhd_quiesce" = 1; then
 else
     AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
 fi
+
+fi # caponly
 
 # Check for ncurses for pretty wrapper; no longer mandatory
 

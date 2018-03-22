@@ -7355,6 +7355,8 @@ fi
 
 
 # We need microhttpd
+if test "$caponly" != 0; then
+
 HAVE_LIBMICROHTTPD=0
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
 $as_echo_n "checking for MHD_start_daemon in -lmicrohttpd... " >&6; }
@@ -7478,6 +7480,8 @@ else
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&5
 $as_echo "$as_me: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&2;}
 fi
+
+fi # caponly
 
 # Check for ncurses for pretty wrapper; no longer mandatory
 
