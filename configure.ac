@@ -1109,7 +1109,7 @@ PROTOCFLAGS=`pkg-config --cflags protobuf`
 fi
 
 # We need protobuf-c all the time
-PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], have_protobufc_pkg=yes)
+PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)
 if test x"$have_protobufc_pkg" != "xyes"; then
     # Look for the old version (old ubuntu, maybe others)
     AC_CHECK_HEADER([google/protobuf-c/protobuf-c.h], 
