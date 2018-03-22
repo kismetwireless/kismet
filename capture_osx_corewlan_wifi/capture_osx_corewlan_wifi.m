@@ -50,11 +50,8 @@
 
 #include "../config.h"
 
-#include "../simple_datasource_proto.h"
 #include "../capture_framework.h"
-
 #include "../interface_control.h"
-
 #include "../wifi_ht_channels.h"
 
 #import <Foundation/Foundation.h>
@@ -377,7 +374,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, char **uuid, simple_cap_proto_frame_t *frame,
+        char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
@@ -446,7 +443,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 }
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, simple_cap_proto_frame_t *frame,
+        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
     
