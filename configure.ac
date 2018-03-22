@@ -1111,7 +1111,21 @@ fi
 # We need protobuf-c all the time
 PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], have_protobufc_pkg=yes)
 if test x"$have_protobufc_pkg" != "xyes"; then
-    AC_MSG_ERROR([missing libprotobuf-c])
+    # Look for the old version (old ubuntu, maybe others)
+    AC_CHECK_HEADER([google/protobuf-c/protobuf-c.h], 
+            have_protobufc_hdr=yes)
+    AC_CHECK_LIB([protobuf-c], [protobuf_c_message_pack_to_buffer],
+            have_protobufc_lib=yes)
+
+    if test x"$have_protobufc_hdr" = "xyes" -a x"$have_protobufc_lib" = "xyes"; then
+        PROTOCLIBS="-lprotobuf-c"
+        PROTOCFLAGS=""
+    else
+        AC_MSG_ERROR([missing libprotobuf-c])
+    fi
+else
+    PROTOCLIBS=`pkg-config --libs libprotobuf-c`
+    PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 fi
 
 AC_ARG_WITH(protocc,
@@ -1127,9 +1141,6 @@ if test x"$with_protocc" == "x"; then
 else
     PROTOCCBIN=$with_protocc
 fi
-
-PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 
 AC_SUBST(PROTOCBIN)
 AC_SUBST(PROTOLIBS)

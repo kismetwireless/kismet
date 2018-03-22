@@ -9321,7 +9321,63 @@ $as_echo "yes" >&6; }
 	have_protobufc_pkg=yes
 fi
 if test x"$have_protobufc_pkg" != "xyes"; then
-    as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+    # Look for the old version (old ubuntu, maybe others)
+    ac_fn_cxx_check_header_mongrel "$LINENO" "google/protobuf-c/protobuf-c.h" "ac_cv_header_google_protobuf_c_protobuf_c_h" "$ac_includes_default"
+if test "x$ac_cv_header_google_protobuf_c_protobuf_c_h" = xyes; then :
+  have_protobufc_hdr=yes
+fi
+
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf_c_message_pack_to_buffer in -lprotobuf-c" >&5
+$as_echo_n "checking for protobuf_c_message_pack_to_buffer in -lprotobuf-c... " >&6; }
+if ${ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lprotobuf-c  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char protobuf_c_message_pack_to_buffer ();
+int
+main ()
+{
+return protobuf_c_message_pack_to_buffer ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer=yes
+else
+  ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer" >&5
+$as_echo "$ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer" >&6; }
+if test "x$ac_cv_lib_protobuf_c_protobuf_c_message_pack_to_buffer" = xyes; then :
+  have_protobufc_lib=yes
+fi
+
+
+    if test x"$have_protobufc_hdr" = "xyes" -a x"$have_protobufc_lib" = "xyes"; then
+        PROTOCLIBS="-lprotobuf-c"
+        PROTOCFLAGS=""
+    else
+        as_fn_error $? "missing libprotobuf-c" "$LINENO" 5
+    fi
+else
+    PROTOCLIBS=`pkg-config --libs libprotobuf-c`
+    PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 fi
 
 
@@ -9376,9 +9432,6 @@ fi
 else
     PROTOCCBIN=$with_protocc
 fi
-
-PROTOCLIBS=`pkg-config --libs libprotobuf-c`
-PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 
 
 
