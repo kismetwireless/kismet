@@ -24,7 +24,9 @@ The network protocol is an encapsulation of the same protocol over a TCP channel
 
 The datasource capture protocol acts as additional commands within the Kismet External API; it is defined in `protobuf_definitions/datasource.proto`.
 
-Datasource commands are in the `KismetDatasource` namespace, and their string equivalents in the helper API are prefixed with `KDS`.
+Datasource commands are in the `KismetDatasource` namespace, and their string equivalents in the helper API are prefixed with `KDS`.  Reply-only frames are suffixed with `RESPONSE`.
+
+### KDS Commands
 
 #### `KDSCLOSEDATASOURCE` (KismetDatasource.CloseDatasource) *Kismet -> Datasource*
 
@@ -233,7 +235,123 @@ Kismet will attempt to match a source to a datasource driver by asking each data
 
 *None*
 
+### KDS Subcomponents
 
+When the same data is used in multiple packets, it is typically placed in a `KismetDatasource.Sub...` message which is included in the top-level command.
+
+Many `Sub...` blocks contain only a single field; these may be expanded in the future to contain multiple fields, depending on the requirements of the protocol.
+
+#### `KismetDatasource.SubChannels`
+
+Basic list of channels.  Channels are reported as strings, as they can represent complex tuning options (Such as `6HT40+` for Wi-Fi).
+
+| Field    | Type     | Content           |
+| -------- | -------- | ----------------- |
+| channels | string[] | Array of channels |
+
+#### `KismetDatasource.SubChannel`
+
+Basic channel.  Channels are reported as strings, as they can represent complex tuning options.
+
+| Field   | Type   | Content |
+| ------- | ------ | ------- |
+| channel | string | Channel |
+
+#### `KismetDatasource.SubChanhop`
+
+| Field        | Type     | Content                                                      |
+| ------------ | -------- | ------------------------------------------------------------ |
+| channels     | string[] | Array of channels to configure as the hopping pattern        |
+| rate         | double   | *Optional* Rate at which to hop, in hops per second.  Hop rates less than 1 result in dwelling on a channel for longer than a second. |
+| shuffle      | bool     | *Optional* Automatically shuffle the hop list to minimize frequency overlap (maximizing channel coverage) |
+| shuffle_skip | uint32   | *Optional* Skip interval when shuffling; this is typically calculated by Kismet to be a prime factor of the number of channels in the hop list, ensuring coverage. |
+| offset       | uint32   | *Optional* Offset into the hopping channel list; this is typically calculated by Kismet when multiple radios are present on the same frequency band, and maximizes coverage. |
+
+#### `KismetDatasource.SubGps`
+
+| Field     | Type   | Content                                          |
+| --------- | ------ | ------------------------------------------------ |
+| lat       | double | Latitude                                         |
+| lon       | double | Longitude                                        |
+| alt       | double | Altitude (meters)                                |
+| speed     | double | Speed (kph)                                      |
+| heading   | double | Heading (degrees)                                |
+| precision | double | Location precision (meters)                      |
+| fix       | uint32 | GPS fix quality (2 = 2d, 3 = 3d)                 |
+| time_sec  | uint64 | GPS position timestamp as Posix second precision |
+| time_usec | uint64 | GPS position timestamp as microsecond precision  |
+| type      | string | GPS type (As defined by GPS driver)              |
+| name      | string | GPS name (As defined by user)                    |
+
+#### `KisDatasource.SubInterface`
+
+| Field     | Type   | Content                                                      |
+| --------- | ------ | ------------------------------------------------------------ |
+| interface | string | Supported interface (which can be passed via `-c [interface]` in Kismet for example) |
+| flags     | string | Required option flags (which will be passed via `-c [interface]:flags` in Kismet for example); Flags can refine the interface parameters, etc. |
+| hardware  | string | *Optional* Hardware / chipset of device                      |
+
+#### `KisDatasource.SubPacket`
+
+Raw packet data is injected into the Kismet Packetchain system.  Datasources which send data with a DLT handled by Kismet will be automatically processed; datasources sending a new DLT will have to provide a parser for that link type.
+
+| Field     | Type    | Content                                                      |
+| --------- | ------- | ------------------------------------------------------------ |
+| time_sec  | uint64  | Packet timestamp as Posix second                             |
+| time_usec | uint64  | Packet timestamp microseconds                                |
+| dlt       | uint32  | DLT (Data Link Type) of packet content, as returned by libpcap |
+| size      | uint64  | Packet payload size                                          |
+| data      | bytes[] | Raw packet data                                              |
+
+#### `KisDatasource.SubSignal`
+
+Some packet formats include signal level data as part of the packet headers (for example, Radiotap); for other packets, this data may be available as an external set of data.
+
+| Field       | Type   | Content                                                      |
+| ----------- | ------ | ------------------------------------------------------------ |
+| signal_dbm  | double | *Optional* Signal level in dBm                               |
+| noise_dbm   | double | *Optional* Noise level in dBm                                |
+| signal_rssi | double | *Optional* Signal level in RSSI.  Kismet cannot convert RSSI to a meaningful number, so whenever possible, a datasource should prefer dBm) |
+| noise_rssi  | double | *Optional* Noise level in RSSI.  Kismet cannot convert RSSI to a meaningful number, so whenever possible, a datasource should prefer dBm) |
+| freq_khz    | double | *Optional* Frequency of packet, in KHz                       |
+| channel     | string | *Optional* Channel of packet, as a string meaningful to the datasource type |
+| datarate    | double | *Optional* Data rate of packet                               |
+
+#### `KisDatasource.SubSpecSet`
+
+For data sources which support raw spectrum capture, the `SubSpecSet` configuration block will be sent to configure the ranges.
+
+| Field              | Type   | Content                                                      |
+| ------------------ | ------ | ------------------------------------------------------------ |
+| start_mhz          | double | *Optional* Starting frequency of sample sweep, in MHz        |
+| end_mhz            | double | *Optional* Ending frequency of sample sweep, in MHz          |
+| samples_per_bucket | double | *Optional* Number of samples taken per frequency bucket      |
+| bucket_width_hz    | double | *Optional* Width of sample bucket, in Hz                     |
+| enable_amp         | bool   | *Optional* If available, enable amplifier in radio           |
+| if_amp             | uint64 | *Optional* If available, amplification at the IF stage       |
+| baseband_amp       | uint64 | *Optional* If available, amplification at the baseband stage |
+
+#### `KisDatasource.SubSpectrum`
+
+Data sources which support raw spectrum capture return the spectrum record in a `SubSpectrum`.
+
+| Field           | Type     | Content                                         |
+| --------------- | -------- | ----------------------------------------------- |
+| time_sec        | uint64   | *Optional* Timestamp of sweep, in Posix seconds |
+| time_usec       | uint64   | *Optional* Timestamp of sweep, microseconds     |
+| start_mhz       | double   | *Optional* Starting frequency of sweep, in MHz  |
+| end_mhz         | double   | *Optional* Ending frequency of sweep, in MHz    |
+| bucket_width_hz | double   | *Optional* Width of sample buckets              |
+| data            | uint32[] | *Optional* Sweep samples                        |
+
+#### `KisDatasource.SubSuccess`
+
+Response messages include a `SubSuccess`; this is used to indicate command completion.
+
+| Field   | Type   | Content                                                      |
+| ------- | ------ | ------------------------------------------------------------ |
+| success | bool   | Transaction was successful (or not)                          |
+| seqno   | uint32 | Sequence number of command we are responding to.  If this is a runtime-error not associated with a specific command, this may be 0. |
 
 ## Defining the driver:  Deriving from KisDatasource
 
