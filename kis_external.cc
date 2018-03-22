@@ -140,8 +140,12 @@ void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))
         if (frame_sz >= ringbuf_handler->GetReadBufferAvailable()) {
             ringbuf_handler->PeekFreeReadBufferData(buf);
 
-            _MSG("Kismet external interface got command frame too large to ever be read", 
-                    MSGFLAG_ERROR);
+            std::stringstream ss;
+
+            ss << "Kismet external interface got command frame which is too large to "
+                "be processed: " << frame_sz << " / " << ringbuf_handler->GetReadBufferAvailable();
+
+            _MSG(ss.str(), MSGFLAG_ERROR);
             trigger_error("Command frame too large for buffer");
 
             return;
