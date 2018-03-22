@@ -29,7 +29,6 @@
 #include <string.h>
 #include <errno.h>
 #include <microhttpd.h>
-#include <msgpack.hpp>
 
 #include <memory>
 

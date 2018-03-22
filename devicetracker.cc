@@ -43,7 +43,6 @@
 #include "manuf.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
-#include "msgpack_adapter.h"
 #include "json_adapter.h"
 #include "structured.h"
 #include "kismet_json.h"
@@ -1485,16 +1484,12 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
         // Get the decompressed record
         std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
 
-        /*
         // Read out the structured json
         SharedStructured sjson(new StructuredJson(uzbuf));
-        */
-
-        SharedStructured sstructured(new StructuredMsgpack(uzbuf));
 
         // Process structured object into a shared element
         SharedTrackerElement e = 
-            StorageLoader::storage_to_tracker(entrytracker, sstructured);
+            StorageLoader::storage_to_tracker(entrytracker, sjson);
 
         // Adopt it into a device
         std::shared_ptr<kis_tracked_device_base> 
@@ -2100,7 +2095,7 @@ int DevicetrackerStateStore::store_devices(TrackerElementVector devices) {
                 // Pack a storage formatted blob
                 {
                     local_locker lock(&(devicetracker->devicelist_mutex));
-                    StorageMsgpackAdapter::Pack(globalreg, *serialstream, d, NULL);
+                    StorageJsonAdapter::Pack(globalreg, *serialstream, d, NULL);
                 }
 
                 // Sync the buffers

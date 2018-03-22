@@ -255,7 +255,7 @@ int Kis_Zwave_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
     } else {
-        // Return a generic OK.  msgpack returns shouldn't get to here.
+        // Return a generic OK.  
         concls->response_stream << "OK";
     }
 

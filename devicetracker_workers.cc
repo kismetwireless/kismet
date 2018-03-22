@@ -45,7 +45,6 @@
 #include "manuf.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
-#include "msgpack_adapter.h"
 #include "json_adapter.h"
 #include "structured.h"
 #include "kismet_json.h"

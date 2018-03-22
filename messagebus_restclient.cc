@@ -22,7 +22,6 @@
 #include "messagebus_restclient.h"
 
 #include "json_adapter.h"
-#include "msgpack_adapter.h"
 
 RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
     MessageClient(in_globalreg, in_aux),
@@ -90,17 +89,13 @@ bool RestMessageClient::Httpd_VerifyPath(const char *path, const char *method) {
         return false;
 
     if (tokenurl[1] == "messagebus") {
-        if (tokenurl[2] == "all_messages.msgpack") {
-            return true;
-        } else if (tokenurl[2] == "all_messages.json") {
+        if (tokenurl[2] == "all_messages.json") {
             return true;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
                 return false;
 
-            if (tokenurl[4] == "messages.msgpack")
-                return true;
-            else if (tokenurl[4] == "messages.json")
+            if (tokenurl[4] == "messages.json")
                 return true;
             else
                 return false;

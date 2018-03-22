@@ -20,7 +20,6 @@
 #include "gpsweb.h"
 #include "gpstracker.h"
 #include "messagebus.h"
-#include "msgpack_adapter.h"
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
@@ -115,6 +114,7 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
     bool set_alt = false, set_spd = false;
 
     if (concls->url == "/gps/web/update.cmd") {
+#if 0
         if (strcmp(key, "msgpack") == 0 && size > 0) {
             std::string decode = Base64::decode(std::string(data));
 
@@ -160,6 +160,10 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
                 return 1;
             }
         }
+#endif
+        concls->response_stream << "Being rewritten";
+        concls->httpcode = 400;
+        return 1;
     }
 
     // If we didn't handle it and got here, we don't know what it is, throw an

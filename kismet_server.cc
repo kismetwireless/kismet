@@ -101,7 +101,6 @@
 
 #include "entrytracker.h"
 
-#include "msgpack_adapter.h"
 #include "json_adapter.h"
 
 #include "streamtracker.h"
@@ -879,15 +878,13 @@ int main(int argc, char *argv[], char *envp[]) {
         EntryTracker::create_entrytracker(globalregistry);
 
     // Base serializers
-    entrytracker->RegisterSerializer("msgpack", std::shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("json", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("ekjson", std::shared_ptr<TrackerElementSerializer>(new EkJsonAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("prettyjson", std::shared_ptr<TrackerElementSerializer>(new PrettyJsonAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("storagejson", std::shared_ptr<TrackerElementSerializer>(new StorageJsonAdapter::Serializer(globalregistry)));
 
-    // cmd is msgpack, jcmd is json (for now?)
-    entrytracker->RegisterSerializer("cmd", std::shared_ptr<TrackerElementSerializer>(new MsgpackAdapter::Serializer(globalregistry)));
     entrytracker->RegisterSerializer("jcmd", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("cmd", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
 
 
     if (daemonize) {

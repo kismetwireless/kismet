@@ -4,16 +4,12 @@ AC_INIT
 VERSION=`cat VERSION`
 AC_SUBST(VERSION)
 
-BUNDLE_MSGPACK=./msgpack-1.4.1
-
 #m4_include([m4/acx_pthread.m4])
 #m4_include([m4/ax_cxx_compile_stdcxx.m4])
 #m4_include([m4/ax_cxx_compile_stdcxx_11.m4])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_SRCDIR([kismet.h])
-
-AC_CONFIG_SUBDIRS([${BUNDLE_MSGPACK}])
 
 AC_PREREQ(2.57)
 
@@ -1411,8 +1407,6 @@ sharedatadir=`(
 )`
 sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
-
-CPPFLAGS="$CPPFLAGS -I$BUNDLE_MSGPACK/include"
 
 AC_SUBST(DATASOURCE_BINS)
 AC_SUBST(BUILD_CAPTURE_PCAPFILE)

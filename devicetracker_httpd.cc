@@ -44,7 +44,6 @@
 #include "manuf.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
-#include "msgpack_adapter.h"
 #include "json_adapter.h"
 #include "structured.h"
 #include "kismet_json.h"
@@ -507,10 +506,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     time_t post_ts = 0;
 
     try {
-        // Decode the base64 msgpack and parse it, or parse the json
-        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
-        } else if (concls->variable_cache.find("json") != 
+        if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
             structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
         } else {

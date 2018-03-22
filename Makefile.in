@@ -123,7 +123,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 	packetchain.cc.o \
 	trackedelement.cc.o entrytracker.cc.o \
 	tracked_location.cc.o devicetracker_component.cc.o \
-	jsoncpp.cc.o msgpack_adapter.cc.o json_adapter.cc.o \
+	jsoncpp.cc.o json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_workers.cc.o devicetracker_httpd.cc.o \
 	statealert.cc.o \
@@ -373,7 +373,6 @@ clean:
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_sdr_rtl433 && make clean)
-	@(cd msgpack-1.4.1 && make clean)
 
 distclean:
 	@-$(MAKE) clean

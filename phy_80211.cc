@@ -52,7 +52,6 @@
 #include "phy_80211.h"
 
 #include "structured.h"
-#include "msgpack_adapter.h"
 #include "kismet_json.h"
 
 #include "kis_httpd_registry.h"
@@ -2453,7 +2452,7 @@ int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         concls->response_stream << "Invalid request";
         concls->httpcode = 400;
     } else {
-        // Return a generic OK.  msgpack returns shouldn't get to here.
+        // Return a generic OK. 
         concls->response_stream << "OK";
     }
 

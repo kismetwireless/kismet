@@ -143,7 +143,10 @@ void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))
             std::stringstream ss;
 
             ss << "Kismet external interface got command frame which is too large to "
-                "be processed: " << frame_sz << " / " << ringbuf_handler->GetReadBufferAvailable();
+                "be processed (" << frame_sz << " / " << 
+                ringbuf_handler->GetReadBufferAvailable() << "), this can happen when you "
+                "are using an old remote capture tool, make sure you have updated your "
+                "systems.";
 
             _MSG(ss.str(), MSGFLAG_ERROR);
             trigger_error("Command frame too large for buffer");

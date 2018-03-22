@@ -30,7 +30,6 @@
 #include "battery.h"
 #include "entrytracker.h"
 #include "system_monitor.h"
-#include "msgpack_adapter.h"
 #include "json_adapter.h"
 
 Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :

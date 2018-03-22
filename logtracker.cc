@@ -26,7 +26,6 @@
 #include "configfile.h"
 #include "alertracker.h"
 #include "structured.h"
-#include "msgpack_adapter.h"
 #include "kismet_json.h"
 #include "base64.h"
 
@@ -531,10 +530,8 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     try {
-        // Decode the base64 msgpack and parse it, or parse the json
-        if (concls->variable_cache.find("msgpack") != concls->variable_cache.end()) {
-            structdata.reset(new StructuredMsgpack(Base64::decode(concls->variable_cache["msgpack"]->str())));
-        } else if (concls->variable_cache.find("json") != 
+        // Parse the json
+        if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
             structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
         } else {

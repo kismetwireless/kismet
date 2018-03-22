@@ -2,7 +2,7 @@
 
 Kismet uses a REST-like interface on the embedded web server for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.  Whenever possible, parameters are sent via the GET URI, but for more complex features, command arguments are sent via POST.
 
-*Broadly speaking*, nearly all endpoints in Kismet should support all output and serialization methods.  By default, these are JSON and Msgpack, but additional output serializers may be added in the future or added by plugins.  Some unique endpoints are available only under specific output methods, typically these take advantage of features found only in that output type.
+*Broadly speaking*, nearly all endpoints in Kismet should support all output and serialization methods.  By default, this is JSON, but additional output serializers may be added in the future or added by plugins.  Some unique endpoints are available only under specific output methods, typically these take advantage of features found only in that output type.
 
 ## Exploring the REST system
 
@@ -89,15 +89,11 @@ While the `prettyjson` format is well suited for learning about Kismet and devel
 
 ## Serialization Types
 
-Kismet can export data as several different formats; generally these formats are indicated by the type of endpoint being requested (such as foo.msgpack or foo.json)
+Kismet can export data as several different formats; generally these formats are indicated by the type of endpoint being requested (such as foo.json)
 
 ### JSON
 
 Kismet will export objects in traditional JSON format suitable for consumption in javascript or any other language with a JSON interpreter.
-
-### MSGPACK
-
-Kismet can export objects in binary msgpack format, which may in some instances offer an advantage in parsing time over stock JSON.  The format of the msgpack and json objects will be identical.
 
 ### EKJSON
 
@@ -123,7 +119,9 @@ Session IDs are returned in the `KISMET` session cookie.  Clients which interact
 
 ## Commands
 
-Commands are sent via HTTP POST.  Currently, a command should be a base64-encoded msgpack string dictionary containing key:value pairs, sent under the `msgpack` or `json` POST fields.  This may be subject to change as the HTTP interface evolves.
+Commands are sent via HTTP POST.  Command options are sent as a JSON dictionary object in the POST field `json`
+
+This may be subject to change as the HTTP interface evolves.
 
 Commands should always be sent using the `x-www-form-encoded` content type; if your API does not do this by default, you may need to specify:
 
@@ -133,30 +131,7 @@ Content-Type: application/x-www-form-urlencoded; charset=utf-8
 
 as part of the requests you send.
 
-
-For instance, a command created in Python might look like:
-
-```python
-# Build the dictionary
-cmd = {
-    "cmd": "lock",
-    "channel": "6",
-    "uuid": "aaa:bbb:cc:dd:ee:ff:gg"
-}
-
-# Encode msgpack binary
-cmdbin = msgpack.packb(cmd)
-
-# Encode as base64
-cmdencoded = base64.b64encode(cmdbin)
-
-# Set up the POST dictionary
-post = {
-    "msgpack": cmdencoded
-}
-```
-
-A similar command generated in Javascript might be:
+A command generated in Javascript might be:
 
 ```javascript
 var json = {
@@ -251,11 +226,11 @@ regex = [
 
 ### System Status
 
-##### /system/status `/system/status.msgpack`, `/system/status.json`
+##### /system/status `/system/status.json`
 
 Dictionary of system status, including uptime, battery, and memory use.
 
-##### /system/timestamp `/system/timestamp.msgpack`, `/system/timestamp.json`
+##### /system/timestamp  `/system/timestamp.json`
 
 Dictionary of system timestamp as second, microsecond; can be used to synchronize timestamps.
 
@@ -271,7 +246,7 @@ All devices will have a basic set of records (held in the `kismet.base.foo` grou
 
 The preferred method of retrieving device lists is to use the POST URI `/devices/summary/` or `/devices/last-time` with a list of fields provided.  Whenever possible, limiting the fields requested and the time range requested will reduce the load on the Kismet server *and* the client consuming the data.
 
-##### POST /devices/summary/devices `/devices/summary/devices.msgpack`, `/devices/summary/devices.json`
+##### POST /devices/summary/devices  `/devices/summary/devices.json`
 
 A POST endpoint which returns a summary of all devices.  This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
 
@@ -279,7 +254,7 @@ Optionally, a regex dictionary may be provided to filter the devices returned.
 
 Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values; This is used by dataTables to wrap the initial query in an `aaData` object required for that API.
 
-The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+The command dictionary is expected to contain:
 
 | Key     | Value               | Type                      | Desc                                     |
 | ------- | ------------------- | ------------------------- | ---------------------------------------- |
@@ -293,7 +268,7 @@ Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, e
 
 This can be useful for incrementally parsing the results or feeding the results to another tool like elasticsearch.
 
-##### POST /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
+##### POST /devices/last-time/[TS]/devices `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
 List containing the list of all devices which are new or have been modified since the server timestamp `[TS]`.
 
@@ -305,14 +280,14 @@ This endpoint accepts a field simplification dictionary which defines the fields
 
 Optionally, a regex dictionary may be provided to filter the devices returned.
 
-The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+The command dictionary is expected to contain:
 
 | Key    | Value               | Type                      | Desc                                     |
 | ------ | ------------------- | ------------------------- | ---------------------------------------- |
 | fields | Field specification | Field specification array | Optional, field listing                  |
 | regex  | Regex specification | Regular expression array  | Optional, array of field paths and regular expressions |
 
-##### /devices/last-time/[TS]/devices `/devices/last-time/[TS]/devices.msgpack`, `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
+##### /devices/last-time/[TS]/devices  `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
 List containing the list of all devices which are new or have been modified since the server timestamp `[TS]`.
 
@@ -322,43 +297,43 @@ This endpoint is most useful for clients and scripts which need to monitor the s
 
 The device list may be further refined by using the `POST` equivalent of this URI.
 
-##### /devices/by-key/[DEVICEKEY]/device `/devices/by-key/[DEVICEKEY]/device.msgpack`, `/devices/by-key/[DEVICEKY]/device.json`
+##### /devices/by-key/[DEVICEKEY]/device  `/devices/by-key/[DEVICEKY]/device.json`
 
 Complete dictionary object containing all information about the device referenced by [DEVICEKEY].
 
-##### POST /devices/by-key/[DEVICEKEY]/device `/devices/by-key/[DEVICEKEY]/device.msgpack`, `/devices/by-key/[DEVICEKY]/device.json`
+##### POST /devices/by-key/[DEVICEKEY]/device  `/devices/by-key/[DEVICEKY]/device.json`
 
 Dictionary object of device, simplified by the `fields` argument in accordance to the field simplification rules described above.
 
-The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+The command dictionary is expected to contain:
 
 | Key    | Value               | Type                      | Desc                                |
 | ------ | ------------------- | ------------------------- | ----------------------------------- |
 | fields | Field specification | Field specification array | Optional, array of fields to return |
 
-##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey] `/devices/by-key/[DEVICEKEY]/device.msgpack[/path/to/subkey]`, `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
+##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey]  `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
 Dictionary containing all the device data referenced by `[DEVICEKEY]`, in the sub-tree `[path/to/subkey]`.  Allows fetching single fields or objects from the device tree without fetching the entire device record.
 
-##### /devices/by-mac/[DEVICEMAC]/devices `/devices/by-mac/[DEVICEMAC]/devices.msgpack`, `/devices/by-mac/[DEVICEMAC]/devices.json`
+##### /devices/by-mac/[DEVICEMAC]/devices  `/devices/by-mac/[DEVICEMAC]/devices.json`
 
 Array/list of all devices matching `[DEVICEMAC]` across all PHY types.  It is possible (though not likely) that there can be a MAC address collision between different PHY types, especially types which synthesize false MAC addresses when no official address is available.
 
-##### POST /devices/by-mac/[DEVICEMAC]/devices `/devices/by-mac/[DEVICEMAC]/devices.msgpack`, `/devices/by-mac/[DEVICEMAC]/devices.json`
+##### POST /devices/by-mac/[DEVICEMAC]/devices  `/devices/by-mac/[DEVICEMAC]/devices.json`
 
 Dictionary object of device, simplified by the `fields` argument in accordance to the field simplification rules described above.
 
-The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+The command dictionary is expected to contain:
 
 | Key    | Value               | Type                      | Desc                                |
 | ------ | ------------------- | ------------------------- | ----------------------------------- |
 | fields | Field specification | Field specification array | Optional, array of fields to return |
 
-##### POST /devices/by-phy/[PHYNAME]/devices `/devices/by-phy/[PHYNAME]/devices.msgpack`, `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
+##### POST /devices/by-phy/[PHYNAME]/devices  `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
 
 List of devices, belonging to the phy `PHYNAME`.  The request can be filtered by regex and time, and simplified by the field simplification system.
 
-The command dictionary should be passed as either JSON in the `json` POST variable, or as base64-encoded msgpack in the `msgpack` variable, and is expected to contain:
+The command dictionary is expected to contain:
 
 | Key       | Value                           | Type    | Desc                                     |
 | --------- | ------------------------------- | ------- | ---------------------------------------- |
@@ -399,7 +374,7 @@ Expects a command dictionary including:
 
 A PHY handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A PHY is often, but not always, linked to specific types of hardware and specific packet link types.
 
-##### /phy/all_phys `/phy/all_phys.msgpack`, `/phy/all_phys.json`
+##### /phy/all_phys  `/phy/all_phys.json`
 
 Array of all PHY types and statistics
 
@@ -421,11 +396,11 @@ Returns 200 OK if login is valid, 403 Unauthorized if login is invalid.
 
 Kismet uses the `messagebus` as in internal system for displaying message to the user.  The messagebus is used to pass error and state messages, as well as notifications about detected devices, etc.
 
-##### /messagebus/all_messages `/messagebus/all_messages.msgpack`, `/messagebus/all_messages.json`
+##### /messagebus/all_messages  `/messagebus/all_messages.json`
 
 Vector of the last 50 messages stored in Kismet
 
-##### /messagebus/last-time/[TS]/messages `/messagebus/last-time/[TS]/messages.msgpack`, `/messagebus/last-time/[TS]/messages.json`
+##### /messagebus/last-time/[TS]/messages  `/messagebus/last-time/[TS]/messages.json`
 
 Dictionary containing a list of all messages since server timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
 
@@ -433,21 +408,21 @@ Dictionary containing a list of all messages since server timestamp `[TS]`, and 
 
 Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.  Alerts can be generated for critical system states, or by the WIDS system.
 
-##### /alerts/definitions `/alerts/definitions.msgpack`, `/alerts/definitions.json`
+##### /alerts/definitions  `/alerts/definitions.json`
 
 All defined alerts, including descriptions, time and burst limits, and current alert counts and states for each type.
 
-##### /alerts/all_alerts `/alerts/all_alerts.msgpack`, `/alerts/all_alerts.json`
+##### /alerts/all_alerts  `/alerts/all_alerts.json`
 
 List of the alert backlog.  The size of the backlog is configurable via the `alertbacklog` option in kismet.conf
 
-##### /alerts/last-time[TS]/alerts `/alerts/last-time/[TS]/alerts.msgpack`, `/alerts/last-time/[TS]/alerts.json`
+##### /alerts/last-time[TS]/alerts  `/alerts/last-time/[TS]/alerts.json`
 
 Dictionary containing a list of alerts since Kismet double-precision timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
 
 Double-precision timestamps include the microseconds in the decimal value.  A pure second-precision timestamp may be provided, but could cause some alerts to be missed if they occurred in the fraction of the second after the request.
 
-##### POST /alerts/definitions/define_alert [`json`, `msgpack`]
+##### POST /alerts/definitions/define_alert `/alerts/definitions/defice_alert.json`
 
 *LOGIN REQUIRED*
 
@@ -483,7 +458,7 @@ Expects a command dictionary including:
 
 ### Channels
 
-##### /channels/channels [`json`, `msgpack`]
+##### /channels/channels `/channels/channels.json`
 
 Channel usage and monitoring data.
 
@@ -493,29 +468,29 @@ Kismet uses data sources to capture information - typically packets, but sometim
 
 #### Querying data sources
 
-##### /datasource/all_sources [`json`, `msgpack`]
+##### /datasource/all_sources `/datasource/all_sources.json`
 
 List containing all data sources and the current information about them
 
-##### /datasource/types [`json`, `msgpack`]
+##### /datasource/types `datasource/types.json`
 
 List containing all defined datasource types & basic information about them
 
-##### /datasource/defaults [`json`, `msgpack`]
+##### /datasource/defaults `/datasource/defaults.json`
 
 Default settings for new data sources
 
-##### /datasource/list_interfaces [`json`, `msgpack`]
+##### /datasource/list_interfaces `/datasource/list_interfaces.json`, `/datasource/list_interfaces.cmd`
 
 Query all possible data source drivers and return a list of auto-detected interfaces that could be used to capture.
 
-##### /datasource/by-uuid/[uuid]/source [`json`, `msgpack`]
+##### /datasource/by-uuid/[uuid]/source `/datasource/by-uuid/[uuid]/source.json`
 
 Return information about a specific data source, specified by the source UUID `[uuid]`
 
 #### Controlling data sources
 
-##### /datasource/add_source [`json`, `msgpack`]
+##### /datasource/add_source `/datasource/add_source.json`, `/datasource/add_source.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -527,7 +502,7 @@ Expects a string variable named 'definition'.  This value is identical to the `s
 
 `add_source.cmd` will block until the source add is completed; this may be up to several seconds but typically will be nearly instant.
 
-##### POST /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.cmd`, `/datasource/by-uuid/[uuid]/set_channel.jcmd`
+##### POST /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.json`, `/datasource/by-uuid/[uuid]/set_channel.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -558,7 +533,7 @@ Examples:
 * `{'channels': ["1", "2", "3", "4", "5"], 'hoprate': 1}` will change the channel hopping rate to once per second over the given list
 * `{'hoprate': 5}` will set the hop rate to 5 channels per second, using the existing channels list in the datasource
 
-##### POST /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.cmd`, `/datasource/by-uuid/[uuid]/set_channel.jcmd]
+##### POST /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.json`, `/datasource/by-uuid/[uuid]/set_channel.json`
 
 *LOGIN REQUIRED*
 
@@ -610,15 +585,15 @@ Resumes (un-pauses) the specified source.  Packet processing will be resumed, bu
 
 Kismet now supports multiple simultaneous GPS devices, and can select the 'best' quality device based on priority and GPS signal.
 
-##### /gps/drivers `/gps/drivers.json` `/gps/drivers.msgpack`
+##### /gps/drivers `/gps/drivers.json`
 
 Returns a list of all supported GPS driver types
 
-##### /gps/all_gps `/gps/all_gps.json` `/gps/all_gps.msgpack`
+##### /gps/all_gps `/gps/all_gps.json`
 
 Returns a list of all GPS devices
 
-##### /gps/location `/gps/location.json` `/gps/location.msgpack`
+##### /gps/location `/gps/location.json` 
 
 Returns the current optimum location (as determined by the priority of connected GPS devices)
 
@@ -691,7 +666,7 @@ This URI will stream indefinitely as packets are received.
 
 Kismet plugins may be active C++ code (loaded as a plugin.so shared object file) or they may be web content only which is loaded into the UI without requiring additional back-end code.
 
-##### /plugins/all_plugins `/plugins/all_plugins.msgpack`, `/plugins/all_plugins.json`
+##### /plugins/all_plugins  `/plugins/all_plugins.json`
 
 Returns a vector of all activated Kismet plugins.
 
@@ -701,11 +676,11 @@ A Kismet stream is linked to an export of indeterminate length - for instance, p
 
 Streams can be monitored and managed via the streaming API; for instance a privileged user can close an ongoing stream via the close_stream API
 
-##### /streams/all_streams `/streams/all_streams.msgpack`, `/streams/all_streams.json`
+##### /streams/all_streams  `/streams/all_streams.json`
 
 Returns a vector of all active Kismet streams.
 
-##### /streams/by-id/[id]/stream_info `/streams/by-id/[id]/stream_info.msgpack`, `/streams/by-id/[id]/stream_info.json`
+##### /streams/by-id/[id]/stream_info  `/streams/by-id/[id]/stream_info.json`
 
 Returns information about a specific stream, indicated by `[id]`
 
@@ -719,21 +694,21 @@ Closes the stream (ending the log) specified by `[id]`
 
 Kismet has a centralized logging architecture which can report what logs are enabled, and what logs are possible.
 
-##### /logging/drivers `/logging/drivers.msgpack`, `/logging/drivers.json`
+##### /logging/drivers `/logging/drivers.json`
 
 Return a vector of all possible log drivers.  This provides the logging class/type, description, and other attributes of potential log outputs.
 
-##### /logging/active `/logging/active.msgpack`, `/logging/active.json`
+##### /logging/active `/logging/active.json`
 
 Return a vector of all active log files.
 
-##### /logging/by-class/[class]/start `/logging/by-class/[class]/start.cmd`, `/logging/by-class/[class]/start.jcmd` 
+##### /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
 
 *LOGIN REQUIRED*
 
 Start a new log file of type `[class]`.  If successful, returns the log object denoting the UUID, path, and other information about the new log.
 
-##### POST /logging/by-class/[class]/start `/logging/by-class/[class]/start.cmd`, `/logging/by-class/[class]/start.jcmd` 
+##### POST /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
 
 *LOGIN REQUIRED*
 
@@ -745,7 +720,7 @@ Expects a command dictionary including:
 | ----- | --------- | ------ | ---------------------------------------- |
 | title | log title | string | Alternate log title; This is substituted into the logging path in place of the `log_title=` in the Kismet config |
 
-##### /logging/by-uuid/[uuid]/stop `/logging/by-uuid/[uuid]/stop.cmd`, `/logging/by-uuid/[uuid]/stop.jcmd`
+##### /logging/by-uuid/[uuid]/stop `/logging/by-uuid/[uuid]/stop.json`, `/logging/by-uuid/[uuid]/stop.cmd`
 
 *LOGIN REQUIRED*
 
@@ -775,6 +750,6 @@ This URI will stream indefinitely as packets are received.
 
 The UAV/Drone phy defines extra endpoints for matching UAVs based on manufacturer and SSID:
 
-##### /phy/phyuav/manuf_matchers `/phy/phyuav/manuf_matchers.json` `/phy/phyuav/manuf_matchers.msgpack`
+##### /phy/phyuav/manuf_matchers `/phy/phyuav/manuf_matchers.json` 
 
 Returns a vector of the manufacturer matches for UAVs and drones; these matches allow the UAV phy to flag devices based on OUI and SSID.

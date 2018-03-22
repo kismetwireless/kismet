@@ -20,7 +20,7 @@
 #define __KISMET_STRUCTURED_H__
 
 /* A generic superclass for handling structured input - specifically a common
- * interface between msgpack and json, with the option to expand to other
+ * interface between json, with the option to expand to other
  * structured encodings
  *
  * In general the structured API seeks to address fetching basic elements

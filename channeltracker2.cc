@@ -19,7 +19,6 @@
 #include "util.h"
 
 #include "channeltracker2.h"
-#include "msgpack_adapter.h"
 #include "json_adapter.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
