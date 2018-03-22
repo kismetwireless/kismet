@@ -21,6 +21,9 @@ https://www.kismetwireless.net
             libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
             protobuf-compiler protobuf-c-compiler
 
+        On some platforms, libprotobuf-c-dev may be called 
+        libprotobuf-c0-dev
+
     2.  Clone Kismet from git.  If you haven't cloned Kismet before:
 
         $ git clone https://www.kismetwireless.net/git/kismet.git
