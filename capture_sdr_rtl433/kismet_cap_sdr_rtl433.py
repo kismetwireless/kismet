@@ -198,8 +198,11 @@ class kismet_rtl433:
             "json": json.dumps(cmd)
         }
 
-        if self.debug:
-            print "DEBUG - Attempting to create a datasource with the definition '{}'".format(datasource)
+        try:
+            if self.debug:
+                print "DEBUG - Attempting to create a datasource with the definition '{}'".format(datasource)
+        except AttributeError:
+            pass
 
         try:
             r = self.session.post("{}/datasource/add_source.json".format(self.config.uri), data=pd)
