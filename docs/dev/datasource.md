@@ -12,7 +12,7 @@ Datasources can report packets or complex records - if your datasource needs to 
 
 ## Capture via IPC and Network
 
-Kismet datasources communicate from the capture binary to the Kismet server via an IPC channel or TCP connection.  This channel passes commands, data, and msgpack binary objects via a simple wrapper protocol.
+Kismet datasources communicate from the capture binary to the Kismet server via an IPC channel or TCP connection.  This channel passes commands, data, and other objects via an extension of the Kismet External API protocol; written using the Google Protobuf library this protocol is extendable and parsers can be generated for nearly any language.
 
 The datasource IPC channel is via inherited file descriptors:  Prior to launching the capture binary, the Kismet server makes a pipe(2) pair and will pass the read (incoming data to the capture binary) and write (outgoing data from the capture binary) file descriptor numbers on the command line of the capture binary.
 
@@ -20,483 +20,220 @@ Operating as a completely separate binary allows the capture code to use increas
 
 The network protocol is an encapsulation of the same protocol over a TCP channel, with some additional setup frames.  The network protocol will be more fully defined in future revisions of this document.
 
-## The Simplified Datasource Protocol
+## The External Datasource Protocol
 
-The data source capture protocol is defined in `simple_datasource_proto.h`.  It is designed to be a simple protocol to communicate with from a variety of languages.
+The datasource capture protocol acts as additional commands within the Kismet External API; it is defined in `protobuf_definitions/datasource.proto`.
 
-Each communication to or from the capture driver consists of a high-level frame type (a string), which then contains an arbitrary collection of key:value dictionary pairs.
+Datasource commands are in the `KismetDatasource` namespace, and their string equivalents in the helper API are prefixed with `KDS`.
 
-K:V pairs may be simple (a single value or type), or complex (a binary msgpack object, for instance).
+#### `KDSCLOSEDATASOURCE` (KismetDatasource.CloseDatasource) *Kismet -> Datasource*
 
-In general, complex objects are always passed as dictionaries holding string:value KV pairs.  This allows multiple languages easy access, eliminates magic number values, and should greatly simplify future compatibility issues if additional fields are required.
+Closes the active datasource; this is called during the shutdown process when a source is closed or Kismet exits.
 
-Datasource implementations *may* use other message passing mechanisms, either inside the established communications channel or via independent channels, but are encouraged to stay within the defined protocol whenever possible.
+##### Content
 
-## Top-level Frame Types
+*None*
 
-Several top-level packet types and key:value pairs are pre-defined and will be automatically handled by classes derived from the `KisDataSource` driver.
+##### Reply
 
-#### CHANNELS 
+*None*
 
-*(Datasource->Kismet)*
+#### `KDSCONFIGURE` (KismetDatasource.Configure) *Kismet -> Datasource*
 
-Alert Kismet that the device has changed its channel list. 
+Configure the behavior of a running source.
 
-This occurs when, for instance, a Wi-Fi card driver communicates that it supports some set of channels, but is unable to actually tune to them.  Sending this message will most likely cause the server to rebalance channel hopping.
+##### Content
 
-KV Pairs:
-* CHANNELS (representing the new *current channel list*, the *supported channel list* remains unchanged)
+| Field    | Type                         | Content                                     |
+| -------- | ---------------------------- | ------------------------------------------- |
+| channel  | KismetDatasource.SubChanset  | *Optional* Fixed-channel control            |
+| hopping  | KismetDatasource.SubChanhop  | *Optional* Hopping and channel list control |
+| spectrum | KismetDatasource.SubSpectrum | *Optional* Spectrum monitoring control      |
 
-Responses:
-* NONE
+##### Response
 
-#### CLOSEDEVICE 
+`KDSCONFIGUREREPORT` KismetDatasource.ConfigureReport
 
-*(Kismet->Datasource)*
+#### `KDSCONFIGUREREPORT` (KismetDatasource.ConfigureReport) *Datasource -> Kismet*
 
-Close any open device and initiate a shutdown.  Sent to capture binary during source close or server shutdown.
+Report configuration status and success to Kismet; This report must contain the sequence number of the `KDSCONFIGURE` request in the `success` field.
 
-KV Pairs:
-* NONE
+##### Content
 
-Responses:
-* NONE
+| Field   | Type                         | Content                                                      |
+| ------- | ---------------------------- | ------------------------------------------------------------ |
+| success | KismetDatasource.SubSuccess  | Success report for `KDSCONFIGURE` command                    |
+| channel | KismetDatasource.SubChannel  | *Optional* Channel configuration of datasource               |
+| hopping | KismetDatasource.SubChanhop  | *Optional* Hopping configuration of datasource               |
+| message | KismetExternal.MsgbusMessage | *Optional* Message to be sent to the user via the Kismet Messagebus system |
+| warning | string                       | *Optional* Warning message about the current configuration, to be placed in the datasource details. |
 
-#### CONFIGURE 
+##### Response
 
-*(Kismet->Datasource)*
+*None*
 
-Reconfigure a source.  Typically used to pass channel configuration data but may be used to embed additional information.
+#### `KDSDATAREPORT` (KismetDatasource.DataReport) *Datasource -> Kismet*
 
-KV Pairs:
-* CHANSET (optional)
-* CHANHOP (optional)
-* SPECSET (optional)
+Datasources uses `KDSDATAREPORT` to send packets, signal data, and GPS data to Kismet.  The packet payload is mapped to the Kismet datasource, and sent to the packet processing subsystem.
 
-Responses:
-* CONFIGRESP
+##### Content
 
-#### CONFIGRESP 
+| Field    | Type                         | Content                                                      |
+| -------- | ---------------------------- | ------------------------------------------------------------ |
+| gps      | KismetDatasource.SubGps      | *Optional* GPS coordinates                                   |
+| message  | KismetExternal.MsgbusMessage | *Optional* Message to be sent to the user via the Kismet Messagebus system |
+| packet   | KismetDatasource.Packet      | *Optional* Packet content to be injected into the Kismet packetchain |
+| signal   | KismetDatasource.Signal      | *Optional* Signal or RSSI information which is not part of the packet data or packet headers. |
+| spectrum | KismetDatasource.Spectrum    | *Optional* Spectral data                                     |
+| warning  | string                       | *Optional* Warning message about the datasource, which will be placed into the datasource details |
 
-*(Datasource->Kismet)*
+##### Response
 
-Acknowledge a source has been reconfigured, and return the new configuration state.
+*None*
 
-KV Pairs:
-* CHANSET (optional)
-* CHANHOP (optional)
-* SUCCESS (optional, datasource->kismet)
-* MESSAGE (optional, datasource->kismet)
-* WARNING (optional, datasource->kismet)
+#### `KDSERRORREPORT` (KismetDatasource.ErrorReport) *Datasource -> Kismet*
 
-Responses:
-* NONE
+Fatal error condition which should initiate a datasource shutdown.
 
-#### DATA
+##### Content
 
-*(Datasource->Kismet)*
+| Field   | Type                         | Content                                                      |
+| ------- | ---------------------------- | ------------------------------------------------------------ |
+| success | KismetDatasource.SubSuccess  | Error condition with failed sequence number (if any) or 0 (if runtime error) |
+| message | KismetExternal.MsgbusMessage | *Optional* Additional message explaining the failure condition. |
 
-Pass capture data.  May be a packet, a decoded trackable entity, or other information.
+##### Response
 
-KV Pairs:
-* GPS (optional)
-* MESSAGE (optional)
-* PACKET (optional)
-* SIGNAL (optional)
-* SPECTRUM (optional)
-* WARNING (optional)
+*None*
 
-Responses:
-* NONE
+#### `KDSLISTINTERFACES` (KismetDatasource.ListInterfaces) *Kismet -> Datasource*
 
-#### ERROR 
+Request a list of supported interfaces; Kismet uses this to populate the Data Sources display where a user can activate available sources.
 
-*(Any)*
+##### Content
 
-An error occurred.  The capture is assumed closed, and the connection will be shut down.
+*None*
 
-KV Pairs:
-* SUCCESS
-* MESSAGE (optional)
+##### Response
 
-Responses:
-* NONE
+`KDSINTERFACESREPORT` KismetDatasource.InterfacesReport
 
-#### LISTINTERFACES
+#### `KDSINTERFACESREPORT` (KismetDatasource.InterfacesReport) *Datasource -> Kismet*
 
-*(Kismet->Datasource)*
+Returns a list of supported interfaces, if the datasource is capable of listing potential sources.
 
-Request a list of interfaces.  This allows Kismet to present a list of compatible auto-detected interfaces, but not all datasource methods will support it.
+##### Content
 
-KV Pairs:
-* NONE
+| Field      | Type                            | Content                                                      |
+| ---------- | ------------------------------- | ------------------------------------------------------------ |
+| success    | KismetDatasource.SubSuccess     | Success report for `KDSLISTINTERFACES` command               |
+| message    | KismetExternal.MsgbusMessage    | *Optional* Message to be displayed regarding interface list or failure |
+| interfaces | KismetDatasource.SubInterface[] | *Optional* List of interfaces                                |
 
-Responses:
-* LISTRESP
+##### Response
 
-#### LISTRESP
+*None*
 
-*(Datasource->Kismet)*
+#### `KDSNEWSOURCE` (KismetDatasource.NewSource) *Datasource -> Kismet*
 
-Return a list of interfaces.
+Remote captures are multiplexed over a single TCP port; to associate a remote capture with the proper driver code in Kismet, the datasource must send a `KDSNEWSOURCE`.
 
-KV Pairs:
-* SUCCESS
-* MESSAGE (optional)
-* INTERFACELIST (optional)
+##### Content
 
-Responses:
-* NONE
+| Field      | Type   | Content                                                      |
+| ---------- | ------ | ------------------------------------------------------------ |
+| definition | string | Kismet source definition (from the datasource `--source=` command line option) |
+| sourcetype | string | Kismet datasource type (must match a datasource type)        |
+| uuid       | string | UUID of the datasource to be created                         |
 
-#### MESSAGE
+##### Response
 
-*(Datasource->Kismet)*
+After receiving and successfully mapping a `KDSNEWSOURCE` to a datasource driver, Kismet will send a `KDSOPENSOURCE` command to being configuration.
 
-Message for the user - informational, warning, or other non-critical errors.  Essentially a tunneling of the Kismet Messagebus protocol.  Permanent failure conditions should be carried over the ERROR frames.
+#### `KDSOPENSOURCE` (KismetDatasource.OpenSource) *Kismet -> Datasource*
 
-KV Pairs:
-* MESSAGE
-* WARNING
+Kismet will start a datasource by sending a `KDSOPENSOURCE`; this will be sent for an IPC source or a remote capture source which has completed the initial handshake.
 
-Responses:
-* NONE
+##### Content
 
-#### NEWSOURCE
+| Field      | Type   | Content                  |
+| ---------- | ------ | ------------------------ |
+| definition | string | Kismet source definition |
 
-*(Datasource->Kismet Network)*
+##### Response
 
-Sent from a datasource running in network mode (remote capture) to Kismet to tell it to create a source and attach it to the network socket.
+`KDSOPENSOURCEREPORT` KismetDatasource.OpenSourceReport
 
-The driver type must be included so that Kismet knows how to map the remote interface.
+#### `KDSOPENSOURCEREPORT` (KismetDatasource.OpenSourceReport) *Datasource -> Kismet*
 
-Kismet will respond by initiating a typical OPENDEVICE sequence to sync the state.
+A `KDSOPENSOURCEREPORT` carries all the information about a new datasource.
 
-KV Pairs:
-* DEFINITION
-* SOURCETYPE
-* UUID
+##### Content
 
-Responses:
-* OPENDEVICE
-* ERROR
+| Field             | Type                         | Content                                                      |
+| ----------------- | ---------------------------- | ------------------------------------------------------------ |
+| success           | KismetDatasource.SubSuccess  | Success report for `KDSOPENSOURCE`                           |
+| dlt               | int32                        | *Optional* DLT (data link type) for packets from this source |
+| capture_interface | string                       | *Optional* Capture interface, if different than the specified interface.  This is common for Wi-Fi devices which use virtual interfaces for capturing. |
+| channels          | KismetDatasource.SubChannels | *Optional* Supported channels                                |
+| channel           | KismetDatasource.SubChanset  | *Optional* Fixed channel if not hopping                      |
+| hop_config        | KismetDatasource.SubChanhop  | *Optional* Channel hopping information                       |
+| hardware          | string                       | *Optional* Hardware / chipset                                |
+| message           | KismetExternal.MsgbusMessage | *Optional* User message                                      |
+| spectrum          | KismetExternal.SubSpecset    | *Optional* Spectrum options                                  |
+| uuid              | string                       | *Optional* Source UUID                                       |
+| warning           | string                       | *Optional* Warning message about datasource, which will be displayed in the datasource details |
 
-#### OPENDEVICE
+##### Response
 
-*(Kismet->Datasource)*
+*None*
 
-Open a device.  This should only be sent to a datasource which is capable of handling this device type, but may still return errors.
+#### `KDSPROBESOURCE` (KismetDatasource.ProbeSource) *Kismet -> Datasource*
 
-KV Pairs:
-* DEFINITION
+Kismet will attempt to match a source to a datasource driver by asking each datasource to probe the source definition.
 
-Responses:
-* OPENRESP
+##### Content
 
-#### OPENRESP
+| Field      | Type   | Content                  |
+| ---------- | ------ | ------------------------ |
+| definition | string | Kismet source definition |
 
-*(Datasource->Kismet)*
+##### Response
 
-Device open response.  Sent to declare the source is open and functioning, or that there was an error.
+`KDSPROBESOURCEREPORT` KismetDatasource.ProbeSourceReport
 
-KV Pairs:
-* CAPIF (optional)
-* CHANNELS (optional)
-* CHANSET (optional)
-* DLT
-* HARDWARE (optional)
-* MESSAGE (optional)
-* SPECSET (optional)
-* SUCCESS
-* UUID (optional)
-* WARNING (optional)
+#### `KDSPROBESOURCEREPORT` (KismetDatasource.ProbeSourceReport) *Datasource -> Kismet*
 
-Responses:
-* NONE
+##### Content
 
-#### PING
+| Field    | Type                         | Content                              |
+| -------- | ---------------------------- | ------------------------------------ |
+| success  | KismetDatasource.SubSuccess  | Success report for `KDSPROBESOURCE`  |
+| message  | KismetExternal.MsgbusMessage | *Optional* User message              |
+| channels | KismetDatasource.SubChannels | *Optional* Supported channels        |
+| channel  | KismetDatasource.SubChanset  | *Optional* Fixed non-hopping channel |
+| spectrum | KismetDatasource.SubSpecset  | *Optional* Spectral scanning support |
+| hardware | string                       | *Optional* Hardware / chipset        |
 
-*(Any)*
+##### Response
 
-Send a keep-alive frame to monitor that the remote capture is still functional.
+*None*
 
-Failure to receive a PONG response within 5 seconds indicates that a problem has occurred, and that the Kismet server should terminate the capture binary with an error, or that the capture binary should exit.
+#### `KDSWARNINGREPORT` (KismetDatasource.WarningReport) *Datasource -> Kismet*
 
-KV Pairs:
-* None
+`KDSWARNINGREPORT` can be used by the datasource to set a non-fatal warning condition; this will be shown in the datasource details.
 
-Responses:
-* PONG
+##### Content
 
-#### PONG
+| Field   | Type   | Content                                                |
+| ------- | ------ | ------------------------------------------------------ |
+| warning | string | Warning message to be shown in the datasource details. |
 
-*(Any)*
+##### Response
 
-Respond to a keep-alive PING frame.
+*None*
 
-Failure to send a PONG response within 5 seconds indicates a problem has occurred.
 
-KV Pairs:
-* None
-
-Responses:
-* None
-
-#### PROBEDEVICE 
-
-*(Kismet->Datasource)*
-
-Probe if this datasource can handle a device of unknown type.  This is used during the probing for auto-type sources.
-
-KV Pairs:
-* DEFINITION
-
-Responses:
-* PROBERESP
-
-#### PROBERESP
-
-*(Datasource->Kismet)*
-
-Response for attempting to probe if a device is supported via PROBEDEVICE.  This should always be sent, even if the answer is that the device is unsupported.
-
-KV Pairs:
-* SUCCESS
-* MESSAGE (optional)
-* CHANNELS (optional)
-* CHANSET (optional)
-* SPECSET (optional)
-* HARDWARE (optional)
-
-Responses:
-* NONE
-
-## Standard KV Pairs
-
-Kismet will automatically handle standard KV pairs in a message.  A datasource may define arbitrary additional KV pairs and handle them independently.
-
-#### CAPIF
-Some capture sources may use an alternate interface for capturing - for instance, the Linux Wi-Fi capture system will make a VIF (virtual interface) to capture on most modern drivers, or a USB capture may use the absolute path to the USB interface being used.
-
-Content:
-
-Simple string `(char *)` of the alternate interface, length dictated by the KV length record.
-
-Example:
-
-`"capif": "wlan0mon"`
-
-#### CHANNELS
-Conveys a list of channels supported by this device, if there is a user presentable list for this phy type.  Channels are considered free-form strings which are unique to a phy type, but should be human readable.  Channel definitions may also represent frequencies in a form relevant to the phy, such as "2412MHz", but the representation is phy specific.
-
-Content:
-
-A msgpack packed dictionary of parameters containing the following:
-* "channels": Vector of strings defining channels.
-
-Example:
-
-`"channels": ["1", "6", "11", "6HT20", "11HT40-"]` (802.11n complex channel definitions)
-
-#### CHANSET
-Used as a set command to configure a single, non-hopping channel.  Channels are free-form strings which are human readable and phy-specific.
-
-Content:
-
-Simple string `(char *)` of the channel, length dictated by the KV length record.
-
-Example:
-
-`"11HT20"`
-
-`"2412MHz"`
-
-#### CHANHOP
-Used as a set command to configure hopping over a list of channels or frequencies.  The hop rate is sent as a double containing the number of hops per second, hop rates less than one are interpreted as multiple seconds per hop.
-
-Content:
-
-Msgpack packed dictionary of parameters containing at least the following:
-* "channels": Vector of strings defining channels, as show in the `CHANNELS` KV pair.
-* "rate": double-precision float indicating channels per second.
-* "shuffle": uint8 boolean indicating the source should, at its discretion, shuffle the order of the channel hopping to take advantage of channel overlap where possible
-* "shuffle_skip": uint32 sent from the datasource to Kismet to communicate how many channels are skipped per hop.
-* "offset": uint32 start at an offset in the channel hopping list; this is used to tell the source to start hopping at a position other than 0; this lets Kismet easily split hopping between sources which share a type.
-
-Examples:
-
-`{"channels": ["1", "6", "11"], "rate": 10}` (10 channels per second on primary 802.11 channels)
-
-`{"channels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], "rate": 10, shuffle: 1, offset: 6}` (10 channels per second on 802.11 channels, tell the source to randomize to prevent overlap, and tell this source to start halfway through the list)
-
-`{"channels": ["3", "6", "9"], "rate": 0.16}` (10 *seconds per channel* on alternate 802.11 channels, caused by a rate of 0.1 channels per second.)
-
-#### DEFINITION
-A raw source definition, as a string.  This is identical to the source as defined in `kismet.conf` or on the Kismet command line.
-
-Content:
-
-Simple string `(char *)` of the definition, length dictated by the KV length record.
-
-Example:
-
-`wlan0:hop=true,name=foobar`
-
-#### DLT
-Indicates the DLT (Data Link Type) of the capture interface; typically as reported by libpcap.
-
-Content:
-
-Simple `uint32_t` of the DLT.
-
-
-#### GPS
-If a driver contains its own location information (or is running on a remote system which has its own GPS), captured data may be tagged with GPS information.  This is not necessary when reporting data or device information with inherent location information (such as PPI+GPS packets, or some other phy type which embeds positional information in packets).
-
-The GPS values are inserted into the packet on the Kismet level as a standard location record.
-
-A GPS record is inserted into the Kismet packet as a "GPS" record.
-
-Content:
-
-Msgpack packed dictionary containing at least the following values:
-* "lat": double-precision float containing latitude
-* "lon": double-precision float containing logitude
-* "alt": double-precision float containing altitude, in meters
-* "speed": double-precision float containing speed, in kilometers per hour
-* "heading": double-precision float containing the heading in degrees (optional)
-* "precision": double-precision float containing the coordinate precision in meters (optional)
-* "fix": int32 integer containing the "fix" quality (0 = none, 2 = 2d, 3 = 3d)
-* "time": uint64 containing the time in seconds since the epoch (time_t record)
-* "type": string containing the GPS type
-* "name": string containing the GPS user-defined name
-
-#### HARDWARE ####
-
-A simple string containing information about the hardware, if any.  For example, the chipset of a Wi-Fi device can be annotated here.
-
-#### INTERFACELIST
-A list of interfaces the source detected it can support.  This is the result of running an interface scan or list.
-
-Content:
-Msgpack packed array containing mspack dictionaries of the following:
-* "interface": String interface compatible with a source=interface definition
-* "flags": String flags, aggregated as "flag1=foo,flag2=bar", compatible with a source=interface:flags source definition.
-* "hardware": String definition of the hardware (optional)
-
-#### MESSAGE
-MESSAGE KV pairs bridge directly to the messagebus of the Kismet server and are presented to users, logged, etc.  Message values may also be used in error reports if a source fails to open or a similar error occurs.
-
-Content:
-
-Msgpack packed dictionary containing the following values:
-* "flags": uint32 message type flags (defined in `messagebus.h`)
-* "msg": string, containing message content
-
-#### PACKET
-The PACKET KV pair contains a captured packet.  Datasources which operate on a packet level should use this to inject packets directly into the Kismet packetchain for decoding by a DLT handler.
-
-A PACKET record is inserted into the Kismet packetchain packet as a "LINKFRAME" record.
-
-Content:
-
-Msgpack packed dictionary containing the following:
-* "tv_sec": uint64 timestamp in seconds since the epoch (time_t)
-* "tv_usec": uint64 timestamp in microseconds after the second
-* "size": uint64 integer size of packet bytes
-* "packet": binary/raw (interpreted as uint8[]) content of packet.  Size must match the size field.
-
-#### SIGNAL
-SIGNAL KV pairs can be added to data frames when the signal values are not included in the existing data.  For example, a driver reporting radiotap or PPI packets would not need to include a SIGNAL pair, however a driver decoding a SDR signal or other raw radio information could include it.
-
-Whenever possible, signal levels should be reported in dBm, as RSSI values cannot be automatically scaled by the Kismet UI.
-
-If a human-readable channel representation is not available due to the characteristics of the phy type, it should be presented as a frequency in a sensible format (such as "433.9MHz")
-
-A SIGNAL record is inserted into the Kismet packetchain packet as a "RADIODATA" record.
-
-Content:
-
-Msgpack packed dictionary containing the following:
-* "signal_dbm": int32 signal value in dBm (optional)
-* "noise_dbm": int32 noise value in dBm (optional)
-* "signal_rssi": int32 signal value in RSSI, dependent on device scaling factors (optional)
-* "noise_rssi": int32 noise value in RSSI, dependent on device scaling factors (optional)
-* "freq_khz": double-precision float of the center frequency of the signal record, in kHz
-* "channel": arbitrary string representing a human-readable channel
-* "datarate": double-precision float representing a phy-specific data rate (optional)
-
-#### SOURCETYPE
-A simple string value of the source type - this must match the definition in the datasource code for Kismet.  This value is used to tell Kismet what type of device a network based remote capture needs.
-
-Simple string `(char *)` of the source type, length dictated by the KV length record.
-
-Example:
-
-`"linuxwifi"`
-
-#### SPECSET
-Sources which support raw spectrum capture should accept this KV in the CONFIGURE frame and return it in the PROBERESP and OPENRESP frames.  Modeled on the configuration required to configure the *_sweep tools (such as hackrf_sweep), SPECSET passes the basic set of spectrum configuration parameters.
-
-Content:
-
-Msgpack packed dictionary containing the following:
-* "start_mhz": uint64 unsigned value, starting frequency, in MHz, of sweep (optional)
-* "end_mhz": uint64 unsigned value, ending frequency, in MHz, of sweep (optional)
-* "samples_per_freq": uint64 unsigned value, number of samples taken per frequency bin (optional)
-* "bin_width": uint64 unsigned value, width of each sample bin, in Hz (optional)
-* "amp": uint8 unsigned value, treated as boolean, enables amp (if available) (optional)
-* "if_amp": uint64 unsigned value, LNA/IF amplifier level (optional)
-* "baseband_amp": uint64 unsigned value, Baseband/VGA amplifier level (optional)
-
-#### SPECTRUM
-Sources which report raw spectrum should send it using this KV.  Modeled after the output format from the *_sweep tools (hackrf_sweep, rtl_sweep, etc), this allows for simple transmission of the spectrum data as dB levels.
-
-A SPECTRUM record is inserted into the Kismet packetchain packet as a "SPECTRUM" record.  If a PACKET record is also found, both may be inserted into the same packet.
-
-Content:
-
-Msgpack packed dictionary containing the following:
-* "timestamp": double timestamp in seconds+microseconds since the epoch
-* "mhz_low": uint64 lowest frequency of sweep, in MHz
-* "mhz_high": uint64 highest frequency of sweep, in MHz
-* "hz_bin_width": uint64 width of each signal record, in Hz
-* "db_samples": vector/array of samples, in dB, as int16 data.
-
-Example:
-
-{ "timestamp": 12345, "mhz_low": 2400000, "mhz_high": 2480000, "hz_bin_width": 1000000, "db_samples": [ -60, -60, -60, -10, -20, ... ] }
-
-#### SUCCESS
-A simple boolean indicating success or failure of the relevant command.  This value is padded to 4 bytes and is followed by the `uint32_t` sequence number of the command, if any, this success value applies to.
-
-Content:
-* A single byte (`uint8_t`) indicating success (non-zero) or failure (zero).
-* Three bytes of padding to align word boundaries
-* An unsigned 32 bit int (`uint32_t`) of the command sequence number this is acknowledging.
-
-#### UUID
-Capture-binary derived UUID (often based on the MAC address of the interface, if available).  Transmitted to the Kismet server for tracking, if the UUID is not already overridden by the source definition.
-
-Content:
-
-Simple string `(char *)` of the UUID, length dictated by the KV length record.
-
-Example:
-
-`"b4d6e78a-109a-11e7-a60d-09076f44c503"`
-
-#### WARNING
-A warning to the user about an unusual interface state, which is displayed whenever the interface details are shown and may be shown to the user in other ways as well.
-
-This is a good way to report non-fatal but non-optimal conditions - for example the Linux Wi-Fi capture system uses this to alert the user to a problem with regulatory domains.
-
-Content:
-
-Simple string `(char *)` of the warning text, length indicated by the KV length record.
-
-Example:
-
-`"System-wide regulatory domain set to '00 - Unknown', this can cause problems with channel hopping."`
 
 ## Defining the driver:  Deriving from KisDatasource
 
