@@ -217,6 +217,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     int r;
     char *sErrMsg = NULL;
 
+    if (db == NULL)
+        return 0;
+
     if (dbv < 1) {
         sql =
             "CREATE TABLE devices ("
@@ -253,8 +256,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create devices table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -295,8 +297,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create packet table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -325,8 +326,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create data table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -350,8 +350,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create datasource table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -378,8 +377,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create alerts table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -403,8 +401,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create messages table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -429,8 +426,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         if (r != SQLITE_OK) {
             _MSG("Kismet log was unable to create messages table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
+            Log_Close();
             return -1;
         }
 
@@ -454,8 +450,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -475,8 +470,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -494,8 +488,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -512,8 +505,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for datasources in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -530,8 +522,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for alerts in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -547,8 +538,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for messages in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -564,8 +554,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("KisDatabaseLogfile unable to prepare database insert for snapshots in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
+        Log_Close();
         return -1;
     }
 
@@ -645,7 +634,12 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
         std::string streamstring = sstr.str();
         sqlite3_bind_text(device_stmt, spos++, streamstring.c_str(), streamstring.length(), 0);
 
-        sqlite3_step(device_stmt);
+        if (sqlite3_step(device_stmt) != SQLITE_DONE) {
+            _MSG("KisDatabaseLogfile unable to insert device in " +
+                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            Log_Close();
+            return -1;
+        }
     }
 
     return 1;
@@ -758,7 +752,12 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
 
     sqlite3_bind_int(packet_stmt, 16, in_pack->error);
 
-    sqlite3_step(packet_stmt);
+    if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
+        _MSG("KisDatabaseLogfile unable to insert packet in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
 
     // If the packet has a metablob record, log that
     if (metablob != NULL) {
@@ -810,7 +809,12 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_bind_text(data_stmt, 8, type.data(), type.length(), 0);
     sqlite3_bind_text(data_stmt, 9, json.data(), json.length(), 0);
 
-    sqlite3_step(data_stmt);
+    if (sqlite3_step(data_stmt) != SQLITE_DONE) {
+        _MSG("KisDatabaseLogfile unable to insert data in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
 
     return 1;
 }
@@ -864,7 +868,12 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
 
     sqlite3_bind_text(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), 0);
 
-    sqlite3_step(datasource_stmt);
+    if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
+        _MSG("KisDatabaseLogfile unable to insert datasource in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
 
     return 1;
 }
@@ -909,7 +918,12 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
 
     sqlite3_bind_text(alert_stmt, 8, jsonstring.data(), jsonstring.length(), 0);
 
-    sqlite3_step(alert_stmt);
+    if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
+        _MSG("KisDatabaseLogfile unable to insert alert in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
 
     return 1;
 }
@@ -939,7 +953,12 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_bind_text(snapshot_stmt, 5, snaptype.c_str(), snaptype.length(), 0);
     sqlite3_bind_text(snapshot_stmt, 6, json.data(), json.length(), 0);
 
-    sqlite3_step(snapshot_stmt);
+    if (sqlite3_step(snapshot_stmt) != SQLITE_DONE) {
+        _MSG("KisDatabaseLogfile unable to insert snapshot in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
 
     return 1;
 }
