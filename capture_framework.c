@@ -935,7 +935,7 @@ void *cf_int_chanhop_thread(void *arg) {
         pthread_mutex_lock(&(caph->handler_lock));
 
         /* Cancel thread if we're no longer hopping */
-        if (caph->channel_hop_rate == 0) {
+        if (caph->channel_hop_rate == 0 || caph->hopping_running == 0) {
             caph->hopping_running = 0;
             pthread_mutex_unlock(&(caph->handler_lock));
             return NULL;
@@ -2328,24 +2328,25 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         }
 
         /* Set the hopping parameters */
+        if (caph->channel_hop_rate > 0) {
+            /* we don't have to copy the hop list we just use the same pointers */
+            kechanhop.channels = caph->channel_hop_list;
+            kechanhop.n_channels = caph->channel_hop_list_sz;
 
-        /* we don't have to copy the hop list we just use the same pointers */
-        kechanhop.channels = caph->channel_hop_list;
-        kechanhop.n_channels = caph->channel_hop_list_sz;
-        
-        kechanhop.has_rate = true;
-        kechanhop.rate = caph->channel_hop_rate;
-        
-        kechanhop.has_shuffle = true;
-        kechanhop.shuffle = caph->channel_hop_shuffle;
+            kechanhop.has_rate = true;
+            kechanhop.rate = caph->channel_hop_rate;
 
-        kechanhop.has_shuffle_skip = true;
-        kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
+            kechanhop.has_shuffle = true;
+            kechanhop.shuffle = caph->channel_hop_shuffle;
 
-        kechanhop.has_offset = true;
-        kechanhop.offset = caph->channel_hop_offset;
+            kechanhop.has_shuffle_skip = true;
+            kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
 
-        keopen.hop_config = &kechanhop;
+            kechanhop.has_offset = true;
+            kechanhop.offset = caph->channel_hop_offset;
+
+            keopen.hop_config = &kechanhop;
+        }
 
         if (interface->hardware != NULL) {
             keopen.hardware = interface->hardware;

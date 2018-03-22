@@ -37,7 +37,7 @@ bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExter
     if (KisDatasource::dispatch_rx_packet(c))
         return true;
 
-    if (c->command() == "LBTDATA") {
+    if (c->command() == "LBTDATAREPORT") {
         handle_packet_linuxbtdevice(c->seqno(), c->content());
         return true;
     }

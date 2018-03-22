@@ -45,11 +45,13 @@ PROTOBUF_CPP_H = \
 
 PROTOBUF_C_O = \
 	protobuf_c/kismet.pb-c.c.o \
-	protobuf_c/datasource.pb-c.c.o
+	protobuf_c/datasource.pb-c.c.o \
+	protobuf_c/linuxbluetooth.pb-c.c.o 
 
 PROTOBUF_C_H = \
 	protobuf_c/kismet.pb-c.h \
-	protobuf_c/datasource.pb-c.h
+	protobuf_c/datasource.pb-c.h \
+	protobuf_c/linuxbluetooth.pb-c.h
 
 
 # Common pure-c code for capturesource binaries

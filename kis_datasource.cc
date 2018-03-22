@@ -573,7 +573,7 @@ bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> 
         return true;
 
     // Handle all the KisDataSource sub-protocols
-    if (c->command() == "KDSCONFIGREPORT") {
+    if (c->command() == "KDSCONFIGUREREPORT") {
         handle_packet_configure_report(c->seqno(), c->content());
         return true;
     } else if (c->command() == "KDSDATAREPORT") {
@@ -684,6 +684,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
     }
 
     if (report.has_hop_config()) {
+
         // Set the basics, if we got them we're being overridden by the remote
         // end; this might be a remote capture triggering remote-side options
         
@@ -839,7 +840,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
         set_int_source_retry_attempts(0);
 
     set_int_source_running(report.success().success());
-    set_int_source_error(report.success().success() == true);
+    set_int_source_error(!report.success().success());
 
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
@@ -970,7 +971,10 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::strin
     }
 
     if (report.has_hopping()) {
-        set_int_source_hopping(true);
+        if (report.hopping().has_rate())
+            set_int_source_hopping(report.hopping().rate() != 0);
+        else
+            set_int_source_hopping(false);
 
         if (report.hopping().has_rate())
             set_int_source_hop_rate(report.hopping().rate());
@@ -1331,8 +1335,6 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
     c->set_content(l.SerializeAsString());
 
     seqno = send_packet(c);
-
-    fprintf(stderr, "debug - sending list with seqno %u\n", seqno);
 
     if (seqno == 0) {
         if (in_cb != NULL) {
