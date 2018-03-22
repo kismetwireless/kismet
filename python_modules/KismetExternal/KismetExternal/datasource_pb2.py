@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='datasource.proto',
   package='KismetDatasource',
   syntax='proto2',
-  serialized_pb=_b('\n\x10\x64\x61tasource.proto\x12\x10KismetDatasource\x1a\x0ckismet.proto\"\x1f\n\x0bSubChannels\x12\x10\n\x08\x63hannels\x18\x01 \x03(\t\"\x1d\n\nSubChanset\x12\x0f\n\x07\x63hannel\x18\x01 \x02(\t\"c\n\nSubChanhop\x12\x10\n\x08\x63hannels\x18\x01 \x03(\t\x12\x0c\n\x04rate\x18\x02 \x01(\x01\x12\x0f\n\x07shuffle\x18\x03 \x01(\x08\x12\x14\n\x0cshuffle_skip\x18\x04 \x01(\r\x12\x0e\n\x06offset\x18\x05 \x01(\r\"\xb0\x01\n\x06SubGps\x12\x0b\n\x03lat\x18\x01 \x02(\x01\x12\x0b\n\x03lon\x18\x02 \x02(\x01\x12\x0b\n\x03\x61lt\x18\x03 \x02(\x01\x12\r\n\x05speed\x18\x04 \x02(\x01\x12\x0f\n\x07heading\x18\x05 \x02(\x01\x12\x11\n\tprecision\x18\x06 \x02(\x01\x12\x0b\n\x03\x66ix\x18\x07 \x02(\r\x12\x10\n\x08time_sec\x18\x08 \x02(\x04\x12\x11\n\ttime_usec\x18\t \x02(\x04\x12\x0c\n\x04type\x18\n \x02(\t\x12\x0c\n\x04name\x18\x0b \x02(\t\"B\n\x0cSubInterface\x12\x11\n\tinterface\x18\x01 \x02(\t\x12\r\n\x05\x66lags\x18\x02 \x02(\t\x12\x10\n\x08hardware\x18\x03 \x01(\t\"Y\n\tSubPacket\x12\x10\n\x08time_sec\x18\x01 \x02(\x04\x12\x11\n\ttime_usec\x18\x02 \x02(\x04\x12\x0b\n\x03\x64lt\x18\x03 \x02(\r\x12\x0c\n\x04size\x18\x04 \x02(\x04\x12\x0c\n\x04\x64\x61ta\x18\x05 \x02(\x0c\"\x90\x01\n\tSubSignal\x12\x12\n\nsignal_dbm\x18\x01 \x01(\x01\x12\x11\n\tnoise_dbm\x18\x02 \x01(\x01\x12\x13\n\x0bsignal_rssi\x18\x03 \x01(\x01\x12\x12\n\nnoise_rssi\x18\x04 \x01(\x01\x12\x10\n\x08\x66req_khz\x18\x05 \x01(\x01\x12\x0f\n\x07\x63hannel\x18\x06 \x01(\t\x12\x10\n\x08\x64\x61tarate\x18\x07 \x01(\x01\"\x9f\x01\n\nSubSpecset\x12\x11\n\tstart_mhz\x18\x01 \x01(\x01\x12\x0f\n\x07\x65nd_mhz\x18\x02 \x01(\x01\x12\x1a\n\x12samples_per_bucket\x18\x03 \x01(\x01\x12\x17\n\x0f\x62ucket_width_hz\x18\x04 \x01(\x01\x12\x12\n\nenable_amp\x18\x05 \x01(\x08\x12\x0e\n\x06if_amp\x18\x06 \x01(\x04\x12\x14\n\x0c\x62\x61seband_amp\x18\x07 \x01(\x04\"}\n\x0bSubSpectrum\x12\x10\n\x08time_sec\x18\x01 \x01(\x04\x12\x11\n\ttime_usec\x18\x02 \x01(\x04\x12\x11\n\tstart_mhz\x18\x03 \x01(\x01\x12\x0f\n\x07\x65nd_mhz\x18\x04 \x01(\x01\x12\x17\n\x0f\x62ucket_width_hz\x18\x05 \x01(\x01\x12\x0c\n\x04\x64\x61ta\x18\x06 \x03(\x05\"2\n\nSubSuccess\x12\x0f\n\x07success\x18\x01 \x02(\x08\x12\x13\n\x0b\x63ommand_num\x18\x02 \x02(\r\";\n\x08\x43hannels\x12/\n\x08\x63hannels\x18\x01 \x02(\x0b\x32\x1d.KismetDatasource.SubChannels\"\x11\n\x0f\x43loseDatasource\"\x99\x01\n\tConfigure\x12-\n\x07\x63hannel\x18\x01 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12-\n\x07hopping\x18\x02 \x01(\x0b\x32\x1c.KismetDatasource.SubChanhop\x12.\n\x08spectrum\x18\x03 \x01(\x0b\x32\x1c.KismetDatasource.SubSpecset\"\xdf\x01\n\x0f\x43onfigureReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12-\n\x07\x63hannel\x18\x02 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12-\n\x07hopping\x18\x03 \x01(\x0b\x32\x1c.KismetDatasource.SubChanhop\x12.\n\x07message\x18\x04 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x0f\n\x07warning\x18\x05 \x01(\t\"\xff\x01\n\nDataReport\x12%\n\x03gps\x18\x01 \x01(\x0b\x32\x18.KismetDatasource.SubGps\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12+\n\x06packet\x18\x03 \x01(\x0b\x32\x1b.KismetDatasource.SubPacket\x12+\n\x06signal\x18\x04 \x01(\x0b\x32\x1b.KismetDatasource.SubSignal\x12/\n\x08spectrum\x18\x05 \x01(\x0b\x32\x1d.KismetDatasource.SubSpectrum\x12\x0f\n\x07warning\x18\x06 \x01(\t\"l\n\x0b\x45rrorReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\"\x10\n\x0eListInterfaces\"\xa5\x01\n\x10InterfacesReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x32\n\ninterfaces\x18\x03 \x03(\x0b\x32\x1e.KismetDatasource.SubInterface\"J\n\x07Message\x12.\n\x07message\x18\x01 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x0f\n\x07warning\x18\x02 \x01(\t\"A\n\tNewSource\x12\x12\n\ndefinition\x18\x01 \x02(\t\x12\x12\n\nsourcetype\x18\x02 \x02(\t\x12\x0c\n\x04uuid\x18\x03 \x02(\t\" \n\nOpenSource\x12\x12\n\ndefinition\x18\x01 \x02(\t\"\xd9\x02\n\x10OpenSourceReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12\x0b\n\x03\x64lt\x18\x02 \x01(\r\x12\x19\n\x11\x63\x61pture_interface\x18\x03 \x01(\t\x12/\n\x08\x63hannels\x18\x04 \x01(\x0b\x32\x1d.KismetDatasource.SubChannels\x12-\n\x07\x63hannel\x18\x05 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12\x10\n\x08hardware\x18\x06 \x01(\t\x12.\n\x07message\x18\x07 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12-\n\x07specset\x18\x08 \x01(\x0b\x32\x1c.KismetDatasource.SubSpecset\x12\x0c\n\x04uuid\x18\t \x01(\t\x12\x0f\n\x07warning\x18\n \x01(\t\"!\n\x0bProbeSource\x12\x12\n\ndefinition\x18\x01 \x02(\t\"\x93\x02\n\x11ProbeSourceReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12/\n\x08\x63hannels\x18\x03 \x01(\x0b\x32\x1d.KismetDatasource.SubChannels\x12-\n\x07\x63hanset\x18\x04 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12-\n\x07specset\x18\x05 \x01(\x0b\x32\x1c.KismetDatasource.SubSpecset\x12\x10\n\x08hardware\x18\x06 \x01(\t')
+  serialized_pb=_b('\n\x10\x64\x61tasource.proto\x12\x10KismetDatasource\x1a\x0ckismet.proto\"\x1f\n\x0bSubChannels\x12\x10\n\x08\x63hannels\x18\x01 \x03(\t\"\x1d\n\nSubChanset\x12\x0f\n\x07\x63hannel\x18\x01 \x02(\t\"c\n\nSubChanhop\x12\x10\n\x08\x63hannels\x18\x01 \x03(\t\x12\x0c\n\x04rate\x18\x02 \x01(\x01\x12\x0f\n\x07shuffle\x18\x03 \x01(\x08\x12\x14\n\x0cshuffle_skip\x18\x04 \x01(\r\x12\x0e\n\x06offset\x18\x05 \x01(\r\"\xb0\x01\n\x06SubGps\x12\x0b\n\x03lat\x18\x01 \x02(\x01\x12\x0b\n\x03lon\x18\x02 \x02(\x01\x12\x0b\n\x03\x61lt\x18\x03 \x02(\x01\x12\r\n\x05speed\x18\x04 \x02(\x01\x12\x0f\n\x07heading\x18\x05 \x02(\x01\x12\x11\n\tprecision\x18\x06 \x02(\x01\x12\x0b\n\x03\x66ix\x18\x07 \x02(\r\x12\x10\n\x08time_sec\x18\x08 \x02(\x04\x12\x11\n\ttime_usec\x18\t \x02(\x04\x12\x0c\n\x04type\x18\n \x02(\t\x12\x0c\n\x04name\x18\x0b \x02(\t\"B\n\x0cSubInterface\x12\x11\n\tinterface\x18\x01 \x02(\t\x12\r\n\x05\x66lags\x18\x02 \x02(\t\x12\x10\n\x08hardware\x18\x03 \x01(\t\"Y\n\tSubPacket\x12\x10\n\x08time_sec\x18\x01 \x02(\x04\x12\x11\n\ttime_usec\x18\x02 \x02(\x04\x12\x0b\n\x03\x64lt\x18\x03 \x02(\r\x12\x0c\n\x04size\x18\x04 \x02(\x04\x12\x0c\n\x04\x64\x61ta\x18\x05 \x02(\x0c\"\x90\x01\n\tSubSignal\x12\x12\n\nsignal_dbm\x18\x01 \x01(\x01\x12\x11\n\tnoise_dbm\x18\x02 \x01(\x01\x12\x13\n\x0bsignal_rssi\x18\x03 \x01(\x01\x12\x12\n\nnoise_rssi\x18\x04 \x01(\x01\x12\x10\n\x08\x66req_khz\x18\x05 \x01(\x01\x12\x0f\n\x07\x63hannel\x18\x06 \x01(\t\x12\x10\n\x08\x64\x61tarate\x18\x07 \x01(\x01\"\x9f\x01\n\nSubSpecset\x12\x11\n\tstart_mhz\x18\x01 \x01(\x01\x12\x0f\n\x07\x65nd_mhz\x18\x02 \x01(\x01\x12\x1a\n\x12samples_per_bucket\x18\x03 \x01(\x01\x12\x17\n\x0f\x62ucket_width_hz\x18\x04 \x01(\x01\x12\x12\n\nenable_amp\x18\x05 \x01(\x08\x12\x0e\n\x06if_amp\x18\x06 \x01(\x04\x12\x14\n\x0c\x62\x61seband_amp\x18\x07 \x01(\x04\"}\n\x0bSubSpectrum\x12\x10\n\x08time_sec\x18\x01 \x01(\x04\x12\x11\n\ttime_usec\x18\x02 \x01(\x04\x12\x11\n\tstart_mhz\x18\x03 \x01(\x01\x12\x0f\n\x07\x65nd_mhz\x18\x04 \x01(\x01\x12\x17\n\x0f\x62ucket_width_hz\x18\x05 \x01(\x01\x12\x0c\n\x04\x64\x61ta\x18\x06 \x03(\x05\",\n\nSubSuccess\x12\x0f\n\x07success\x18\x01 \x02(\x08\x12\r\n\x05seqno\x18\x02 \x02(\r\"\x11\n\x0f\x43loseDatasource\"\x99\x01\n\tConfigure\x12-\n\x07\x63hannel\x18\x01 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12-\n\x07hopping\x18\x02 \x01(\x0b\x32\x1c.KismetDatasource.SubChanhop\x12.\n\x08spectrum\x18\x03 \x01(\x0b\x32\x1c.KismetDatasource.SubSpecset\"\xdf\x01\n\x0f\x43onfigureReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12-\n\x07\x63hannel\x18\x02 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12-\n\x07hopping\x18\x03 \x01(\x0b\x32\x1c.KismetDatasource.SubChanhop\x12.\n\x07message\x18\x04 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x0f\n\x07warning\x18\x05 \x01(\t\"\xff\x01\n\nDataReport\x12%\n\x03gps\x18\x01 \x01(\x0b\x32\x18.KismetDatasource.SubGps\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12+\n\x06packet\x18\x03 \x01(\x0b\x32\x1b.KismetDatasource.SubPacket\x12+\n\x06signal\x18\x04 \x01(\x0b\x32\x1b.KismetDatasource.SubSignal\x12/\n\x08spectrum\x18\x05 \x01(\x0b\x32\x1d.KismetDatasource.SubSpectrum\x12\x0f\n\x07warning\x18\x06 \x01(\t\"l\n\x0b\x45rrorReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\"\x10\n\x0eListInterfaces\"\xa5\x01\n\x10InterfacesReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x32\n\ninterfaces\x18\x03 \x03(\x0b\x32\x1e.KismetDatasource.SubInterface\"A\n\tNewSource\x12\x12\n\ndefinition\x18\x01 \x02(\t\x12\x12\n\nsourcetype\x18\x02 \x02(\t\x12\x0c\n\x04uuid\x18\x03 \x02(\t\" \n\nOpenSource\x12\x12\n\ndefinition\x18\x01 \x02(\t\"\x8c\x03\n\x10OpenSourceReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12\x0b\n\x03\x64lt\x18\x02 \x01(\r\x12\x19\n\x11\x63\x61pture_interface\x18\x03 \x01(\t\x12/\n\x08\x63hannels\x18\x04 \x01(\x0b\x32\x1d.KismetDatasource.SubChannels\x12-\n\x07\x63hannel\x18\x05 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12\x30\n\nhop_config\x18\x06 \x01(\x0b\x32\x1c.KismetDatasource.SubChanhop\x12\x10\n\x08hardware\x18\x07 \x01(\t\x12.\n\x07message\x18\x08 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12.\n\x08spectrum\x18\t \x01(\x0b\x32\x1c.KismetDatasource.SubSpecset\x12\x0c\n\x04uuid\x18\n \x01(\t\x12\x0f\n\x07warning\x18\x0b \x01(\t\"!\n\x0bProbeSource\x12\x12\n\ndefinition\x18\x01 \x02(\t\"\x94\x02\n\x11ProbeSourceReport\x12-\n\x07success\x18\x01 \x02(\x0b\x32\x1c.KismetDatasource.SubSuccess\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12/\n\x08\x63hannels\x18\x03 \x01(\x0b\x32\x1d.KismetDatasource.SubChannels\x12-\n\x07\x63hannel\x18\x04 \x01(\x0b\x32\x1c.KismetDatasource.SubChanset\x12.\n\x08spectrum\x18\x05 \x01(\x0b\x32\x1c.KismetDatasource.SubSpecset\x12\x10\n\x08hardware\x18\x06 \x01(\t\" \n\rWarningReport\x12\x0f\n\x07warning\x18\x01 \x02(\t')
   ,
   dependencies=[kismet__pb2.DESCRIPTOR,])
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -581,7 +581,7 @@ _SUBSUCCESS = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='command_num', full_name='KismetDatasource.SubSuccess.command_num', index=1,
+      name='seqno', full_name='KismetDatasource.SubSuccess.seqno', index=1,
       number=2, type=13, cpp_type=3, label=2,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -600,38 +600,7 @@ _SUBSUCCESS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=991,
-  serialized_end=1041,
-)
-
-
-_CHANNELS = _descriptor.Descriptor(
-  name='Channels',
-  full_name='KismetDatasource.Channels',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='channels', full_name='KismetDatasource.Channels.channels', index=0,
-      number=1, type=11, cpp_type=10, label=2,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto2',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1043,
-  serialized_end=1102,
+  serialized_end=1035,
 )
 
 
@@ -654,8 +623,8 @@ _CLOSEDATASOURCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1104,
-  serialized_end=1121,
+  serialized_start=1037,
+  serialized_end=1054,
 )
 
 
@@ -699,8 +668,8 @@ _CONFIGURE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1124,
-  serialized_end=1277,
+  serialized_start=1057,
+  serialized_end=1210,
 )
 
 
@@ -758,8 +727,8 @@ _CONFIGUREREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1280,
-  serialized_end=1503,
+  serialized_start=1213,
+  serialized_end=1436,
 )
 
 
@@ -824,8 +793,8 @@ _DATAREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1506,
-  serialized_end=1761,
+  serialized_start=1439,
+  serialized_end=1694,
 )
 
 
@@ -862,8 +831,8 @@ _ERRORREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1763,
-  serialized_end=1871,
+  serialized_start=1696,
+  serialized_end=1804,
 )
 
 
@@ -886,8 +855,8 @@ _LISTINTERFACES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1873,
-  serialized_end=1889,
+  serialized_start=1806,
+  serialized_end=1822,
 )
 
 
@@ -931,46 +900,8 @@ _INTERFACESREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1892,
-  serialized_end=2057,
-)
-
-
-_MESSAGE = _descriptor.Descriptor(
-  name='Message',
-  full_name='KismetDatasource.Message',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='message', full_name='KismetDatasource.Message.message', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='warning', full_name='KismetDatasource.Message.warning', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  options=None,
-  is_extendable=False,
-  syntax='proto2',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=2059,
-  serialized_end=2133,
+  serialized_start=1825,
+  serialized_end=1990,
 )
 
 
@@ -1014,8 +945,8 @@ _NEWSOURCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2135,
-  serialized_end=2200,
+  serialized_start=1992,
+  serialized_end=2057,
 )
 
 
@@ -1045,8 +976,8 @@ _OPENSOURCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2202,
-  serialized_end=2234,
+  serialized_start=2059,
+  serialized_end=2091,
 )
 
 
@@ -1093,36 +1024,43 @@ _OPENSOURCEREPORT = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='hardware', full_name='KismetDatasource.OpenSourceReport.hardware', index=5,
-      number=6, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='message', full_name='KismetDatasource.OpenSourceReport.message', index=6,
-      number=7, type=11, cpp_type=10, label=1,
+      name='hop_config', full_name='KismetDatasource.OpenSourceReport.hop_config', index=5,
+      number=6, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='specset', full_name='KismetDatasource.OpenSourceReport.specset', index=7,
+      name='hardware', full_name='KismetDatasource.OpenSourceReport.hardware', index=6,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='message', full_name='KismetDatasource.OpenSourceReport.message', index=7,
       number=8, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='uuid', full_name='KismetDatasource.OpenSourceReport.uuid', index=8,
-      number=9, type=9, cpp_type=9, label=1,
+      name='spectrum', full_name='KismetDatasource.OpenSourceReport.spectrum', index=8,
+      number=9, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='uuid', full_name='KismetDatasource.OpenSourceReport.uuid', index=9,
+      number=10, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='warning', full_name='KismetDatasource.OpenSourceReport.warning', index=9,
-      number=10, type=9, cpp_type=9, label=1,
+      name='warning', full_name='KismetDatasource.OpenSourceReport.warning', index=10,
+      number=11, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -1139,8 +1077,8 @@ _OPENSOURCEREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2237,
-  serialized_end=2582,
+  serialized_start=2094,
+  serialized_end=2490,
 )
 
 
@@ -1170,8 +1108,8 @@ _PROBESOURCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2584,
-  serialized_end=2617,
+  serialized_start=2492,
+  serialized_end=2525,
 )
 
 
@@ -1204,14 +1142,14 @@ _PROBESOURCEREPORT = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='chanset', full_name='KismetDatasource.ProbeSourceReport.chanset', index=3,
+      name='channel', full_name='KismetDatasource.ProbeSourceReport.channel', index=3,
       number=4, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='specset', full_name='KismetDatasource.ProbeSourceReport.specset', index=4,
+      name='spectrum', full_name='KismetDatasource.ProbeSourceReport.spectrum', index=4,
       number=5, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -1236,11 +1174,41 @@ _PROBESOURCEREPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2620,
-  serialized_end=2895,
+  serialized_start=2528,
+  serialized_end=2804,
 )
 
-_CHANNELS.fields_by_name['channels'].message_type = _SUBCHANNELS
+
+_WARNINGREPORT = _descriptor.Descriptor(
+  name='WarningReport',
+  full_name='KismetDatasource.WarningReport',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='warning', full_name='KismetDatasource.WarningReport.warning', index=0,
+      number=1, type=9, cpp_type=9, label=2,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto2',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=2806,
+  serialized_end=2838,
+)
+
 _CONFIGURE.fields_by_name['channel'].message_type = _SUBCHANSET
 _CONFIGURE.fields_by_name['hopping'].message_type = _SUBCHANHOP
 _CONFIGURE.fields_by_name['spectrum'].message_type = _SUBSPECSET
@@ -1258,17 +1226,17 @@ _ERRORREPORT.fields_by_name['message'].message_type = kismet__pb2._MSGBUSMESSAGE
 _INTERFACESREPORT.fields_by_name['success'].message_type = _SUBSUCCESS
 _INTERFACESREPORT.fields_by_name['message'].message_type = kismet__pb2._MSGBUSMESSAGE
 _INTERFACESREPORT.fields_by_name['interfaces'].message_type = _SUBINTERFACE
-_MESSAGE.fields_by_name['message'].message_type = kismet__pb2._MSGBUSMESSAGE
 _OPENSOURCEREPORT.fields_by_name['success'].message_type = _SUBSUCCESS
 _OPENSOURCEREPORT.fields_by_name['channels'].message_type = _SUBCHANNELS
 _OPENSOURCEREPORT.fields_by_name['channel'].message_type = _SUBCHANSET
+_OPENSOURCEREPORT.fields_by_name['hop_config'].message_type = _SUBCHANHOP
 _OPENSOURCEREPORT.fields_by_name['message'].message_type = kismet__pb2._MSGBUSMESSAGE
-_OPENSOURCEREPORT.fields_by_name['specset'].message_type = _SUBSPECSET
+_OPENSOURCEREPORT.fields_by_name['spectrum'].message_type = _SUBSPECSET
 _PROBESOURCEREPORT.fields_by_name['success'].message_type = _SUBSUCCESS
 _PROBESOURCEREPORT.fields_by_name['message'].message_type = kismet__pb2._MSGBUSMESSAGE
 _PROBESOURCEREPORT.fields_by_name['channels'].message_type = _SUBCHANNELS
-_PROBESOURCEREPORT.fields_by_name['chanset'].message_type = _SUBCHANSET
-_PROBESOURCEREPORT.fields_by_name['specset'].message_type = _SUBSPECSET
+_PROBESOURCEREPORT.fields_by_name['channel'].message_type = _SUBCHANSET
+_PROBESOURCEREPORT.fields_by_name['spectrum'].message_type = _SUBSPECSET
 DESCRIPTOR.message_types_by_name['SubChannels'] = _SUBCHANNELS
 DESCRIPTOR.message_types_by_name['SubChanset'] = _SUBCHANSET
 DESCRIPTOR.message_types_by_name['SubChanhop'] = _SUBCHANHOP
@@ -1279,7 +1247,6 @@ DESCRIPTOR.message_types_by_name['SubSignal'] = _SUBSIGNAL
 DESCRIPTOR.message_types_by_name['SubSpecset'] = _SUBSPECSET
 DESCRIPTOR.message_types_by_name['SubSpectrum'] = _SUBSPECTRUM
 DESCRIPTOR.message_types_by_name['SubSuccess'] = _SUBSUCCESS
-DESCRIPTOR.message_types_by_name['Channels'] = _CHANNELS
 DESCRIPTOR.message_types_by_name['CloseDatasource'] = _CLOSEDATASOURCE
 DESCRIPTOR.message_types_by_name['Configure'] = _CONFIGURE
 DESCRIPTOR.message_types_by_name['ConfigureReport'] = _CONFIGUREREPORT
@@ -1287,12 +1254,12 @@ DESCRIPTOR.message_types_by_name['DataReport'] = _DATAREPORT
 DESCRIPTOR.message_types_by_name['ErrorReport'] = _ERRORREPORT
 DESCRIPTOR.message_types_by_name['ListInterfaces'] = _LISTINTERFACES
 DESCRIPTOR.message_types_by_name['InterfacesReport'] = _INTERFACESREPORT
-DESCRIPTOR.message_types_by_name['Message'] = _MESSAGE
 DESCRIPTOR.message_types_by_name['NewSource'] = _NEWSOURCE
 DESCRIPTOR.message_types_by_name['OpenSource'] = _OPENSOURCE
 DESCRIPTOR.message_types_by_name['OpenSourceReport'] = _OPENSOURCEREPORT
 DESCRIPTOR.message_types_by_name['ProbeSource'] = _PROBESOURCE
 DESCRIPTOR.message_types_by_name['ProbeSourceReport'] = _PROBESOURCEREPORT
+DESCRIPTOR.message_types_by_name['WarningReport'] = _WARNINGREPORT
 
 SubChannels = _reflection.GeneratedProtocolMessageType('SubChannels', (_message.Message,), dict(
   DESCRIPTOR = _SUBCHANNELS,
@@ -1364,13 +1331,6 @@ SubSuccess = _reflection.GeneratedProtocolMessageType('SubSuccess', (_message.Me
   ))
 _sym_db.RegisterMessage(SubSuccess)
 
-Channels = _reflection.GeneratedProtocolMessageType('Channels', (_message.Message,), dict(
-  DESCRIPTOR = _CHANNELS,
-  __module__ = 'datasource_pb2'
-  # @@protoc_insertion_point(class_scope:KismetDatasource.Channels)
-  ))
-_sym_db.RegisterMessage(Channels)
-
 CloseDatasource = _reflection.GeneratedProtocolMessageType('CloseDatasource', (_message.Message,), dict(
   DESCRIPTOR = _CLOSEDATASOURCE,
   __module__ = 'datasource_pb2'
@@ -1420,13 +1380,6 @@ InterfacesReport = _reflection.GeneratedProtocolMessageType('InterfacesReport', 
   ))
 _sym_db.RegisterMessage(InterfacesReport)
 
-Message = _reflection.GeneratedProtocolMessageType('Message', (_message.Message,), dict(
-  DESCRIPTOR = _MESSAGE,
-  __module__ = 'datasource_pb2'
-  # @@protoc_insertion_point(class_scope:KismetDatasource.Message)
-  ))
-_sym_db.RegisterMessage(Message)
-
 NewSource = _reflection.GeneratedProtocolMessageType('NewSource', (_message.Message,), dict(
   DESCRIPTOR = _NEWSOURCE,
   __module__ = 'datasource_pb2'
@@ -1461,6 +1414,13 @@ ProbeSourceReport = _reflection.GeneratedProtocolMessageType('ProbeSourceReport'
   # @@protoc_insertion_point(class_scope:KismetDatasource.ProbeSourceReport)
   ))
 _sym_db.RegisterMessage(ProbeSourceReport)
+
+WarningReport = _reflection.GeneratedProtocolMessageType('WarningReport', (_message.Message,), dict(
+  DESCRIPTOR = _WARNINGREPORT,
+  __module__ = 'datasource_pb2'
+  # @@protoc_insertion_point(class_scope:KismetDatasource.WarningReport)
+  ))
+_sym_db.RegisterMessage(WarningReport)
 
 
 # @@protoc_insertion_point(module_scope)
