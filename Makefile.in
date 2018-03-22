@@ -368,6 +368,7 @@ clean:
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(DATASOURCE_BINS)
+	@-rm -f $(DATASOURCE_COMMON_A)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
