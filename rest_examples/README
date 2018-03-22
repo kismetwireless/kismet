@@ -9,9 +9,8 @@ Kismet Rest Examples
     as a simple interface that uses the Requests library under the covers.
 
 - BUILDING THE LIBRARY -
-    
-    The Python examples generally use the KismetRest library, which is in 
-    this directory.
+
+    The KismetRest library can be found in the python_modules/ directory of Kismet;
 
     To install it, install as you would a normal Python module:
         $ cd KismetRest
