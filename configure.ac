@@ -621,7 +621,7 @@ fi
 AC_SUBST(mangrp)
 
 # We need microhttpd
-if test "$caponly" != 0; then
+if test "$caponly" != 1; then
 
 HAVE_LIBMICROHTTPD=0
 AC_CHECK_LIB([microhttpd], [MHD_start_daemon],

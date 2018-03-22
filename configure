@@ -7355,7 +7355,7 @@ fi
 
 
 # We need microhttpd
-if test "$caponly" != 0; then
+if test "$caponly" != 1; then
 
 HAVE_LIBMICROHTTPD=0
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
