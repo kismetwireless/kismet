@@ -118,7 +118,7 @@ exports.CryptToHumanReadable = function(cryptset) {
     if (cryptset & exports.crypt_unknown_protected)
         ret.push("Unknown");
 
-    if (cryptset & exports.crypt_unkown_nonwep)
+    if (cryptset & exports.crypt_unknown_nonwep)
         ret.push("Unknown-Non-WEP");
 
     return ret.join(" ");
