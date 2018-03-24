@@ -35,13 +35,15 @@ PROTOBUF_CPP_O = \
 	protobuf_cpp/kismet.pb.cc.o \
 	protobuf_cpp/http.pb.cc.o \
 	protobuf_cpp/datasource.pb.cc.o \
-	protobuf_cpp/linuxbluetooth.pb.cc.o 
+	protobuf_cpp/linuxbluetooth.pb.cc.o \
+	protobuf_cpp/sdrrtl433.pb.cc.o
 
 PROTOBUF_CPP_H = \
 	protobuf_cpp/kismet.pb.h \
 	protobuf_cpp/http.pb.h \
 	protobuf_cpp/datasource.pb.h \
-	protobuf_cpp/linuxbluetooth.pb.h
+	protobuf_cpp/linuxbluetooth.pb.h \
+	protobuf_cpp/sdrrtl433.pb.h
 
 PROTOBUF_C_O = \
 	protobuf_c/kismet.pb-c.c.o \
