@@ -5,7 +5,7 @@ MONITOR_BIN = kismet_cap_sdr_rtl433
 
 all: $(MONITOR_BIN)
 
-$(MONITOR_BIN):	$(MONITOR_OBJS) 
+$(MONITOR_BIN):	$(MONITOR_OBJ) 
 		cp $(MONITOR_OBJ) $(MONITOR_BIN)
 
 clean:

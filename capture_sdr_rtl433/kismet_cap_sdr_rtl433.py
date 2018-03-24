@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import argparse
+import ctypes
 from datetime import datetime
 import json
 import os
@@ -11,14 +12,19 @@ import time
 import uuid
 
 try:
+    import KismetExternal
+except ImportError:
+    print "Could not import the KismetExternal Python code; you need to install this from "
+    print "python_modules/KismetExternal/ in the Kismet source directory!"
+    sys.exit(0)
+
+try:
     import paho.mqtt.client as mqtt
     has_mqtt = True
-    print "MQTT found; enabling MQTT features"
 except ImportError:
-    print "MQTT not found; to use MQTT features install the Python Paho MQTT library"
     has_mqtt = False
 
-class kismet_rtl433:
+class kismet_rtl433(KismetExternal.KismetExternalInterface):
     def __init__(self):
         parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge - Creates a rtl433 data source on a Kismet server and passes JSON-based records from the rtl_433 binary',
                 epilog='Requires the rtl_433 tool (install your distributions package or compile from https://github.com/merbanan/rtl_433)')
@@ -128,6 +134,28 @@ class kismet_rtl433:
         self.session = requests.Session()
         self.session.auth = (self.config.user, self.config.password)
 
+    # Implement the listinterfaces callback for the external api
+    def datasource_listinterfaces(self, seqno):
+        lib = ctypes.CDLL("librtlsdr.so.0")
+
+        py_get_device_count = lib.rtlsdr_get_device_count
+
+        py_get_device_name = lib.rtlsdr_get_device_name
+        py_get_device_name.argtypes = [ctypes.c_int]
+        py_get_device_name.restype = ctypes.c_char_p
+
+        interfaces = []
+
+        for i in range(0, py_get_device_count()):
+            intf = KismetExternal.datasource_pb2.SubInterface()
+            intf.interface = "rtlsdr{}".format(i)
+            intf.flags = ""
+            intf.hardware = py_get_device_name(i)
+            interfaces.append(intf)
+
+        self.send_datasource_interfaces_report(seqno, interfaces)
+
+
     def get_uuid(self):
         return self.config.uuid
 
@@ -198,7 +226,7 @@ class kismet_rtl433:
             "json": json.dumps(cmd)
         }
 
-        if self.debug:
+        if self.config.debug:
             print "DEBUG - Attempting to create a datasource with the definition '{}'".format(datasource)
 
         try:
