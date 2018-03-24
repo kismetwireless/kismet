@@ -76,6 +76,11 @@ class KismetExternalInterface:
         self.add_handler("PONG", self.__handle_pong)
         self.add_handler("SHUTDOWN", self.__handle_shutdown)
 
+        self.add_handler("KDSCONFIGURE", self.__handle_kds_configure)
+        self.add_handler("KDSLISTINTERFACES", self.__handle_kds_listinterfaces)
+        self.add_handler("KDSOPENSOURCE", self.__handle_kds_opensource)
+        self.add_handler("KDSPROBESOURCE", self.__handle_kds_probesource)
+
         self.uri_handlers = {}
 
         self.MSG_INFO = kismet_pb2.MsgbusMessage.INFO
@@ -425,6 +430,15 @@ class KismetExternalInterface:
             self.datasource_configure(seqno, conf)
         except AttributeError:
             self.send_datasource_configure_response(seqno, success = False, message = "helper does not support source configuration")
+
+    def __handle_kds_opensource(self, seqno, packet):
+        opensource = datasource_pb2.OpenSource()
+        opensource.ParseFromString(packet)
+
+        try:
+            self.datasoure_opensource(seqno, opensource.definition)
+        except AttributeError:
+            self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
 
     def __handle_kds_probesource(self, seqno, packet):
         probe = datasource_pb2.ProbeSource()
