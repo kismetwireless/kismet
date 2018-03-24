@@ -27,7 +27,7 @@ import kismet_pb2
 import http_pb2
 import datasource_pb2
 
-class KismetExternalInterface:
+class KismetExternalInterface(object):
     """ 
     External interface super-class
     """
