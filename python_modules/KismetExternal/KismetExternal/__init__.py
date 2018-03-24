@@ -638,21 +638,3 @@ class KismetExternalInterface:
 
         self.write_ext_packet("KDSWARNINGREPORT", report)
 
-if __name__ == "__main__":
-    kei = KismetExternalInterface(0, 1)
-
-    # Start the IO loop
-    kei.start()
-
-    try:
-        if sys.argv[1] == 'a':
-            while 1:
-                kei.send_ping()
-                time.sleep(1)
-        else:
-            while 1:
-                time.sleep(1)
-    finally:
-        kei.kill()
-
-
