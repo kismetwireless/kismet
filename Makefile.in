@@ -443,14 +443,14 @@ all-plugins-clean: Makefile
 # 	kaitai-struct-compiler --outdir kaitai_parsers/ -t cpp_stl -I kaitai_definitions/ kaitai_definitions/*.ksy
 # 	file-rename -v -f 's/\.cpp$$/\.cc/' kaitai_parsers/*.cpp 
 
-protobuf_cpp/%.pb.cc.d: %.pb.cc %.pb.h
-protobuf_cpp/%.pb.cc.o: %.pb.cc %.pb.h
+protobuf_cpp/%.pb.cc.d: %.pb.cc 
+protobuf_cpp/%.pb.cc.o: %.pb.cc
 protobuf_cpp/%.pb.cc: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 protobuf_cpp/%.pb.h: protobuf_definitions/%.proto
 	$(PROTOCBIN) --cpp_out=./protobuf_cpp/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 
-protobuf_c/%.pb-c.c.o: %.pb-c.c %.pb-c.h
+protobuf_c/%.pb-c.c.o: %.pb-c.c 
 protobuf_c/%.pb-c.c: protobuf_definitions/%.proto
 	$(PROTOCCBIN) --c_out=./protobuf_c/ -I protobuf_definitions/ protobuf_definitions/$*.proto
 protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
