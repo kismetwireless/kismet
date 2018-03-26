@@ -8,10 +8,12 @@ package KismetSdrRtl433;
 // RTL433 report; rtl_433 gives us JSON, we pass it on
 // RTL433DATAREPORT
 message SdrRtl433DataReport {
-    optional KismetDatasource.SubGps gps = 1;
-    optional KismetExternal.MsgbusMessage message = 2;
-    optional string warning = 3;
-    optional KismetDatasource.SubSignal signal = 4;
-    required string rtljson = 5;
+    required uint64 time_sec = 1;
+    required uint64 time_usec = 2;
+    optional KismetDatasource.SubGps gps = 3;
+    optional KismetExternal.MsgbusMessage message = 4;
+    optional string warning = 5;
+    optional KismetDatasource.SubSignal signal = 6;
+    required string rtljson = 7;
 }
 
