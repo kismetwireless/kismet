@@ -11,6 +11,8 @@ Kismet external helper API implementation
 
 Protobuf based communication with the Kismet server for external tools interface,
 datasource capture, etc.
+
+Datasources are expanded in KismetDatasource.py
 """
 
 import argparse
@@ -27,7 +29,7 @@ import kismet_pb2
 import http_pb2
 import datasource_pb2
 
-class KismetExternalInterface(object):
+class ExternalInterface(object):
     """ 
     External interface super-class
     """
@@ -75,11 +77,6 @@ class KismetExternalInterface(object):
         self.add_handler("PING", self.__handle_ping)
         self.add_handler("PONG", self.__handle_pong)
         self.add_handler("SHUTDOWN", self.__handle_shutdown)
-
-        self.add_handler("KDSCONFIGURE", self.__handle_kds_configure)
-        self.add_handler("KDSLISTINTERFACES", self.__handle_kds_listinterfaces)
-        self.add_handler("KDSOPENSOURCE", self.__handle_kds_opensource)
-        self.add_handler("KDSPROBESOURCE", self.__handle_kds_probesource)
 
         self.uri_handlers = {}
 
@@ -421,6 +418,18 @@ class KismetExternalInterface(object):
         shutdown = kismet_pb2.Shutdown()
         shutdown.ParseFromString(packet)
         self.kill()
+
+class Datasource(ExternalInterface):
+    """ 
+    Datasource implementation
+    """
+    def __init__(self, infd = -1, outfd = -1, remote = None):
+        super(Datasource, self).__init__(infd = infd, outfd = outfd, remote = remote)
+
+        self.add_handler("KDSCONFIGURE", self.__handle_kds_configure)
+        self.add_handler("KDSLISTINTERFACES", self.__handle_kds_listinterfaces)
+        self.add_handler("KDSOPENSOURCE", self.__handle_kds_opensource)
+        self.add_handler("KDSPROBESOURCE", self.__handle_kds_probesource)
 
     def __kds_parse_definition(self, definition):
         source = ""
