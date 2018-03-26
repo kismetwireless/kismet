@@ -617,15 +617,12 @@ class Datasource(ExternalInterface):
 
         report = datasource_pb2.ErrorReport()
 
-        report.success.success = success
+        report.success.success = False
         report.success.seqno = seqno
 
         if not message == None:
             report.message.msgtext = message
-            if success:
-                report.message.msgtype = self.MSG_INFO
-            else:
-                report.message.msgtype = self.MSG_ERROR
+            report.message.msgtype = self.MSG_ERROR
 
         self.write_ext_packet("KDSERROR", report)
 
