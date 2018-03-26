@@ -208,6 +208,7 @@ class ExternalInterface(object):
 
         self.running = True
         self.iothread = threading.Thread(target=self.__io_loop)
+        self.iothread.daemon = True
         self.iothread.start()
 
     def add_handler(self, command, handler):
