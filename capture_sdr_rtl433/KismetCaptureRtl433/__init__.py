@@ -174,13 +174,13 @@ class KismetRtl433(object):
             # Catch all errors, but don't die if we're reconfiguring rtl; then we need
             # to relaunch the binary
             if not self.rtl_reconfigure:
-                self.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(ce))
+                self.kismet.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(ce))
         finally:
             if not seen_any_valid and not self.rtl_reconfigure:
-                self.send_datasource_error_report(message = "No valid packets ever seen from rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
+                self.kismet.send_datasource_error_report(message = "An error occurred in rtl_433 and no valid devices were seen; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
                 self.kismet.spindown()
 
-            r.kill()
+            self.rtl_exec.kill()
 
 
     def run_rtl433(self):
@@ -353,16 +353,18 @@ class KismetRtl433(object):
             report = sdrrtl433_pb2.SdrRtl433DataReport()
 
             dt = datetime.now()
-            report.time_sec = time.mktime(dt.timetuple)
-            report.time_usec = dt.microsecond
+            report.time_sec = int(time.mktime(dt.timetuple()))
+            report.time_usec = int(dt.microsecond)
 
             report.rtljson = r
 
             self.kismet.write_ext_packet("RTL433DATAREPORT", report)
         except ValueError as e:
+            print e
             self.kismet.send_error_report(message = "Could not parse JSON output of rtl_433")
             return False
         except Exception as e:
+            print e
             self.kismet.send_error_report(message = "Could not process output of rtl_433")
             return False
 
