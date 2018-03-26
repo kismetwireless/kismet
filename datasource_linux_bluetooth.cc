@@ -90,8 +90,12 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
         packet->insert(pack_comp_gps, gpsinfo);
     }
 
-    packet->ts.tv_sec = report.btdevice().time_sec();
-    packet->ts.tv_usec = report.btdevice().time_usec();
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.btdevice().time_sec();
+        packet->ts.tv_usec = report.btdevice().time_usec();
+    }
 
     bpi->address = mac_addr(report.btdevice().address());
     bpi->name = MungeToPrintable(report.btdevice().name());
