@@ -1081,6 +1081,17 @@ if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 fi
 AC_SUBST(airpcaplib)
 
+AC_ARG_WITH(python2,
+        [  --with-python2[=PATH]     Custom location of python2 interpreter],
+        [ ])
+if test x"$with_python2" != "x"; then
+    PYTHON2=$with_python2
+else
+    PYTHON2=python2
+fi
+
+AC_SUBST(PYTHON2)
+
 if test "$caponly" = 0; then
 # We only *require* protobuf for C++
 PKG_CHECK_MODULES(protobuf, [protobuf], have_protobuf_pkg=yes)
@@ -1090,9 +1101,7 @@ fi
 
 AC_ARG_WITH(protoc,
 	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
-    [ echo "with-protoc called" ])
-
-echo $with_protoc
+    [ ])
 
 if test x"$with_protoc" == "x"; then
     PROTOCBIN=protoc

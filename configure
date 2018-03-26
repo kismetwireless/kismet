@@ -660,6 +660,7 @@ protobuf_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
+PYTHON2
 airpcaplib
 pcap
 pcaplnk
@@ -761,6 +762,7 @@ enable_pcre
 enable_prelude
 with_libprelude_prefix
 enable_pcap
+with_python2
 with_protoc
 with_protocc
 with_netlink_tiny
@@ -1439,6 +1441,7 @@ Optional Packages:
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
+  --with-python2=PATH     Custom location of python2 interpreter
   --with-protoc=PATH     Custom location of the protoc protobuf compiler
   --with-protocc=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
@@ -8952,6 +8955,20 @@ $as_echo "$as_me: WARNING: Compiling without airpcap support" >&2;}
 fi
 
 
+
+# Check whether --with-python2 was given.
+if test "${with_python2+set}" = set; then :
+  withval=$with_python2;
+fi
+
+if test x"$with_python2" != "x"; then
+    PYTHON2=$with_python2
+else
+    PYTHON2=python2
+fi
+
+
+
 if test "$caponly" = 0; then
 # We only *require* protobuf for C++
 
@@ -9172,11 +9189,9 @@ fi
 
 # Check whether --with-protoc was given.
 if test "${with_protoc+set}" = set; then :
-  withval=$with_protoc;  echo "with-protoc called"
+  withval=$with_protoc;
 fi
 
-
-echo $with_protoc
 
 if test x"$with_protoc" == "x"; then
     PROTOCBIN=protoc
