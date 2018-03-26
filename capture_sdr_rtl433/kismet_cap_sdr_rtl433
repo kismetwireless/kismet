@@ -8,7 +8,7 @@ KismetCaptureRtl433 Python module
 
 """
 
-import argparse
+import time
 
 try:
     import KismetCaptureRtl433
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     rtl = KismetCaptureRtl433.KismetRtl433()
 
     # Go into sleep mode
-    while 1:
+    while rtl.is_running():
         time.sleep(1)
 
     sys.exit(0)

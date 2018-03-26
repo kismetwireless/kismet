@@ -35,6 +35,7 @@ import os
 import requests
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -48,10 +49,23 @@ except ImportError:
 
 class KismetRtl433(object):
     def __init__(self):
-        self.rtlbin = "rtl_433"
-        self.default_channel = "433.920MHz"
-        self.rtl_exec = None
+        self.opts = {}
+
+        self.opts['rtlbin'] = 'rtl_433'
+        self.opts['channel'] = "433.920MHz"
+        self.opts['frequency'] = None
+        self.opts['gain'] = None
+        self.opts['device'] = None
+
         self.mqtt_mode = False
+
+        # Thread that runs the RTL popen
+        self.rtl_thread = None
+        # The popen'd RTL binary
+        self.rtl_exec = None
+
+        # Are we killing rtl because we're reconfiguring?
+        self.rtl_reconfigure = False
 
         # Use ctypes to load librtlsdr and probe for supported USB devices
         try:
@@ -92,11 +106,8 @@ class KismetRtl433(object):
 
         self.kismet.start()
 
-    def get_uuid(self):
-        return self.config.uuid
-
-    def get_rtlbin(self):
-        return self.config.rtlbin
+    def is_running(self):
+        return self.kismet.is_running()
 
     def get_rtl_usb_info(self, index):
         # Allocate memory buffers
@@ -118,7 +129,7 @@ class KismetRtl433(object):
     def check_rtl_bin(self):
         try:
             FNULL = open(os.devnull, 'w')
-            r = subprocess.check_call([self.rtlbin, "--help"], stdout=FNULL, stderr=FNULL)
+            r = subprocess.check_call([self.opts['rtlbin'], "--help"], stdout=FNULL, stderr=FNULL)
         except subprocess.CalledProcessError:
             return True
         except OSError:
@@ -126,48 +137,65 @@ class KismetRtl433(object):
 
         return True
 
-    def open_rtl(self):
-        cmd = [ self.config.rtlbin, '-F', 'json' ]
+    def __rtl_thread(self):
+        """ Internal thread for running the rtl binary """
+        cmd = [ self.opts['rtlbin'], '-F', 'json' ]
 
-        if not self.config.device is None:
+        if not self.opts['device'] is None:
             cmd.append('-d')
-            cmd.append(self.config.device)
+            cmd.append("{}".format(self.opts['device']))
 
-        if not self.config.gain is None:
+        if not self.opts['gain'] is None:
             cmd.append('-g')
-            cmd.append(self.config.gain)
+            cmd.append("{}".format(self.opts['gain']))
 
-        if not self.config.frequency is None:
+        if not self.opts['frequency'] is None:
             cmd.append('-f')
-            cmd.append(self.config.frequency)
+            cmd.append("{}".format(self.opts['frequency']))
 
         seen_any_valid = False
+        failed_once = False
 
         try:
             FNULL = open(os.devnull, 'w')
-            r = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
+            self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
             while True:
-                l = r.stdout.readline()
-                if len(l) < 5:
-                    raise RuntimeError('empty/junk rtl_433 response')
+                l = self.rtl_exec.stdout.readline()
+
+                if not self.handle_json(l):
+                    raise RuntimeError('could not process response from rtl_433')
 
                 seen_any_valid = True
 
-                if not self.handle_json(l):
-                    raise RuntimeError('could not post data')
 
-        except subprocess.CalledProcessError as ce:
-            if self.config.debug:
-                print "{} - processing rtl_433 stopped unexpectedly: {}".format(time.ctime(), ce)
         except Exception as e:
-            if self.config.debug:
-                print "{} - processing rtl_433 stopped unexpectedly: {}".format(time.ctime(), ce)
+            # Catch all errors, but don't die if we're reconfiguring rtl; then we need
+            # to relaunch the binary
+            if not self.rtl_reconfigure:
+                self.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(ce))
         finally:
-            if not seen_any_valid:
-                print "WARNING:  No valid information seen from rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your rtlsdr USB device."
+            if not seen_any_valid and not self.rtl_reconfigure:
+                self.send_datasource_error_report(message = "No valid packets ever seen from rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
+                self.kismet.spindown()
 
             r.kill()
+
+
+    def run_rtl433(self):
+        if self.rtl_thread != None:
+            # Turn on reconfigure mode
+            if self.rtl_exec != None:
+                self.rtl_reconfigure = True
+                self.rtl_exec.kill(9)
+
+            # Let the thread spin down and turn off reconfigure mode
+            self.rtl_thread.join()
+            self.rtl_reconfigure = False
+
+        self.rtl_thread = threading.Thread(target=self.__rtl_thread)
+        self.rtl_thread.daemon = True
+        self.rtl_thread.start()
 
     # mqtt helper func, call the handle_json function in our class
     @staticmethod
@@ -251,7 +279,7 @@ class KismetRtl433(object):
 
             hw = self.rtl_get_device_name(intnum)
 
-        self.kismet.send_datasource_probe_report(seqno, success = True, hardware = hw, channels = [self.default_channel], channel = self.default_channel)
+        self.kismet.send_datasource_probe_report(seqno, success = True, hardware = hw, channels = [self.opts['channel']], channel = self.opts['channel'])
 
     def datasource_opensource(self, seqno, source, options):
         # Does the source look like 'rtl433-XYZ'?
@@ -286,6 +314,8 @@ class KismetRtl433(object):
 
             hw = self.rtl_get_device_name(intnum)
 
+            self.opts['device'] = intnum
+
             self.mqtt_mode = False
 
         if self.mqtt_mode:
@@ -305,20 +335,17 @@ class KismetRtl433(object):
 
         uuid = self.kismet.make_uuid("kismet_cap_sdr_rtl433", devicehex)
 
-        self.kismet.send_datasource_open_report(seqno, success = True, channels = [self.default_channel], channel = self.default_channel, hardware = hw, uuid = uuid)
+        self.kismet.send_datasource_open_report(seqno, success = True, channels = [self.opts['channel']], channel = self.opts['channel'], hardware = hw, uuid = uuid)
+
+        self.run_rtl433()
 
     def datasource_configure(self, seqno, config):
-        print config
+        #print config
 
         return
 
+    def handle_json(self, json):
+        self.kismet.send_message("RTL: {}".format(json))
+        return True
 
-if __name__ == '__main__':
-    rtl = kismet_rtl433()
-
-    # Go into sleep mode
-    while 1:
-        time.sleep(1)
-
-    sys.exit(0)
 
