@@ -71,6 +71,7 @@ class ExternalInterface(object):
         self.auth_token = None
 
         self.errorcb = None
+        self.error_spindown = False
 
         self.handlers = {}
 
@@ -119,6 +120,10 @@ class ExternalInterface(object):
             while not self.kill_ioloop:
                 if not self.last_pong == 0 and time.time() - self.last_pong > 5:
                     raise RuntimeError("No PONG from remote system in 5 seconds")
+
+                if self.error_spindown and len(self.wbuffer) == 0:
+                    self.kill_ioloop = True
+                    return
 
                 inputs = [ self.infd ]
                 outputs = []
@@ -607,6 +612,8 @@ class Datasource(ExternalInterface):
                 report.message.msgtype = self.MSG_ERROR
 
         self.write_ext_packet("KDSERROR", report)
+
+        self.error_spindown = True
 
     def send_datasource_interfaces_report(self, seqno, interfaces = [], success = True, message = None):
         """
