@@ -70,6 +70,8 @@ class ExternalInterface(object):
         self.http_auth_callback = None
         self.auth_token = None
 
+        self.errorcb = None
+
         self.handlers = {}
 
         self.add_handler("HTTPAUTH", self.__handle_http_auth)
@@ -433,14 +435,67 @@ class Datasource(ExternalInterface):
     def __init__(self, infd = -1, outfd = -1, remote = None):
         super(Datasource, self).__init__(infd = infd, outfd = outfd, remote = remote)
 
+        self.listinterfaces = None
+        self.probesource = None
+        self.opensource = None
+        self.configuresource = None
+
         self.add_handler("KDSCONFIGURE", self.__handle_kds_configure)
         self.add_handler("KDSLISTINTERFACES", self.__handle_kds_listinterfaces)
         self.add_handler("KDSOPENSOURCE", self.__handle_kds_opensource)
         self.add_handler("KDSPROBESOURCE", self.__handle_kds_probesource)
 
-    def kds_make_uuid(self, driver, address):
+    def make_uuid(self, driver, address):
+        """
+        Generate a UUID
+
+        :param driver: Driver component, will be hashed
+        :param address: Address component, must be 6 bytes of hex (12 characters)
+
+        :return: UUID string
+        """
         driverhex = "{:02X}".format(self.adler32(driver))
         return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
+
+    def set_listinterfaces_cb(self, cb):
+        """
+        Set callback to support datasource listsources command
+
+        :param cb: Callback function, taking seqno, source definition, option map
+
+        :return: None
+        """
+        self.listinterfaces = cb
+
+    def set_probesource_cb(self, cb):
+        """
+        Set callback for datasource probing
+
+        :param cb: Callback function, taking seqno, source definition, option map
+
+        :return: None
+        """
+        self.probesource = cb
+
+    def set_opensource_cb(self, cb):
+        """
+        Set callback for datasource opening
+
+        :param cb: Callback function, taking seqno, source definition, option map
+
+        :return: None
+        """
+        self.opensource = cb
+
+    def set_configsource_cb(self, cb):
+        """
+        Set callback for source configuring
+
+        :param cb: Callback function, taking seqno and datasource_pb2.Configure record
+
+        :return: None
+        """
+        self.configuresource = cb
 
     def __kds_parse_definition(self, definition):
         source = ""
@@ -461,8 +516,6 @@ class Datasource(ExternalInterface):
     
             key = right[:eqpos]
             right = right[eqpos + 1:]
-    
-            print key, right
     
             # If we're quoted
             if right[0] == '"':
@@ -489,10 +542,10 @@ class Datasource(ExternalInterface):
         conf = datasource_pb2.Configure()
         conf.ParseFromString(packet)
 
-        try:
-            self.datasource_configure(seqno, conf)
-        except AttributeError:
+        if self.configuresource == None:
             self.send_datasource_configure_response(seqno, success = False, message = "helper does not support source configuration")
+        else:
+            self.configuresource(seqno, conf)
 
     def __handle_kds_opensource(self, seqno, packet):
         opensource = datasource_pb2.OpenSource()
@@ -500,10 +553,10 @@ class Datasource(ExternalInterface):
 
         (source, options) = self.__kds_parse_definition(opensource.definition)
 
-        try:
-            self.datasource_opensource(seqno, source, options)
-        except AttributeError:
+        if self.opensource == None:
             self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
+        else:
+            self.opensource(seqno, source, options)
 
     def __handle_kds_probesource(self, seqno, packet):
         probe = datasource_pb2.ProbeSource()
@@ -515,19 +568,19 @@ class Datasource(ExternalInterface):
             self.send_datasource_probe_report(seqno, success = False)
             return
 
-        try:
-            self.datasource_probesource(seqno, source, options)
-        except AttributeError:
+        if self.probesource == None:
             self.send_datasource_probe_report(seqno, success = False)
+        else:
+            self.probesource(seqno, source, options)
 
     def __handle_kds_listinterfaces(self, seqno, packet):
         cmd = datasource_pb2.ListInterfaces()
         cmd.ParseFromString(packet)
 
-        try:
-            self.datasource_listinterfaces(seqno)
-        except AttributeError:
+        if self.listinterfaces == None:
             self.send_datasource_interfaces_report(seqno, success = True)
+        else:
+            self.listinterfaces(seqno)
 
     def send_datasource_error_report(self, seqno = 0, message = None):
         """
