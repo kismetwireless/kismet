@@ -1,13 +1,19 @@
-#!/usr/bin/env python2
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
-from setuptools import setup
+config = {
+    'description': 'Python API for the Kismet Log interface',
+    'author': 'Mike Kershaw / Dragorn',
+    'url': 'https://www.kismetwireless.net',
+    'download_url': 'https://www.kismetwireless.net',
+    'author_email': 'dragorn@kismetwireless.net',
+    'version': '2018.0.0',
+    'install_requires': [ 'sqlite3' ],
+    'packages': ['KismetLog'],
+    'scripts': [],
+    'name': 'kismetlog'
+}
 
-setup(name='KismetLog',
-      version='2018.0.0',
-      description='Kismet Database Log Helper Library',
-      author='Mike Kershaw / Dragorn',
-      author_email='dragorn@kismetwireless.net',
-      url='https://www.kismetwireless.net/',
-      install_requires=['sqlite],
-      packages=['KismetLog'],
-     )
+setup(**config)

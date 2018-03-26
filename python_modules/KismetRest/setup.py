@@ -10,7 +10,7 @@ config = {
     'download_url': 'https://www.kismetwireless.net',
     'author_email': 'dragorn@kismetwireless.net',
     'version': '1.0',
-    'install_requires': ['msgpack-python', 'requests' ],
+    'install_requires': [ 'requests' ],
     'packages': ['KismetRest'],
     'scripts': [],
     'name': 'kismetrest'
