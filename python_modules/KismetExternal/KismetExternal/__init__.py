@@ -61,6 +61,7 @@ class ExternalInterface(object):
 
         self.bufferlock = threading.RLock()
 
+        self.graceful_spindown = False
         self.kill_ioloop = False
 
         self.last_pong = 0
@@ -71,7 +72,6 @@ class ExternalInterface(object):
         self.auth_token = None
 
         self.errorcb = None
-        self.error_spindown = False
 
         self.handlers = {}
 
@@ -121,7 +121,7 @@ class ExternalInterface(object):
                 if not self.last_pong == 0 and time.time() - self.last_pong > 5:
                     raise RuntimeError("No PONG from remote system in 5 seconds")
 
-                if self.error_spindown and len(self.wbuffer) == 0:
+                if self.graceful_spindown and len(self.wbuffer) == 0:
                     self.kill_ioloop = True
                     return
 
@@ -270,6 +270,18 @@ class ExternalInterface(object):
         self.bufferlock.acquire()
         try:
             self.kill_ioloop = True
+        finally:
+            self.bufferlock.release()
+
+    def spindown(self):
+        """
+        Shutdown the interface service once all pending data has been written
+
+        :return: None
+        """
+        self.bufferlock.acquire()
+        try:
+            self.graceful_spindown = True
         finally:
             self.bufferlock.release()
 
@@ -579,6 +591,8 @@ class Datasource(ExternalInterface):
         else:
             self.probesource(seqno, source, options)
 
+        self.spindown()
+
     def __handle_kds_listinterfaces(self, seqno, packet):
         cmd = datasource_pb2.ListInterfaces()
         cmd.ParseFromString(packet)
@@ -587,6 +601,8 @@ class Datasource(ExternalInterface):
             self.send_datasource_interfaces_report(seqno, success = True)
         else:
             self.listinterfaces(seqno)
+
+        self.spindown()
 
     def send_datasource_error_report(self, seqno = 0, message = None):
         """
@@ -613,7 +629,7 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSERROR", report)
 
-        self.error_spindown = True
+        self.spindown()
 
     def send_datasource_interfaces_report(self, seqno, interfaces = [], success = True, message = None):
         """
