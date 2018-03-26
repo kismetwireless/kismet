@@ -24,6 +24,18 @@ https://www.kismetwireless.net
         On some platforms, libprotobuf-c-dev may be called 
         libprotobuf-c0-dev
 
+        For the Python add-ons, you will also need:
+        $ sudo apt-get install python python-protobuf python-sqlite \
+            python-requests
+        You can also use the `pip` equivalents of the python libraries.
+
+        For rtlsdr rtl_433 support, you will also need:
+        $ sudo apt-get install librtlsdr0
+
+        as well as the rtl_433 tool from:
+            https://github.com/merbanan/rtl_433
+        if it is not otherwise provided by your distribution.
+
     2.  Clone Kismet from git.  If you haven't cloned Kismet before:
 
         $ git clone https://www.kismetwireless.net/git/kismet.git
