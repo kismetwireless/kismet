@@ -12,6 +12,9 @@ install:
 	$(PYTHON2) ./setup.py install
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
 
+protobuf:
+	$(PROTOCBIN) -I ../protobuf_definitions --python_out=./KismetCaptureRtl433 ../protobuf_definitions/*.proto
+
 clean:
 	@-$(PYTHON2) ./setup.py clean
 

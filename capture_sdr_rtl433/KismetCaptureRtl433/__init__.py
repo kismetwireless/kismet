@@ -40,6 +40,7 @@ import time
 import uuid
 
 import KismetExternal
+import sdrrtl433_pb2
 
 try:
     import paho.mqtt.client as mqtt
@@ -344,8 +345,27 @@ class KismetRtl433(object):
 
         return
 
-    def handle_json(self, json):
-        self.kismet.send_message("RTL: {}".format(json))
+    def handle_json(self, injson):
+        try:
+            j = json.loads(injson)
+            r = json.dumps(j)
+
+            report = sdrrtl433_pb2.SdrRtl433DataReport()
+
+            dt = datetime.now()
+            report.time_sec = time.mktime(dt.timetuple)
+            report.time_usec = dt.microsecond
+
+            report.rtljson = r
+
+            self.kismet.write_ext_packet("RTL433DATAREPORT", report)
+        except ValueError as e:
+            self.kismet.send_error_report(message = "Could not parse JSON output of rtl_433")
+            return False
+        except Exception as e:
+            self.kismet.send_error_report(message = "Could not process output of rtl_433")
+            return False
+
         return True
 
 

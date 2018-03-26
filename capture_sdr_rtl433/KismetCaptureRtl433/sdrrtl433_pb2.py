@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='sdrrtl433.proto',
   package='KismetSdrRtl433',
   syntax='proto2',
-  serialized_pb=_b('\n\x0fsdrrtl433.proto\x12\x0fKismetSdrRtl433\x1a\x0ckismet.proto\x1a\x10\x64\x61tasource.proto\"\xbb\x01\n\x13SdrRtl433DataReport\x12%\n\x03gps\x18\x01 \x01(\x0b\x32\x18.KismetDatasource.SubGps\x12.\n\x07message\x18\x02 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x0f\n\x07warning\x18\x03 \x01(\t\x12+\n\x06signal\x18\x04 \x01(\x0b\x32\x1b.KismetDatasource.SubSignal\x12\x0f\n\x07rtljson\x18\x05 \x02(\t')
+  serialized_pb=_b('\n\x0fsdrrtl433.proto\x12\x0fKismetSdrRtl433\x1a\x0ckismet.proto\x1a\x10\x64\x61tasource.proto\"\xe0\x01\n\x13SdrRtl433DataReport\x12\x10\n\x08time_sec\x18\x01 \x02(\x04\x12\x11\n\ttime_usec\x18\x02 \x02(\x04\x12%\n\x03gps\x18\x03 \x01(\x0b\x32\x18.KismetDatasource.SubGps\x12.\n\x07message\x18\x04 \x01(\x0b\x32\x1d.KismetExternal.MsgbusMessage\x12\x0f\n\x07warning\x18\x05 \x01(\t\x12+\n\x06signal\x18\x06 \x01(\x0b\x32\x1b.KismetDatasource.SubSignal\x12\x0f\n\x07rtljson\x18\x07 \x02(\t')
   ,
   dependencies=[kismet__pb2.DESCRIPTOR,datasource__pb2.DESCRIPTOR,])
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -37,36 +37,50 @@ _SDRRTL433DATAREPORT = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='gps', full_name='KismetSdrRtl433.SdrRtl433DataReport.gps', index=0,
-      number=1, type=11, cpp_type=10, label=1,
+      name='time_sec', full_name='KismetSdrRtl433.SdrRtl433DataReport.time_sec', index=0,
+      number=1, type=4, cpp_type=4, label=2,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='time_usec', full_name='KismetSdrRtl433.SdrRtl433DataReport.time_usec', index=1,
+      number=2, type=4, cpp_type=4, label=2,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='gps', full_name='KismetSdrRtl433.SdrRtl433DataReport.gps', index=2,
+      number=3, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='message', full_name='KismetSdrRtl433.SdrRtl433DataReport.message', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='warning', full_name='KismetSdrRtl433.SdrRtl433DataReport.warning', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      options=None),
-    _descriptor.FieldDescriptor(
-      name='signal', full_name='KismetSdrRtl433.SdrRtl433DataReport.signal', index=3,
+      name='message', full_name='KismetSdrRtl433.SdrRtl433DataReport.message', index=3,
       number=4, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='rtljson', full_name='KismetSdrRtl433.SdrRtl433DataReport.rtljson', index=4,
-      number=5, type=9, cpp_type=9, label=2,
+      name='warning', full_name='KismetSdrRtl433.SdrRtl433DataReport.warning', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='signal', full_name='KismetSdrRtl433.SdrRtl433DataReport.signal', index=5,
+      number=6, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='rtljson', full_name='KismetSdrRtl433.SdrRtl433DataReport.rtljson', index=6,
+      number=7, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -84,7 +98,7 @@ _SDRRTL433DATAREPORT = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=69,
-  serialized_end=256,
+  serialized_end=293,
 )
 
 _SDRRTL433DATAREPORT.fields_by_name['gps'].message_type = datasource__pb2._SUBGPS
