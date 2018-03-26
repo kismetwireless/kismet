@@ -24,8 +24,7 @@
 
 KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
         SharedDatasourceBuilder in_builder) :
-    KisDatasource(in_globalreg, in_builder),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    KisDatasource(in_globalreg, in_builder) {
 
     pack_comp_rtl433 = packetchain->RegisterPacketComponent("RTL433JSON");
     pack_comp_metablob = packetchain->RegisterPacketComponent("METABLOB");
@@ -39,52 +38,18 @@ KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
     }
 
     set_int_source_retry(false);
-    set_int_source_passive(true);
+    set_int_source_passive(false);
 
     set_int_source_hardware("rtlsdr");
 
-    _MSG("Created RTL433 datasource.  This data source receives events from a helper tool, "
-            "kismet_cap_sdr_rtl433; make sure this tool is running.", MSGFLAG_INFO);
+    set_int_source_ipc_binary("kismet_cap_sdr_rtl433");
 }
 
 KisDatasourceRtl433::~KisDatasourceRtl433() {
 
 }
 
-bool KisDatasourceRtl433::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "POST") == 0) {
-        if (!Httpd_CanSerialize(path))
-            return false;
-
-        std::string stripped = Httpd_StripSuffix(path);
-        std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
-
-        if (tokenurl.size() < 5)
-            return false;
-
-        if (tokenurl[1] != "datasource")
-            return false;
-
-        if (tokenurl[2] != "by-uuid")
-            return false;
-
-        if (tokenurl[3] != get_source_uuid().UUID2String())
-            return false;
-
-        if (tokenurl[4] == "update")
-            return true;
-    }
-
-    return false;
-}
-
-void KisDatasourceRtl433::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-}
-
+#if 0
 int KisDatasourceRtl433::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
@@ -216,5 +181,7 @@ int KisDatasourceRtl433::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     return MHD_NO;
 }
+#endif
+
 
 

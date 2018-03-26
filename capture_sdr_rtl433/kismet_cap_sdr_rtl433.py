@@ -1,5 +1,32 @@
 #!/usr/bin/env python2
 
+"""
+rtl_433 Kismet data source
+
+Supports both local usb rtlsdr devices via the rtl_433 binary, remote capture
+from a usb rtlsdr, and remote capture from a mqtt stream, if paho mqtt is
+installed.
+
+Sources are generated as rtl433-XYZ when multiple rtl radios are detected.
+
+Accepts standard options:
+    channel=freqMHz   (in mhz)
+    channel=freqKHz   (in khz)
+    channel=freq      (in raw hz to rtl_433)
+
+    channels="a,b,c"  Pass hopping list to rtl433_bin
+
+Additionally accepts:
+    ppm_error         Passed as -p to rtl_433
+    gain              Passed as -g to rtl_433
+
+    mqtt              MQTT server
+    mqttport          MQTT port (default 1883)
+    mqttid            MQTT client id (default Kismet)
+    mqttchannel       MQTT channel (default rtl433)
+
+"""
+
 import argparse
 import ctypes
 from datetime import datetime
@@ -24,137 +51,46 @@ try:
 except ImportError:
     has_mqtt = False
 
-class kismet_rtl433(KismetExternal.KismetExternalInterface):
+class kismet_rtl433(KismetExternal.Datasource):
     def __init__(self):
+        self.rtlbin = "rtl_433"
+        self.default_channel = "433.920MHz"
+        self.rtl_exec = None
+        self.mqtt_mode = False
+
+        # Use ctypes to load librtlsdr and probe for supported USB devices
+        try:
+            self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+
+            self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+            self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
+            self.rtl_get_device_name.argtypes = [ctypes.c_int]
+            self.rtl_get_device_name.restype = ctypes.c_char_p
+            self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
+            self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+        except OSError:
+            print "Unable to find librtlsdr; make sure both librtlsdr and "
+            print "rtl_433 are installed."
+
+            self.rtllib = None
+
         parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge - Creates a rtl433 data source on a Kismet server and passes JSON-based records from the rtl_433 binary',
                 epilog='Requires the rtl_433 tool (install your distributions package or compile from https://github.com/merbanan/rtl_433)')
         
-        parser.add_argument('--uri', 
-                action="store", 
-                dest="uri", 
-                default="http://localhost:2501",
-                help="Kismet REST server to use (default: http://localhost:2501")
-
-        parser.add_argument('--user', 
-                action="store", 
-                dest="user", 
-                default="kismet",
-                help="Kismet admin user (default: kismet)")
-
-        parser.add_argument('--password', 
-                action="store", 
-                dest="password", 
-                default="kismet",
-                help="Kismet admin password")
-
-        parser.add_argument('--uuid', 
-                action="store", 
-                dest="uuid",
-                help="RTL433 datasource UUID")
-
-        parser.add_argument('--name', 
-                action="store", 
-                dest="name",
-                help="RTL433 datasource name")
-
-        parser.add_argument('--no-reconnect', 
-                action="store_false", 
-                dest="reconnect", 
-                default=True,
-                help="Disable re-connection if the rtl_433 binary fails")
-
-        parser.add_argument('--rtl433', 
-                action="store", 
-                dest="rtlbin", 
-                default="rtl_433",
-                help="Path to rtl_433 binary (only needed if rtl_433 is not installed in a default system location")
-
-        parser.add_argument('--device', 
-                action="store", 
-                dest="device",
-                help="RTL433 device number (passed as '-d' to rtl_433)")
-
-        parser.add_argument('--gain', 
-                action="store", 
-                dest="gain",
-                help="RTL433 device gain (passed as '-g' to rtl_433)")
-
-        parser.add_argument('--frequency', 
-                action="store", 
-                dest="frequency",
-                help="RTL433 device frequency (passed as '-f' to rtl_433)")
+        parser.add_argument('--in-fd', action="store", type=int, dest="infd")
+        parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
 
         parser.add_argument('--debug',
                 action="store_true",
                 dest="debug",
                 default=False,
                 help="Enable debug mode (print out received messages, etc)")
-
-        if has_mqtt:
-            parser.add_argument('--use-mqtt',
-                    action="store_true",
-                    dest="use_mqtt",
-                    default=False,
-                    help="Connect to a MQTT channel instead of a physical device")
-
-            parser.add_argument('--mqtt-server',
-                    action="store",
-                    dest="mqtt_server",
-                    help="MQTT server (if in MQTT mode)",
-                    default="localhost")
-
-            parser.add_argument('--mqtt-port',
-                    action="store",
-                    dest="mqtt_port",
-                    help="MQTT port (if in MQTT mode)",
-                    default="1883")
-
-            parser.add_argument('--mqtt-client-id',
-                    action="store",
-                    dest="mqtt_client",
-                    help="MQTT client name (if in MQTT mode)",
-                    default="kismet")
-
-            parser.add_argument('--mqtt-channel',
-                    action="store",
-                    dest="mqtt_channel",
-                    help="MQTT channel to subscribe to (if in MQTT mode)",
-                    default="rtl433")
         
         self.config = parser.parse_args()
-        
-        if not self.config.uuid is None:
-            try:
-                u = uuid.UUID(self.config.uuid)
-                self.config.uuid = u
-            except ValueError:
-                print "Expected UUID string 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'"
-                sys.exit(1)
 
-        self.session = requests.Session()
-        self.session.auth = (self.config.user, self.config.password)
+        super(kismet_rtl433, self).__init__(self.config.infd, self.config.outfd)
 
-    # Implement the listinterfaces callback for the external api
-    def datasource_listinterfaces(self, seqno):
-        lib = ctypes.CDLL("librtlsdr.so.0")
-
-        py_get_device_count = lib.rtlsdr_get_device_count
-
-        py_get_device_name = lib.rtlsdr_get_device_name
-        py_get_device_name.argtypes = [ctypes.c_int]
-        py_get_device_name.restype = ctypes.c_char_p
-
-        interfaces = []
-
-        for i in range(0, py_get_device_count()):
-            intf = KismetExternal.datasource_pb2.SubInterface()
-            intf.interface = "rtlsdr{}".format(i)
-            intf.flags = ""
-            intf.hardware = py_get_device_name(i)
-            interfaces.append(intf)
-
-        self.send_datasource_interfaces_report(seqno, interfaces)
-
+        self.start()
 
     def get_uuid(self):
         return self.config.uuid
@@ -162,131 +98,27 @@ class kismet_rtl433(KismetExternal.KismetExternalInterface):
     def get_rtlbin(self):
         return self.config.rtlbin
 
-    def get_mqtt(self):
-        if not has_mqtt:
-            return False
-        return self.config.use_mqtt
+    def get_rtl_usb_info(self, index):
+        # Allocate memory buffers
+        usb_manuf = (ctypes.c_char * 256)()
+        usb_product = (ctypes.c_char * 256)()
+        usb_serial = (ctypes.c_char * 256)()
+       
+        # Call the library
+        self.rtl_get_usb_strings(index, usb_manuf, usb_product, usb_serial)
+       
+        # If there's a smarter way to do this, patches welcome
+        m = bytearray(usb_manuf)
+        p = bytearray(usb_product)
+        s = bytearray(usb_serial)
 
-    def check_login(self):
-        try:
-            r = self.session.get("{}/session/check_session".format(self.config.uri))
-        except requests.exceptions.ConnectionError:
-            return False
-
-        if not r.status_code == 200:
-            raise RuntimeError("Invalid username/password")
-
-        return True
-
-    def find_datasource(self):
-        try:
-            r = self.session.get("{}/datasource/all_sources.json".format(self.config.uri))
-        except requests.exceptions.ConnectionError:
-            return None
-
-        if not r.status_code == 200:
-            return None
-
-        sources = json.loads(r.content)
-
-        for s in sources:
-            if s['kismet.datasource.type_driver']['kismet.datasource.driver.type'] == 'rtl433':
-                return s
-
-        return None
-
-    def check_datasource(self):
-        try:
-            r = self.session.get("{}/datasource/by-uuid/{}/source.json".format(self.config.uri, self.config.uuid))
-        except requests.exceptions.ConnectionError:
-            return False
-
-        if not r.status_code == 200:
-            return False
-
-        return True
-
-    def create_datasource(self):
-        datasource = "rtl433:type=rtl433"
-
-        if not self.config.uuid is None:
-            datasource = "{},uuid={}".format(datasource, self.config.uuid)
-
-        if not self.config.name is None:
-            datasource = "{},name={}".format(datasource, self.config.name)
-
-        if not self.config.device is None:
-            datasource = "{},device={}".format(datasource, self.config.device)
-
-        cmd = {
-            "definition": datasource
-        }
-
-        pd = {
-            "json": json.dumps(cmd)
-        }
-
-        if self.config.debug:
-            print "DEBUG - Attempting to create a datasource with the definition '{}'".format(datasource)
-
-        try:
-            r = self.session.post("{}/datasource/add_source.json".format(self.config.uri), data=pd)
-        except requests.exceptions.ConnectionError:
-            return False
-
-        if not r.status_code == 200:
-            return False
-
-        devobj = json.loads(r.content)
-
-        self.config.uuid = devobj['kismet.datasource.uuid']
-
-        return True
-
-    def has_alert(self):
-        try:
-            r = self.session.get("{}/alerts/definitions.json".format(self.config.uri))
-        except requests.exceptions.ConnectionError:
-            return False
-
-        if not r.status_code == 200:
-            return False
-
-        alerts = json.loads(r.content)
-
-        for a in alerts:
-            if a['kismet.alert.definition.header'] == "RTL433DCON":
-                return True
-
-        return False
-
-    def create_alert(self):
-        cmd = {
-            "name": "RTL433DCON",
-            "description": "rtl433 binary has encountered an error",
-            "phyname": "RTL433",
-            "throttle": "1/sec",
-            "burst": "1/sec"
-        }
-
-        pd = {
-            "json": json.dumps(cmd)
-        }
-
-        try:
-            r = self.session.post("{}/alerts/definitions/define_alert.json".format(self.config.uri), data=pd)
-        except requests.exceptions.ConnectionError:
-            return False
-
-        if not r.status_code == 200:
-            return False
-
-        return True
+        # Return tuple
+        return (m.decode('ascii'), p.decode('ascii'), s.decode('ascii'))
 
     def check_rtl_bin(self):
         try:
             FNULL = open(os.devnull, 'w')
-            r = subprocess.check_call([self.config.rtlbin, "--help"], stdout=FNULL, stderr=subprocess.STDOUT)
+            r = subprocess.check_call([self.rtlbin, "--help"], stdout=FNULL, stderr=FNULL)
         except subprocess.CalledProcessError:
             return True
         except OSError:
@@ -294,61 +126,7 @@ class kismet_rtl433(KismetExternal.KismetExternalInterface):
 
         return True
 
-    def prep_kismet(self):
-        rtl.check_login()
-
-        if not rtl.has_alert():
-            rtl.create_alert()
-            if self.config.debug:
-                print "{} - Defined Kismet alert for RTL errors".format(time.ctime())
-        elif self.config.debug:
-            print "{} - Kismet RTL alert already defined".format(time.ctime())
-   
-        d_created = False
-        d_present = rtl.check_datasource()
-        
-        if d_present and self.config.debug:
-            print "{} - Kismet RTL datasource '{}' present".format(time.ctime(), self.config.uuid)
-
-        if d_present:
-            d_created = True
-        else:
-            d_created = rtl.create_datasource()
-
-            if not d_created:
-                print "ERROR - Could not create rtl433 data source; check your login credentials and make sure Kismet is running."
-                return False
-           
-        if self.config.debug:
-            print "{} - Connected to rtl433 data source {}".format(time.ctime(), self.get_uuid())
-
-        return True
-
-    def handle_json(self, j):
-        now = datetime.now()
-
-        pd = {
-            "meta": json.dumps({
-                "tv_sec": now.second,
-                "tv_usec": now.microsecond
-            }),
-            "device": j
-        }
-
-        if self.config.debug:
-            print "{} - {}".format(time.ctime(), j)
-
-        try:
-            r = self.session.post("{}/datasource/by-uuid/{}/update.json".format(self.config.uri, self.config.uuid), data=pd)
-        except requests.exceptions.ConnectionError:
-            return False
-
-        if not r.status_code == 200:
-            return False
-
-        return True
-
-    def run_rtl(self):
+    def open_rtl(self):
         cmd = [ self.config.rtlbin, '-F', 'json' ]
 
         if not self.config.device is None:
@@ -391,16 +169,6 @@ class kismet_rtl433(KismetExternal.KismetExternalInterface):
 
             r.kill()
 
-    def rtl_loop(self):
-        while True:
-            if self.prep_kismet():
-                self.run_rtl()
-            
-            if not self.config.reconnect:
-                break
-
-            time.sleep(1)
-
     # mqtt helper func, call the handle_json function in our class
     @staticmethod
     def mqtt_on_message(client, user, msg):
@@ -438,17 +206,117 @@ class kismet_rtl433(KismetExternal.KismetExternalInterface):
 
             time.sleep(1)
 
+    # Implement the listinterfaces callback for the datasource api;
+    def datasource_listinterfaces(self, seqno):
+        interfaces = []
+
+        if self.rtllib != None:
+            for i in range(0, self.rtl_get_device_count()):
+                intf = KismetExternal.datasource_pb2.SubInterface()
+                intf.interface = "rtl433-{}".format(i)
+                intf.flags = ""
+                intf.hardware = self.rtl_get_device_name(i)
+                interfaces.append(intf)
+
+        self.send_datasource_interfaces_report(seqno, interfaces)
+
+    # Implement the probesource callback for the datasource api
+    def datasource_probesource(self, seqno, source, options):
+        # Does the source look like 'rtl433-XYZ'?
+        if not source[:7] == "rtl433-":
+            self.send_datasource_probe_report(seqno, success = False)
+            return
+
+        hw = None
+
+        if source[7:] == "mqtt":
+            if not 'mqtt' in options:
+                self.send_datasource_probe_report(seqno, success = False)
+                return
+            if not has_mqtt:
+                self.send_datasource_probe_report(seqno, success = False)
+                return
+
+            hw = "MQTT"
+        else:
+            try:
+                intnum = int(source[7:])
+            except ValueError:
+                self.send_datasource_probe_report(seqno, success = False)
+                return
+
+            if intnum >= self.rtl_get_device_count():
+                self.send_datasource_probe_report(seqno, success = False)
+                return
+
+            hw = self.rtl_get_device_name(intnum)
+
+        self.send_datasource_probe_report(seqno, success = True, hardware = hw, channels = [self.default_channel], channel = self.default_channel)
+
+    def datasource_opensource(self, seqno, source, options):
+        # Does the source look like 'rtl433-XYZ'?
+        if not source[:7] == "rtl433-":
+            self.send_datasource_open_report(seqno, success = False, message = "Could not determine rtlsdr device to use")
+            return
+
+        hw = None
+        intnum = -1
+
+        if source[7:] == "mqtt":
+            if not 'mqtt' in options:
+                self.send_datasource_open_report(seqno, success = False, message = "rtl433-mqtt device specified, but no mqtt= source option")
+                return
+            if not has_mqtt:
+                self.send_datasource_open_report(seqno, success = False, message = "rtl433-mqtt device specified, but python paho mqtt package not installed")
+                return
+
+            hw = "MQTT"
+
+            self.mqtt_mode = True
+        else:
+            try:
+                intnum = int(source[7:])
+            except ValueError:
+                self.send_datasource_open_report(seqno, success = False, message = "Could not determine which rtlsdr device to use")
+                return
+
+            if intnum >= self.rtl_get_device_count():
+                self.send_datasource_open_report(seqno, success = False, message = "Could not find a rtlsdr device index {}".format(intnum))
+                return
+
+            hw = self.rtl_get_device_name(intnum)
+
+            self.mqtt_mode = False
+
+        if self.mqtt_mode:
+            # TODO finish mqtt mode
+            return
+
+        if not self.check_rtl_bin():
+            self.send_datasource_open_report(seqno, success = False, message = "Could not find rtl_433; make sure you install the rtl_433 tool, see the Kismet README for more information")
+            return
+
+        # Get the USB info
+        (manuf, product, serial) = self.get_rtl_usb_info(intnum)
+
+        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
+        devicehash = self.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehex = "0000{:02X}".format(devicehash)
+
+        uuid = self.kds_make_uuid("kismet_cap_sdr_rtl433", devicehex)
+
+        self.send_datasource_open_report(seqno, success = True, channels = [self.default_channel], channel = self.default_channel, hardware = hw, uuid = uuid)
+
+    def datasource_configure(self, seqno, packet):
+        return
+
+
 if __name__ == '__main__':
     rtl = kismet_rtl433()
 
-    if rtl.get_mqtt():
-        print "Going into MQTT mode"
+    # Go into sleep mode
+    while 1:
+        time.sleep(1)
 
-        rtl.mqtt_loop()
+    sys.exit(0)
 
-    else:
-        if not rtl.check_rtl_bin():
-            print "Could not find rtl_433 binary '{}': Check that you installed rtl_433 or use --rtl433 to set it".format(rtl.get_rtlbin())
-            sys.exit(1)
-
-        rtl.rtl_loop()

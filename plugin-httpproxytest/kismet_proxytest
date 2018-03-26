@@ -19,7 +19,7 @@ except ImportError:
     print "        library; you can find it in python_tools/KismetExternal"
     sys.exit(1)
 
-class KismetProxyTest:
+class KismetProxyTest(object):
     def __init__(self):
         # Try to parse the arguments to find the descriptors we need to give to 
         # the kismet external tool; Kismet calls external helpers with a pre-made

@@ -34,19 +34,10 @@
 class KisDatasourceRtl433;
 typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
 
-class KisDatasourceRtl433 : public KisDatasource, public Kis_Net_Httpd_CPPStream_Handler {
+class KisDatasourceRtl433 : public KisDatasource {
 public:
     KisDatasourceRtl433(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
     virtual ~KisDatasourceRtl433();
-
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
-
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
 
 protected:
     int pack_comp_rtl433, pack_comp_metablob;
@@ -87,14 +78,14 @@ public:
 
     virtual void initialize() {
         set_source_type("rtl433");
-        set_source_description("rtl433-captured sensor data over http");
+        set_source_description("rtl_433 USB SDR");
 
-        set_probe_capable(false);
-        set_list_capable(false);
+        set_probe_capable(true);
+        set_list_capable(true);
         set_local_capable(true);
         set_remote_capable(true);
-        set_passive_capable(true);
-        set_tune_capable(false);
+        set_passive_capable(false);
+        set_tune_capable(true);
     }
 };
 

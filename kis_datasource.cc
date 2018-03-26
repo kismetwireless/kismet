@@ -710,6 +710,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
     }
 
     if (report.has_uuid()) {
+        uuid u(report.uuid());
         set_source_uuid(uuid(report.uuid()));
     } else if (!local_uuid) {
         uuid nuuid;
