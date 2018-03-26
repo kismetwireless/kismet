@@ -235,7 +235,7 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_SDR_RTL433) $(BIN)/`basename $(CAPTURE_SDR_RTL433)`; \
+		(cd capture_sdr_rtl433 && $(MAKE) install)
 	fi;
 
 	mkdir -p $(MAN)/man1
