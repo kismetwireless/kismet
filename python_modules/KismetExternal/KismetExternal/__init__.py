@@ -85,7 +85,14 @@ class ExternalInterface(object):
         self.MSG_ALERT = kismet_pb2.MsgbusMessage.ALERT
         self.MSG_FATAL = kismet_pb2.MsgbusMessage.FATAL
 
-    def __adler32(self, data):
+    def adler32(self, data):
+        """
+        Compute an adler32 checksum
+
+        :param data: Data to be checksummed
+
+        :return: uint32 adler32 checksum
+        """
         if len(data) < 4:
             return 0
 
@@ -173,7 +180,7 @@ class ExternalInterface(object):
 
         content = self.rbuffer[12:(12 + sz)]
 
-        calc_csum = self.__adler32(content)
+        calc_csum = self.adler32(content)
 
         if not calc_csum == checksum:
             print content.encode('hex')
@@ -269,7 +276,7 @@ class ExternalInterface(object):
         """
         signature = 0xDECAFBAD
         serial = kedata.SerializeToString()
-        checksum = self.__adler32(serial)
+        checksum = self.adler32(serial)
         length = len(serial)
 
         packet = struct.pack("!III", signature, checksum, length)
@@ -431,6 +438,10 @@ class Datasource(ExternalInterface):
         self.add_handler("KDSOPENSOURCE", self.__handle_kds_opensource)
         self.add_handler("KDSPROBESOURCE", self.__handle_kds_probesource)
 
+    def kds_make_uuid(self, driver, address):
+        driverhex = "{:02X}".format(self.adler32(driver))
+        return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
+
     def __kds_parse_definition(self, definition):
         source = ""
         options = {}
@@ -490,7 +501,7 @@ class Datasource(ExternalInterface):
         (source, options) = self.__kds_parse_definition(opensource.definition)
 
         try:
-            self.datasoure_opensource(seqno, source, options)
+            self.datasource_opensource(seqno, source, options)
         except AttributeError:
             self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
 
