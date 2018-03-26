@@ -21,6 +21,7 @@
 #include "datasource_rtl433.h"
 #include "kismet_json.h"
 #include "phy_rtl433.h"
+#include "protobuf_cpp/sdrrtl433.pb.h"
 
 KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
         SharedDatasourceBuilder in_builder) :
@@ -49,6 +50,112 @@ KisDatasourceRtl433::~KisDatasourceRtl433() {
 
 }
 
+bool KisDatasourceRtl433::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+    if (KisDatasource::dispatch_rx_packet(c))
+        return true;
+
+    if (c->command() == "RTL433DATAREPORT") {
+        handle_packet_rtl433device(c->seqno(), c->content());
+        return true;
+    }
+
+    return false;
+}
+
+void KisDatasourceRtl433::handle_packet_rtl433device(uint32_t in_seqno, 
+        std::string in_content) {
+
+    // If we're paused, throw away this packet
+    {
+        local_locker lock(&ext_mutex);
+
+        if (get_source_paused())
+            return;
+    }
+
+    KismetSdrRtl433::SdrRtl433DataReport report;
+
+    if (!report.ParseFromString(in_content)) {
+        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
+                std::string(" could not parse the data report, something is wrong with "
+                    "the remote capture tool"), MSGFLAG_ERROR);
+        trigger_error("Invalid RTL433DATAREPORT");
+        return;
+    }
+
+    if (report.has_message()) 
+        _MSG(report.message().msgtext(), report.message().msgtype());
+
+    if (report.has_warning())
+        set_int_source_warning(report.warning());
+
+    kis_packet *packet = packetchain->GeneratePacket();
+
+    kis_layer1_packinfo *siginfo = NULL;
+    kis_gps_packinfo *gpsinfo = NULL;
+
+    if (report.has_signal()) {
+        siginfo = handle_sub_signal(report.signal());
+        packet->insert(pack_comp_l1info, siginfo);
+    }
+
+    if (report.has_gps()) {
+        gpsinfo = handle_sub_gps(report.gps());
+        packet->insert(pack_comp_gps, gpsinfo);
+    }
+
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    if (!process_rtl_json(packet, report.rtljson())) {
+        packetchain->DestroyPacket(packet);
+        packet = NULL;
+        return;
+    }
+   
+    packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
+    datasrcinfo->ref_source = this;
+
+    packet->insert(pack_comp_datasrc, datasrcinfo);
+
+    inc_source_num_packets(1);
+    get_source_packet_rrd()->add_sample(1, time(0));
+
+    // Inject the packet into the packetchain if we have one
+    packetchain->ProcessPacket(packet);
+
+}
+
+bool KisDatasourceRtl433::process_rtl_json(kis_packet *packet, std::string in_json) {
+    Json::Value device_json;
+    Json::Value gps_json;
+    Json::Value meta_json;
+
+    try {
+        std::stringstream ss;
+        ss.str(in_json);
+        ss >> device_json;
+    } catch (std::exception& e) {
+        trigger_error("Invalid JSON");
+        return false;
+    }
+
+    // Put the parsed JSON in a rtl433
+    packet_info_rtl433 *r433info = new packet_info_rtl433(device_json);
+    packet->insert(pack_comp_rtl433, r433info);
+
+    // Put the raw JSON in a metablob
+    packet_metablob *metablob = new packet_metablob("RTL433", in_json);
+    packet->insert(pack_comp_metablob, metablob);
+
+    return true;
+}
+
 #if 0
 int KisDatasourceRtl433::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
@@ -72,102 +179,6 @@ int KisDatasourceRtl433::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return MHD_NO;
 
     if (tokenurl[4] == "update") {
-        Json::Value device_json;
-        Json::Value gps_json;
-        Json::Value meta_json;
-
-        try {
-            std::stringstream ss;
-            
-            ss.str(concls->variable_cache["device"]->str());
-            ss >> device_json;
-
-            ss.str(concls->variable_cache["meta"]->str());
-            ss >> meta_json;
-
-            if (concls->variable_cache.find("gps") != concls->variable_cache.end()) {
-                ss.str(concls->variable_cache["gps"]->str());
-                ss >> gps_json;
-            }
-        } catch (std::exception& e) {
-            concls->response_stream << "Invalid request:  could not parse JSON: " << e.what();
-            concls->httpcode = 400;
-            return MHD_YES;
-        }
-
-        kis_packet *packet = packetchain->GeneratePacket();
-
-        try {
-            if (clobber_timestamp) {
-                gettimeofday(&(packet->ts), NULL);
-            } else {
-                auto tv_sec_j = meta_json["tv_sec"];
-                auto tv_usec_j = meta_json["tv_usec"];
-
-                packet->ts.tv_sec = tv_sec_j.asUInt64();
-                packet->ts.tv_usec = tv_usec_j.asUInt64();
-            }
-
-            if (gps_json.isObject()) {
-                auto lat_j = gps_json["lat"];
-                auto lon_j = gps_json["lon"];
-                auto alt_j = gps_json["alt"];
-                auto spd_j = gps_json["speed"];
-                auto head_j = gps_json["heading"];
-                auto prec_j = gps_json["precision"];
-                auto time_j = gps_json["time"];
-                auto fix_j = gps_json["fix"];
-
-                if (lat_j.isNumeric() && lon_j.isNumeric()) {
-                    kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
-
-                    gpsinfo->lat = lat_j.asDouble();
-                    gpsinfo->lon = lon_j.asDouble();
-
-                    gpsinfo->fix = 2;
-
-                    if (alt_j.isNumeric()) {
-                        gpsinfo->alt = alt_j.asDouble();
-                        gpsinfo->fix = 3;
-                    }
-
-                    if (fix_j.isNumeric()) 
-                        gpsinfo->fix = fix_j.asUInt();
-
-                    if (spd_j.isNumeric())
-                        gpsinfo->speed = spd_j.asDouble();
-
-                    if (head_j.isNumeric()) 
-                        gpsinfo->heading = head_j.asDouble();
-
-                    if (prec_j.isNumeric())
-                        gpsinfo->precision = prec_j.asDouble();
-
-                    if (time_j.isNumeric()) {
-                        gpsinfo->tv.tv_sec = time_j.asUInt64();
-                        gpsinfo->tv.tv_usec = 0;
-                    }
-
-                    packet->insert(pack_comp_gps, gpsinfo);
-                }
-            }
-        } catch (std::exception& e) {
-            packetchain->DestroyPacket(packet);
-            packet = NULL;
-
-            concls->response_stream << "Invalid request:  could not process packet: " << e.what();
-            concls->httpcode = 400;
-            return MHD_YES;
-        }
-
-        // Put the parsed JSON in a rtl433
-        packet_info_rtl433 *r433info = new packet_info_rtl433(device_json);
-        packet->insert(pack_comp_rtl433, r433info);
-
-        // Put the raw JSON in a metablob
-        packet_metablob *metablob = new packet_metablob("RTL433", 
-                concls->variable_cache["device"]->str());
-        packet->insert(pack_comp_metablob, metablob);
 
         packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
         datasrcinfo->ref_source = this;
