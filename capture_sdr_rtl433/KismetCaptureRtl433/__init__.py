@@ -38,12 +38,7 @@ import sys
 import time
 import uuid
 
-try:
-    import KismetExternal
-except ImportError:
-    print "Could not import the KismetExternal Python code; you need to install this from "
-    print "python_modules/KismetExternal/ in the Kismet source directory!"
-    sys.exit(0)
+import KismetExternal
 
 try:
     import paho.mqtt.client as mqtt
@@ -51,7 +46,7 @@ try:
 except ImportError:
     has_mqtt = False
 
-class kismet_rtl433(object):
+class KismetRtl433(object):
     def __init__(self):
         self.rtlbin = "rtl_433"
         self.default_channel = "433.920MHz"
@@ -312,7 +307,9 @@ class kismet_rtl433(object):
 
         self.kismet.send_datasource_open_report(seqno, success = True, channels = [self.default_channel], channel = self.default_channel, hardware = hw, uuid = uuid)
 
-    def datasource_configure(self, seqno, packet):
+    def datasource_configure(self, seqno, config):
+        print config
+
         return
 
 

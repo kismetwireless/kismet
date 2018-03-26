@@ -1,13 +1,17 @@
 include ../Makefile.inc
 
-MONITOR_OBJ = kismet_cap_sdr_rtl433.py
+MONITOR_OBJ = 
 MONITOR_BIN = kismet_cap_sdr_rtl433
 
 all: $(MONITOR_BIN)
 
 $(MONITOR_BIN):	$(MONITOR_OBJ) 
-		cp $(MONITOR_OBJ) $(MONITOR_BIN)
+	$(PYTHON2) ./setup.py build
+
+install:
+	$(PYTHON2) ./setup.py install
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
 
 clean:
-	@-rm -f $(MONITOR_BIN)
+	@-$(PYTHON2) ./setup.py clean
 
