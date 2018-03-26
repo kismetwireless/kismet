@@ -1156,8 +1156,12 @@ kis_packet *KisDatasource::handle_sub_packet(KismetDatasource::SubPacket in_pack
     kis_packet *packet = packetchain->GeneratePacket();
     kis_datachunk *datachunk = new kis_datachunk();
 
-    packet->ts.tv_sec = in_packet.time_sec();
-    packet->ts.tv_usec = in_packet.time_usec();
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = in_packet.time_sec();
+        packet->ts.tv_usec = in_packet.time_usec();
+    }
 
     datachunk->dlt = in_packet.dlt();
     datachunk->copy_data((const uint8_t *) in_packet.data().data(), in_packet.data().length());
