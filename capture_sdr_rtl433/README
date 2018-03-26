@@ -1,5 +1,12 @@
 Kismet RTL433 Support
 
+- UNDER DEVELOPMENT -
+
+    The rtl-sdr support in Kismet is under heavy development, not all
+    features are complete at this time (alternate frequencies, 
+    channel hopping, and some other functionality are still being
+    completed).
+
 - RTL-SDR -
 
     The Kismet rtl_433 SDR capture requires a RTL-SDR USB device; you 
@@ -11,9 +18,12 @@ Kismet RTL433 Support
     limited, the RTL-SDR is still capable of a surprising amount of
     useful capture.
 
+    To use the RTL SDR capture device, you will need a rtlsdr; 
+    your Wi-Fi card cannot receive the signal.
+
 - RTL_433 -
 
-    Kismet also requires the rtl_433 tool be installed.  The rtl_433
+    Kismet requires the rtl_433 tool be installed.  The rtl_433
     tool can typically be installed as package by your distribution,
     compiled as part of the pybombs system, or installed manually
     from the source at:
@@ -30,61 +40,31 @@ Kismet RTL433 Support
     switches, weather stations, tire pressure monitoring systems,
     and more.
 
+- CONFIGURING RTL_433 -
+
+    The only configuration necessary to configure rtl_433 is to make
+    sure that your user has access to the rtlsdr USB device.  
+    This is usually accomplished by installing the udev rules which
+    accompany librtlsdr.
+
+    Typically the group `plugdev` is given access; make sure the 
+    user you plan to run Kismet as is in that group.
+
+    For more information, check the documentation that came with
+    librtlsdr or the rtlsdr website:
+        https://rtl-sdr.com
+
 - CONFIGURING KISMET -
 
-    Due to the reliance on external tools, the Kismet RTL433 data
-    source functions slightly differently.
+    The Kismet capture driver is implemented as a Python datasource;
+    you will need the Kismet-related Python modules from the
+    python_modules/ directory of Kismet (which will be installed
+    automatically in most cases).
 
-    The primary driver is implemented in the kismet_cap_sdr_rtl433
-    tool, which is, by default, installed in:
-        /usr/local/bin/kismet_cap_sdr_rtl433
+    rtlsdr hardware will be automatically detected and shown in the
+    Datasources window, or it can be configured as 'rtl433-X',
+    where 'X' is the radio you wish to use.  If you have only one
+    radio, this will always be zero; for instance:
 
-    This tool connects to either a local RTL-SDR device, by launching
-    the rtl_433 tool, or can monitor remote devices via a MQTT channel.
-
-    To publish rtl433 data to Kismet, the simplest configuration is to
-    run the kismet_cap_sdr_rtl433 tool and provide the Kismet login
-    information:
-        $ kismet_cap_sdr_rtl433 --user kismet --password some-password
-
-    This will create the capture source in Kismet automatically and 
-    launch the rtl_433 tool.
-
-- ADVANCED CONFIGURATION -
-
-    The kismet_cap_sdr_rtl433 tool accepts a number of configuration 
-    options, which can be seen with the `--help` option.  
-
-    General options:
-        --debug         Turn on full debugging; this prints every message
-                        from the rtl_433 and connection state info.
-
-    Kismet configuration options:
-        --user          Kismet username
-        --password      Kismet password
-
-        --uuid          Custom UUID for the datasource; by default, a new source
-                        is created every time kismet_cap_sdr_rtl433 is run; to
-                        use the same data source every time, pass a fixed UUID
-        --name          Give the rtl433 data source a specific name
-        --no-reconnect  Do not automatically reconnect to Kismet if there was
-                        an error
-
-    rtl_433 configuration options:
-        --rtl433        If rtl_433 is not installed in a standard directory, you
-                        can specify a path to your rtl_433 binary
-        --device        RTL-SDR device number, if multiple RTL-SDR devices are
-                        present; This is the same as the `-d` option to rtl_433
-        --gain          Radio gain; this is the same as the `-g` option to
-                        rtl_433
-        --frequency     Radio frequency, this is the same as the `-f` option to
-                        rtl_433
-
-    MQTT options:
-        --use-mqtt      Connect to a MQTT server publishing rtl_433 JSON messages,
-                        cannot be combined with a local rtl_433 device
-        --mqtt-server   Host MQTT is running on
-        --mqtt-port     Alternate port for MQTT
-        --mqtt-client-id Custom MQTT client name
-        --mqtt-channel  MQTT channel to subscribe to
+        source=rtl433-0:name=some_sdr
 
