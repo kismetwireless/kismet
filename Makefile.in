@@ -81,9 +81,11 @@ BUILD_CAPTURE_LINUX_BLUETOOTH = @BUILD_CAPTURE_LINUX_BLUETOOTH@
 CAPTURE_OSX_COREWLAN = capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 
-# Just python
 CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
-BUILD_CAPTURE_SDR_RTL433 = 1
+BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
+
+# Do we build and install the python modules?
+BUILD_PYTHON_MODULES = @BUILD_PYTHON_MODULES@
 
 # Capture binaries to build
 DATASOURCE_BINS = $(CAPTURE_SDR_RTL433) @DATASOURCE_BINS@
@@ -234,8 +236,12 @@ commoninstall: $(INSTBINS)
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_HACKRF_SWEEP) $(BIN)/$(CAPTURE_HACKRF_SWEEP); \
 	fi;
 
+	@if test "$(BUILD_PYTHON_MODULES)"x = "1"x; then \
+		(cd python_modules && $(MAKE) install) \
+	fi;
+
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
-		(cd capture_sdr_rtl433 && $(MAKE) install)
+		(cd capture_sdr_rtl433 && $(MAKE) install) \
 	fi;
 
 	mkdir -p $(MAN)/man1
@@ -249,6 +255,7 @@ commoninstall: $(INSTBINS)
 
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
+
 
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
 ${CONFINSTTARGETS}: install_conf_%: 

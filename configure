@@ -621,6 +621,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+BUILD_CAPTURE_SDR_RTL433
 BUILD_CAPTURE_OSX_COREWLAN
 BUILD_CAPTURE_LINUX_BLUETOOTH
 BUILD_CAPTURE_HACKRF_SWEEP
@@ -680,6 +681,7 @@ LIBMLIB
 PTHREAD_LIBS
 PTHREAD_CFLAGS
 LIBOBJS
+BUILD_PYTHON_MODULES
 EGREP
 GREP
 CXXCPP
@@ -753,6 +755,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_capture_tools_only
+enable_python_tools
 enable_largefile
 enable_mutextimeout
 with_linuxheaders
@@ -1424,6 +1427,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-capture-tools-only  Configure and build for capture tools and remote only
+  --disable-python        disable python modules and python-only datasources
   --disable-largefile     omit support for large files
   --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
@@ -3781,6 +3785,9 @@ BUILD_CAPTURE_LINUX_BLUETOOTH=0
 BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
+BUILD_CAPTURE_SDR_RTL433=1
+
+BUILD_PYTHON_MODULES=1
 
 # Liberated from ethereal's configure.in
 #
@@ -5743,6 +5750,26 @@ if test "${enable_capture_tools_only+set}" = set; then :
 else
   caponly=0
 
+fi
+
+
+# Check whether --enable-python-tools was given.
+if test "${enable_python_tools+set}" = set; then :
+  enableval=$enable_python_tools; case "${enableval}" in
+	  no) want_python=no ;;
+	   *) want_python=yes ;;
+	 esac
+else
+  want_python=yes
+
+fi
+
+
+if test "$want_python"x == "no"x; then
+    BUILD_PYTHON_MODULES=0
+    BUILD_CAPTURE_SDR_RTL433=0
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling Python and Python-related tools" >&5
+$as_echo "$as_me: WARNING: Disabling Python and Python-related tools" >&2;}
 fi
 
 
@@ -10207,6 +10234,7 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
@@ -11595,6 +11623,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
+fi
+
+printf "        Python Modules: "
+if test "$BUILD_PYTHON_MODULES" = 1; then
+	echo "yes";
+else
+	echo "no (will build Python modules or rtl433 support)";
 fi
 
 # printf "       HackRF spectrum: "

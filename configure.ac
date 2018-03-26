@@ -30,6 +30,9 @@ BUILD_CAPTURE_LINUX_BLUETOOTH=0
 BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
+BUILD_CAPTURE_SDR_RTL433=1
+
+BUILD_PYTHON_MODULES=1
 
 # Liberated from ethereal's configure.in
 #
@@ -252,6 +255,22 @@ AC_ARG_ENABLE(capture-tools-only,
 	 esac],
 	[caponly=0]
 )
+
+AC_ARG_ENABLE(python-tools,
+	[  --disable-python        disable python modules and python-only datasources],
+	[case "${enableval}" in
+	  no) want_python=no ;;
+	   *) want_python=yes ;;
+	 esac],
+	[want_python=yes]
+)
+
+if test "$want_python"x == "no"x; then
+    BUILD_PYTHON_MODULES=0
+    BUILD_CAPTURE_SDR_RTL433=0
+    AC_MSG_WARN([Disabling Python and Python-related tools])
+fi
+AC_SUBST(BUILD_PYTHON_MODULES)
 
 HAVE_LIBHACKRF=0
 HAVE_LIBFFTW3=0
@@ -1434,6 +1453,7 @@ AC_SUBST(BUILD_CAPTURE_LINUX_WIFI)
 AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
+AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1535,6 +1555,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
+fi
+
+printf "        Python Modules: "
+if test "$BUILD_PYTHON_MODULES" = 1; then
+	echo "yes";
+else
+	echo "no (will build Python modules or rtl433 support)";
 fi
 
 # printf "       HackRF spectrum: "
