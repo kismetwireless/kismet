@@ -111,7 +111,8 @@ class ExternalInterface(object):
         fl = fcntl.fcntl(self.remote_sock, fcntl.F_GETFL)
         fcntl.fcntl(self.remote_sock, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
-    def adler32(self, data):
+    @staticmethod
+    def adler32(data):
         """
         Compute an adler32 checksum
 
@@ -161,7 +162,7 @@ class ExternalInterface(object):
                 if self.outfd >= 0:
                     out_fd_alias = self.outfd
                 elif self.remote_sock >= 0:
-                    in_fd_alias = self.remote_sock
+                    out_fd_alias = self.remote_sock
                 else:
                     raise RuntimeError("No valid input socket")
 
@@ -183,7 +184,12 @@ class ExternalInterface(object):
                 if out_fd_alias in outputs:
                     self.bufferlock.acquire()
                     try:
-                        written = os.write(out_fd_alias, self.wbuffer)
+                        written = 0
+
+                        if out_fd_alias == self.remote_sock:
+                            written = self.remote_sock.send(self.wbuffer)
+                        else:
+                            written = os.write(out_fd_alias, self.wbuffer)
 
                         if written == 0:
                             raise BufferError("Output connection closed")
@@ -198,13 +204,21 @@ class ExternalInterface(object):
                 if in_fd_alias in inputs:
                     self.bufferlock.acquire()
                     try:
-                        readdata = os.read(in_fd_alias, 4096)
+                        readdata = 0
 
-                        if len(readdata) == 0:
+                        if in_fd_alias == self.remote_sock:
+                            readdata = self.remote_sock.recv(4096)
+                        else:
+                            readdata = os.read(in_fd_alias, 4096)
+
+                        if not readdata:
                             raise BufferError("Input connection closed")
 
                         self.rbuffer = self.rbuffer + readdata
                         self.__recv_packet()
+                    except IOError as e:
+                        if not e.errno == errno.EWOULDBLOCK:
+                            raise BufferError("Input buffer error: {}".format(e));
                     except OSError as e:
                         if not e.errno == errno.EAGAIN:
                             raise BufferError("Input buffer error: {}".format(e))
@@ -227,7 +241,7 @@ class ExternalInterface(object):
 
         content = self.rbuffer[12:(12 + sz)]
 
-        calc_csum = self.adler32(content)
+        calc_csum = ExternalInterface.adler32(content)
 
         if not calc_csum == checksum:
             print content.encode('hex')
@@ -336,7 +350,7 @@ class ExternalInterface(object):
         """
         signature = 0xDECAFBAD
         serial = kedata.SerializeToString()
-        checksum = self.adler32(serial)
+        checksum = ExternalInterface.adler32(serial)
         length = len(serial)
 
         packet = struct.pack("!III", signature, checksum, length)
@@ -503,7 +517,8 @@ class Datasource(ExternalInterface):
         self.add_handler("KDSOPENSOURCE", self.__handle_kds_opensource)
         self.add_handler("KDSPROBESOURCE", self.__handle_kds_probesource)
 
-    def make_uuid(self, driver, address):
+    @staticmethod
+    def make_uuid(driver, address):
         """
         Generate a UUID
 
@@ -512,7 +527,7 @@ class Datasource(ExternalInterface):
 
         :return: UUID string
         """
-        driverhex = "{:02X}".format(self.adler32(driver))
+        driverhex = "{:02X}".format(ExternalInterface.adler32(driver))
         return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
 
     def set_listinterfaces_cb(self, cb):
@@ -555,7 +570,15 @@ class Datasource(ExternalInterface):
         """
         self.configuresource = cb
 
-    def __kds_parse_definition(self, definition):
+    @staticmethod
+    def parse_definition(definition):
+        """
+        Parse a Kismet definition into a (source, optionsmap) tuple
+
+        :param definition: Kismet source definition
+
+        :return: (source, options{} dictionary) as tuple
+        """
         source = ""
         options = {}
     
@@ -612,7 +635,7 @@ class Datasource(ExternalInterface):
         opensource = datasource_pb2.OpenSource()
         opensource.ParseFromString(packet)
 
-        (source, options) = self.__kds_parse_definition(opensource.definition)
+        (source, options) = self.parse_definition(opensource.definition)
 
         if self.opensource == None:
             self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
@@ -630,7 +653,7 @@ class Datasource(ExternalInterface):
         probe = datasource_pb2.ProbeSource()
         probe.ParseFromString(packet)
 
-        (source, options) = self.__kds_parse_definition(probe.definition)
+        (source, options) = self.parse_definition(probe.definition)
 
         if source == None:
             self.send_datasource_probe_report(seqno, success = False)
