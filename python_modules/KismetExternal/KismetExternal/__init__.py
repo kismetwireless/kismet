@@ -548,6 +548,9 @@ class Datasource(ExternalInterface):
                 right = right[endq + 1:]
             else:
                 endcomma = right.find(',')
+
+                if endcomma == -1:
+                    endcomma = len(right)
     
                 val = right[:endcomma]
                 options[key] = val
