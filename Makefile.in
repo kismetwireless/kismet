@@ -474,7 +474,7 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 %.cc.d: %.cc $(PROTOBUF_CPP_H)
 	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
 
-.PRECIOUS: %.Td %.c.d %.cc.d %.pb.cc %.pb.h %.pb-c.c %.pb-c.h
+.PRECIOUS: %.c %.cc %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h
 
 include $(wildcard $(patsubst %cc.o,%cc.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
