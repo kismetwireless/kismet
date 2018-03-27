@@ -1,6 +1,6 @@
 include ../Makefile.inc
 
-MONITOR_OBJ = 
+MONITOR_BIN = kismet_cap_sdr_rtl433
 
 all: 
 	$(PYTHON2) ./setup.py build
