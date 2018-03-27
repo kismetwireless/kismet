@@ -878,13 +878,9 @@ xx. Data source: SDR RTL433
         https://github.com/merbanan/rtl_433
     or as a package in your distribution.
 
-    The Kismet rtl433 interface is managed by the kismet_cap_sdr_rtl433 tool, which is
-    a Python-based Kismet driver which is installed, by default, in:
-        /usr/local/bin/kismet_cap_tools/kismet_cap_sdr_rtl433
-
-    This tool can connect to a USB rtl-sdr directly, using the rtl_433 tool, or it can
-    subscribe to a MQTT server with published rtl433 data.
-
+    The Kismet rtl_433 interface uses librtlsdr, rtl_433, and Python; rtl433 sources
+    will show up as normal Kismet sources using the rtl433-X naming.
+    
     For more information about the rtl433 support, see the README in the 
     capture_sdr_rtl433 directory.
 
