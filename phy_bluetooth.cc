@@ -119,7 +119,8 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
         btphy->devicetracker->UpdateCommonDevice(ci, ci->source, btphy, in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                "Bluetooth");
 
     if (basedev == NULL)
         return 0;

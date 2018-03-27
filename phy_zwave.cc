@@ -155,7 +155,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->UpdateCommonDevice(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY));
+                 UCD_UPDATE_SEENBY), "Z-Wave");
 
     // Get rid of our pseudopacket
     delete(pack);

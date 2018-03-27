@@ -878,7 +878,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->bssid_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        "Wi-Fi Device");
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
@@ -889,7 +890,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->source_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        "Wi-Fi Device");
         }
 
         if (dot11info->dest_mac != dot11info->source_mac &&
@@ -901,7 +903,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->dest_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        "Wi-Fi Device");
         }
 
         if (bssid_dev != NULL) {
@@ -1069,7 +1072,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->bssid_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        "Wi-Fi Device");
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
@@ -1080,7 +1084,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->source_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        "Wi-Fi Device");
         }
 
         if (dot11info->dest_mac != dot11info->source_mac &&
@@ -1093,7 +1098,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->dest_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION | 
-                         UCD_UPDATE_EMPTY_SIGNAL | UCD_UPDATE_EMPTY_LOCATION));
+                         UCD_UPDATE_EMPTY_SIGNAL | UCD_UPDATE_EMPTY_LOCATION),
+                        "Wi-Fi Device");
         }
 
         if (dot11info->other_mac != dot11info->source_mac &&
@@ -1106,7 +1112,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->other_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION));
+                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        "Wi-Fi Device");
         }
 
         if (bssid_dev != NULL) {

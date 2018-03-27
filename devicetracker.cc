@@ -810,7 +810,7 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 std::shared_ptr<kis_tracked_device_base> 
     Devicetracker::UpdateCommonDevice(kis_common_info *pack_common, 
             mac_addr in_mac, Kis_Phy_Handler *in_phy, kis_packet *in_pack, 
-            unsigned int in_flags) {
+            unsigned int in_flags, std::string in_basic_type) {
 
     std::stringstream sstr;
 
@@ -844,6 +844,8 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_server_uuid(globalreg->server_uuid);
 
         device->set_first_time(in_pack->ts.tv_sec);
+
+        device->set_type_string(in_basic_type);
 
         if (globalreg->manufdb != NULL)
             device->set_manuf(globalreg->manufdb->LookupOUI(in_mac));
