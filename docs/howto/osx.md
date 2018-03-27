@@ -23,7 +23,16 @@ Kismet should build on OSX directly, but requires some libraries be installed.
 
      `$ brew install libmicrohttpd pcre protobuf protobuf-c`
 
-4. Make a source dir for Kismet (optional, but recommended)
+4. Install any desired external tools; to capture sensors using a rtl-sdr USB device and the `rtl_433` tool, you will need a USB device, the `librtlsdr` library, and the `rtl_433` tool set up.  You should be able to follow the guides on https://www.rtl-sdr.com for more information.
+
+5. Install python2 and `pip`.  `pip` is the Python package manager; depending on your configuration it may be called `py-pip`; for example:
+
+   * For `macports`:
+     `$ sudo port install py-pip`
+
+   Kismet uses Python to capture from `rtl_433` and for other plugin functions; installing `pip` will allow Python to fetch additional libraries automatically.
+
+6. Make a source dir for Kismet (optional, but recommended)
    `$ mkdir src`
 
 5. Get the Kismet code

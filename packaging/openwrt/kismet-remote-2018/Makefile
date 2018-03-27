@@ -41,6 +41,7 @@ endef
 CONFIGURE_ARGS += \
 	--bindir=/usr/bin \
 	--enable-capture-tools-only \
+	--disable-python \
 	--with-netlink-tiny 
 
 # Override libs to force lpthread because we don't detect it properly on openwrt

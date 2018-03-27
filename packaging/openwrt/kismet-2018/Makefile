@@ -3,7 +3,7 @@ include $(TOPDIR)/rules.mk
 # This package is primarily designed for the Wi-Fi Pineapple Tetra but can be 
 # easily adapted to other OpenWRT builds.
 
-PKG_NAME:=kismet-tetra
+PKG_NAME:=kismet
 PKG_VERSION:=2018git
 PKG_RELEASE:=0
 
@@ -19,7 +19,7 @@ PKG_USE_MIPS16:=0
 
 PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp +libsqlite3 +zlib +libprotobuf +libprotobuf-c
 
-define Package/kismet-tetra
+define Package/kismet
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Kismet (2018)
@@ -28,9 +28,10 @@ define Package/kismet-tetra
   DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libstdcpp +libncurses +libsqlite3 +zlib +protobuf +libprotobuf-c
 endef
 
-define Package/kismet-tetra/description
+define Package/kismet/description
  Kismet wireless capture and IDS
  Latest web-ui based Kismet
+ Linux Wi-Fi and Bluetooth capture tools
 endef
 
 define Build/Configure
@@ -40,6 +41,7 @@ endef
 CONFIGURE_ARGS += \
 	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
+	--disable-python \
     --with-protoc=$(STAGING_DIR_HOST)/bin/protoc \
     --with-protoc-c=$(STAGING_DIR_HOST)/bin/protoc-c
 
