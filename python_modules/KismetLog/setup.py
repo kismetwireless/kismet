@@ -10,7 +10,6 @@ config = {
     'download_url': 'https://www.kismetwireless.net',
     'author_email': 'dragorn@kismetwireless.net',
     'version': '2018.0.0',
-    'install_requires': [ 'sqlite3' ],
     'packages': ['KismetLog'],
     'scripts': [],
     'name': 'kismetlog'

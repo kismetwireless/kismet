@@ -1,16 +1,18 @@
 include ../Makefile.inc
 
-PYTHON_MODULES = \
-   	KismetRest \
-	KismetExternal \
-	KismetLog
 
-all:	$(PYTHON_MODULES)
-	$(foreach module, $(PYTHON_MODULES), cd $(module); make;)
+all:
+	(cd KismetRest; make; )
+	(cd KismetLog; make; )
+	(cd KismetExternal; make; )
 
 install:
-	$(foreach module, $(PYTHON_MODULES), cd $(module); make install;)
+	(cd KismetRest; make install; )
+	(cd KismetLog; make install; )
+	(cd KismetExternal; make install; )
 
 clean:
-	$(foreach module, $(PYTHON_MODULES), cd $(module); make clean;)
+	(cd KismetRest; make clean; )
+	(cd KismetLog; make clean; )
+	(cd KismetExternal; make clean; )
 
