@@ -1,10 +1,7 @@
 include $(TOPDIR)/rules.mk
 
-# This package is primarily designed for the Wi-Fi Pineapple Tetra but can be 
-# easily adapted to other OpenWRT builds.
-
 PKG_NAME:=kismet-remote
-PKG_VERSION:=2017git
+PKG_VERSION:=2018git
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
@@ -20,14 +17,14 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl-tiny
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
 
 define Package/kismet-remote
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Kismet (2017)
   URL:=https://www.kismetwireless.net/
-  DEPENDS:=+libpthread +libpcap +libnl-tiny
+  DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
 endef
 
 define Package/kismet-remote/description
