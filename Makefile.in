@@ -376,7 +376,11 @@ clean:
 	@-rm -f protobuf_c/*.pb-c.*
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
-	@-rm -f $(DATASOURCE_BINS)
+	@-rm -f $(BUILD_CAPTURE_PCAPFILE)
+	@-rm -f $(BUILD_CAPTURE_LINUX_WIFI)
+	@-rm -f $(BUILD_CAPTURE_LINUX_BLUETOOTH)
+	@-rm -f $(BUILD_CAPTURE_OSX_COREWLAN)
+	@-rm -f $(BUILD_CAPTURE_HACKRF_SWEEP)
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
