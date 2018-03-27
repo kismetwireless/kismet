@@ -68,6 +68,9 @@ class KismetRtl433(object):
         # Are we killing rtl because we're reconfiguring?
         self.rtl_reconfigure = False
 
+        # We're usually not remote
+        self.proberet = None
+
         # Use ctypes to load librtlsdr and probe for supported USB devices
         try:
             self.rtllib = ctypes.CDLL("librtlsdr.so.0")
@@ -89,21 +92,53 @@ class KismetRtl433(object):
         
         parser.add_argument('--in-fd', action="store", type=int, dest="infd")
         parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
-
-        parser.add_argument('--debug',
-                action="store_true",
-                dest="debug",
-                default=False,
-                help="Enable debug mode (print out received messages, etc)")
+        parser.add_argument('--connect', action="store", dest="connect")
+        parser.add_argument("--source", action="store", dest="source")
         
         self.config = parser.parse_args()
 
-        self.kismet = KismetExternal.Datasource(self.config.infd, self.config.outfd)
+        if not self.config.connect == None and self.config.source == None:
+            print("You must specify a source with --source when connecting to a remote Kismet server")
+            sys.exit(0)
+
+        if not self.config.source == None:
+            (source, options) = KismetExternal.Datasource.parse_definition(self.config.source)
+
+            if source == None:
+                print("Could not parse the --source option; this should be a standard Kismet source definition.")
+                sys.exit(0)
+
+            self.proberet = self.datasource_probesource(source, options)
+
+            if self.proberet == None:
+                print("Could not configure local source {}, check your source options and config.")
+                sys.exit(0)
+
+            if not "success" in self.proberet:
+                print("Could not configure local source {}, check your source options and config.")
+                if "message" in self.proberet:
+                    print self.proberet["message"]
+                sys.exit(0)
+
+            if not self.proberet["success"]:
+                print("Could not configure local source {}, check your source options and config.")
+                if "message" in self.proberet:
+                    print self.proberet["message"]
+                sys.exit(0)
+
+            print("Connecting to remote server {}".format(self.config.connect))
+
+        self.kismet = KismetExternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)
         self.kismet.set_opensource_cb(self.datasource_opensource)
         self.kismet.set_probesource_cb(self.datasource_probesource)
+
+        # If we're connecting remote, kick a newsource
+        if self.proberet:
+            print("Registering remote source {}".format(self.config.source))
+            self.kismet.send_datasource_newsource(self.config.source, "rtl433", self.proberet['uuid'])
 
         self.kismet.start()
 
@@ -253,7 +288,7 @@ class KismetRtl433(object):
         for k in ["mqtt", "mqtt_port", "mqtt_id", "mqtt_channel"]:
             options.set_default(k, None)
 
-        mqhash = self.kismet.adler32("{}{}{}{}".format(options['mqtt'], options['mqtt_port'], options['mqtt_id'], options['mqtt_channel']))
+        mqhash = KismetExternal.Datasource.adler32("{}{}{}{}".format(options['mqtt'], options['mqtt_port'], options['mqtt_id'], options['mqtt_channel']))
         mqhex = "0000{:02X}".format(mqhash)
 
         return self.kismet.make_uuid("kismet_cap_sdr_rtl433", mqhex)
@@ -263,10 +298,10 @@ class KismetRtl433(object):
         (manuf, product, serial) = self.get_rtl_usb_info(intnum)
 
         # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
-        devicehash = self.kismet.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehash = KismetExternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
         devicehex = "0000{:02X}".format(devicehash)
 
-        return self.kismet.make_uuid("kismet_cap_sdr_rtl433", devicehex)
+        return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", devicehex)
 
     # Implement the probesource callback for the datasource api
     def datasource_probesource(self, source, options):
