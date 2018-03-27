@@ -148,7 +148,7 @@ PSO	= util.cc.o cygwin_utils.cc.o globalregistry.cc.o \
 
 PS	= kismet
 
-ALL	= Makefile $(PROTOBUF_CPP_O) $(PROTOBUF_CPP_H) $(PROTOBUF_C_O) $(PROTOBUF_C_H) $(PS) $(DATASOURCE_BINS)
+ALL	= Makefile $(PS) $(DATASOURCE_BINS)
 
 INSTBINS = $(PS) $(DATASOURCE_BINS)
 
@@ -159,7 +159,7 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PROTOBUF_CPP_H) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
+$(PS):	$(PROTOBUF_CPP_O) $(PROTOBUF_CPP_H) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
@@ -463,10 +463,10 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 %.cc.o:	%.cc %.cc.d
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
 
-%.c.d:  %.c
+%.c.d:  %.c $(PROTOBUF_C_H)
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
-%.cc.d: %.cc
+%.cc.d: %.cc $(PROTOBUF_CPP_H)
 	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
 
 .PRECIOUS: %.Td %.c.d %.cc.d %.pb.cc %.pb.h %.pb-c.c %.pb-c.h
