@@ -22,13 +22,13 @@ PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
 define Package/kismet-remote
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Kismet (2017)
+  TITLE:=Kismet (2018)
   URL:=https://www.kismetwireless.net/
   DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
 endef
 
 define Package/kismet-remote/description
- Kismet remote-capture binary for 2017+ Kismet
+ Kismet remote-capture binary for 2018+ Kismet
 endef
 
 define Build/Configure
