@@ -20,6 +20,7 @@ import errno
 import fcntl
 import os
 import select
+import socket
 import struct
 import sys
 import threading
@@ -41,20 +42,27 @@ class ExternalInterface(object):
 
         :param infd: input FD, from --in-fd argument
         :param outfd: output FD, from --out-fd argument
-        :param report: remote host:port, from --connect argument
+        :param remote: remote host:port, from --connect argument
         :return: nothing
         """
 
         self.infd = infd
         self.outfd = outfd
+        self.remote = remote
+        self.remote_sock = -1;
 
         self.cmdnum = 0
 
-        fl = fcntl.fcntl(infd, fcntl.F_GETFL)
-        fcntl.fcntl(infd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        if self.infd >= 0 and self.outfd >= 0:
+            fl = fcntl.fcntl(infd, fcntl.F_GETFL)
+            fcntl.fcntl(infd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
-        fl = fcntl.fcntl(outfd, fcntl.F_GETFL)
-        fcntl.fcntl(outfd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+            fl = fcntl.fcntl(outfd, fcntl.F_GETFL)
+            fcntl.fcntl(outfd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        elif not remote == None:
+            self.__connect_remote(remote)
+        else:
+            raise RuntimeError("Expected descriptor pair or remote connection")
 
         self.wbuffer = ""
         self.rbuffer = ""
@@ -87,6 +95,21 @@ class ExternalInterface(object):
         self.MSG_ERROR = kismet_pb2.MsgbusMessage.ERROR
         self.MSG_ALERT = kismet_pb2.MsgbusMessage.ALERT
         self.MSG_FATAL = kismet_pb2.MsgbusMessage.FATAL
+
+    def __connect_remote(self, remote):
+        eq = remote.find(":")
+
+        if eq == -1:
+            raise RuntimeError("Expected host:port for remote")
+
+        self.remote_host = remote[:eq]
+        self.remote_port = int(remote[eq+1:])
+
+        self.remote_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.remote_sock.connect((self.remote_host, self.remote_port))
+
+        fl = fcntl.fcntl(self.remote_sock, fcntl.F_GETFL)
+        fcntl.fcntl(self.remote_sock, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
     def adler32(self, data):
         """
@@ -125,25 +148,42 @@ class ExternalInterface(object):
                     self.kill_ioloop = True
                     return
 
-                inputs = [ self.infd ]
+                in_fd_alias = -1;
+                out_fd_alias = -1;
+
+                if self.infd >= 0:
+                    in_fd_alias = self.infd
+                elif self.remote_sock >= 0:
+                    in_fd_alias = self.remote_sock
+                else:
+                    raise RuntimeError("No valid input socket")
+
+                if self.outfd >= 0:
+                    out_fd_alias = self.outfd
+                elif self.remote_sock >= 0:
+                    in_fd_alias = self.remote_sock
+                else:
+                    raise RuntimeError("No valid input socket")
+
+                inputs = [ in_fd_alias ]
                 outputs = []
 
                 self.bufferlock.acquire()
                 try:
                     if len(self.wbuffer):
-                        outputs = [ self.outfd ]
+                        outputs = [ out_fd_alias ]
                 finally:
                     self.bufferlock.release()
 
                 (readable, writable, exceptional) = select.select(inputs, outputs, inputs, 1)
 
-                if self.outfd in exceptional or self.infd in exceptional:
+                if out_fd_alias in exceptional or in_fd_alias in exceptional:
                     raise BufferError("Buffer error:  Socket closed")
 
-                if self.outfd in outputs:
+                if out_fd_alias in outputs:
                     self.bufferlock.acquire()
                     try:
-                        written = os.write(self.outfd, self.wbuffer)
+                        written = os.write(out_fd_alias, self.wbuffer)
 
                         if written == 0:
                             raise BufferError("Output connection closed")
@@ -155,10 +195,10 @@ class ExternalInterface(object):
                     finally:
                         self.bufferlock.release()
 
-                if self.infd in inputs:
+                if in_fd_alias in inputs:
                     self.bufferlock.acquire()
                     try:
-                        readdata = os.read(self.infd, 4096)
+                        readdata = os.read(in_fd_alias, 4096)
 
                         if len(readdata) == 0:
                             raise BufferError("Input connection closed")
@@ -576,8 +616,15 @@ class Datasource(ExternalInterface):
 
         if self.opensource == None:
             self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
-        else:
-            self.opensource(seqno, source, options)
+            self.kismet.spindown()
+            return
+
+        opts = self.opensource(source, options)
+
+        if opts == None:
+            self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
+
+        self.send_datasource_open_report(seqno, **opts)
 
     def __handle_kds_probesource(self, seqno, packet):
         probe = datasource_pb2.ProbeSource()
@@ -591,8 +638,15 @@ class Datasource(ExternalInterface):
 
         if self.probesource == None:
             self.send_datasource_probe_report(seqno, success = False)
-        else:
-            self.probesource(seqno, source, options)
+            self.spindown()
+            return
+
+        opts = self.probesource(source, options)
+
+        if opts == None:
+            self.send_datasource_probe_report(seqno, success = False)
+
+        self.send_datasource_probe_report(seqno, **opts)
 
         self.spindown()
 
@@ -680,7 +734,7 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSNEWSOURCE", newsource)
 
-    def send_datasource_open_report(self, seqno, success = False, dlt = 0, capture_interface = None, channels = [], channel = None, hop_config = None, hardware = None, message = None, spectrum = None, uuid = None, warning = None):
+    def send_datasource_open_report(self, seqno, success = False, dlt = 0, capture_interface = None, channels = [], channel = None, hop_config = None, hardware = None, message = None, spectrum = None, uuid = None, warning = None, **kwargs):
         """
         When acting as a Kismet datasource, send a response to an open source request.  This
         should be called from a child implementation of this class which implements the
@@ -698,6 +752,7 @@ class Datasource(ExternalInterface):
         :param spectrum: Optional datasource_pb2.SubSpecset initial spectrum configuration
         :param uuid: Optional UUID
         :param warning: Optional warning
+        :param kwargs: Unused additional arguments
 
         :return: None
         """
@@ -741,7 +796,7 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSOPENSOURCEREPORT", report)
 
-    def send_datasource_probe_report(self, seqno, success = False, message = None, channels = [], channel = None, spectrum = None, hardware = None):
+    def send_datasource_probe_report(self, seqno, success = False, message = None, channels = [], channel = None, spectrum = None, hardware = None, **kwargs):
         """
         When operating as a Kismet datasource, send a probe source report; this is used to
         determine the datasource driver.  This should be called by child implementations
@@ -756,6 +811,7 @@ class Datasource(ExternalInterface):
         :param channel: Optional single supported channel
         :param spectrum: Optional datasource_pb2.SubSpecset spectrum support
         :param hardware: Optional hardware/chipset information
+        :param **kwargs: Extraneous command options
 
         :return: None
         """
