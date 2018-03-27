@@ -21,9 +21,9 @@ Additionally accepts:
     gain              Passed as -g to rtl_433
 
     mqtt              MQTT server
-    mqttport          MQTT port (default 1883)
-    mqttid            MQTT client id (default Kismet)
-    mqttchannel       MQTT channel (default rtl433)
+    mqtt_port         MQTT port (default 1883)
+    mqtt_id           MQTT client id (default Kismet)
+    mqtt_channel      MQTT channel (default rtl433)
 
 """
 
@@ -249,71 +249,98 @@ class KismetRtl433(object):
 
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
 
+    def __get_mqtt_uuid(self, options):
+        for k in ["mqtt", "mqtt_port", "mqtt_id", "mqtt_channel"]:
+            options.set_default(k, None)
+
+        mqhash = self.kismet.adler32("{}{}{}{}".format(options['mqtt'], options['mqtt_port'], options['mqtt_id'], options['mqtt_channel']))
+        mqhex = "0000{:02X}".format(mqhash)
+
+        return self.kismet.make_uuid("kismet_cap_sdr_rtl433", mqhex)
+
+    def __get_rtlsdr_uuid(self, intnum):
+        # Get the USB info
+        (manuf, product, serial) = self.get_rtl_usb_info(intnum)
+
+        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
+        devicehash = self.kismet.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehex = "0000{:02X}".format(devicehash)
+
+        return self.kismet.make_uuid("kismet_cap_sdr_rtl433", devicehex)
+
     # Implement the probesource callback for the datasource api
-    def datasource_probesource(self, seqno, source, options):
+    def datasource_probesource(self, source, options):
+        ret = {}
+
         # Does the source look like 'rtl433-XYZ'?
         if not source[:7] == "rtl433-":
-            self.kismet.send_datasource_probe_report(seqno, success = False)
-            return
-
-        hw = None
+            return None
 
         if source[7:] == "mqtt":
             if not 'mqtt' in options:
-                self.kismet.send_datasource_probe_report(seqno, success = False)
-                return
+                return None
             if not has_mqtt:
-                self.kismet.send_datasource_probe_report(seqno, success = False)
-                return
+                return None
 
-            hw = "MQTT"
+            ret['hardware'] = "MQTT"
+            ret['uuid'] = __get_mqtt_uuid(options)
         else:
             try:
                 intnum = int(source[7:])
             except ValueError:
-                self.kismet.send_datasource_probe_report(seqno, success = False)
-                return
+                return None
 
             if intnum >= self.rtl_get_device_count():
-                self.kismet.send_datasource_probe_report(seqno, success = False)
-                return
+                return None
 
-            hw = self.rtl_get_device_name(intnum)
+            ret['hardware'] = self.rtl_get_device_name(intnum)
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
-        self.kismet.send_datasource_probe_report(seqno, success = True, hardware = hw, channels = [self.opts['channel']], channel = self.opts['channel'])
+        ret['channel'] = self.opts['channel']
+        ret['channels'] = [self.opts['channel']]
+        ret['success'] = True
+        return ret
 
-    def datasource_opensource(self, seqno, source, options):
+    def datasource_opensource(self, source, options):
+        ret = {}
+
         # Does the source look like 'rtl433-XYZ'?
         if not source[:7] == "rtl433-":
-            self.kismet.send_datasource_open_report(seqno, success = False, message = "Could not determine rtlsdr device to use")
-            return
+            ret["success"] = False
+            ret["message"] = "Could not parse which rtlsdr device to use"
+            return ret
 
-        hw = None
         intnum = -1
 
         if source[7:] == "mqtt":
             if not 'mqtt' in options:
-                self.kismet.send_datasource_open_report(seqno, success = False, message = "rtl433-mqtt device specified, but no mqtt= source option")
-                return
+                ret["success"] = False
+                ret["message"] = "MQTT requested, but no mqtt=xyz option in source definition"
+                return ret
             if not has_mqtt:
-                self.kismet.send_datasource_open_report(seqno, success = False, message = "rtl433-mqtt device specified, but python paho mqtt package not installed")
-                return
-
-            hw = "MQTT"
+                ret["success"] = False
+                ret["message"] = "MQTT requested, but the python paho mqtt package is not installed"
+                return ret
+            
+            ret['hardware'] = "MQTT"
+            ret['uuid'] = __get_mqtt_uuid(options)
 
             self.mqtt_mode = True
         else:
             try:
                 intnum = int(source[7:])
             except ValueError:
-                self.kismet.send_datasource_open_report(seqno, success = False, message = "Could not determine which rtlsdr device to use")
-                return
+                ret["success"] = False
+                ret["message"] = "Could not parse rtl device"
+                return ret
 
             if intnum >= self.rtl_get_device_count():
-                self.kismet.send_datasource_open_report(seqno, success = False, message = "Could not find a rtlsdr device index {}".format(intnum))
-                return
+                ret["success"] = False
+                ret["message"] = "Could not find rtl-sdr device {}".format(intnum)
+                return ret
 
-            hw = self.rtl_get_device_name(intnum)
+            ret['hardware'] = self.rtl_get_device_name(intnum)
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
             self.opts['device'] = intnum
 
@@ -324,21 +351,15 @@ class KismetRtl433(object):
             return
 
         if not self.check_rtl_bin():
-            self.kismet.send_datasource_open_report(seqno, success = False, message = "Could not find rtl_433; make sure you install the rtl_433 tool, see the Kismet README for more information")
+            ret['success'] = False
+            ret['message'] = "Could not find rtl_433 binary; make sure you've installed rtl_433, check the Kismet README for more information."
             return
 
-        # Get the USB info
-        (manuf, product, serial) = self.get_rtl_usb_info(intnum)
-
-        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
-        devicehash = self.kismet.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
-        devicehex = "0000{:02X}".format(devicehash)
-
-        uuid = self.kismet.make_uuid("kismet_cap_sdr_rtl433", devicehex)
-
-        self.kismet.send_datasource_open_report(seqno, success = True, channels = [self.opts['channel']], channel = self.opts['channel'], hardware = hw, uuid = uuid)
+        ret['success'] = True
 
         self.run_rtl433()
+
+        return ret
 
     def datasource_configure(self, seqno, config):
         #print config
