@@ -22,7 +22,6 @@ Additionally accepts:
 
     mqtt              MQTT server
     mqtt_port         MQTT port (default 1883)
-    mqtt_id           MQTT client id (default Kismet)
     mqtt_channel      MQTT channel (default rtl433)
 
 """
@@ -233,32 +232,27 @@ class KismetRtl433(object):
         self.rtl_thread.daemon = True
         self.rtl_thread.start()
 
-    # mqtt helper func, call the handle_json function in our class
-    @staticmethod
-    def mqtt_on_message(client, user, msg):
-        print msg.payload
-        if not user.handle_json(msg.payload):
-            raise RuntimeError('could not post data')
-
     def __mqtt_thread(self):
-        try:
-            self.mq.loop_forever()
-        finally:
-            print "mqtt over"
+        self.mq.loop_forever()
 
     def run_mqtt(self, options):
+        def on_msg(client, user, msg):
+            if not self.handle_json(msg.payload):
+                raise RuntimeError('could not post data')
+
         opts = options
         opts.setdefault("mqtt", 'localhost')
         opts.setdefault("mqtt_port", '1883')
         opts.setdefault("mqtt_channel", 'rtl433')
-        opts.setdefault("mqtt_id", 'kismet-rtl433')
 
-        self.mq = mqtt.Client(opts['mqtt_id'])
-        self.mq.user_data_set(self)
-        self.mq.on_message = KismetRtl433.mqtt_on_message
-        self.mq.loop_start()
-        self.mq.connect(opts['mqtt'], int(opts['mqtt_port']), 1)
+        self.mq = mqtt.Client()
+        self.mq.on_message = on_msg
+        self.mq.connect(opts['mqtt'], int(opts['mqtt_port']))
         self.mq.subscribe(opts['mqtt_channel'])
+
+        self.mq_thread = threading.Thread(target=self.__mqtt_thread)
+        self.mq_thread.daemon = True
+        self.mq_thread.start()
 
 
     # Implement the listinterfaces callback for the datasource api;
@@ -280,9 +274,8 @@ class KismetRtl433(object):
         opts.setdefault('mqtt', 'localhost')
         opts.setdefault('mqtt_port', '1883')
         opts.setdefault('mqtt_channel', 'kismet')
-        opts.setdefault('mqtt_id', 'kismet')
 
-        mqhash = KismetExternal.Datasource.adler32("{}{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_id'], opts['mqtt_channel']))
+        mqhash = KismetExternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
         mqhex = "0000{:02X}".format(mqhash)
 
         return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", mqhex)
