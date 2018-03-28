@@ -61,9 +61,10 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 IPCRemoteV2::~IPCRemoteV2() {
     local_eol_locker lock(&ipc_locker);
 
-    // fprintf(stderr, "debug - ~ipcremotev2\n");
+    remotehandler->remove_ipc(this);
 
-    close_ipc();
+    hard_kill();
+    child_pid = -1;
 }
 
 void IPCRemoteV2::add_path(std::string in_path) {
@@ -296,10 +297,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     binary_path = cmdpath;
     binary_args = args;
 
-    if (remotehandler != NULL) {
-        remotehandler->add_ipc(this);
-    }
-
     {
         local_unlocker ulock(&ipc_locker);
     }
@@ -419,10 +416,6 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     binary_path = cmdpath;
     binary_args = args;
 
-    if (remotehandler != NULL) {
-        remotehandler->add_ipc(this);
-    }
-
     {
         local_unlocker ulock(&ipc_locker);
     }
@@ -505,19 +498,26 @@ IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
     globalreg->timetracker->RemoveTimer(timer_id);
 }
 
-void IPCRemoteV2Tracker::add_ipc(IPCRemoteV2 *in_remote) {
+void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
     local_locker lock(&ipc_locker);
+
+    for (auto r : process_vec) {
+        if (r == in_remote) {
+            printf("!!!!!!!!!!!!!!! tried to add existing remote\n");
+            return;
+        }
+    }
 
     process_vec.push_back(in_remote);
 }
 
-IPCRemoteV2 *IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
+std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
     local_locker lock(&ipc_locker);
 
-    IPCRemoteV2 *ret = NULL;
+    std::shared_ptr<IPCRemoteV2> ret;
 
     for (unsigned int x = 0; x < process_vec.size(); x++) {
-        if (process_vec[x] == in_remote) {
+        if (process_vec[x].get() == in_remote) {
             ret = process_vec[x];
             process_vec.erase(process_vec.begin() + x);
             break;
@@ -527,10 +527,10 @@ IPCRemoteV2 *IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
     return ret;
 }
 
-IPCRemoteV2 *IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
+std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
     local_locker lock(&ipc_locker);
 
-    IPCRemoteV2 *ret = NULL;
+    std::shared_ptr<IPCRemoteV2> ret;
 
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x]->get_pid() == in_pid) {
@@ -578,7 +578,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
     while (1) {
         int pid_status;
         pid_t caught_pid;
-        IPCRemoteV2 *killed_remote = NULL;
+        std::shared_ptr<IPCRemoteV2> killed_remote;
 
         caught_pid = waitpid(-1, &pid_status, WNOHANG);
 
@@ -623,7 +623,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
         while (1) {
             int pid_status;
             pid_t caught_pid;
-            IPCRemoteV2 *killed_remote = NULL;
+            std::shared_ptr<IPCRemoteV2> killed_remote;
 
             caught_pid = waitpid(-1, &pid_status, WNOHANG);
 
@@ -662,7 +662,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 
 int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
     std::stringstream str;
-    IPCRemoteV2 *dead_remote = NULL;
+    std::shared_ptr<IPCRemoteV2> dead_remote;
 
     // Turn off sigchild while we process the list
     sigset_t mask, oldmask;

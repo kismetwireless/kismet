@@ -140,13 +140,13 @@ public:
     virtual ~IPCRemoteV2Tracker();
 
     // Add an IPC handler to tracking
-    void add_ipc(IPCRemoteV2 *in_remote);
+    void add_ipc(std::shared_ptr<IPCRemoteV2> in_remote);
     // Remove an IPC handler from tracking.  Does NOT destroy or close the IPC
-    // handler.  Return the handler which was removed.
-    IPCRemoteV2 *remove_ipc(IPCRemoteV2 *in_remote);
+    // handler.  Return the handler which was removed.  Searches by raw pointer.
+    std::shared_ptr<IPCRemoteV2> remove_ipc(IPCRemoteV2 *in_remote);
     // Remove an IPC handler from tracking by PID.  Does NOT destroy or close
     // the IPC handler.  Return the handler which was removed.
-    IPCRemoteV2 *remove_ipc(pid_t in_pid);
+    std::shared_ptr<IPCRemoteV2> remove_ipc(pid_t in_pid);
 
     // Kill all spawned processes
     void kill_all_ipc(bool in_hardkill);
@@ -164,7 +164,7 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    std::vector<IPCRemoteV2 *> process_vec;
+    std::vector<std::shared_ptr<IPCRemoteV2> > process_vec;
 
     int timer_id;
 };

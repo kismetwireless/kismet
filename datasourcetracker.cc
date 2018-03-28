@@ -156,12 +156,12 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
         if (!b->get_probe_capable())
             continue;
        
-        unsigned int transaction = transaction_id++;
+        unsigned int transaction = ++transaction_id;
 
         // Instantiate a local prober
         SharedDatasource pds = b->build_datasource(b);
 
-        ipc_probe_map.emplace(transaction, pds);
+        ipc_probe_map[transaction] = pds;
 
         pds->probe_interface(definition, transaction, 
             [this] (unsigned int transaction, bool success, std::string reason) {
@@ -263,14 +263,14 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
         if (!b->get_list_capable())
             continue;
        
-        unsigned int transaction = transaction_id++;
+        unsigned int transaction = ++transaction_id;
 
         // Instantiate a local lister 
         SharedDatasource pds = b->build_datasource(b);
 
         {
             local_locker lock(&list_lock);
-            ipc_list_map.emplace(transaction, pds);
+            ipc_list_map[transaction] = pds;
         }
 
         pds->list_interfaces(transaction, 
@@ -766,10 +766,10 @@ void Datasourcetracker::open_datasource(std::string in_source,
     // Create a DSTProber to handle the probing
     SharedDSTProbe dst_probe(new DST_DatasourceProbe(globalreg, 
                 in_source, proto_vec));
-    unsigned int probeid = next_probe_id++;
+    unsigned int probeid = ++next_probe_id;
 
     // Record it
-    probing_map.emplace(probeid, dst_probe);
+    probing_map[probeid] = dst_probe;
 
     // fprintf(stderr, "debug - pushed probe %u raw %p\n", probeid, dst_probe.get());
 
@@ -852,8 +852,8 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
     if (i != uuid_source_num_map.end()) {
         in_source->set_source_number(i->second);
     } else {
-        in_source->set_source_number(next_source_num++);
-        uuid_source_num_map.emplace(u, in_source->get_source_number());
+        in_source->set_source_number(++next_source_num);
+        uuid_source_num_map[u] = in_source->get_source_number();
     }
 
     // Figure out channel hopping
@@ -877,10 +877,10 @@ void Datasourcetracker::list_interfaces(std::function<void (std::vector<SharedIn
 
     // Create a DSTProber to handle the probing
     SharedDSTList dst_list(new DST_DatasourceList(globalreg, proto_vec));
-    unsigned int listid = next_list_id++;
+    unsigned int listid = ++next_list_id;
 
     // Record it
-    listing_map.emplace(listid, dst_list);
+    listing_map[listid] = dst_list;
 
     // Initiate the probe
     dst_list->list_sources([this, listid, in_cb](std::vector<SharedInterface> interfaces) {

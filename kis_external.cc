@@ -219,6 +219,10 @@ bool KisExternalInterface::run_ipc() {
 
     ipc_remote.reset(new IPCRemoteV2(globalreg, ringbuf_handler));
 
+    auto remotehandler = 
+        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>(globalreg, "IPCHANDLER");
+    remotehandler->add_ipc(ipc_remote);
+
     // Get allowed paths for binaries
     std::vector<std::string> bin_paths = 
         globalreg->kismet_config->FetchOptVec("helper_binary_path");
