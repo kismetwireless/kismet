@@ -722,7 +722,8 @@ void Datasourcetracker::open_datasource(std::string in_source,
     // for that driver in the prototype vector, confirm it can open it, and fire
     // the launch command at it
     if (type != "auto") {
-        local_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock);
+        lock.lock();
 
         SharedDatasourceBuilder proto;
 
@@ -746,7 +747,9 @@ void Datasourcetracker::open_datasource(std::string in_source,
                 "interface is available.";
 
             if (in_cb != NULL) {
+                lock.unlock();
                 in_cb(false, ss.str(), NULL);
+                lock.lock();
             }
 
             return;
@@ -776,7 +779,8 @@ void Datasourcetracker::open_datasource(std::string in_source,
     // Initiate the probe
     dst_probe->probe_sources([this, probeid, in_cb](SharedDatasourceBuilder builder) {
         // Lock on completion
-        local_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock);
+        lock.lock();
 
         // fprintf(stderr, "debug - moving probe to completed vec\n");
 
@@ -792,7 +796,9 @@ void Datasourcetracker::open_datasource(std::string in_source,
                 ss << "Unable to find driver for '" << i->second->get_definition() << 
                     "'.  Make sure that any plugins required are loaded.";
                 _MSG(ss.str(), MSGFLAG_ERROR);
+                lock.unlock();
                 in_cb(false, ss.str(), NULL);
+                lock.lock();
             } else {
                 ss << "Found type '" << builder->get_source_type() << "' for '" <<
                     i->second->get_definition() << "'";
