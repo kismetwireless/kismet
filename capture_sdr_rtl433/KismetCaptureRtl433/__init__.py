@@ -236,39 +236,30 @@ class KismetRtl433(object):
     # mqtt helper func, call the handle_json function in our class
     @staticmethod
     def mqtt_on_message(client, user, msg):
+        print msg.payload
         if not user.handle_json(msg.payload):
             raise RuntimeError('could not post data')
 
-    def run_mqtt(self):
-        if self.config.debug:
-            print "{} - Connecting to MQTT {}:{} @{}".format(time.ctime(), self.config.mqtt_server, self.config.mqtt_port, self.config.mqtt_channel)
-
-        self.mq = mqtt.Client(self.config.mqtt_client)
-        self.mq.user_data_set(self)
-        self.mq.on_message = kismet_rtl433.mqtt_on_message
-        self.mq.connect(self.config.mqtt_server, self.config.mqtt_port, 60)
-        self.mq.subscribe(self.config.mqtt_channel)
-
-        if self.config.debug:
-            print "{} - Entering MQTT loop".format(time.ctime());
-
+    def __mqtt_thread(self):
         try:
             self.mq.loop_forever()
-        except Exception as e:
-            if self.config.debug:
-                print "{} - Error processing MQTT data {}".format(time.ctime(), e)
         finally:
-            self.mq.loop_stop()
+            print "mqtt over"
 
-    def mqtt_loop(self):
-        while True:
-            if self.prep_kismet():
-                self.run_mqtt()
-            
-            if not self.config.reconnect:
-                break
+    def run_mqtt(self, options):
+        opts = options
+        opts.setdefault("mqtt", 'localhost')
+        opts.setdefault("mqtt_port", '1883')
+        opts.setdefault("mqtt_channel", 'rtl433')
+        opts.setdefault("mqtt_id", 'kismet-rtl433')
 
-            time.sleep(1)
+        self.mq = mqtt.Client(opts['mqtt_id'])
+        self.mq.user_data_set(self)
+        self.mq.on_message = KismetRtl433.mqtt_on_message
+        self.mq.loop_start()
+        self.mq.connect(opts['mqtt'], int(opts['mqtt_port']), 1)
+        self.mq.subscribe(opts['mqtt_channel'])
+
 
     # Implement the listinterfaces callback for the datasource api;
     def datasource_listinterfaces(self, seqno):
@@ -285,13 +276,16 @@ class KismetRtl433(object):
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
 
     def __get_mqtt_uuid(self, options):
-        for k in ["mqtt", "mqtt_port", "mqtt_id", "mqtt_channel"]:
-            options.set_default(k, None)
+        opts = options
+        opts.setdefault('mqtt', 'localhost')
+        opts.setdefault('mqtt_port', '1883')
+        opts.setdefault('mqtt_channel', 'kismet')
+        opts.setdefault('mqtt_id', 'kismet')
 
-        mqhash = KismetExternal.Datasource.adler32("{}{}{}{}".format(options['mqtt'], options['mqtt_port'], options['mqtt_id'], options['mqtt_channel']))
+        mqhash = KismetExternal.Datasource.adler32("{}{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_id'], opts['mqtt_channel']))
         mqhex = "0000{:02X}".format(mqhash)
 
-        return self.kismet.make_uuid("kismet_cap_sdr_rtl433", mqhex)
+        return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", mqhex)
 
     def __get_rtlsdr_uuid(self, intnum):
         # Get the USB info
@@ -318,7 +312,7 @@ class KismetRtl433(object):
                 return None
 
             ret['hardware'] = "MQTT"
-            ret['uuid'] = __get_mqtt_uuid(options)
+            ret['uuid'] = self.__get_mqtt_uuid(options)
         else:
             try:
                 intnum = int(source[7:])
@@ -358,7 +352,7 @@ class KismetRtl433(object):
                 return ret
             
             ret['hardware'] = "MQTT"
-            ret['uuid'] = __get_mqtt_uuid(options)
+            ret['uuid'] = self.__get_mqtt_uuid(options)
 
             self.mqtt_mode = True
         else:
@@ -381,18 +375,18 @@ class KismetRtl433(object):
 
             self.mqtt_mode = False
 
-        if self.mqtt_mode:
-            # TODO finish mqtt mode
-            return
-
-        if not self.check_rtl_bin():
-            ret['success'] = False
-            ret['message'] = "Could not find rtl_433 binary; make sure you've installed rtl_433, check the Kismet README for more information."
-            return
+        if not self.mqtt_mode:
+            if not self.check_rtl_bin():
+               ret['success'] = False
+               ret['message'] = "Could not find rtl_433 binary; make sure you've installed rtl_433, check the Kismet README for more information."
+               return
 
         ret['success'] = True
 
-        self.run_rtl433()
+        if self.mqtt_mode:
+            self.run_mqtt(options)
+        else:
+            self.run_rtl433()
 
         return ret
 
