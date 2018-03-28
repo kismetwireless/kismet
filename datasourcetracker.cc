@@ -873,19 +873,24 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
 }
 
 void Datasourcetracker::list_interfaces(std::function<void (std::vector<SharedInterface>)> in_cb) {
-    local_locker lock(&dst_lock);
 
     // Create a DSTProber to handle the probing
     SharedDSTList dst_list(new DST_DatasourceList(globalreg, proto_vec));
-    unsigned int listid = ++next_list_id;
+    unsigned int listid = 0;
+   
+    {
+        local_locker lock(&dst_lock);
+        listid = ++next_list_id;
 
-    // Record it
-    listing_map[listid] = dst_list;
+        // Record it
+        listing_map[listid] = dst_list;
+    }
 
     // Initiate the probe
     dst_list->list_sources([this, listid, in_cb](std::vector<SharedInterface> interfaces) {
         // Lock on completion
-        local_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock);
+        lock.lock();
 
         // Figure out what interfaces are in use by active sources and amend their
         // UUID records in the listing
@@ -903,7 +908,9 @@ void Datasourcetracker::list_interfaces(std::function<void (std::vector<SharedIn
             }
         }
 
+        lock.unlock();
         in_cb(interfaces);
+        lock.lock();
 
         auto i = listing_map.find(listid);
 
