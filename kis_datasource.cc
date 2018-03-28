@@ -600,7 +600,8 @@ bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> 
 }
 
 void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
     KismetDatasource::ProbeSourceReport report;
 
@@ -640,16 +641,19 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, std::str
 
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
+    auto cmd = ci->second;
     if (ci != command_ack_map.end()) {
-        if (ci->second->probe_cb != NULL)
-            ci->second->probe_cb(ci->second->transaction, report.success().success(), msg);
         command_ack_map.erase(ci);
+
+        lock.unlock();
+        if (cmd->probe_cb != NULL)
+            cmd->probe_cb(cmd->transaction, report.success().success(), msg);
     }
 
 }
 
 void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
 
     KismetDatasource::OpenSourceReport report;
 
@@ -845,10 +849,14 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
 
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
+    auto cmd = ci->second;
     if (ci != command_ack_map.end()) {
-        if (ci->second->open_cb != NULL)
-            ci->second->open_cb(ci->second->transaction, report.success().success(), msg);
         command_ack_map.erase(ci);
+
+        lock.unlock();
+        if (cmd->open_cb != NULL)
+            cmd->open_cb(cmd->transaction, report.success().success(), msg);
+        lock.lock();
     }
 
     // If we were successful, reset our retry attempts
@@ -878,7 +886,10 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
 }
 
 void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
+
+    listed_interfaces.empty();
 
     KismetDatasource::InterfacesReport report;
 
@@ -916,10 +927,13 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
     uint32_t seq = report.success().seqno();
 
     auto ci = command_ack_map.find(seq);
+    auto cmd = ci->second;
     if (ci != command_ack_map.end()) {
-        if (ci->second->list_cb != NULL)
-            ci->second->list_cb(ci->second->transaction, listed_interfaces);
         command_ack_map.erase(ci);
+
+        lock.unlock();
+        if (cmd->list_cb != NULL)
+            cmd->list_cb(cmd->transaction, listed_interfaces);
     }
 
 }
@@ -946,7 +960,8 @@ void KisDatasource::handle_packet_error_report(uint32_t in_seqno, std::string in
 }
 
 void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
     KismetDatasource::ConfigureReport report;
 
@@ -1002,11 +1017,16 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::strin
     // Get the sequence number and look up our command
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
+    auto cmd = ci->second;
     if (ci != command_ack_map.end()) {
-        // fprintf(stderr, "debug - erasing command ack from configure %u\n", seq);
-        if (ci->second->configure_cb != NULL)
-            ci->second->configure_cb(seq, report.success().success(), msg);
         command_ack_map.erase(ci);
+
+        lock.unlock();
+
+        if (cmd->configure_cb != NULL)
+            cmd->configure_cb(seq, report.success().success(), msg);
+
+        lock.lock();
     }
 
     if (!report.success().success()) {
