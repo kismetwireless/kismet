@@ -244,8 +244,6 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
 }
 
 void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
-    local_locker lock(&list_lock);
-
     cancel_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
@@ -270,7 +268,10 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
         // Instantiate a local lister 
         SharedDatasource pds = b->build_datasource(b);
 
-        ipc_list_map.emplace(transaction, pds);
+        {
+            local_locker lock(&list_lock);
+            ipc_list_map.emplace(transaction, pds);
+        }
 
         pds->list_interfaces(transaction, 
             [this] (unsigned int transaction, std::vector<SharedInterface> interfaces) {
@@ -278,9 +279,11 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
             });
     }
 
-    if (ipc_list_map.size() == 0) {
-        cancel();
-        return;
+    {
+        local_locker lock(&list_lock);
+        if (ipc_list_map.size() == 0) {
+            cancel();
+        }
     }
 }
 
