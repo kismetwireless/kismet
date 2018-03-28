@@ -48,7 +48,9 @@ except ImportError:
     has_mqtt = False
 
 class KismetRtl433(object):
-    def __init__(self):
+    def __init__(self, mqtt = False):
+        self.mqtt_mode = mqtt
+
         self.opts = {}
 
         self.opts['rtlbin'] = 'rtl_433'
@@ -56,8 +58,6 @@ class KismetRtl433(object):
         self.opts['frequency'] = None
         self.opts['gain'] = None
         self.opts['device'] = None
-
-        self.mqtt_mode = False
 
         # Thread that runs the RTL popen
         self.rtl_thread = None
@@ -70,21 +70,25 @@ class KismetRtl433(object):
         # We're usually not remote
         self.proberet = None
 
-        # Use ctypes to load librtlsdr and probe for supported USB devices
-        try:
-            self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+        if not self.mqtt_mode:
+            self.driverid = "rtl433"
+            # Use ctypes to load librtlsdr and probe for supported USB devices
+            try:
+                self.rtllib = ctypes.CDLL("librtlsdr.so.0")
 
-            self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
-            self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
-            self.rtl_get_device_name.argtypes = [ctypes.c_int]
-            self.rtl_get_device_name.restype = ctypes.c_char_p
-            self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
-            self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-        except OSError:
-            print "Unable to find librtlsdr; make sure both librtlsdr and "
-            print "rtl_433 are installed."
+                self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+                self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
+                self.rtl_get_device_name.argtypes = [ctypes.c_int]
+                self.rtl_get_device_name.restype = ctypes.c_char_p
+                self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
+                self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+            except OSError:
+                print "Unable to find librtlsdr; make sure both librtlsdr and "
+                print "rtl_433 are installed."
 
-            self.rtllib = None
+                self.rtllib = None
+        else:
+            self.driverid = "rtl433mqtt"
 
         parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge - Creates a rtl433 data source on a Kismet server and passes JSON-based records from the rtl_433 binary',
                 epilog='Requires the rtl_433 tool (install your distributions package or compile from https://github.com/merbanan/rtl_433)')
@@ -136,8 +140,8 @@ class KismetRtl433(object):
 
         # If we're connecting remote, kick a newsource
         if self.proberet:
-            print("Registering remote source {}".format(self.config.source))
-            self.kismet.send_datasource_newsource(self.config.source, "rtl433", self.proberet['uuid'])
+            print("Registering remote source {} {}".format(self.driverid, self.config.source))
+            self.kismet.send_datasource_newsource(self.config.source, self.driverid, self.proberet['uuid'])
 
         self.kismet.start()
 

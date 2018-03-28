@@ -44,6 +44,8 @@ public:
     virtual void handle_packet_rtl433device(uint32_t in_seqno, std::string in_content);
 
 protected:
+    virtual void open_interface(std::string in_definition, unsigned int in_transaction,
+            open_callback_t in_cb);
     virtual bool process_rtl_json(kis_packet *packet, std::string in_json);
 
     int pack_comp_rtl433, pack_comp_metablob;
@@ -92,6 +94,51 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(true);
+    }
+};
+
+class DatasourceRtl433MqttBuilder : public KisDatasourceBuilder {
+public:
+    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg, int in_id) :
+        KisDatasourceBuilder(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg, int in_id,
+        SharedTrackerElement e) :
+        KisDatasourceBuilder(in_globalreg, in_id, e) {
+
+        register_fields();
+        reserve_fields(e);
+        initialize();
+    }
+
+    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg) :
+        KisDatasourceBuilder(in_globalreg, 0) {
+
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    virtual ~DatasourceRtl433MqttBuilder() { }
+
+    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this));
+    }
+
+    virtual void initialize() {
+        set_source_type("rtl433mqtt");
+        set_source_description("rtl_433 MQTT feed");
+
+        set_probe_capable(true);
+        set_list_capable(false);
+        set_local_capable(true);
+        set_remote_capable(true);
+        set_passive_capable(false);
+        set_tune_capable(false);
     }
 };
 

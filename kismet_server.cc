@@ -981,6 +981,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder(globalregistry)));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder(globalregistry)));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder(globalregistry)));
 
     // Create the database logger as a global because it's a special case
     KisDatabaseLogfile::create_kisdatabaselog(globalregistry);

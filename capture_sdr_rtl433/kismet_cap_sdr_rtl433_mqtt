@@ -1,0 +1,26 @@
+#!/usr/bin/env python2
+
+"""
+rtl_433 Kismet data source
+
+Implements a rtl_433 datasource for Kismet, using the 
+KismetCaptureRtl433 Python module
+
+"""
+
+import time
+
+try:
+    import KismetCaptureRtl433
+except ImportError:
+    print "Could not import the KismetCaptureRtl433 Python code; you need to install "
+    print "the rest of the rtl433 code from Kismet."
+    sys.exit(0)
+
+if __name__ == '__main__':
+    rtl = KismetCaptureRtl433.KismetRtl433(mqtt=True)
+
+    # Go into sleep mode
+    while rtl.is_running():
+        time.sleep(1)
+

@@ -38,15 +38,21 @@ KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
         set_int_source_cap_interface("rtl433usb");
     }
 
-    set_int_source_retry(false);
-    set_int_source_passive(false);
-
     set_int_source_hardware("rtlsdr");
-
     set_int_source_ipc_binary("kismet_cap_sdr_rtl433");
 }
 
 KisDatasourceRtl433::~KisDatasourceRtl433() {
+
+}
+
+void KisDatasourceRtl433::open_interface(std::string in_definition, unsigned int in_transaction,
+        open_callback_t in_cb) {
+    KisDatasource::open_interface(in_definition, in_transaction, in_cb);
+
+    if (get_source_interface().find("rtl-mqtt") == 0) {
+        set_int_source_hopping(false);
+    }
 
 }
 
