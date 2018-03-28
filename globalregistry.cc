@@ -100,12 +100,15 @@ int GlobalRegistry::RegisterGlobal(std::string in_name) {
 }
 
 int GlobalRegistry::FetchGlobalRef(std::string in_name) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
-	if (ext_name_map.find(StrLower(in_name)) == ext_name_map.end())
-		return -1;
+    auto extref = ext_name_map.find(StrLower(in_name));
 
-	return ext_name_map[StrLower(in_name)];
+    if (extref == ext_name_map.end())
+        return -1;
+
+    return extref->second;
 }
 
 std::shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
@@ -118,7 +121,7 @@ std::shared_ptr<void> GlobalRegistry::FetchGlobal(int in_ref) {
 }
 
 std::shared_ptr<void> GlobalRegistry::FetchGlobal(std::string in_name) {
-    //local_locker lock(&ext_mutex);
+    local_locker lock(&ext_mutex);
 
 	int ref;
 
