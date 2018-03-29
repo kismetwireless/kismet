@@ -22,14 +22,6 @@
 #include "config.h"
 
 #include "kis_datasource.h"
-#include "kis_net_microhttpd.h"
-
-/* A light-weight HTTP based data source which receives JSON-encoded
- * sensor data from the rtl433 tool.
- *
- * Device records are received from the rtl433 capture tool via the kismet
- * rest interface, placed into a packet, and decoded by the phy
- */
 
 class KisDatasourceRtl433;
 typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
