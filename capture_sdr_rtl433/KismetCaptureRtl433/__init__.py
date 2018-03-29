@@ -31,7 +31,6 @@ import ctypes
 from datetime import datetime
 import json
 import os
-import requests
 import subprocess
 import sys
 import threading
