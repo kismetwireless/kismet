@@ -1368,6 +1368,15 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     msgstr, &dlt, &uuid, kds_cmd,
                     &interfaceparams, &spectrumparams);
 
+            if (cbret >= 0) {
+                cf_handler_launch_capture_thread(caph);
+
+                if (caph->remote_host) {
+                    fprintf(stderr, "INFO - %s:%u starting capture...\n",
+                            caph->remote_host, caph->remote_port);
+                }
+            }
+
             cf_send_openresp(caph, kds_cmd->seqno,
                     cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
                     spectrumparams);
@@ -1382,15 +1391,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 cf_params_spectrum_free(spectrumparams);
 
             kismet_datasource__open_source__free_unpacked(open_cmd, NULL);
-
-            if (caph->remote_host) {
-                fprintf(stderr, "INFO - %s:%u starting capture...\n",
-                        caph->remote_host, caph->remote_port);
-            }
-
-            if (cbret >= 0) {
-                cf_handler_launch_capture_thread(caph);
-            }
 
             goto finish;
         }
@@ -1431,9 +1431,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 } else {
                     translate_chan = strdup(conf_cmd->channel->channel);
                 }
-
-                /* Cancel channel hopping */
-                caph->channel_hop_rate = 0;
 
                 if (caph->hopping_running) {
                     pthread_cancel(caph->hopthread);
@@ -2328,7 +2325,7 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         }
 
         /* Set the hopping parameters */
-        if (caph->channel_hop_rate > 0) {
+        if (caph->hopping_running > 0) {
             /* we don't have to copy the hop list we just use the same pointers */
             kechanhop.channels = caph->channel_hop_list;
             kechanhop.n_channels = caph->channel_hop_list_sz;
@@ -2486,24 +2483,25 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
     }
 
     /* Set the hopping parameters */
+    if (caph->hopping_running > 0) {
+        /* we don't have to copy the hop list we just use the same pointers */
+        kechanhop.channels = caph->channel_hop_list;
+        kechanhop.n_channels = caph->channel_hop_list_sz;
 
-    /* we don't have to copy the hop list we just use the same pointers */
-    kechanhop.channels = caph->channel_hop_list;
-    kechanhop.n_channels = caph->channel_hop_list_sz;
+        kechanhop.has_rate = true;
+        kechanhop.rate = caph->channel_hop_rate;
 
-    kechanhop.has_rate = true;
-    kechanhop.rate = caph->channel_hop_rate;
+        kechanhop.has_shuffle = true;
+        kechanhop.shuffle = caph->channel_hop_shuffle;
 
-    kechanhop.has_shuffle = true;
-    kechanhop.shuffle = caph->channel_hop_shuffle;
+        kechanhop.has_shuffle_skip = true;
+        kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
 
-    kechanhop.has_shuffle_skip = true;
-    kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
+        kechanhop.has_offset = true;
+        kechanhop.offset = caph->channel_hop_offset;
 
-    kechanhop.has_offset = true;
-    kechanhop.offset = caph->channel_hop_offset;
-
-    keconf.hopping = &kechanhop;
+        keconf.hopping = &kechanhop;
+    }
 
     buf_len = kismet_datasource__configure_report__get_packed_size(&keconf);
     buf = (uint8_t *) malloc(buf_len);
