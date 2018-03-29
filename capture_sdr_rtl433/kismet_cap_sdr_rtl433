@@ -9,7 +9,6 @@ KismetCaptureRtl433 Python module
 """
 
 import time
-import paho.mqtt.client as mqtt
 
 try:
     import KismetCaptureRtl433
