@@ -68,6 +68,7 @@
 #include "datasource_linux_bluetooth.h"
 #include "datasource_osx_corewlan_wifi.h"
 #include "datasource_rtl433.h"
+#include "datasource_freaklabs_zigbee.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -982,6 +983,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder(globalregistry)));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder(globalregistry)));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder(globalregistry)));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceFreaklabsZigbeeBuilder(globalregistry)));
 
     // Create the database logger as a global because it's a special case
     KisDatabaseLogfile::create_kisdatabaselog(globalregistry);

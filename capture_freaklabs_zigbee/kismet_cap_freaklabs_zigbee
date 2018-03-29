@@ -1,0 +1,23 @@
+#!/usr/bin/env python2
+
+"""
+Freaklabs Zigbee Kismet Datasource
+
+"""
+
+import time
+
+try:
+    import KismetCaptureFreaklabsZigbee
+except ImportError:
+    print "Could not import the KismetCaptureFreaklabsZigbee Python code; you need to install "
+    print "the rest of the support code from Kismet."
+    sys.exit(0)
+
+if __name__ == '__main__':
+    zig = KismetCaptureFreaklabsZigbee.KismetFreaklabsZigbee()
+
+    # Go into sleep mode
+    while zig.is_running():
+        time.sleep(1)
+
