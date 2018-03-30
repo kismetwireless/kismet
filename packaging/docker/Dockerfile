@@ -1,4 +1,5 @@
 FROM ubuntu:16.04
+COPY ./build.sh /opt/build-kismet.sh
 WORKDIR /opt
 RUN apt-get update && \
     apt-get install -y gdb gdbserver \
@@ -8,8 +9,6 @@ RUN apt-get update && \
     libcap-dev libpcap-dev libncurses5-dev libnm-dev libdw-dev \
     libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
     protobuf-compiler protobuf-c-compiler \
-    librtlsdr0 && \
-    cd /usr/src && \
-    git clone https://www.kismetwireless.net/git/kismet.git
+    librtlsdr0
 
 

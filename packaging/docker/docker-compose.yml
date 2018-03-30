@@ -6,5 +6,5 @@ services:
 
         build: .
         volumes:
-            - ./:/usr/src/kismet/libcrab
-        command: bash /usr/src/kismet/packaging/docker/build.sh
+            - ./
+        command: bash /opt/build-kismet.sh
