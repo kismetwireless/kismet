@@ -31,6 +31,7 @@ BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=1
+BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 
 BUILD_PYTHON_MODULES=1
 
@@ -268,7 +269,10 @@ AC_ARG_ENABLE(python-tools,
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
     BUILD_CAPTURE_SDR_RTL433=0
+    BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
     AC_MSG_WARN([Disabling Python and Python-related tools])
+else
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
 fi
 AC_SUBST(BUILD_PYTHON_MODULES)
 
@@ -1454,6 +1458,7 @@ AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
+AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1561,7 +1566,21 @@ printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then
 	echo "yes";
 else
-	echo "no (will build Python modules or rtl433 support)";
+	echo "no (will not build Python modules and related support)";
+fi
+
+printf "       RTL-SDR RTL_433: "
+if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
+	echo "yes";
+else
+	echo "no (python modules are disabled)";
+fi
+
+printf "      Freaklabs Zigbee: "
+if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
+	echo "yes";
+else
+	echo "no (python modules are disabled)";
 fi
 
 # printf "       HackRF spectrum: "

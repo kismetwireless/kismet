@@ -84,11 +84,14 @@ BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
 BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
 
+CAPTURE_FREAKLABS_ZIGBEE = capture_freaklabs_zigbee/kismet_cap_freaklabs_zigbee
+BUILD_CAPTURE_FREAKLABS_ZIGBEE = @BUILD_CAPTURE_FREAKLABS_ZIGBEE@
+
 # Do we build and install the python modules?
 BUILD_PYTHON_MODULES = @BUILD_PYTHON_MODULES@
 
 # Capture binaries to build
-DATASOURCE_BINS = $(CAPTURE_SDR_RTL433) @DATASOURCE_BINS@
+DATASOURCE_BINS = @DATASOURCE_BINS@
 
 # Disabled; Kaitai generates unusable C++ code currently
 # KAITAI_PARSERS = \
@@ -242,6 +245,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
 		(cd capture_sdr_rtl433 && $(MAKE) install) \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEE)"x = "1"x; then \
+		(cd capture_freaklabs_zigbee && $(MAKE) install) \
 	fi;
 
 	mkdir -p $(MAN)/man1

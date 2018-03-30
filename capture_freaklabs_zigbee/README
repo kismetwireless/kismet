@@ -1,1 +1,84 @@
-Docs coming soon!
+Kismet Freaklabs Zigbee Support
+
+- UNDER DEVELOPMENT -
+
+    The zigbee support in Kismet is under heavy development, and not all features
+    are complete at this time;  specifically, there is currently no PHY decoder 
+    for 802.15.4 in Kismet; this means Kismet *will log 802.15.4 packets to
+    the Kismet databaselog, and to pcap files* but will *not detect or display
+    zigbee devices at this time*.
+
+    If you'd like to contribute to the Zigbee effort, swing by the Kismet Discord
+    or IRC channels (via https://www.kismetwireless.net) or hit me up on Twitter
+    at @KismetWireless; pcaps of wild zigbee data will be greatly appreciated.
+
+- FREAKLABS ZIGBEE - 
+
+    This datasource supports the Freaklabs Zigbee line of products, available
+    at:
+
+        https://freaklabsstore.com/index.php?main_page=product_info&cPath=22&products_id=215
+        and
+        https://freaklabsstore.com/index.php?main_page=product_info&cPath=22&products_id=216
+
+    It likely will support any other hardware which can run the Chibi-Arduino 
+    environment or the SenSniff firmware.
+
+    The Kismet sensniff driver is based on the Sensniff python implementation available
+    at:
+        https://github.com/freaklabs/sensniff-freaklabs.git
+
+    Support for other devices will come in other drivers.
+
+- CONFIGURING YOUR FREAKLABS DEVICE -
+
+    You will need to configure your Freaklabs device to run the sensniff firmware;
+    At its most basic, this means:
+
+        - Installing the latest Arduino environment (likely newer than your distribution
+          packages)
+        - Installing the Freaklabs board definitions in the Arduino IDE
+        - Installing the Freaklabs chibi-arduino library in the Arduino IDE
+        - Building the chibi_ex10_sensniff example
+        - Installing the sensniff firmware on your Freaklabs device.
+
+    The complete directions for configuring Arduino for Freaklabs are available at 
+    the store lists for each device in the manual PDF.
+
+- INSTALLING THE FREAKLABS DATASOURCE -
+
+    The freaklabs-zigbee Kismet datasource uses the Python interface to Kismet; you will
+    need to install the Python modules.  This will be done for you in most situations;
+    check the output of `./configure` for more information.
+
+- CONFIGURING KISMET -
+
+    Freaklabs devices are handled as a 'freaklabs' source.  Because they use a standard
+    serial port interface, Kismet cannot automatically detect them; you will need to 
+    provide a source definition for each device, for example:
+
+        source=freaklabs:device=/dev/ttyUSB0,name=freak1,band=900
+
+    will tell Kismet to initialize a Freaklabs device on /dev/ttyUSB0, and that it is
+    a 900mhz Freaklabs device.
+
+    Additionally, the Freaklabs sources take the following options:
+
+        device=/path/to/device
+
+            Path to USB Serial device.  The user Kismet is running as must have 
+            read/write access to this device.
+    
+        band=800|900|2400
+
+            The radio band this device is capable of tuning to.  Different hardware
+            is required for the different bands.
+
+- ZIGBEE BANDS -
+
+    802.15.4 / Zigbee operates in up to 3 bands.  You will need a device for each band.
+
+    800 - Channel 0, European band, single channel
+    900 - Channels 1-11, US/Intl ISM band
+    2400 - Channels 12-26, US/Intl ISM band
+
