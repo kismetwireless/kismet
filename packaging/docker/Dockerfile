@@ -14,6 +14,8 @@ RUN apt-get update && \
 COPY build-kismet.sh /opt/build-kismet.sh
 RUN /bin/bash /opt/build-kismet.sh
 
+COPY kismet_site.conf /usr/local/etc/kismet_site.conf
+
 EXPOSE 2501
 EXPOSE 3501
 
