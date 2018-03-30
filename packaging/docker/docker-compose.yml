@@ -1,0 +1,10 @@
+version: '2'
+services:
+    kismet:
+        stdin_open: true
+        tty: true
+
+        build: .
+        volumes:
+            - ./:/usr/src/kismet/libcrab
+        command: bash /usr/src/kismet/packaging/docker/build.sh
