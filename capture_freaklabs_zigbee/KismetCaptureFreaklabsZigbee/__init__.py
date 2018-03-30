@@ -312,6 +312,7 @@ class KismetFreaklabsZigbee(object):
                     self.serialhandler.set_channel(c)
                 except FreaklabException as e:
                     self.kismet.send_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
+                    break
                 finally:
                     self.chan_config_lock.release()
 
@@ -325,6 +326,39 @@ class KismetFreaklabsZigbee(object):
         self.hop_thread = threading.Thread(target = hop_func)
         self.hop_thread.daemon = True
         self.hop_thread.start()
+
+    def __start_monitor(self):
+        def mon_func():
+            while self.kismet.is_running():
+                try:
+                    raw = self.serialhandler.read_frame()
+                except FreaklabException as e:
+                    self.kismet.send_error_report(message = "Error reading from zigbee device: {}".format(e))
+                    break
+
+                if len(raw) == 0:
+                    continue
+
+                packet = KismetExternal.datasource_pb2.SubPacket()
+                dt = datetime.now()
+                packet.time_sec = int(time.mktime(dt.timetuple()))
+                packet.time_usec = int(dt.microsecond)
+
+                packet.dlt = LINKTYPE_IEEE802_15_4_NOFCS
+
+                packet.size = len(raw)
+                packet.data = raw
+
+                self.kismet.send_datasource_data_report(full_packet = packet)
+
+            self.monitor_thread = None
+
+        if self.monitor_thread:
+            return
+
+        self.monitor_thread = threading.Thread(target = mon_func)
+        self.monitor_thread.daemon = True
+        self.monitor_thread.start()
 
     # We can't really list interfaces other than to guess about serial ports which
     # seems like a bad idea; maybe we do that, eventually
@@ -410,6 +444,8 @@ class KismetFreaklabsZigbee(object):
         ret['hardware'] = "freaklabs-{}".format(opts['band'])
 
         ret['success'] = True
+
+        self.__start_monitor()
 
         return ret
 
