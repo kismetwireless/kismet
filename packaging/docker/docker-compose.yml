@@ -4,5 +4,14 @@ services:
         stdin_open: true
         tty: true
 
-        build: .
-        command: bash /opt/build-kismet.sh
+        ports:
+            - "2501:2501"
+            - "3501:3501"
+
+        build:
+            context: ./
+            dockerfile: Dockerfile-build
+
+        image: kismet-git:tag
+
+        command: /usr/local/bin/kismet --no-ncurses

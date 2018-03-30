@@ -1,14 +1,3 @@
-FROM ubuntu:16.04
-COPY ./build.sh /opt/build-kismet.sh
-WORKDIR /opt
-RUN apt-get update && \
-    apt-get install -y gdb gdbserver \
-    pkg-config build-essential git autoconf unzip \
-    python python-setuptools python-pip \
-    libmicrohttpd-dev zlib1g-dev libnl-3-dev libnl-genl-3-dev \
-    libcap-dev libpcap-dev libncurses5-dev libnm-dev libdw-dev \
-    libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
-    protobuf-compiler protobuf-c-compiler \
-    librtlsdr0
+RUN /usr/local/bin/kismet -n
 
 
