@@ -937,3 +937,43 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSWARNINGREPORT", report)
 
+    def send_datasource_data_report(self, message = None, warning = None, full_gps = None, full_signal = None, full_packet = None, full_spectrum = None, **kwargs):
+        """
+        When operating as a Kismet datasource, send a data frame
+
+        :param message: Optional message
+        :param warning: Optional warning to be included in the datasource details
+        :param full_gps: Optional full datasource_pb2.SubGps record
+        :param full_signal: Optional full datasource_pb2.SubSignal record
+        :param full_spectrum: Optional full datasource_pb2 SubSpectrum record
+        :param full_packet: Optional full datasource_pb2.SubPacket record
+
+        :return: None
+        """
+
+        report = datasource_pb2.DataReport()
+
+        if not message == None:
+            report.message.msgtext = message
+            if success:
+                report.message.msgtype = self.MSG_INFO
+            else:
+                report.message.msgtype = self.MSG_ERROR
+
+        if full_gps:
+            report.gps.CopyFrom(full_gps)
+
+        if full_signal:
+            report.signal.CopyFrom(full_signal)
+
+        if full_spectrum:
+            report.signal.CopyFrom(full_spectrum)
+
+        if full_packet:
+            report.packet.CopyFrom(full_packet)
+
+        if warning:
+            report.warning = warning
+
+        self.write_ext_packet("KDSDATAREPORT", report)
+
