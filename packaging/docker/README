@@ -1,0 +1,5 @@
+Basic docker setup:
+
+docker build -t kismet-git .
+docker run -p 2501:2501 3501:3501 -name kismet-remote kismet-git
+
