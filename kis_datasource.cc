@@ -980,9 +980,7 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::strin
     if (report.has_channel()) {
         set_int_source_hopping(false);
         set_int_source_channel(report.channel().channel());
-    }
-
-    if (report.has_hopping()) {
+    } else if (report.has_hopping()) {
         if (report.hopping().has_rate())
             set_int_source_hopping(report.hopping().rate() != 0);
         else
