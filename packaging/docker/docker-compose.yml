@@ -5,6 +5,4 @@ services:
         tty: true
 
         build: .
-        volumes:
-            - ./
         command: bash /opt/build-kismet.sh
