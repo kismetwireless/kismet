@@ -228,6 +228,21 @@ class KismetFreaklabsZigbee(object):
         self.defaults['band'] = "900"
         self.defaults['name'] = None
 
+        self.hop_thread = None
+        self.monitor_thread = None
+
+        self.chan_config_lock = threading.RLock()
+        self.chan_config = {}
+        self.chan_config['chan_pos'] = 0
+        self.chan_config['hopping'] = True
+        self.chan_config['channel'] = "0"
+        self.chan_config['hop_channels'] = []
+        self.chan_config['hop_rate'] = 5
+        self.chan_config['chan_skip'] = 0
+        self.chan_config['chan_offset'] = 0
+
+        self.serialhandler = None
+
         parser = argparse.ArgumentParser(description='Kismet datasource to capture from Freaklabs Zigbee hardware',
                 epilog='Requires Freaklabs hardware (or compatible SenSniff-based device)')
         
@@ -285,6 +300,31 @@ class KismetFreaklabsZigbee(object):
 
     def is_running(self):
         return self.kismet.is_running()
+
+    def __start_hopping(self):
+        def hop_func():
+            while self.chan_config['hopping']:
+                wait_usec = 1.0 / self.chan_config['hop_rate']
+
+                try:
+                    self.chan_config_lock.acquire()
+                    c = self.chan_config['chan_pos'] % len(self.chan_config['hop_channels'])
+                    self.serialhandler.set_channel(c)
+                except FreaklabException as e:
+                    self.kismet.send_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
+                finally:
+                    self.chan_config_lock.release()
+
+                self.chan_config['chan_pos'] = self.chan_config['chan_pos'] + 1
+
+            self.hop_thread = None
+
+        if self.hop_thread:
+            return
+
+        self.hop_thread = threading.Thread(target = hop_func)
+        self.hop_thread.daemon = True
+        self.hop_thread.start()
 
     # We can't really list interfaces other than to guess about serial ports which
     # seems like a bad idea; maybe we do that, eventually
@@ -347,8 +387,8 @@ class KismetFreaklabsZigbee(object):
         ret['uuid'] = self.__get_uuid(opts)
 
         try:
-            s = SerialInputHandler(opts['device'], int(opts['baudrate']))
-            s.get_channel()
+            self.serialhandler = SerialInputHandler(opts['device'], int(opts['baudrate']))
+            self.serialhandler.get_channel()
         except FreaklabException as e:
             ret['success'] = False
             ret['message'] = "{}".format(e)
@@ -361,6 +401,8 @@ class KismetFreaklabsZigbee(object):
 
         band = self.band_map[opts['band']]
 
+        ret['phy'] = LINKTYPE_IEEE802_15_4_NOFCS
+
         ret['channel'] = band[0]
         ret['channels'] = band
 
@@ -372,7 +414,37 @@ class KismetFreaklabsZigbee(object):
         return ret
 
     def datasource_configure(self, seqno, config):
-        return
+        ret = {}
+
+        if config.HasField('channel'):
+            self.chan_config_lock.acquire()
+            self.chan_config['hopping'] = False
+            self.chan_config['channel'] = config.channel.channel
+            ret['channel'] = config.channel.channel
+            self.chan_config_lock.release()
+        elif config.HasField('hopping'):
+            self.chan_config_lock.acquire()
+            if config.hopping.HasField('rate'):
+                self.chan_config['hop_rate'] = config.hopping.rate
+
+            if len(config.hopping.channels):
+                self.chan_config['hop_channels'] = []
+                for c in config.hopping.channels:
+                    self.chan_config['hop_channels'].append(c)
+
+                self.chan_config['hopping'] = True
+
+            self.chan_config_lock.release()
+
+            # Echo its config back at it
+            ret['full_hopping'] = config.hopping
+
+        ret['success'] = True
+
+        if self.chan_config['hopping'] and not self.hop_thread:
+            self.__start_hopping()
+
+        return ret
 
     def handle_json(self, injson):
         try:
