@@ -627,9 +627,18 @@ class Datasource(ExternalInterface):
         conf.ParseFromString(packet)
 
         if self.configuresource == None:
-            self.send_datasource_configure_response(seqno, success = False, message = "helper does not support source configuration")
-        else:
-            self.configuresource(seqno, conf)
+            self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
+            self.kismet.spindown()
+            return
+            
+        opts = self.configuresource(seqno, conf)
+        
+        if opts == None:
+            self.send_Datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
+            self.kismet.spindown()
+            return
+
+        self.send_datasource_configure_report(seqno, **opts)
 
     def __handle_kds_opensource(self, seqno, packet):
         opensource = datasource_pb2.OpenSource()
@@ -757,11 +766,60 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSNEWSOURCE", newsource)
 
+    def send_datasource_configure_report(self, seqno, success = False, channel = None, hop_rate = None, hop_channels = None, spectrum = None, message = None, full_hopping = None, warning = None, **kwargs):
+        """
+        When acting as a Kismet datasource, send a response to a configuration request.  This
+        is called with the response to the open datasource command.
+
+        :param seqno: Sequence number of open source command
+        :param success: Source configuration success
+        :param channel: Optional source single-channel configuration
+        :param hop_rate: Optional source hop speed, if hopping
+        :param hop_channels: Optional vector of string channels, if hopping
+        :param message: Optional message
+        :param full_hopping: Optional full datasource_pb2.SubChanset
+        :param **kwargs: Unused additional arguments
+
+        :return: None
+        """
+
+        report = datasource_pb2.ConfigureReport()
+
+        report.success.success = success
+        report.success.seqno = seqno
+
+        if message:
+            report.message.msgtext = message
+            if success:
+                report.message.msgtype = self.MSG_INFO
+            else:
+                report.message.msgtype = self.MSG_ERROR
+
+        if hop_channels:
+            report.hopping.channels.extend(hop_channels)
+
+        if hop_rate:
+            report.hopping.hop_rate = hop_rate
+
+        if channel:
+            report.channel.channel = channel
+
+        if full_hopping:
+            report.hopping.CopyFrom(full_hopping)
+
+        if spectrum:
+            report.spectrum.CopyFrom(spectrum)
+
+        if warning:
+            report.warning = warning
+
+        self.write_ext_packet("KDSCONFIGUREREPORT", report)
+
+
     def send_datasource_open_report(self, seqno, success = False, dlt = 0, capture_interface = None, channels = [], channel = None, hop_config = None, hardware = None, message = None, spectrum = None, uuid = None, warning = None, **kwargs):
         """
-        When acting as a Kismet datasource, send a response to an open source request.  This
-        should be called from a child implementation of this class which implements the
-        datasource_opensource function.
+        When acting as a Kismet datasource, send a response to an open source request.  This is
+        called with the response to the open datasource command.
 
         :param seqno: Sequence number of open source command
         :param success: Source open success
