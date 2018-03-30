@@ -1368,15 +1368,6 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     msgstr, &dlt, &uuid, kds_cmd,
                     &interfaceparams, &spectrumparams);
 
-            if (cbret >= 0) {
-                cf_handler_launch_capture_thread(caph);
-
-                if (caph->remote_host) {
-                    fprintf(stderr, "INFO - %s:%u starting capture...\n",
-                            caph->remote_host, caph->remote_port);
-                }
-            }
-
             cf_send_openresp(caph, kds_cmd->seqno,
                     cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
                     spectrumparams);
@@ -1391,6 +1382,15 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 cf_params_spectrum_free(spectrumparams);
 
             kismet_datasource__open_source__free_unpacked(open_cmd, NULL);
+
+            if (caph->remote_host) {
+                fprintf(stderr, "INFO - %s:%u starting capture...\n",
+                        caph->remote_host, caph->remote_port);
+            }
+
+            if (cbret >= 0) {
+                cf_handler_launch_capture_thread(caph);
+            }
 
             goto finish;
         }
