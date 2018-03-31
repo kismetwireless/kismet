@@ -1,5 +1,16 @@
 Basic docker setup:
 
-docker build -t kismet-git .
-docker run -p 2501:2501 3501:3501 -name kismet-remote kismet-git
+To compile a docker image of Kismet:
+    $ docker build -t kismet-git .
+
+To run a Kismet which accepts remote connections:
+    $ docker run -p 2501:2501 -p 3501:3501 --name kismet kismet-git
+
+To run a Kismet docker which can handle local interfaces
+directly, you will need to run it in privileged mode:
+    $ docker run -p 2501:2501 -p 3501:3501 --name kismet --privileged kismet-git
+
+You can then assign interfaces to it using the included script,
+assign_wifi_to_docker.sh:
+    $ $ sudo ./assign_wifi_to_docker.sh kismet wlx4494fcf30eb3
 
