@@ -901,8 +901,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             dest_dev =
                 d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
                         dot11info->dest_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                        (UCD_UPDATE_FREQUENCIES |
+                         UCD_UPDATE_PACKETS | UCD_UPDATE_EMPTY_LOCATION |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                         "Wi-Fi Device");
         }
@@ -1098,7 +1098,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         dot11info->dest_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION | 
-                         UCD_UPDATE_EMPTY_SIGNAL | UCD_UPDATE_EMPTY_LOCATION),
+                         UCD_UPDATE_EMPTY_LOCATION),
                         "Wi-Fi Device");
         }
 
