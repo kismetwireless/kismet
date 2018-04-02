@@ -936,6 +936,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
+    } else if (strcmp(driver, "rtl8814au") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the rtl8814au driver, "
+                "these drivers have been very unreliably and typically will not properly "
+                "configure monitor mode.  We'll continue to try, but expect an error "
+                "when configuring monitor mode in the next step.",
+                local_wifi->interface);
+        cf_send_warning(caph, errstr);
+
+        local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "ath10k_pci") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the ath10k_pci "
                 "driver, which is known to report large numbers of invalid packets. "
