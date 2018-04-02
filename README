@@ -206,9 +206,17 @@ https://www.kismetwireless.net
         - New packet capture system.  Kismet now uses an independent process for
           each capture source, and some packet source configuration options have
           changed.
+        - RTL-SDR based detection of wireless thermometers, weather stations,
+          and similar.
+        - Zigbee capture using the Freaklabs hardware
 
     While heavy development is underway, the config file may change; generally
     breaking changes will be mentioned on Twitter and in the git commit logs.
+
+    Sometimes the changes cause problems with Git - such as when temporary files
+    are replaced with permanent files, or when the Makefile removes files that
+    are now needed.  If there are problems compiling, the easiest first step is
+    to remove the checkout of directory and clone a new copy.
 
 xx. Installing Kismet - Suid vs Normal
 
@@ -463,6 +471,22 @@ xx. Kismet Data Sources
 
         source=wlan0:info_amp_gain=20
 
+
+    Kismet will attempt to open all the sources defined on the command line 
+    (with the '-c' option), or if no sources are defined on the command line, 
+    all the sources defined in the Kismet config files.
+
+    If a source has no functional type and encounters an error on startup,
+    it will be ignored - for instance if a source is defined as:
+        source=wlx4494fcf30eb3
+
+    and that device is not connected when Kismet is started, it will be ignored.
+    
+    However, if the type is known, for instance:
+        source=wlx4494fcf30eb3:type=linuxwifi
+
+    then Kismet will know how to re-start it in the future, and will detect when
+    the device is plugged in.
        
 xx. Datasource: Linux Wi-Fi
 
