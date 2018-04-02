@@ -45,7 +45,7 @@ GlobalRegistry *globalreg = NULL;
 class ExternalProxyTest : public KisExternalHttpInterface {
 public:
     ExternalProxyTest(GlobalRegistry *in_globalreg) :
-        KisExternalInterface(in_globalreg) {
+        KisExternalHttpInterface(in_globalreg) {
 
             printf("debug - initializing proxytest interface\n");
 
