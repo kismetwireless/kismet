@@ -29,7 +29,9 @@ typedef std::shared_ptr<KisDatasourceFreaklabsZigbee> SharedDatasourceFreaklabsZ
 class KisDatasourceFreaklabsZigbee : public KisDatasource {
 public:
     KisDatasourceFreaklabsZigbee(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_globalreg, in_builder) { };
+        KisDatasource(in_globalreg, in_builder) { 
+        set_int_source_ipc_binary("kismet_cap_freaklabs_zigbee");
+    };
     virtual ~KisDatasourceFreaklabsZigbee() { };
 };
 
