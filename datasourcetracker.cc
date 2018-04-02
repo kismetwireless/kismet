@@ -830,10 +830,13 @@ void Datasourcetracker::open_datasource(std::string in_source,
 
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
+            // Always merge it so that it gets scheduled for re-opening; when we
+            // know the type we know how to keep trying
+            merge_source(ds);
+
             // Whenever we succeed (or fail) at opening a deferred open source,
             // call our callback w/ whatever we know
             if (success) {
-                merge_source(ds);
                 in_cb(true, "", ds);
             } else {
                 // It's 'safe' to put them in the broken source vec because all we do is
