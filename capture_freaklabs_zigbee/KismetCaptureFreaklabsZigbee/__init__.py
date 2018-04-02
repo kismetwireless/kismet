@@ -257,6 +257,8 @@ class KismetFreaklabsZigbee(object):
             print("You must specify a source with --source when connecting to a remote Kismet server")
             sys.exit(0)
 
+        self.proberet = None
+
         if not self.config.source == None:
             (source, options) = KismetExternal.Datasource.parse_definition(self.config.source)
 

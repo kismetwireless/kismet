@@ -8,7 +8,7 @@ setup(name='KismetCaptureFreaklabsZigbee',
       author='Mike Kershaw / Dragorn',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
-      install_requires=['protobuf', 'KismetExternal', 'serial'],
+      install_requires=['protobuf', 'KismetExternal', 'pyserial'],
       packages=['KismetCaptureFreaklabsZigbee'],
      )
 
