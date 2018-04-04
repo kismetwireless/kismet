@@ -61,6 +61,10 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 IPCRemoteV2::~IPCRemoteV2() {
     local_eol_locker lock(&ipc_locker);
 
+    // fprintf(stderr, "debug - ~ipcremote %d\n", child_pid);
+    if (ipchandler != NULL)
+        ipchandler->BufferError("IPC process has closed");
+
     remotehandler->remove_ipc(this);
 
     hard_kill();
@@ -97,8 +101,6 @@ void IPCRemoteV2::close_ipc() {
     remotehandler->remove_ipc(this);
 
     hard_kill();
-
-    child_pid = -1;
 }
 
 int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
@@ -224,29 +226,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     } else if (child_pid == 0) {
         // We're the child process
       
-#if 0
-        cmdarg = new char*[args.size() + 8];
-
-        cmdarg[0] = strdup("valgrind");
-        cmdarg[1] = strdup("--tool=memcheck");
-        cmdarg[2] = strdup("--leak-check=full");
-        cmdarg[3] = strdup("--show-leak-kinds=all");
-        cmdarg[4] = strdup(cmdpath.c_str());
-
-        // Child reads from inpair
-        arg << "--in-fd=" << inpipepair[0];
-        cmdarg[5] = strdup(arg.str().c_str());
-        arg.str("");
-
-        // Child writes to writepair
-        arg << "--out-fd=" << outpipepair[1];
-        cmdarg[6] = strdup(arg.str().c_str());
-
-        for (unsigned int x = 0; x < args.size(); x++)
-            cmdarg[x+7] = strdup(args[x].c_str());
-
-        cmdarg[args.size() + 7] = NULL;
-#else
         // argv[0], "--in-fd" "--out-fd" ... NULL
         cmdarg = new char*[args.size() + 4];
         cmdarg[0] = strdup(cmdpath.c_str());
@@ -264,7 +243,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
             cmdarg[x+3] = strdup(args[x].c_str());
 
         cmdarg[args.size() + 3] = NULL;
-#endif
 
         // Close the unused half of the pairs on the child
         close(inpipepair[1]);
@@ -278,6 +256,8 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
 
         exit(255);
     } 
+
+    // fprintf(stderr, "forked, child pid %d\n", child_pid);
    
     // Parent process
    
@@ -503,7 +483,6 @@ void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
 
     for (auto r : process_vec) {
         if (r == in_remote) {
-            printf("!!!!!!!!!!!!!!! tried to add existing remote\n");
             return;
         }
     }
@@ -676,7 +655,11 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
         pid_t caught_pid = globalreg->sigchild_vec[x];
 
+        // fprintf(stderr, "debug - sigchild - %u\n", caught_pid);
+
         dead_remote = remove_ipc(caught_pid);
+
+        // printf("dead remote %p\n", dead_remote.get());
 
         if (dead_remote != NULL) {
             dead_remote->notify_killed(0);

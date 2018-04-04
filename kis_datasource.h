@@ -247,7 +247,8 @@ public:
     // method recognized by the device categorization stage
     virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
-
+    // IPC error
+    virtual void BufferError(std::string in_error);
 protected:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors

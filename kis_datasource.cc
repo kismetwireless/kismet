@@ -387,6 +387,10 @@ void KisDatasource::trigger_error(std::string in_error) {
     cancel_all_commands(in_error);
 }
 
+void KisDatasource::BufferError(std::string in_error) {
+    trigger_error(in_error);
+}
+
 std::string KisDatasource::get_definition_opt(std::string in_opt) {
     auto i = source_definition_opts.find(StrLower(in_opt));
 
