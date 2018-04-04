@@ -407,11 +407,11 @@ class KismetRtl433(object):
             self.kismet.write_ext_packet("RTL433DATAREPORT", report)
         except ValueError as e:
             print e
-            self.kismet.send_error_report(message = "Could not parse JSON output of rtl_433")
+            self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtl_433")
             return False
         except Exception as e:
             print e
-            self.kismet.send_error_report(message = "Could not process output of rtl_433")
+            self.kismet.send_datasource_error_report(message = "Could not process output of rtl_433")
             return False
 
         return True
