@@ -628,14 +628,14 @@ class Datasource(ExternalInterface):
 
         if self.configuresource == None:
             self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
-            self.kismet.spindown()
+            self.spindown()
             return
             
         opts = self.configuresource(seqno, conf)
         
         if opts == None:
             self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
-            self.kismet.spindown()
+            self.spindown()
             return
 
         self.send_datasource_configure_report(seqno, **opts)
@@ -648,7 +648,7 @@ class Datasource(ExternalInterface):
 
         if self.opensource == None:
             self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
-            self.kismet.spindown()
+            self.spindown()
             return
 
         opts = self.opensource(source, options)
