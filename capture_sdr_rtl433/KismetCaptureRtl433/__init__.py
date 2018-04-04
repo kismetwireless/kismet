@@ -211,7 +211,7 @@ class KismetRtl433(object):
             # Catch all errors, but don't die if we're reconfiguring rtl; then we need
             # to relaunch the binary
             if not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(ce))
+                self.kismet.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(e))
         finally:
             if not seen_any_valid and not self.rtl_reconfigure:
                 self.kismet.send_datasource_error_report(message = "An error occurred in rtl_433 and no valid devices were seen; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
