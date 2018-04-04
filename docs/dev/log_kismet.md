@@ -169,3 +169,11 @@ The `snapshots` section holds arbitrary time-based snapshots of data; this funct
 | snaptype |        *text* | Snapshot record type                       |
 | json     |        *json* | Snapshot record, as JSON object            |
 
+## REST API
+
+If the Kismet Databaselog is enabled, Kismet will expose an API for extracting historic data.  If the databaselog is not enabled, these APIs will not be available.
+
+### Packet Captures
+
+##### `POST` /logging/kismetlog/pcap/[title].pcapng
+

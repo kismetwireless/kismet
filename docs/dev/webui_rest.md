@@ -380,13 +380,13 @@ Array of all PHY types and statistics
 
 ### Sessions and Logins
 
-##### `/session/check_session`
+##### /session/check_session
 
 Check if a login/session cookie is valid.  Login will only be consulted if the session cookie is not present or is invalid.
 
 Returns 200 OK if session is valid, basic auth prompt if invalid.
 
-##### `/session/check_login`
+##### /session/check_login
 
 Check if a login is valid.  Login will always be checked, any session cookies will be ignored.
 
@@ -422,7 +422,7 @@ Dictionary containing a list of alerts since Kismet double-precision timestamp `
 
 Double-precision timestamps include the microseconds in the decimal value.  A pure second-precision timestamp may be provided, but could cause some alerts to be missed if they occurred in the fraction of the second after the request.
 
-##### POST /alerts/definitions/define_alert `/alerts/definitions/defice_alert.json`
+##### `POST` /alerts/definitions/define_alert `/alerts/definitions/defice_alert.json`
 
 *LOGIN REQUIRED*
 
@@ -438,7 +438,7 @@ Expects a command dictionary including:
 | throttle    | Alert throttle rate | String | Maximum number of alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day', for example '10/min' |
 | burst       | Alert burst rate    | String | Maximum number of sequential alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day'.  Alerts will be throttled to this burst rate even when the overall limit has not been hit.  For example, '1/sec' |
 
-##### POST /alerts/raise_alert.cmd
+##### `POST` /alerts/raise_alert.cmd
 
 *LOGIN REQUIRED*
 
@@ -502,7 +502,7 @@ Expects a string variable named 'definition'.  This value is identical to the `s
 
 `add_source.cmd` will block until the source add is completed; this may be up to several seconds but typically will be nearly instant.
 
-##### POST /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.json`, `/datasource/by-uuid/[uuid]/set_channel.cmd`
+##### `POST` /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.json`, `/datasource/by-uuid/[uuid]/set_channel.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -533,7 +533,7 @@ Examples:
 * `{'channels': ["1", "2", "3", "4", "5"], 'hoprate': 1}` will change the channel hopping rate to once per second over the given list
 * `{'hoprate': 5}` will set the hop rate to 5 channels per second, using the existing channels list in the datasource
 
-##### POST /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.json`, `/datasource/by-uuid/[uuid]/set_channel.json`
+##### `POST` /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.json`, `/datasource/by-uuid/[uuid]/set_channel.json`
 
 *LOGIN REQUIRED*
 
@@ -622,7 +622,9 @@ Kismet can export packets in the pcap-ng format; this is a standard, extended ve
 
 *LOGIN REQUIRED*
 
-Returns a stream of all packets seen by Kismet, in pcap-ng multi-interface format.
+Returns a stream of all packets seen by Kismet, *since the start of this request*, in pcap-ng multi-interface format.
+
+*To collect packets that were previously seen, see the Databaselog API in `log_kismet.md`*
 
 The pcap-ng format allows for multiple interfaces with multiple link types in a single pcapng file.  This format can be read and processed by Wireshark and tshark, but may not be compatible with all traditional libpcap based tools.
 
@@ -634,7 +636,9 @@ This URI will stream indefinitely as packets are received.
 
 *LOGIN REQUIRED*
 
-Returns a stream of all packets seen by Kismet, in pcap-ng multi-interface format.
+Returns a stream of all packets seen by Kismet *since the start of this request*, in pcap-ng multi-interface format.
+
+*To collect packets that were previously seen, see the Databaselog API in `log_kismet.md`*
 
 The pcap-ng format allows for multiple interfaces with multiple link types in a single pcapng file.  This format can be read and processed by Wireshark and tshark, but may not be compatible with all traditional libpcap based tools.
 
@@ -646,7 +650,9 @@ This URI will stream indefinitely as packets are received.
 
 *LOGIN REQUIRED*
 
-Returns a stream of all packets seen by Kismet on a *specific datasource*, in pcap-ng format.
+Returns a stream of all packets seen by Kismet on a *specific datasource*, *since the start of this request*, in pcap-ng format.
+
+*To collect packets that were previously seen, see the Databaselog API in `log_kismet.md`*
 
 Nearly all tools which support libpcap should be able to read a single-interface single-linktype pcapng file, including tcpdump and Kismet itself.  It should not be necessary to post-process this file to use on libpcap-based tools.
 
@@ -658,7 +664,9 @@ This URI will stream stream indefinitely as packets are received.
 
 *LOGIN REQUIRED*
 
-Returns a stream in pcap-ng format of all packets, from all interfaces, associated with the device specified by `[key]`; This stream will only include packets from the specified device (it will not include packets communicating *with* this device, only packets tagged as *originating with* this device.
+Returns a stream in pcap-ng format of all packets, from all interfaces, *since the start of this request*, associated with the device specified by `[key]`; This stream will only include packets from the specified device (it will not include packets communicating *with* this device, only packets tagged as *originating with* this device.
+
+*To collect packets that were previously seen, see the Databaselog API in `log_kismet.md`*
 
 This URI will stream indefinitely as packets are received.
 
@@ -708,7 +716,7 @@ Return a vector of all active log files.
 
 Start a new log file of type `[class]`.  If successful, returns the log object denoting the UUID, path, and other information about the new log.
 
-##### POST /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
+##### `POST` /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
 
 *LOGIN REQUIRED*
 
