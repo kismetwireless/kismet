@@ -82,10 +82,10 @@ class KismetRtl433(object):
                 self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
                 self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
             except OSError:
-                print "Unable to find librtlsdr; make sure both librtlsdr and "
+                print "kismet_cap_sdr_rtl433: Unable to find librtlsdr; make sure both librtlsdr and "
                 print "rtl_433 are installed."
-
-                self.rtllib = None
+    
+                sys.exit(1)
         else:
             self.driverid = "rtl433mqtt"
 
