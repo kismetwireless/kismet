@@ -677,6 +677,8 @@ class Datasource(ExternalInterface):
 
         if opts == None:
             self.send_datasource_probe_report(seqno, success = False)
+            self.spindown()
+            return
 
         self.send_datasource_probe_report(seqno, **opts)
 
