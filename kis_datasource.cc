@@ -367,9 +367,8 @@ void KisDatasource::trigger_error(std::string in_error) {
     std::stringstream ss;
 
     if (!quiet_errors) {
-        ss << "Data source " << get_source_name() << " (" <<
-            get_source_interface() << ") encountered an error: " <<
-            in_error;
+        ss << "Data source " << get_source_name() << " (" << get_source_interface() << 
+            ") encountered an error: " << in_error;
         _MSG(ss.str(), MSGFLAG_ERROR);
         set_int_source_error(true);
         set_int_source_error_reason(in_error);
@@ -587,12 +586,14 @@ bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> 
         handle_packet_error_report(c->seqno(), c->content());
         return true;
     } else if (c->command() == "KDSINTERFACESREPORT") {
+        quiet_errors = true;
         handle_packet_interfaces_report(c->seqno(), c->content());
         return true;
     } else if (c->command() == "KDSOPENSOURCEREPORT") {
         handle_packet_opensource_report(c->seqno(), c->content());
         return true;
     } else if (c->command() == "KDSPROBESOURCEREPORT") {
+        quiet_errors = true;
         handle_packet_probesource_report(c->seqno(), c->content());
         return true;
     } else if (c->command() == "KDSWARNINGREPORT") {

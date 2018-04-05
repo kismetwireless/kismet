@@ -453,9 +453,7 @@ void IPCRemoteV2::notify_killed(int in_exit) {
     // fprintf(stderr, "debug - ipcremote2 notify_killed\n");
 
     if (ipchandler != NULL) {
-        ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " <<
-            in_exit;
-
+        ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " << in_exit;
         ipchandler->BufferError(ss.str());
     }
 
