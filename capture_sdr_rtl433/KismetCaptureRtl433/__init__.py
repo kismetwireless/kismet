@@ -389,7 +389,7 @@ class KismetRtl433(object):
     def datasource_configure(self, seqno, config):
         #print config
 
-        return
+        return {"success": True}
 
     def handle_json(self, injson):
         try:
