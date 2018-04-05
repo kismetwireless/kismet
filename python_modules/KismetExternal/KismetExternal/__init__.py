@@ -628,14 +628,14 @@ class Datasource(ExternalInterface):
 
         if self.configuresource == None:
             self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
-            self.spindown()
+            # self.spindown()
             return
             
         opts = self.configuresource(seqno, conf)
         
         if opts == None:
             self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
-            self.spindown()
+            # self.spindown()
             return
 
         self.send_datasource_configure_report(seqno, **opts)
@@ -648,7 +648,7 @@ class Datasource(ExternalInterface):
 
         if self.opensource == None:
             self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
-            self.spindown()
+            # self.spindown()
             return
 
         opts = self.opensource(source, options)
@@ -670,19 +670,19 @@ class Datasource(ExternalInterface):
 
         if self.probesource == None:
             self.send_datasource_probe_report(seqno, success = False)
-            self.spindown()
+            # self.spindown()
             return
 
         opts = self.probesource(source, options)
 
         if opts == None:
             self.send_datasource_probe_report(seqno, success = False)
-            self.spindown()
+            # self.spindown()
             return
 
         self.send_datasource_probe_report(seqno, **opts)
 
-        self.spindown()
+        # self.spindown()
 
     def __handle_kds_listinterfaces(self, seqno, packet):
         cmd = datasource_pb2.ListInterfaces()
@@ -693,7 +693,7 @@ class Datasource(ExternalInterface):
         else:
             self.listinterfaces(seqno)
 
-        self.spindown()
+        # self.spindown()
 
     def send_datasource_error_report(self, seqno = 0, message = None):
         """
@@ -717,7 +717,7 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSERROR", report)
 
-        self.spindown()
+        # self.spindown()
 
     def send_datasource_interfaces_report(self, seqno, interfaces = [], success = True, message = None):
         """
