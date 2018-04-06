@@ -66,6 +66,24 @@ index 32c4adabb7..93aae75756 100644
         file --version 2>&1 | grep file))
 ```
 
+Since the ubox git directory url has changed, you have to make to apply the following change:
+
+```
+diff --git a/package/system/ubox/Makefile b/package/system/ubox/Makefile
+index cbd622e..d2835ca 100644
+--- a/package/system/ubox/Makefile
++++ b/package/system/ubox/Makefile
+@@ -5,7 +5,7 @@ PKG_VERSION:=2015-11-22
+ PKG_RELEASE=$(PKG_SOURCE_VERSION)
+ 
+ PKG_SOURCE_PROTO:=git
+-PKG_SOURCE_URL:=git://nbd.name/luci2/ubox.git
++PKG_SOURCE_URL:=git://git.openwrt.org/project/ubox.git
+ PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
+ PKG_SOURCE_VERSION:=c086167a0154745c677f8730a336ea9cf7d71031
+ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
+```
+
 You'll also need to patch against a bug in the old OpenWRT code triggered by a modern perl version:
 
 ```
