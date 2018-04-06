@@ -69,7 +69,7 @@ index 32c4adabb7..93aae75756 100644
 You'll also need to patch against a bug in the old OpenWRT code triggered by a modern perl version:
 
 ```
-$ curl 'https://git.lede-project.org/?p=openwrt/openwrt.git;a=blob_plain;f=tools/automake/patches/010-automake-port-to-Perl-5.22-and-later.patch;h=31b9273d547145e5ecbeaef20a1e82cc9292fdc2;hb=92c80f38cff3c20388f9ac13d5196f2745aeaf77' > tools/automake/patches/010-automake-perl.patch
+$ curl 'https://git.openwrt.org/?p=openwrt/openwrt.git;a=blob_plain;f=tools/automake/patches/010-automake-port-to-Perl-5.22-and-later.patch;h=31b9273d547145e5ecbeaef20a1e82cc9292fdc2;hb=92c80f38cff3c20388f9ac13d5196f2745aeaf77' > tools/automake/patches/010-automake-perl.patch
 ```
 
 ## Tweak packet.mk
