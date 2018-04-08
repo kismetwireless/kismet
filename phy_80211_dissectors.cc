@@ -331,7 +331,9 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     }
 
     common->phyid = phyid;
-    common->freq_khz = pack_l1info->freq_khz;
+
+    if (pack_l1info != NULL)
+        common->freq_khz = pack_l1info->freq_khz;
 
     packinfo = new dot11_packinfo;
 
