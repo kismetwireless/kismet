@@ -218,16 +218,20 @@ protected:
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            temperature_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, temperature_rrd_id, e->get_map_value(temperature_rrd_id)));
+            temperature_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        temperature_rrd_id, e->get_map_value(temperature_rrd_id)));
             add_map(temperature_rrd);
 
-            humidity_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, humidity_rrd_id, e->get_map_value(humidity_rrd_id)));
+            humidity_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        humidity_rrd_id, e->get_map_value(humidity_rrd_id)));
             add_map(humidity_rrd);
         } else {
-            temperature_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, temperature_rrd_id));
+            temperature_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        temperature_rrd_id));
             add_map(temperature_rrd);
 
-            humidity_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, humidity_rrd_id));
+            humidity_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        humidity_rrd_id));
             add_map(humidity_rrd);
         }
     }
@@ -293,7 +297,7 @@ protected:
             RegisterComplexField("rtl433.device.wind_dir_rrd", rrd_builder,
                     "Wind direction RRD");
 
-        RegisterField("rtl433.device.wind_speed", TrackerInt32,
+        RegisterField("rtl433.device.weatherstation.wind_speed", TrackerInt32,
                 "Wind speed in Kph", &wind_speed);
 
         rrd_builder.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 0));
@@ -336,39 +340,47 @@ protected:
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            wind_dir_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_dir_rrd_id, e->get_map_value(wind_dir_rrd_id)));
+            wind_dir_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        wind_dir_rrd_id, e->get_map_value(wind_dir_rrd_id)));
             add_map(wind_dir_rrd);
 
-            wind_speed_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_speed_rrd_id, e->get_map_value(wind_speed_rrd_id)));
+            wind_speed_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        wind_speed_rrd_id, e->get_map_value(wind_speed_rrd_id)));
             add_map(wind_speed_rrd);
 
-            wind_gust_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_gust_rrd_id, e->get_map_value(wind_gust_rrd_id)));
+            wind_gust_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        wind_gust_rrd_id, e->get_map_value(wind_gust_rrd_id)));
             add_map(wind_gust_rrd);
 
-            rain_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, rain_rrd_id, e->get_map_value(rain_rrd_id)));
+            rain_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        rain_rrd_id, e->get_map_value(rain_rrd_id)));
             add_map(rain_rrd);
 
-            uv_index_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, uv_index_rrd_id,
-                        e->get_map_value(uv_index_rrd_id)));
+            uv_index_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        uv_index_rrd_id, e->get_map_value(uv_index_rrd_id)));
             add_map(uv_index_rrd);
 
             lux_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, lux_rrd_id,
                         e->get_map_value(lux_rrd_id)));
             add_map(lux_rrd);
         } else {
-            wind_dir_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_dir_rrd_id));
+            wind_dir_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        wind_dir_rrd_id));
             add_map(wind_dir_rrd);
 
-            wind_speed_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_speed_rrd_id));
+            wind_speed_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        wind_speed_rrd_id));
             add_map(wind_speed_rrd);
 
-            wind_gust_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, wind_gust_rrd_id));
+            wind_gust_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        wind_gust_rrd_id));
             add_map(wind_gust_rrd);
 
             rain_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, rain_rrd_id));
             add_map(rain_rrd);
 
-            uv_index_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, uv_index_rrd_id));
+            uv_index_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, 
+                        uv_index_rrd_id));
             add_map(uv_index_rrd);
 
             lux_rrd.reset(new kis_tracked_rrd<rtl433_empty_aggregator>(globalreg, lux_rrd_id));
@@ -433,24 +445,35 @@ public:
         reserve_fields(e);
     }
 
-    __Proxy(temperature, double, double, double, temperature);
     __Proxy(pressure_bar, double, double, double, pressure_bar);
+    __Proxy(flags, std::string, std::string, std::string, flags);
+    __Proxy(state, std::string, std::string, std::string, state);
+    __Proxy(checksum, std::string, std::string, std::string, checksum);
+    __Proxy(code, std::string, std::string, std::string, code);
 
 protected:
     virtual void register_fields() {
-        RegisterField("rtl433.device.temperature", TrackerDouble,
-                "Temperature in degrees Celsius", &temperature);
-
-        RegisterField("rtl433.device.pressure_bar", TrackerDouble,
+        RegisterField("rtl433.device.tpms.pressure_bar", TrackerDouble,
                 "Pressure, in bars", &pressure_bar);
+        RegisterField("rtl433.device.tpms.flags", TrackerString,
+                "TPMS flags", &flags);
+        RegisterField("rtl433.device.tpms.state", TrackerString,
+                "TPMS state", &state);
+        RegisterField("rtl433.device.tpms.checksum", TrackerString,
+                "TPMS checksum", &checksum);
+        RegisterField("rtl433.device.tpms.code", TrackerString,
+                "TPMS code", &code);
     }
 
     virtual void reserve_fields(SharedTrackerElement e) {
         tracker_component::reserve_fields(e);
     }
 
-    SharedTrackerElement temperature;
     SharedTrackerElement pressure_bar;
+    SharedTrackerElement checksum;
+    SharedTrackerElement flags;
+    SharedTrackerElement state;
+    SharedTrackerElement code;
 };
 
 class Kis_RTL433_Phy : public Kis_Phy_Handler {
@@ -473,14 +496,6 @@ public:
     static int PacketHandler(CHAINCALL_PARMS);
 
 protected:
-    std::shared_ptr<Packetchain> packetchain;
-    std::shared_ptr<EntryTracker> entrytracker;
-
-    int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
-        rtl433_weatherstation_id;
-
-    int pack_comp_common, pack_comp_rtl433;
-
     // Convert a JSON record to a RTL-based device key
     mac_addr json_to_mac(Json::Value in_json);
 
@@ -488,7 +503,27 @@ protected:
     // if we can't do anything with it
     bool json_to_rtl(Json::Value in_json);
 
+    bool is_weather_station(Json::Value json);
+    bool is_thermometer(Json::Value json);
+    bool is_tpms(Json::Value json);
+    bool is_switch(Json::Value json);
+
+    void add_weather_station(Json::Value json, SharedTrackerElement rtlholder);
+    void add_thermometer(Json::Value json, SharedTrackerElement rtlholder);
+    void add_tpms(Json::Value json, SharedTrackerElement rtlholder);
+    void add_switch(Json::Value json, SharedTrackerElement rtlholder);
+
     double f_to_c(double f);
+
+
+protected:
+    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<EntryTracker> entrytracker;
+
+    int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
+        rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id;
+
+    int pack_comp_common, pack_comp_rtl433;
 
 };
 

@@ -56,6 +56,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         entrytracker->RegisterField("rtl433.device.thermometer",
                 thermbuilder, "RTL433 thermometer");
 
+    std::shared_ptr<rtl433_tracked_tpms> tpmsbuilder(new rtl433_tracked_tpms(globalreg, 0));
+    rtl433_tpms_id =
+        entrytracker->RegisterField("rtl433.device.tpms",
+                tpmsbuilder, "RTL433 TPMS");
+
     std::shared_ptr<rtl433_tracked_weatherstation> weatherbuilder(new rtl433_tracked_weatherstation(globalreg, 0));
     rtl433_weatherstation_id =
         entrytracker->RegisterField("rtl433.device.weatherstation",
@@ -64,8 +69,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_rtl433", 
-            "/js/kismet.ui.rtl433.js");
+    httpregistry->register_js_module("kismet_ui_rtl433", "/js/kismet.ui.rtl433.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }
@@ -171,7 +175,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->UpdateCommonDevice(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY), "Sensor");
+                 UCD_UPDATE_SEENBY), "RTL433 Sensor");
 
     // Get rid of our pseudopacket
     delete(pack);
@@ -257,38 +261,79 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
             commondev->set_battery(MungeToPrintable(battery_j.asString()));
     }
 
+    if (is_thermometer(json))
+        add_thermometer(json, rtlholder);
+
+    if (is_weather_station(json))
+        add_weather_station(json, rtlholder);
+
+    if (is_tpms(json))
+        add_tpms(json, rtlholder);
+
+    if (is_switch(json))
+        add_switch(json, rtlholder);
+
+    if (newrtl && commondev != NULL) {
+        std::string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
+
+        if (commondev->get_rtlid() != "") 
+            info += " ID " + commondev->get_rtlid();
+
+        if (commondev->get_rtlchannel() != "0")
+            info += " Channel " + commondev->get_rtlchannel();
+
+        _MSG(info, MSGFLAG_INFO);
+    }
+
+    return true;
+}
+
+bool Kis_RTL433_Phy::is_weather_station(Json::Value json) {
+    auto direction_j = json["direction_deg"];
+    auto windstrength_j = json["windstrength"];
+    auto winddirection_j = json["winddirection"];
+    auto windspeed_j = json["speed"];
+    auto gust_j = json["gust"];
+    auto rain_j = json["rain"];
+    auto uv_index_j = json["uv_index"];
+    auto lux_j = json["lux"];
+
+    if (!direction_j.isNull() || !windstrength_j.isNull() || !winddirection_j.isNull() ||
+            !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull() || !uv_index_j.isNull() ||
+            !lux_j.isNull()) {
+        return true;
+    }
+
+    return false;
+}
+
+bool Kis_RTL433_Phy::is_thermometer(Json::Value json) {
     auto humidity_j = json["humidity"];
     auto moisture_j = json["moisture"];
     auto temp_f_j = json["temperature_F"];
     auto temp_c_j = json["temperature_C"];
 
     if (!humidity_j.isNull() || !moisture_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
-        std::shared_ptr<rtl433_tracked_thermometer> thermdev = 
-            std::static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
-
-        if (thermdev == NULL) {
-            thermdev = 
-                std::static_pointer_cast<rtl433_tracked_thermometer>(entrytracker->GetTrackedInstance(rtl433_thermometer_id));
-            rtlholder->add_map(thermdev);
-        }
-
-        if (humidity_j.isNumeric()) {
-            thermdev->set_humidity(humidity_j.asInt());
-        }
-
-        if (moisture_j.isNumeric()) {
-            thermdev->set_humidity(moisture_j.asInt());
-        }
-
-        if (temp_f_j.isNumeric()) {
-            thermdev->set_temperature(f_to_c(temp_f_j.asInt()));
-        }
-
-        if (temp_c_j.isNumeric()) {
-            thermdev->set_temperature(temp_c_j.asInt());
-        }
+        return true;
     }
 
+    return false;
+}
+
+bool Kis_RTL433_Phy::is_tpms(Json::Value json) {
+    auto type_j = json["type"];
+
+    if (type_j.isString() && type_j.asString() == "TPMS")
+        return true;
+
+    return false;
+}
+
+bool Kis_RTL433_Phy::is_switch(Json::Value json) {
+    return false;
+}
+
+void Kis_RTL433_Phy::add_weather_station(Json::Value json, SharedTrackerElement rtlholder) {
     auto direction_j = json["direction_deg"];
     auto windstrength_j = json["windstrength"];
     auto winddirection_j = json["winddirection"];
@@ -353,21 +398,88 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         }
 
     }
+}
 
-    if (newrtl && commondev != NULL) {
-        std::string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
+void Kis_RTL433_Phy::add_thermometer(Json::Value json, SharedTrackerElement rtlholder) {
+    auto humidity_j = json["humidity"];
+    auto moisture_j = json["moisture"];
+    auto temp_f_j = json["temperature_F"];
+    auto temp_c_j = json["temperature_C"];
 
-        if (commondev->get_rtlid() != "") 
-            info += " ID " + commondev->get_rtlid();
+    if (!humidity_j.isNull() || !moisture_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
+        std::shared_ptr<rtl433_tracked_thermometer> thermdev = 
+            std::static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
 
-        if (commondev->get_rtlchannel() != "0")
-            info += " Channel " + commondev->get_rtlchannel();
+        if (thermdev == NULL) {
+            thermdev = 
+                std::static_pointer_cast<rtl433_tracked_thermometer>(entrytracker->GetTrackedInstance(rtl433_thermometer_id));
+            rtlholder->add_map(thermdev);
+        }
 
-        _MSG(info, MSGFLAG_INFO);
+        if (humidity_j.isNumeric()) {
+            thermdev->set_humidity(humidity_j.asInt());
+        }
+
+        if (moisture_j.isNumeric()) {
+            thermdev->set_humidity(moisture_j.asInt());
+        }
+
+        if (temp_f_j.isNumeric()) {
+            thermdev->set_temperature(f_to_c(temp_f_j.asInt()));
+        }
+
+        if (temp_c_j.isNumeric()) {
+            thermdev->set_temperature(temp_c_j.asInt());
+        }
+    }
+}
+
+void Kis_RTL433_Phy::add_tpms(Json::Value json, SharedTrackerElement rtlholder) {
+    auto type_j = json["type"];
+    auto pressure_j = json["pressure_bar"];
+    auto flags_j = json["flags"];
+    auto checksum_j = json["mic"];
+    auto state_j = json["state"];
+    auto code_j = json["code"];
+
+    if (type_j.isString() && type_j.asString() == "TPMS") {
+        std::shared_ptr<rtl433_tracked_tpms> tpmsdev = 
+            std::static_pointer_cast<rtl433_tracked_tpms>(rtlholder->get_map_value(rtl433_tpms_id));
+
+        if (tpmsdev == NULL) {
+            tpmsdev = 
+                std::static_pointer_cast<rtl433_tracked_tpms>(entrytracker->GetTrackedInstance(rtl433_tpms_id));
+            rtlholder->add_map(tpmsdev);
+        }
+
+        if (pressure_j.isNumeric()) {
+            tpmsdev->set_pressure_bar(pressure_j.asDouble());
+        }
+
+        if (flags_j.isString()) {
+            tpmsdev->set_flags(flags_j.asString());
+        }
+
+        if (checksum_j.isString()) {
+            tpmsdev->set_checksum(checksum_j.asString());
+        }
+
+        if (state_j.isString()) {
+            tpmsdev->set_state(state_j.asString());
+        }
+
+        if (code_j.isString()) {
+            tpmsdev->set_code(code_j.asString());
+        }
+
     }
 
-    return true;
 }
+
+void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder) {
+
+}
+
 
 int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
     Kis_RTL433_Phy *rtl433 = (Kis_RTL433_Phy *) auxdata;
