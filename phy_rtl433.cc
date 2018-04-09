@@ -359,11 +359,11 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json, SharedTrackerElement 
             !lux_j.isNull()) {
 
         std::shared_ptr<rtl433_tracked_weatherstation> weatherdev = 
-            std::static_pointer_cast<rtl433_tracked_weatherstation>(rtlholder->get_map_value(rtl433_weatherstation_id));
+            rtlholder->get_map_value_as<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
 
         if (weatherdev == NULL) {
             weatherdev = 
-                std::static_pointer_cast<rtl433_tracked_weatherstation>(entrytracker->GetTrackedInstance(rtl433_weatherstation_id));
+                entrytracker->GetTrackedInstanceAs<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
             rtlholder->add_map(weatherdev);
         }
 
@@ -419,11 +419,11 @@ void Kis_RTL433_Phy::add_thermometer(Json::Value json, SharedTrackerElement rtlh
 
     if (!humidity_j.isNull() || !moisture_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
         std::shared_ptr<rtl433_tracked_thermometer> thermdev = 
-            std::static_pointer_cast<rtl433_tracked_thermometer>(rtlholder->get_map_value(rtl433_thermometer_id));
+            rtlholder->get_map_value_as<rtl433_tracked_thermometer>(rtl433_thermometer_id);
 
         if (thermdev == NULL) {
             thermdev = 
-                std::static_pointer_cast<rtl433_tracked_thermometer>(entrytracker->GetTrackedInstance(rtl433_thermometer_id));
+                entrytracker->GetTrackedInstanceAs<rtl433_tracked_thermometer>(rtl433_thermometer_id);
             rtlholder->add_map(thermdev);
         }
 
@@ -455,11 +455,11 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, SharedTrackerElement rtlholder) 
 
     if (type_j.isString() && type_j.asString() == "TPMS") {
         std::shared_ptr<rtl433_tracked_tpms> tpmsdev = 
-            std::static_pointer_cast<rtl433_tracked_tpms>(rtlholder->get_map_value(rtl433_tpms_id));
+            rtlholder->get_map_value_as<rtl433_tracked_tpms>(rtl433_tpms_id);
 
         if (tpmsdev == NULL) {
             tpmsdev = 
-                std::static_pointer_cast<rtl433_tracked_tpms>(entrytracker->GetTrackedInstance(rtl433_tpms_id));
+                entrytracker->GetTrackedInstanceAs<rtl433_tracked_tpms>(rtl433_tpms_id);
             rtlholder->add_map(tpmsdev);
         }
 
@@ -493,11 +493,11 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder
 
     if (sw0_j.isString() || sw1_j.isString()) {
         std::shared_ptr<rtl433_tracked_switch> switchdev = 
-            std::static_pointer_cast<rtl433_tracked_switch>(rtlholder->get_map_value(rtl433_switch_id));
+            rtlholder->get_map_value_as<rtl433_tracked_switch>(rtl433_switch_id);
 
         if (switchdev == NULL) {
             switchdev = 
-                std::static_pointer_cast<rtl433_tracked_switch>(entrytracker->GetTrackedInstance(rtl433_tpms_id));
+                entrytracker->GetTrackedInstanceAs<rtl433_tracked_switch>(rtl433_switch_id);
             rtlholder->add_map(switchdev);
         }
 
