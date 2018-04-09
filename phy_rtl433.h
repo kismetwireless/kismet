@@ -476,6 +476,46 @@ protected:
     SharedTrackerElement code;
 };
 
+// Switch panels
+class rtl433_tracked_switch : public tracker_component {
+public:
+    rtl433_tracked_switch(GlobalRegistry *in_globalreg, int in_id) :
+       tracker_component(in_globalreg, in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    virtual SharedTrackerElement clone_type() {
+        return SharedTrackerElement(new rtl433_tracked_switch(globalreg, get_id()));
+    }
+
+    rtl433_tracked_switch(GlobalRegistry *in_globalreg, int in_id, 
+            SharedTrackerElement e) :
+        tracker_component(in_globalreg, in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    __ProxyTrackable(switch_vec, TrackerElement, switch_vec);
+
+protected:
+    virtual void register_fields() {
+        RegisterField("rtl433.device.switch_vec", TrackerVector,
+                "Switch settings", &switch_vec);
+        switch_vec_entry_id = 
+            RegisterField("rtl433.device.switch.position", TrackerInt32,
+                "Switch position");
+    }
+
+    virtual void reserve_fields(SharedTrackerElement e) {
+        tracker_component::reserve_fields(e);
+    }
+
+    SharedTrackerElement switch_vec;
+    int switch_vec_entry_id;
+
+};
+
 class Kis_RTL433_Phy : public Kis_Phy_Handler {
 public:
     virtual ~Kis_RTL433_Phy();

@@ -66,6 +66,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         entrytracker->RegisterField("rtl433.device.weatherstation",
                 weatherbuilder, "RTL433 weather station");
 
+    std::shared_ptr<rtl433_tracked_switch> switchbuilder(new rtl433_tracked_switch(globalreg, 0));
+    rtl433_switch_id =
+        entrytracker->RegisterField("rtl433.device.switch",
+                switchbuilder, "RTL433 switch");
+
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
@@ -330,6 +335,12 @@ bool Kis_RTL433_Phy::is_tpms(Json::Value json) {
 }
 
 bool Kis_RTL433_Phy::is_switch(Json::Value json) {
+    auto sw0_j = json["switch0"];
+    auto sw1_j = json["switch1"];
+
+    if (!sw0_j.isNull() || !sw1_j.isNull())
+        return true;
+
     return false;
 }
 
@@ -477,6 +488,20 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, SharedTrackerElement rtlholder) 
 }
 
 void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder) {
+    auto sw0_j = json["switch0"];
+    auto sw1_j = json["switch1"];
+
+    if (sw0_j.isString() || sw1_j.isString()) {
+        std::shared_ptr<rtl433_tracked_switch> switchdev = 
+            std::static_pointer_cast<rtl433_tracked_switch>(rtlholder->get_map_value(rtl433_switch_id));
+
+        if (switchdev == NULL) {
+            switchdev = 
+                std::static_pointer_cast<rtl433_tracked_switch>(entrytracker->GetTrackedInstance(rtl433_tpms_id));
+            rtlholder->add_map(switchdev);
+        }
+
+    }
 
 }
 
