@@ -82,7 +82,14 @@ public:
 
     // Get a field instance
     // Return: NULL if unknown
+    template<class T> std::shared_ptr<T> GetTrackedInstanceAs(std::string in_name) {
+        return std::static_pointer_cast<T>(GetTrackedInstance(in_name));
+    }
     std::shared_ptr<TrackerElement> GetTrackedInstance(std::string in_name);
+
+    template<class T> std::shared_ptr<T> GetTrackedInstanceAs(int in_id) {
+        return std::static_pointer_cast<T>(GetTrackedInstance(in_id));
+    }
     std::shared_ptr<TrackerElement> GetTrackedInstance(int in_id);
 
     // Register a serializer for auto-serialization based on type

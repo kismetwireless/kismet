@@ -324,6 +324,10 @@ public:
         return dataunion.submap_value;
     }
 
+    template<class T> std::shared_ptr<T> get_map_value_as(int fn) {
+        return std::static_pointer_cast<T>(get_map_value(fn));
+    }
+
     SharedTrackerElement get_map_value(int fn) {
         // Soft-bounce if we're not a map or we cause a lot of problems
         if (get_type() != TrackerMap)
