@@ -498,6 +498,12 @@ public:
 
     __ProxyTrackable(switch_vec, TrackerElement, switch_vec);
 
+    SharedTrackerElement make_switch_entry(int x) {
+        SharedTrackerElement e = entrytracker->GetTrackedInstance(switch_vec_entry_id);
+        e->set((int32_t) x);
+        return e;
+    }
+
 protected:
     virtual void register_fields() {
         RegisterField("rtl433.device.switch_vec", TrackerVector,

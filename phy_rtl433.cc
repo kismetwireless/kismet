@@ -491,7 +491,7 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
 
-    if (sw0_j.isString() || sw1_j.isString()) {
+    if (!sw0_j.isNull() || !sw1_j.isNull()) {
         std::shared_ptr<rtl433_tracked_switch> switchdev = 
             rtlholder->get_map_value_as<rtl433_tracked_switch>(rtl433_switch_id);
 
@@ -501,8 +501,42 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder
             rtlholder->add_map(switchdev);
         }
 
-    }
+        int x;
+        std::stringstream ss;
 
+        if (!sw0_j.isNull())
+            x = 0;
+        else
+            x = 1;
+
+        TrackerElementVector vec(switchdev->get_switch_vec());
+        vec.clear();
+
+        while (1) {
+            int v = 0;
+
+            ss.str("");
+            ss << "switch" << x;
+            x++;
+
+            auto v_j = json[ss.str()];
+
+            if (v_j.isNull())
+                break;
+
+            if (v_j.isString()) {
+                if (v_j.asString() == "OPEN")
+                    v = 1;
+            } else if (v_j.isNumeric()) {
+                v = v_j.asInt();
+            } else {
+                break;
+            }
+
+            SharedTrackerElement e = switchdev->make_switch_entry(v);
+            vec.push_back(e);
+        }
+    }
 }
 
 
