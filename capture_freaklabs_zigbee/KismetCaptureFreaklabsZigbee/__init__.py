@@ -484,29 +484,4 @@ class KismetFreaklabsZigbee(object):
 
         return ret
 
-    def handle_json(self, injson):
-        try:
-            j = json.loads(injson)
-            r = json.dumps(j)
-
-            report = sdrrtl433_pb2.SdrRtl433DataReport()
-
-            dt = datetime.now()
-            report.time_sec = int(time.mktime(dt.timetuple()))
-            report.time_usec = int(dt.microsecond)
-
-            report.rtljson = r
-
-            self.kismet.write_ext_packet("RTL433DATAREPORT", report)
-        except ValueError as e:
-            print e
-            self.kismet.send_error_report(message = "Could not parse JSON output of rtl_433")
-            return False
-        except Exception as e:
-            print e
-            self.kismet.send_error_report(message = "Could not process output of rtl_433")
-            return False
-
-        return True
-
 
