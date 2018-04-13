@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='kismet.proto',
   package='KismetExternal',
   syntax='proto2',
-  serialized_pb=_b('\n\x0ckismet.proto\x12\x0eKismetExternal\":\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x02(\t\x12\r\n\x05seqno\x18\x02 \x02(\r\x12\x0f\n\x07\x63ontent\x18\x03 \x02(\x0c\"\xa1\x01\n\rMsgbusMessage\x12:\n\x07msgtype\x18\x01 \x02(\x0e\x32).KismetExternal.MsgbusMessage.MessageType\x12\x0f\n\x07msgtext\x18\x02 \x02(\t\"C\n\x0bMessageType\x12\t\n\x05\x44\x45\x42UG\x10\x01\x12\x08\n\x04INFO\x10\x02\x12\t\n\x05\x45RROR\x10\x04\x12\t\n\x05\x41LERT\x10\x08\x12\t\n\x05\x46\x41TAL\x10\x10\"\x06\n\x04Ping\"\x1a\n\x04Pong\x12\x12\n\nping_seqno\x18\x01 \x02(\r\"\x1a\n\x08Shutdown\x12\x0e\n\x06reason\x18\x01 \x02(\t\"#\n\x0eSystemRegister\x12\x11\n\tsubsystem\x18\x01 \x02(\t')
+  serialized_pb=_b('\n\x0ckismet.proto\x12\x0eKismetExternal\":\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x02(\t\x12\r\n\x05seqno\x18\x02 \x02(\r\x12\x0f\n\x07\x63ontent\x18\x03 \x02(\x0c\"\xa1\x01\n\rMsgbusMessage\x12:\n\x07msgtype\x18\x01 \x02(\x0e\x32).KismetExternal.MsgbusMessage.MessageType\x12\x0f\n\x07msgtext\x18\x02 \x02(\t\"C\n\x0bMessageType\x12\t\n\x05\x44\x45\x42UG\x10\x01\x12\x08\n\x04INFO\x10\x02\x12\t\n\x05\x45RROR\x10\x04\x12\t\n\x05\x41LERT\x10\x08\x12\t\n\x05\x46\x41TAL\x10\x10\"\x06\n\x04Ping\"\x1a\n\x04Pong\x12\x12\n\nping_seqno\x18\x01 \x02(\r\"\"\n\x10\x45xternalShutdown\x12\x0e\n\x06reason\x18\x01 \x02(\t\"#\n\x0eSystemRegister\x12\x11\n\tsubsystem\x18\x01 \x02(\t')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -199,15 +199,15 @@ _PONG = _descriptor.Descriptor(
 )
 
 
-_SHUTDOWN = _descriptor.Descriptor(
-  name='Shutdown',
-  full_name='KismetExternal.Shutdown',
+_EXTERNALSHUTDOWN = _descriptor.Descriptor(
+  name='ExternalShutdown',
+  full_name='KismetExternal.ExternalShutdown',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='reason', full_name='KismetExternal.Shutdown.reason', index=0,
+      name='reason', full_name='KismetExternal.ExternalShutdown.reason', index=0,
       number=1, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -226,7 +226,7 @@ _SHUTDOWN = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=292,
-  serialized_end=318,
+  serialized_end=326,
 )
 
 
@@ -256,8 +256,8 @@ _SYSTEMREGISTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=320,
-  serialized_end=355,
+  serialized_start=328,
+  serialized_end=363,
 )
 
 _MSGBUSMESSAGE.fields_by_name['msgtype'].enum_type = _MSGBUSMESSAGE_MESSAGETYPE
@@ -266,7 +266,7 @@ DESCRIPTOR.message_types_by_name['Command'] = _COMMAND
 DESCRIPTOR.message_types_by_name['MsgbusMessage'] = _MSGBUSMESSAGE
 DESCRIPTOR.message_types_by_name['Ping'] = _PING
 DESCRIPTOR.message_types_by_name['Pong'] = _PONG
-DESCRIPTOR.message_types_by_name['Shutdown'] = _SHUTDOWN
+DESCRIPTOR.message_types_by_name['ExternalShutdown'] = _EXTERNALSHUTDOWN
 DESCRIPTOR.message_types_by_name['SystemRegister'] = _SYSTEMREGISTER
 
 Command = _reflection.GeneratedProtocolMessageType('Command', (_message.Message,), dict(
@@ -297,12 +297,12 @@ Pong = _reflection.GeneratedProtocolMessageType('Pong', (_message.Message,), dic
   ))
 _sym_db.RegisterMessage(Pong)
 
-Shutdown = _reflection.GeneratedProtocolMessageType('Shutdown', (_message.Message,), dict(
-  DESCRIPTOR = _SHUTDOWN,
+ExternalShutdown = _reflection.GeneratedProtocolMessageType('ExternalShutdown', (_message.Message,), dict(
+  DESCRIPTOR = _EXTERNALSHUTDOWN,
   __module__ = 'kismet_pb2'
-  # @@protoc_insertion_point(class_scope:KismetExternal.Shutdown)
+  # @@protoc_insertion_point(class_scope:KismetExternal.ExternalShutdown)
   ))
-_sym_db.RegisterMessage(Shutdown)
+_sym_db.RegisterMessage(ExternalShutdown)
 
 SystemRegister = _reflection.GeneratedProtocolMessageType('SystemRegister', (_message.Message,), dict(
   DESCRIPTOR = _SYSTEMREGISTER,

@@ -496,7 +496,7 @@ class ExternalInterface(object):
         self.last_pong = time.time()
 
     def __handle_shutdown(self, seqno, packet):
-        shutdown = kismet_pb2.Shutdown()
+        shutdown = kismet_pb2.ExternalShutdown()
         shutdown.ParseFromString(packet)
         self.kill()
 
