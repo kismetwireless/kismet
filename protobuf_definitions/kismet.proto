@@ -46,7 +46,7 @@ message Pong {
 }
 
 // Shut down the connection (bidirectional)
-message Shutdown {
+message ExternalShutdown {
     required string reason = 1;
 }
 

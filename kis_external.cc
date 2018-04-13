@@ -372,7 +372,7 @@ void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, std::string in_
 void KisExternalInterface::handle_packet_shutdown(uint32_t in_seqno, std::string in_content) {
     local_locker lock(&ext_mutex);
 
-    KismetExternal::Shutdown s;
+    KismetExternal::ExternalShutdown s;
     if (!s.ParseFromString(in_content)) {
         _MSG("Kismet external interface got an unparseable SHUTDOWN", MSGFLAG_ERROR);
         trigger_error("invalid SHUTDOWN");
@@ -412,7 +412,7 @@ unsigned int KisExternalInterface::send_shutdown(std::string reason) {
 
     c->set_command("SHUTDOWN");
 
-    KismetExternal::Shutdown s;
+    KismetExternal::ExternalShutdown s;
     s.set_reason(reason);
 
     c->set_content(s.SerializeAsString());
