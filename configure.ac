@@ -580,17 +580,11 @@ fi
 # We need to swap to the g++ compiler here
 oCC="$CC"
 CC="$CXX"
-AC_CHECK_LIB([uClibc++], [main],
-			 foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++")
-
-# Do we use uclibc++?
-if test "$foundcxxl"x == "x"; then
-	AC_CHECK_LIB([stdc++], [main],
-				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
-fi
+AC_CHECK_LIB([stdc++], [main],
+        foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 
 if test "$foundcxxl"x == "x" -a "$caponly" = 1; then
-	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
+	AC_MSG_ERROR(Neither standard gcc stdc++ libraries found.)
 fi
 CC="$oCC"
 AC_SUBST(CXXLIBS)

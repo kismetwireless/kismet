@@ -7214,44 +7214,7 @@ fi
 # We need to swap to the g++ compiler here
 oCC="$CC"
 CC="$CXX"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -luClibc++" >&5
-$as_echo_n "checking for main in -luClibc++... " >&6; }
-if ${ac_cv_lib_uClibcpp_main+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-luClibc++  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-
-int
-main ()
-{
-return main ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_uClibcpp_main=yes
-else
-  ac_cv_lib_uClibcpp_main=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_uClibcpp_main" >&5
-$as_echo "$ac_cv_lib_uClibcpp_main" >&6; }
-if test "x$ac_cv_lib_uClibcpp_main" = xyes; then :
-  foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++"
-fi
-
-
-# Do we use uclibc++?
-if test "$foundcxxl"x == "x"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lstdc++" >&5
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lstdc++" >&5
 $as_echo_n "checking for main in -lstdc++... " >&6; }
 if ${ac_cv_lib_stdcpp_main+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7285,10 +7248,9 @@ if test "x$ac_cv_lib_stdcpp_main" = xyes; then :
   foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++"
 fi
 
-fi
 
 if test "$foundcxxl"x == "x" -a "$caponly" = 1; then
-	as_fn_error $? "Neither uclibc uClibc++ or standard gcc stdc++ libraries found." "$LINENO" 5
+	as_fn_error $? "Neither standard gcc stdc++ libraries found." "$LINENO" 5
 fi
 CC="$oCC"
 
