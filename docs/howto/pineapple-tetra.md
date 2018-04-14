@@ -125,10 +125,20 @@ This will download all the third-party package definitions.
 We want to copy the Kismet package over, because we'll potentially be making some modifications.
 
 ```
-$ cp -R ~/src/kismet/packaging/openwrt/kismet-2018 ~/src/openwrt-master-tetra/package/network
+$ cp -R ~/src/kismet/packaging/openwrt/kismet-2018-tetra ~/src/openwrt-master-tetra/package/network
 ```
 
 Where, of course, you want to copy from your checked out Kismet code to the checked out OpenWRT Tetra code; your directories might be different.
+
+## Install libprotoc-c
+
+In a perfect world the libprotoc-c package in OpenWRT would install the proper host binary for protoc-c, but it does not.  Fortunately, there is only one version of libproto-c (the C-only version), so the package for your host distribution should be sufficient.
+
+```
+$ sudo apt-install protobuf-c-compiler
+```
+
+will suffice on Ubuntu-style distributions; your distribution may vary.  Note:  This is for the *protobuf-c* version, *not* the normal protobuf (which is C++, and which has a working openwrt package with proper host tools.)
 
 ## Enable Kismet
 
@@ -137,7 +147,7 @@ Now we need to enable the Kismet package.  Still in your OpenWRT directory:
 1. Enter OpenWRT configuration again:  `make menuconfig`
 2. Navigate to 'Network'
 3. Scroll all the way down to 'kismet', it will be several screens down.
-4. Enable kismet-2018 as a *module*.  Hit 'm' to do so.  If you have multiple kismet packages, make sure to select the right one - viewing the help on the entry will show you the version.
+4. Enable kismet-2018-tetra as a *module*.  Hit 'm' to do so.  If you have multiple kismet packages, make sure to select the right one - viewing the help on the entry will show you the version.
 5. Exit, saving when prompted to.
 
 ## Compile OpenWRT
@@ -162,7 +172,7 @@ If everything went well, you now have a bunch of packages to copy to your Tetra:
 
 ```
 $ cd bin/ar71xx/packages
-$ scp packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.8.1-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk packages/libsqlite3_3081101-1_ar71xx.ipk packages/protobuf_2.6.1-1_ar71xx.ipk packages/libprotobuf-c_v1.0.1_ar71xx.ipk base/kismet-2018_git-0_ar71xx.ipk root@172.16.42.1:/tmp
+$ scp packages/libmicrohttpd_0.9.38-1.2_ar71xx.ipk base/libpcap_1.8.1-1_ar71xx.ipk base/libnl_3.2.21-1_ar71xx.ipk base/libnettle_3.1.1-1_ar71xx.ipk packages/libgcrypt_1.6.1-1_ar71xx.ipk packages/libgpg-error_1.12-1_ar71xx.ipk base/libstdcpp_4.8-linaro-1_ar71xx.ipk packages/libcap_2.24-1_ar71xx.ipk packages/libpcre_8.39-1_ar71xx.ipk packages/libgnutls_3.4.15-1_ar71xx.ipk packages/libsqlite3_3081101-1_ar71xx.ipk packages/protobuf_2.6.1-1_ar71xx.ipk packages/libprotobuf-c_v1.0.1_ar71xx.ipk base/kismet-2018-tetra_git-0_ar71xx.ipk root@172.16.42.1:/tmp
 ```
 
 ## If you're rebuilding the latest Git
