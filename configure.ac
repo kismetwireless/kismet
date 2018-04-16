@@ -272,7 +272,12 @@ if test "$want_python"x == "no"x; then
     BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
     AC_MSG_WARN([Disabling Python and Python-related tools])
 else
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+    AC_PYTHON_MODULE(setuptools)
+    if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
+        AC_MSG_ERROR([Missing python-setuptools, if you would like to build without python entirely, use --disable-python, otherwise install python-setuptools])
+    else
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+    fi
 fi
 AC_SUBST(BUILD_PYTHON_MODULES)
 

@@ -5774,7 +5774,32 @@ if test "$want_python"x == "no"x; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling Python and Python-related tools" >&5
 $as_echo "$as_me: WARNING: Disabling Python and Python-related tools" >&2;}
 else
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python module: setuptools" >&5
+$as_echo_n "checking python module: setuptools... " >&6; }
+	python -c "import setuptools" 2>/dev/null
+	if test $? -eq 0;
+	then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		eval HAVE_PYMOD_SETUPTOOLS=yes
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		eval HAVE_PYMOD_SETUPTOOLS=no
+		#
+		if test -n ""
+		then
+			as_fn_error $? "failed to find required module setuptools" "$LINENO" 5
+			exit 1
+		fi
+	fi
+
+    if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
+        as_fn_error $? "Missing python-setuptools, if you would like to build without python entirely, use --disable-python, otherwise install python-setuptools" "$LINENO" 5
+    else
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+    fi
 fi
 
 
