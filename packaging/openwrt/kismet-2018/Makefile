@@ -50,8 +50,8 @@ CONFIGURE_ARGS += \
 
 # Override libs to force lpthread because we don't detect it properly on openwrt
 CONFIGURE_VARS += \
-	CXXFLAGS="$$$$CXXFLAGS -msoft-float" \
-    CFLAGS+="$$$$CFLAGS -msoft-float " \
+	CXXFLAGS="$$$$CXXFLAGS " \
+    CFLAGS+="$$$$CFLAGS " \
 	LIBS="-lm -lpthread" 
 
 define Build/Compile
