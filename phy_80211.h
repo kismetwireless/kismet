@@ -884,7 +884,7 @@ class dot11_client : public tracker_component {
                     "number of retried packets", &num_retries);
 
             __RegisterComplexField(kis_tracked_location, location_id, 
-                    "client.location", "location");
+                    "dot11.client.location", "location");
         }
 
         virtual void reserve_fields(SharedTrackerElement e) {
