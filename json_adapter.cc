@@ -56,31 +56,10 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     }
 
     if (e == NULL) {
-        stream << "0";
         return;
     }
 
     SerializerScope s(e, name_map);
-
-    TrackerElement::tracked_vector *tvec;
-    TrackerElement::vector_iterator vec_iter;
-
-    TrackerElement::tracked_map *tmap;
-    TrackerElement::map_iterator map_iter;
-
-    TrackerElement::tracked_int_map *tintmap;
-    TrackerElement::int_map_iterator int_map_iter;
-
-    TrackerElement::tracked_mac_map *tmacmap;
-    TrackerElement::mac_map_iterator mac_map_iter;
-
-    TrackerElement::tracked_string_map *tstringmap;
-    TrackerElement::string_map_iterator string_map_iter;
-
-    TrackerElement::tracked_double_map *tdoublemap;
-    TrackerElement::double_map_iterator double_map_iter;
-
-    TrackerElement::tracked_key_map *tkeymap;
 
     mac_addr mac;
     uuid euuid;
@@ -88,6 +67,8 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
     std::string tname;
 
     std::shared_ptr<uint8_t> bytes;
+
+    bool prepend_comma;
 
     size_t sz;
     std::ios::fmtflags fflags;
@@ -146,33 +127,44 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             stream << "\"" << GetTrackerValue<TrackedDeviceKey>(e).as_string() << "\"";
             break;
         case TrackerVector:
-            tvec = e->get_vector();
             stream << ppendl << indent << "[" << ppendl;
-            for (vec_iter = tvec->begin(); vec_iter != tvec->end(); /* */ ) {
+
+            prepend_comma = false;
+
+            for (auto i : *(e->get_vector())) {
+                if (i == NULL)
+                    continue;
+
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
                 if (prettyprint)
                     stream << indent;
 
-                JsonAdapter::Pack(globalreg, stream, *vec_iter, name_map,
+                JsonAdapter::Pack(globalreg, stream, i, name_map,
                         prettyprint, depth + 1);
-
-                if (++vec_iter != tvec->end())
-                    stream << ",";
 
                 stream << ppendl;
             }
             stream << indent << "]";
             break;
         case TrackerMap:
-            tmap = e->get_map();
-            
             stream << ppendl << indent << "{" << ppendl;
 
-            for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
+            prepend_comma = false;
+            for (auto i : *(e->get_map())) {
+                if (i.second == NULL)
+                    continue;
+
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
                 bool named = false;
 
                 if (name_map != NULL) {
-                    TrackerElementSerializer::rename_map::iterator nmi = 
-                        name_map->find(map_iter->second);
+                    TrackerElementSerializer::rename_map::iterator nmi = name_map->find(i.second);
                     if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
                         tname = nmi->second->rename;
                         named = true;
@@ -180,12 +172,11 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 }
 
                 if (!named) {
-                    if (map_iter->second == NULL) {
-                        tname = globalreg->entrytracker->GetFieldName(map_iter->first);
+                    if (i.second == NULL) {
+                        tname = globalreg->entrytracker->GetFieldName(i.first);
                     } else {
-                        if ((tname = map_iter->second->get_local_name()) == "")
-                            tname = 
-                                globalreg->entrytracker->GetFieldName(map_iter->first);
+                        if ((tname = i.second->get_local_name()) == "")
+                            tname = globalreg->entrytracker->GetFieldName(i.first);
                     }
                 }
 
@@ -194,20 +185,17 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 if (prettyprint) {
                     stream << indent << "\"description." << tname << "\": ";
                     stream << "\"";
-                    stream << SanitizeString(TrackerElement::type_to_string(globalreg->entrytracker->GetFieldType(map_iter->first)));
+                    stream << SanitizeString(TrackerElement::type_to_string(globalreg->entrytracker->GetFieldType(i.first)));
                     stream << ", ";
-                    stream << SanitizeString(globalreg->entrytracker->GetFieldDescription(map_iter->first));
+                    stream << SanitizeString(globalreg->entrytracker->GetFieldDescription(i.first));
                     stream << "\",";
                     stream << ppendl;
                 }
 
                 stream << indent << "\"" << tname << "\": ";
 
-                JsonAdapter::Pack(globalreg, stream, map_iter->second, name_map, 
+                JsonAdapter::Pack(globalreg, stream, i.second, name_map, 
                         prettyprint, depth + 1);
-
-                if (++map_iter != tmap->end()) // Increment iter in loop
-                    stream << ",";
 
                 stream << ppendl << ppendl;
             }
@@ -215,91 +203,104 @@ void JsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
             break;
         case TrackerIntMap:
-            tintmap = e->get_intmap();
-
             stream << ppendl << indent << "{" << ppendl;
 
-            for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); /* */) {
-                // Integer dictionary keys in json are still quoted as strings
-                stream << indent << "\"" << int_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, int_map_iter->second, name_map,
-                        prettyprint, depth + 1);
+            prepend_comma = false;
+            for (auto i : *(e->get_intmap())) {
+                if (i.second == NULL)
+                    continue;
 
-                if (++int_map_iter != tintmap->end()) // Increment iter in loop
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Integer dictionary keys in json are still quoted as strings
+                stream << indent << "\"" << i.first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, i.second, name_map,
+                        prettyprint, depth + 1);
 
                 stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerMacMap:
-            tmacmap = e->get_macmap();
-
             stream << ppendl << indent << "{" << ppendl;
 
-            for (mac_map_iter = tmacmap->begin(); 
-                    mac_map_iter != tmacmap->end(); /* */) {
-                // Mac keys are strings and we push only the mac not the mask */
-                stream << indent << "\"" << mac_map_iter->first.Mac2String() << "\": ";
-                JsonAdapter::Pack(globalreg, stream, mac_map_iter->second, name_map,
-                        prettyprint, depth + 1);
+            prepend_comma = false;
+            for (auto i : *(e->get_macmap())) {
+                if (i.second == NULL)
+                    continue;
 
-                if (++mac_map_iter != tmacmap->end())
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Mac keys are strings and we push only the mac not the mask */
+                stream << indent << "\"" << i.first.Mac2String() << "\": ";
+                JsonAdapter::Pack(globalreg, stream, i.second, name_map,
+                        prettyprint, depth + 1);
 
                 stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerStringMap:
-            tstringmap = e->get_stringmap();
-
             stream << ppendl << indent << "{" << ppendl;
 
-            for (string_map_iter = tstringmap->begin();
-                    string_map_iter != tstringmap->end(); /* */) {
+            prepend_comma = false;
+            for (auto i : *(e->get_stringmap())) {
+                if (i.second == NULL)
+                    continue;
 
-                stream << indent << "\"" << string_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, string_map_iter->second, name_map,
-                        prettyprint, depth + 1);
-
-                if (++string_map_iter != tstringmap->end())
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                stream << indent << "\"" << JsonAdapter::SanitizeString(i.first) << "\": ";
+                JsonAdapter::Pack(globalreg, stream, i.second, name_map,
+                        prettyprint, depth + 1);
 
                 stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerDoubleMap:
-            tdoublemap = e->get_doublemap();
-
             stream << ppendl << indent << "{" << ppendl;
 
-            for (double_map_iter = tdoublemap->begin();
-                    double_map_iter != tdoublemap->end(); /* */) {
-                // Double keys are handled as strings in json
-                stream << indent << "\"" << std::fixed << double_map_iter->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map,
-                        prettyprint, depth + 1);
-                if (++double_map_iter != tdoublemap->end())
+            prepend_comma = false;
+            for (auto i : *(e->get_doublemap())) {
+                if (i.second == NULL)
+                    continue;
+
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Double keys are handled as strings in json
+                stream << indent << "\"" << std::fixed << i.first << "\": ";
+                JsonAdapter::Pack(globalreg, stream, i.second, name_map,
+                        prettyprint, depth + 1);
 
                 stream << ppendl;
             }
             stream << indent << "}";
             break;
         case TrackerKeyMap:
-            tkeymap = e->get_keymap();
-
             stream << ppendl << indent << "{" << ppendl;
 
-            for (auto i = tkeymap->begin(); i != tkeymap->end(); /* */) {
-                // Keymap keys are handled as strings
-                stream << indent << "\"" << i->first << "\": ";
-                JsonAdapter::Pack(globalreg, stream, i->second, name_map,
-                        prettyprint, depth + 1);
-                if (++i != tkeymap->end())
+            prepend_comma = false;
+            for (auto i : *(e->get_keymap())) {
+                if (i.second == NULL)
+                    continue;
+
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Keymap keys are handled as strings
+                stream << indent << "\"" << i.first << "\": ";
+                JsonAdapter::Pack(globalreg, stream,i.second, name_map,
+                        prettyprint, depth + 1);
                 stream << ppendl;
             }
             stream << indent << "}";
@@ -338,26 +339,6 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
     SerializerScope s(e, name_map);
 
-    TrackerElement::tracked_vector *tvec;
-    TrackerElement::vector_iterator vec_iter;
-
-    TrackerElement::tracked_map *tmap;
-    TrackerElement::map_iterator map_iter;
-
-    TrackerElement::tracked_int_map *tintmap;
-    TrackerElement::int_map_iterator int_map_iter;
-
-    TrackerElement::tracked_mac_map *tmacmap;
-    TrackerElement::mac_map_iterator mac_map_iter;
-
-    TrackerElement::tracked_string_map *tstringmap;
-    TrackerElement::string_map_iterator string_map_iter;
-
-    TrackerElement::tracked_double_map *tdoublemap;
-    TrackerElement::double_map_iterator double_map_iter;
-
-    TrackerElement::tracked_key_map *tkeymap;
-
     mac_addr mac;
     uuid euuid;
     TrackedDeviceKey key;
@@ -368,6 +349,8 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
     size_t sz;
     std::ios::fmtflags fflags;
+
+    bool prepend_comma;
 
     // Every record gets wrapped into it's own object export with metadata
     stream << "{";
@@ -440,27 +423,37 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
             stream << "\"" << key << "\"";
             break;
         case TrackerVector:
-            tvec = e->get_vector();
             stream << "[";
-            for (vec_iter = tvec->begin(); vec_iter != tvec->end(); /* */ ) {
-                StorageJsonAdapter::Pack(globalreg, stream, *vec_iter, name_map);
 
-                if (++vec_iter != tvec->end())
+            prepend_comma = false;
+            for (auto i : *(e->get_vector())) {
+                if (i == NULL)
+                    continue;
+
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                StorageJsonAdapter::Pack(globalreg, stream, i, name_map);
             }
             stream << "]";
             break;
         case TrackerMap:
-            tmap = e->get_map();
-            
             stream << "{";
 
-            for (map_iter = tmap->begin(); map_iter != tmap->end(); /* */) {
+            prepend_comma = false;
+            for (auto i : *(e->get_map())) {
+                if (i.second == NULL)
+                    continue;
+
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
                 bool named = false;
 
                 if (name_map != NULL) {
-                    TrackerElementSerializer::rename_map::iterator nmi = 
-                        name_map->find(map_iter->second);
+                    TrackerElementSerializer::rename_map::iterator nmi = name_map->find(i.second);
                     if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
                         tname = nmi->second->rename;
                         named = true;
@@ -468,12 +461,12 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
                 }
 
                 if (!named) {
-                    if (map_iter->second == NULL) {
-                        tname = globalreg->entrytracker->GetFieldName(map_iter->first);
+                    if (i.second == NULL) {
+                        tname = globalreg->entrytracker->GetFieldName(i.first);
                     } else {
-                        if ((tname = map_iter->second->get_local_name()) == "")
+                        if ((tname = i.second->get_local_name()) == "")
                             tname = 
-                                globalreg->entrytracker->GetFieldName(map_iter->first);
+                                globalreg->entrytracker->GetFieldName(i.first);
                     }
                 }
 
@@ -481,87 +474,97 @@ void StorageJsonAdapter::Pack(GlobalRegistry *globalreg, std::ostream &stream,
 
                 stream << "\"" << tname << "\":";
 
-                StorageJsonAdapter::Pack(globalreg, stream, map_iter->second, name_map);
-
-                if (++map_iter != tmap->end()) // Increment iter in loop
-                    stream << ",";
+                StorageJsonAdapter::Pack(globalreg, stream, i.second, name_map);
             }
             stream << "}";
 
             break;
         case TrackerIntMap:
-            tintmap = e->get_intmap();
-
             stream << "{";
 
-            for (int_map_iter = tintmap->begin(); int_map_iter != tintmap->end(); /* */) {
-                // Integer dictionary keys in json are still quoted as strings
-                stream << "\"" << int_map_iter->first << "\": ";
-                StorageJsonAdapter::Pack(globalreg, stream, int_map_iter->second, name_map);
+            prepend_comma = false;
+            for (auto i : *(e->get_intmap())) {
+                if (i.second == NULL)
+                    continue;
 
-                if (++int_map_iter != tintmap->end()) // Increment iter in loop
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Integer dictionary keys in json are still quoted as strings
+                stream << "\"" << i.first << "\": ";
+                StorageJsonAdapter::Pack(globalreg, stream, i.second, name_map);
             }
             stream << "}";
             break;
         case TrackerMacMap:
-            tmacmap = e->get_macmap();
-
             stream << "{";
 
-            for (mac_map_iter = tmacmap->begin(); 
-                    mac_map_iter != tmacmap->end(); /* */) {
-                // Mac keys are strings and we push only the mac not the mask */
-                stream << "\"" << mac_map_iter->first.Mac2String() << "\": ";
-                StorageJsonAdapter::Pack(globalreg, stream, mac_map_iter->second, name_map);
+            prepend_comma = false;
+            for (auto i : *(e->get_macmap())) {
+                if (i.second == NULL)
+                    continue;
 
-                if (++mac_map_iter != tmacmap->end())
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Mac keys are strings and we push only the mac not the mask */
+                stream << "\"" << i.first.Mac2String() << "\": ";
+                StorageJsonAdapter::Pack(globalreg, stream, i.second, name_map);
             }
             stream << "}";
             break;
         case TrackerStringMap:
-            tstringmap = e->get_stringmap();
-
             stream << "{";
 
-            for (string_map_iter = tstringmap->begin();
-                    string_map_iter != tstringmap->end(); /* */) {
+            prepend_comma = false;
+            for (auto i : *(e->get_stringmap())) {
+                if (i.second == NULL)
+                    continue;
 
-                stream << "\"" << string_map_iter->first << "\": ";
-                StorageJsonAdapter::Pack(globalreg, stream, string_map_iter->second, name_map);
-
-                if (++string_map_iter != tstringmap->end())
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                stream << "\"" << JsonAdapter::SanitizeString(i.first) << "\": ";
+                StorageJsonAdapter::Pack(globalreg, stream, i.second, name_map);
             }
             stream << "}";
             break;
         case TrackerDoubleMap:
-            tdoublemap = e->get_doublemap();
-
             stream << "{";
 
-            for (double_map_iter = tdoublemap->begin();
-                    double_map_iter != tdoublemap->end(); /* */) {
-                // Double keys are handled as strings in json
-                stream << "\"" << std::fixed << double_map_iter->first << "\": ";
-                StorageJsonAdapter::Pack(globalreg, stream, double_map_iter->second, name_map);
-                if (++double_map_iter != tdoublemap->end())
+            prepend_comma = false;
+            for (auto i : *(e->get_doublemap())) {
+                if (i.second == NULL)
+                    continue;
+
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Double keys are handled as strings in json
+                stream << "\"" << std::fixed << i.first << "\": ";
+                StorageJsonAdapter::Pack(globalreg, stream, i.second, name_map);
             }
             stream << "}";
             break;
         case TrackerKeyMap:
-            tkeymap = e->get_keymap();
-
             stream << "{";
 
-            for (auto i = tkeymap->begin(); i != tkeymap->end(); /* */) {
-                // Keymap keys are handled as strings
-                stream << "\"" << i->first << "\": ";
-                StorageJsonAdapter::Pack(globalreg, stream, i->second, name_map);
-                if (++i != tkeymap->end())
+            prepend_comma = false;
+            for (auto i : *(e->get_keymap())) {
+                if (i.second == NULL)
+                    continue;
+
+                if (prepend_comma)
                     stream << ",";
+                prepend_comma = true;
+
+                // Keymap keys are handled as strings
+                stream << "\"" << i.first << "\": ";
+                StorageJsonAdapter::Pack(globalreg, stream, i.second, name_map);
             }
             stream << "}";
             break;
