@@ -1322,14 +1322,21 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
 
                 // Trigger 'error' when the function is complete & returns a 'complete' value;
                 // causing us to finish the stream; if the stream returns a MHD_NO we expect
-                // it to close its stream itself later
-                if (r == MHD_YES) {
+                // it to close its stream itself later; if we have an exception, treat it as
+                // the stream closing
+                try {
+                    if (r == MHD_YES) {
+                        aux->sync();
+                        aux->trigger_error();
+                    }
+                } catch (std::exception& e) {
                     aux->sync();
                     aux->trigger_error();
                 }
 
                 });
 
+        // We unlock when the generator thread has started
         cl.block_until();
 
         connection->response = 
