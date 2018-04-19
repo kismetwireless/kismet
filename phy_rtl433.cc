@@ -244,7 +244,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         }
 
         if (!set_id) {
-            commondev->set_rtlid(0);
+            commondev->set_rtlid("");
         }
 
         commondev->set_rtlchannel("0");
