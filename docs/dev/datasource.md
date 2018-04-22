@@ -80,14 +80,17 @@ Datasources uses `KDSDATAREPORT` to send packets, signal data, and GPS data to K
 
 ##### Content
 
-| Field    | Type                         | Content                                                      |
-| -------- | ---------------------------- | ------------------------------------------------------------ |
-| gps      | KismetDatasource.SubGps      | *Optional* GPS coordinates                                   |
-| message  | KismetExternal.MsgbusMessage | *Optional* Message to be sent to the user via the Kismet Messagebus system |
-| packet   | KismetDatasource.Packet      | *Optional* Packet content to be injected into the Kismet packetchain |
-| signal   | KismetDatasource.Signal      | *Optional* Signal or RSSI information which is not part of the packet data or packet headers. |
-| spectrum | KismetDatasource.Spectrum    | *Optional* Spectral data                                     |
-| warning  | string                       | *Optional* Warning message about the datasource, which will be placed into the datasource details |
+| Field          | Type                         | Content                                                      |
+| -------------- | ---------------------------- | ------------------------------------------------------------ |
+| gps            | KismetDatasource.SubGps      | *Optional* GPS coordinates                                   |
+| message        | KismetExternal.MsgbusMessage | *Optional* Message to be sent to the user via the Kismet Messagebus system |
+| packet         | KismetDatasource.SubPacket   | *Optional* Packet content to be injected into the Kismet packetchain |
+| signal         | KismetDatasource.SubSignal   | *Optional* Signal or RSSI information which is not part of the packet data or packet headers. |
+| spectrum       | KismetDatasource.SubSpectrum | *Optional* Spectral data                                     |
+| warning        | string                       | *Optional* Warning message about the datasource, which will be placed into the datasource details |
+| json           | KismetDatasource.SubJson     | *Optional* Arbitrary JSON record for non-packet device data  |
+| buffer         | KismetDatasource.SubBuffer   | *Optional* Arbitrary protobuf record for non-packet device data |
+| high_prec_time | double                       | *Optional* high-precision Posix timestamp with nanosecond precision, if available. |
 
 ##### Response
 
@@ -241,6 +244,17 @@ When the same data is used in multiple packets, it is typically placed in a `Kis
 
 Many `Sub...` blocks contain only a single field; these may be expanded in the future to contain multiple fields, depending on the requirements of the protocol.
 
+#### `KismetDatasource.SubBuffer`
+
+Some datasources may need to send a complete protobuf record for data; this can be accomplished with the SubBuffer structure, which contains simply:
+
+| Field     | Type   | Content                                     |
+| --------- | ------ | ------------------------------------------- |
+| time_sec  | uint64 | Timestamp of record, Posix second precision |
+| time_usec | uint64 | Timestamp of record, microseconds           |
+| type      | string | Arbitrary buffer type to help decoder       |
+| buffer    | bytes  | Packed protobuf buffer                      |
+
 #### `KismetDatasource.SubChannels`
 
 Basic list of channels.  Channels are reported as strings, as they can represent complex tuning options (Such as `6HT40+` for Wi-Fi).
@@ -282,6 +296,15 @@ Basic channel.  Channels are reported as strings, as they can represent complex 
 | time_usec | uint64 | GPS position timestamp as microsecond precision  |
 | type      | string | GPS type (As defined by GPS driver)              |
 | name      | string | GPS name (As defined by user)                    |
+
+#### `KisDatasource.SubJson`
+
+| Field     | Type   | Content                                     |
+| --------- | ------ | ------------------------------------------- |
+| time_sec  | uint64 | Message timestamp as Posix second precision |
+| time_usec | uint64 | Message timestamp as microsecond precision  |
+| type      | string | Message type to assist in parsing           |
+| json      | string | Message, in JSON                            |
 
 #### `KisDatasource.SubInterface`
 

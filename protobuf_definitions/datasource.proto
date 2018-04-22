@@ -54,6 +54,20 @@ message SubPacket {
     required bytes data = 5;
 }
 
+message SubJson {
+    required uint64 time_sec = 1;
+    required uint64 time_usec = 2;
+    required string type = 3;
+    required string json = 4;
+}
+
+message SubBuffer {
+    required uint64 time_sec = 1;
+    required uint64 time_usec = 2;
+    required string type = 3;
+    required bytes buffer = 4;
+}
+
 // Signal metadata
 message SubSignal {
     optional double signal_dbm = 1;
@@ -123,6 +137,9 @@ message DataReport {
     optional SubSignal signal = 4;
     optional SubSpectrum spectrum = 5;
     optional string warning = 6;
+    optional SubJson json = 7;
+    optional SubBuffer buffer = 8;
+    optional double high_prec_time = 9;
 }
 
 // Fatal error (Driver->Kismet)
