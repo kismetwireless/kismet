@@ -3,6 +3,8 @@ syntax = "proto2";
 import "kismet.proto";
 import "datasource.proto";
 
+// DEPRECATED - This is being moved to the new datareport SubJson field for direct logging
+
 package KismetSdrRtl433;
 
 // RTL433 report; rtl_433 gives us JSON, we pass it on

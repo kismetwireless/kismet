@@ -5,6 +5,9 @@ import "datasource.proto";
 
 package KismetLinuxBluetooth;
 
+// DEPRECATED:  This is being moved to the newer data report format into the json field
+// for direct logging
+
 message SubLinuxBluetoothDevice {
     required uint64 time_sec = 1;
     required uint64 time_usec = 2;

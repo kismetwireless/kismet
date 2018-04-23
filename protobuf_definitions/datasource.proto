@@ -36,6 +36,7 @@ message SubGps {
     required uint64 time_usec = 9;
     required string type = 10;
     required string name = 11;
+    optional double high_prec_time = 12;
 }
 
 // Possible interface
