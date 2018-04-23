@@ -988,6 +988,16 @@ xx. Remote Packet Capture
 
         Places the capture tool in the background and daemonizes it.
 
+    --fixed-gps [lat,lon,alt] or [lat,lon]
+
+        Set the GPS location of the remote capture source; this will tag any 
+        packets from this source with a static, fixed GPS location.
+
+    --gps-name [name]
+
+        Rename the virtual GPS reported on this source; otherwise the capture
+        name "fixed-remote" is used.
+
 xx. Tuning Kismet Packet Capture
 
     Kismet has a number of tuning options to handle quirks in different types 

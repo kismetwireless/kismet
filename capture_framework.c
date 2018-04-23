@@ -332,6 +332,12 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     /* Disable daemon mode by default */
     ch->daemonize = 0;
 
+    /* Zero the GPS */
+    ch->gps_fixed_lat = 0;
+    ch->gps_fixed_lon = 0;
+    ch->gps_fixed_alt = 0;
+    ch->gps_name = NULL;
+
     /* Allocate a smaller incoming ringbuffer since most of our traffic is
      * on the outgoing channel */
     ch->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
@@ -688,9 +694,15 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "disable-retry", no_argument, 0, 5 },
         { "daemonize", no_argument, 0, 6},
         { "list", no_argument, 0, 7},
+        { "fixed-gps", required_argument, 0, 8},
+        { "gps-name", required_argument, 0, 9},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
+
+    char *gps_arg = NULL;
+
+    int pr;
 
     while (1) {
         int r = getopt_long(argc, argv, "h-", longopt, &option_idx);
@@ -730,6 +742,10 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             cf_handler_list_devices(caph);
             cf_handler_free(caph);
             exit(1);
+        } else if (r == 8) {
+            gps_arg = strdup(optarg);
+        } else if (r == 9) {
+            caph->gps_name = strdup(optarg);
         }
     }
 
@@ -737,6 +753,28 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         fprintf(stderr, 
                 "WARNING: Ignoring --source option when not connecting to a remote host\n");
     }
+
+    if (caph->remote_host == NULL && gps_arg != NULL) {
+        fprintf(stderr, 
+                "WARNING: Ignoring --fixed-gps option when not connecting to a remote host\n");
+    }
+
+    if (gps_arg != NULL) {
+        pr = sscanf(gps_arg, "%lf,%lf,%lf", 
+                &(caph->gps_fixed_lat), &(caph->gps_fixed_lon),
+                &(caph->gps_fixed_alt));
+
+        if (pr == 2) {
+            caph->gps_fixed_alt = 0;
+        } else if (pr < 2) {
+            fprintf(stderr, 
+                    "FATAL:  --fixed-gps expects lat,lon or lat,lon,alt\n");
+            return -1;
+        }
+
+        free(gps_arg);
+    }
+
 
     if (caph->remote_host != NULL) {
         /* Must have a --source to present to the remote host */
@@ -777,6 +815,9 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
                 "                             remote capture.\n"
                 " --disable-retry             Do not attempt to reconnect to a remote server\n"
                 "                             if there is an error; exit immediately\n"
+                " --fixed-gps [lat,lon,alt]   Set a fixed location for this capture (remote only),\n"
+                "                             accepts lat,lon,alt or lat,lon\n"
+                " --gps-name [name]           Set an alternate GPS name for this source\n"
                 " --daemonize                 Background the capture tool and enter daemon\n"
                 "                             mode.\n"
                 " --list                      List supported devices detected\n",
@@ -2416,13 +2457,38 @@ int cf_send_data(kis_capture_handler_t *caph,
 
     KismetDatasource__DataReport kedata;
     KismetDatasource__SubPacket kepkt;
+    KismetDatasource__SubGps kegps;
 
     kismet_datasource__data_report__init(&kedata);
     kismet_datasource__sub_packet__init(&kepkt);
+    kismet_datasource__sub_gps__init(&kegps);
 
-    kedata.gps = kv_gps;
     kedata.signal = kv_signal;
     kedata.message = kv_message;
+
+    if (kv_gps != NULL) {
+        kedata.gps = kv_gps;
+    } else if (caph->gps_fixed_lat != 0) {
+        struct timeval tv;
+
+        kegps.lat = caph->gps_fixed_lat;
+        kegps.lon = caph->gps_fixed_lon;
+        kegps.alt = caph->gps_fixed_alt;
+        kegps.fix = 3;
+
+        gettimeofday(&tv, NULL);
+        kegps.time_sec = tv.tv_sec;
+        kegps.time_usec = tv.tv_usec;
+
+        kegps.type = strdup("remote-fixed");
+
+        if (caph->gps_name != NULL)
+            kegps.name = strdup(caph->gps_name);
+        else
+            kegps.name = strdup("remote-fixed");
+
+        kedata.gps = &kegps;
+    }
 
     if (packet_sz > 0 && pack != NULL) {
         kepkt.time_sec = ts.tv_sec;
@@ -2446,6 +2512,11 @@ int cf_send_data(kis_capture_handler_t *caph,
     }
 
     kismet_datasource__data_report__pack(&kedata, buf);
+
+    if (kegps.name != NULL)
+        free(kegps.name);
+    if (kegps.type != NULL)
+        free(kegps.type);
 
     return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
 }

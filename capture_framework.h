@@ -329,6 +329,12 @@ struct kis_capture_handler {
     unsigned int channel_hop_shuffle_spacing;
 
     int channel_hop_offset;
+
+    /* Fixed GPS location from command line */
+    double gps_fixed_lat, gps_fixed_lon, gps_fixed_alt;
+
+    /* Fixed GPS name */
+    char *gps_name;
 };
 
 

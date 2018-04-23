@@ -283,19 +283,20 @@ Basic channel.  Channels are reported as strings, as they can represent complex 
 
 #### `KismetDatasource.SubGps`
 
-| Field     | Type   | Content                                          |
-| --------- | ------ | ------------------------------------------------ |
-| lat       | double | Latitude                                         |
-| lon       | double | Longitude                                        |
-| alt       | double | Altitude (meters)                                |
-| speed     | double | Speed (kph)                                      |
-| heading   | double | Heading (degrees)                                |
-| precision | double | Location precision (meters)                      |
-| fix       | uint32 | GPS fix quality (2 = 2d, 3 = 3d)                 |
-| time_sec  | uint64 | GPS position timestamp as Posix second precision |
-| time_usec | uint64 | GPS position timestamp as microsecond precision  |
-| type      | string | GPS type (As defined by GPS driver)              |
-| name      | string | GPS name (As defined by user)                    |
+| Field          | Type   | Content                                          |
+| -------------- | ------ | ------------------------------------------------ |
+| lat            | double | Latitude                                         |
+| lon            | double | Longitude                                        |
+| alt            | double | Altitude (meters)                                |
+| speed          | double | Speed (kph)                                      |
+| heading        | double | Heading (degrees)                                |
+| precision      | double | Location precision (meters)                      |
+| fix            | uint32 | GPS fix quality (2 = 2d, 3 = 3d)                 |
+| time_sec       | uint64 | GPS position timestamp as Posix second precision |
+| time_usec      | uint64 | GPS position timestamp as microsecond precision  |
+| type           | string | GPS type (As defined by GPS driver)              |
+| name           | string | GPS name (As defined by user)                    |
+| high_prec_time | double | *Optional* High-precision second+nanosecond time |
 
 #### `KisDatasource.SubJson`
 
