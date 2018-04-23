@@ -356,6 +356,9 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    /* Support remote capture by launching the remote loop */
+    cf_handler_remote_capture(caph);
+
     cf_handler_loop(caph);
 
     cf_handler_free(caph);
