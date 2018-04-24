@@ -42,6 +42,9 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
+    plugin_registry.reset(new TrackerElement(TrackerVector));
+    plugin_registry_vec = TrackerElementVector(plugin_registry);
+
     int option_idx = 0;
     int cmdline_disable = 0;
     int config_disable = 0;
@@ -80,9 +83,6 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     }
 
     plugins_active = 1;
-
-    plugin_registry.reset(new TrackerElement(TrackerVector));
-    plugin_registry_vec = TrackerElementVector(plugin_registry);
 }
 
 Plugintracker::~Plugintracker() {
