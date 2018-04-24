@@ -55,6 +55,8 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
     pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
 	pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+    pack_comp_json = packetchain->RegisterPacketComponent("JSON");
+    pack_comp_protobuf = packetchain->RegisterPacketComponent("PROTOBUF");
 
     error_timer_id = -1;
     ping_timer_id = -1;
@@ -1057,23 +1059,70 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, std::string in_
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
-    kis_packet *packet = NULL;
-    kis_layer1_packinfo *siginfo = NULL;
-    kis_gps_packinfo *gpsinfo = NULL;
+    kis_packet *packet = packetchain->GeneratePacket();
 
-    // No packet?  Nothing to do!
-    if (!report.has_packet()) {
-        return;
+    // Process the data chunk
+    if (report.has_packet()) {
+        kis_datachunk *datachunk = new kis_datachunk();
+
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            packet->ts.tv_sec = report.packet().time_sec();
+            packet->ts.tv_usec = report.packet().time_usec();
+        }
+
+        datachunk->dlt = report.packet().dlt();
+        datachunk->copy_data((const uint8_t *) report.packet().data().data(), 
+                report.packet().data().length());
+
+        packet->insert(pack_comp_linkframe, datachunk);
     }
 
-    packet = handle_sub_packet(report.packet());
+    // Process JSON
+    if (report.has_json()) {
+        kis_json_packinfo *jsoninfo = new kis_json_packinfo();
+      
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            packet->ts.tv_sec = report.json().time_sec();
+            packet->ts.tv_usec = report.json().time_usec();
+        }
 
+        jsoninfo->type = report.json().type();
+        jsoninfo->json_string = report.json().json();
+
+        packet->insert(pack_comp_json, jsoninfo);
+    }
+
+    // Process protobufs
+    if (report.has_buffer()) {
+        kis_protobuf_packinfo *bufinfo = new kis_protobuf_packinfo();
+
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            packet->ts.tv_sec = report.buffer().time_sec();
+            packet->ts.tv_usec = report.buffer().time_usec();
+        }
+
+        bufinfo->type = report.buffer().type();
+        bufinfo->buffer_string = report.buffer().buffer();
+
+        packet->insert(pack_comp_protobuf, bufinfo);
+    }
+
+    // Signal
     if (report.has_signal()) {
+        kis_layer1_packinfo *siginfo = NULL;
         siginfo = handle_sub_signal(report.signal());
         packet->insert(pack_comp_l1info, siginfo);
     }
 
+    // GPS
     if (report.has_gps()) {
+        kis_gps_packinfo *gpsinfo = NULL;
         gpsinfo = handle_sub_gps(report.gps());
         packet->insert(pack_comp_gps, gpsinfo);
     }
@@ -1164,27 +1213,6 @@ kis_gps_packinfo *KisDatasource::handle_sub_gps(KismetDatasource::SubGps in_gps)
     gpsinfo->gpsname = in_gps.name();
 
     return gpsinfo;
-}
-
-kis_packet *KisDatasource::handle_sub_packet(KismetDatasource::SubPacket in_packet) {
-    // Extract a packet record
-    
-    kis_packet *packet = packetchain->GeneratePacket();
-    kis_datachunk *datachunk = new kis_datachunk();
-
-    if (clobber_timestamp && get_source_remote()) {
-        gettimeofday(&(packet->ts), NULL);
-    } else {
-        packet->ts.tv_sec = in_packet.time_sec();
-        packet->ts.tv_usec = in_packet.time_usec();
-    }
-
-    datachunk->dlt = in_packet.dlt();
-    datachunk->copy_data((const uint8_t *) in_packet.data().data(), in_packet.data().length());
-
-    packet->insert(pack_comp_linkframe, datachunk);
-
-    return packet;
 }
 
 unsigned int KisDatasource::send_probe_source(std::string in_definition,

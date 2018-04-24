@@ -31,16 +31,9 @@ public:
     KisDatasourceRtl433(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
     virtual ~KisDatasourceRtl433();
 
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
-  
-    virtual void handle_packet_rtl433device(uint32_t in_seqno, std::string in_content);
-
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
             open_callback_t in_cb);
-    virtual bool process_rtl_json(kis_packet *packet, std::string in_json);
-
-    int pack_comp_rtl433, pack_comp_metablob;
 
 };
 

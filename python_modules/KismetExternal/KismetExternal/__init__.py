@@ -939,7 +939,7 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSWARNINGREPORT", report)
 
-    def send_datasource_data_report(self, message = None, warning = None, full_gps = None, full_signal = None, full_packet = None, full_spectrum = None, **kwargs):
+    def send_datasource_data_report(self, message = None, warning = None, full_gps = None, full_signal = None, full_packet = None, full_spectrum = None, full_json = None, full_buffer = None, **kwargs):
         """
         When operating as a Kismet datasource, send a data frame
 
@@ -949,6 +949,8 @@ class Datasource(ExternalInterface):
         :param full_signal: Optional full datasource_pb2.SubSignal record
         :param full_spectrum: Optional full datasource_pb2 SubSpectrum record
         :param full_packet: Optional full datasource_pb2.SubPacket record
+        :param full_json: Optional JSON record
+        :param full_buffer: Optional protobuf packed buffer
 
         :return: None
         """
@@ -973,6 +975,12 @@ class Datasource(ExternalInterface):
 
         if full_packet:
             report.packet.CopyFrom(full_packet)
+
+        if full_json:
+            report.json.CopyFrom(full_json)
+
+        if full_buffer:
+            report.buffer.CopyFrom(packed_buffer)
 
         if warning:
             report.warning = warning

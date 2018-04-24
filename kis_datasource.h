@@ -347,7 +347,6 @@ protected:
 
     // Break out packet generation sub-functions so that custom datasources can easily
     // piggyback onto the decoders
-    virtual kis_packet *handle_sub_packet(KismetDatasource::SubPacket in_packet);
     virtual kis_gps_packinfo *handle_sub_gps(KismetDatasource::SubGps in_gps);
     virtual kis_layer1_packinfo *handle_sub_signal(KismetDatasource::SubSignal in_signal);
 
@@ -546,7 +545,8 @@ protected:
     std::shared_ptr<Packetchain> packetchain;
 
     // Packet components we inject
-    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc;
+    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc,
+        pack_comp_json, pack_comp_protobuf;
 
     // Reference to the DST
     std::shared_ptr<Datasourcetracker> datasourcetracker;

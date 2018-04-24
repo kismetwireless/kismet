@@ -28,18 +28,6 @@
 #include "phyhandler.h"
 #include "kismet_json.h"
 
-class packet_info_rtl433 : public packet_component {
-public:
-    packet_info_rtl433(Json::Value in_json) {
-        json = in_json;
-        self_destruct = 1;
-    }
-
-    virtual ~packet_info_rtl433() { }
-
-    Json::Value json;
-};
-
 /* Similar to the extreme aggregator, a temperature aggregator which ignores empty
  * slots while aggregating and otherwise selects the most extreme value when a 
  * slot overlaps.  This fits a lot of generic situations in RTL433 sensors which
@@ -569,7 +557,7 @@ protected:
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id;
 
-    int pack_comp_common, pack_comp_rtl433;
+    int pack_comp_common, pack_comp_json, pack_comp_meta;
 
 };
 

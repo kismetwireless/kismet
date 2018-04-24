@@ -39,8 +39,10 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
-    pack_comp_rtl433 = 
-        packetchain->RegisterPacketComponent("RTL433JSON");
+    pack_comp_json = 
+        packetchain->RegisterPacketComponent("JSON");
+    pack_comp_meta =
+        packetchain->RegisterPacketComponent("METABLOB");
 
     rtl433_holder_id =
         entrytracker->RegisterField("rtl433.device", TrackerMap, 
@@ -546,11 +548,21 @@ int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    packet_info_rtl433 *rtlinfo = (packet_info_rtl433 *) in_pack->fetch(rtl433->pack_comp_rtl433);
-    if (rtlinfo == NULL)
+    kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(rtl433->pack_comp_json);
+    if (json == NULL)
         return 0;
 
-    rtl433->json_to_rtl(rtlinfo->json);
+    if (json->type != "RTL433")
+        return 0;
+
+    // Copy the JSON as the meta field for logging, if it's valid
+    if (rtl433->json_to_rtl(json->json_string)) {
+        packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
+        if (metablob == NULL) {
+            metablob = new packet_metablob("RTL433", json->json_string);
+            in_pack->insert(rtl433->pack_comp_meta, metablob);
+        }
+    }
 
     return 1;
 }
