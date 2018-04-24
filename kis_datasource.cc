@@ -1081,6 +1081,7 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, std::string in_
 
     // Process JSON
     if (report.has_json()) {
+        // fprintf(stderr, "debug - got JSON report- %s\n", report.json().json().c_str());
         kis_json_packinfo *jsoninfo = new kis_json_packinfo();
       
         if (clobber_timestamp && get_source_remote()) {

@@ -555,13 +555,23 @@ int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
     if (json->type != "RTL433")
         return 0;
 
-    // Copy the JSON as the meta field for logging, if it's valid
-    if (rtl433->json_to_rtl(json->json_string)) {
-        packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
-        if (metablob == NULL) {
-            metablob = new packet_metablob("RTL433", json->json_string);
-            in_pack->insert(rtl433->pack_comp_meta, metablob);
+    std::stringstream ss(json->json_string);
+    Json::Value device_json;
+
+    try {
+        ss >> device_json;
+
+        // Copy the JSON as the meta field for logging, if it's valid
+        if (rtl433->json_to_rtl(device_json)) {
+            packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
+            if (metablob == NULL) {
+                metablob = new packet_metablob("RTL433", json->json_string);
+                in_pack->insert(rtl433->pack_comp_meta, metablob);
+            }
         }
+    } catch (std::exception& e) {
+        // fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
+        return 0;
     }
 
     return 1;

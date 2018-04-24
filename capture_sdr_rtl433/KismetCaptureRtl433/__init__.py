@@ -407,6 +407,8 @@ class KismetRtl433(object):
             report.type = "RTL433"
             report.json = r
 
+            # print("python sending json report", r);
+
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
             print e
