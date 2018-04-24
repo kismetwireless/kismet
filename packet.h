@@ -87,6 +87,9 @@ public:
    
     void insert(const unsigned int index, packet_component *data);
     void *fetch(const unsigned int index) const;
+    template<class T> T* fetch(const unsigned int index) {
+        return static_cast<T*>(this->fetch(index));
+    }
     void erase(const unsigned int index);
 
     inline packet_component *operator[] (const unsigned int& index) const {
@@ -453,6 +456,30 @@ public:
 	// Checksum, if checksumming is enabled; Only of the non-header 
 	// data
 	uint32_t content_checkum;
+};
+
+// JSON as a raw string; parsing happens in the DS code; currently supports one JSON report
+// per packet, which is fine for the current design
+class kis_json_packinfo : public packet_component {
+public:
+    kis_json_packinfo() {
+        self_destruct = 1;
+    }
+
+    std::string type;
+    std::string json_string;
+};
+
+// Protobuf record as a raw string-like record; parsing happens in the DS code; currently
+// supports one protobuf report per packet, which is fine for the current design.
+class kis_protobuf_packinfo : public packet_component {
+public:
+    kis_protobuf_packinfo() {
+        self_destruct = 1;
+    }
+
+    std::string type;
+    std::string buffer_string;
 };
 
 #endif
