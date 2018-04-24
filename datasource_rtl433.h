@@ -28,7 +28,8 @@ typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
 
 class KisDatasourceRtl433 : public KisDatasource {
 public:
-    KisDatasourceRtl433(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
+    KisDatasourceRtl433(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder, 
+            bool in_mqtt);
     virtual ~KisDatasourceRtl433();
 
 protected:
@@ -66,7 +67,7 @@ public:
     virtual ~DatasourceRtl433Builder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this));
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this, false));
     }
 
     virtual void initialize() {
@@ -111,7 +112,7 @@ public:
     virtual ~DatasourceRtl433MqttBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this));
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this, true));
     }
 
     virtual void initialize() {

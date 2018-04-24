@@ -309,6 +309,9 @@ class KismetRtl433(object):
             ret['hardware'] = "MQTT"
             ret['uuid'] = self.__get_mqtt_uuid(options)
         else:
+            if self.mqtt_mode:
+                return None
+
             try:
                 intnum = int(source[7:])
             except ValueError:

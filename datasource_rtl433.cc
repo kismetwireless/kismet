@@ -24,7 +24,7 @@
 #include "protobuf_cpp/sdrrtl433.pb.h"
 
 KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
-        SharedDatasourceBuilder in_builder) :
+        SharedDatasourceBuilder in_builder, bool in_mqtt) :
     KisDatasource(in_globalreg, in_builder) {
 
     std::string devnum = MungeToPrintable(get_definition_opt("device"));
@@ -34,8 +34,14 @@ KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
         set_int_source_cap_interface("rtl433usb");
     }
 
-    set_int_source_hardware("rtlsdr");
-    set_int_source_ipc_binary("kismet_cap_sdr_rtl433");
+    if (!in_mqtt) {
+        set_int_source_hardware("rtlsdr");
+        set_int_source_ipc_binary("kismet_cap_sdr_rtl433");
+    } else {
+        set_int_source_hardware("rtlsdr-mqtt");
+        set_int_source_ipc_binary("kismet_cap_sdr_rtl433_mqtt");
+    }
+
 }
 
 KisDatasourceRtl433::~KisDatasourceRtl433() {
