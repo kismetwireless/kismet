@@ -2,11 +2,13 @@ include ../Makefile.inc
 
 MONITOR_BIN = kismet_cap_freaklabs_zigbee
 
+DESTDIR ?= /
+
 all: 
 	$(PYTHON2) ./setup.py build
 
 install:
-	$(PYTHON2) ./setup.py install
+	$(PYTHON2) ./setup.py install --root=$(DESTDIR)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
 
 clean:
