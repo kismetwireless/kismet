@@ -5777,7 +5777,7 @@ else
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python module: setuptools" >&5
 $as_echo_n "checking python module: setuptools... " >&6; }
-	python -c "import setuptools" 2>/dev/null
+	python2 -c "import setuptools" 2>/dev/null
 	if test $? -eq 0;
 	then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5

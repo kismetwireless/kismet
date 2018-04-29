@@ -17,7 +17,7 @@ include $(INCLUDE_DIR)/package.mk
 
 PKG_USE_MIPS16:=0
 
-HOST_BUILD_DEPENDS:=protobuf/host 
+PKG_BUILD_DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libncurses +libstdcpp +libsqlite3 +zlib +libprotobuf +libprotobuf-c
 
 define Package/kismet-2018
   SECTION:=net
@@ -42,16 +42,12 @@ CONFIGURE_ARGS += \
 	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
 	--disable-python \
-    --with-protoc=$(STAGING_DIR_HOSTPKG)/bin/protoc 
-    # This is quite dirty - We'd WANT protoc-c to be in the host tools, but the openwrt
-    # package doesn't make a host version, so we have to compile on the host; this works
-    # right now because there is only one version of protoc-c...
-    # --with-protocc=$(STAGING_DIR_HOSTPKG)/bin/protoc-c
+    --with-protoc=$(STAGING_DIR_HOST)/bin/protoc \
+    --with-protoc-c=$(STAGING_DIR_HOST)/bin/protoc-c
 
 # Override libs to force lpthread because we don't detect it properly on openwrt
 CONFIGURE_VARS += \
-	CXXFLAGS="$$$$CXXFLAGS " \
-    CFLAGS+="$$$$CFLAGS " \
+	CXXFLAGS="$$$$CXXFLAGS"  \
 	LIBS="-lm -lpthread" 
 
 define Build/Compile
