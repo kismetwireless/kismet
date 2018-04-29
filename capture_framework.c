@@ -530,7 +530,8 @@ void cf_handler_spindown(kis_capture_handler_t *caph) {
 }
 
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
-        void **privchans, size_t chan_sz, double rate, int shuffle, int offset) {
+        void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing, 
+        int offset) {
     size_t szi;
 
     /*
@@ -565,6 +566,7 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->channel_hop_rate = rate;
 
     caph->channel_hop_shuffle = shuffle;
+    caph->channel_hop_shuffle_spacing = shuffle_spacing;
     caph->channel_hop_offset = offset;
 
     if (caph->channel_hop_shuffle && caph->channel_hop_shuffle_spacing && chan_sz != 0) {
@@ -1442,7 +1444,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         char **chanhop_channels = NULL;
         void **chanhop_priv_channels = NULL;
         size_t chanhop_channels_sz, szi;
-        int chanhop_shuffle = 0, chanhop_offset = 0;
+        int chanhop_shuffle = 0, chanhop_shuffle_spacing = 1, chanhop_offset = 0;
         void *translate_chan = NULL;
 
         /* Unpack the protbuf */
@@ -1559,15 +1561,20 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             else
                 chanhop_shuffle = caph->channel_hop_shuffle;
 
-            if (conf_cmd->hopping->has_shuffle_skip)
-                chanhop_offset = conf_cmd->hopping->shuffle_skip;
+            if (conf_cmd->hopping->has_shuffle_skip) 
+                chanhop_shuffle_spacing = conf_cmd->hopping->shuffle_skip;
+             else 
+                chanhop_shuffle_spacing = caph->channel_hop_shuffle_spacing;
+
+            if (conf_cmd->hopping->has_offset)
+                chanhop_offset = conf_cmd->hopping->offset;
             else
                 chanhop_offset = caph->channel_hop_offset;
 
             /* Set the hop data, which will handle our thread */
             cf_handler_assign_hop_channels(caph, chanhop_channels,
                     chanhop_priv_channels, chanhop_channels_sz, chanhop_rate,
-                    chanhop_shuffle, chanhop_offset);
+                    chanhop_shuffle, chanhop_shuffle_spacing, chanhop_offset);
 
             /* Return a completion, and we do NOT free the channel lists we
              * dynamically allocated out of the buffer with cf_get_CHANHOP, as
@@ -2554,25 +2561,23 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
     }
 
     /* Set the hopping parameters */
-    if (caph->hopping_running > 0) {
-        /* we don't have to copy the hop list we just use the same pointers */
-        kechanhop.channels = caph->channel_hop_list;
-        kechanhop.n_channels = caph->channel_hop_list_sz;
+    /* we don't have to copy the hop list we just use the same pointers */
+    kechanhop.channels = caph->channel_hop_list;
+    kechanhop.n_channels = caph->channel_hop_list_sz;
 
-        kechanhop.has_rate = true;
-        kechanhop.rate = caph->channel_hop_rate;
+    kechanhop.has_rate = true;
+    kechanhop.rate = caph->channel_hop_rate;
 
-        kechanhop.has_shuffle = true;
-        kechanhop.shuffle = caph->channel_hop_shuffle;
+    kechanhop.has_shuffle = true;
+    kechanhop.shuffle = caph->channel_hop_shuffle;
 
-        kechanhop.has_shuffle_skip = true;
-        kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
+    kechanhop.has_shuffle_skip = true;
+    kechanhop.shuffle_skip = caph->channel_hop_shuffle_spacing;
 
-        kechanhop.has_offset = true;
-        kechanhop.offset = caph->channel_hop_offset;
+    kechanhop.has_offset = true;
+    kechanhop.offset = caph->channel_hop_offset;
 
-        keconf.hopping = &kechanhop;
-    }
+    keconf.hopping = &kechanhop;
 
     buf_len = kismet_datasource__configure_report__get_packed_size(&keconf);
     buf = (uint8_t *) malloc(buf_len);

@@ -516,11 +516,11 @@ int cf_drop_most_caps(kis_capture_handler_t *caph);
 
 /* Assign a channel hopping list processed by a capture binary */
 void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringchans,
-        void **privchans, size_t chan_sz, double rate, int shuffle, int offset);
+        void **privchans, size_t chan_sz, double rate, int shuffle, int shuffle_spacing, 
+        int offset);
 
 /* Set a channel hop shuffle spacing */
 void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing);
-
 
 
 /* Parse command line options
