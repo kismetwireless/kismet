@@ -1428,7 +1428,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-capture-tools-only  Configure and build for capture tools and remote only
-  --disable-python        disable python modules and python-only datasources
+  --disable-python-tools  Disable Python modules and Python-only data sources
   --disable-largefile     omit support for large files
   --disable-mutextimeout  disable failsafe mutex lock timeout
   --disable-linuxwext     disable Linux wireless extensions
@@ -5757,13 +5757,9 @@ fi
 
 # Check whether --enable-python-tools was given.
 if test "${enable_python_tools+set}" = set; then :
-  enableval=$enable_python_tools; case "${enableval}" in
-	  no) want_python=no ;;
-	   *) want_python=yes ;;
-	 esac
+  enableval=$enable_python_tools; want_python=no
 else
   want_python=yes
-
 fi
 
 

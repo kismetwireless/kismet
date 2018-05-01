@@ -38,9 +38,9 @@ endef
 CONFIGURE_ARGS += \
 	--bindir=/usr/bin \
 	--enable-capture-tools-only \
-	--disable-python \
+	--disable-python-tools \
 	--with-netlink-tiny \
-    --with-protoc-c=$(STAGING_DIR_HOST)/bin/protoc-c
+    --with-protocc=$(STAGING_DIR_HOSTPKG)/bin/protoc-c
 
 # Override libs to force lpthread because we don't detect it properly on openwrt
 CONFIGURE_VARS += \

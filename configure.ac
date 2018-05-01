@@ -257,14 +257,10 @@ AC_ARG_ENABLE(capture-tools-only,
 	[caponly=0]
 )
 
-AC_ARG_ENABLE(python-tools,
-	[  --disable-python        disable python modules and python-only datasources],
-	[case "${enableval}" in
-	  no) want_python=no ;;
-	   *) want_python=yes ;;
-	 esac],
-	[want_python=yes]
-)
+AC_ARG_ENABLE([python-tools],
+        AS_HELP_STRING([--disable-python-tools], [Disable Python modules and Python-only data sources]),
+        [want_python=no],
+        [want_python=yes])
 
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
@@ -274,7 +270,7 @@ if test "$want_python"x == "no"x; then
 else
     AC_PYTHON_MODULE(setuptools)
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        AC_MSG_ERROR([Missing python-setuptools, if you would like to build without python entirely, use --disable-python, otherwise install python-setuptools])
+        AC_MSG_ERROR([Missing python-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python-setuptools])
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi

@@ -41,7 +41,7 @@ endef
 CONFIGURE_ARGS += \
 	--sysconfdir=/etc/kismet \
 	--bindir=/usr/bin \
-	--disable-python \
+	--disable-python-tools \
     --with-protoc=$(STAGING_DIR_HOSTPKG)/bin/protoc 
     # This is quite dirty - We'd WANT protoc-c to be in the host tools, but the openwrt
     # package doesn't make a host version, so we have to compile on the host; this works
