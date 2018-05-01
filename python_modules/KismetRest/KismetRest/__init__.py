@@ -5,7 +5,7 @@ import requests
 import os
 
 """
-The field simplification and pathing options are best described in the 
+The field simplification and pathing options are best described in the
 developer docs for Kismet under docs/dev/webui_rest.md ; basically, they
 allow for selecting specific fields from the tree and returning ONLY those
 fields, instead of the entire object.
@@ -16,7 +16,7 @@ the time it takes for Kismet to return them.
 Whenever possible this API will use the 'ekjson' format for multiple returned
 objects - this places a JSON object for each element in an array/vector response
 as a complete JSON record followed by a newline; this allows for parsing the
-JSON response without allocating the entire vector object in memory first, and 
+JSON response without allocating the entire vector object in memory first, and
 enables streamed-base parsing of very large responses.
 
 Field Simplification Specification:
@@ -39,7 +39,7 @@ Field Simplification Specification:
     path, and a target name the field will be aliased to:
 
         ['kismet.device.base.channel', 'base.channel']
-        ['kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 
+        ['kismet.device.base.signal/kismet.common.signal.last_signal_dbm',
             'last.signal']
 
     The fields in the returned device will be inserted as their final
@@ -63,8 +63,8 @@ Filter Specification:
     value-maps and vectors found in the path.  For example, the multifield
     path:
         'dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid'
-    
-    would apply to all 'dot11.advertisedssid.ssid' fields in the ssid_map 
+
+    would apply to all 'dot11.advertisedssid.ssid' fields in the ssid_map
     automatically.
 
     Regex is a basic string containing a regular expression, compatible with
@@ -77,7 +77,7 @@ Filter Specification:
             '^SomePrefix.*' ]
         ]
 
-    A device is included in the results if it matches any of the regular 
+    A device is included in the results if it matches any of the regular
     expressions.
 
 """
@@ -86,22 +86,25 @@ Filter Specification:
 class KismetConnectorException(Exception):
     pass
 
+
 class KismetLoginException(KismetConnectorException):
     def __init__(self, message, rcode):
         super(Exception, self).__init__(message)
         self.rcode = rcode
+
 
 class KismetRequestException(KismetConnectorException):
     def __init__(self, message, rcode):
         super(Exception, self).__init__(message)
         self.rcode = rcode
 
+
 class KismetConnector:
     """
     Kismet rest API
     """
     def __init__(self, host_uri='http://127.0.0.1:2501'):
-        """ 
+        """
         KismetRest(hosturi) -> KismetRest
 
         hosturi: URI including protocol, host, and port
@@ -140,7 +143,7 @@ class KismetConnector:
         """
         self.session.auth = (user, passwd)
 
-        return 
+        return
 
     def set_session_cache(self, path):
         """
@@ -175,17 +178,17 @@ class KismetConnector:
         try:
             cd = requests.utils.dict_from_cookiejar(self.session.cookies)
             cookie = cd["KISMET"]
-            if (len(cookie) != 0):
+            if len(cookie) != 0:
                 lcachef = open(self.sessioncache_path, "w")
                 lcachef.write(cookie)
                 lcachef.close()
-        except KeyError as e:
+        except KeyError:
             pass
         except Exception as e:
             if self.debug:
                 print "DEBUG - Failed to save session:", e
 
-    def __process_json_object(self, r, j, callback, args = None):
+    def __process_json_object(self, r, j, callback, args=None):
         """
         __process_json_object(r, j, callback, args)
 
@@ -200,18 +203,19 @@ class KismetConnector:
             if self.debug:
                 print "Failed to parse JSON: {}, {}, {}".format(r.url, e.message, j)
 
-            raise KismetRequestException("Unable to parse JSON on req {}: {}".format(r.url, e.message), r.status_code)
+            raise KismetRequestException("Unable to parse JSON on req {}: {}"
+                                         .format(r.url, e.message), r.status_code)
 
         # Call the callback outside of the exception eating
-        if callback != None:
-            if args == None:
+        if callback is not None:
+            if args is None:
                 args = []
             callback(obj, *args)
             return
         else:
             return obj
 
-    def __process_json_stream(self, r, callback, args = None):
+    def __process_json_stream(self, r, callback, args=None):
         """
         __process_json_stream(httpresult, callback, args)
 
@@ -231,12 +235,12 @@ class KismetConnector:
         ret = []
         for line in r.iter_lines():
             r = self.__process_json_object(r, line, callback, args)
-            if ret != None:
+            if ret is not None:
                 ret.append(r)
 
         return ret
 
-    def __get_json_url(self, url, callback = None, cbargs = None, stream=True):
+    def __get_json_url(self, url, callback=None, cbargs=None, stream=True):
         """
         __get_json_url(url, callback) -> [result code, Unpacked Object]
 
@@ -262,7 +266,7 @@ class KismetConnector:
             if self.debug:
                 print "DEBUG - Login required & no valid login provided"
 
-            raise KismetLoginException("Login required for {}".format(url), r.status_code);
+            raise KismetLoginException("Login required for {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
@@ -276,9 +280,9 @@ class KismetConnector:
 
         # Process our stream or object
         if stream is True:
-            return (r.status_code, self.__process_json_stream(r, callback, cbargs))
+            return r.status_code, self.__process_json_stream(r, callback, cbargs)
         else:
-            return (r.status_code, [self.__process_json_object(r, r.content, callback, cbargs)])
+            return r.status_code, [self.__process_json_object(r, r.content, callback, cbargs)]
 
     def __get_string_url(self, url):
         """
@@ -292,14 +296,14 @@ class KismetConnector:
         except Exception as e:
             if self.debug:
                 print "Failed to get object: ", e
-            raise KismetRequestException("Failed to get object: {}".format(e.message), r.status_code)
+            raise KismetRequestException("Failed to get object: {}".format(e.message), -1)
 
         # login required
         if r.status_code == 401:
             if self.debug:
                 print "DEBUG - Login required & no valid login provided"
 
-            raise KismetLoginException("Login required for {}".format(url), r.status_code);
+            raise KismetLoginException("Login required for {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
@@ -313,7 +317,7 @@ class KismetConnector:
 
         return r.content
 
-    def __post_json_url(self, url, postdata, callback = None, cbargs = None, stream=True):
+    def __post_json_url(self, url, postdata, callback=None, cbargs=None, stream=True):
         """
         __post_json_url(url, postdata, callback) -> [result code, Unpacked Object]
 
@@ -322,7 +326,7 @@ class KismetConnector:
         object which is then JSON encoded.
         """
         try:
-            if postdata != None:
+            if postdata is not None:
                 pd = json.dumps(postdata)
             else:
                 pd = ""
@@ -331,7 +335,7 @@ class KismetConnector:
                 "json": pd
             }
 
-            r = self.session.post("%s/%s" % (self.host_uri, url), data = fd, stream=stream)
+            r = self.session.post("%s/%s" % (self.host_uri, url), data=fd, stream=stream)
         except Exception as e:
             if self.debug:
                 print "Failed to POST object: ", e
@@ -342,7 +346,7 @@ class KismetConnector:
             if self.debug:
                 print "DEBUG - Login required & no valid login provided"
 
-            raise KismetLoginException("Login required for POST {}".format(url), r.status_code);
+            raise KismetLoginException("Login required for POST {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
@@ -356,9 +360,9 @@ class KismetConnector:
 
         # Process our stream
         if stream is True:
-            return (r.status_code, self.__process_json_stream(r, callback, cbargs))
+            return r.status_code, self.__process_json_stream(r, callback, cbargs)
         else:
-            return (r.status_code, [self.__process_json_object(r, r.content, callback, cbargs)])
+            return r.status_code, [self.__process_json_object(r, r.content, callback, cbargs)]
 
     def __post_string_url(self, url, postdata):
         """
@@ -368,7 +372,7 @@ class KismetConnector:
         unprocessed string object
         """
         try:
-            if postdata != None:
+            if postdata is not None:
                 pd = json.dumps(postdata)
             else:
                 pd = ""
@@ -377,7 +381,7 @@ class KismetConnector:
                 "json": pd
             }
 
-            r = self.session.post("%s/%s" % (self.host_uri, url), data = fd)
+            r = self.session.post("%s/%s" % (self.host_uri, url), data=fd)
         except Exception as e:
             if self.debug:
                 print "Failed to POST object: ", e
@@ -388,7 +392,7 @@ class KismetConnector:
             if self.debug:
                 print "DEBUG - Login required & no valid login provided"
 
-            raise KismetLoginException("Login required for POST {}".format(url), r.status_code);
+            raise KismetLoginException("Login required for POST {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
@@ -400,7 +404,7 @@ class KismetConnector:
         # Update our session
         self.__update_session()
 
-        return (r.status_code, r.content)
+        return r.status_code, r.content
 
     def login(self):
         """
@@ -445,7 +449,7 @@ class KismetConnector:
 
         return status[0]
 
-    def device_summary(self, callback = None, cbargs = None):
+    def device_summary(self, callback=None, cbargs=None):
         """
         device_summary([callback, cbargs]) -> device list
 
@@ -454,7 +458,7 @@ class KismetConnector:
         
         return self.device_list(callback, cbargs)
 
-    def device_list(self, callback = None, cbargs = None):
+    def device_list(self, callback=None, cbargs=None):
         """
         device_list([callback, cbargs]) -> device list
 
@@ -473,7 +477,7 @@ class KismetConnector:
 
         return devices
 
-    def device_summary_since(self, ts = 0, fields = None, callback = None, cbargs = None):
+    def device_summary_since(self, ts=0, fields=None, callback=None, cbargs=None):
         """
         device_summary_since(ts, [fields, callback, cbargs]) -> device summary list 
 
@@ -482,17 +486,17 @@ class KismetConnector:
         Return object containing summary of devices added or changed since ts
         and ts info
         """
-        return self.smart_device_list(ts = ts, fields = fields, callback = callback, cbargs = cbargs)
+        return self.smart_device_list(ts=ts, fields=fields, callback=callback, cbargs=cbargs)
 
-    def smart_summary_since(self, ts = 0, fields = None, regex = None, callback = None, cbargs = None):
+    def smart_summary_since(self, ts=0, fields=None, regex=None, callback=None, cbargs=None):
         """
         smart_summary_since([ts, fields, regex, callback, cbargs]) -> device summary list
 
         Deprecated API - now referenced as smart_device_list(...)
         """
-        return self.smart_device_list(ts = ts, fields = fields, regex = regex, callback = callback, cbargs = cbargs)
+        return self.smart_device_list(ts=ts, fields=fields, regex=regex, callback=callback, cbargs=cbargs)
 
-    def smart_device_list(self, ts = 0, fields = None, regex = None, callback = None, cbargs = None):
+    def smart_device_list(self, ts=0, fields=None, regex=None, callback=None, cbargs=None):
         """
         smart_device_list([ts, fields, regex, callback, cbargs])
 
@@ -510,20 +514,21 @@ class KismetConnector:
         If no callback is provided, the results will be returned as a vector.
         """
 
-        cmd = { }
+        cmd = {}
 
-        if not fields == None:
+        if fields is not None:
             cmd["fields"] = fields
 
-        if not regex == None:
-            cmd["regex"] = regex;
+        if regex is not None:
+            cmd["regex"] = regex
 
-        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson".format(ts), cmd, callback, cbargs, stream = True)
+        (r, v) = self.__post_json_url("devices/last-time/{}/devices.ekjson"
+                                      .format(ts), cmd, callback, cbargs, stream=True)
 
         # Always return a vector
         return v
 
-    def device(self, key, field = None, fields = None):
+    def device(self, key, field=None, fields=None):
         """
         device(key) -> device object
 
@@ -537,9 +542,9 @@ class KismetConnector:
 
         Deprecated, prefer device_by_key with field
         """
-        return self.device_by_key(key, field = field)
+        return self.device_by_key(key, field=field)
 
-    def device_by_key(self, key, field = None, fields = None):
+    def device_by_key(self, key, field=None, fields=None):
         """
         device_by_key(key) -> device object
 
@@ -550,24 +555,24 @@ class KismetConnector:
         on the result
         """
 
-        if fields == None:
-            if not field == None:
+        if fields is None:
+            if field is not None:
                 field = "/" + field
             else:
                 field = ""
 
-            (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field), stream = False)
+            (r, v) = self.__get_json_url("devices/by-key/{}/device.json{}".format(key, field), stream=False)
         else:
             cmd = {
                 "fields": fields
             }
 
-            (r, v) = self.__post_json_url("devices/by-key/{}/device.json".format(key), cmd, stream = False)
+            (r, v) = self.__post_json_url("devices/by-key/{}/device.json".format(key), cmd, stream=False)
 
         # Single entity so pop out of the vector
         return v[0]
 
-    def device_by_mac(self, mac, fields = None):
+    def device_by_mac(self, mac, fields=None):
         """
         device_by_mac(mac) -> vector of device objects
 
@@ -579,14 +584,14 @@ class KismetConnector:
         on the result
         """
 
-        if fields == None:
-            (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac), stream = False)
+        if fields is None:
+            (r, v) = self.__get_json_url("devices/by-mac/{}/devices.json".format(mac), stream=False)
         else:
             cmd = {
                 "fields": fields
             }
 
-            (r, v) = self.__post_json_url("devices/by-mac/{}/devices.json".format(mac), cmd, stream = False)
+            (r, v) = self.__post_json_url("devices/by-mac/{}/devices.json".format(mac), cmd, stream=False)
 
         # Single-entity request, pop out vector
         return v[0]
@@ -598,7 +603,7 @@ class KismetConnector:
         Return list of all datasources
         """
 
-        (r, v) = self.__get_json_url("datasource/all_sources.json", stream = False)
+        (r, v) = self.__get_json_url("datasource/all_sources.json", stream=False)
 
         return v[0]
 
@@ -637,7 +642,6 @@ class KismetConnector:
         (r, v) = self.__post_string_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
 
         return r == 200
-
 
     def config_datasource_set_hop_channels(self, uuid, rate, channels):
         """
@@ -696,9 +700,10 @@ class KismetConnector:
 
         return r == 200
 
-    def device_filtered_dot11_summary(self, pcre, fields = None, callback = None, cbargs = None, ts = 0):
+    def device_filtered_dot11_summary(self, pcre, fields=None, callback=None, cbargs=None, ts=0):
         """
-        device_filtered_dot11_summary(pcre, [fields, ts, callback, cbargs]) -> device list, filtered by dot11 ssid
+        device_filtered_dot11_summary(pcre, [fields, ts, callback, cbargs]) -> device list,
+        filtered by dot11 ssid
 
         Deprecated API, this can now be handled by smart_device_list, which
         this function uses.
@@ -709,13 +714,14 @@ class KismetConnector:
 
         # Split the incoming PCRE into SSID matches
         for p in pcre:
-            regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', pcre])
+            regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', p])
 
-        return self.smart_device_list(callback = callback, cbargs = cbargs, regex = regex, fields = fields, ts = ts)
+        return self.smart_device_list(callback=callback, cbargs=cbargs, regex=regex, fields=fields, ts=ts)
 
-    def device_filtered_dot11_probe_summary(self, pcre, fields = None, callback = None, cbargs = None, ts = 0):
+    def device_filtered_dot11_probe_summary(self, pcre, fields=None, callback=None, cbargs=None, ts=0):
         """
-        device_filtered_dot11_probe_summary(pcre, [fields, ts, callback, cbargs]) -> device summary list, filtered by dot11 ssid
+        device_filtered_dot11_probe_summary(pcre, [fields, ts, callback, cbargs]) -> device summary list,
+        filtered by dot11 ssid
 
         Deprecated API, this can now be handled by smart_device_list, which
         this function uses
@@ -725,11 +731,11 @@ class KismetConnector:
 
         # Split the incoming PCRE into SSID matches
         for p in pcre:
-            regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', pcre])
+            regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', p])
 
-        return self.smart_device_list(callback = callback, cbargs = cbargs, regex = regex, fields = fields, ts = ts)
+        return self.smart_device_list(callback=callback, cbargs=cbargs, regex=regex, fields=fields, ts=ts)
 
-    def define_alert(self, name, description, rate = "10/min", burst = "1/sec", phyname = None):
+    def define_alert(self, name, description, rate="10/min", burst="1/sec", phyname=None):
         """
         define_alert(name, description, rate, burst) -> Boolean
 
@@ -750,15 +756,14 @@ class KismetConnector:
             "burst": burst
         }
 
-        if not phyname == None:
+        if phyname is not None:
             cmd["phyname"] = phyname
 
         (r, v) = self.__post_string_url("alerts/definitions/define_alert.cmd", cmd)
 
         return r == 200
 
-
-    def raise_alert(self, name, text, bssid = None, source = None, dest = None, other = None, channel = None):
+    def raise_alert(self, name, text, bssid=None, source=None, dest=None, other=None, channel=None):
         """
         raise_alert(name, text, bssid, source, dest, other, channel)
 
@@ -775,34 +780,35 @@ class KismetConnector:
             "text": text
         }
 
-        if not bssid == None:
+        if bssid is not None:
             cmd["bssid"] = bssid
 
-        if not source == None:
+        if source is not None:
             cmd["source"] = source
 
-        if not dest == None:
+        if dest is not None:
             cmd["dest"] = dest
 
-        if not other == None:
+        if other is not None:
             cmd["other"] = other
 
-        if not channel == None:
+        if channel is not None:
             cmd["channel"] = channel
 
         (r, v) = self.__post_string_url("alerts/raise_alert.cmd", cmd)
 
         return r == 200
 
-    def alerts(self, ts_sec = 0, ts_usec = 0):
+    def alerts(self, ts_sec=0, ts_usec=0):
         """
         Fetch alert object, containing metadata and list of alerts, optionally 
         filtered to alerts since a given timestamp
         """
 
-        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts_sec, ts_usec), stream = False)
+        (r, v) = self.__get_json_url("alerts/last-time/{}.{}/alerts.json".format(ts_sec, ts_usec), stream=False)
 
         return v[0]
+
 
 if __name__ == "__main__":
     x = KismetConnector()
