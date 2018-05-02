@@ -15,14 +15,12 @@ datasource capture, etc.
 Datasources are expanded in KismetDatasource.py
 """
 
-import argparse
 import errno
 import fcntl
 import os
 import select
 import socket
 import struct
-import sys
 import threading
 import time
 
@@ -30,11 +28,12 @@ import kismet_pb2
 import http_pb2
 import datasource_pb2
 
+
 class ExternalInterface(object):
     """ 
     External interface super-class
     """
-    def __init__(self, infd = -1, outfd = -1, remote = None):
+    def __init__(self, infd=-1, outfd=-1, remote=None):
         """
         Initialize the external interface; interfaces launched by Kismet are 
         mapped to a pipe passed via --in-fd and --out-fd arguments; remote
@@ -49,9 +48,9 @@ class ExternalInterface(object):
         self.infd = infd
         self.outfd = outfd
         self.remote = remote
-        self.remote_sock = -1;
-
+        self.remote_sock = None
         self.cmdnum = 0
+        self.iothread = None
 
         if self.infd >= 0 and self.outfd >= 0:
             fl = fcntl.fcntl(infd, fcntl.F_GETFL)
@@ -59,7 +58,7 @@ class ExternalInterface(object):
 
             fl = fcntl.fcntl(outfd, fcntl.F_GETFL)
             fcntl.fcntl(outfd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        elif not remote == None:
+        elif remote is not None:
             self.__connect_remote(remote)
         else:
             raise RuntimeError("Expected descriptor pair or remote connection")
@@ -149,30 +148,27 @@ class ExternalInterface(object):
                     self.kill_ioloop = True
                     return
 
-                in_fd_alias = -1;
-                out_fd_alias = -1;
-
                 if self.infd >= 0:
                     in_fd_alias = self.infd
-                elif self.remote_sock >= 0:
+                elif self.remote_sock is not None:
                     in_fd_alias = self.remote_sock
                 else:
                     raise RuntimeError("No valid input socket")
 
                 if self.outfd >= 0:
                     out_fd_alias = self.outfd
-                elif self.remote_sock >= 0:
+                elif self.remote_sock is not None:
                     out_fd_alias = self.remote_sock
                 else:
                     raise RuntimeError("No valid input socket")
 
-                inputs = [ in_fd_alias ]
+                inputs = [in_fd_alias]
                 outputs = []
 
                 self.bufferlock.acquire()
                 try:
                     if len(self.wbuffer):
-                        outputs = [ out_fd_alias ]
+                        outputs = [out_fd_alias]
                 finally:
                     self.bufferlock.release()
 
@@ -184,8 +180,6 @@ class ExternalInterface(object):
                 if out_fd_alias in outputs:
                     self.bufferlock.acquire()
                     try:
-                        written = 0
-
                         if out_fd_alias == self.remote_sock:
                             written = self.remote_sock.send(self.wbuffer)
                         else:
@@ -204,8 +198,6 @@ class ExternalInterface(object):
                 if in_fd_alias in inputs:
                     self.bufferlock.acquire()
                     try:
-                        readdata = 0
-
                         if in_fd_alias == self.remote_sock:
                             readdata = self.remote_sock.recv(4096)
                         else:
@@ -218,7 +210,7 @@ class ExternalInterface(object):
                         self.__recv_packet()
                     except IOError as e:
                         if not e.errno == errno.EWOULDBLOCK:
-                            raise BufferError("Input buffer error: {}".format(e));
+                            raise BufferError("Input buffer error: {}".format(e))
                     except OSError as e:
                         if not e.errno == errno.EAGAIN:
                             raise BufferError("Input buffer error: {}".format(e))
@@ -294,10 +286,10 @@ class ExternalInterface(object):
         :return: None
         """
 
-        if not method in self.uri_handlers:
+        if method not in self.uri_handlers:
             self.uri_handlers[method] = {}
 
-        if not uri in self.uri_handlers[method]:
+        if uri not in self.uri_handlers[method]:
             self.uri_handlers[method][uri] = handler
 
         reguri = http_pb2.HttpRegisterUri()
@@ -381,7 +373,7 @@ class ExternalInterface(object):
 
         self.cmdnum = self.cmdnum + 1
 
-    def send_message(self, message, msgtype = kismet_pb2.MsgbusMessage.INFO):
+    def send_message(self, message, msgtype=kismet_pb2.MsgbusMessage.INFO):
         """
         Send a message which wil be displayed via the Kismet message bus and in the UI
 
@@ -412,7 +404,7 @@ class ExternalInterface(object):
         pong.ping_seqno = seqno
         self.write_ext_packet("PONG", pong)
 
-    def request_http_auth(self, callback = None):
+    def request_http_auth(self, callback=None):
         """
         Request Kismet generate a HTTP session token; this token will be sent
         via a HTTPAUTH message and the callback function will be triggered.
@@ -431,22 +423,22 @@ class ExternalInterface(object):
         auth.ParseFromString(packet)
         self.auth_token = auth.token
 
-        if not self.http_auth_callback is None:
+        if self.http_auth_callback is not None:
             self.http_auth_callback()
 
     def __handle_http_request(self, seqno, packet):
         request = http_pb2.HttpRequest()
         request.ParseFromString(packet)
 
-        if not request.method in self.uri_handlers:
+        if request.method not in self.uri_handlers:
             raise RuntimeError("No URI handler registered for request {} {}".format(request.method, request.uri))
 
-        if not request.uri in self.uri_handlers[request.method]:
+        if request.uri not in self.uri_handlers[request.method]:
             raise RuntimeError("No URI handler registered for request {} {}".format(request.method, request.uri))
 
         self.uri_handlers[request.method][request.uri](self, request)
 
-    def send_http_response(self, req_id, data = "", resultcode = 200, stream = False, finished = True):
+    def send_http_response(self, req_id, data="", resultcode=200, stream=False, finished=True):
         """
         Send a HTTP response; this populates a URI when triggered.
 
@@ -465,6 +457,7 @@ class ExternalInterface(object):
         is sent as the final HTTP code.
         :param stream: This response is one of many in a stream, the connection will be held open
         until a send_http_response with finished = False
+        :param finished: This is the last response of many in a stream, the connection will be closed.
         """
         resp = http_pb2.HttpResponse()
 
@@ -500,12 +493,13 @@ class ExternalInterface(object):
         shutdown.ParseFromString(packet)
         self.kill()
 
+
 class Datasource(ExternalInterface):
     """ 
     Datasource implementation
     """
-    def __init__(self, infd = -1, outfd = -1, remote = None):
-        super(Datasource, self).__init__(infd = infd, outfd = outfd, remote = remote)
+    def __init__(self, infd=-1, outfd=-1, remote=None):
+        super(Datasource, self).__init__(infd=infd, outfd=outfd, remote=remote)
 
         self.listinterfaces = None
         self.probesource = None
@@ -579,13 +573,12 @@ class Datasource(ExternalInterface):
 
         :return: (source, options{} dictionary) as tuple
         """
-        source = ""
         options = {}
     
         colon = definition.find(':')
     
         if colon == -1:
-            return (definition, {})
+            return definition, {}
     
         source = definition[:colon]
         right = definition[colon + 1:]
@@ -593,7 +586,7 @@ class Datasource(ExternalInterface):
         while len(right):
             eqpos = right.find('=')
             if eqpos == -1:
-                return (None, None)
+                return None, None
     
             key = right[:eqpos]
             right = right[eqpos + 1:]
@@ -604,7 +597,7 @@ class Datasource(ExternalInterface):
                 endq = right.find('"')
     
                 if endq == -1:
-                    return (None, None)
+                    return None, None
     
                 val = right[:endq]
                 options[key] = val
@@ -619,22 +612,23 @@ class Datasource(ExternalInterface):
                 options[key] = val
                 right = right[endcomma + 1:]
     
-        return (source, options)
-
+        return source, options
 
     def __handle_kds_configure(self, seqno, packet):
         conf = datasource_pb2.Configure()
         conf.ParseFromString(packet)
 
-        if self.configuresource == None:
-            self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
+        if self.configuresource is None:
+            self.send_datasource_configure_report(seqno, success=False,
+                                                  message="helper does not support source configuration")
             # self.spindown()
             return
             
         opts = self.configuresource(seqno, conf)
         
-        if opts == None:
-            self.send_datasource_configure_report(seqno, success = False, message = "helper does not support source configuration")
+        if opts is None:
+            self.send_datasource_configure_report(seqno, success=False,
+                                                  message="helper does not support source configuration")
             # self.spindown()
             return
 
@@ -646,15 +640,17 @@ class Datasource(ExternalInterface):
 
         (source, options) = self.parse_definition(opensource.definition)
 
-        if self.opensource == None:
-            self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
+        if self.opensource is None:
+            self.send_datasource_open_report(seqno, success=False,
+                                             message="helper does not support opening sources")
             # self.spindown()
             return
 
         opts = self.opensource(source, options)
 
-        if opts == None:
-            self.send_datasource_open_report(seqno, success = False, message = "helper does not support opening sources")
+        if opts is None:
+            self.send_datasource_open_report(seqno, success=False,
+                                             message="helper does not support opening sources")
 
         self.send_datasource_open_report(seqno, **opts)
 
@@ -664,19 +660,19 @@ class Datasource(ExternalInterface):
 
         (source, options) = self.parse_definition(probe.definition)
 
-        if source == None:
-            self.send_datasource_probe_report(seqno, success = False)
+        if source is None:
+            self.send_datasource_probe_report(seqno, success=False)
             return
 
-        if self.probesource == None:
-            self.send_datasource_probe_report(seqno, success = False)
+        if self.probesource is None:
+            self.send_datasource_probe_report(seqno, success=False)
             # self.spindown()
             return
 
         opts = self.probesource(source, options)
 
-        if opts == None:
-            self.send_datasource_probe_report(seqno, success = False)
+        if opts is None:
+            self.send_datasource_probe_report(seqno, success=False)
             # self.spindown()
             return
 
@@ -688,14 +684,14 @@ class Datasource(ExternalInterface):
         cmd = datasource_pb2.ListInterfaces()
         cmd.ParseFromString(packet)
 
-        if self.listinterfaces == None:
-            self.send_datasource_interfaces_report(seqno, success = True)
+        if self.listinterfaces is None:
+            self.send_datasource_interfaces_report(seqno, success=True)
         else:
             self.listinterfaces(seqno)
 
         # self.spindown()
 
-    def send_datasource_error_report(self, seqno = 0, message = None):
+    def send_datasource_error_report(self, seqno=0, message=None):
         """
         When acting as a Kismet datasource, send a source error.  This can be in response
         to a specific command, or a runtime failure.
@@ -711,7 +707,7 @@ class Datasource(ExternalInterface):
         report.success.success = False
         report.success.seqno = seqno
 
-        if not message == None:
+        if message is not None:
             report.message.msgtext = message
             report.message.msgtype = self.MSG_ERROR
 
@@ -719,7 +715,7 @@ class Datasource(ExternalInterface):
 
         # self.spindown()
 
-    def send_datasource_interfaces_report(self, seqno, interfaces = [], success = True, message = None):
+    def send_datasource_interfaces_report(self, seqno, interfaces=None, success=True, message=None):
         """
         When acting as a Kismet datasource, send a list of supported interfaces.  This
         should be called from a child implementation of this class which implements the
@@ -738,14 +734,15 @@ class Datasource(ExternalInterface):
         report.success.success = success
         report.success.seqno = seqno
 
-        if not message == None:
+        if message is not None:
             report.message.msgtext = message
             if success:
                 report.message.msgtype = self.MSG_INFO
             else:
                 report.message.msgtype = self.MSG_ERROR
 
-        report.interfaces.extend(interfaces)
+        if interfaces is not None:
+            report.interfaces.extend(interfaces)
 
         self.write_ext_packet("KDSINTERFACESREPORT", report)
 
@@ -768,7 +765,9 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSNEWSOURCE", newsource)
 
-    def send_datasource_configure_report(self, seqno, success = False, channel = None, hop_rate = None, hop_channels = None, spectrum = None, message = None, full_hopping = None, warning = None, **kwargs):
+    def send_datasource_configure_report(self, seqno, success=False, channel=None, hop_rate=None,
+                                         hop_channels=None, spectrum=None, message=None,
+                                         full_hopping=None, warning=None, **kwargs):
         """
         When acting as a Kismet datasource, send a response to a configuration request.  This
         is called with the response to the open datasource command.
@@ -780,7 +779,9 @@ class Datasource(ExternalInterface):
         :param hop_channels: Optional vector of string channels, if hopping
         :param message: Optional message
         :param full_hopping: Optional full datasource_pb2.SubChanset
-        :param **kwargs: Unused additional arguments
+        :param warning: Optional warning text to be set in datasource detailed info
+        :param spectrum: Optional spectral data
+        :param kwargs: Unused additional arguments
 
         :return: None
         """
@@ -818,7 +819,9 @@ class Datasource(ExternalInterface):
         self.write_ext_packet("KDSCONFIGUREREPORT", report)
 
 
-    def send_datasource_open_report(self, seqno, success = False, dlt = 0, capture_interface = None, channels = [], channel = None, hop_config = None, hardware = None, message = None, spectrum = None, uuid = None, warning = None, **kwargs):
+    def send_datasource_open_report(self, seqno, success=False, dlt=0, capture_interface=None, channels=None,
+                                    channel=None, hop_config=None, hardware=None, message=None, spectrum=None,
+                                    uuid=None, warning=None, **kwargs):
         """
         When acting as a Kismet datasource, send a response to an open source request.  This is
         called with the response to the open datasource command.
@@ -845,41 +848,43 @@ class Datasource(ExternalInterface):
         report.success.success = success
         report.success.seqno = seqno
 
-        if not message == None:
+        if message is not None:
             report.message.msgtext = message
             if success:
                 report.message.msgtype = self.MSG_INFO
             else:
                 report.message.msgtype = self.MSG_ERROR
 
-        report.channels.channels.extend(channels)
+        if channels is not None:
+            report.channels.channels.extend(channels)
 
-        if not channel == None:
+        if channel is not None:
             report.channel.channel = channel
 
-        if not spectrum == None:
+        if spectrum is not None:
             report.spectrum.CopyFrom(spectrum)
 
-        if not hardware == None:
+        if hardware is not None:
             report.hardware = hardware
 
         report.dlt = dlt
 
-        if not capture_interface == None:
+        if capture_interface is not None:
             report.capture_interface = capture_interface
 
-        if not hop_config == None:
+        if hop_config is not None:
             report.hop_config.CopyFrom(hop_config)
 
-        if not uuid == None:
+        if uuid is not None:
             report.uuid = uuid
 
-        if not warning == None:
+        if warning is not None:
             report.warning = warning
 
         self.write_ext_packet("KDSOPENSOURCEREPORT", report)
 
-    def send_datasource_probe_report(self, seqno, success = False, message = None, channels = [], channel = None, spectrum = None, hardware = None, **kwargs):
+    def send_datasource_probe_report(self, seqno, success=False, message=None, channels=None, channel=None,
+                                     spectrum=None, hardware=None, **kwargs):
         """
         When operating as a Kismet datasource, send a probe source report; this is used to
         determine the datasource driver.  This should be called by child implementations
@@ -904,22 +909,23 @@ class Datasource(ExternalInterface):
         report.success.success = success
         report.success.seqno = seqno
 
-        if not message == None:
+        if message is not None:
             report.message.msgtext = message
             if success:
                 report.message.msgtype = self.MSG_INFO
             else:
                 report.message.msgtype = self.MSG_ERROR
 
-        report.channels.channels.extend(channels)
+        if channels is not None:
+            report.channels.channels.extend(channels)
 
-        if not channel == None:
+        if channel is not None:
             report.channel.channel = channel
 
-        if not spectrum == None:
+        if spectrum is not None:
             report.spectrum.CopyFrom(spectrum)
 
-        if not hardware == None:
+        if hardware is not None:
             report.hardware = hardware
 
         self.write_ext_packet("KDSPROBESOURCEREPORT", report)
@@ -929,6 +935,7 @@ class Datasource(ExternalInterface):
         When operating as a Kismet datasource, set a warning message; this is shown in the
         Datasources display, and indicates a non-fatal but otherwise "bad" condition.
 
+        :param seqno: (unused) sequence number
         :param warning: Warning message
 
         :return: None
@@ -939,7 +946,8 @@ class Datasource(ExternalInterface):
 
         self.write_ext_packet("KDSWARNINGREPORT", report)
 
-    def send_datasource_data_report(self, message = None, warning = None, full_gps = None, full_signal = None, full_packet = None, full_spectrum = None, full_json = None, full_buffer = None, **kwargs):
+    def send_datasource_data_report(self, message=None, warning=None, full_gps=None, full_signal=None, full_packet=None,
+                                    full_spectrum=None, full_json=None, full_buffer=None, **kwargs):
         """
         When operating as a Kismet datasource, send a data frame
 
@@ -957,12 +965,9 @@ class Datasource(ExternalInterface):
 
         report = datasource_pb2.DataReport()
 
-        if not message == None:
+        if message is not None:
             report.message.msgtext = message
-            if success:
-                report.message.msgtype = self.MSG_INFO
-            else:
-                report.message.msgtype = self.MSG_ERROR
+            report.message.msgtype = self.MSG_INFO
 
         if full_gps:
             report.gps.CopyFrom(full_gps)
@@ -980,10 +985,9 @@ class Datasource(ExternalInterface):
             report.json.CopyFrom(full_json)
 
         if full_buffer:
-            report.buffer.CopyFrom(packed_buffer)
+            report.buffer.CopyFrom(full_buffer)
 
         if warning:
             report.warning = warning
 
         self.write_ext_packet("KDSDATAREPORT", report)
-
