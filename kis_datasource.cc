@@ -293,15 +293,23 @@ void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ring
         std::string in_definition, open_callback_t in_cb) {
     local_locker lock(&ext_mutex);
 
-    // Connect our buffer normally
+    // Kill any error handlers
+    if (error_timer_id > 0)
+        timetracker->RemoveTimer(error_timer_id);
+
+    // Connect the buffer
     connect_buffer(in_ringbuf);
 
+    // Reset the state
     set_int_source_running(true);
     set_int_source_definition(in_definition);
+    set_int_source_error(false);
     
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
         set_int_source_running(false);
+        set_int_source_error(true);
+        set_int_source_error_reason("Unable to parse interface definition of remote source");
         _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
         return;
     }
