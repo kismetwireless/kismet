@@ -260,10 +260,17 @@ Filter options:
 
 10. Packet size window
 
-    Limit matching by packet size.  Size windows can define minimum and maximum or only minimum or maximum ranges.
+   Limit matching by packet size.  Size windows can define minimum and maximum or only minimum or maximum ranges.
 
-    | Key      | Type | Description                   |
-    | -------- | ---- | ----------------------------- |
-    | size_min | int  | Minimum packet size, in bytes |
-    | size_max | int  | Maximum packet size, in bytes |
+   | Key      | Type | Description                   |
+   | -------- | ---- | ----------------------------- |
+   | size_min | int  | Minimum packet size, in bytes |
+   | size_max | int  | Maximum packet size, in bytes |
+
+
+The pcap endpoint takes a standard JSON command dictionary, including the keys:
+
+| Key    | Type       | Description                                    |
+| ------ | ---------- | ---------------------------------------------- |
+| filter | dictionary | Dictionary of filter options, documented above |
 
