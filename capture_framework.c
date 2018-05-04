@@ -961,11 +961,8 @@ void *cf_int_chanhop_thread(void *arg) {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
-    /* Where we are in the hopping vec */
-    pthread_mutex_lock(&(caph->handler_lock));
-    size_t hoppos = caph->channel_hop_offset;
-    pthread_mutex_unlock(&(caph->handler_lock));
-
+    size_t hoppos;
+    
     /* How long we're waiting until the next time */
     unsigned int wait_sec = 0;
     unsigned int wait_usec = 0;
@@ -973,6 +970,14 @@ void *cf_int_chanhop_thread(void *arg) {
     char errstr[STATUS_MAX];
     
     int r = 0;
+
+    /* Figure out where we are in the hopping vec, and set us to actively hopping
+     * right now; this will block until the thread launcher brings us up */
+    pthread_mutex_lock(&(caph->handler_lock));
+    hoppos = caph->channel_hop_offset;
+    caph->hopping_running = 1;
+    pthread_mutex_unlock(&(caph->handler_lock));
+
 
     while (1) {
         pthread_mutex_lock(&(caph->handler_lock));
@@ -1003,6 +1008,7 @@ void *cf_int_chanhop_thread(void *arg) {
         pthread_mutex_lock(&caph->handler_lock);
 
         if (caph->channel_hop_rate == 0 || caph->chancontrol_cb == NULL) {
+            // fprintf(stderr, "debug - hop rate 0 or no chancontrol\n");
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
             return NULL;
@@ -1144,8 +1150,6 @@ void *cf_int_chanhop_thread(void *arg) {
         }
 
         pthread_mutex_unlock(&caph->handler_lock);
-
-
     }
 
     return NULL;
@@ -2554,8 +2558,9 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
 
     keconf.success = &kesuccess;
 
-    /* Set the single channel */
-    if (caph->channel != NULL) {
+    /* If we're not hopping, set the single channel response */
+    if (!caph->hopping_running && caph->channel != NULL) {
+        /* Set the single channel */
         kechanset.channel = caph->channel;
         keconf.channel = &kechanset;
     }
