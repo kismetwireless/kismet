@@ -659,16 +659,17 @@ void cf_handler_list_devices(kis_capture_handler_t *caph) {
                 }
                 
                 fprintf(stderr, "\n");
+
+                if (interfaces[i]->interface != NULL)
+                    free(interfaces[i]->interface);
+                if (interfaces[i]->flags != NULL)
+                    free(interfaces[i]->flags);
+                if (interfaces[i]->hardware != NULL)
+                    free(interfaces[i]->hardware);
+
+                free(interfaces[i]);
             }
 
-            if (interfaces[i]->interface != NULL)
-                free(interfaces[i]->interface);
-            if (interfaces[i]->flags != NULL)
-                free(interfaces[i]->flags);
-            if (interfaces[i]->hardware != NULL)
-                free(interfaces[i]->hardware);
-
-            free(interfaces[i]);
         }
 
         free(interfaces);
