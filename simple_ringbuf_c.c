@@ -40,8 +40,10 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
 
     rb->buffer = (uint8_t *) malloc(size);
 
-    if (rb->buffer == NULL)
+    if (rb->buffer == NULL) {
+        free(rb);
         return NULL;
+    }
 
     rb->buffer_sz = size;
     rb->start_pos = 0;
