@@ -728,12 +728,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     interface = strndup(placeholder, placeholder_len);
 
     /* get the driver */
-    linux_getsysdrv(local_wifi->interface, driver);
+    linux_getsysdrv(interface, driver);
 
     /* if we're hard rfkilled we can't do anything */
-    if (linux_sys_get_rfkill(local_wifi->interface, LINUX_RFKILL_TYPE_HARD) == 1) {
+    if (linux_sys_get_rfkill(interface, LINUX_RFKILL_TYPE_HARD) == 1) {
         snprintf(msg, STATUS_MAX, "Interface '%s' is set to hard rfkill; check your "
-                "wireless switch if you have one.", local_wifi->interface);
+                "wireless switch if you have one.", interface);
+        free(interface);
         return -1;
     }
 
@@ -746,7 +747,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if (strcmp(driver, "brcmfmac") == 0 ||
             strcmp(driver, "brcmfmac_sdio") == 0) {
         struct nexmon_t *nexmon;
-        nexmon = init_nexmon(local_wifi->interface);
+        nexmon = init_nexmon(interface);
 
         if (nexmon == NULL) {
             free(interface);
