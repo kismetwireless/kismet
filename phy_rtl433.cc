@@ -101,6 +101,8 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
     uint16_t *model = (uint16_t *) bytes;
     uint32_t *checksum = (uint32_t *) (bytes + 2);
 
+    memset(bytes, 0, 6);
+
     std::string smodel = "unk";
 
     if (json.isMember("model")) {
