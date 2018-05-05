@@ -2199,9 +2199,11 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
                     break;
 
                 free(kesubinterfaces[i]);
-
-                return -1;
             }
+
+            free(kesubinterfaces);
+
+            return -1;
         }
 
         keinterfaces.n_interfaces = len;
@@ -2244,6 +2246,8 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
         free(kesubinterfaces[i]);
     }
+
+    free(kesubinterfaces);
 
     return cf_send_packet(caph, "KDSINTERFACESREPORT", buf, buf_len);
 }
