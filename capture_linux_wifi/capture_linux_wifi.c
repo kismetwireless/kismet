@@ -1502,6 +1502,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    if (localchan != NULL)
+        free(localchan);
+
     return 1;
 }
 
