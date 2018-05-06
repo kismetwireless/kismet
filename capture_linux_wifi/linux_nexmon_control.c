@@ -69,6 +69,8 @@ struct nexmon_t *init_nexmon(const char *ifname) {
     nmon->sock_tx = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
     if (nmon->sock_tx < 0) {
         free(nmon);
+        free(snl_tx);
+        free(snl_rx_ioctl);
         return NULL;
     }
 
@@ -76,6 +78,8 @@ struct nexmon_t *init_nexmon(const char *ifname) {
     if (nmon->sock_rx_ioctl < 0) {
         close(nmon->sock_tx);
         free(nmon);
+        free(snl_tx);
+        free(snl_rx_ioctl);
         return NULL;
     }
 
@@ -88,6 +92,8 @@ struct nexmon_t *init_nexmon(const char *ifname) {
         close(nmon->sock_tx);
         close(nmon->sock_rx_ioctl);
         free(nmon);
+        free(snl_tx);
+        free(snl_rx_ioctl);
         return NULL;
     }
 
@@ -96,6 +102,8 @@ struct nexmon_t *init_nexmon(const char *ifname) {
         close(nmon->sock_tx);
         close(nmon->sock_rx_ioctl);
         free(nmon);
+        free(snl_tx);
+        free(snl_rx_ioctl);
         return NULL;
     }
 
