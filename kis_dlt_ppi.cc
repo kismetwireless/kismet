@@ -135,9 +135,11 @@ int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
 
 			// Common flags
 			tuint = kis_letoh16(ppic->flags);
-			if ((tuint & PPI_80211_FLAG_INVALFCS) ||
-				(tuint & PPI_80211_FLAG_PHYERROR)) {
+			if ((tuint & PPI_80211_FLAG_INVALFCS) || (tuint & PPI_80211_FLAG_PHYERROR)) {
 				// Junk packets that are FCS or phy compromised
+                if (radioheader != NULL)
+                    delete radioheader;
+
 				return 0;
 			}
 
