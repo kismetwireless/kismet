@@ -287,6 +287,11 @@ public:
         return data;
     }
 
+    bool block_for_ms(const std::chrono::milliseconds& rel_time) {
+        std::unique_lock<std::mutex> lk(m);
+        return cv.wait_for(lk, rel_time, [this](){ return !locked; });
+    }
+
     // Unlock the conditional, unblocking whatever thread was blocked
     // waiting for us, and passing whatever data we'd like to pass
     void unlock(t in_data) {

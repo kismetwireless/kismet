@@ -31,6 +31,7 @@
 #include <microhttpd.h>
 
 #include <memory>
+#include <chrono>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1195,26 +1196,31 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute_
 }
 
 void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
-    { 
-        // Scope this block
-        local_locker lock(&aux_mutex);
+    while (1) {
+        { 
+            // Scope this block
+            local_locker lock(&aux_mutex);
 
-        // Immediately return if we have pending data
-        std::shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
-        if (rbh->GetReadBufferUsed()) {
-            return;
+            // Immediately return if we have pending data
+            std::shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
+            if (rbh->GetReadBufferUsed()) {
+                return;
+            }
+
+            // Immediately return so we can flush out the buffer before we fail
+            if (get_in_error()) {
+                return;
+            }
+
+            cl->lock();
         }
 
-        // Immediately return so we can flush out the buffer before we fail
-        if (get_in_error()) {
+        // Block outside of the mutex protection; do a timed block so we keep checking to see
+        // how we're doing; this is less efficient...
+        auto delay = std::chrono::milliseconds(100);
+        if (cl->block_for_ms(delay))
             return;
-        }
-
-        cl->lock();
     }
-
-    // Block outside of the mutex protection
-    cl->block_until();
 }
 
 Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
