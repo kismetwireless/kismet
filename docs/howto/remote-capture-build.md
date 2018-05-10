@@ -24,7 +24,7 @@ This will take a little while to download, and due to how Git handles https serv
 ## Get the OpenWrt code
 
 ```
-$ git clone https://github.com/openwrt/openwrt.git 
+$ git clone https://git.openwrt.org/openwrt/openwrt.git
 ```
 
 ## Do the basic OpenWrt Config
@@ -67,10 +67,20 @@ This will download all the third-party package definitions.
 We want to copy the Kismet package over, because we'll potentially be making some modifications.
 
 ```
-$ cp -R kismet/packaging/openwrt/kismet-remote openwrt/package/network
+$ cp -R kismet/packaging/openwrt/kismet-remote-2018 openwrt/package/network
 ```
 
 Where, of course, you want to copy from your checked out Kismet code to the checked out OpenWrt code; your directories might be different.
+
+## Install libprotoc-c
+
+In a perfect world the libprotoc-c package in OpenWRT would install the proper host binary for protoc-c, but it does not.  Fortunately, there is only one version of libproto-c (the C-only version), so the package for your host distribution should be sufficient.
+
+```
+$ sudo apt-install protobuf-c-compiler
+```
+
+will suffice on Ubuntu-style distributions; your distribution may vary.  Note:  This is for the *protobuf-c* version, *not* the normal protobuf (which is C++, and which has a working openwrt package with proper host tools.)
 
 ## Enable Kismet
 
@@ -98,12 +108,18 @@ $ make -j4
 
 or similar.
 
+If you still get an error regarding protoc-c not found, you may have to link you local version where the OpenWrt version is supposed to be, like:
+
+```
+ln -s /usr/bin/protoc-c staging_dir/target-<arch foo>_musl-1.1.16/host/bin/protoc-c
+```
+
 ## Copy the packages!
 
 If everything went well, you now have two packages to copy to your OpenWrt:
 ```
-$ cd bin/packages/<architecture>/base/
-$ scp libpcap<arch foo>.ipk kismet-remote<arch foo>.ipk root@openwrt-machine:/tmp 
+$ cd bin/packages/<architecture>/
+$ scp packages/libprotobuf-c<arch foo>.ipk base/kismet-remote<arch foo>.ipk root@openwrt-machine:/tmp 
 ```
 ## Install Kismet on OpenWrt
 
