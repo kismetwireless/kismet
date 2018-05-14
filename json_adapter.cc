@@ -40,6 +40,11 @@
 std::string JsonAdapter::SanitizeString(std::string in) {
     std::string itr = MultiReplaceAll(in, "\\", "\\\\");
     itr = MultiReplaceAll(itr, "\"", "\\\"");
+    itr = MultiReplaceAll(itr, "\b", "\\b");
+    itr = MultiReplaceAll(itr, "\t", "\\t");
+    itr = MultiReplaceAll(itr, "\n", "\\n");
+    itr = MultiReplaceAll(itr, "\r", "\\r");
+    itr = MultiReplaceAll(itr, "\f", "\\f");
     return itr;
 }
 
