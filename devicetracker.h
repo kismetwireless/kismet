@@ -126,12 +126,35 @@ public:
 
     __Proxy(key, TrackedDeviceKey, TrackedDeviceKey, TrackedDeviceKey, key);
 
-    __Proxy(macaddr, mac_addr, mac_addr, mac_addr, macaddr);
+    __ProxyL(macaddr, mac_addr, mac_addr, mac_addr, macaddr,
+            [this](mac_addr m) -> bool {
+
+            // Only set the mac as the common name to the mac if it's empty
+            if (get_commonname() == "")
+                set_commonname(m.Mac2String());
+
+            return true;
+            
+            });
 
     __Proxy(phyname, std::string, std::string, std::string, phyname);
 
-    __Proxy(devicename, std::string, std::string, std::string, devicename);
-    __Proxy(username, std::string, std::string, std::string, username);
+    __ProxyL(devicename, std::string, std::string, std::string, devicename, 
+            [this](std::string i) -> bool {
+
+            // Override the common name if there's no username
+            if (get_username() == "") 
+                set_commonname(i);
+            return true;
+            });
+
+    __ProxyL(username, std::string, std::string, std::string, username,
+            [this](std::string i) -> bool {
+
+            // Always override the common name
+            set_commonname(i);
+            return true;
+            });
 
     __Proxy(commonname, std::string, std::string, std::string, commonname);
 
@@ -258,6 +281,7 @@ public:
     virtual void pre_serialize() {
         local_eol_locker lock(&device_mutex);
 
+#if 0
         if (get_username() != "") {
             set_commonname(get_username());
         } else if (get_devicename() != "") {
@@ -265,6 +289,7 @@ public:
         } else {
             set_commonname(get_macaddr().Mac2String());
         }
+#endif
     }
 
     virtual void post_serialize() {
