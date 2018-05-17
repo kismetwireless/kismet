@@ -411,6 +411,15 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     std::shared_ptr<Timetracker> timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
+   
+    // Always disable persistent storage for now
+    persistent_storage = false;
+    persistent_mode = MODE_ONSTART;
+    persistent_compression = false;
+    statestore = NULL;
+    persistent_storage_timeout = 0;
+
+#if 0
     if (!globalreg->kismet_config->FetchOptBoolean("persistent_config_present", false)) {
         _MSG("Kismet has recently added persistent device storage; it looks like you "
                 "need to update your Kismet configs; install the latest configs with "
@@ -504,6 +513,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 globalreg->kismet_config->FetchOptULong("persistent_timeout", 86400);
         }
     }
+#endif
 
     if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
         unsigned int lograte = 
