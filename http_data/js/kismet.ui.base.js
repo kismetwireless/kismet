@@ -919,6 +919,7 @@ kismet_ui_sidebar.AddSidebarItem({
     },
 });
 
+/*
 kismet_ui_sidebar.AddSidebarItem({
     id: 'pcap_sidebar',
     priority: 10000,
@@ -927,6 +928,7 @@ kismet_ui_sidebar.AddSidebarItem({
         location.href = "/datasource/pcap/all_sources.pcapng";
     },
 });
+*/
 
 var memoryupdate_tid;
 var memory_panel = null;
