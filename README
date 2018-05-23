@@ -25,8 +25,8 @@ https://www.kismetwireless.net
         libprotobuf-c0-dev
 
         For the Python add-ons, you will also need:
-        $ sudo apt-get install python python-protobuf python-sqlite \
-            python-requests
+        $ sudo apt-get install python python-setuptools python-protobuf \
+            python-sqlite python-requests
         You can also use the `pip` equivalents of the python libraries.
 
         For rtlsdr rtl_433 support, you will also need:
