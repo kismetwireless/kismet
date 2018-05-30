@@ -174,12 +174,9 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
 }
 
 int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
+    
     std::string ifname;
-    if (in_datasource->get_source_cap_interface().length() > 0) {
-        ifname = in_datasource->get_source_cap_interface();
-    } else {
-        ifname = in_datasource->get_source_interface();
-    }
+    ifname = in_datasource->get_source_name();
 
     std::string ifdesc;
     if (in_datasource->get_source_cap_interface() !=
