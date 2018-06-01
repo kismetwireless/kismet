@@ -216,6 +216,9 @@ class ExternalInterface(object):
                             raise BufferError("Input buffer error: {}".format(e))
                     finally:
                         self.bufferlock.release()
+        except BufferError as e:
+            # Fail out
+            pass
         finally:
             self.running = False
 

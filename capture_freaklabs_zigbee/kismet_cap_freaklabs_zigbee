@@ -5,6 +5,7 @@ Freaklabs Zigbee Kismet Datasource
 
 """
 
+import sys
 import time
 
 try:
@@ -15,6 +16,8 @@ except ImportError:
     sys.exit(0)
 
 if __name__ == '__main__':
+    sys.tracebacklimit = 0
+
     zig = KismetCaptureFreaklabsZigbee.KismetFreaklabsZigbee()
 
     # Go into sleep mode
