@@ -729,7 +729,8 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
 
     if (report.has_uuid()) {
         uuid u(report.uuid());
-        set_source_uuid(uuid(report.uuid()));
+        set_source_uuid(u);
+        set_source_key(Adler32Checksum(u.UUID2String()));
     } else if (!local_uuid) {
         uuid nuuid;
         nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
