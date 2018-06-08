@@ -1078,7 +1078,33 @@ public:
         if (!in_src->get_source_running()) 
             return;
 
-        target_sources.push_back(in_src);
+        bool match_list = true;
+
+        TrackerElementVector initial_channels(initial_ds->get_source_channels_vec());
+        TrackerElementVector compare_channels(in_src->get_source_channels_vec());
+
+        if (initial_channels.size() != compare_channels.size())
+            return;
+
+        for (auto first_chan : initial_channels) {
+            bool matched_cur_chan = false;
+
+            for (auto comp_chan : compare_channels) {
+                if (GetTrackerValue<std::string>(first_chan) == 
+                        GetTrackerValue<std::string>(comp_chan)) {
+                    matched_cur_chan = true;
+                    break;
+                }
+            }
+
+            if (!matched_cur_chan) {
+                match_list = false;
+                break;
+            }
+        }
+
+        if (match_list)
+            target_sources.push_back(in_src);
     }
 
     virtual void finalize() {
@@ -1090,8 +1116,8 @@ public:
             return;
         }
 
-        _MSG("Splitting channels for interfaces using '" + match_type + "' among " +
-                IntToString(target_sources.size()) + " interfaces", MSGFLAG_INFO);
+        _MSG_INFO("Splitting channels for interfaces using '{}' among {} interfaces",
+                match_type, target_sources.size());
 
         int nintf = 0;
         for (auto ds = target_sources.begin(); ds != target_sources.end(); ++ds) {
