@@ -136,7 +136,7 @@ class Kis_Net_Httpd;
 	(b), (c)->source, (c)->dest, mac_addr(0), (c)->channel, (a))
 
 // Send a msg via gloablreg msgbus
-#define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
+#define _MSG(x, y)	Globalreg::globalreg->messagebus->InjectMessage((x), (y))
 
 // fmt-enabled msgbus
 #define _MSG_INFO(...) \
