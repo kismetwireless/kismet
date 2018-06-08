@@ -29,6 +29,8 @@
 #include "macaddr.h"
 #include "uuid.h"
 
+#include "fmt.h"
+
 class GlobalRegistry;
 
 // Pre-defs for all the things we point to
@@ -135,6 +137,19 @@ class Kis_Net_Httpd;
 
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
+
+// fmt-enabled msgbus
+#define _MSG_INFO(...) \
+    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_INFO)
+
+#define _MSG_ERROR(...) \
+    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_ERROR)
+
+#define _MSG_ALERT(...) \
+    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_ALERT)
+
+#define _MSG_FATAL(...) \
+    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_FATAL)
 
 // Record of how we failed critically.  We want to spin a critfail message out
 // to the client so it can do something intelligent.  A critical fail is something
@@ -320,6 +335,8 @@ protected:
 };
 
 namespace Globalreg {
+    extern GlobalRegistry *globalreg;
+
     template<typename T> std::shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
             int in_ref) {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));

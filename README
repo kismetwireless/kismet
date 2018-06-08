@@ -1417,3 +1417,14 @@ xx. SIEM support
     the configure script:
         $ ./configure --enable-prelude
 
+xx. Integrated libraries
+
+    Kismet uses several header-only libraries which are part of the Kismet source
+    code:
+
+    - fmtlib (https://github.com/fmtlib/fmt): C++ string formatting for faster
+    message generation with fewer temporary variables.
+
+    - kaitai (https://kaitai.io): Binary parser generator and stream library
+
+    - jsoncpp (http://jsoncpp.sourceforge.net/): JSON parser

@@ -23,6 +23,8 @@
 #include "util.h"
 #include "macaddr.h"
 
+GlobalRegistry *Globalreg::globalreg = NULL;
+
 GlobalRegistry::GlobalRegistry() { 
 	fatal_condition = 0;
 	spindown = 0;

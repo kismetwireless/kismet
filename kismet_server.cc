@@ -628,7 +628,7 @@ void Load_Kismet_UUID(GlobalRegistry *globalreg) {
         uuidconf.SaveConfig(uuidconfpath.c_str());
     }
 
-    _MSG("Setting server UUID " + confuuid.UUID2String(), MSGFLAG_INFO);
+    _MSG_INFO("Setting server UUID {}", confuuid.UUID2String());
     globalreg->server_uuid = confuuid;
     globalreg->server_uuid_hash = Adler32Checksum((const char *) confuuid.uuid_block, 16);
 }
@@ -702,10 +702,12 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGCHLD, CatchChild);
     signal(SIGPIPE, SIG_IGN);
 
-    // Start filling in key components of the globalregistry
+    // Build the globalregistry
     globalregistry = new GlobalRegistry;
     globalreg = globalregistry;
+    Globalreg::globalreg = globalregistry;
 
+    // Fill in base globalreg elements
     globalregistry->version_major = VERSION_MAJOR;
     globalregistry->version_minor = VERSION_MINOR;
     globalregistry->version_tiny = VERSION_TINY;
