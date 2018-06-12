@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Simple script for launching kismet in debug mode, with a scripted gdb
-# command.  Logs are dumped to /var/log/kismet-gdb-[timestamp].log; 
+# command.  Logs are dumped to /var/log/kismet/kismet-gdb-[timestamp].log; 
 # This is most useful coupled with the debug systemd script
 
 /usr/bin/gdb kismet << EOF  > /var/log/kismet/kismet-gdb-`date +%s`.log 2>&1
@@ -11,5 +11,7 @@ run --debug
 bt
 info threads
 thread apply all bt full
+cd /var/log/kismet
+generate-core-file
 EOF
 
