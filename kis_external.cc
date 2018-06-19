@@ -44,7 +44,7 @@ KisExternalInterface::KisExternalInterface(GlobalRegistry *in_globalreg) :
 }
 
 KisExternalInterface::~KisExternalInterface() {
-    local_eol_locker el(&ext_mutex);
+    local_locker el(&ext_mutex);
 
     timetracker->RemoveTimer(ping_timer_id);
 
@@ -428,7 +428,7 @@ KisExternalHttpInterface::KisExternalHttpInterface(GlobalRegistry *in_globalreg)
 }
 
 KisExternalHttpInterface::~KisExternalHttpInterface() {
-    local_eol_locker el(&ext_mutex);
+    local_locker el(&ext_mutex);
 
     // Kill any active sessions
     for (auto s : http_proxy_session_map) {

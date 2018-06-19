@@ -55,7 +55,7 @@ GPSTCP::GPSTCP(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
 }
 
 GPSTCP::~GPSTCP() {
-    local_eol_locker lock(&gps_mutex);
+    local_locker lock(&gps_mutex);
 
     pollabletracker->RemovePollable(tcpclient);
 

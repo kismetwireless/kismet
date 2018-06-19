@@ -49,7 +49,7 @@ ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
 }
 
 ConfigFile::~ConfigFile() {
-    local_eol_locker lock(&config_locker);
+    local_locker lock(&config_locker);
 }
 
 int ConfigFile::ParseConfig(const char *in_fname) {

@@ -24,7 +24,7 @@ PollableTracker::PollableTracker(GlobalRegistry *in_globalreg) {
 }
 
 PollableTracker::~PollableTracker() {
-    local_eol_locker lock(&pollable_mutex);
+    local_locker lock(&pollable_mutex);
 
 }
 

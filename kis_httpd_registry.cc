@@ -31,7 +31,7 @@ Kis_Httpd_Registry::Kis_Httpd_Registry(GlobalRegistry *in_globalreg) :
 }
 
 Kis_Httpd_Registry::~Kis_Httpd_Registry() {
-    local_eol_locker lock(&reg_lock);
+    local_locker lock(&reg_lock);
 
 }
 

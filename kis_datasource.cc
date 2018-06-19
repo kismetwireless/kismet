@@ -79,7 +79,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
 }
 
 KisDatasource::~KisDatasource() {
-    local_eol_locker lock(&ext_mutex);
+    local_locker lock(&ext_mutex);
 
     // fprintf(stderr, "debug - ~KisDatasource\n");
 

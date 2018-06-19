@@ -42,7 +42,7 @@ RingbufV2::RingbufV2(size_t in_sz) {
 }
 
 RingbufV2::~RingbufV2() {
-    local_eol_locker lock(&write_mutex);
+    local_locker lock(&write_mutex);
 
 #ifdef PROFILE_RINGBUFV2
     profile();

@@ -111,7 +111,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 }
 
 Alertracker::~Alertracker() {
-    local_eol_locker lock(&alert_mutex);
+    local_locker lock(&alert_mutex);
 
     globalreg->RemoveGlobal("ALERTTRACKER");
     globalreg->alertracker = NULL;

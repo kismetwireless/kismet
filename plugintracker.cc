@@ -86,7 +86,7 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
 }
 
 Plugintracker::~Plugintracker() {
-    local_eol_locker lock(&plugin_lock);
+    local_locker lock(&plugin_lock);
 
     // Call the main shutdown, which should kill the vector allocations
     ShutdownPlugins();

@@ -41,7 +41,7 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
 }
 
 StreamTracker::~StreamTracker() {
-    local_eol_locker lock(&mutex);
+    local_locker lock(&mutex);
 }
 
 bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {

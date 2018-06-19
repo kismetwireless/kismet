@@ -38,7 +38,7 @@ FileWritebuf::FileWritebuf(std::string in_filename, size_t in_chunk) {
 }
 
 FileWritebuf::~FileWritebuf() {
-    local_eol_locker lock(&write_mutex);
+    local_locker lock(&write_mutex);
 
     if (backfile != NULL) {
         fflush(backfile);

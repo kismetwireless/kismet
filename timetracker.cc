@@ -32,7 +32,7 @@ Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
 }
 
 Timetracker::~Timetracker() {
-    local_eol_locker lock(&time_mutex);
+    local_locker lock(&time_mutex);
 
     globalreg->RemoveGlobal("TIMETRACKER");
     globalreg->timetracker = NULL;

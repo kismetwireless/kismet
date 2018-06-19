@@ -55,7 +55,7 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_build
 }
 
 GPSSerialV2::~GPSSerialV2() {
-    local_eol_locker lock(&gps_mutex);
+    local_locker lock(&gps_mutex);
 
     pollabletracker->RemovePollable(serialclient);
 

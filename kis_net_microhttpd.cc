@@ -191,7 +191,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
-    local_eol_locker lock(&controller_mutex);
+    local_locker lock(&controller_mutex);
 
     globalreg->RemoveGlobal("HTTPD_SERVER");
 

@@ -140,7 +140,7 @@ public:
     }
 
     virtual ~KisLogfile() { 
-        local_eol_locker lock(&log_mutex);
+        local_locker l(&log_mutex);
 
         if (builder != NULL && builder->get_stream()) {
             std::shared_ptr<StreamTracker> streamtracker = 
@@ -148,7 +148,6 @@ public:
 
             streamtracker->remove_streamer(get_stream_id());
         }
-    
     }
 
     virtual SharedTrackerElement clone_type() {

@@ -37,7 +37,7 @@ MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
 }
 
 MessageBus::~MessageBus() {
-    local_eol_locker lock(&msg_mutex);
+    local_locker lock(&msg_mutex);
 
     globalreg->RemoveGlobal("MESSAGEBUS");
     globalreg->messagebus = NULL;

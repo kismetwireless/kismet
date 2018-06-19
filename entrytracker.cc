@@ -32,7 +32,7 @@ EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
 }
 
 EntryTracker::~EntryTracker() {
-    local_eol_locker eolock(&entry_mutex);
+    local_locker eolock(&entry_mutex);
 
     globalreg->RemoveGlobal("ENTRY_TRACKER");
 

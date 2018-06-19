@@ -633,7 +633,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 }
 
 Devicetracker::~Devicetracker() {
-    local_eol_locker lock(&devicelist_mutex);
+    local_locker lock(&devicelist_mutex);
 
     store_all_devices();
     databaselog_write_all_devices();

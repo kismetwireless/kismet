@@ -59,7 +59,7 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 }
 
 Channeltracker_V2::~Channeltracker_V2() {
-    local_eol_locker locker(&lock);
+    local_locker locker(&lock);
 
     std::shared_ptr<Timetracker> timetracker =
         Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");

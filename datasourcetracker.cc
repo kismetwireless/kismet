@@ -53,7 +53,7 @@ DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg,
 }
 
 DST_DatasourceProbe::~DST_DatasourceProbe() {
-    local_eol_locker lock(&probe_lock);
+    local_locker lock(&probe_lock);
 
     // Cancel any probing sources and delete them
     for (auto i = probe_vec.begin(); i != probe_vec.end(); ++i) {
@@ -195,7 +195,7 @@ DST_DatasourceList::DST_DatasourceList(GlobalRegistry *in_globalreg,
 }
 
 DST_DatasourceList::~DST_DatasourceList() {
-    local_eol_locker lock(&list_lock);
+    local_locker lock(&list_lock);
 
     // Cancel any probing sources and delete them
     for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
@@ -449,7 +449,7 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
 }
 
 Datasourcetracker::~Datasourcetracker() {
-    local_eol_locker lock(&dst_lock);
+    local_locker lock(&dst_lock);
 
     globalreg->RemoveGlobal("DATA_SOURCE_TRACKER");
 

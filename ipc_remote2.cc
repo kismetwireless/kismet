@@ -59,7 +59,7 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
-    local_eol_locker lock(&ipc_locker);
+    local_locker lock(&ipc_locker);
 
     // fprintf(stderr, "debug - ~ipcremote %d\n", child_pid);
     if (ipchandler != NULL)
@@ -469,7 +469,7 @@ IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
 }
 
 IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
-    local_eol_locker lock(&ipc_locker);
+    local_locker lock(&ipc_locker);
 
     globalreg->RemoveGlobal("IPCHANDLER");
 

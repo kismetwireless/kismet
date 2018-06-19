@@ -91,7 +91,7 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
 }
 
 GpsTracker::~GpsTracker() {
-    local_eol_locker lock(&gpsmanager_mutex);
+    local_locker lock(&gpsmanager_mutex);
 
     globalreg->RemoveGlobal("GPSTRACKER");
     httpd->RemoveHandler(this);

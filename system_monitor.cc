@@ -94,7 +94,7 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 }
 
 Systemmonitor::~Systemmonitor() {
-    local_eol_locker lock(&monitor_mutex);
+    local_locker lock(&monitor_mutex);
 
     globalreg->RemoveGlobal("SYSTEM_MONITOR");
     globalreg->timetracker->RemoveTimer(timer_id);

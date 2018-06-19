@@ -46,7 +46,7 @@ LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
 }
 
 LogTracker::~LogTracker() {
-    local_eol_locker lock(&tracker_mutex);
+    local_locker lock(&tracker_mutex);
 
     globalreg->RemoveGlobal("LOGTRACKER");
 

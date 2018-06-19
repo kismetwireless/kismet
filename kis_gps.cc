@@ -43,7 +43,7 @@ KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
 }
 
 KisGps::~KisGps() {
-    local_eol_locker lock(&gps_mutex);
+    local_locker lock(&gps_mutex);
 }
 
 bool KisGps::open_gps(std::string in_definition) {

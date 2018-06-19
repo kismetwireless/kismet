@@ -58,7 +58,7 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) 
     }
 
 GPSGpsdV2::~GPSGpsdV2() {
-    local_eol_locker lock(&gps_mutex);
+    local_locker lock(&gps_mutex);
 
     pollabletracker->RemovePollable(tcpclient);
 

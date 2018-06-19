@@ -75,7 +75,7 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
-    local_eol_locker dblock(&ds_mutex);
+    local_locker dblock(&ds_mutex);
 
     Log_Close();
 }
@@ -142,7 +142,7 @@ void KisDatabaseLogfile::Log_Close() {
 
     // End the transaction
     {
-        local_eol_locker translock(&transaction_mutex);
+        local_locker translock(&transaction_mutex);
         sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
     }
 
@@ -154,49 +154,49 @@ void KisDatabaseLogfile::Log_Close() {
         packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
 
     {
-        local_eol_locker lock(&device_mutex);
+        local_locker lock(&device_mutex);
         if (device_stmt != NULL)
             sqlite3_finalize(device_stmt);
         device_stmt = NULL;
     }
 
     {
-        local_eol_locker lock(&packet_mutex);
+        local_locker lock(&packet_mutex);
         if (packet_stmt != NULL)
             sqlite3_finalize(packet_stmt);
         packet_stmt = NULL;
     }
 
     {
-        local_eol_locker lock(&datasource_mutex);
+        local_locker lock(&datasource_mutex);
         if (datasource_stmt != NULL)
             sqlite3_finalize(datasource_stmt);
         datasource_stmt = NULL;
     }
 
     {
-        local_eol_locker lock(&data_mutex);
+        local_locker lock(&data_mutex);
         if (data_stmt != NULL)
             sqlite3_finalize(data_stmt);
         data_stmt = NULL;
     }
 
     { 
-        local_eol_locker lock(&alert_mutex);
+        local_locker lock(&alert_mutex);
         if (alert_stmt != NULL)
             sqlite3_finalize(alert_stmt);
         alert_stmt = NULL;
     }
 
     {
-        local_eol_locker lock(&msg_mutex);
+        local_locker lock(&msg_mutex);
         if (msg_stmt != NULL)
             sqlite3_finalize(msg_stmt);
         msg_stmt = NULL;
     }
 
     {
-        local_eol_locker lock(&snapshot_mutex);
+        local_locker lock(&snapshot_mutex);
         if (snapshot_stmt != NULL)
             sqlite3_finalize(snapshot_stmt);
         snapshot_stmt = NULL;

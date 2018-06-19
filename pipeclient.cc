@@ -40,7 +40,7 @@ PipeClient::PipeClient(GlobalRegistry *in_globalreg,
 }
 
 PipeClient::~PipeClient() {
-    local_eol_locker lock(&pipe_lock);
+    local_locker lock(&pipe_lock);
 
     // fprintf(stderr, "debug - ~Pipeclient() %p\n", this);
 

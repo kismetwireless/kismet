@@ -32,7 +32,7 @@ KisDatabase::KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_nam
 }
 
 KisDatabase::~KisDatabase() {
-    local_eol_locker lock(&ds_mutex);
+    local_locker lock(&ds_mutex);
 
     if (db != NULL) {
         sqlite3_close(db);
