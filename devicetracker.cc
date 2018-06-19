@@ -562,6 +562,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     last_devicelist_saved = 0;
     last_database_logged = 0;
 
+    // Preload the vector for speed
+    unsigned int preload_sz = 
+        globalreg->kismet_config->FetchOptUInt("tracker_device_presize", 1000);
+
+    tracked_vec.reserve(preload_sz);
+    immutable_tracked_vec.reserve(preload_sz);
+
     // Set up the device timeout
     device_idle_expiration =
         globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
@@ -590,10 +597,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 		globalreg->kismet_config->FetchOptUInt("tracker_max_devices", 0);
 
 	if (max_num_devices > 0) {
-        std::stringstream ss;
-		ss << "Limiting maximum number of devices to " << max_num_devices <<
-			" older devices will be removed from tracking when this limit is reached.";
-		_MSG(ss.str(), MSGFLAG_INFO);
+        _MSG_INFO("Limiting maximum number of devices to {}, older devices will be "
+                "removed from tracking when this limit is reached.", max_num_devices);
 
 		// Schedule max device reaping every 5 seconds
 		max_devices_timer =

@@ -319,6 +319,11 @@ public:
         return (*dataunion.subvector_value)[offt];
     }
 
+    void reserve_vector(unsigned int sz) {
+        except_type_mismatch(TrackerVector);
+        (*dataunion.subvector_value).reserve(sz);
+    }
+
     tracked_map *get_map() {
         except_type_mismatch(TrackerMap);
         return dataunion.submap_value;
@@ -770,6 +775,10 @@ public:
 
     virtual size_t size() {
         return val->size_vector();
+    }
+
+    virtual void reserve(unsigned int sz) {
+        val->reserve_vector(sz);
     }
 
     SharedTrackerElement operator[](unsigned int i) {
