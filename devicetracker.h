@@ -121,7 +121,7 @@ public:
     virtual ~kis_tracked_device_base() { }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new kis_tracked_device_base(globalreg, get_id()));
+        return std::make_shared<kis_tracked_device_base>(globalreg, get_id());
     }
 
     __Proxy(key, TrackedDeviceKey, TrackedDeviceKey, TrackedDeviceKey, key);
@@ -444,7 +444,7 @@ class DevicetrackerFilterWorker {
 
 public:
     DevicetrackerFilterWorker() {
-        matched_devices.reset(new TrackerElement(TrackerVector));
+        matched_devices = std::make_shared<TrackerElement>(TrackerVector);
         matched_devices_vec = TrackerElementVector(matched_devices);
     };
     virtual ~DevicetrackerFilterWorker() { };
@@ -812,7 +812,7 @@ public:
     }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new kis_tracked_phy(globalreg, get_id()));
+        return std::make_shared<kis_tracked_phy>(globalreg, get_id());
     }
 
     __Proxy(phy_id, int32_t, int32_t, int32_t, phy_id);

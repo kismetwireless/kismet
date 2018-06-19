@@ -45,7 +45,7 @@ kis_tracked_ip_data::kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id
 }
 
 SharedTrackerElement kis_tracked_ip_data::clone_type() {
-    return SharedTrackerElement(new kis_tracked_ip_data(globalreg, get_id()));
+    return std::make_shared<kis_tracked_ip_data>(globalreg, get_id());
 }
 
 void kis_tracked_ip_data::register_fields() {
@@ -74,7 +74,7 @@ kis_tracked_signal_data::kis_tracked_signal_data(GlobalRegistry *in_globalreg, i
 }
 
 SharedTrackerElement kis_tracked_signal_data::clone_type() {
-    return SharedTrackerElement(new kis_tracked_signal_data(globalreg, get_id()));
+    return std::make_shared<kis_tracked_signal_data>(globalreg, get_id());
 }
 
 kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const kis_layer1_packinfo& lay1) {
@@ -317,7 +317,7 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(GlobalRegistry *in_globalreg, i
 }
 
 SharedTrackerElement kis_tracked_seenby_data::clone_type() {
-    return SharedTrackerElement(new kis_tracked_signal_data(globalreg, get_id()));
+    return std::make_shared<kis_tracked_seenby_data>(globalreg, get_id());
 }
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {

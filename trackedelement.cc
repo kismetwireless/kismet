@@ -1847,7 +1847,7 @@ tracker_component::~tracker_component() {
 }
 
 SharedTrackerElement tracker_component::clone_type() {
-    return std::shared_ptr<TrackerElement>(new tracker_component(globalreg, get_id()));
+    return std::make_shared<tracker_component>(globalreg, get_id());
 }
 
 std::string tracker_component::get_name() {
@@ -2402,7 +2402,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
     in->pre_serialize();
 
     unsigned int fn = 0;
-    ret_elem.reset(new TrackerElement(TrackerMap));
+    ret_elem = std::make_shared<TrackerElement>(TrackerMap);
 
     if (in_summarization.size() == 0)
         ret_elem = in;
@@ -2420,7 +2420,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
             f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
                     TrackerInt8, "unallocated field");
 
-            f = SharedTrackerElement(new TrackerElement(TrackerUInt8));
+            f = std::make_shared<TrackerElement>(TrackerUInt8);
             f->set((uint8_t) 0);
         
             if ((*si)->rename.length() != 0) {
@@ -2442,7 +2442,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
         // object so that when we serialize we can descend the path calling
         // the proper pre-serialization methods
         if ((*si)->rename.length() != 0 || (*si)->resolved_path.size() > 1) {
-            SharedElementSummary sum(new TrackerElementSummary(*si));
+            auto sum = std::make_shared<TrackerElementSummary>(*si);
             sum->parent_element = in;
             rename_map[f] = sum;
         }

@@ -279,7 +279,7 @@ public:
     }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new dot11_tracked_eapol(globalreg, get_id()));
+        return std::make_shared<dot11_tracked_eapol>(globalreg, get_id());
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -331,7 +331,7 @@ public:
     }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new dot11_tracked_nonce(globalreg, get_id()));
+        return std::make_shared<dot11_tracked_nonce>(globalreg, get_id());
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -398,7 +398,7 @@ public:
     }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new dot11_tracked_ssid_alert(globalreg, get_id()));
+        return std::make_shared<dot11_tracked_ssid_alert>(globalreg, get_id());
     }
 
     __Proxy(group_name, std::string, std::string, std::string, ssid_group_name);
@@ -444,7 +444,7 @@ class dot11_11d_tracked_range_info : public tracker_component {
         }
 
         virtual SharedTrackerElement clone_type() {
-            return SharedTrackerElement(new dot11_11d_tracked_range_info(globalreg, get_id()));
+            return std::make_shared<dot11_11d_tracked_range_info>(globalreg, get_id());
         }
 
 
@@ -483,7 +483,7 @@ class dot11_probed_ssid : public tracker_component {
             }
 
         virtual SharedTrackerElement clone_type() {
-            return SharedTrackerElement(new dot11_probed_ssid(globalreg, get_id()));
+            return std::make_shared<dot11_probed_ssid>(globalreg, get_id());
         }
 
         __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -565,7 +565,7 @@ class dot11_advertised_ssid : public tracker_component {
             }
 
         virtual SharedTrackerElement clone_type() {
-            return SharedTrackerElement(new dot11_advertised_ssid(globalreg, get_id()));
+            return std::make_shared<dot11_advertised_ssid>(globalreg, get_id());
         }
 
         __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -801,7 +801,7 @@ class dot11_client : public tracker_component {
             }
 
         virtual SharedTrackerElement clone_type() {
-            return SharedTrackerElement(new dot11_client(globalreg, get_id()));
+            return std::make_shared<dot11_client>(globalreg, get_id());
         }
 
         __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
@@ -961,7 +961,7 @@ class dot11_tracked_device : public tracker_component {
             }
 
         virtual SharedTrackerElement clone_type() {
-            return SharedTrackerElement(new dot11_tracked_device(globalreg, get_id()));
+            return std::make_shared<dot11_tracked_device>(globalreg, get_id());
         }
 
         dot11_tracked_device(GlobalRegistry *in_globalreg, int in_id, 
