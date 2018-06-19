@@ -33,16 +33,18 @@
 #include <chrono>
 
 // Seconds a lock is allowed to be held before throwing a timeout error
-#define KIS_THREAD_DEADLOCK_TIMEOUT     30
+#define KIS_THREAD_DEADLOCK_TIMEOUT     15
 
-// Force the custom c++ workaround mutex to always be on; undefine to turn off
-#define ALWAYS_USE_KISMET_MUTEX         1
+// Optionally force the custom c++ workaround mutex
+#define ALWAYS_USE_KISMET_MUTEX         0
 
-#if defined (ALWAYS_USE_KISMET_MUTEX) || (defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
-
-class kis_recursive_timed_mutex {
+// Some compilers (older openwrt CC images, Ubuntu 14.04) are still in use and have a broken
+// std::recursive_timed_mutex implementation which uses the wrong precision for the timer leading
+// to an instant timer failure;  Optionally re-implement a std::mutex using C pthread 
+// primitives and locking
+class kis_recursive_pthread_timed_mutex {
 public:
-    kis_recursive_timed_mutex() {
+    kis_recursive_pthread_timed_mutex() {
         // Make a recursive mutex that the owning thread can lock multiple times;
         // Required to allow a timer event to reschedule itself on completion
         pthread_mutexattr_t mutexattr;
@@ -51,7 +53,7 @@ public:
         pthread_mutex_init(&mutex, &mutexattr);
     }
         
-    ~kis_recursive_timed_mutex() {
+    ~kis_recursive_pthread_timed_mutex() {
         pthread_mutex_destroy(&mutex);
     }
 
@@ -85,16 +87,21 @@ private:
     pthread_mutex_t mutex;
 };
 
+// Use std::recursive_timed_mutex components when we can, unless we're forcing pthread mode; base it
+// on the GCC versions to detect broken compilers
+#if ALWAYS_USE_KISMET_MUTEX != 0 || \
+    (defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || \
+        (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
+typedef kis_recursive_pthread_timed_mutex kis_recursive_timed_mutex
 #else
-
 typedef std::recursive_timed_mutex kis_recursive_timed_mutex;
-
 #endif
 
-// Act as a scoped locker on a mutex
-// If possible, use a timed lock and throw a system exception if we can't
-// acquire the mutex within KIS_THREAD_DEADLOCK_TIMEOUT seconds, so that we 
-// crash instead of hanging
+// A scoped locker like std::lock_guard that provides RAII scoped locking of a kismet mutex;
+// unless disabled in ./configure use a timed lock mutex and throw an exception if unable
+// to acquire the lock within KIS_THREAD_DEADLOCK_TIMEOUT seconds, it's better to crash
+// than to hang; we allow a short-cut unlock to unlock before the end of scope, in which case
+// we no longer unlock AGAIN at descope
 class local_locker {
 public:
     local_locker(kis_recursive_timed_mutex *in) {
@@ -110,21 +117,10 @@ public:
     }
 
     void unlock() {
-        if (cpplock != NULL)
-            cpplock->unlock();
-    }
-
-    void relock() {
         if (cpplock != NULL) {
-#ifdef DISABLE_MUTEX_TIMEOUT
-            cpplock->lock();
-#else
-            if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-                throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
-            }
-#endif
+            cpplock->unlock();
+            cpplock = NULL;
         }
-
     }
 
     ~local_locker() {
@@ -136,7 +132,8 @@ protected:
     kis_recursive_timed_mutex *cpplock;
 };
 
-// Locks for the duration of scope, but only locks on demand
+
+// RAII-style scoped locker, but only locks on demand, not creation
 class local_demand_locker {
 public:
     local_demand_locker(kis_recursive_timed_mutex *in) {
