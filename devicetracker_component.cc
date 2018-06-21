@@ -270,10 +270,9 @@ void kis_tracked_signal_data::register_fields() {
             "maximum noise (RSSI)", &max_noise_rssi);
 
 
-    std::shared_ptr<kis_tracked_location_triplet> 
-        loc_builder(new kis_tracked_location_triplet(globalreg, 0));
     peak_loc_id = 
-        RegisterComplexField("kismet.common.signal.peak_loc", loc_builder,
+        RegisterComplexField("kismet.common.signal.peak_loc", 
+                std::make_shared<kis_tracked_location_triplet>(globalreg, 0),
                 "location of strongest signal");
 
     RegisterField("kismet.common.signal.maxseenrate", TrackerDouble,
@@ -283,21 +282,23 @@ void kis_tracked_signal_data::register_fields() {
     RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
             "bitset of observed carrier types", &carrierset);
 
-    std::shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> >
-        signal_min_rrd_builder(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, 0));
     signal_min_rrd_id =
         RegisterComplexField("kismet.common.signal.signal_rrd",
-                signal_min_rrd_builder, "signal data for past minute");
+                std::make_shared<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(globalreg, 0),
+                "signal data for past minute");
 }
 
 void kis_tracked_signal_data::reserve_fields(SharedTrackerElement e) {
     tracker_component::reserve_fields(e);
 
     if (e != NULL) {
-        peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id,
-                    e->get_map_value(peak_loc_id))); 
+        peak_loc = 
+            std::make_shared<kis_tracked_location_triplet>(globalreg, peak_loc_id, 
+            e->get_map_value(peak_loc_id));
 
-        signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id, e->get_map_value(signal_min_rrd_id)));
+        signal_min_rrd =
+            std::make_shared<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(globalreg,
+                    signal_min_rrd_id, e->get_map_value(signal_min_rrd_id));
     } 
 
     add_map(peak_loc_id, peak_loc);
@@ -354,7 +355,7 @@ void kis_tracked_seenby_data::register_fields() {
 
     signal_data_id =
         RegisterComplexField("kismet.common.seenby.signal", 
-                std::shared_ptr<kis_tracked_signal_data>(new kis_tracked_signal_data(globalreg, 0)),
+                std::make_shared<kis_tracked_signal_data>(globalreg, 0),
                 "signal data");
 }
 
@@ -362,8 +363,9 @@ void kis_tracked_seenby_data::reserve_fields(SharedTrackerElement e) {
     tracker_component::reserve_fields(e);
 
     if (e != NULL) {
-        signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
-                    e->get_map_value(signal_data_id)));
+        signal_data =
+            std::make_shared<kis_tracked_signal_data>(globalreg, signal_data_id,
+                    e->get_map_value(signal_data_id));
     }
 
     add_map(signal_data_id, signal_data);

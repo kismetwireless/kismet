@@ -59,7 +59,8 @@ public:
     virtual ~KisGpsBuilder() { }
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new KisGpsBuilder(globalreg, get_id()));
+        auto dup = std::make_shared<KisGpsBuilder>(globalreg, get_id());
+        return dup;
     }
 
     virtual void initialize() { };
@@ -109,7 +110,8 @@ public:
     virtual ~KisGps();
 
     virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new KisGpsBuilder(globalreg, get_id()));
+        auto dup = std::make_shared<KisGps>(globalreg, gps_prototype);
+        return dup;
     }
 
     virtual void initialize() { };
@@ -158,12 +160,12 @@ protected:
 
         tracked_location_id = 
             RegisterComplexField("kismet.gps.location", 
-                    std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    std::make_shared<kis_tracked_location_triplet>(globalreg, 0),
                     "current location");
 
         tracked_last_location_id = 
             RegisterComplexField("kismet.gps.last_location",
-                    std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)),
+                    std::make_shared<kis_tracked_location_triplet>(globalreg, 0),
                     "previous location");
 
         RegisterField("kismet.gps.uuid", TrackerUuid, "UUID", &gps_uuid);
@@ -180,11 +182,17 @@ protected:
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_location_id, e->get_map_value(tracked_location_id)));
-            tracked_last_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id, e->get_map_value(tracked_last_location_id)));
+            tracked_location = 
+                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_location_id,
+                        e->get_map_value(tracked_location_id));
+            tracked_last_location =
+                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_last_location_id,
+                        e->get_map_value(tracked_last_location_id));
         } else {
-            tracked_location.reset(new kis_tracked_location_triplet(globalreg, tracked_location_id));
-            tracked_last_location.reset(new kis_tracked_location_triplet(globalreg, tracked_last_location_id));
+            tracked_location = 
+                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_location_id);
+            tracked_last_location =
+                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_last_location_id);
         }
 
         add_map(tracked_location);
