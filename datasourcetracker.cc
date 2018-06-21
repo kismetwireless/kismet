@@ -550,7 +550,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     for (unsigned int i = 0; i < src_vec.size(); i++) {
         open_datasource(src_vec[i], 
-                [this, src_vec, i](bool success, std::string reason, SharedDatasource) {
+                [src_vec, i](bool success, std::string reason, SharedDatasource) {
             if (success) {
                 _MSG("Data source '" + src_vec[i] + "' launched successfully.", 
                         MSGFLAG_INFO);
@@ -1358,7 +1358,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
         // Initiate the open
         list_interfaces(
-                [this, cl](std::vector<SharedInterface> iflist) {
+                [cl](std::vector<SharedInterface> iflist) {
                     cl->unlock(iflist);
 
                 });
@@ -1607,7 +1607,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     // Initiate the channel set
                     ds->set_channel(ch, 0, 
-                            [this, cl, &cmd_complete_success](unsigned int, bool success, 
+                            [cl, &cmd_complete_success](unsigned int, bool success, 
                                 std::string reason) {
 
                                 cmd_complete_success = success;
@@ -1672,7 +1672,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // Initiate the channel set
                     ds->set_channel_hop(rate, converted_channels, shuffle, 
                             ds->get_source_hop_offset(),
-                            0, [this, cl, &cmd_complete_success](unsigned int, bool success, 
+                            0, [cl, &cmd_complete_success](unsigned int, bool success, 
                                 std::string reason) {
 
                                 cmd_complete_success = success;
@@ -1707,7 +1707,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         ds->get_source_hop_vec(),
                         ds->get_source_hop_shuffle(),
                         ds->get_source_hop_offset(), 0,
-                        [this, cl, &cmd_complete_success](unsigned int, bool success, 
+                        [cl, &cmd_complete_success](unsigned int, bool success, 
                             std::string reason) {
 
                             cmd_complete_success = success;
