@@ -90,11 +90,12 @@ private:
 // Use std::recursive_timed_mutex components when we can, unless we're forcing pthread mode; base it
 // on the GCC versions to detect broken compilers
 #if ALWAYS_USE_KISMET_MUTEX != 0 || \
-    (defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || \
+    (!defined(__clang__) && defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || \
         (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
-typedef kis_recursive_pthread_timed_mutex kis_recursive_timed_mutex
+#warning Using pthread emulated mutex 
+using kis_recursive_timed_mutex = kis_recursive_pthread_timed_mutex;
 #else
-typedef std::recursive_timed_mutex kis_recursive_timed_mutex;
+using kis_recursive_timed_mutex = std::recursive_timed_mutex;
 #endif
 
 // A scoped locker like std::lock_guard that provides RAII scoped locking of a kismet mutex;
