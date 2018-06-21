@@ -1315,6 +1315,12 @@ public:
 
 	virtual ~tracker_component();
 
+    tracker_component(tracker_component&&) = default;
+    tracker_component& operator=(tracker_component&&) = default;
+
+    tracker_component(tracker_component&) = delete;
+    tracker_component& operator=(tracker_component&) = delete;
+
     // Clones the type and preserves that we're a tracker component.  
     // Complex subclasses will replace this to function as builders of
     // their own complex types.
