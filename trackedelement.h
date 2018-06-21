@@ -59,7 +59,7 @@ class GlobalRegistry;
 class EntryTracker;
 class TrackerElement;
 
-typedef std::shared_ptr<TrackerElement> SharedTrackerElement;
+using SharedTrackerElement = std::shared_ptr<TrackerElement>;
 
 // Very large key wrapper class, needed for keying devices with per-server/per-phy 
 // but consistent keys.  Components are store in big-endian format internally so that
@@ -214,43 +214,43 @@ public:
 
     void set_type(TrackerType type);
 
-    TrackerType get_type() const { 
+    constexpr TrackerType get_type() const { 
         return type; 
     }
 
-    typedef std::vector<SharedTrackerElement> tracked_vector;
-    typedef std::vector<SharedTrackerElement>::iterator vector_iterator;
-    typedef std::vector<SharedTrackerElement>::const_iterator vector_const_iterator;
+    using tracked_vector = std::vector<SharedTrackerElement>;
+    using vector_iterator = std::vector<SharedTrackerElement>::iterator;
+    using vector_const_iterator = std::vector<SharedTrackerElement>::const_iterator;
 
-    typedef std::multimap<int, SharedTrackerElement> tracked_map;
-    typedef std::multimap<int, SharedTrackerElement>::iterator map_iterator;
-    typedef std::multimap<int, SharedTrackerElement>::const_iterator map_const_iterator;
-    typedef std::pair<int, SharedTrackerElement> tracked_pair;
+    using tracked_map = std::multimap<int, SharedTrackerElement>;
+    using map_iterator = std::multimap<int, SharedTrackerElement>::iterator;
+    using map_const_iterator = std::multimap<int, SharedTrackerElement>::const_iterator;
+    using tracked_pair = std::pair<int, SharedTrackerElement>;
 
-    typedef std::map<int, SharedTrackerElement> tracked_int_map;
-    typedef std::map<int, SharedTrackerElement>::iterator int_map_iterator;
-    typedef std::map<int, SharedTrackerElement>::const_iterator int_map_const_iterator;
-    typedef std::pair<int, SharedTrackerElement> int_map_pair;
+    using tracked_int_map = std::map<int, SharedTrackerElement>;
+    using int_map_iterator = std::map<int, SharedTrackerElement>::iterator;
+    using int_map_const_iterator = std::map<int, SharedTrackerElement>::const_iterator;
+    using int_map_pair = std::pair<int, SharedTrackerElement>;
 
-    typedef std::map<mac_addr, SharedTrackerElement> tracked_mac_map;
-    typedef std::map<mac_addr, SharedTrackerElement>::iterator mac_map_iterator;
-    typedef std::map<mac_addr, SharedTrackerElement>::const_iterator mac_map_const_iterator;
-    typedef std::pair<mac_addr, SharedTrackerElement> mac_map_pair;
+    using tracked_mac_map = std::map<mac_addr, SharedTrackerElement>;
+    using mac_map_iterator = std::map<mac_addr, SharedTrackerElement>::iterator;
+    using mac_map_const_iterator = std::map<mac_addr, SharedTrackerElement>::const_iterator;
+    using mac_map_pair = std::pair<mac_addr, SharedTrackerElement>;
 
-    typedef std::map<std::string, SharedTrackerElement> tracked_string_map;
-    typedef std::map<std::string, SharedTrackerElement>::iterator string_map_iterator;
-    typedef std::map<std::string, SharedTrackerElement>::const_iterator string_map_const_iterator;
-    typedef std::pair<std::string, SharedTrackerElement> string_map_pair;
+    using tracked_string_map = std::map<std::string, SharedTrackerElement>;
+    using string_map_iterator = std::map<std::string, SharedTrackerElement>::iterator;
+    using string_map_const_iterator = std::map<std::string, SharedTrackerElement>::const_iterator;
+    using string_map_pair = std::pair<std::string, SharedTrackerElement>;
 
-    typedef std::map<double, SharedTrackerElement> tracked_double_map;
-    typedef std::map<double, SharedTrackerElement>::iterator double_map_iterator;
-    typedef std::map<double, SharedTrackerElement>::const_iterator double_map_const_iterator;
-    typedef std::pair<double, SharedTrackerElement> double_map_pair;
+    using tracked_double_map = std::map<double, SharedTrackerElement>;
+    using double_map_iterator = std::map<double, SharedTrackerElement>::iterator;
+    using double_map_const_iterator = std::map<double, SharedTrackerElement>::const_iterator;
+    using double_map_pair = std::pair<double, SharedTrackerElement>;
 
-    typedef std::map<TrackedDeviceKey, SharedTrackerElement> tracked_key_map;
-    typedef std::map<TrackedDeviceKey, SharedTrackerElement>::iterator key_map_iterator;
-    typedef std::map<TrackedDeviceKey, SharedTrackerElement>::const_iterator key_map_const_iterator;
-    typedef std::pair<TrackedDeviceKey, SharedTrackerElement> key_map_pair;
+    using tracked_key_map = std::map<TrackedDeviceKey, SharedTrackerElement>; 
+    using key_map_iterator =  std::map<TrackedDeviceKey, SharedTrackerElement>::iterator;
+    using key_map_const_iterator = std::map<TrackedDeviceKey, SharedTrackerElement>::const_iterator;
+    using key_map_pair = std::pair<TrackedDeviceKey, SharedTrackerElement>;
 
     // Getter per type, use templated GetTrackerValue() for easy fetch
     std::string get_string() const {
@@ -735,8 +735,8 @@ protected:
     SharedTrackerElement val;
 
 public:
-    typedef TrackerElement::vector_iterator iterator;
-    typedef TrackerElement::vector_const_iterator const_iterator;
+    using iterator = TrackerElement::vector_iterator; 
+    using const_iterator = TrackerElement::vector_const_iterator;
 
     TrackerElementVector() {
         val = NULL;
@@ -802,9 +802,9 @@ public:
     virtual ~TrackerElementMap() { }
 
 public:
-    typedef TrackerElement::map_iterator iterator;
-    typedef TrackerElement::map_const_iterator const_iterator;
-    typedef TrackerElement::tracked_pair pair;
+    using iterator = TrackerElement::map_iterator;
+    using const_iterator = TrackerElement::map_const_iterator;
+    using pair = TrackerElement::tracked_pair;
 
     virtual iterator begin() {
         return val->begin();
@@ -851,9 +851,9 @@ public:
     virtual ~TrackerElementKeyMap() { }
 
 public:
-    typedef TrackerElement::key_map_iterator iterator;
-    typedef TrackerElement::key_map_const_iterator const_iterator;
-    typedef TrackerElement::key_map_pair pair;
+    using iterator = TrackerElement::key_map_iterator;
+    using const_iterator = TrackerElement::key_map_const_iterator;
+    using pair = TrackerElement::key_map_pair;
 
     virtual iterator begin() {
         return val->get_keymap()->begin();
@@ -900,9 +900,9 @@ public:
     virtual ~TrackerElementIntMap() { }
 
 public:
-    typedef TrackerElement::int_map_iterator iterator;
-    typedef TrackerElement::int_map_const_iterator const_iterator;
-    typedef TrackerElement::int_map_pair pair;
+    using iterator = TrackerElement::int_map_iterator;
+    using const_iterator = TrackerElement::int_map_const_iterator;
+    using pair = TrackerElement::int_map_pair;
 
     virtual iterator begin() {
         return val->int_begin();
@@ -949,9 +949,9 @@ public:
     virtual ~TrackerElementStringMap() { }
 
 public:
-    typedef TrackerElement::string_map_iterator iterator;
-    typedef TrackerElement::string_map_const_iterator const_iterator;
-    typedef TrackerElement::string_map_pair pair;
+    using iterator = TrackerElement::string_map_iterator;
+    using const_iterator = TrackerElement::string_map_const_iterator;
+    using pair = TrackerElement::string_map_pair;
 
     virtual iterator begin() {
         return val->string_begin();
@@ -998,9 +998,9 @@ public:
     virtual ~TrackerElementMacMap() { }
 
 public:
-    typedef TrackerElement::mac_map_iterator iterator;
-    typedef TrackerElement::mac_map_const_iterator const_iterator;
-    typedef TrackerElement::mac_map_pair pair;
+    using iterator = TrackerElement::mac_map_iterator;
+    using const_iterator = TrackerElement::mac_map_const_iterator;
+    using pair = TrackerElement::mac_map_pair;
 
     virtual iterator begin() {
         return val->mac_begin();
@@ -1047,9 +1047,9 @@ public:
     virtual ~TrackerElementDoubleMap() { }
 
 public:
-    typedef TrackerElement::double_map_iterator iterator;
-    typedef TrackerElement::double_map_const_iterator const_iterator;
-    typedef TrackerElement::double_map_pair pair;
+    using iterator = TrackerElement::double_map_iterator;
+    using const_iterator = TrackerElement::double_map_const_iterator;
+    using pair = TrackerElement::double_map_pair;
 
     virtual iterator begin() {
         return val->double_begin();
@@ -1385,7 +1385,7 @@ protected:
 };
 
 class TrackerElementSummary;
-typedef std::shared_ptr<TrackerElementSummary> SharedElementSummary;
+using SharedElementSummary =  std::shared_ptr<TrackerElementSummary>;
 
 // Element simplification record for summarizing and simplifying records
 class TrackerElementSummary {
@@ -1424,7 +1424,7 @@ public:
         globalreg = in_globalreg;
     }
 
-    typedef std::map<SharedTrackerElement, SharedElementSummary> rename_map;
+    using rename_map = std::map<SharedTrackerElement, SharedElementSummary>;
 
     virtual ~TrackerElementSerializer() {
         local_locker lock(&mutex);

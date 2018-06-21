@@ -112,11 +112,10 @@ struct mac_addr {
 		}
     }
 
-    inline mac_addr() {
-        longmac = 0;
-        longmask = (uint64_t) -1;
-        error = 0;
-    }
+    constexpr mac_addr() :
+        longmac(0),
+        longmask((uint64_t) -1),
+        error(0) { }
 
     inline mac_addr(const char *in) {
         string2long(in);
@@ -126,11 +125,10 @@ struct mac_addr {
 		string2long(in.c_str());
 	}
 
-    inline mac_addr(int in __attribute__((unused))) {
-        longmac = 0;
-        longmask = (uint64_t) -1;
-        error = 0;
-    } 
+    constexpr mac_addr(int in __attribute__((unused)))  :
+        longmac(0),
+        longmask((uint64_t) -1),
+        error(0) { }
 
     inline mac_addr(uint8_t *in, unsigned int len) {
         error = 0;
