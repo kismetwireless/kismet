@@ -123,7 +123,6 @@ std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k) {
 
 void TrackerElement::Initialize() {
     this->type = TrackerUnassigned;
-    reference_count = 0;
 
     set_id(-1);
 
@@ -1139,7 +1138,7 @@ TrackerType TrackerElement::typestring_to_type(std::string s) {
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
 
-void TrackerElement::coercive_set(std::string in_str) {
+void TrackerElement::coercive_set(const std::string& in_str) {
     mac_addr m;
     uuid u;
     TrackedDeviceKey k;
@@ -1228,7 +1227,7 @@ void TrackerElement::coercive_set(double in_num) {
     }
 }
 
-void TrackerElement::coercive_set(SharedTrackerElement in_elem) {
+void TrackerElement::coercive_set(const SharedTrackerElement& in_elem) {
     // Extract the base type then do a coercive set
     std::string basic_string;
     double basic_num;
@@ -1472,14 +1471,14 @@ void TrackerElement::set_bytearray(uint8_t *d, size_t len) {
     bytearray_value_len = len;
 }
 
-void TrackerElement::set_bytearray(std::shared_ptr<uint8_t> d, size_t len) {
+void TrackerElement::set_bytearray(const std::shared_ptr<uint8_t>& d, size_t len) {
     except_type_mismatch(TrackerByteArray);
 
     *(dataunion.bytearray_value) = d;
     bytearray_value_len = len;
 }
 
-void TrackerElement::set_bytearray(std::string s) {
+void TrackerElement::set_bytearray(const std::string& s) {
     set_bytearray((uint8_t *) s.data(), s.length());
 }
 
@@ -1522,169 +1521,169 @@ size_t TrackerElement::size() {
     }
 }
 
-template<> std::string GetTrackerValue(SharedTrackerElement e) {
+template<> std::string GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_string();
 }
 
-template<> int8_t GetTrackerValue(SharedTrackerElement e) {
+template<> int8_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_int8();
 }
 
-template<> uint8_t GetTrackerValue(SharedTrackerElement e) {
+template<> uint8_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_uint8();
 }
 
-template<> int16_t GetTrackerValue(SharedTrackerElement e) {
+template<> int16_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_int16();
 }
 
-template<> uint16_t GetTrackerValue(SharedTrackerElement e) {
+template<> uint16_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_uint16();
 }
 
-template<> int32_t GetTrackerValue(SharedTrackerElement e) {
+template<> int32_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_int32();
 }
 
-template<> uint32_t GetTrackerValue(SharedTrackerElement e) {
+template<> uint32_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_uint32();
 }
 
-template<> int64_t GetTrackerValue(SharedTrackerElement e) {
+template<> int64_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_int64();
 }
 
-template<> uint64_t GetTrackerValue(SharedTrackerElement e) {
+template<> uint64_t GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_uint64();
 }
 
-template<> float GetTrackerValue(SharedTrackerElement e) {
+template<> float GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_float();
 }
 
-template<> double GetTrackerValue(SharedTrackerElement e) {
+template<> double GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_double();
 }
 
-template<> mac_addr GetTrackerValue(SharedTrackerElement e) {
+template<> mac_addr GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_mac();
 }
 
-template<> TrackerElement::tracked_map *GetTrackerValue(SharedTrackerElement e) {
+template<> TrackerElement::tracked_map *GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_map();
 }
 
 template<> TrackerElement::tracked_vector 
-    *GetTrackerValue(SharedTrackerElement e) {
+    *GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_vector();
 }
 
-template<> uuid GetTrackerValue(SharedTrackerElement e) {
+template<> uuid GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_uuid();
 }
 
-template<> TrackedDeviceKey GetTrackerValue(SharedTrackerElement e) {
+template<> TrackedDeviceKey GetTrackerValue(const SharedTrackerElement& e) {
     return e->get_key();
 }
 
-bool operator==(TrackerElement &te1, int8_t i) {
+bool operator==(const TrackerElement &te1, int8_t i) {
     return te1.get_int8() == i;
 }
 
-bool operator==(TrackerElement &te1, uint8_t i) {
+bool operator==(const TrackerElement &te1, uint8_t i) {
     return te1.get_uint8() == i;
 }
 
-bool operator==(TrackerElement &te1, int16_t i) {
+bool operator==(const TrackerElement &te1, int16_t i) {
     return te1.get_int16() == i;
 }
 
-bool operator==(TrackerElement &te1, uint16_t i) {
+bool operator==(const TrackerElement &te1, uint16_t i) {
     return te1.get_uint16() == i;
 }
 
-bool operator==(TrackerElement &te1, int32_t i) {
+bool operator==(const TrackerElement &te1, int32_t i) {
     return te1.get_int32() == i;
 }
 
-bool operator==(TrackerElement &te1, uint32_t i) {
+bool operator==(const TrackerElement &te1, uint32_t i) {
     return te1.get_uint32() == i;
 }
 
-bool operator==(TrackerElement &te1, int64_t i) {
+bool operator==(const TrackerElement &te1, int64_t i) {
     return te1.get_int64() == i;
 }
 
-bool operator==(TrackerElement &te1, uint64_t i) {
+bool operator==(const TrackerElement &te1, uint64_t i) {
     return te1.get_uint64() == i;
 }
 
-bool operator==(TrackerElement &te1, float f) {
+bool operator==(const TrackerElement &te1, float f) {
     return te1.get_float() == f;
 }
 
-bool operator==(TrackerElement &te1, double d) {
+bool operator==(const TrackerElement &te1, double d) {
     return te1.get_double() == d;
 }
 
-bool operator==(TrackerElement &te1, mac_addr m) {
+bool operator==(const TrackerElement &te1, const mac_addr& m) {
     return te1.get_mac() == m;
 }
 
-bool operator==(TrackerElement &te1, uuid u) {
+bool operator==(const TrackerElement &te1, const uuid& u) {
     return te1.get_uuid() == u;
 }
 
 
-bool operator<(TrackerElement &te1, int8_t i) {
+bool operator<(const TrackerElement &te1, int8_t i) {
     return te1.get_int8() < i;
 }
 
-bool operator<(TrackerElement &te1, uint8_t i) {
+bool operator<(const TrackerElement &te1, uint8_t i) {
     return te1.get_uint8() < i;
 }
 
-bool operator<(TrackerElement &te1, int16_t i) {
+bool operator<(const TrackerElement &te1, int16_t i) {
     return te1.get_int16() < i;
 }
 
-bool operator<(TrackerElement &te1, uint16_t i) {
+bool operator<(const TrackerElement &te1, uint16_t i) {
     return te1.get_uint16() < i;
 }
 
-bool operator<(TrackerElement &te1, int32_t i) {
+bool operator<(const TrackerElement &te1, int32_t i) {
     return te1.get_int32() < i;
 }
 
-bool operator<(TrackerElement &te1, uint32_t i) {
+bool operator<(const TrackerElement &te1, uint32_t i) {
     return te1.get_uint32() < i;
 }
 
-bool operator<(TrackerElement &te1, int64_t i) {
+bool operator<(const TrackerElement &te1, int64_t i) {
     return te1.get_int64() < i;
 }
 
-bool operator<(TrackerElement &te1, uint64_t i) {
+bool operator<(const TrackerElement &te1, uint64_t i) {
     return te1.get_uint64() < i;
 }
 
-bool operator<(TrackerElement &te1, float f) {
+bool operator<(const TrackerElement &te1, float f) {
     return te1.get_float() < f;
 }
 
-bool operator<(TrackerElement &te1, double d) {
+bool operator<(const TrackerElement &te1, double d) {
     return te1.get_double() < d;
 }
 
-bool operator<(TrackerElement &te1, mac_addr m) {
+bool operator<(const TrackerElement &te1, const mac_addr& m) {
     return te1.get_mac() < m;
 }
 
-bool operator<(TrackerElement &te1, uuid u) {
+bool operator<(const TrackerElement &te1, const uuid& u) {
     return te1.get_uuid() < u;
 }
 
-bool operator<(TrackerElement &te1, TrackerElement &te2) {
+bool operator<(const TrackerElement &te1, const TrackerElement &te2) {
     if (te1.get_type() != te2.get_type())
         return false;
 
@@ -1728,7 +1727,7 @@ bool operator<(TrackerElement &te1, TrackerElement &te2) {
     }
 }
 
-bool operator<(SharedTrackerElement te1, SharedTrackerElement te2) {
+bool operator<(const SharedTrackerElement& te1, const SharedTrackerElement& te2) {
     if (te1 == NULL)
         return false;
 
@@ -1779,43 +1778,43 @@ bool operator<(SharedTrackerElement te1, SharedTrackerElement te2) {
 }
 
 
-bool operator>(TrackerElement &te1, int8_t i) {
+bool operator>(const TrackerElement &te1, int8_t i) {
     return te1.get_int8() > i;
 }
 
-bool operator>(TrackerElement &te1, uint8_t i) {
+bool operator>(const TrackerElement &te1, uint8_t i) {
     return te1.get_uint8() > i;
 }
 
-bool operator>(TrackerElement &te1, int16_t i) {
+bool operator>(const TrackerElement &te1, int16_t i) {
     return te1.get_int16() > i;
 }
 
-bool operator>(TrackerElement &te1, uint16_t i) {
+bool operator>(const TrackerElement &te1, uint16_t i) {
     return te1.get_uint16() > i;
 }
 
-bool operator>(TrackerElement &te1, int32_t i) {
+bool operator>(const TrackerElement &te1, int32_t i) {
     return te1.get_int32() > i;
 }
 
-bool operator>(TrackerElement &te1, uint32_t i) {
+bool operator>(const TrackerElement &te1, uint32_t i) {
     return te1.get_uint32() > i;
 }
 
-bool operator>(TrackerElement &te1, int64_t i) {
+bool operator>(const TrackerElement &te1, int64_t i) {
     return te1.get_int64() > i;
 }
 
-bool operator>(TrackerElement &te1, uint64_t i) {
+bool operator>(const TrackerElement &te1, uint64_t i) {
     return te1.get_uint64() > i;
 }
 
-bool operator>(TrackerElement &te1, float f) {
+bool operator>(const TrackerElement &te1, float f) {
     return te1.get_float() > f;
 }
 
-bool operator>(TrackerElement &te1, double d) {
+bool operator>(const TrackerElement &te1, double d) {
     return te1.get_double() > d;
 }
 
@@ -1858,8 +1857,8 @@ std::string tracker_component::get_name(int in_id) {
     return globalreg->entrytracker->GetFieldName(in_id);
 }
 
-int tracker_component::RegisterField(std::string in_name, TrackerType in_type, 
-        std::string in_desc, SharedTrackerElement *in_dest) {
+int tracker_component::RegisterField(const std::string& in_name, TrackerType in_type, 
+        const std::string& in_desc, SharedTrackerElement *in_dest) {
     int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
@@ -1869,15 +1868,16 @@ int tracker_component::RegisterField(std::string in_name, TrackerType in_type,
     return id;
 }
 
-int tracker_component::RegisterField(std::string in_name, TrackerType in_type, 
-        std::string in_desc) {
+int tracker_component::RegisterField(const std::string& in_name, TrackerType in_type, 
+        const std::string& in_desc) {
     int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
     return id;
 }
 
-int tracker_component::RegisterField(std::string in_name, SharedTrackerElement in_builder, 
-        std::string in_desc, SharedTrackerElement *in_dest) {
+int tracker_component::RegisterField(const std::string& in_name, 
+        const SharedTrackerElement& in_builder, 
+        const std::string& in_desc, SharedTrackerElement *in_dest) {
     int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
 
     registered_field *rf = new registered_field(id, in_dest);
@@ -1887,8 +1887,8 @@ int tracker_component::RegisterField(std::string in_name, SharedTrackerElement i
     return id;
 } 
 
-int tracker_component::RegisterComplexField(std::string in_name, 
-        SharedTrackerElement in_builder, std::string in_desc) {
+int tracker_component::RegisterComplexField(const std::string& in_name, 
+        const SharedTrackerElement& in_builder, const std::string& in_desc) {
     int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
     in_builder->set_id(id);
     return id;
@@ -1929,13 +1929,13 @@ SharedTrackerElement
     return r;
 }
 
-SharedTrackerElement tracker_component::get_child_path(std::string in_path) {
+SharedTrackerElement tracker_component::get_child_path(const std::string& in_path) {
     std::vector<std::string> tok = StrTokenize(in_path, "/");
     return get_child_path(tok);
 }
 
 SharedTrackerElement 
-    tracker_component::get_child_path(std::vector<std::string> in_path) {
+    tracker_component::get_child_path(const std::vector<std::string>& in_path) {
     if (in_path.size() < 1)
         return NULL;
 
@@ -1967,7 +1967,7 @@ SharedTrackerElement
     return next_elem;
 }
 
-void TrackerElementSerializer::pre_serialize_path(SharedElementSummary in_summary) {
+void TrackerElementSerializer::pre_serialize_path(const SharedElementSummary& in_summary) {
 
     // Iterate through the path on this object, calling pre-serialize as
     // necessary on each object in the summary path
@@ -1994,7 +1994,7 @@ void TrackerElementSerializer::pre_serialize_path(SharedElementSummary in_summar
     }
 }
 
-void TrackerElementSerializer::post_serialize_path(SharedElementSummary in_summary) {
+void TrackerElementSerializer::post_serialize_path(const SharedElementSummary& in_summary) {
 
     // Iterate through the path on this object, calling pre-serialize as
     // necessary on each object in the summary path
@@ -2021,42 +2021,45 @@ void TrackerElementSerializer::post_serialize_path(SharedElementSummary in_summa
     }
 }
 
-TrackerElementSummary::TrackerElementSummary(SharedElementSummary in_c) {
+TrackerElementSummary::TrackerElementSummary(const SharedElementSummary& in_c) {
     parent_element = in_c->parent_element;
     resolved_path = in_c->resolved_path;
     rename = in_c->rename;
 }
 
-TrackerElementSummary::TrackerElementSummary(std::string in_path, std::string in_rename,
+TrackerElementSummary::TrackerElementSummary(const std::string& in_path, 
+        const std::string& in_rename,
         std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(StrTokenize(in_path, "/"), in_rename, entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(std::vector<std::string> in_path,
-        std::string in_rename, std::shared_ptr<EntryTracker> entrytracker) {
+TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path,
+        const std::string& in_rename, std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(in_path, in_rename, entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(std::string in_path, 
+TrackerElementSummary::TrackerElementSummary(const std::string& in_path, 
         std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(StrTokenize(in_path, "/"), "", entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(std::vector<std::string> in_path, 
+TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path, 
         std::shared_ptr<EntryTracker> entrytracker) {
     parse_path(in_path, "", entrytracker);
 }
 
-TrackerElementSummary::TrackerElementSummary(std::vector<int> in_path, std::string in_rename) {
+TrackerElementSummary::TrackerElementSummary(const std::vector<int>& in_path,
+        const std::string& in_rename) {
     resolved_path = in_path;
     rename = in_rename;
 }
 
-TrackerElementSummary::TrackerElementSummary(std::vector<int> in_path) {
+TrackerElementSummary::TrackerElementSummary(const std::vector<int>& in_path) {
     resolved_path = in_path;
 }
 
-void TrackerElementSummary::parse_path(std::vector<std::string> in_path, std::string in_rename,
+void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path, 
+        const std::string& in_rename,
         std::shared_ptr<EntryTracker> entrytracker) {
 
     if (in_path.size() == 0) {
@@ -2084,12 +2087,12 @@ void TrackerElementSummary::parse_path(std::vector<std::string> in_path, std::st
     }
 }
 
-SharedTrackerElement GetTrackerElementPath(std::string in_path, 
+SharedTrackerElement GetTrackerElementPath(const std::string& in_path, 
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
     return GetTrackerElementPath(StrTokenize(in_path, "/"), elem, entrytracker);
 }
 
-SharedTrackerElement GetTrackerElementPath(std::vector<std::string> in_path, 
+SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_path, 
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
 
     if (in_path.size() < 1)
@@ -2122,7 +2125,7 @@ SharedTrackerElement GetTrackerElementPath(std::vector<std::string> in_path,
     return next_elem;
 }
 
-SharedTrackerElement GetTrackerElementPath(std::vector<int> in_path, 
+SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path, 
         SharedTrackerElement elem) {
 
     if (in_path.size() < 1)
@@ -2154,12 +2157,12 @@ SharedTrackerElement GetTrackerElementPath(std::vector<int> in_path,
     return next_elem;
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::string in_path, 
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::string& in_path, 
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
     return GetTrackerElementMultiPath(StrTokenize(in_path, "/"), elem, entrytracker);
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<std::string> in_path, 
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<std::string>& in_path, 
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
 
     std::vector<SharedTrackerElement> ret;
@@ -2278,7 +2281,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<std::st
     return ret;
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in_path, 
+std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<int>& in_path, 
         SharedTrackerElement elem) {
 
     std::vector<SharedTrackerElement> ret;
@@ -2393,7 +2396,8 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(std::vector<int> in
 }
 
 void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
-        SharedTrackerElement in, std::vector<SharedElementSummary> in_summarization, 
+        const SharedTrackerElement& in, 
+        const std::vector<SharedElementSummary>& in_summarization, 
         SharedTrackerElement &ret_elem, 
         TrackerElementSerializer::rename_map &rename_map) {
 
