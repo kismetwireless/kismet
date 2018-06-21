@@ -214,7 +214,7 @@ public:
 
     void set_type(TrackerType type);
 
-    constexpr TrackerType get_type() const { 
+    TrackerType get_type() const { 
         return type; 
     }
 
