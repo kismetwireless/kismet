@@ -264,10 +264,9 @@ void Devicetracker::httpd_all_phys(std::string path, std::ostream &stream,
     anyphy->set_from_phy(this, KIS_PHY_ANY);
     phyvec->add_vector(anyphy);
 
-    std::map<int, Kis_Phy_Handler *>::iterator mi;
-    for (mi = phy_handler_map.begin(); mi != phy_handler_map.end(); ++mi) {
+    for (const auto& mi : phy_handler_map) {
         std::shared_ptr<kis_tracked_phy> p(new kis_tracked_phy(globalreg, phy_base_id));
-        p->set_from_phy(this, mi->first);
+        p->set_from_phy(this, mi.first);
         phyvec->add_vector(p);
     }
 
@@ -408,7 +407,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
             SharedTrackerElement devvec(new TrackerElement(TrackerVector));
 
-            auto mmp = tracked_mac_multimap.equal_range(mac);
+            const auto& mmp = tracked_mac_multimap.equal_range(mac);
             for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
                 devvec->add_vector(mmpi->second);
             }
@@ -525,14 +524,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             SharedStructured fields = structdata->getStructuredByKey("fields");
             StructuredData::structured_vec fvec = fields->getStructuredArray();
 
-            for (StructuredData::structured_vec::iterator i = fvec.begin(); 
-                    i != fvec.end(); ++i) {
-                if ((*i)->isString()) {
-                    SharedElementSummary s(new TrackerElementSummary((*i)->getString(), 
-                                entrytracker));
+            for (const auto& i : fvec) {
+                if (i->isString()) {
+                    auto s = std::make_shared<TrackerElementSummary>(i->getString(), entrytracker);
                     summary_vec.push_back(s);
-                } else if ((*i)->isArray()) {
-                    StructuredData::string_vec mapvec = (*i)->getStringVec();
+                } else if (i->isArray()) {
+                    StructuredData::string_vec mapvec = i->getStringVec();
 
                     if (mapvec.size() != 2) {
                         // fprintf(stderr, "debug - malformed rename pair\n");
@@ -541,8 +538,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         return MHD_YES;
                     }
 
-                    SharedElementSummary s(new TrackerElementSummary(mapvec[0], 
-                                mapvec[1], entrytracker));
+                    auto s = 
+                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1], entrytracker);
                     summary_vec.push_back(s);
                 }
             }
@@ -776,7 +773,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // Search every field; we could make this more controlled by using
                     // the new colmap code but we don't really need to
                     if (dt_search.length() != 0) {
-                        for (auto svi : summary_vec) 
+                        for (const auto& svi : summary_vec) 
                             dt_search_paths.push_back(svi->resolved_path);
                     }
 
@@ -804,7 +801,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         StructuredData::string_vec col_field_vec = 
                             colmap_index->second->getStringVec();
 
-                        for (auto fn : col_field_vec) {
+                        for (const auto& fn : col_field_vec) {
                             TrackerElementSummary s(fn, entrytracker);
                             dt_order_fields.push_back(s.resolved_path);
                         }
@@ -826,7 +823,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         dt_start = in_dt_start;
 
                     // DT always has to wrap in an object
-                    wrapper.reset(new TrackerElement(TrackerMap));
+                    wrapper = std::make_shared<TrackerElement>(TrackerMap);
 
                     // wrap in 'data' for DT
                     wrapper->add_map(outdevs);
@@ -874,7 +871,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 SharedTrackerElement fb;
                                 bool passfa = false, passfb = false;
 
-                                for (auto ofi : dt_order_fields) {
+                                for (const auto& ofi : dt_order_fields) {
                                     if (fa == NULL || (fa != NULL && 
                                         fa->get_type() == TrackerString &&
                                         GetTrackerValue<std::string>(fa) == "")) {
@@ -941,7 +938,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 SharedTrackerElement fb;
                                 bool passfa = false, passfb = false;
 
-                                for (auto ofi : dt_order_fields) {
+                                for (const auto& ofi : dt_order_fields) {
                                     if (fa == NULL || (fa != NULL && 
                                         fa->get_type() == TrackerString &&
                                         GetTrackerValue<std::string>(fa) == "")) {
@@ -1012,7 +1009,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 SharedTrackerElement fb;
                                 bool passfa = false, passfb = false;
 
-                                for (auto ofi : dt_order_fields) {
+                                for (const auto& ofi : dt_order_fields) {
                                     if (fa == NULL || (fa != NULL && 
                                         fa->get_type() == TrackerString &&
                                         GetTrackerValue<std::string>(fa) == "")) {
@@ -1046,8 +1043,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator ei;
 
                     // Set the iterator endpoint for our length
-                    if (dt_length == 0 ||
-                            dt_length + dt_start >= tracked_vec.size())
+                    if (dt_length == 0 || dt_length + dt_start >= tracked_vec.size())
                         ei = tracked_vec.end();
                     else
                         ei = tracked_vec.begin() + dt_start + dt_length;
@@ -1132,7 +1128,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
                 TrackerElementVector regexdevs_vec(regexdevs);
-                for (auto rei : regexdevs_vec) {
+                for (const auto& rei : regexdevs_vec) {
                     std::shared_ptr<kis_tracked_device_base> rd = 
                         std::static_pointer_cast<kis_tracked_device_base>(rei);
 
@@ -1218,7 +1214,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 SharedTrackerElement outdevs(new TrackerElement(TrackerVector));
 
                 TrackerElementVector regexdevs_vec(regexdevs);
-                for (auto rei : regexdevs_vec) {
+                for (const auto& rei : regexdevs_vec) {
                     std::shared_ptr<kis_tracked_device_base> rd = 
                         std::static_pointer_cast<kis_tracked_device_base>(rei);
 
