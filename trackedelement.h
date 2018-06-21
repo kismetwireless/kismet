@@ -175,6 +175,12 @@ public:
 
     virtual ~TrackerElement();
 
+    TrackerElement(TrackerElement&&) = default;
+    TrackerElement& operator=(TrackerElement&&) = default;
+
+    TrackerElement(TrackerElement&) = delete;
+    TrackerElement& operator=(TrackerElement&) = delete;
+
     void Initialize();
 
     // Factory-style for easily making more of the same if we're subclassed
