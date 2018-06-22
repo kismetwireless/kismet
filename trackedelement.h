@@ -881,6 +881,101 @@ public:
     }
 };
 
+class TrackerElementVector : public TrackerElement {
+public:
+    using vector_t = std::vector<SharedTrackerElement>;
+    using iterator = vector_t::iterator;
+    using const_iterator = vector_t::const_iterator;
+
+    TrackerElementVector() : 
+        TrackerElement(TrackerType::TrackerVector) { }
+
+    TrackerElementVector(int id) :
+        TrackerElement(TrackerType::TrackerVector, id) { }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw(std::runtime_error("Cannot coercive_set a vector from a string"));
+    }
+
+    virtual void coercive_set(double in_num) override {
+        throw(std::runtime_error("Cannot coercive_set a vector from a numeric"));
+    }
+
+    // Attempt to coerce one complete item to another
+    virtual void coercive_set(const SharedTrackerElement& in_elem) override {
+        throw(std::runtime_error("Cannot coercive_set a vector from an element"));
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type() override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>();
+        return dup;
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type(int in_id) override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>(in_id);
+        return dup;
+    }
+
+    vector_t& get() {
+        return vector;
+    }
+
+    iterator begin() {
+        return vector.begin();
+    }
+
+    const_iterator cbegin() {
+        return vector.cbegin();
+    }
+
+    iterator end() {
+        return vector.end();
+    }
+
+    const_iterator cend() {
+        return vector.cend();
+    }
+
+    iterator erase(const_iterator i) {
+        return vector.erase(i);
+    }
+
+    iterator erase(iterator first, iterator last) {
+        return vector.erase(first, last);
+    }
+
+    bool empty() const noexcept {
+        return vector.empty();
+    }
+
+    void clear() noexcept {
+        vector.clear();
+    }
+
+    void reserve(size_t cap) {
+        vector.reserve(cap);
+    }
+
+    SharedTrackerElement& operator[](size_t pos) {
+        return vector[pos];
+    }
+
+    void push_back(const SharedTrackerElement& v) {
+        vector.push_back(v);
+    }
+
+    void push_back(SharedTrackerElement&& v) {
+        vector.push_back(v);
+    }
+
+    template< class... Args >
+    void emplace_back( Args&&... args ) {
+        vector.emplace_back(args...);
+    }
+
+protected:
+    vector_t vector;
+};
 
 // Templated access functions
 
