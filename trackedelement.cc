@@ -31,43 +31,43 @@
 
 #include "alphanum.hpp"
 
-TrackedDeviceKey::TrackedDeviceKey() {
+device_key::device_key() {
     spkey = 0;
     dkey = 0;
     error = true;
 }
 
-TrackedDeviceKey::TrackedDeviceKey(const TrackedDeviceKey& k) {
+device_key::device_key(const device_key& k) {
     spkey = k.spkey;
     dkey = k.dkey;
     error = k.error;
 }
 
-TrackedDeviceKey::TrackedDeviceKey(uint64_t in_spkey, uint64_t in_dkey) {
+device_key::device_key(uint64_t in_spkey, uint64_t in_dkey) {
     spkey = in_spkey;
     dkey = in_dkey;
     error = false;
 }
 
-TrackedDeviceKey::TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey) {
+device_key::device_key(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey) {
     spkey = (((uint64_t) in_skey) << 32) | in_pkey;
     dkey = in_dkey;
     error = false;
 }
 
-TrackedDeviceKey::TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device) {
+device_key::device_key(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device) {
     spkey = (((uint64_t) in_skey) << 32) | in_pkey;
     dkey = in_device.longmac;
     error = false;
 }
 
-TrackedDeviceKey::TrackedDeviceKey(uint64_t in_spkey, mac_addr in_device) {
+device_key::device_key(uint64_t in_spkey, mac_addr in_device) {
     spkey = in_spkey;
     dkey = in_device.longmac;
     error = false;
 }
 
-TrackedDeviceKey::TrackedDeviceKey(std::string in_keystr) {
+device_key::device_key(std::string in_keystr) {
     unsigned long long int k1, k2;
 
     if (sscanf(in_keystr.c_str(), "%llx_%llx", &k1, &k2) != 2) {
@@ -83,35 +83,35 @@ TrackedDeviceKey::TrackedDeviceKey(std::string in_keystr) {
     error = false;
 }
 
-std::string TrackedDeviceKey::as_string() const {
+std::string device_key::as_string() const {
     std::stringstream ss;
     ss << *this;
     return ss.str();
 }
 
-uint32_t TrackedDeviceKey::gen_pkey(std::string phy) {
+uint32_t device_key::gen_pkey(std::string phy) {
     return Adler32Checksum(phy.c_str(), phy.length());
 }
 
-uint64_t TrackedDeviceKey::gen_spkey(uuid s_uuid, std::string phy) {
+uint64_t device_key::gen_spkey(uuid s_uuid, std::string phy) {
     uint64_t uuid32 = Adler32Checksum((const char *) s_uuid.uuid_block, 16);
     uint64_t phy32 = gen_pkey(phy);
 
     return (uuid32 << 32) | phy32;
 }
 
-bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
+bool operator <(const device_key& x, const device_key& y) {
     if (x.spkey == y.spkey)
         return x.dkey < y.dkey;
 
     return x.spkey < y.spkey;
 }
 
-bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y) {
+bool operator ==(const device_key& x, const device_key& y) {
     return (x.spkey == y.spkey && x.dkey == y.dkey);
 }
 
-std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k) {
+std::ostream& operator<<(std::ostream& os, const device_key& k) {
     std::ios::fmtflags fflags;
 
     fflags = os.flags();
@@ -143,25 +143,22 @@ void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
         case TrackerType::TrackerUInt64:
         case TrackerType::TrackerFloat:
         case TrackerType::TrackerDouble:
-            coercive_set(std::static_pointer_cast<TrackerElementCoreScalar>(e)->get_value());
+            coercive_set(std::static_pointer_cast<TrackerElementCoreScalar>(e)->get());
             break;
         case TrackerType::TrackerString:
-            coercive_set(std::static_pointer_cast<TrackerElementString>(e)->get_value());
+            coercive_set(std::static_pointer_cast<TrackerElementString>(e)->get());
             break;
         case TrackerType::TrackerUuid:
-            coercive_set(std::static_pointer_cast<TrackerElementUUID>(e)->get_value().UUID2String());
+            coercive_set(std::static_pointer_cast<TrackerElementUUID>(e)->get().UUID2String());
             break;
         case TrackerType::TrackerMac:
-            coercive_set(std::static_pointer_cast<TrackerElementMacAddr>(e)->get_value().Mac2String());
+            coercive_set(std::static_pointer_cast<TrackerElementMacAddr>(e)->get().Mac2String());
             break;
         default:
             throw std::runtime_error(fmt::format("Could not coerce {} to {}",
                         e->get_type_as_string(), get_type_as_string()));
     }
 }
-
-
-// Old
 
 std::string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
@@ -314,31 +311,87 @@ TrackerType TrackerElement::typestring_to_type(const std::string& s) {
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
 
-tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id) {
-    globalreg = in_globalreg;
-
-    entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(in_globalreg, "ENTRY_TRACKER");
-
-    set_type(TrackerMap);
-    set_id(in_id);
+template<> std::string GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerString);
+    return std::static_pointer_cast<TrackerElementString>(e)->get();
 }
 
-tracker_component::tracker_component(GlobalRegistry *in_globalreg, int in_id, 
-        SharedTrackerElement e __attribute__((unused))) {
-
-    globalreg = in_globalreg;
-    entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
-
-    set_type(TrackerMap);
-    set_id(in_id);
+template<> uint8_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerUInt8);
+    return std::static_pointer_cast<TrackerElementUInt8>(e)->get();
 }
 
-tracker_component::~tracker_component() { 
-    for (unsigned int i = 0; i < registered_fields.size(); i++) {
-        delete registered_fields[i];
-    }
+template<> int8_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerInt8);
+    return std::static_pointer_cast<TrackerElementInt8>(e)->get();
+}
+
+template<> uint16_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerUInt16);
+    return std::static_pointer_cast<TrackerElementUInt16>(e)->get();
+}
+
+template<> int16_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerInt16);
+    return std::static_pointer_cast<TrackerElementInt16>(e)->get();
+}
+
+template<> uint32_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerUInt32);
+    return std::static_pointer_cast<TrackerElementUInt32>(e)->get();
+}
+
+template<> int32_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerInt32);
+    return std::static_pointer_cast<TrackerElementInt32>(e)->get();
+}
+
+template<> uint64_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerUInt64);
+    return std::static_pointer_cast<TrackerElementUInt64>(e)->get();
+}
+
+template<> int64_t GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerInt64);
+    return std::static_pointer_cast<TrackerElementInt64>(e)->get();
+}
+
+template<> float GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerFloat);
+    return std::static_pointer_cast<TrackerElementFloat>(e)->get();
+}
+
+template<> double GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerDouble);
+    return std::static_pointer_cast<TrackerElementDouble>(e)->get();
+}
+
+template<> mac_addr GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerMac);
+    return std::static_pointer_cast<TrackerElementMacAddr>(e)->get();
+}
+
+template<> uuid GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerUuid);
+    return std::static_pointer_cast<TrackerElementUUID>(e)->get();
+}
+
+template<> device_key GetTrackerValue(const SharedTrackerElement& e) {
+    e->enforce_type(TrackerType::TrackerKey);
+    return std::static_pointer_cast<TrackerElementDeviceKey>(e)->get();
+}
+
+tracker_component::tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id) :
+    TrackerElementMap(in_id),
+    entrytracker(tracker) {
+
+}
+
+tracker_component::tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id, 
+        SharedTrackerElement e __attribute__((unused))) :
+    TrackerElementMap(in_id),
+    entrytracker(tracker) {
+
 }
 
 SharedTrackerElement tracker_component::clone_type() {
@@ -357,9 +410,8 @@ int tracker_component::RegisterField(const std::string& in_name, TrackerType in_
         const std::string& in_desc, SharedTrackerElement *in_dest) {
     int id = entrytracker->RegisterField(in_name, in_type, in_desc);
 
-    registered_field *rf = new registered_field(id, in_dest);
-
-    registered_fields.push_back(rf);
+    auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
+    registered_fields.push_back(std::move(rf));
 
     return id;
 }
@@ -376,9 +428,8 @@ int tracker_component::RegisterField(const std::string& in_name,
         const std::string& in_desc, SharedTrackerElement *in_dest) {
     int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
 
-    registered_field *rf = new registered_field(id, in_dest);
-
-    registered_fields.push_back(rf);
+    auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
+    registered_fields.push_back(std::move(rf));
 
     return id;
 } 
@@ -392,35 +443,34 @@ int tracker_component::RegisterComplexField(const std::string& in_name,
 
 void tracker_component::reserve_fields(SharedTrackerElement e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
-        registered_field *rf = registered_fields[i];
+        auto& rf = registered_fields[i];
 
-        if (rf->assign != NULL) {
+        if (rf->assign != nullptr) {
             *(rf->assign) = import_or_new(e, rf->id);
-        } else {
         }
     }
 }
 
-SharedTrackerElement 
-    tracker_component::import_or_new(SharedTrackerElement e, int i) {
-
+SharedTrackerElement tracker_component::import_or_new(SharedTrackerElement e, int i) {
     SharedTrackerElement r;
 
     // Find the value of any known fields in the importer element; only try
     // if the imported element is a map
-    if (e != NULL && e->get_type() == TrackerMap) {
-        r = e->get_map_value(i);
+    if (e != nullptr && e->get_type() == TrackerType::TrackerMap) {
+        r = std::static_pointer_cast<TrackerElementMap>(e)->get_sub(i);
 
-        if (r != NULL) {
+        if (r != nullptr) {
             // Added directly as a trackedelement of the right type and id
-            add_map(r);
+            
+            insert(r);
+
             // Return existing item
             return r;
         }
     }
 
     r = entrytracker->GetTrackedInstance(i);
-    add_map(r);
+    insert(r);
 
     return r;
 }
@@ -430,36 +480,37 @@ SharedTrackerElement tracker_component::get_child_path(const std::string& in_pat
     return get_child_path(tok);
 }
 
-SharedTrackerElement 
-    tracker_component::get_child_path(const std::vector<std::string>& in_path) {
+SharedTrackerElement tracker_component::get_child_path(const std::vector<std::string>& in_path) {
     if (in_path.size() < 1)
-        return NULL;
+        return nullptr;
 
-    SharedTrackerElement next_elem = NULL;
+    SharedTrackerElement next_elem = nullptr;
 
-    for (unsigned int x = 0; x < in_path.size(); x++) {
-        // Skip empty path element
-        if (in_path[x].length() == 0)
+    for (auto p : in_path) {
+        // Skip empty path elements
+        if (p.length() == 0)
             continue;
 
-        int id = entrytracker->GetFieldId(in_path[x]);
+        int id = entrytracker->GetFieldId(p);
 
-        if (id < 0) {
-            return NULL;
+        if (id < 0) 
+            return nullptr;
+
+        if (next_elem == nullptr) {
+            // If we're just starting, find the top element in this object
+            next_elem = get_sub(id);
+        } else if (next_elem->get_type() == TrackerType::TrackerMap) {
+            // Otherwise, find the next element of the path in the object in the chain
+            // we're currently inspecting, assuming it's a map
+            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
         }
 
-        if (next_elem == NULL)
-            next_elem = get_map_value(id);
-        else
-            next_elem = 
-                next_elem->get_map_value(id);
-
-        if (next_elem == NULL) {
-            return NULL;
-        }
-
+        // If we can't find it, bail
+        if (next_elem == nullptr)
+            return nullptr;
     }
 
+    // We've drilled down to the end of the chain, return it
     return next_elem;
 }
 
@@ -470,22 +521,22 @@ void TrackerElementSerializer::pre_serialize_path(const SharedElementSummary& in
 
     SharedTrackerElement inter = in_summary->parent_element;
 
-    if (inter == NULL)
+    if (inter == nullptr)
         return;
 
     try {
-        for (auto i = in_summary->resolved_path.begin(); 
-                i != in_summary->resolved_path.end(); ++i) {
-            inter = inter->get_map_value(*i);
+        for (auto p : in_summary->resolved_path) {
+            inter->enforce_type(TrackerType::TrackerMap);
 
-            if (inter == NULL)
+            inter = std::static_pointer_cast<TrackerElementMap>(inter)->get_sub(p);
+
+            if (inter == nullptr)
                 return;
 
             inter->pre_serialize();
         }
     } catch (std::runtime_error c) {
         // Do nothing if we hit a map error
-        fprintf(stderr, "debug - preser summary error: %s\n", c.what());
         return;
     }
 }
@@ -497,22 +548,22 @@ void TrackerElementSerializer::post_serialize_path(const SharedElementSummary& i
 
     SharedTrackerElement inter = in_summary->parent_element;
 
-    if (inter == NULL)
+    if (inter == nullptr)
         return;
 
     try {
-        for (auto i = in_summary->resolved_path.begin(); 
-                i != in_summary->resolved_path.end(); ++i) {
-            inter = inter->get_map_value(*i);
+        for (auto p : in_summary->resolved_path) {
+            inter->enforce_type(TrackerType::TrackerMap);
 
-            if (inter == NULL)
+            inter = std::static_pointer_cast<TrackerElementMap>(inter)->get_sub(p);
+
+            if (inter == nullptr)
                 return;
 
             inter->post_serialize();
         }
     } catch (std::runtime_error c) {
         // Do nothing if we hit a map error
-        fprintf(stderr, "debug - preser summary error: %s\n", c.what());
         return;
     }
 }
@@ -564,11 +615,11 @@ void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path,
 
     bool path_full = true;
 
-    for (unsigned int x = 0; x < in_path.size(); x++) {
-        if (in_path[x].length() == 0)
+    for (auto pe : in_path) {
+        if (pe.length() == 0)
             continue;
 
-        int id = entrytracker->GetFieldId(in_path[x]);
+        auto id = entrytracker->GetFieldId(pe);
 
         if (id < 0)
             path_full = false;
@@ -592,30 +643,34 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_pa
         SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
 
     if (in_path.size() < 1)
-        return NULL;
+        return nullptr;
 
-    SharedTrackerElement next_elem = NULL;
+    if (elem == nullptr)
+        return nullptr;
 
-    for (unsigned int x = 0; x < in_path.size(); x++) {
-        // Skip empty path element
-        if (in_path[x].length() == 0)
+    SharedTrackerElement next_elem;
+
+    for (auto pe : in_path) {
+        // Skip empty
+        if (pe.length() == 0)
             continue;
 
-        int id = entrytracker->GetFieldId(in_path[x]);
+        auto id = entrytracker->GetFieldId(pe);
 
-        if (id < 0) {
-            return NULL;
+        if (id < 0)
+            return nullptr;
+
+        if (next_elem == nullptr) {
+            elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
+        } else {
+            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
         }
 
-        if (next_elem == NULL)
-            next_elem = elem->get_map_value(id);
-        else
-            next_elem = 
-                next_elem->get_map_value(id);
+        if (next_elem == nullptr)
+            return nullptr;
 
-        if (next_elem == NULL) {
-            return NULL;
-        }
     }
 
     return next_elem;
@@ -625,29 +680,28 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
         SharedTrackerElement elem) {
 
     if (in_path.size() < 1)
-        return NULL;
+        return nullptr;
 
-    if (elem == NULL)
-        return NULL;
+    if (elem == nullptr)
+        return nullptr;
 
-    SharedTrackerElement next_elem = NULL;
+    SharedTrackerElement next_elem;
 
-    for (unsigned int x = 0; x < in_path.size(); x++) {
-        int id = in_path[x];
+    for (auto pe : in_path) {
+        if (pe < 0)
+            return nullptr;
 
-        if (id < 0) {
-            return NULL;
+        if (next_elem == nullptr) {
+            elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(pe);
+        } else {
+            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(pe);
         }
 
-        if (next_elem == NULL)
-            next_elem = elem->get_map_value(id);
-        else
-            next_elem = 
-                next_elem->get_map_value(id);
+        if (next_elem == nullptr)
+            return nullptr;
 
-        if (next_elem == NULL) {
-            return NULL;
-        }
     }
 
     return next_elem;
@@ -669,24 +723,27 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
     SharedTrackerElement next_elem = NULL;
 
     bool complex_fulfilled = false;
+
     for (auto x = in_path.begin(); x != in_path.end(); ++x) {
         // Skip empty path element
         if (x->length() == 0)
             continue;
 
-        int id = entrytracker->GetFieldId(*x);
+        auto id = entrytracker->GetFieldId(*x);
 
         if (id < 0) {
             return ret;
         }
 
-        if (next_elem == NULL)
-            next_elem = elem->get_map_value(id);
-        else
-            next_elem = 
-                next_elem->get_map_value(id);
+        if (next_elem == nullptr) {
+            elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
+        } else {
+            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+        }
 
-        if (next_elem == NULL) {
+        if (next_elem == nullptr) {
             return ret;
         }
 
@@ -694,73 +751,72 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
         // object.  If we're in the middle of a path, we iterate over the 
         // contents of the container, and find the rest of the path in it
         if (x != std::next(in_path.end(), -1)) {
-            int type = next_elem->get_type();
+            auto type = next_elem->get_type();
 
-            if (type == TrackerVector) {
+            if (type == TrackerType::TrackerVector) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementVector cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementVector>(next_elem);
 
-                for (TrackerElementVector::iterator i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, *i, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerIntMap) {
+            } else if (type == TrackerType::TrackerIntMap) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementIntMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementIntMap>(next_elem);
 
-                for (TrackerElementIntMap::iterator i = cn.begin();
-                        i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerStringMap) {
+            } else if (type == TrackerType::TrackerStringMap) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementStringMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementStringMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerMacMap) {
+            } else if (type == TrackerType::TrackerMacMap) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementMacMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementMacMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerDoubleMap) {
+            } else if (type == TrackerType::TrackerDoubleMap) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementDoubleMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementDoubleMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -785,7 +841,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
     if (in_path.size() < 1)
         return ret;
 
-    SharedTrackerElement next_elem = NULL;
+    SharedTrackerElement next_elem = nullptr;
 
     bool complex_fulfilled = false;
     for (auto x = in_path.begin(); x != in_path.end(); ++x) {
@@ -795,13 +851,15 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
             return ret;
         }
 
-        if (next_elem == NULL)
-            next_elem = elem->get_map_value(id);
-        else
-            next_elem = 
-                next_elem->get_map_value(id);
+        if (next_elem == nullptr) {
+            elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
+        } else {
+            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+        }
 
-        if (next_elem == NULL) {
+        if (next_elem == nullptr) {
             return ret;
         }
 
@@ -809,72 +867,72 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
         // object.  If we're in the middle of a path, we iterate over the 
         // contents of the container, and find the rest of the path in it
         if (x != std::next(in_path.end(), -1)) {
-            int type = next_elem->get_type();
+            auto type = next_elem->get_type();
 
-            if (type == TrackerVector) {
+            if (type == TrackerType::TrackerVector) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementVector cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementVector>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, *i);
+                        GetTrackerElementMultiPath(sub_path, i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerIntMap) {
+            } else if (type == TrackerType::TrackerIntMap) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementIntMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementIntMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerStringMap) {
+            } else if (type == TrackerType::TrackerStringMap) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementStringMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementStringMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerMacMap) {
+            } else if (type == TrackerType::TrackerMacMap) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementMacMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementMacMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerDoubleMap) {
+            } else if (type == TrackerType::TrackerDoubleMap) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                TrackerElementDoubleMap cn(next_elem);
+                auto cn = std::static_pointer_cast<TrackerElementDoubleMap>(next_elem);
 
-                for (auto i = cn.begin(); i != cn.end(); ++i) {
+                for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i->second);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -902,7 +960,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
     in->pre_serialize();
 
     unsigned int fn = 0;
-    ret_elem = std::make_shared<TrackerElement>(TrackerMap);
+    ret_elem = std::make_shared<TrackerElementMap>();
 
     if (in_summarization.size() == 0)
         ret_elem = in;

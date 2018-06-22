@@ -38,22 +38,14 @@
 #include "macaddr.h"
 #include "uuid.h"
 
-// Type safety can be disabled by commenting out this definition.  This will no
-// longer validate that the type of element matches the use; if used improperly this
-// will lead to "interesting" errors (for simple types) or segfaults (with complex
-// types, either due to a null pointer or due to overlapping union values in the
-// complex pointer).
+// Set this to 0 to disable type safety; this stops Kismet from validating that the
+// tracked element validates properly against the requested type; this will definitely
+// lead to segfaults if the element does not.
 //
 // On the flip side, validating the type is one of the most commonly called 
 // functions, and if this presents a problem, turning off type checking can cull 
 // a large percentage of the function calls
-
 #define TE_TYPE_SAFETY  1
-
-#ifndef TE_TYPE_SAFETY
-// If there's no type safety, define an empty except_type_mismatch
-#define except_type_mismatch(V) ;
-#endif
 
 class GlobalRegistry;
 class EntryTracker;
@@ -66,31 +58,31 @@ using SharedTrackerElement = std::shared_ptr<TrackerElement>;
 // they are consistent across platforms.
 //
 // Values are exported as big endian, hex, [SPKEY]_[DKEY]
-class TrackedDeviceKey {
+class device_key {
 public:
-    friend bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
-    friend bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
-    friend std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k);
+    friend bool operator <(const device_key& x, const device_key& y);
+    friend bool operator ==(const device_key& x, const device_key& y);
+    friend std::ostream& operator<<(std::ostream& os, const device_key& k);
 
-    TrackedDeviceKey();
+    device_key();
 
-    TrackedDeviceKey(const TrackedDeviceKey& k);
+    device_key(const device_key& k);
 
     // Create a key from a server/phy component and device component
-    TrackedDeviceKey(uint64_t in_spkey, uint64_t in_dkey);
+    device_key(uint64_t in_spkey, uint64_t in_dkey);
 
     // Create a key from independent components
-    TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey);
+    device_key(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey);
 
     // Create a key from a cached spkey and a mac address
-    TrackedDeviceKey(uint64_t in_spkey, mac_addr in_device);
+    device_key(uint64_t in_spkey, mac_addr in_device);
 
     // Create a key from a computed hashes and a mac address
-    TrackedDeviceKey(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device);
+    device_key(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device);
 
     // Create a key from an incoming string/exported key; this should only happen during
     // deserialization and rest queries; it's fairly expensive otherwise
-    TrackedDeviceKey(std::string in_keystr);
+    device_key(std::string in_keystr);
 
     std::string as_string() const;
 
@@ -107,9 +99,9 @@ protected:
     bool error;
 };
 
-bool operator <(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
-bool operator ==(const TrackedDeviceKey& x, const TrackedDeviceKey& y);
-std::ostream& operator<<(std::ostream& os, const TrackedDeviceKey& k);
+bool operator <(const device_key& x, const device_key& y);
+bool operator ==(const device_key& x, const device_key& y);
+std::ostream& operator<<(std::ostream& os, const device_key& k);
 
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
@@ -232,6 +224,22 @@ public:
     static TrackerType typestring_to_type(const std::string& s);
     static std::string type_to_typestring(TrackerType t);
 
+    void enforce_type(TrackerType t) {
+#if TE_TYPE_SAFETY == 1
+        if (get_type() != t) 
+            throw std::runtime_error(fmt::format("invalid trackedelement access, cannot use a {} "
+                        "as a {}", type_to_string(get_type()), type_to_string(t)));
+#endif
+    }
+
+    static void enforce_type(TrackerType t1, TrackerType t2) {
+#if TE_TYPE_SAFETY == 1
+        if (t1 != t2)
+            throw std::runtime_error(fmt::format("invalid trackedlement access, cannot use a {} "
+                        "as a {}", type_to_string(t1), type_to_string(t2)));
+#endif
+    }
+
 protected:
     TrackerType type;
     int tracked_id;
@@ -260,11 +268,11 @@ public:
     virtual std::shared_ptr<TrackerElement> clone_type() override = 0;
     virtual std::shared_ptr<TrackerElement> clone_type(int in_id) override = 0;
 
-    P& get_value() {
+    P& get() {
         return value;
     }
 
-    void set_value(const P& in) {
+    void set(const P& in) {
         value = in;
     }
 
@@ -299,6 +307,107 @@ class TrackerElementString : public TrackerElementCoreScalar<std::string> {
         return dup;
     }
 
+};
+
+class TrackerElementByteArray : public TrackerElementCoreScalar<std::string> {
+    TrackerElementByteArray() :
+        TrackerElementCoreScalar<std::string>(TrackerType::TrackerByteArray) {
+
+        }
+
+    TrackerElementByteArray(int id) :
+        TrackerElementCoreScalar<std::string>(TrackerType::TrackerByteArray, id) {
+
+        }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        value = in_str;
+    }
+
+    virtual void coercive_set(double in_num) override {
+        throw(std::runtime_error("Cannot coercive_set a bytearray from a numeric"));
+    }
+
+    virtual void coercive_set(const SharedTrackerElement& e) override {
+        throw(std::runtime_error("Cannot coercive_set a bytearray from an element"));
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type() override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>();
+        return dup;
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type(int in_id) override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>(in_id);
+        return dup;
+    }
+
+    template<typename T>
+    void set(const T& v) {
+        value = std::string(v);
+    }
+
+    void set(const uint8_t* v, size_t len) {
+        value = std::string((const char *) v, len);
+    }
+
+    void set(const char *v, size_t len) {
+        value = std::string(v, len);
+    }
+
+    size_t length() const {
+        return value.length();
+    }
+
+    std::string to_hex() const {
+        std::stringstream ss;
+        auto fflags = ss.flags();
+
+        ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex;
+
+        for (size_t i = 0; i < value.length(); i++) 
+            ss << value.data()[i];
+
+        ss.flags(fflags);
+
+        return ss.str();
+    }
+
+};
+
+class TrackerElementDeviceKey : public TrackerElementCoreScalar<device_key> {
+    TrackerElementDeviceKey() :
+        TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey) {
+
+        }
+
+    TrackerElementDeviceKey(int id) :
+        TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey) {
+
+        }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw(std::runtime_error("Cannot coercive_set a devicekey from a string"));
+    }
+
+    virtual void coercive_set(double in_num) override {
+        throw(std::runtime_error("Cannot coercive_set a devicekey from a numeric"));
+    }
+
+    // Attempt to coerce one complete item to another
+    virtual void coercive_set(const SharedTrackerElement& in_elem) override {
+        throw(std::runtime_error("Cannot coercive_set a devicekey from an element"));
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type() override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>();
+        return dup;
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type(int in_id) override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>(in_id);
+        return dup;
+    }
 };
 
 class TrackerElementUUID : public TrackerElementCoreScalar<uuid> {
@@ -395,10 +504,10 @@ public:
             case TrackerType::TrackerUInt64:
             case TrackerType::TrackerFloat:
             case TrackerType::TrackerDouble:
-                coercive_set(std::static_pointer_cast<TrackerElementCoreNumeric>(e)->get_value());
+                coercive_set(std::static_pointer_cast<TrackerElementCoreNumeric>(e)->get());
                 break;
             case TrackerType::TrackerString:
-                coercive_set(std::static_pointer_cast<TrackerElementString>(e)->get_value());
+                coercive_set(std::static_pointer_cast<TrackerElementString>(e)->get());
                 break;
             default:
                 throw std::runtime_error(fmt::format("Could not coerce {} to {}",
@@ -410,11 +519,11 @@ public:
     virtual std::shared_ptr<TrackerElement> clone_type() override = 0;
     virtual std::shared_ptr<TrackerElement> clone_type(int in_id) override = 0;
 
-    N& get_value() {
+    N& get() {
         return value;
     }
 
-    void set_value(const N& in) {
+    void set(const N& in) {
         value = in;
     }
 
@@ -783,6 +892,25 @@ public:
         auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>(in_id);
         return dup;
     }
+
+    SharedTrackerElement get_sub(int id) {
+        auto v = map.find(id);
+
+        if (v == map.end())
+            return NULL;
+
+        return v->second;
+    }
+
+    template<typename T>
+    std::shared_ptr<T> get_sub_as(int id) {
+        auto v = map.find(id);
+
+        if (v == map.end())
+            return NULL;
+
+        return std::static_pointer_cast<T>(v->second);
+    }
 };
 
 // Int-keyed map
@@ -968,7 +1096,7 @@ public:
         vector.push_back(v);
     }
 
-    template< class... Args >
+    template<class... Args >
     void emplace_back( Args&&... args ) {
         vector.emplace_back(args...);
     }
@@ -977,7 +1105,7 @@ protected:
     vector_t vector;
 };
 
-// Templated access functions
+// Templated generic access functions
 
 template<typename T> T GetTrackerValue(const SharedTrackerElement&);
 
@@ -994,7 +1122,7 @@ template<> float GetTrackerValue(const SharedTrackerElement& e);
 template<> double GetTrackerValue(const SharedTrackerElement& e);
 template<> mac_addr GetTrackerValue(const SharedTrackerElement& e);
 template<> uuid GetTrackerValue(const SharedTrackerElement& e);
-template<> TrackedDeviceKey GetTrackerValue(const SharedTrackerElement& e);
+template<> device_key GetTrackerValue(const SharedTrackerElement& e);
 
 template<> std::map<int, SharedTrackerElement> GetTrackerValue(const SharedTrackerElement& e);
 template<> std::vector<SharedTrackerElement> GetTrackerValue(const SharedTrackerElement& e);
@@ -1014,7 +1142,7 @@ template<> std::vector<SharedTrackerElement> GetTrackerValue(const SharedTracker
 // Fields are allocated via the reserve_fields function, which must be called before
 // use of the component.  By passing an existing trackermap object, a parsed tree
 // can be annealed into the c++ representation without copying/re-parsing the data.
-class tracker_component : public TrackerElement {
+class tracker_component : public TrackerElementMap {
 
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a TrackerElement of type <ptype>, returning type 
@@ -1196,26 +1324,38 @@ class tracker_component : public TrackerElement {
         id = RegisterComplexField(name, builder_##id, description);
 
 public:
-    // Build a basic component.  All basic components are maps.
-    // Set the field id automatically.
-    tracker_component(GlobalRegistry *in_globalreg, int in_id);
+    tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        TrackerElementMap(in_id),
+        entrytracker(tracker) {
 
-    // Build a component with existing map
-    tracker_component(GlobalRegistry *in_globalreg, int in_id, 
-            SharedTrackerElement e __attribute__((unused)));
+    }
 
-	virtual ~tracker_component();
+    tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            SharedTrackerElement e __attribute__((unused))) :
+        TrackerElementMap(in_id),
+        entrytracker(tracker) {
+
+    }
+
+	virtual ~tracker_component() {
+
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type() override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>();
+        return dup;
+    }
+
+    virtual std::shared_ptr<TrackerElement> clone_type(int in_id) override {
+        auto dup = std::make_shared<std::remove_pointer<decltype(this)>::type>(in_id);
+        return dup;
+    }
 
     tracker_component(tracker_component&&) = default;
     tracker_component& operator=(tracker_component&&) = default;
 
     tracker_component(tracker_component&) = delete;
     tracker_component& operator=(tracker_component&) = delete;
-
-    // Clones the type and preserves that we're a tracker component.  
-    // Complex subclasses will replace this to function as builders of
-    // their own complex types.
-    virtual SharedTrackerElement clone_type();
 
     // Return the name via the entrytracker
     virtual std::string get_name();
@@ -1284,7 +1424,7 @@ protected:
     GlobalRegistry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
 
-    std::vector<registered_field *> registered_fields;
+    std::vector<std::unique_ptr<registered_field>> registered_fields;
 };
 
 class TrackerElementSummary;
