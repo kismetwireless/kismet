@@ -381,23 +381,6 @@ template<> device_key GetTrackerValue(const SharedTrackerElement& e) {
     return std::static_pointer_cast<TrackerElementDeviceKey>(e)->get();
 }
 
-tracker_component::tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id) :
-    TrackerElementMap(in_id),
-    entrytracker(tracker) {
-
-}
-
-tracker_component::tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id, 
-        SharedTrackerElement e __attribute__((unused))) :
-    TrackerElementMap(in_id),
-    entrytracker(tracker) {
-
-}
-
-SharedTrackerElement tracker_component::clone_type() {
-    return std::make_shared<tracker_component>(globalreg, get_id());
-}
-
 std::string tracker_component::get_name() {
     return globalreg->entrytracker->GetFieldName(get_id());
 }
@@ -975,6 +958,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
             GetTrackerElementPath((*si)->resolved_path, in);
 
         if (f == NULL) {
+
             f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
                     TrackerInt8, "unallocated field");
 
