@@ -85,7 +85,7 @@ std::unique_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::str
                         field_iter->second->builder->get_type_as_string(),
                         field_iter->second->builder->get_signature()));
 
-        return field_iter->second->builder->clone_type();
+        return field_iter->second->builder->clone_type(field_iter->second->field_id);
     }
 
     auto definition = std::make_shared<reserved_field>();
@@ -96,7 +96,7 @@ std::unique_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::str
     field_name_map[lname] = definition;
     field_id_map[definition->field_id] = definition;
 
-    return definition->builder->clone_type();
+    return definition->builder->clone_type(definition->field_id);
 }
 
 
@@ -143,7 +143,7 @@ std::shared_ptr<TrackerElement> EntryTracker::GetSharedInstance(int in_id) {
     if (iter == field_id_map.end()) 
         return nullptr;
 
-    return iter->second->builder->clone_type();
+    return iter->second->builder->clone_type(iter->second->field_id);
 }
 
 std::shared_ptr<TrackerElement> EntryTracker::GetSharedInstance(const std::string& in_name) {
@@ -156,7 +156,7 @@ std::shared_ptr<TrackerElement> EntryTracker::GetSharedInstance(const std::strin
     if (iter == field_name_map.end()) 
         return nullptr;
 
-    return iter->second->builder->clone_type();
+    return iter->second->builder->clone_type(iter->second->field_id);
 }
 
 bool EntryTracker::Httpd_VerifyPath(const char *path, const char *method) {
