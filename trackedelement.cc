@@ -381,6 +381,77 @@ template<> device_key GetTrackerValue(const SharedTrackerElement& e) {
     return std::static_pointer_cast<TrackerElementDeviceKey>(e)->get();
 }
 
+template<> void SetTrackerValue(const SharedTrackerElement& e, const std::string& v) {
+    e->enforce_type(TrackerType::TrackerString);
+    std::static_pointer_cast<TrackerElementString>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint8_t& v) {
+    e->enforce_type(TrackerType::TrackerUInt8);
+    std::static_pointer_cast<TrackerElementUInt8>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int8_t& v) {
+    e->enforce_type(TrackerType::TrackerInt8);
+    std::static_pointer_cast<TrackerElementInt8>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint16_t& v) {
+    e->enforce_type(TrackerType::TrackerUInt16);
+    std::static_pointer_cast<TrackerElementUInt16>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int16_t& v) {
+    e->enforce_type(TrackerType::TrackerInt16);
+    std::static_pointer_cast<TrackerElementInt16>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint32_t& v) {
+    e->enforce_type(TrackerType::TrackerUInt32);
+    std::static_pointer_cast<TrackerElementUInt32>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int32_t& v) {
+    e->enforce_type(TrackerType::TrackerInt32);
+    std::static_pointer_cast<TrackerElementInt32>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint64_t& v) {
+    e->enforce_type(TrackerType::TrackerUInt64);
+    std::static_pointer_cast<TrackerElementUInt64>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int64_t& v) {
+    e->enforce_type(TrackerType::TrackerInt64);
+    std::static_pointer_cast<TrackerElementInt64>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const float& v) {
+    e->enforce_type(TrackerType::TrackerFloat);
+    std::static_pointer_cast<TrackerElementFloat>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const double& v) {
+    e->enforce_type(TrackerType::TrackerDouble);
+    std::static_pointer_cast<TrackerElementDouble>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const mac_addr& v) {
+    e->enforce_type(TrackerType::TrackerMac);
+    std::static_pointer_cast<TrackerElementMacAddr>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uuid& v) {
+    e->enforce_type(TrackerType::TrackerUuid);
+    std::static_pointer_cast<TrackerElementUUID>(e)->set(v);
+}
+
+template<> void SetTrackerValue(const SharedTrackerElement& e, const device_key& v) {
+    e->enforce_type(TrackerType::TrackerKey);
+    std::static_pointer_cast<TrackerElementDeviceKey>(e)->set(v);
+}
+
+
 std::string tracker_component::get_name() {
     return globalreg->entrytracker->GetFieldName(get_id());
 }
@@ -390,7 +461,7 @@ std::string tracker_component::get_name(int in_id) {
 }
 
 int tracker_component::RegisterField(const std::string& in_name, 
-        std::unique_ptr<TrackerElement>& in_builder,
+        std::unique_ptr<TrackerElement> in_builder,
         const std::string& in_desc, SharedTrackerElement *in_dest) {
 
     int id = entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
@@ -402,6 +473,13 @@ int tracker_component::RegisterField(const std::string& in_name,
 
     return id;
 }
+
+int tracker_component::RegisterField(const std::string& in_name,
+        const std::string& in_desc, SharedTrackerElement *in_dest) {
+    using build_type = std::remove_reference<decltype(**in_dest)>::type;
+    return RegisterField(in_name, TrackerElementFactory<build_type>(), in_desc, in_dest);
+}
+
 
 void tracker_component::reserve_fields(SharedTrackerElement e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
@@ -941,7 +1019,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
 
         if (f == NULL) {
             f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
-                    tracker_element_factory<TrackerElementInt8>(),
+                    TrackerElementFactory<TrackerElementInt8>(),
                     "unallocated field");
 
             std::static_pointer_cast<TrackerElementInt8>(f)->set(0);

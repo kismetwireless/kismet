@@ -258,7 +258,7 @@ protected:
 
 // Generator function for making various elements
 template<typename SUB, typename... Args>
-std::unique_ptr<TrackerElement> tracker_element_factory(const Args& ... args) {
+std::unique_ptr<TrackerElement> TrackerElementFactory(const Args& ... args) {
     auto dup = std::unique_ptr<SUB>(new SUB(args...));
     return dup;
 }
@@ -885,6 +885,11 @@ public:
         return map.cend();
     }
 
+    iterator erase(const K& k) {
+        iterator i = map.find(k);
+        return erase(i);
+    }
+
     iterator erase(const_iterator i) {
         return map.erase(i);
     }
@@ -1171,7 +1176,6 @@ protected:
 // Templated generic access functions
 
 template<typename T> T GetTrackerValue(const SharedTrackerElement&);
-
 template<> std::string GetTrackerValue(const SharedTrackerElement& e);
 template<> int8_t GetTrackerValue(const SharedTrackerElement& e);
 template<> uint8_t GetTrackerValue(const SharedTrackerElement& e);
@@ -1187,8 +1191,21 @@ template<> mac_addr GetTrackerValue(const SharedTrackerElement& e);
 template<> uuid GetTrackerValue(const SharedTrackerElement& e);
 template<> device_key GetTrackerValue(const SharedTrackerElement& e);
 
-template<> std::map<int, SharedTrackerElement> GetTrackerValue(const SharedTrackerElement& e);
-template<> std::vector<SharedTrackerElement> GetTrackerValue(const SharedTrackerElement& e);
+template<typename T> void SetTrackerValue(const SharedTrackerElement& e, const T& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const std::string& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int8_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint8_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int16_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint16_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int32_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint32_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const int64_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uint64_t& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const float& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const double& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const mac_addr& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const uuid& v);
+template<> void SetTrackerValue(const SharedTrackerElement& e, const device_key& v);
 
 // Complex trackable unit based on trackertype dataunion.
 //
@@ -1224,7 +1241,7 @@ class tracker_component : public TrackerElementMap {
         return (rtype) GetTrackerValue<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
-        cvar->set((ptype) in); \
+        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly trackercomponent macro for proxying trackerelement values
@@ -1307,10 +1324,10 @@ class tracker_component : public TrackerElementMap {
     } \
     virtual void set_##name(const std::shared_ptr<ttype>& in) { \
         if (cvar != NULL) \
-            del_map(std::static_pointer_cast<TrackerElement>(cvar)); \
+            erase(cvar->get_id()); \
         cvar = in; \
         if (cvar != NULL) \
-            add_map(std::static_pointer_cast<TrackerElement>(cvar)); \
+            insert(cvar); \
     }  \
     virtual SharedTrackerElement get_tracker_##name() { \
         return std::static_pointer_cast<TrackerElement>(cvar); \
@@ -1435,14 +1452,20 @@ public:
     SharedTrackerElement get_child_path(const std::vector<std::string>& in_path);
 
 protected:
-    // Reserve a field via the entrytracker, using standard entrytracker build methods.
+    // Register a field via the entrytracker, using standard entrytracker build methods.
     // This field will be automatically assigned or created during the reservefields 
     // stage.
     //
     // If in_dest is a nullptr, it will not be instantiated; this is useful for registering
     // sub-components of maps which may not be directly instantiated as top-level fields
-    int RegisterField(const std::string& in_name, std::unique_ptr<TrackerElement>& in_builder,
+    int RegisterField(const std::string& in_name, std::unique_ptr<TrackerElement> in_builder,
             const std::string& in_desc, SharedTrackerElement *in_dest = nullptr);
+
+    // Register a field, automatically deriving its type from the provided destination
+    // field.  The destination field must be specified.
+    template<typename T>
+    int RegisterField(const std::string& in_name, const std::string& in_desc, 
+            std::shared_ptr<T> *in_dest);
 
     // Register field types and get a field ID.  Called during record creation, prior to 
     // assigning an existing trackerelement tree or creating a new one
