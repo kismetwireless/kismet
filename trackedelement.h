@@ -556,6 +556,27 @@ public:
         value = in;
     }
 
+    TrackerElementCoreNumeric<N>& operator+=(const N& rhs) {
+        value += rhs;
+        return this;
+    }
+
+    TrackerElementCoreNumeric<N>& operator-=(const N& rhs) {
+        value -= rhs;
+        return this;
+    }
+
+    friend TrackerElementCoreNumeric<N> operator+(TrackerElementCoreNumeric lhs,
+            const TrackerElementCoreNumeric& rhs) {
+        lhs += rhs;
+        return lhs;
+    }
+
+    friend TrackerElementCoreNumeric<N> operator-(TrackerElementCoreNumeric lhs,
+            const TrackerElementCoreNumeric& rhs) {
+        lhs -= rhs;
+        return lhs;
+    }
 
 protected:
     // Min/max ranges for conversion
