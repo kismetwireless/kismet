@@ -389,38 +389,17 @@ std::string tracker_component::get_name(int in_id) {
     return globalreg->entrytracker->GetFieldName(in_id);
 }
 
-int tracker_component::RegisterField(const std::string& in_name, TrackerType in_type, 
-        const std::string& in_desc, SharedTrackerElement *in_dest) {
-    int id = entrytracker->RegisterField(in_name, in_type, in_desc);
-
-    auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
-    registered_fields.push_back(std::move(rf));
-
-    return id;
-}
-
-int tracker_component::RegisterField(const std::string& in_name, TrackerType in_type, 
-        const std::string& in_desc) {
-    int id = entrytracker->RegisterField(in_name, in_type, in_desc);
-
-    return id;
-}
-
 int tracker_component::RegisterField(const std::string& in_name, 
-        const SharedTrackerElement& in_builder, 
+        std::unique_ptr<TrackerElement>& in_builder,
         const std::string& in_desc, SharedTrackerElement *in_dest) {
-    int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
 
-    auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
-    registered_fields.push_back(std::move(rf));
+    int id = entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
 
-    return id;
-} 
+    if (in_dest != NULL) {
+        auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
+        registered_fields.push_back(std::move(rf));
+    }
 
-int tracker_component::RegisterComplexField(const std::string& in_name, 
-        const SharedTrackerElement& in_builder, const std::string& in_desc) {
-    int id = entrytracker->RegisterField(in_name, in_builder, in_desc);
-    in_builder->set_id(id);
     return id;
 }
 
@@ -452,7 +431,10 @@ SharedTrackerElement tracker_component::import_or_new(SharedTrackerElement e, in
         }
     }
 
-    r = entrytracker->GetTrackedInstance(i);
+    // Build it
+    r = entrytracker->GetSharedInstance(i);
+
+    // Add it to our tracked map object
     insert(r);
 
     return r;
@@ -942,11 +924,11 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
     // we create the new meta-object
     in->pre_serialize();
 
-    unsigned int fn = 0;
-    ret_elem = std::make_shared<TrackerElementMap>();
-
     if (in_summarization.size() == 0)
         ret_elem = in;
+
+    unsigned int fn = 0;
+    ret_elem = std::make_shared<TrackerElementMap>();
 
     for (auto si = in_summarization.begin(); si != in_summarization.end(); ++si) {
         fn++;
@@ -958,12 +940,11 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
             GetTrackerElementPath((*si)->resolved_path, in);
 
         if (f == NULL) {
-
             f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
-                    TrackerInt8, "unallocated field");
+                    tracker_element_factory<TrackerElementInt8>(),
+                    "unallocated field");
 
-            f = std::make_shared<TrackerElement>(TrackerUInt8);
-            f->set((uint8_t) 0);
+            std::static_pointer_cast<TrackerElementInt8>(f)->set(0);
         
             if ((*si)->rename.length() != 0) {
                 f->set_local_name((*si)->rename);
@@ -989,7 +970,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
             rename_map[f] = sum;
         }
 
-        ret_elem->add_map(f);
+        std::static_pointer_cast<TrackerElementMap>(ret_elem)->insert(f);
     }
 
     in->post_serialize();

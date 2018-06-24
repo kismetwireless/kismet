@@ -62,13 +62,13 @@ public:
     // Return: Registered field number, or negative on error (such as field exists with
     // conflicting type)
     int RegisterField(const std::string& in_name, 
-            std::unique_ptr<TrackerElement>& in_builder,
+            std::unique_ptr<TrackerElement> in_builder,
             const std::string& in_desc);
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
     std::unique_ptr<TrackerElement> RegisterAndGetField(const std::string& in_name, 
-            std::unique_ptr<TrackerElement>& in_builder,
+            std::unique_ptr<TrackerElement> in_builder,
             const std::string& in_desc);
 
     int GetFieldId(const std::string& in_name);

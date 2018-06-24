@@ -156,6 +156,8 @@ enum class TrackerType {
 
 class TrackerElement {
 public:
+    TrackerElement() = delete;
+
     TrackerElement(TrackerType t) : 
         type(t),
         tracked_id(-1), 
@@ -254,11 +256,20 @@ protected:
     std::string local_name;
 };
 
+// Generator function for making various elements
+template<typename SUB, typename... Args>
+std::unique_ptr<TrackerElement> tracker_element_factory(const Args& ... args) {
+    auto dup = std::unique_ptr<SUB>(new SUB(args...));
+    return dup;
+}
+
 // Superclass for generic components for pod-like scalar attributes, though
 // they don't need to be explicitly POD
 template <class P>
 class TrackerElementCoreScalar : public TrackerElement {
 public:
+    TrackerElementCoreScalar() = delete;
+
     TrackerElementCoreScalar(TrackerType t) :
         TrackerElement(t) { }
 
@@ -485,6 +496,8 @@ class TrackerElementMacAddr : public TrackerElementCoreScalar<mac_addr> {
 template<class N>
 class TrackerElementCoreNumeric : public TrackerElement {
 public:
+    TrackerElementCoreNumeric() = delete;
+
     TrackerElementCoreNumeric(TrackerType t) :
         TrackerElement(t) {
 
@@ -831,6 +844,8 @@ public:
     using const_iterator = typename map_t::const_iterator;
     using pair = std::pair<int, SharedTrackerElement>;
 
+    TrackerElementCoreMap() = delete;
+
     TrackerElementCoreMap(TrackerType t) : 
         TrackerElement(t) { }
 
@@ -903,7 +918,7 @@ public:
     }
 
 protected:
-    std::map<int, SharedTrackerElement> map;
+    std::map<K, SharedTrackerElement> map;
 };
 
 // Dictionary / map-by-id
@@ -1423,28 +1438,11 @@ protected:
     // Reserve a field via the entrytracker, using standard entrytracker build methods.
     // This field will be automatically assigned or created during the reservefields 
     // stage.
-    int RegisterField(const std::string& in_name, TrackerType in_type, const std::string& in_desc, 
-            SharedTrackerElement *in_dest);
-
-    // Reserve a field via the entrytracker, using standard entrytracker build methods,
-    // but do not assign or create during the reservefields stage.
-    // This can be used for registering sub-components of maps which are not directly
-    // instantiated as top-level fields.
-    int RegisterField(const std::string& in_name, TrackerType in_type, const std::string& in_desc);
-
-    // Reserve a field via the entrytracker, using standard entrytracker build methods.
-    // This field will be automatically assigned or created during the reservefields 
-    // stage.
-    // You will nearly always want to use registercomplex below since fields with 
-    // specific builders typically want to inherit from a subtype
-    int RegisterField(const std::string& in_name, const SharedTrackerElement& in_builder, 
-            const std::string& in_desc, SharedTrackerElement *in_dest);
-
-    // Reserve a complex via the entrytracker, using standard entrytracker build methods.
-    // This field will NOT be automatically assigned or built during the reservefields 
-    // stage, callers should manually create these fields, importing from the parent
-    int RegisterComplexField(const std::string& in_name, const SharedTrackerElement& in_builder, 
-            const std::string& in_desc);
+    //
+    // If in_dest is a nullptr, it will not be instantiated; this is useful for registering
+    // sub-components of maps which may not be directly instantiated as top-level fields
+    int RegisterField(const std::string& in_name, std::unique_ptr<TrackerElement>& in_builder,
+            const std::string& in_desc, SharedTrackerElement *in_dest = nullptr);
 
     // Register field types and get a field ID.  Called during record creation, prior to 
     // assigning an existing trackerelement tree or creating a new one
@@ -1460,8 +1458,7 @@ protected:
 
     // Inherit from an existing element or assign a new one.
     // Add imported or new field to our map for use tracking.
-    virtual SharedTrackerElement 
-        import_or_new(SharedTrackerElement e, int i);
+    virtual SharedTrackerElement import_or_new(SharedTrackerElement e, int i);
 
     class registered_field {
         public:

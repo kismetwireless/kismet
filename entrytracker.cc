@@ -38,7 +38,7 @@ EntryTracker::~EntryTracker() {
 }
 
 int EntryTracker::RegisterField(const std::string& in_name,
-        std::unique_ptr<TrackerElement>& in_builder,
+        std::unique_ptr<TrackerElement> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
 
@@ -69,7 +69,7 @@ int EntryTracker::RegisterField(const std::string& in_name,
 }
 
 std::unique_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::string& in_name,
-        std::unique_ptr<TrackerElement>& in_builder,
+        std::unique_ptr<TrackerElement> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
 
