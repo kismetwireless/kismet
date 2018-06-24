@@ -1414,15 +1414,13 @@ public:
     }
 
     tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            SharedTrackerElement e __attribute__((unused))) :
+            std::shared_ptr<TrackerElementMap> e __attribute__((unused))) :
         TrackerElementMap(in_id),
         entrytracker(tracker) {
 
     }
 
-	virtual ~tracker_component() {
-
-    }
+	virtual ~tracker_component() { }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1477,11 +1475,11 @@ protected:
     //  that we can track usage and delete() appropriately.
     // Populate automatically based on the fields we have reserved, subclasses can 
     // override if they really need to do something special
-    virtual void reserve_fields(SharedTrackerElement e);
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e);
 
     // Inherit from an existing element or assign a new one.
     // Add imported or new field to our map for use tracking.
-    virtual SharedTrackerElement import_or_new(SharedTrackerElement e, int i);
+    virtual SharedTrackerElement import_or_new(std::shared_ptr<TrackerElementMap> e, int i);
 
     class registered_field {
         public:

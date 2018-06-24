@@ -474,14 +474,15 @@ int tracker_component::RegisterField(const std::string& in_name,
     return id;
 }
 
+template<typename T>
 int tracker_component::RegisterField(const std::string& in_name,
-        const std::string& in_desc, SharedTrackerElement *in_dest) {
-    using build_type = std::remove_reference<decltype(**in_dest)>::type;
+        const std::string& in_desc, std::shared_ptr<T> *in_dest) {
+    using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
     return RegisterField(in_name, TrackerElementFactory<build_type>(), in_desc, in_dest);
 }
 
 
-void tracker_component::reserve_fields(SharedTrackerElement e) {
+void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         auto& rf = registered_fields[i];
 
@@ -491,13 +492,13 @@ void tracker_component::reserve_fields(SharedTrackerElement e) {
     }
 }
 
-SharedTrackerElement tracker_component::import_or_new(SharedTrackerElement e, int i) {
+SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerElementMap> e, int i) {
     SharedTrackerElement r;
 
     // Find the value of any known fields in the importer element; only try
     // if the imported element is a map
     if (e != nullptr && e->get_type() == TrackerType::TrackerMap) {
-        r = std::static_pointer_cast<TrackerElementMap>(e)->get_sub(i);
+        r = e->get_sub(i);
 
         if (r != nullptr) {
             // Added directly as a trackedelement of the right type and id
