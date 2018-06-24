@@ -558,12 +558,12 @@ public:
 
     TrackerElementCoreNumeric<N>& operator+=(const N& rhs) {
         value += rhs;
-        return this;
+        return *this;
     }
 
     TrackerElementCoreNumeric<N>& operator-=(const N& rhs) {
         value -= rhs;
-        return this;
+        return *this;
     }
 
     friend TrackerElementCoreNumeric<N> operator+(TrackerElementCoreNumeric lhs,
