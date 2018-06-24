@@ -342,20 +342,32 @@ namespace Globalreg {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
     }
 
+    template<typename T> std::shared_ptr<T> FetchGlobalAs(int in_ref) {
+        return FetchGlobalAs<T>(Globalreg::globalreg, in_ref);
+    }
+
     template<typename T> std::shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, 
-            std::string in_name) {
+            const std::string& in_name) {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
     }
 
+    template<typename T> std::shared_ptr<T> FetchGlobalAs(const std::string& in_name) {
+        return FetchGlobalAs<T>(Globalreg::globalreg->FetchGlobal(in_name));
+    }
+
     template<typename T> std::shared_ptr<T> FetchMandatoryGlobalAs(GlobalRegistry *in_globalreg, 
-            std::string in_name) {
+            const std::string& in_name) {
         std::shared_ptr<T> r = std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
 
         if (r == NULL) 
-            throw std::runtime_error(std::string("Unable to find '" + in_name + "' in "
-                        "the global registry, code initialization may be out of order."));
+            throw std::runtime_error(fmt::format("Unable to find '{}' in the global registry, "
+                        "code initialization may be out of order.", in_name));
 
         return r;
+    }
+
+    template<typename T> std::shared_ptr<T> FetchMandatoryGlobalAs(const std::string& in_name) {
+        return FetchMandatoryGlobalAs<T>(Globalreg::globalreg, in_name);
     }
 }
 
