@@ -115,7 +115,7 @@ public:
     }
 
     kis_tracked_packet(std::shared_ptr<EntryTracker> tracker, int in_id,
-        SharedTrackerElement e) :
+            std::shared_ptr<TrackerElementMap> e) :
         tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(e);
