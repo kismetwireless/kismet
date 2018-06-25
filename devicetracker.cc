@@ -327,7 +327,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     httpd_pcap.reset(new Devicetracker_Httpd_Pcap(globalreg));
 
     entrytracker =
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
     device_base_id =
         entrytracker->RegisterField("kismet.device.base", 

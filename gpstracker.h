@@ -66,7 +66,7 @@ public:
 
     std::shared_ptr<kis_tracked_location_triplet> as_tracked_triplet() {
         std::shared_ptr<kis_tracked_location_triplet> r =
-            std::make_shared<kis_tracked_location_triplet>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRY_TRACKER"), 0);
+            std::make_shared<kis_tracked_location_triplet>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0);
 
         r->set_lat(lat);
         r->set_lon(lon);

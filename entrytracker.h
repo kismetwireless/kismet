@@ -40,7 +40,7 @@ public:
         std::shared_ptr<EntryTracker> mon(new EntryTracker(in_globalreg));
         in_globalreg->entrytracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("ENTRY_TRACKER", mon);
+        in_globalreg->InsertGlobal("ENTRYTRACKER", mon);
         return mon;
     }
 

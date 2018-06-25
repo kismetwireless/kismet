@@ -34,7 +34,7 @@ EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
 EntryTracker::~EntryTracker() {
     local_locker eolock(&entry_mutex);
 
-    globalreg->RemoveGlobal("ENTRY_TRACKER");
+    globalreg->RemoveGlobal("ENTRYTRACKER");
 }
 
 int EntryTracker::RegisterField(const std::string& in_name,

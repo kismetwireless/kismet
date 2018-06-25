@@ -231,19 +231,15 @@ public:
     static std::string type_to_typestring(TrackerType t);
 
     void enforce_type(TrackerType t) {
-#if TE_TYPE_SAFETY == 1
         if (get_type() != t) 
             throw std::runtime_error(fmt::format("invalid trackedelement access, cannot use a {} "
                         "as a {}", type_to_string(get_type()), type_to_string(t)));
-#endif
     }
 
     static void enforce_type(TrackerType t1, TrackerType t2) {
-#if TE_TYPE_SAFETY == 1
         if (t1 != t2)
             throw std::runtime_error(fmt::format("invalid trackedlement access, cannot use a {} "
                         "as a {}", type_to_string(t1), type_to_string(t2)));
-#endif
     }
 
 protected:
@@ -556,6 +552,54 @@ public:
         value = in;
     }
 
+    inline bool operator==(const TrackerElementCoreNumeric<N>& rhs) const { 
+        return value == rhs.value;
+    }
+
+    inline bool operator==(const N& rhs) {
+        return value != rhs;
+    }
+
+    inline bool operator!=(const TrackerElementCoreNumeric<N>& rhs) { 
+        return !(value == rhs.value); 
+    }
+
+    inline bool operator!=(const N& rhs) {
+        return value != rhs;
+    }
+
+    inline bool operator<=(const TrackerElementCoreNumeric<N>& rhs) {
+        return value <= rhs.value;
+    }
+
+    inline bool operator<=(const N& rhs) {
+        return value <= rhs;
+    }
+
+    inline bool operator<(const TrackerElementCoreNumeric<N>& rhs) {
+        return value < rhs.value;
+    }
+
+    inline bool operator<(const N& rhs) {
+        return value < rhs;
+    }
+
+    inline bool operator>=(const TrackerElementCoreNumeric<N>& rhs) {
+        return value >= rhs.value;
+    }
+
+    inline bool operator>=(const N& rhs) {
+        return value >= rhs;
+    }
+
+    inline bool operator>(const TrackerElementCoreNumeric<N>& rhs) {
+        return value > rhs.value;
+    }
+
+    inline bool operator>(const N& rhs) {
+        return value  > rhs;
+    }
+
     TrackerElementCoreNumeric<N>& operator+=(const N& rhs) {
         value += rhs;
         return *this;
@@ -567,15 +611,45 @@ public:
     }
 
     friend TrackerElementCoreNumeric<N> operator+(TrackerElementCoreNumeric lhs,
-            const TrackerElementCoreNumeric& rhs) {
+            const TrackerElementCoreNumeric<N>& rhs) {
         lhs += rhs;
         return lhs;
     }
 
     friend TrackerElementCoreNumeric<N> operator-(TrackerElementCoreNumeric lhs,
-            const TrackerElementCoreNumeric& rhs) {
+            const TrackerElementCoreNumeric<N>& rhs) {
         lhs -= rhs;
         return lhs;
+    }
+
+    TrackerElementCoreNumeric<N>& operator|=(const TrackerElementCoreNumeric<N>& rhs) {
+        value |= rhs.value;
+        return *this;
+    }
+
+    TrackerElementCoreNumeric<N>& operator|=(const N& rhs) {
+        value |= rhs;
+        return *this;
+    }
+
+    TrackerElementCoreNumeric<N>& operator&=(const TrackerElementCoreNumeric<N>& rhs) {
+        value &= rhs.value;
+        return *this;
+    }
+
+    TrackerElementCoreNumeric<N>& operator&=(const N& rhs) {
+        value &= rhs;
+        return *this;
+    }
+
+    TrackerElementCoreNumeric<N>& operator^=(const TrackerElementCoreNumeric<N>& rhs) {
+        value ^= rhs.value;
+        return *this;
+    }
+
+    TrackerElementCoreNumeric<N>& operator^=(const N& rhs) {
+        value ^= rhs;
+        return *this;
     }
 
 protected:
@@ -863,7 +937,7 @@ public:
     using map_t = std::map<K, SharedTrackerElement>;
     using iterator = typename map_t::iterator;
     using const_iterator = typename map_t::const_iterator;
-    using pair = std::pair<int, SharedTrackerElement>;
+    using pair = std::pair<K, SharedTrackerElement>;
 
     TrackerElementCoreMap() = delete;
 
@@ -906,6 +980,14 @@ public:
         return map.cend();
     }
 
+    iterator find(const K& k) {
+        return map.find(k);
+    }
+
+    const_iterator find(const K& k) const {
+        return map.find(k);
+    }
+
     iterator erase(const K& k) {
         iterator i = map.find(k);
         return erase(i);
@@ -919,6 +1001,10 @@ public:
         return map.erase(first, last);
     }
 
+    iterator erase(SharedTrackerElement e) {
+        return map.erase(map.find(e->get_id()));
+    }
+
     bool empty() const noexcept {
         return map.empty();
     }
@@ -929,18 +1015,6 @@ public:
 
     std::pair<iterator, bool> insert(pair p) {
         return map.insert(p);
-    }
-
-    std::pair<iterator, bool> insert(SharedTrackerElement e) {
-        auto existing = map.find(e->get_id());
-
-        if (existing == map.end()) {
-            auto p = std::make_pair(e->get_id(), e);
-            return insert(p);
-        } else {
-            existing->second = e;
-            return std::make_pair(existing, true);
-        }
     }
 
 protected:
@@ -989,6 +1063,33 @@ public:
             return NULL;
 
         return std::static_pointer_cast<T>(v->second);
+    }
+
+    std::pair<iterator, bool> insert(SharedTrackerElement e) {
+        if (e == NULL) 
+            throw std::runtime_error("Attempted to insert null TrackerElement with no ID");
+
+        auto existing = map.find(e->get_id());
+
+        if (existing == map.end()) {
+            auto p = std::make_pair(e->get_id(), e);
+            return map.insert(p);
+        } else {
+            existing->second = e;
+            return std::make_pair(existing, true);
+        }
+    }
+
+    std::pair<iterator, bool> insert(int i, SharedTrackerElement e) {
+        auto existing = map.find(i);
+
+        if (existing == map.end()) {
+            auto p = std::make_pair(i, e);
+            return map.insert(p);
+        } else {
+            existing->second = e;
+            return std::make_pair(existing, true);
+        }
     }
 };
 
@@ -1317,13 +1418,13 @@ class tracker_component : public TrackerElementMap {
 // Proxy increment and decrement functions
 #define __ProxyIncDec(name, ptype, rtype, cvar) \
     virtual void inc_##name() { \
-        (*cvar)++; \
+        (*cvar) += 1; \
     } \
     virtual void inc_##name(rtype i) { \
         (*cvar) += (ptype) i; \
     } \
     virtual void dec_##name() { \
-        (*cvar)--; \
+        (*cvar) -= 1; \
     } \
     virtual void dec_##name(rtype i) { \
         (*cvar) -= (ptype) i; \
@@ -1389,19 +1490,19 @@ class tracker_component : public TrackerElementMap {
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
-            cvar = std::static_pointer_cast<ttype>(tracker_component::entrytracker->GetTrackedInstance(id)); \
+            cvar = std::static_pointer_cast<ttype>(tracker_component::entrytracker->GetSharedInstance(id)); \
             if (cvar != NULL) \
-                add_map(std::static_pointer_cast<TrackerElement>(cvar)); \
+                insert(std::static_pointer_cast<TrackerElement>(cvar)); \
         } \
         return cvar; \
     } \
     virtual void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
         if (cvar != NULL) \
-            del_map(std::static_pointer_cast<TrackerElement>(cvar)); \
+            erase(std::static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
         if (cvar != NULL) { \
             cvar->set_id(id); \
-            add_map(std::static_pointer_cast<TrackerElement>(cvar)); \
+            insert(std::static_pointer_cast<TrackerElement>(cvar)); \
         } \
     } \
     virtual SharedTrackerElement get_tracker_##name() { \

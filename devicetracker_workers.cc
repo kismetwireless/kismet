@@ -86,7 +86,7 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(GlobalRegistr
     globalreg = in_globalreg;
 
     entrytracker =
-        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     query = in_query;
     fieldpaths = in_paths;
@@ -146,7 +146,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     globalreg = in_globalreg;
 
     entrytracker =
-        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     filter_vec = in_filter_vec;
     error = false;
@@ -158,7 +158,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     globalreg = in_globalreg;
 
     entrytracker =
-        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     error = false;
 
@@ -210,7 +210,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(GlobalRegistry *in_globalre
     globalreg = in_globalreg;
 
     entrytracker =
-        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     error = false;
 

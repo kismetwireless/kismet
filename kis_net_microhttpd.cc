@@ -903,7 +903,7 @@ void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
             httpd->RegisterHandler(this);
 
         entrytracker = 
-            std::static_pointer_cast<EntryTracker>(http_globalreg->FetchGlobal("ENTRY_TRACKER"));
+            Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
     }
 }
 

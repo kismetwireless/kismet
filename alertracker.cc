@@ -55,8 +55,8 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
     PreludeInitClient(PRELUDE_ANALYZER_MODEL);
 #endif
 
-    packetchain = Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-    entrytracker = Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+    packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;

@@ -312,142 +312,198 @@ TrackerType TrackerElement::typestring_to_type(const std::string& s) {
 }
 
 template<> std::string GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerString);
+#endif
     return std::static_pointer_cast<TrackerElementString>(e)->get();
 }
 
 template<> uint8_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt8);
+#endif
     return std::static_pointer_cast<TrackerElementUInt8>(e)->get();
 }
 
 template<> int8_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt8);
+#endif
     return std::static_pointer_cast<TrackerElementInt8>(e)->get();
 }
 
 template<> uint16_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt16);
+#endif
     return std::static_pointer_cast<TrackerElementUInt16>(e)->get();
 }
 
 template<> int16_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt16);
+#endif
     return std::static_pointer_cast<TrackerElementInt16>(e)->get();
 }
 
 template<> uint32_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt32);
+#endif
     return std::static_pointer_cast<TrackerElementUInt32>(e)->get();
 }
 
 template<> int32_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt32);
+#endif
     return std::static_pointer_cast<TrackerElementInt32>(e)->get();
 }
 
 template<> uint64_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt64);
+#endif
     return std::static_pointer_cast<TrackerElementUInt64>(e)->get();
 }
 
 template<> int64_t GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt64);
+#endif
     return std::static_pointer_cast<TrackerElementInt64>(e)->get();
 }
 
 template<> float GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerFloat);
+#endif
     return std::static_pointer_cast<TrackerElementFloat>(e)->get();
 }
 
 template<> double GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerDouble);
+#endif
     return std::static_pointer_cast<TrackerElementDouble>(e)->get();
 }
 
 template<> mac_addr GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerMac);
+#endif
     return std::static_pointer_cast<TrackerElementMacAddr>(e)->get();
 }
 
 template<> uuid GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUuid);
+#endif
     return std::static_pointer_cast<TrackerElementUUID>(e)->get();
 }
 
 template<> device_key GetTrackerValue(const SharedTrackerElement& e) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerKey);
+#endif
     return std::static_pointer_cast<TrackerElementDeviceKey>(e)->get();
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const std::string& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerString);
+#endif
     std::static_pointer_cast<TrackerElementString>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const uint8_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt8);
+#endif
     std::static_pointer_cast<TrackerElementUInt8>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const int8_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt8);
+#endif
     std::static_pointer_cast<TrackerElementInt8>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const uint16_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt16);
+#endif
     std::static_pointer_cast<TrackerElementUInt16>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const int16_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt16);
+#endif
     std::static_pointer_cast<TrackerElementInt16>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const uint32_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt32);
+#endif
     std::static_pointer_cast<TrackerElementUInt32>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const int32_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt32);
+#endif
     std::static_pointer_cast<TrackerElementInt32>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const uint64_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUInt64);
+#endif
     std::static_pointer_cast<TrackerElementUInt64>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const int64_t& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerInt64);
+#endif
     std::static_pointer_cast<TrackerElementInt64>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const float& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerFloat);
+#endif
     std::static_pointer_cast<TrackerElementFloat>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const double& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerDouble);
+#endif
     std::static_pointer_cast<TrackerElementDouble>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const mac_addr& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerMac);
+#endif
     std::static_pointer_cast<TrackerElementMacAddr>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const uuid& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerUuid);
+#endif
     std::static_pointer_cast<TrackerElementUUID>(e)->set(v);
 }
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const device_key& v) {
+#if TE_TYPE_SAFETY == 1
     e->enforce_type(TrackerType::TrackerKey);
+#endif
     std::static_pointer_cast<TrackerElementDeviceKey>(e)->set(v);
 }
 
@@ -570,7 +626,9 @@ void TrackerElementSerializer::pre_serialize_path(const SharedElementSummary& in
 
     try {
         for (auto p : in_summary->resolved_path) {
+#if TE_TYPE_SAFETY == 1
             inter->enforce_type(TrackerType::TrackerMap);
+#endif
 
             inter = std::static_pointer_cast<TrackerElementMap>(inter)->get_sub(p);
 
@@ -597,7 +655,9 @@ void TrackerElementSerializer::post_serialize_path(const SharedElementSummary& i
 
     try {
         for (auto p : in_summary->resolved_path) {
+#if TE_TYPE_SAFETY == 1
             inter->enforce_type(TrackerType::TrackerMap);
+#endif
 
             inter = std::static_pointer_cast<TrackerElementMap>(inter)->get_sub(p);
 
@@ -705,10 +765,14 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_pa
             return nullptr;
 
         if (next_elem == nullptr) {
+#if TE_TYPE_SAFETY == 1
             elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
         } else {
+#if TE_TYPE_SAFETY == 1
             next_elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
         }
 
@@ -736,7 +800,9 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
             return nullptr;
 
         if (next_elem == nullptr) {
+#if TE_TYPE_SAFETY == 1
             elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(pe);
         } else {
             next_elem->enforce_type(TrackerType::TrackerMap);
@@ -780,10 +846,14 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
         }
 
         if (next_elem == nullptr) {
+#if TE_TYPE_SAFETY == 1
             elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
         } else {
+#if TE_TYPE_SAFETY == 1
             next_elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
         }
 
@@ -896,10 +966,14 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
         }
 
         if (next_elem == nullptr) {
+#if TE_TYPE_SAFETY == 1
             elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
         } else {
+#if TE_TYPE_SAFETY == 1
             next_elem->enforce_type(TrackerType::TrackerMap);
+#endif
             next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
         }
 

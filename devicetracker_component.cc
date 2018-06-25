@@ -32,107 +32,89 @@
 
 #include "devicetracker_component.h"
 
-kis_tracked_ip_data::kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id) : 
-    tracker_component(in_globalreg, in_id) {
+kis_tracked_ip_data::kis_tracked_ip_data(std::shared_ptr<EntryTracker> tracker, int in_id) : 
+    tracker_component(tracker, in_id) {
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_tracked_ip_data::kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id, 
-        SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+kis_tracked_ip_data::kis_tracked_ip_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
+        std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(tracker, in_id) {
+
     register_fields();
     reserve_fields(e);
-}
-
-SharedTrackerElement kis_tracked_ip_data::clone_type() {
-    return std::make_shared<kis_tracked_ip_data>(globalreg, get_id());
 }
 
 void kis_tracked_ip_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.ipdata.type", TrackerInt32, 
-            "ipdata type enum", &ip_type);
-    RegisterField("kismet.common.ipdata.address", TrackerUInt64,
-            "ip address", &ip_addr_block);
-    RegisterField("kismet.common.ipdata.netmask", TrackerUInt64,
-            "ip netmask", &ip_netmask);
-    RegisterField("kismet.common.ipdata.gateway", TrackerUInt64,
-            "ip gateway", &ip_gateway);
+    RegisterField("kismet.common.ipdata.type", "ipdata type enum", &ip_type);
+    RegisterField("kismet.common.ipdata.address", "ip address", &ip_addr_block);
+    RegisterField("kismet.common.ipdata.netmask", "ip netmask", &ip_netmask);
+    RegisterField("kismet.common.ipdata.gateway", "ip gateway", &ip_gateway);
 }
 
-kis_tracked_signal_data::kis_tracked_signal_data(GlobalRegistry *in_globalreg, int in_id) : 
-    tracker_component(in_globalreg, in_id) {
+kis_tracked_signal_data::kis_tracked_signal_data(std::shared_ptr<EntryTracker> tracker, int in_id) : 
+    tracker_component(tracker, in_id) {
     register_fields();
     reserve_fields(NULL);      
 } 
 
-kis_tracked_signal_data::kis_tracked_signal_data(GlobalRegistry *in_globalreg, int in_id, 
-        SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+kis_tracked_signal_data::kis_tracked_signal_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
+        std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(tracker, in_id) {
     register_fields();
     reserve_fields(e);
-}
-
-SharedTrackerElement kis_tracked_signal_data::clone_type() {
-    return std::make_shared<kis_tracked_signal_data>(globalreg, get_id());
 }
 
 kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const kis_layer1_packinfo& lay1) {
     if (lay1.signal_type == kis_l1_signal_type_dbm) {
         if (lay1.signal_dbm != 0) {
+            last_signal_dbm->set(lay1.signal_dbm);
 
-            last_signal_dbm->set((int32_t) lay1.signal_dbm);
-
-            if ((*min_signal_dbm) == (int32_t) 0 ||
-                    (*min_signal_dbm) > (int32_t) lay1.signal_dbm) {
-                min_signal_dbm->set((int32_t) lay1.signal_dbm);
+            if ((*min_signal_dbm) == 0 || (*min_signal_dbm) > lay1.signal_dbm) {
+                min_signal_dbm->set(lay1.signal_dbm);
             }
 
-            if ((*max_signal_dbm) == (int32_t) 0 ||
-                    (*max_signal_dbm) < (int32_t) lay1.signal_dbm) {
-                max_signal_dbm->set((int32_t) lay1.signal_dbm);
+            if ((*max_signal_dbm) == 0 || (*max_signal_dbm) < lay1.signal_dbm) {
+                max_signal_dbm->set(lay1.signal_dbm);
             }
         }
 
         if (lay1.noise_dbm != 0) {
-            last_noise_dbm->set((int32_t) lay1.noise_dbm);
+            last_noise_dbm->set(lay1.noise_dbm);
 
-            if ((*min_noise_dbm) == (int32_t) 0 ||
-                    (*min_noise_dbm) > (int32_t) lay1.noise_dbm) {
-                min_noise_dbm->set((int32_t) lay1.noise_dbm);
+            if ((*min_noise_dbm) == 0 || (*min_noise_dbm) > lay1.noise_dbm) {
+                min_noise_dbm->set(lay1.noise_dbm);
             }
 
-            if ((*max_noise_dbm) == (int32_t) 0 ||
-                    (*max_noise_dbm) < (int32_t) lay1.noise_dbm) {
-                max_noise_dbm->set((int32_t) lay1.noise_dbm);
+            if ((*max_noise_dbm) == 0 || (*max_noise_dbm) < lay1.noise_dbm) {
+                max_noise_dbm->set(lay1.noise_dbm);
             }
         }
     } else if (lay1.signal_type == kis_l1_signal_type_rssi) {
         if (lay1.signal_rssi != 0) {
-            last_signal_rssi->set((int32_t) lay1.signal_rssi);
+            last_signal_rssi->set(lay1.signal_rssi);
 
-            if ((*min_signal_rssi) == (int32_t) 0 ||
-                    (*min_signal_rssi) > (int32_t) lay1.signal_rssi) {
-                min_signal_dbm->set((int32_t) lay1.signal_rssi);
+            if ((*min_signal_rssi) == 0 || (*min_signal_rssi) > lay1.signal_rssi) {
+                min_signal_dbm->set(lay1.signal_rssi);
             }
 
-            if ((*max_signal_rssi) == (int32_t) 0 ||
-                    (*max_signal_rssi) < (int32_t) lay1.signal_rssi) {
-                max_signal_rssi->set((int32_t) lay1.signal_rssi);
+            if ((*max_signal_rssi) == 0 || (*max_signal_rssi) < lay1.signal_rssi) {
+                max_signal_rssi->set(lay1.signal_rssi);
             }
         }
 
         if (lay1.noise_rssi != 0) {
-            last_noise_rssi->set((int32_t) lay1.noise_rssi);
+            last_noise_rssi->set(lay1.noise_rssi);
 
-            if ((*min_noise_rssi) == (int32_t) 0 ||
-                    (*min_noise_rssi) > (int32_t) lay1.noise_rssi) {
-                min_noise_rssi->set((int32_t) lay1.noise_rssi);
+            if ((*min_noise_rssi) == 0 || (*min_noise_rssi) > lay1.noise_rssi) {
+                min_noise_rssi->set(lay1.noise_rssi);
             }
 
-            if ((*max_noise_rssi) == (int32_t) 0 ||
-                    (*max_noise_rssi) < (int32_t) lay1.noise_rssi) {
-                max_noise_rssi->set((int32_t) lay1.noise_rssi);
+            if ((*max_noise_rssi) == 0 || (*max_noise_rssi) < lay1.noise_rssi) {
+                max_noise_rssi->set(lay1.noise_rssi);
             }
         }
 
@@ -152,52 +134,44 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
         if (in.lay1->signal_type == kis_l1_signal_type_dbm) {
             if (in.lay1->signal_dbm != 0) {
 
-                last_signal_dbm->set((int32_t) in.lay1->signal_dbm);
+                last_signal_dbm->set(in.lay1->signal_dbm);
 
-                if ((*min_signal_dbm) == (int32_t) 0 ||
-                        (*min_signal_dbm) > (int32_t) in.lay1->signal_dbm) {
-                    min_signal_dbm->set((int32_t) in.lay1->signal_dbm);
+                if ((*min_signal_dbm) == 0 || (*min_signal_dbm) > in.lay1->signal_dbm) {
+                    min_signal_dbm->set(in.lay1->signal_dbm);
                 }
 
-                if ((*max_signal_dbm) == (int32_t) 0 ||
-                        (*max_signal_dbm) < (int32_t) in.lay1->signal_dbm) {
-                    max_signal_dbm->set((int32_t) in.lay1->signal_dbm);
+                if ((*max_signal_dbm) == 0 || (*max_signal_dbm) < in.lay1->signal_dbm) {
+                    max_signal_dbm->set(in.lay1->signal_dbm);
 
                     if (in.gps != NULL) {
-                        get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, 
-                                in.gps->fix);
+                        get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->fix);
                     }
                 }
 
-                get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, 
-                        globalreg->timestamp.tv_sec);
+                get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, globalreg->timestamp.tv_sec);
             }
 
             if (in.lay1->noise_dbm != 0) {
-                last_noise_dbm->set((int32_t) in.lay1->noise_dbm);
+                last_noise_dbm->set(in.lay1->noise_dbm);
 
-                if ((*min_noise_dbm) == (int32_t) 0 ||
-                        (*min_noise_dbm) > (int32_t) in.lay1->noise_dbm) {
-                    min_noise_dbm->set((int32_t) in.lay1->noise_dbm);
+                if ((*min_noise_dbm) == 0 || (*min_noise_dbm) > in.lay1->noise_dbm) {
+                    min_noise_dbm->set(in.lay1->noise_dbm);
                 }
 
-                if ((*max_noise_dbm) == (int32_t) 0 ||
-                        (*max_noise_dbm) < (int32_t) in.lay1->noise_dbm) {
-                    max_noise_dbm->set((int32_t) in.lay1->noise_dbm);
+                if ((*max_noise_dbm) == 0 || (*max_noise_dbm) < in.lay1->noise_dbm) {
+                    max_noise_dbm->set(in.lay1->noise_dbm);
                 }
             }
         } else if (in.lay1->signal_type == kis_l1_signal_type_rssi) {
             if (in.lay1->signal_rssi != 0) {
-                last_signal_rssi->set((int32_t) in.lay1->signal_rssi);
+                last_signal_rssi->set(in.lay1->signal_rssi);
 
-                if ((*min_signal_rssi) == (int32_t) 0 ||
-                        (*min_signal_rssi) > (int32_t) in.lay1->signal_rssi) {
-                    min_signal_dbm->set((int32_t) in.lay1->signal_rssi);
+                if ((*min_signal_rssi) == 0 || (*min_signal_rssi) > in.lay1->signal_rssi) {
+                    min_signal_dbm->set(in.lay1->signal_rssi);
                 }
 
-                if ((*max_signal_rssi) == (int32_t) 0 ||
-                        (*max_signal_rssi) < (int32_t) in.lay1->signal_rssi) {
-                    max_signal_rssi->set((int32_t) in.lay1->signal_rssi);
+                if ((*max_signal_rssi) == 0 || (*max_signal_rssi) < in.lay1->signal_rssi) {
+                    max_signal_rssi->set(in.lay1->signal_rssi);
 
                     if (in.gps != NULL) {
                         get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, 
@@ -210,16 +184,14 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
             }
 
             if (in.lay1->noise_rssi != 0) {
-                last_noise_rssi->set((int32_t) in.lay1->noise_rssi);
+                last_noise_rssi->set(in.lay1->noise_rssi);
 
-                if ((*min_noise_rssi) == (int32_t) 0 ||
-                        (*min_noise_rssi) > (int32_t) in.lay1->noise_rssi) {
-                    min_noise_rssi->set((int32_t) in.lay1->noise_rssi);
+                if ((*min_noise_rssi) == 0 || (*min_noise_rssi) > in.lay1->noise_rssi) {
+                    min_noise_rssi->set(in.lay1->noise_rssi);
                 }
 
-                if ((*max_noise_rssi) == (int32_t) 0 ||
-                        (*max_noise_rssi) < (int32_t) in.lay1->noise_rssi) {
-                    max_noise_rssi->set((int32_t) in.lay1->noise_rssi);
+                if ((*max_noise_rssi) == 0 || (*max_noise_rssi) < in.lay1->noise_rssi) {
+                    max_noise_rssi->set(in.lay1->noise_rssi);
                 }
             }
 
@@ -239,133 +211,121 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
 void kis_tracked_signal_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.signal.last_signal_dbm", TrackerInt32,
-            "most recent signal (dBm)", &last_signal_dbm);
-    RegisterField("kismet.common.signal.last_noise_dbm", TrackerInt32,
-            "most recent noise (dBm)", &last_noise_dbm);
+    RegisterField("kismet.common.signal.last_signal", "most recent signal", &last_signal_dbm);
+    RegisterField("kismet.common.signal.last_noise", "most recent noise (dBm)", &last_noise_dbm);
 
-    RegisterField("kismet.common.signal.min_signal_dbm", TrackerInt32,
-            "minimum signal (dBm)", &min_signal_dbm);
-    RegisterField("kismet.common.signal.min_noise_dbm", TrackerInt32,
-            "minimum noise (dBm)", &min_noise_dbm);
+    RegisterField("kismet.common.signal.min_signal", "minimum signal (dBm)", &min_signal_dbm);
+    RegisterField("kismet.common.signal.min_noise_dbm", "minimum noise (dBm)", &min_noise_dbm);
 
-    RegisterField("kismet.common.signal.max_signal_dbm", TrackerInt32,
-            "maximum signal (dBm)", &max_signal_dbm);
-    RegisterField("kismet.common.signal.max_noise_dbm", TrackerInt32,
-            "maximum noise (dBm)", &max_noise_dbm);
+    RegisterField("kismet.common.signal.max_signal_dbm", "maximum signal (dBm)", &max_signal_dbm);
+    RegisterField("kismet.common.signal.max_noise_dbm", "maximum noise (dBm)", &max_noise_dbm);
 
-    RegisterField("kismet.common.signal.last_signal_rssi", TrackerInt32,
+    RegisterField("kismet.common.signal.last_signal_rssi", 
             "most recent signal (RSSI)", &last_signal_rssi);
-    RegisterField("kismet.common.signal.last_noise_rssi", TrackerInt32,
+    RegisterField("kismet.common.signal.last_noise_rssi", 
             "most recent noise (RSSI)", &last_noise_rssi);
 
-    RegisterField("kismet.common.signal.min_signal_rssi", TrackerInt32,
+    RegisterField("kismet.common.signal.min_signal_rssi",
             "minimum signal (rssi)", &min_signal_rssi);
-    RegisterField("kismet.common.signal.min_noise_rssi", TrackerInt32,
+    RegisterField("kismet.common.signal.min_noise_rssi",
             "minimum noise (RSSI)", &min_noise_rssi);
 
-    RegisterField("kismet.common.signal.max_signal_rssi", TrackerInt32,
+    RegisterField("kismet.common.signal.max_signal_rssi",
             "maximum signal (RSSI)", &max_signal_rssi);
-    RegisterField("kismet.common.signal.max_noise_rssi", TrackerInt32,
+    RegisterField("kismet.common.signal.max_noise_rssi",
             "maximum noise (RSSI)", &max_noise_rssi);
 
 
-    std::shared_ptr<kis_tracked_location_triplet> 
-        loc_builder(new kis_tracked_location_triplet(globalreg, 0));
-    peak_loc_id = 
-        RegisterComplexField("kismet.common.signal.peak_loc", loc_builder,
-                "location of strongest signal");
+    peak_loc_id =
+        RegisterField("kismet.common.signal.peak_lock",
+                TrackerElementFactory<kis_tracked_location_triplet>(globalreg, 0),
+                "location of strongest observed signal");
 
-    RegisterField("kismet.common.signal.maxseenrate", TrackerDouble,
+    RegisterField("kismet.common.signal.maxseenrate",
             "maximum observed data rate (phy dependent)", &maxseenrate);
-    RegisterField("kismet.common.signal.encodingset", TrackerUInt64,
+    RegisterField("kismet.common.signal.encodingset", 
             "bitset of observed encodings", &encodingset);
-    RegisterField("kismet.common.signal.carrierset", TrackerUInt64,
+    RegisterField("kismet.common.signal.carrierset", 
             "bitset of observed carrier types", &carrierset);
 
-    std::shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> >
-        signal_min_rrd_builder(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, 0));
     signal_min_rrd_id =
-        RegisterComplexField("kismet.common.signal.signal_rrd",
-                signal_min_rrd_builder, "signal data for past minute");
+        RegisterField("kismet.common.signal.signal_rrd",
+                TrackerElementFactory<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(globalreg, 0),
+                "past minute of signal data");
 }
 
-void kis_tracked_signal_data::reserve_fields(SharedTrackerElement e) {
+void kis_tracked_signal_data::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     tracker_component::reserve_fields(e);
 
     if (e != NULL) {
-        peak_loc.reset(new kis_tracked_location_triplet(globalreg, peak_loc_id,
-                    e->get_map_value(peak_loc_id))); 
+        peak_loc =
+            std::make_shared<kis_tracked_location_triplet>(globalreg, peak_loc_id,
+                    e->get_sub(peak_loc_id));
 
-        signal_min_rrd.reset(new kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>(globalreg, signal_min_rrd_id, e->get_map_value(signal_min_rrd_id)));
+        signal_min_rrd =
+            std::make_shared<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(globalreg, signal_min_rrd_id, e->get_sub(signal_min_rrd_id));
     } 
 
-    add_map(peak_loc_id, peak_loc);
-    add_map(signal_min_rrd_id, signal_min_rrd);
+    insert(peak_loc_id, peak_loc);
+    insert(signal_min_rrd_id, signal_min_rrd);
 }
 
-kis_tracked_seenby_data::kis_tracked_seenby_data(GlobalRegistry *in_globalreg, int in_id) : 
-    tracker_component(in_globalreg, in_id) { 
+kis_tracked_seenby_data::kis_tracked_seenby_data(std::shared_ptr<EntryTracker> tracker, int in_id) : 
+    tracker_component(tracker, in_id) { 
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_tracked_seenby_data::kis_tracked_seenby_data(GlobalRegistry *in_globalreg, int in_id, 
-        SharedTrackerElement e) : tracker_component(in_globalreg, in_id) {
+kis_tracked_seenby_data::kis_tracked_seenby_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
+        std::shared_ptr<TrackerElementMap> e) :
+    tracker_component(tracker, in_id) {
     register_fields();
     reserve_fields(e);
 }
 
-SharedTrackerElement kis_tracked_seenby_data::clone_type() {
-    return std::make_shared<kis_tracked_seenby_data>(globalreg, get_id());
-}
-
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
-    TrackerElement::map_iterator i = freq_khz_map->find(frequency);
+    auto i = freq_khz_map->find(frequency);
 
     if (i == freq_khz_map->end()) {
-        SharedTrackerElement e = 
-            globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
-        e->set((uint64_t) 1);
-        freq_khz_map->add_intmap(frequency, e);
+        auto e = std::make_shared<TrackerElementUInt64>(frequency_val_id);
+        e->set(1);
+        freq_khz_map->insert(std::make_pair(frequency, e));
     } else {
-        (*(i->second))++;
+        *(std::static_pointer_cast<TrackerElementUInt64>(i->second)) += 1;
     }
 }
 
 void kis_tracked_seenby_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.seenby.uuid", TrackerUuid,
-            "UUID of source", &src_uuid);
-    RegisterField("kismet.common.seenby.first_time", TrackerUInt64,
-            "first time seen time_t", &first_time);
-    RegisterField("kismet.common.seenby.last_time", TrackerUInt64,
-            "last time seen time_t", &last_time);
-    RegisterField("kismet.common.seenby.num_packets", TrackerUInt64,
+    RegisterField("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
+    RegisterField("kismet.common.seenby.first_time", "first time seen time_t", &first_time);
+    RegisterField("kismet.common.seenby.last_time", "last time seen time_t", &last_time);
+    RegisterField("kismet.common.seenby.num_packets", 
             "number of packets seen by this device", &num_packets);
 
-    RegisterField("kismet.common.seenby.freq_khz_map", TrackerIntMap,
+    RegisterField("kismet.common.seenby.freq_khz_map", 
             "packets seen per frequency (khz)", &freq_khz_map);
 
     frequency_val_id =
-        globalreg->entrytracker->RegisterField("kismet.common.seenby.frequency.count",
-                TrackerUInt64, "frequency packet count");
+        RegisterField("kismet.common.seenby.frequency.count",
+                TrackerElementFactory<TrackerElementUInt64>(), "packets per frequency");
 
     signal_data_id =
-        RegisterComplexField("kismet.common.seenby.signal", 
-                std::shared_ptr<kis_tracked_signal_data>(new kis_tracked_signal_data(globalreg, 0)),
+        RegisterField("kismet.common.seenby.signal",
+                TrackerElementFactory<kis_tracked_signal_data>(globalreg, 0),
                 "signal data");
 }
 
-void kis_tracked_seenby_data::reserve_fields(SharedTrackerElement e) {
+void kis_tracked_seenby_data::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     tracker_component::reserve_fields(e);
 
     if (e != NULL) {
-        signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
-                    e->get_map_value(signal_data_id)));
+        signal_data =
+            std::make_shared<kis_tracked_signal_data>(globalreg, signal_data_id,
+                    e->get_sub(signal_data_id));
     }
 
-    add_map(signal_data_id, signal_data);
+    insert(signal_data_id, signal_data);
 }
 

@@ -294,7 +294,7 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 

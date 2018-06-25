@@ -55,12 +55,23 @@ enum kis_ipdata_type {
 class kis_tracked_ip_data : public tracker_component {
 public:
     // Since we're a subclass we're responsible for initializing our fields
-    kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id);
+    kis_tracked_ip_data(std::shared_ptr<EntryTracker> tracker, int in_id);
 
     // Since we're a subclass, we're responsible for initializing our fields
-    kis_tracked_ip_data(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+    kis_tracked_ip_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            std::shared_ptr<TrackerElementMap> e);
 
-    virtual SharedTrackerElement clone_type();
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
+    }
 
     __Proxy(ip_type, int32_t, kis_ipdata_type, kis_ipdata_type, ip_type);
     __Proxy(ip_addr, uint64_t, uint64_t, uint64_t, ip_addr_block);
@@ -68,23 +79,34 @@ public:
     __Proxy(ip_gateway, uint64_t, uint64_t, uint64_t, ip_gateway);
 
 protected:
-    virtual void register_fields();
+    virtual void register_fields() override;
 
-    SharedTrackerElement ip_type;
-    SharedTrackerElement ip_addr_block;
-    SharedTrackerElement ip_netmask;
-    SharedTrackerElement ip_gateway;
+    std::shared_ptr<TrackerElementInt32> ip_type;
+    std::shared_ptr<TrackerElementUInt64> ip_addr_block;
+    std::shared_ptr<TrackerElementUInt64> ip_netmask;
+    std::shared_ptr<TrackerElementUInt64> ip_gateway;
 };
 
 // Component-tracker based signal data
 // TODO operator overloading once rssi/dbm fixed upstream
 class kis_tracked_signal_data : public tracker_component {
 public:
-    kis_tracked_signal_data(GlobalRegistry *in_globalreg, int in_id);
+    kis_tracked_signal_data(std::shared_ptr<EntryTracker> tracker, int in_id);
 
-    kis_tracked_signal_data(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+    kis_tracked_signal_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            std::shared_ptr<TrackerElementMap> e);
 
-    virtual SharedTrackerElement clone_type();
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
+    }
 
     kis_tracked_signal_data& operator+= (const kis_layer1_packinfo& lay1);
 	kis_tracked_signal_data& operator+= (const Packinfo_Sig_Combo& in);
@@ -112,25 +134,36 @@ public:
     typedef kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> msig_rrd;
     __ProxyDynamicTrackable(signal_min_rrd, msig_rrd, signal_min_rrd, signal_min_rrd_id);
 
-    __ProxyDynamicTrackable(peak_loc, kis_tracked_location_triplet, 
-            peak_loc, peak_loc_id);
+    __ProxyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc, peak_loc_id);
 
 protected:
-    virtual void register_fields();
-    virtual void reserve_fields(SharedTrackerElement e);
+    virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
-    SharedTrackerElement last_signal_dbm, last_noise_dbm;
-    SharedTrackerElement min_signal_dbm, min_noise_dbm;
-    SharedTrackerElement max_signal_dbm, max_noise_dbm;
+    std::shared_ptr<TrackerElementInt32> last_signal_dbm;
+    std::shared_ptr<TrackerElementInt32> last_noise_dbm;
 
-    SharedTrackerElement last_signal_rssi, last_noise_rssi;
-    SharedTrackerElement min_signal_rssi, min_noise_rssi;
-    SharedTrackerElement max_signal_rssi, max_noise_rssi;
+    std::shared_ptr<TrackerElementInt32> min_signal_dbm;
+    std::shared_ptr<TrackerElementInt32> min_noise_dbm;
+
+    std::shared_ptr<TrackerElementInt32> max_signal_dbm;
+    std::shared_ptr<TrackerElementInt32> max_noise_dbm;
+
+    std::shared_ptr<TrackerElementInt32> last_signal_rssi;
+    std::shared_ptr<TrackerElementInt32> last_noise_rssi;
+
+    std::shared_ptr<TrackerElementInt32> min_signal_rssi;
+    std::shared_ptr<TrackerElementInt32> min_noise_rssi;
+
+    std::shared_ptr<TrackerElementInt32> max_signal_rssi;
+    std::shared_ptr<TrackerElementInt32> max_noise_rssi;
 
     int peak_loc_id;
     std::shared_ptr<kis_tracked_location_triplet> peak_loc;
 
-    SharedTrackerElement maxseenrate, encodingset, carrierset;
+    std::shared_ptr<TrackerElementDouble> maxseenrate;
+    std::shared_ptr<TrackerElementUInt64> encodingset;
+    std::shared_ptr<TrackerElementUInt64> carrierset;
 
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
@@ -140,11 +173,22 @@ protected:
 
 class kis_tracked_seenby_data : public tracker_component {
 public:
-    kis_tracked_seenby_data(GlobalRegistry *in_globalreg, int in_id);
+    kis_tracked_seenby_data(std::shared_ptr<EntryTracker> tracker, int in_id);
 
-    kis_tracked_seenby_data(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e);
+    kis_tracked_seenby_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            std::shared_ptr<TrackerElementMap> e);
 
-    virtual SharedTrackerElement clone_type();
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
+    }
 
     __Proxy(src_uuid, uuid, uuid, uuid, src_uuid);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
@@ -152,22 +196,22 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyTrackable(freq_khz_map, TrackerElement, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, TrackerElementIntMap, freq_khz_map);
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data,
             signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
 
 protected:
-    virtual void register_fields();
-    virtual void reserve_fields(SharedTrackerElement e);
+    virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
-    SharedTrackerElement src_uuid;
-    SharedTrackerElement first_time; 
-    SharedTrackerElement last_time;
-    SharedTrackerElement num_packets;
+    std::shared_ptr<TrackerElementUUID> src_uuid;
+    std::shared_ptr<TrackerElementUInt64> first_time;
+    std::shared_ptr<TrackerElementUInt64> last_time;
+    std::shared_ptr<TrackerElementUInt64> num_packets;
 
-    SharedTrackerElement freq_khz_map;
+    std::shared_ptr<TrackerElementIntMap> freq_khz_map;
     int frequency_val_id;
 
     std::shared_ptr<kis_tracked_signal_data> signal_data;

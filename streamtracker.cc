@@ -28,7 +28,7 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     std::shared_ptr<EntryTracker> entrytracker = 
-        std::static_pointer_cast<EntryTracker>(globalreg->FetchGlobal("ENTRY_TRACKER"));
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     info_builder.reset(new streaming_info_record(globalreg, 0));
     info_builder_id = entrytracker->RegisterField("kismet.stream.stream",

@@ -29,7 +29,7 @@
 // record so we always re-allocate ourselves
 KisDatasource::KisDatasource(GlobalRegistry *in_globalreg, 
         SharedDatasourceBuilder in_builder) :
-    tracker_component(in_globalreg, 0),
+    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRY_TRACKER"), 0),
     KisExternalInterface(in_globalreg) {
 
     globalreg = in_globalreg;
@@ -40,10 +40,10 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     set_source_builder(in_builder);
 
     if (in_builder != NULL)
-        add_map(in_builder);
+        insert(std::static_pointer_cast<TrackerElement>(in_builder));
 
     timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 
     packetchain =
         Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");

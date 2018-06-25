@@ -114,10 +114,7 @@ void GpsTracker::log_snapshot_gps() {
         return;
 
     std::shared_ptr<EntryTracker> entrytracker =
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
-
-    if (entrytracker == NULL)
-        return;
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
     local_locker lock(&gpsmanager_mutex);
 

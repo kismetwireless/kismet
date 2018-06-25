@@ -283,11 +283,11 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         return;
 
     std::shared_ptr<EntryTracker> entrytracker =
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
     if (stripped == "/system/status") {
         entrytracker->Serialize(httpd->GetSuffix(path), stream,
-                Globalreg::FetchGlobalAs<Systemmonitor>(globalreg, "SYSTEM_MONITOR"), NULL);
+                Globalreg::FetchMandatoryGlobalAs<Systemmonitor>(globalreg, "SYSTEM_MONITOR"), NULL);
 
         return;
     } else if (stripped == "/system/timestamp") {

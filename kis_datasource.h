@@ -358,7 +358,7 @@ protected:
     // TrackerComponent API, we can't ever get instantiated from a saved element
     // so we always initialize as if we're a new object
     virtual void register_fields();
-    virtual void reserve_fields(SharedTrackerElement e);
+    virtual void reserve_fields(SharedTrackerElement e) override;
 
     // We don't build quite like a normal object so just remember what our
     // element ID is - it's a generic TrackerMap which holds our serializable

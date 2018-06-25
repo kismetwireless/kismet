@@ -38,7 +38,7 @@ LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
         Globalreg::FetchMandatoryGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
 
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
     register_fields();
     reserve_fields(NULL);
