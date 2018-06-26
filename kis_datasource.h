@@ -49,8 +49,116 @@ typedef std::shared_ptr<KisDatasourceInterface> SharedInterface;
 // Simple keyed object derived from the low-level C protocol
 class KisDatasourceCapKeyedObject;
 
-// Fwd def for DST
 class Datasourcetracker;
+class KisDatasource;
+
+class KisDatasourceBuilder : public tracker_component {
+public:
+    KisDatasourceBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisDatasourceBuilder(std::shared_ptr<EntryTracker> tracker, int in_id,
+            std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(tracker, in_id) {
+        register_fields();
+        reserve_fields(e);
+        initialize();
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
+    }
+
+    virtual ~KisDatasourceBuilder() { };
+
+    virtual void initialize() { };
+
+    // Build the actual data source; when subclassing this MUST fill in the prototype!
+    // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
+    // to the instantiated datasource, so we need to take a pointer to ourselves 
+    // in the input.
+    // Typical implementation:
+    // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
+    virtual std::shared_ptr<KisDatasource> build_datasource(std::shared_ptr<KisDatasourceBuilder>
+            in_shared_builder __attribute__((unused))) { return NULL; };
+
+    __Proxy(source_type, std::string, std::string, std::string, source_type);
+    __Proxy(source_description, std::string, std::string, std::string, source_description);
+
+    __Proxy(probe_capable, uint8_t, bool, bool, probe_capable);
+
+    __Proxy(list_capable, uint8_t, bool, bool, list_capable);
+
+    __Proxy(local_capable, uint8_t, bool, bool, local_capable);
+
+    __Proxy(remote_capable, uint8_t, bool, bool, remote_capable);
+
+    __Proxy(passive_capable, uint8_t, bool, bool, passive_capable);
+
+    __Proxy(tune_capable, uint8_t, bool, bool, tune_capable);
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        RegisterField("kismet.datasource.driver.type", "Type", &source_type);
+        RegisterField("kismet.datasource.driver.description", "Description", &source_description);
+
+        RegisterField("kismet.datasource.driver.probe_capable", 
+                "Datasource can automatically probe", &probe_capable);
+
+        RegisterField("kismet.datasource.driver.probe_ipc", 
+                "Datasource requires IPC to probe", &probe_ipc);
+
+        RegisterField("kismet.datasource.driver.list_capable",
+                "Datasource can list interfaces", &list_capable);
+
+        RegisterField("kismet.datasource.driver.list_ipc", 
+                "Datasource requires IPC to list interfaces", &list_ipc);
+
+        RegisterField("kismet.datasource.driver.local_capable", 
+                "Datasource can support local interfaces", &local_capable);
+
+        RegisterField("kismet.datasource.driver.local_ipc", 
+                "Datasource requires IPC for local interfaces", &local_ipc);
+
+        RegisterField("kismet.datasource.driver.remote_capable",
+                "Datasource can support remote interfaces", &remote_capable);
+
+        RegisterField("kismet.datasource.driver.passive_capable", 
+                "Datasource can support passive interface-less data", &passive_capable);
+
+        RegisterField("kismet.datasource.driver.tuning_capable",
+                "Datasource can control channels", &tune_capable);
+    }
+
+    int datasource_entity_id;
+
+    std::shared_ptr<TrackerElementString> source_type;
+    std::shared_ptr<TrackerElementString> source_description;
+    std::shared_ptr<TrackerElementUInt8> probe_capable;
+    std::shared_ptr<TrackerElementUInt8> probe_ipc;
+    std::shared_ptr<TrackerElementUInt8> list_capable;
+    std::shared_ptr<TrackerElementUInt8> list_ipc;
+    std::shared_ptr<TrackerElementUInt8> local_capable;
+    std::shared_ptr<TrackerElementUInt8> local_ipc;
+    std::shared_ptr<TrackerElementUInt8> remote_capable;
+    std::shared_ptr<TrackerElementUInt8> passive_capable;
+    std::shared_ptr<TrackerElementUInt8> tune_capable;
+};
+
 
 class KisDatasource : public tracker_component, public KisExternalInterface {
 public:
@@ -180,7 +288,7 @@ public:
 
     __ProxyGet(source_dlt, uint32_t, uint32_t, source_dlt);
 
-    __ProxyTrackable(source_channels_vec, TrackerElement, source_channels_vec);
+    __ProxyTrackable(source_channels_vec, TrackerElementVector, source_channels_vec);
 
     // Any alert state passed from the driver we want to be able to consistently
     // report to the user
@@ -193,7 +301,7 @@ public:
     __ProxyGet(source_hop_offset, uint32_t, uint32_t, source_hop_offset);
     __ProxyGet(source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
     __ProxyGet(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip);
-    __ProxyTrackable(source_hop_vec, TrackerElement, source_hop_vec);
+    __ProxyTrackable(source_hop_vec, TrackerElementVector, source_hop_vec);
 
     __ProxyGet(source_running, uint8_t, bool, source_running);
 
@@ -203,10 +311,8 @@ public:
     __Proxy(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets);
     __ProxyIncDec(source_num_packets, uint64_t, uint64_t, source_num_packets);
 
-    __Proxy(source_num_error_packets, uint64_t, uint64_t, uint64_t, 
-            source_num_error_packets);
-    __ProxyIncDec(source_num_error_packets, uint64_t, uint64_t, 
-            source_num_error_packets);
+    __Proxy(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets);
+    __ProxyIncDec(source_num_error_packets, uint64_t, uint64_t, source_num_error_packets);
 
     __ProxyDynamicTrackable(source_packet_rrd, kis_tracked_minute_rrd<>, 
             packet_rate_rrd, packet_rate_rrd_id);
@@ -248,11 +354,11 @@ public:
     virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
     // IPC error
-    virtual void BufferError(std::string in_error);
+    virtual void BufferError(std::string in_error) override;
 protected:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
-    virtual void trigger_error(std::string in_reason);
+    virtual void trigger_error(std::string in_reason) override;
 
 
     // Common interface parsing to set our name/uuid/interface and interface
@@ -324,7 +430,7 @@ protected:
 
 
     // Central packet dispatch override to add the datasource commands
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
 
     virtual void handle_packet_configure_report(uint32_t in_seqno, std::string in_packet);
     virtual void handle_packet_data_report(uint32_t in_seqno, std::string in_packet);
@@ -336,7 +442,8 @@ protected:
 
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
-    virtual unsigned int send_configure_channel_hop(double in_rate, SharedTrackerElement in_chans,
+    virtual unsigned int send_configure_channel_hop(double in_rate,
+            std::shared_ptr<TrackerElementVector> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
@@ -357,8 +464,8 @@ protected:
 
     // TrackerComponent API, we can't ever get instantiated from a saved element
     // so we always initialize as if we're a new object
-    virtual void register_fields();
-    virtual void reserve_fields(SharedTrackerElement e) override;
+    virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
     // We don't build quite like a normal object so just remember what our
     // element ID is - it's a generic TrackerMap which holds our serializable
@@ -375,7 +482,7 @@ protected:
     __ProxySet(int_source_cap_interface, std::string, std::string, source_cap_interface);
     __ProxySet(int_source_hardware, std::string, std::string, source_hardware);
     __ProxySet(int_source_dlt, uint32_t, uint32_t, source_dlt);
-    __ProxyTrackable(int_source_channels_vec, TrackerElement, source_channels_vec);
+    __ProxyTrackable(int_source_channels_vec, TrackerElementVector, source_channels_vec);
 
     __ProxySet(int_source_warning, std::string, std::string, source_warning);
 
@@ -386,71 +493,70 @@ protected:
     __ProxySet(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
     __ProxySet(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip);
     __ProxySet(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset);
-    __ProxyTrackable(int_source_hop_vec, TrackerElement, source_hop_vec);
+    __ProxyTrackable(int_source_hop_vec, TrackerElementVector, source_hop_vec);
 
     // Prototype object which created us, defines our overall capabilities
-    SharedDatasourceBuilder source_builder;
+    std::shared_ptr<KisDatasourceBuilder> source_builder;
 
     // RW fields, they're relevant only to Kismet
-    SharedTrackerElement source_name;
-    SharedTrackerElement source_uuid;
+    std::shared_ptr<TrackerElementString> source_name;
+    std::shared_ptr<TrackerElementUUID> source_uuid;
     bool local_uuid;
-    SharedTrackerElement source_key;
+    std::shared_ptr<TrackerElementDeviceKey> source_key;
 
     // Read-only tracked element states
     
     // Raw definition
-    SharedTrackerElement source_definition;
+    std::shared_ptr<TrackerElementString> source_definition;
 
     // Network interface / filename
-    SharedTrackerElement source_interface;
-    // Optional interface we actually capture from - ie, linux wifi VIFs or resolved
-    // USB device paths
-    SharedTrackerElement source_cap_interface;
+    std::shared_ptr<TrackerElementString> source_interface;
+    // Optional interface we actually capture from - ie, linux wifi VIFs or resolved USB device paths
+    std::shared_ptr<TrackerElementString> source_cap_interface;
     // Optional hardware
-    SharedTrackerElement source_hardware;
+    std::shared_ptr<TrackerElementString> source_hardware;
 
     // Interface DLT
-    SharedTrackerElement source_dlt;
+    std::shared_ptr<TrackerElementUInt32> source_dlt;
 
-    // Builder for channel string elements
-    SharedTrackerElement channel_entry_builder;
+    int channel_entry_id;
 
     // Possible channels supported by this source
-    SharedTrackerElement source_channels_vec;
+    std::shared_ptr<TrackerElementVector> source_channels_vec;
 
     // Warning to the user if something is funny in the source
-    SharedTrackerElement source_warning;
+    std::shared_ptr<TrackerElementString> source_warning;
 
     // Are we channel hopping?
-    SharedTrackerElement source_hopping;
+    std::shared_ptr<TrackerElementUInt8> source_hopping;
 
     // Current channel if we're not hopping
-    SharedTrackerElement source_channel;
+    std::shared_ptr<TrackerElementString> source_channel;
 
     // Current hop rate and vector of channels we hop through, if we're hopping
-    SharedTrackerElement source_hop_rate;
-    SharedTrackerElement source_hop_vec;
+    std::shared_ptr<TrackerElementDouble> source_hop_rate;
+    std::shared_ptr<TrackerElementVector> source_hop_vec;
+    int source_hop_vec_id;
 
-    SharedTrackerElement source_hop_split;
-    SharedTrackerElement source_hop_offset;
-    SharedTrackerElement source_hop_shuffle;
-    SharedTrackerElement source_hop_shuffle_skip;
+    std::shared_ptr<TrackerElementUInt8> source_hop_split;
+    std::shared_ptr<TrackerElementUInt32> source_hop_offset;
+    std::shared_ptr<TrackerElementUInt8> source_hop_shuffle;
+    std::shared_ptr<TrackerElementUInt32> source_hop_shuffle_skip;
 
-    SharedTrackerElement source_num_packets;
-    SharedTrackerElement source_num_error_packets;
+    std::shared_ptr<TrackerElementUInt32> source_num_packets;
+    std::shared_ptr<TrackerElementUInt32> source_num_error_packets;
 
     int packet_rate_rrd_id;
-    std::shared_ptr<kis_tracked_minute_rrd<> > packet_rate_rrd;
+    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rate_rrd;
 
 
     // Local ID number is an increasing number assigned to each 
     // unique UUID; it's used inside Kismet for fast mapping for seenby, 
     // etc.  DST maps this to unique UUIDs after an Open
-    SharedTrackerElement source_number;
+    std::shared_ptr<TrackerElementUInt64> source_number;
 
     // Is the source paused?  If so, we throw out packets from it for now
-    SharedTrackerElement source_paused;
+    std::shared_ptr<TrackerElementUInt8> source_paused;
 
 
     // Global registry all objects have for coordination
@@ -463,27 +569,27 @@ protected:
     
     // Are we in error state?
     __ProxySet(int_source_error, uint8_t, bool, source_error);
-    SharedTrackerElement source_error;
+    std::shared_ptr<TrackerElementUInt8> source_error;
 
     // Why are we in error state?
     __ProxySet(int_source_error_reason, std::string, std::string, source_error_reason);
-    SharedTrackerElement source_error_reason;
+    std::shared_ptr<TrackerElementString> source_error_reason;
 
     // Do we want to try to re-open automatically?
     __ProxySet(int_source_retry, uint8_t, bool, source_retry);
-    SharedTrackerElement source_retry;
+    std::shared_ptr<TrackerElementUInt8> source_retry;
 
     // How many consecutive errors have we had?
     __ProxySet(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
     __ProxyIncDec(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
-    SharedTrackerElement source_retry_attempts;
+    std::shared_ptr<TrackerElementUInt32> source_retry_attempts;
 
     // How many total errors?
     __ProxySet(int_source_total_retry_attempts, uint32_t, uint32_t, 
             source_total_retry_attempts);
     __ProxyIncDec(int_source_total_retry_attempts, uint32_t, uint32_t, 
             source_total_retry_attempts);
-    SharedTrackerElement source_total_retry_attempts;
+    std::shared_ptr<TrackerElementUInt32> source_total_retry_attempts;
 
     // Timer ID for trying to recover from an error
     int error_timer_id;
@@ -497,38 +603,37 @@ protected:
 
 
     // Arbitrary data stored about the source, entered by the user
-    SharedTrackerElement source_info_antenna_type;
-    SharedTrackerElement source_info_antenna_gain;
-    SharedTrackerElement source_info_antenna_orientation;
-    SharedTrackerElement source_info_antenna_beamwidth;
+    std::shared_ptr<TrackerElementString> source_info_antenna_type;
+    std::shared_ptr<TrackerElementDouble> source_info_antenna_gain;
+    std::shared_ptr<TrackerElementDouble> source_info_antenna_orientation;
+    std::shared_ptr<TrackerElementDouble> source_info_antenna_beamwidth;
 
-    SharedTrackerElement source_info_amp_type;
-    SharedTrackerElement source_info_amp_gain;
+    std::shared_ptr<TrackerElementString> source_info_amp_type;
+    std::shared_ptr<TrackerElementDouble> source_info_amp_gain;
     
 
     // Do we clobber the remote timestamp?
     bool clobber_timestamp;
 
-    SharedTrackerElement source_remote;
     __ProxySet(int_source_remote, uint8_t, bool, source_remote);
+    std::shared_ptr<TrackerElementUInt8> source_remote;
 
-    SharedTrackerElement source_passive;
     __ProxySet(int_source_passive, uint8_t, bool, source_passive);
+    std::shared_ptr<TrackerElementUInt8> source_passive;
 
-    SharedTrackerElement source_running;
     __ProxySet(int_source_running, uint8_t, bool, source_running);
+    std::shared_ptr<TrackerElementUInt8> source_running;
 
-    SharedTrackerElement source_ipc_binary;
     __ProxySet(int_source_ipc_binary, std::string, std::string, source_ipc_binary);
+    std::shared_ptr<TrackerElementString> source_ipc_binary;
 
-    SharedTrackerElement source_ipc_pid;
     __ProxySet(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid);
+    std::shared_ptr<TrackerElementInt64> source_ipc_pid;
 
 
     // Interfaces we found via list
     std::vector<SharedInterface> listed_interfaces;
-    SharedTrackerElement listed_interface_builder;
-
+    int listed_interface_entry_id;
 
     // Special modes which suppress error output and retry handling
     bool mode_probing;
@@ -544,136 +649,16 @@ protected:
     // Packetchain
     std::shared_ptr<Packetchain> packetchain;
 
+    // Reference to the DST
+    std::shared_ptr<Datasourcetracker> datasourcetracker;
+
     // Packet components we inject
     int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc,
         pack_comp_json, pack_comp_protobuf;
 
-    // Reference to the DST
-    std::shared_ptr<Datasourcetracker> datasourcetracker;
-
 };
 
 typedef std::shared_ptr<KisDatasource> SharedDatasource;
-
-class KisDatasourceBuilder : public tracker_component {
-public:
-    KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
-                    TrackerMap, "Datasource type definition / driver");
-        }
-    }
-
-    KisDatasourceBuilder(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
-        register_fields();
-        reserve_fields(e);
-        initialize();
-
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.datasource.type_driver",
-                    TrackerMap, "Datasource type definition / driver");
-        }
-    }
-
-
-    virtual ~KisDatasourceBuilder() { };
-
-    virtual void initialize() { };
-
-    // Build the actual data source; when subclassing this MUST fill in the prototype!
-    // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
-    // to the instantiated datasource, so we need to take a pointer to ourselves 
-    // in the input.
-    // Typical implementation:
-    // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder 
-            in_shared_builder __attribute__((unused))) { return NULL; };
-
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new KisDatasourceBuilder(globalreg, get_id()));
-    }
-
-    __Proxy(source_type, std::string, std::string, std::string, source_type);
-    __Proxy(source_description, std::string, std::string, std::string, source_description);
-
-    __Proxy(probe_capable, uint8_t, bool, bool, probe_capable);
-
-    __Proxy(list_capable, uint8_t, bool, bool, list_capable);
-
-    __Proxy(local_capable, uint8_t, bool, bool, local_capable);
-
-    __Proxy(remote_capable, uint8_t, bool, bool, remote_capable);
-
-    __Proxy(passive_capable, uint8_t, bool, bool, passive_capable);
-
-    __Proxy(tune_capable, uint8_t, bool, bool, tune_capable);
-
-protected:
-    virtual void register_fields() {
-        tracker_component::register_fields();
-
-        RegisterField("kismet.datasource.driver.type", TrackerString, 
-                "Datasource type", &source_type);
-
-        RegisterField("kismet.datasource.driver.description", TrackerString,
-                "Datasource description", &source_description);
-
-        RegisterField("kismet.datasource.driver.probe_capable", TrackerUInt8,
-                "Datasource can automatically probe", &probe_capable);
-
-        RegisterField("kismet.datasource.driver.probe_ipc", TrackerUInt8,
-                "Datasource requires IPC to probe", &probe_capable);
-
-        RegisterField("kismet.datasource.driver.list_capable", TrackerUInt8,
-                "Datasource can list interfaces", &list_capable);
-
-        RegisterField("kismet.datasource.driver.list_ipc", TrackerUInt8,
-                "Datasource requires IPC to list interfaces", &list_capable);
-
-        RegisterField("kismet.datasource.driver.local_capable", TrackerUInt8,
-                "Datasource can support local interfaces", &local_capable);
-
-        RegisterField("kismet.datasource.driver.local_ipc", TrackerUInt8,
-                "Datasource requires IPC for local interfaces", &local_ipc);
-
-        RegisterField("kismet.datasource.driver.remote_capable", TrackerUInt8,
-                "Datasource can support remote interfaces", &remote_capable);
-
-        RegisterField("kismet.datasource.driver.passive_capable", TrackerUInt8,
-                "Datasource can support passive interface-less data", &passive_capable);
-
-        RegisterField("kismet.datasource.driver.tuning_capable", TrackerUInt8,
-                "Datasource can control channels", &tune_capable);
-    }
-
-    int datasource_entity_id;
-
-    SharedTrackerElement source_type;
-    SharedTrackerElement source_description;
-
-    SharedTrackerElement probe_capable;
-    SharedTrackerElement probe_ipc;
-
-    SharedTrackerElement list_capable;
-    SharedTrackerElement list_ipc;
-
-    SharedTrackerElement local_capable;
-    SharedTrackerElement local_ipc;
-
-    SharedTrackerElement remote_capable;
-    SharedTrackerElement passive_capable;
-
-    SharedTrackerElement tune_capable;
-
-};
-
 
 // KisDatasourceInterface
 // An automatically discovered interface, and any parameters needed to instantiate
@@ -681,27 +666,35 @@ protected:
 
 class KisDatasourceInterface : public tracker_component {
 public:
-    KisDatasourceInterface(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    KisDatasourceInterface(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasourceInterface(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    KisDatasourceInterface(std::shared_ptr<EntryTracker> tracker, int in_id,
+            std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual ~KisDatasourceInterface() { };
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new KisDatasourceInterface(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
     }
 
     __Proxy(interface, std::string, std::string, std::string, interface);
-    __ProxyTrackable(options_vec, TrackerElement, options_vec);
+    __ProxyTrackable(options_vec, TrackerElementVector, options_vec);
 
     __ProxyTrackable(prototype, KisDatasourceBuilder, prototype);
 
@@ -718,46 +711,41 @@ public:
         set_interface(in_interface);
 
         if (in_options.size() != 0) {
-            TrackerElementVector v(get_options_vec());
-
-            for (auto i = in_options.begin(); i != in_options.end(); ++i) {
-                SharedTrackerElement o(new TrackerElement(TrackerString, 
-                            options_entry_id));
-                o->set(*i);
-                v.push_back(o);
+            for (auto i : *options_vec) {
+                auto o = std::make_shared<TrackerElementString>(options_entry_id, i);
+                options_vec->push_back(o);
             }
         }
     }
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasource.probed.interface", TrackerString,
-                "Interface name", &interface);
-        RegisterField("kismet.datasource.probed.options_vec", TrackerVector,
+        RegisterField("kismet.datasource.probed.interface", "Interface name", &interface);
+        RegisterField("kismet.datasource.probed.options_vec",
                 "Interface options", &options_vec);
 
         options_entry_id =
-            RegisterField("kismet.datasource.probed.option", TrackerString,
+            RegisterField("kismet.datasource.probed.option",
+                    TrackerElementFactory<TrackerElementString>(),
                     "Interface option");
 
-        RegisterField("kismet.datasource.probed.in_use_uuid", TrackerUuid,
+        RegisterField("kismet.datasource.probed.in_use_uuid",
                 "Active source using this interface", &in_use_uuid);
 
-        RegisterField("kismet.datasource.probed.hardware", TrackerString,
+        RegisterField("kismet.datasource.probed.hardware",
                 "Hardware / chipset", &hardware);
 
     }
 
-    SharedTrackerElement interface;
-    SharedTrackerElement options_vec;
+    std::shared_ptr<TrackerElementString> interface;
+    std::shared_ptr<TrackerElementVector> options_vec;
 
-    SharedDatasourceBuilder prototype;
+    std::shared_ptr<KisDatasourceBuilder> prototype;
 
-    SharedTrackerElement in_use_uuid;
-
-    SharedTrackerElement hardware;
+    std::shared_ptr<TrackerElementUUID> in_use_uuid;
+    std::shared_ptr<TrackerElementString> hardware;
 
     int options_entry_id;
 
