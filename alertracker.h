@@ -97,20 +97,29 @@ public:
 
 class tracked_alert : public tracker_component {
 public:
-    tracked_alert(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    tracked_alert(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    tracked_alert(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    tracked_alert(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new tracked_alert(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
     }
 
     __Proxy(device_key, uint64_t, uint64_t, uint64_t, device_key);
@@ -148,70 +157,53 @@ public:
     }
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.alert.device_key", TrackerUInt64,
-                "Device key of linked device", &device_key);
-
-        RegisterField("kismet.alert.header", TrackerString,
-                "Alert type", &header);
-
-        RegisterField("kismet.alert.phy_id", TrackerUInt32,
-                "ID of phy generating alert", &phy);
-
-        RegisterField("kismet.alert.timestamp", TrackerDouble,
-                "Timestamp (sec.ms)", &timestamp);
-
-        RegisterField("kismet.alert.transmitter_mac", TrackerMac,
-                "Transmitter MAC address", &transmitter_mac);
-
-        RegisterField("kismet.alert.source_mac", TrackerMac,
-                "Source MAC address", &source_mac);
-
-        RegisterField("kismet.alert.dest_mac", TrackerMac,
-                "Destination MAC address", &dest_mac);
-
-        RegisterField("kismet.alert.other_mac", TrackerMac,
-                "Other / Extra MAC address", &other_mac);
-
-        RegisterField("kismet.alert.channel", TrackerString,
-                "Phy-specific channel", &channel);
-
-        RegisterField("kismet.alert.frequency", TrackerDouble,
-                "Frequency (khz)", &frequency);
-
-        RegisterField("kismet.alert.text", TrackerString,
-                "Alert text", &text);
+        RegisterField("kismet.alert.device_key", "Device key of linked device", &device_key);
+        RegisterField("kismet.alert.header", "Alert type", &header);
+        RegisterField("kismet.alert.phy_id", "ID of phy generating alert", &phy);
+        RegisterField("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
+        RegisterField("kismet.alert.transmitter_mac", "Transmitter MAC address", &transmitter_mac);
+        RegisterField("kismet.alert.source_mac", "Source MAC address", &source_mac);
+        RegisterField("kismet.alert.dest_mac", "Destination MAC address", &dest_mac);
+        RegisterField("kismet.alert.other_mac", "Other / Extra MAC address", &other_mac);
+        RegisterField("kismet.alert.channel", "Phy-specific channel", &channel);
+        RegisterField("kismet.alert.frequency", "Frequency (khz)", &frequency);
+        RegisterField("kismet.alert.text", "Alert text", &text);
 
         location_id = 
-            RegisterComplexField("kismet.alert.location", std::shared_ptr<kis_tracked_location_triplet>(new kis_tracked_location_triplet(globalreg, 0)), "location");
+            RegisterField("kismet.alert.location", 
+                    TrackerElementFactory<kis_tracked_location_triplet>(globalreg, 0),
+                    "location");
     }
 
-    virtual void reserve_fields(SharedTrackerElement e) {
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
-            location.reset(new kis_tracked_location_triplet(globalreg, location_id, 
-                        e->get_map_value(location_id)));
+            location =
+                std::make_shared<kis_tracked_location_triplet>(globalreg, location_id,
+                        e->get_sub(location_id));
         } else {
-            location.reset(new kis_tracked_location_triplet(globalreg, location_id));
+            location =
+                std::make_shared<kis_tracked_location_triplet>(globalreg, location_id);
         }
 
-        add_map(location);
+        insert(location);
     }
 
-    SharedTrackerElement device_key;
-    SharedTrackerElement header;
-    SharedTrackerElement phy;
-    SharedTrackerElement timestamp;
-    SharedTrackerElement transmitter_mac;
-    SharedTrackerElement source_mac;
-    SharedTrackerElement dest_mac;
-    SharedTrackerElement other_mac;
-    SharedTrackerElement channel;
-    SharedTrackerElement frequency;
-    SharedTrackerElement text;
+    std::shared_ptr<TrackerElementDeviceKey> device_key;
+    std::shared_ptr<TrackerElementString> header;
+    std::shared_ptr<TrackerElementUInt32> phy;
+    std::shared_ptr<TrackerElementDouble> timestamp;
+    std::shared_ptr<TrackerElementMacAddr> transmitter_mac;
+    std::shared_ptr<TrackerElementMacAddr> source_mac;
+    std::shared_ptr<TrackerElementMacAddr> dest_mac;
+    std::shared_ptr<TrackerElementMacAddr> other_mac;
+    std::shared_ptr<TrackerElementString> channel;
+    std::shared_ptr<TrackerElementDouble> frequency;
+    std::shared_ptr<TrackerElementString> text;
 
     std::shared_ptr<kis_tracked_location_triplet> location;
     int location_id;
@@ -228,21 +220,29 @@ enum alert_time_unit {
 
 class tracked_alert_definition : public tracker_component {
 public:
-    tracked_alert_definition(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    tracked_alert_definition(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    tracked_alert_definition(GlobalRegistry *in_globalreg, int in_id, 
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    tracked_alert_definition(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new tracked_alert_definition(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
     }
 
     __Proxy(header, std::string, std::string, std::string, header);
@@ -267,57 +267,46 @@ public:
     void set_alert_ref(int in_ref) { alert_ref = in_ref; }
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.alert.definition.header", TrackerString,
-                "Alert type", &header);
-
-        RegisterField("kismet.alert.definition.description", TrackerString,
-                "Alert description", &description);
-
-        RegisterField("kismet.alert.definition.phyid", TrackerInt64,
-                "Alert phy type", &phy);
-
-        RegisterField("kismet.alert.definition.limit_unit", TrackerUInt64,
+        RegisterField("kismet.alert.definition.header", "Alert type", &header);
+        RegisterField("kismet.alert.definition.description", "Alert description", &description);
+        RegisterField("kismet.alert.definition.phyid", "Alert phy type", &phy);
+        RegisterField("kismet.alert.definition.limit_unit", 
                 "Alert limit time unit (defined in alertracker.h)", &limit_unit);
-
-        RegisterField("kismet.alert.definition.limit_rate", TrackerUInt64,
-                "Alert rate limit", &limit_rate);
-
-        RegisterField("kismet.alert.definition.burst_unit", TrackerUInt64,
+        RegisterField("kismet.alert.definition.limit_rate", "Alert rate limit", &limit_rate);
+        RegisterField("kismet.alert.definition.burst_unit", 
                 "Burst limit time unit (defined in alertracker.h)", &burst_unit);
-
-        RegisterField("kismet.alert.definition.limit_burst", TrackerUInt64,
-                "Burst rate limit", &limit_burst);
-
-        RegisterField("kismet.alert.definition.burst_sent", TrackerUInt64,
-                "Alerts sent in burst", &burst_sent);
-
-        RegisterField("kismet.alert.definition.total_sent", TrackerUInt64,
-                "Total alerts sent", &total_sent);
-
-        RegisterField("kismet.alert.definition.time_last", TrackerDouble,
+        RegisterField("kismet.alert.definition.limit_burst", "Burst rate limit", &limit_burst);
+        RegisterField("kismet.alert.definition.burst_sent", "Alerts sent in burst", &burst_sent);
+        RegisterField("kismet.alert.definition.total_sent", "Total alerts sent", &total_sent);
+        RegisterField("kismet.alert.definition.time_last", 
                 "Timestamp of last alert (sec.us)", &time_last);
-
     }
 
     // Non-exposed internal reference
     int alert_ref;
 
     // Alert type and description
-    SharedTrackerElement header, description;
+    std::shared_ptr<TrackerElementString> header;
+    std::shared_ptr<TrackerElementString> description;
     // Phynum this is linked to
-    SharedTrackerElement phy;
+    std::shared_ptr<TrackerElementInt64> phy;
 
     // Units, rate limit, burst, and burst rate
-    SharedTrackerElement limit_unit, limit_rate, burst_unit, limit_burst;
+    std::shared_ptr<TrackerElementUInt64> limit_unit;
+    std::shared_ptr<TrackerElementUInt64> limit_rate;
+    std::shared_ptr<TrackerElementUInt64> burst_unit;
+    std::shared_ptr<TrackerElementUInt64> limit_burst;
 
     // Number of burst and total alerts we've sent of this type
-    SharedTrackerElement burst_sent, total_sent;
+    std::shared_ptr<TrackerElementUInt64> burst_sent;
+    std::shared_ptr<TrackerElementUInt64> total_sent;
 
     // Timestamp of the last time
-    SharedTrackerElement time_last;
+    std::shared_ptr<TrackerElementDouble> time_last;
+
 };
 
 typedef std::shared_ptr<tracked_alert_definition> shared_alert_def;

@@ -207,21 +207,29 @@ typedef std::shared_ptr<DST_DatasourceList> SharedDSTList;
 // Tracker/serializable record of default values used for all datasources
 class datasourcetracker_defaults : public tracker_component {
 public:
-    datasourcetracker_defaults(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    datasourcetracker_defaults(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(NULL);
-        }
+    }
 
-    datasourcetracker_defaults(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    datasourcetracker_defaults(std::shared_ptr<EntryTracker> tracker, int in_id,
+            std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new datasourcetracker_defaults(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
     }
 
     __Proxy(hop_rate, double, double, double, hop_rate);
@@ -236,54 +244,53 @@ public:
     __Proxy(remote_cap_timestamp, uint8_t, bool, bool, remote_cap_timestamp);
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasourcetracker.default.hop_rate", TrackerDouble,
+        RegisterField("kismet.datasourcetracker.default.hop_rate",
                 "default hop rate for sources", &hop_rate);
-        RegisterField("kismet.datasourcetracker.default.hop", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.hop", 
                 "do sources hop by default", &hop);
-        RegisterField("kismet.datasourcetracker.default.split", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.split", 
                 "split channels among sources with the same type", 
                 &split_same_sources);
-        RegisterField("kismet.datasourcetracker.default.random_order", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.random_order", 
                 "scramble channel order to maximize use of overlap",
                 &random_channel_order);
-        RegisterField("kismet.datasourcetracker.default.retry_on_error", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.retry_on_error", 
                 "re-open sources if an error occurs", &retry_on_error);
 
         RegisterField("kismet.datasourcetracker.default.remote_cap_listen", 
-                TrackerString, "listen address for remote capture",
+                "listen address for remote capture",
                 &remote_cap_listen);
         RegisterField("kismet.datasourcetracker.default.remote_cap_port",
-                TrackerUInt32, "listen port for remote capture",
+                "listen port for remote capture",
                 &remote_cap_port);
 
         RegisterField("kismet.datasourcetracker.default.remote_cap_timestamp",
-                TrackerUInt8, "overwrite remote capture timestamp with server timestamp",
+                "overwrite remote capture timestamp with server timestamp",
                 &remote_cap_timestamp);
     }
 
     // Double hoprate per second
-    SharedTrackerElement hop_rate;
+    std::shared_ptr<TrackerElementDouble> hop_rate;
 
     // Boolean, do we hop at all
-    SharedTrackerElement hop;
+    std::shared_ptr<TrackerElementUInt8> hop;
 
     // Boolean, do we try to split channels up among the same driver?
-    SharedTrackerElement split_same_sources;
+    std::shared_ptr<TrackerElementUInt8> split_same_sources;
 
     // Boolean, do we scramble the hop pattern?
-    SharedTrackerElement random_channel_order;
+    std::shared_ptr<TrackerElementUInt8> random_channel_order;
 
     // Boolean, do we retry on errors?
-    SharedTrackerElement retry_on_error;
+    std::shared_ptr<TrackerElementUInt8> retry_on_error;
 
     // Remote listen
-    SharedTrackerElement remote_cap_listen;
-    SharedTrackerElement remote_cap_port;
-
-    SharedTrackerElement remote_cap_timestamp;
+    std::shared_ptr<TrackerElementString> remote_cap_listen;
+    std::shared_ptr<TrackerElementUInt32> remote_cap_port;
+    std::shared_ptr<TrackerElementUInt8> remote_cap_timestamp;
 
 };
 
