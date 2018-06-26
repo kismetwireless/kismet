@@ -54,8 +54,8 @@ bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method
         if (tokenurl[6] != tokenurl[4] + ".pcapng")
             return false;
 
-        std::shared_ptr<Devicetracker> devicetracker =
-            std::static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
+        auto devicetracker =
+            Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
 
         Kis_Phy_Handler *dot11phy = 
             devicetracker->FetchPhyHandlerByName("IEEE802.11");
@@ -86,8 +86,8 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
-    std::shared_ptr<Devicetracker> devicetracker =
-        std::static_pointer_cast<Devicetracker>(http_globalreg->FetchGlobal("DEVICE_TRACKER"));
+    auto devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
 
     Kis_Phy_Handler *dot11phy = 
         devicetracker->FetchPhyHandlerByName("IEEE802.11");

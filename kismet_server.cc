@@ -231,8 +231,8 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     if (httpd != NULL)
         httpd->StopHttpd();
 
-    std::shared_ptr<Devicetracker> devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
+    auto devicetracker =
+        Globalreg::FetchGlobalAs<Devicetracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
         devicetracker->store_all_devices();
         devicetracker->databaselog_write_all_devices();
@@ -965,15 +965,15 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Dissector_IPdata(globalregistry);
 
     // Register the base PHYs
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         CatchShutdown(-1);

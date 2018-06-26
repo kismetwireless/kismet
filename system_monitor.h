@@ -36,7 +36,7 @@ public:
     static std::shared_ptr<Systemmonitor> create_systemmonitor(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Systemmonitor> mon(new Systemmonitor(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("SYSTEM_MONITOR", mon);
+        in_globalreg->InsertGlobal("SYSTEMMONITOR", mon);
         return mon;
     }
 
@@ -46,12 +46,12 @@ private:
 public:
     virtual ~Systemmonitor();
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
 
     __Proxy(battery_perc, int32_t, int32_t, int32_t, battery_perc);
     __Proxy(battery_charging, std::string, std::string, std::string, battery_charging);
@@ -73,38 +73,38 @@ public:
     __Proxy(server_description, std::string, std::string, std::string, server_description);
     __Proxy(server_location, std::string, std::string, std::string, server_location);
 
-    virtual void pre_serialize();
+    virtual void pre_serialize() override;
 
     // Timetracker callback
-    virtual int timetracker_event(int eventid);
+    virtual int timetracker_event(int eventid) override;
 
 protected:
     kis_recursive_timed_mutex monitor_mutex;
 
-    virtual void register_fields();
-    virtual void reserve_fields(SharedTrackerElement e);
+    virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
     std::shared_ptr<Devicetracker> devicetracker;
 
-    SharedTrackerElement battery_perc;
-    SharedTrackerElement battery_charging;
-    SharedTrackerElement battery_ac;
-    SharedTrackerElement battery_remaining;
-    SharedTrackerElement timestamp_sec;
-    SharedTrackerElement timestamp_usec;
-    SharedTrackerElement timestamp_start_sec;
-    SharedTrackerElement memory;
-    SharedTrackerElement username;
-    SharedTrackerElement server_uuid;
-    SharedTrackerElement server_name;
-    SharedTrackerElement server_description;
-    SharedTrackerElement server_location;
+    std::shared_ptr<TrackerElementUInt32> battery_perc;
+    std::shared_ptr<TrackerElementString> battery_charging;
+    std::shared_ptr<TrackerElementUInt8> battery_ac;
+    std::shared_ptr<TrackerElementUInt32> battery_remaining;
+    std::shared_ptr<TrackerElementUInt64> timestamp_sec;
+    std::shared_ptr<TrackerElementUInt64> timestamp_usec;
+    std::shared_ptr<TrackerElementUInt64> timestamp_start_sec;
+    std::shared_ptr<TrackerElementUInt64> memory;
+    std::shared_ptr<TrackerElementString> username;
+    std::shared_ptr<TrackerElementUUID> server_uuid;
+    std::shared_ptr<TrackerElementString> server_name;
+    std::shared_ptr<TrackerElementString> server_description;
+    std::shared_ptr<TrackerElementString> server_location;
 
     int mem_rrd_id;
-    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > memory_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> memory_rrd;
 
     int devices_id;
-    SharedTrackerElement devices;
+    std::shared_ptr<TrackerElementUInt64> devices;
 
     int devices_rrd_id;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;

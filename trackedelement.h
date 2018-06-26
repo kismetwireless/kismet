@@ -300,6 +300,7 @@ protected:
 };
 
 class TrackerElementString : public TrackerElementCoreScalar<std::string> {
+public:
     TrackerElementString() :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerString) { }
 
@@ -328,6 +329,7 @@ class TrackerElementString : public TrackerElementCoreScalar<std::string> {
 };
 
 class TrackerElementByteArray : public TrackerElementCoreScalar<std::string> {
+public:
     TrackerElementByteArray() :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerByteArray) { }
 
@@ -395,6 +397,7 @@ class TrackerElementByteArray : public TrackerElementCoreScalar<std::string> {
 };
 
 class TrackerElementDeviceKey : public TrackerElementCoreScalar<device_key> {
+public:
     TrackerElementDeviceKey() :
         TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey) { }
 
@@ -428,6 +431,7 @@ class TrackerElementDeviceKey : public TrackerElementCoreScalar<device_key> {
 };
 
 class TrackerElementUUID : public TrackerElementCoreScalar<uuid> {
+public:
     TrackerElementUUID() :
         TrackerElementCoreScalar<uuid>(TrackerType::TrackerUuid) { }
 
@@ -453,6 +457,7 @@ class TrackerElementUUID : public TrackerElementCoreScalar<uuid> {
 };
 
 class TrackerElementMacAddr : public TrackerElementCoreScalar<mac_addr> {
+public:
     TrackerElementMacAddr() :
         TrackerElementCoreScalar<mac_addr>(TrackerType::TrackerMac) { }
 
@@ -1747,7 +1752,7 @@ public:
     }
 
     virtual void serialize(SharedTrackerElement in_elem, 
-            std::ostream &stream, const rename_map& name_map) = 0;
+            std::ostream &stream, const rename_map* name_map) = 0;
 
     // Fields extracted from a summary path need to preserialize their parent
     // paths or updates may not happen in the expected fashion, serializers should

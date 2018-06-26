@@ -39,13 +39,13 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
     globalreg = in_globalreg;
 
     alertracker = 
-        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
     packetchain = 
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
     entrytracker = 
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
     devicetracker = 
-        Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICETRACKER");
 
     SetPhyName("Bluetooth");
 

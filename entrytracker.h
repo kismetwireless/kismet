@@ -67,9 +67,17 @@ public:
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
-    std::unique_ptr<TrackerElement> RegisterAndGetField(const std::string& in_name, 
+    std::shared_ptr<TrackerElement> RegisterAndGetField(const std::string& in_name, 
             std::unique_ptr<TrackerElement> in_builder,
             const std::string& in_desc);
+
+    template<typename TE> 
+    std::shared_ptr<TE> RegisterAndGetFieldAs(const std::string& in_name,
+            std::unique_ptr<TrackerElement> in_builder,
+            const std::string& in_desc) {
+        return std::static_pointer_cast<TE>(RegisterAndGetField(in_name, std::move(in_builder),
+                    in_desc));
+    }
 
     int GetFieldId(const std::string& in_name);
     std::string GetFieldName(int in_id);
@@ -91,7 +99,7 @@ public:
     void RemoveSerializer(const std::string& type);
     bool CanSerialize(const std::string& type);
     bool Serialize(const std::string& type, std::ostream &stream, SharedTrackerElement elem,
-            const TrackerElementSerializer::rename_map& name_map);
+            const TrackerElementSerializer::rename_map* name_map = nullptr);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);

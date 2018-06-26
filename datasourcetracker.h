@@ -97,7 +97,7 @@ public:
 class DST_DatasourceProbe {
 public:
     DST_DatasourceProbe(GlobalRegistry *in_globalreg, std::string in_definition, 
-            SharedTrackerElement in_protovec);
+            std::shared_ptr<TrackerElementVector> in_protovec);
     virtual ~DST_DatasourceProbe();
 
     void probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb);
@@ -121,7 +121,7 @@ protected:
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_probe_map;
 
-    SharedTrackerElement proto_vec;
+    std::shared_ptr<TrackerElementVector> proto_vec;
 
     // Vector of sources we're still waiting to return from probing
     std::vector<SharedDatasource> probe_vec;
@@ -159,7 +159,8 @@ typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 // List requests cancelled after 5 seconds
 class DST_DatasourceList {
 public:
-    DST_DatasourceList(GlobalRegistry *in_globalreg, SharedTrackerElement in_protovec);
+    DST_DatasourceList(GlobalRegistry *in_globalreg, 
+            std::shared_ptr<TrackerElementVector> in_protovec);
     virtual ~DST_DatasourceList();
 
     void list_sources(std::function<void (std::vector<SharedInterface>)> in_cb);
@@ -181,7 +182,7 @@ protected:
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_list_map;
 
-    SharedTrackerElement proto_vec;
+    std::shared_ptr<TrackerElementVector> proto_vec;
 
     // Vector of sources we're still waiting to return from listing 
     std::vector<SharedDatasource> list_vec;
@@ -357,10 +358,10 @@ public:
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
-    virtual void Deferred_Startup();
+    virtual void Deferred_Startup() override;
 
     // Shut down all sources, this happens as kismet is terminating
-    virtual void Deferred_Shutdown();
+    virtual void Deferred_Shutdown() override;
 
     // Add a driver
     int register_datasource(SharedDatasourceBuilder in_builder);
@@ -372,52 +373,54 @@ public:
     //
     // Optional completion function will be called, asynchronously,
     // on completion.
-    void open_datasource(std::string in_source, 
-            std::function<void (bool, std::string, SharedDatasource)> in_cb);
+    void open_datasource(const std::string& in_source, 
+            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
 
     // Launch a source with a known prototype, given a basic source line
     // and a prototype.
     //
     // Optional completion function will be called on error or success
-    void open_datasource(std::string in_source, SharedDatasourceBuilder in_proto,
-            std::function<void (bool, std::string, SharedDatasource)> in_cb);
+    void open_datasource(const std::string& in_source, SharedDatasourceBuilder in_proto,
+            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
 
     // Close a datasource - stop it if necessary, and place it into a closed state
     // without automatic reconnection.
-    bool close_datasource(uuid in_uuid);
+    bool close_datasource(const uuid& in_uuid);
 
     // Remove a data source by UUID; stop it if necessary
-    bool remove_datasource(uuid in_uuid);
+    bool remove_datasource(const uuid& in_uuid);
 
     // Try to instantiate a remote data source
-    void open_remote_datasource(dst_incoming_remote *incoming, std::string in_type, 
-            std::string in_definition, uuid in_uuid,
+    void open_remote_datasource(dst_incoming_remote *incoming, 
+            const std::string& in_type, 
+            const std::string& in_definition, 
+            const uuid& in_uuid,
             std::shared_ptr<BufferHandlerGeneric> in_handler);
 
     // Find a datasource
-    SharedDatasource find_datasource(uuid in_uuid);
+    SharedDatasource find_datasource(const uuid& in_uuid);
 
     // List potential sources
     //
     // Optional completion function will be called with list of possible sources.
-    void list_interfaces(std::function<void (std::vector<SharedInterface>)> in_cb);
+    void list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb);
 
     // HTTP api
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
     void iterate_datasources(DST_Worker *in_worker);
 
     // TCPServerV2 API
-    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler);
+    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) override;
 
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);
@@ -443,14 +446,14 @@ protected:
 
     kis_recursive_timed_mutex dst_lock;
 
-    SharedTrackerElement dst_proto_builder;
-    SharedTrackerElement dst_source_builder;
+    int proto_id;
+    int source_id;
 
     // Available prototypes
-    SharedTrackerElement proto_vec;
+    std::shared_ptr<TrackerElementVector> proto_vec;
 
     // Active data sources
-    SharedTrackerElement datasource_vec;
+    std::shared_ptr<TrackerElementVector> datasource_vec;
 
     // Sub-workers probing for a source definition
     std::map<unsigned int, SharedDSTProbe> probing_map;

@@ -68,7 +68,7 @@ int EntryTracker::RegisterField(const std::string& in_name,
     return definition->field_id;
 }
 
-std::unique_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::string& in_name,
+std::shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::string& in_name,
         std::unique_ptr<TrackerElement> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
@@ -257,7 +257,7 @@ bool EntryTracker::CanSerialize(const std::string& in_name) {
 
 bool EntryTracker::Serialize(const std::string& in_name, std::ostream &stream,
         SharedTrackerElement e,
-        const TrackerElementSerializer::rename_map& name_map) {
+        const TrackerElementSerializer::rename_map* name_map) {
 
     local_demand_locker lock(&serializer_mutex);
 

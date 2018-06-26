@@ -149,12 +149,12 @@ protected:
 
         tracked_location_id = 
             RegisterField("kismet.gps.location", 
-                    TrackerElementFactory<kis_tracked_location_triplet>(globalreg, 0),
+                    TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
                     "current location");
 
         tracked_last_location_id = 
             RegisterField("kismet.gps.last_location",
-                    TrackerElementFactory<kis_tracked_location_triplet>(globalreg, 0),
+                    TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
                     "previous location");
 
         RegisterField("kismet.gps.uuid", "UUID", &gps_uuid);
@@ -171,16 +171,16 @@ protected:
 
         if (e != NULL) {
             tracked_location =
-                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_location_id, 
-                        e->get_sub(tracked_location_id));
+                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_location_id, 
+                        e->get_sub_as<TrackerElementMap>(tracked_location_id));
             tracked_last_location =
-                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_last_location_id,
-                        e->get_sub(tracked_last_location_id));
+                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_last_location_id,
+                        e->get_sub_as<TrackerElementMap>(tracked_last_location_id));
         } else {
             tracked_location =
-                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_location_id);
+                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_location_id);
             tracked_last_location =
-                std::make_shared<kis_tracked_location_triplet>(globalreg, tracked_last_location_id);
+                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_last_location_id);
         }
 
         insert(tracked_location);

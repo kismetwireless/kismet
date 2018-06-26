@@ -24,28 +24,29 @@
 #include "datasourcetracker.h"
 #include "entrytracker.h"
 #include "alertracker.h"
+#include "packetchain.h"
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
 KisDatasource::KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder) :
-    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRY_TRACKER"), 0),
+    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
     KisExternalInterface(in_globalreg) {
 
     globalreg = in_globalreg;
     
     register_fields();
-    reserve_fields(NULL);
+    reserve_fields(nullptr);
 
-    set_source_builder(in_builder);
-
-    if (in_builder != NULL)
+    if (in_builder != nullptr) {
+        set_source_builder(in_builder);
         insert(in_builder);
+    }
 
     timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
     datasourcetracker =
         Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
@@ -65,7 +66,7 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuild
 
     listed_interface_entry_id =
         entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
-                TrackerElementFactory<KisDatasourceInterface>(globalreg, 0),
+                TrackerElementFactory<KisDatasourceInterface>(entrytracker, 0),
                 "automatically discovered available interface");
 
     last_pong = time(0);
@@ -253,7 +254,8 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     set_channel_hop(in_rate, vec, in_shuffle, in_offt, in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel_hop(double in_rate, SharedTrackerElement in_chans,
+void KisDatasource::set_channel_hop(double in_rate, 
+        std::shared_ptr<TrackerElementVector> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(&ext_mutex);
@@ -908,7 +910,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
     }
 
     for (auto rintf : report.interfaces()) {
-        auto intf = std::make_shared<KisDatasourceInterface>(listed_interface_entry_id);
+        auto intf = std::make_shared<KisDatasourceInterface>(entrytracker, listed_interface_entry_id);
         intf->populate(rintf.interface(), rintf.flags());
         intf->set_prototype(get_source_builder());
 
@@ -1316,7 +1318,8 @@ unsigned int KisDatasource::send_configure_channel(std::string in_chan,
 }
 
 unsigned int KisDatasource::send_configure_channel_hop(double in_rate, 
-        SharedTrackerElement in_chans, bool in_shuffle, unsigned int in_offt,
+        std::shared_ptr<TrackerElementVector> in_chans,
+        bool in_shuffle, unsigned int in_offt,
         unsigned int in_transaction,
         configure_callback_t in_cb) {
 
@@ -1336,9 +1339,7 @@ unsigned int KisDatasource::send_configure_channel_hop(double in_rate,
     ch->set_shuffle(in_shuffle);
     ch->set_offset(in_offt);
 
-    TrackerElementVector ch_vec(in_chans);
-
-    for (auto chi : ch_vec)  {
+    for (auto chi : *in_chans)  {
         ch->add_channels(GetTrackerValue<std::string>(chi));
     }
 
@@ -1464,7 +1465,7 @@ void KisDatasource::register_fields() {
 
     packet_rate_rrd_id = 
         RegisterField("kismet.datasource.packets_rrd", 
-                TrackerElementFactory<kis_tracked_minute_rrd<>>(globalreg, 0),
+                TrackerElementFactory<kis_tracked_minute_rrd<>>(entrytracker, 0),
                 "detected packet rate over past 60 seconds");
 
     RegisterField("kismet.datasource.retry", 

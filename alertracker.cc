@@ -754,7 +754,7 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             if (phyname != "any" && phyname != "") {
                 std::shared_ptr<Devicetracker> devicetracker = 
-                    Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+                    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICETRACKER");
                 Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
 
                 if (phyh == NULL)

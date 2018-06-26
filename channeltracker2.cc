@@ -46,7 +46,7 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 	pack_comp_l1data = globalreg->packetchain->RegisterPacketComponent("RADIODATA");
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICETRACKER");
 
     struct timeval trigger_tm;
     trigger_tm.tv_sec = time(0) + 1;

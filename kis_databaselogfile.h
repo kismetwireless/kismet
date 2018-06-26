@@ -70,10 +70,10 @@ public:
         builder = in_builder;
     }
 
-    virtual bool Log_Open(std::string in_path);
-    virtual void Log_Close();
+    virtual bool Log_Open(std::string in_path) override;
+    virtual void Log_Close() override;
 
-    virtual int Database_UpgradeDB();
+    virtual int Database_UpgradeDB() override;
 
     // Log a vector of multiple devices, replacing any old device records
     virtual int log_devices(TrackerElementVector in_devices);
@@ -108,14 +108,14 @@ public:
     static void Usage(const char *argv0);
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
     GlobalRegistry *globalreg;
@@ -167,17 +167,17 @@ protected:
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
 public:
-    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisLogfileBuilder(in_globalreg, in_id) {
+    KisDatabaseLogfileBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        KisLogfileBuilder(tracker, in_id) {
            
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        KisLogfileBuilder(in_globalreg, in_id, e) {
+    KisDatabaseLogfileBuilder(std::shared_ptr<EntryTracker> tracker, int in_id,
+            std::shared_ptr<TrackerElementMap> e) :
+        KisLogfileBuilder(tracker, in_id, e) {
 
         register_fields();
         reserve_fields(e);
@@ -185,7 +185,7 @@ public:
     }
 
     KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg) :
-        KisLogfileBuilder(in_globalreg, 0) {
+        KisLogfileBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
 
         register_fields();
         reserve_fields(NULL);

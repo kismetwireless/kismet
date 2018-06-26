@@ -165,6 +165,21 @@ public:
     // Initialize and tell us what sort of builder
     KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
 
+    KisDatasource(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id),
+        KisExternalInterface(Globalreg::globalreg) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    KisDatasource(std::shared_ptr<EntryTracker> tracker, int in_id,
+            std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(tracker, in_id),
+        KisExternalInterface(Globalreg::globalreg) {
+        register_fields();
+        reserve_fields(e);
+    }
+
     virtual ~KisDatasource();
 
     // Fetch default per-source options.  These override the global defaults,
@@ -224,7 +239,8 @@ public:
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     // Set the channel hop rate using a TrackerElement vector object
-    virtual void set_channel_hop(double in_rate, SharedTrackerElement in_chans,
+    virtual void set_channel_hop(double in_rate, 
+            std::shared_ptr<TrackerElementVector> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     // Set just the channel hop rate; internally this is the same as setting a 
@@ -712,7 +728,8 @@ public:
 
         if (in_options.size() != 0) {
             for (auto i : *options_vec) {
-                auto o = std::make_shared<TrackerElementString>(options_entry_id, i);
+                auto o = std::make_shared<TrackerElementString>(options_entry_id, 
+                        GetTrackerValue<std::string>(i));
                 options_vec->push_back(o);
             }
         }

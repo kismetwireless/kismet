@@ -337,7 +337,7 @@ protected:
         }
     }
 
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
         RegisterField("kismet.common.rrd.last_time", "last time udpated", &last_time);
@@ -364,7 +364,7 @@ protected:
 
     } 
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElement> e) {
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
         tracker_component::reserve_fields(e);
 
         // Build slots for all the times
@@ -492,7 +492,7 @@ public:
             } else {
                 for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60));
-                    SetTrackerValue<int64_t>(e, agg.default_val);
+                    SetTrackerValue<int64_t>(e, agg.default_val());
                 }
 
                 e = *(minute_vec->begin() + sec_bucket);

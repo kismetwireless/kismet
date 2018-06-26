@@ -68,7 +68,7 @@ KisDatabaseLogfile::KisDatabaseLogfile(GlobalRegistry *in_globalreg):
     snapshot_pz = NULL;
 
     devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
 
     db_enabled = false;
 

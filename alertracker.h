@@ -174,7 +174,7 @@ protected:
 
         location_id = 
             RegisterField("kismet.alert.location", 
-                    TrackerElementFactory<kis_tracked_location_triplet>(globalreg, 0),
+                    TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
                     "location");
     }
 
@@ -183,11 +183,11 @@ protected:
 
         if (e != NULL) {
             location =
-                std::make_shared<kis_tracked_location_triplet>(globalreg, location_id,
-                        e->get_sub(location_id));
+                std::make_shared<kis_tracked_location_triplet>(entrytracker, location_id,
+                        e->get_sub_as<TrackerElementMap>(location_id));
         } else {
             location =
-                std::make_shared<kis_tracked_location_triplet>(globalreg, location_id);
+                std::make_shared<kis_tracked_location_triplet>(entrytracker, location_id);
         }
 
         insert(location);
