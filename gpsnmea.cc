@@ -309,7 +309,7 @@ A        Auto selection of 2D or 3D fix (M = manual)
 
         gettimeofday(&(gps_location->tv), NULL);
 
-        if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
+        if (time(0) - last_heading_time > 5 &&
                 gps_last_location != NULL &&
                 gps_last_location->fix >= 2) {
             gps_location->heading = 

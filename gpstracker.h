@@ -106,15 +106,15 @@ public:
  * is going to be used */
 class GpsTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
-    static std::shared_ptr<GpsTracker> create_gpsmanager(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<GpsTracker> mon(new GpsTracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("GPSTRACKER", mon);
+    static std::shared_ptr<GpsTracker> create_gpsmanager() {
+        std::shared_ptr<GpsTracker> mon(new GpsTracker());
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal("GPSTRACKER", mon);
         return mon;
     }
 
 private:
-    GpsTracker(GlobalRegistry *in_globalreg);
+    GpsTracker();
 
 public:
     virtual ~GpsTracker();
@@ -146,17 +146,13 @@ public:
     static int kis_gpspack_hook(CHAINCALL_PARMS);
 
 protected:
-    GlobalRegistry *globalreg;
-
     kis_recursive_timed_mutex gpsmanager_mutex;
 
-    SharedTrackerElement gps_prototypes;
-    TrackerElementVector gps_prototypes_vec;
+    std::shared_ptr<TrackerElementVector> gps_prototypes_vec;
 
     // GPS instances, as a vector, sorted by priority; we don't mind doing a 
     // linear search because we'll typically have very few GPS devices
-    SharedTrackerElement gps_instances;
-    TrackerElementVector gps_instances_vec;
+    std::shared_ptr<TrackerElementVector> gps_instances_vec;
 
     // Extra field we insert into a location triplet
     int tracked_uuid_addition_id;
@@ -168,6 +164,8 @@ protected:
     bool database_logging;
     // Timer for logging GPS path as a snapshot
     int log_snapshot_timer;
+
+    int pack_comp_gps;
 };
 
 #endif

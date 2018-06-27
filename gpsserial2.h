@@ -37,7 +37,7 @@
 
 class GPSSerialV2 : public GPSNMEA {
 public:
-    GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    GPSSerialV2(SharedGpsBuilder in_builder);
     virtual ~GPSSerialV2();
 
     // BufferInterface API - buffer available implemented in gpsnmea
@@ -89,7 +89,7 @@ public:
     }
 
     virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
-        return SharedGps(new GPSSerialV2(globalreg, in_builder));
+        return SharedGps(new GPSSerialV2(in_builder));
     }
 };
 

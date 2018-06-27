@@ -102,7 +102,7 @@ protected:
 // interaction (such as serial port, network, etc)
 class KisGps : public tracker_component {
 public:
-    KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    KisGps(SharedGpsBuilder in_builder);
 
     virtual ~KisGps();
 

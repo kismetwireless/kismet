@@ -509,11 +509,11 @@ template<> void SetTrackerValue(const SharedTrackerElement& e, const device_key&
 
 
 std::string tracker_component::get_name() {
-    return globalreg->entrytracker->GetFieldName(get_id());
+    return entrytracker->GetFieldName(get_id());
 }
 
 std::string tracker_component::get_name(int in_id) {
-    return globalreg->entrytracker->GetFieldName(in_id);
+    return entrytracker->GetFieldName(in_id);
 }
 
 int tracker_component::RegisterField(const std::string& in_name, 

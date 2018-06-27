@@ -35,7 +35,7 @@
 
 class GPSTCP : public GPSNMEA {
 public:
-    GPSTCP(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    GPSTCP(SharedGpsBuilder in_builder);
     virtual ~GPSTCP();
 
     // BufferInterface API - buffer available implemented in gpsnmea
@@ -86,7 +86,7 @@ public:
     }
 
     virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
-        return SharedGps(new GPSTCP(globalreg, in_builder));
+        return SharedGps(new GPSTCP(in_builder));
     }
 };
 

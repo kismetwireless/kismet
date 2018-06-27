@@ -34,40 +34,36 @@
 #include "gpsweb.h"
 #include "kis_databaselogfile.h"
 
-GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+GpsTracker::GpsTracker() :
+    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
 
     tracked_uuid_addition_id = 
-        entrytracker->RegisterField("kismet.common.location.gps_uuid", TrackerUuid,
+        entrytracker->RegisterField("kismet.common.location.gps_uuid", 
+                TrackerElementFactory<TrackerElementUUID>(),
                 "UUID of GPS reporting location");
 
-    globalreg = in_globalreg;
-
     // Register the gps component
-    _PCM(PACK_COMP_GPS) =
-        globalreg->packetchain->RegisterPacketComponent("gps");
+    pack_comp_gps =
+        Globalreg::globalreg->packetchain->RegisterPacketComponent("gps");
 
     // Register the packet chain hook
-    globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
+    Globalreg::globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
             CHAINPOS_POSTCAP, -100);
 
-    gps_prototypes.reset(new TrackerElement(TrackerVector));
-    gps_prototypes_vec = TrackerElementVector(gps_prototypes);
-
-    gps_instances.reset(new TrackerElement(TrackerVector));
-    gps_instances_vec = TrackerElementVector(gps_instances);
+    gps_prototypes_vec = std::make_shared<TrackerElementVector>();
+    gps_instances_vec = std::make_shared<TrackerElementVector>();
 
     // Manage logging
     log_snapshot_timer = -1;
 
     database_logging = 
-        globalreg->kismet_config->FetchOptBoolean("kis_log_gps_track", true);
+        Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_gps_track", true);
 
     if (database_logging) {
         _MSG("GPS track will be logged to the Kismet logfile", MSGFLAG_INFO);
 
         std::shared_ptr<Timetracker> timetracker = 
-            Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+            Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
         log_snapshot_timer =
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
@@ -77,14 +73,14 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
     }
 
     // Register the built-in GPS drivers
-    register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder(globalreg)));
-    register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder(globalreg)));
-    register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder(globalreg)));
-    register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder(globalreg)));
-    register_gps_builder(SharedGpsBuilder(new GPSWebBuilder(globalreg)));
+    register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder(entrytracker)));
+    register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder(entrytracker)));
+    register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder(entrytracker)));
+    register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder(entrytracker)));
+    register_gps_builder(SharedGpsBuilder(new GPSWebBuilder(entrytracker)));
 
     // Process any gps options in the config file
-    std::vector<std::string> gpsvec = globalreg->kismet_config->FetchOptVec("gps");
+    std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->FetchOptVec("gps");
     for (auto g : gpsvec) {
         create_gps(g);
     }
@@ -93,13 +89,13 @@ GpsTracker::GpsTracker(GlobalRegistry *in_globalreg) :
 GpsTracker::~GpsTracker() {
     local_locker lock(&gpsmanager_mutex);
 
-    globalreg->RemoveGlobal("GPSTRACKER");
+    Globalreg::globalreg->RemoveGlobal("GPSTRACKER");
     httpd->RemoveHandler(this);
 
-    globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
+    Globalreg::globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
 
     std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     timetracker->RemoveTimer(log_snapshot_timer);
 }
@@ -108,18 +104,15 @@ void GpsTracker::log_snapshot_gps() {
     // Look for the log file driver, if it's not available, we
     // just exit until the next time
     std::shared_ptr<KisDatabaseLogfile> dbf =
-        Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+        Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
 
     if (dbf == NULL)
         return;
 
-    std::shared_ptr<EntryTracker> entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
-
     local_locker lock(&gpsmanager_mutex);
 
     // Log each GPS
-    for (auto d : gps_instances_vec) {
+    for (auto d : *gps_instances_vec) {
         struct timeval tv;
         gettimeofday(&tv, NULL);
 
@@ -135,7 +128,7 @@ void GpsTracker::log_snapshot_gps() {
 void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {
     local_locker lock(&gpsmanager_mutex);
 
-    for (auto x : gps_prototypes_vec) {
+    for (auto x : *gps_prototypes_vec) {
         SharedGpsBuilder gb = std::static_pointer_cast<KisGpsBuilder>(x);
 
         if (gb->get_gps_class() == in_builder->get_gps_class()) {
@@ -145,7 +138,7 @@ void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {
         }
     }
 
-    gps_prototypes_vec.push_back(in_builder);
+    gps_prototypes_vec->push_back(in_builder);
 }
 
 std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
@@ -165,7 +158,7 @@ std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
     }
 
     // Find a driver
-    for (auto p : gps_prototypes_vec) {
+    for (auto p : *gps_prototypes_vec) {
         SharedGpsBuilder optbuilder = std::static_pointer_cast<KisGpsBuilder>(p);
 
         if (optbuilder->get_gps_class() == types) {
@@ -183,7 +176,7 @@ std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
 
     // If it's a singleton make sure we don't have something built already
     if (builder->get_singleton()) {
-        for (auto d : gps_instances_vec) {
+        for (auto d : *gps_instances_vec) {
             SharedGps igps = std::static_pointer_cast<KisGps>(d);
 
             if (igps->get_gps_prototype()->get_gps_class() == types) {
@@ -204,10 +197,10 @@ std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
     }
 
     // Add it to the running GPS list
-    gps_instances_vec.push_back(gps);
+    gps_instances_vec->push_back(gps);
 
     // Sort running GPS by priority
-    sort(gps_instances_vec.begin(), gps_instances_vec.end(), 
+    sort(gps_instances_vec->begin(), gps_instances_vec->end(), 
             [](const SharedTrackerElement a, const SharedTrackerElement b) -> bool {
                 SharedGps ga = std::static_pointer_cast<KisGps>(a);
                 SharedGps gb = std::static_pointer_cast<KisGps>(b);
@@ -222,7 +215,7 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
     local_locker lock(&gpsmanager_mutex);
 
     // Iterate 
-    for (auto d : gps_instances_vec) {
+    for (auto d : *gps_instances_vec) {
         SharedGps gps = std::static_pointer_cast<KisGps>(d);
 
         if (gps->get_gps_data_only())
@@ -301,23 +294,22 @@ void GpsTracker::Httpd_CreateStreamResponse(
     std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/gps/drivers") {
-        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_prototypes, NULL);
+        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_prototypes_vec, NULL);
         return;
     }
 
     if (stripped == "/gps/all_gps") {
-        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_instances, NULL);
+        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_instances_vec, NULL);
         return;
     }
 
     if (stripped == "/gps/location") {
         kis_gps_packinfo *pi = get_best_location();
 
-        std::shared_ptr<kis_tracked_location_triplet> loctrip(new kis_tracked_location_triplet(globalreg, 0));
-
-        SharedTrackerElement ue(new TrackerElement(TrackerUuid, tracked_uuid_addition_id));
-
-        loctrip->add_map(ue);
+        auto loctrip =
+            std::make_shared<kis_tracked_location_triplet>(entrytracker, 0);
+        auto ue =
+            std::make_shared<TrackerElementUUID>(tracked_uuid_addition_id);
 
         if (pi != NULL) {
             ue->set(pi->gpsuuid);
@@ -330,6 +322,8 @@ void GpsTracker::Httpd_CreateStreamResponse(
             loctrip->set_valid(pi->fix >= 2);
             loctrip->set_time_sec(pi->tv.tv_sec);
             loctrip->set_time_usec(pi->tv.tv_usec);
+
+            loctrip->insert(ue);
             delete(pi);
         } else {
             loctrip->set_valid(false);

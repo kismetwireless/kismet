@@ -31,7 +31,7 @@
 
 class GPSFake : public KisGps {
 public:
-    GPSFake(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    GPSFake(SharedGpsBuilder in_builder);
     virtual ~GPSFake();
 
     virtual bool open_gps(std::string in_opts);
@@ -59,7 +59,7 @@ public:
     }
 
     virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
-        return SharedGps(new GPSFake(globalreg, in_builder));
+        return SharedGps(new GPSFake(in_builder));
     }
 };
 

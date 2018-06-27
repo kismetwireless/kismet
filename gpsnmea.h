@@ -33,8 +33,8 @@
 
 class GPSNMEA : public KisGps, public BufferInterface {
 public:
-    GPSNMEA(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
-        KisGps(in_globalreg, in_builder) { 
+    GPSNMEA(SharedGpsBuilder in_builder) :
+        KisGps(in_builder) { 
         nmeahandler = NULL;
     }
 

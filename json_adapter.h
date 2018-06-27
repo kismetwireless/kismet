@@ -32,7 +32,7 @@ namespace JsonAdapter {
 
 // Basic packer with some defaulted options - prettyprint and depth used for
 // recursive indenting and prettifying the output
-void Pack(GlobalRegistry *globalreg, std::ostream &stream, SharedTrackerElement e,
+void Pack(std::ostream &stream, SharedTrackerElement e,
         const TrackerElementSerializer::rename_map *name_map = NULL,
         bool prettyprint = false, unsigned int depth = 0);
 
@@ -40,12 +40,12 @@ std::string SanitizeString(std::string in);
 
 class Serializer : public TrackerElementSerializer {
 public:
-    Serializer(GlobalRegistry *in_globalreg) :
-        TrackerElementSerializer(in_globalreg) { }
+    Serializer() :
+        TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
             const rename_map *name_map = nullptr) override {
-        Pack(globalreg, stream, in_elem, name_map);
+        Pack(stream, in_elem, name_map);
     }
 };
 
@@ -60,8 +60,8 @@ namespace EkJsonAdapter {
 
 class Serializer : public TrackerElementSerializer {
 public:
-    Serializer(GlobalRegistry *in_globalreg) :
-        TrackerElementSerializer(in_globalreg) { }
+    Serializer() :
+        TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
             const rename_map *name_map = NULL) override {
@@ -69,11 +69,11 @@ public:
 
         if (in_elem->get_type() == TrackerType::TrackerVector) {
             for (auto i : *(std::static_pointer_cast<TrackerElementVector>(in_elem))) {
-                JsonAdapter::Pack(globalreg, stream, i, name_map);
+                JsonAdapter::Pack(stream, i, name_map);
                 stream << "\n";
             }
         } else {
-            JsonAdapter::Pack(globalreg, stream, in_elem, name_map);
+            JsonAdapter::Pack(stream, in_elem, name_map);
         }
     }
 };
@@ -86,13 +86,13 @@ namespace PrettyJsonAdapter {
 
 class Serializer : public TrackerElementSerializer {
 public:
-    Serializer(GlobalRegistry *in_globalreg) :
-        TrackerElementSerializer(in_globalreg) { }
+    Serializer() :
+        TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
             const rename_map *name_map = NULL) override {
         // Call the packer in pretty mode
-        JsonAdapter::Pack(globalreg, stream, in_elem, name_map, true, 1);
+        JsonAdapter::Pack(stream, in_elem, name_map, true, 1);
     }
 
 };
@@ -127,18 +127,18 @@ public:
 
 namespace StorageJsonAdapter {
 
-void Pack(GlobalRegistry *globalreg, std::ostream &stream, SharedTrackerElement e,
+void Pack(std::ostream &stream, SharedTrackerElement e,
         const TrackerElementSerializer::rename_map *name_map = NULL);
 
 class Serializer : public TrackerElementSerializer {
 public:
-    Serializer(GlobalRegistry *in_globalreg) :
-        TrackerElementSerializer(in_globalreg) { }
+    Serializer() :
+        TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
             const rename_map *name_map = NULL) override {
         // Call the packer in pretty mode
-        Pack(globalreg, stream, in_elem, name_map);
+        Pack(stream, in_elem, name_map);
     }
 
 };

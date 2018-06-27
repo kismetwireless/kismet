@@ -47,7 +47,6 @@
 // a large percentage of the function calls
 #define TE_TYPE_SAFETY  1
 
-class GlobalRegistry;
 class EntryTracker;
 class TrackerElement;
 
@@ -1609,10 +1608,6 @@ class tracker_component : public TrackerElementMap {
         return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
     }
 
-#define __RegisterComplexField(type, id, name, description) \
-        auto builder_##id = std::make_shared< type >(globalreg, 0); \
-        id = RegisterComplexField(name, builder_##id, description);
-
 public:
     tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id) :
         TrackerElementMap(in_id),
@@ -1740,9 +1735,7 @@ protected:
 // Generic serializer class to allow easy swapping of serializers
 class TrackerElementSerializer {
 public:
-    TrackerElementSerializer(GlobalRegistry *in_globalreg) {
-        globalreg = in_globalreg;
-    }
+    TrackerElementSerializer() { }
 
     using rename_map = std::map<SharedTrackerElement, SharedElementSummary>;
 
@@ -1759,7 +1752,6 @@ public:
     static void pre_serialize_path(const SharedElementSummary& in_summary);
     static void post_serialize_path(const SharedElementSummary& in_summary);
 protected:
-    GlobalRegistry *globalreg;
     kis_recursive_timed_mutex mutex;
 };
 

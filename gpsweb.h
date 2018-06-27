@@ -33,7 +33,7 @@
 
 class GPSWeb : public KisGps, public Kis_Net_Httpd_CPPStream_Handler {
 public:
-    GPSWeb(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    GPSWeb(SharedGpsBuilder in_builder);
     virtual ~GPSWeb();
 
     virtual bool open_gps(std::string in_opts);
@@ -76,7 +76,7 @@ public:
     }
 
     virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
-        return SharedGps(new GPSWeb(globalreg, in_builder));
+        return SharedGps(new GPSWeb(in_builder));
     }
 };
 

@@ -36,7 +36,7 @@
 
 class GPSGpsdV2 : public KisGps, public BufferInterface {
 public:
-    GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    GPSGpsdV2(SharedGpsBuilder in_builder);
     virtual ~GPSGpsdV2();
 
     // BufferInterface API
@@ -93,7 +93,7 @@ public:
     }
 
     virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
-        return SharedGps(new GPSGpsdV2(globalreg, in_builder));
+        return SharedGps(new GPSGpsdV2(in_builder));
     }
 };
 

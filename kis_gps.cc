@@ -22,24 +22,23 @@
 #include "messagebus.h"
 #include "timetracker.h"
 
-KisGps::KisGps(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
-    tracker_component(in_globalreg, 0) {
+KisGps::KisGps(SharedGpsBuilder in_builder) : 
+    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
 
     register_fields();
     reserve_fields(NULL);
 
     // Force the ID
-    tracked_id = entrytracker->RegisterField("kismet.gps.instance", TrackerMap, "GPS");
+    tracked_id = entrytracker->RegisterField("kismet.gps.instance", 
+            TrackerElementFactory<TrackerElementMap>(),
+            "GPS");
 
     // Link the builder
     gps_prototype = in_builder;
-    add_map(gps_prototype);
+    insert(gps_prototype);
 
     gps_location = new kis_gps_packinfo();
     gps_last_location = new kis_gps_packinfo();
-
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
 }
 
 KisGps::~KisGps() {
@@ -104,7 +103,7 @@ bool KisGps::open_gps(std::string in_definition) {
     } else {
         // Otherwise combine the server name and the definition, checksum it, and 
         // munge it into a UUID like we do for datasources
-        std::string id = globalreg->servername + in_definition;
+        std::string id = Globalreg::globalreg->servername + in_definition;
         char ubuf[40];
 
         snprintf(ubuf, 40, "%08X-0000-0000-0000-0000%08X",
