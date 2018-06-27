@@ -57,28 +57,25 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
     if (frequency <= 0)
         return;
 
-    TrackerElement::double_map_iterator i = freq_khz_map->double_find(frequency);
+    auto i = freq_khz_map->find(frequency);
 
-    if (i == freq_khz_map->double_end()) {
-        SharedTrackerElement e =
-            globalreg->entrytracker->GetTrackedInstance(frequency_val_id);
-        e->set((uint64_t) 1);
-        freq_khz_map->add_doublemap(frequency, e);
+    if (i == freq_khz_map->end()) {
+        auto e = std::make_shared<TrackerElementDouble>(frequency_val_id, 1);
+        freq_khz_map->insert(frequency, e);
     } else {
-        (*(i->second))++;
+        *(std::static_pointer_cast<TrackerElementDouble>(i->second)) += 1;
     }
 }
 
 void kis_tracked_device_base::inc_seenby_count(KisDatasource *source, 
         time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo) {
-    TrackerElement::map_iterator seenby_iter;
     std::shared_ptr<kis_tracked_seenby_data> seenby;
 
-    seenby_iter = seenby_map->find(source->get_source_key());
+    auto seenby_iter = seenby_map->find(source->get_source_key());
 
     // Make a new seenby record
     if (seenby_iter == seenby_map->end()) {
-        seenby.reset(new kis_tracked_seenby_data(globalreg, seenby_val_id));
+        seenby = std::make_shared<kis_tracked_seenby_data>(entrytracker, seenby_val_id);
 
         seenby->set_src_uuid(source->get_source_uuid());
         seenby->set_first_time(tv_sec);
@@ -91,7 +88,7 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
         if (siginfo != NULL)
             (*(seenby->get_signal_data())) += *siginfo;
 
-        seenby_map->add_intmap(source->get_source_key(), seenby);
+        seenby_map->insert(source->get_source_key(), seenby);
 
     } else {
         seenby = std::static_pointer_cast<kis_tracked_seenby_data>(seenby_iter->second);

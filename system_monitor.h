@@ -99,13 +99,8 @@ protected:
     std::shared_ptr<TrackerElementString> server_description;
     std::shared_ptr<TrackerElementString> server_location;
 
-    int mem_rrd_id;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> memory_rrd;
-
-    int devices_id;
     std::shared_ptr<TrackerElementUInt64> devices;
-
-    int devices_rrd_id;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
 
     long mem_per_page;

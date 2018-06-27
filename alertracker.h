@@ -414,8 +414,7 @@ protected:
     std::map<int, shared_alert_def> alert_ref_map;
 
     // Tracked mapping for export
-    SharedTrackerElement alert_defs;
-    TrackerElementVector alert_defs_vec;
+    std::shared_ptr<TrackerElementVector> alert_defs_vec;
 
     int num_backlog;
 

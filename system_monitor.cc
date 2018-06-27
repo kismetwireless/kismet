@@ -122,15 +122,8 @@ void Systemmonitor::register_fields() {
     RegisterField("kismet.system.server_location", 
             "Arbitrary server location string", &server_location);
 
-    mem_rrd_id =
-        RegisterField("kismet.system.memory.rrd", 
-                TrackerElementFactory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
-                "memory used RRD"); 
-
-    devices_rrd_id =
-        RegisterField("kismet.system.devices.rrd", 
-                TrackerElementFactory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
-                "device count RRD");
+    RegisterField("kismet.system.memory.rrd", "memory used RRD", &memory_rrd); 
+    RegisterField("kismet.system.devices.rrd", "device count RRD", &devices_rrd);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {

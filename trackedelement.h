@@ -1061,10 +1061,6 @@ public:
         return map.erase(first, last);
     }
 
-    iterator erase(SharedTrackerElement e) {
-        return map.erase(map.find(e->get_id()));
-    }
-
     bool empty() const noexcept {
         return map.empty();
     }
@@ -1075,6 +1071,10 @@ public:
 
     std::pair<iterator, bool> insert(pair p) {
         return map.insert(p);
+    }
+
+    std::pair<iterator, bool> insert(const K& i, SharedTrackerElement e) {
+        return insert(std::make_pair(i, e));
     }
 
 protected:
@@ -1169,6 +1169,9 @@ public:
         }
     }
 
+    iterator erase(SharedTrackerElement e) {
+        return map.erase(map.find(e->get_id()));
+    }
 };
 
 // Int-keyed map
@@ -1552,7 +1555,7 @@ class tracker_component : public TrackerElementMap {
     } \
     virtual void set_##name(const std::shared_ptr<ttype>& in) { \
         if (cvar != NULL) \
-            erase(cvar->get_id()); \
+            erase(cvar); \
         cvar = in; \
         if (cvar != NULL) \
             insert(cvar); \

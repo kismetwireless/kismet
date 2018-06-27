@@ -251,35 +251,22 @@ public:
 protected:
     virtual void register_fields() override {
         RegisterField("rtl433.device.wind_dir", "Wind direction in degrees", &wind_dir);
-        RegisterField("rtl433.device.wind_dir_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Wind direction RRD");
+        RegisterField("rtl433.device.wind_dir_rrd", "Wind direction RRD", &wind_dir_rrd);
 
-        RegisterField("rtl433.device.weatherstation.wind_speed", 
-                "Wind speed in Kph", &wind_speed);
-        RegisterField("rtl433.device.wind_speed_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Wind speed RRD");
+        RegisterField("rtl433.device.weatherstation.wind_speed", "Wind speed in Kph", &wind_speed);
+        RegisterField("rtl433.device.wind_speed_rrd", "Wind speed RRD", &wind_speed_rrd);
 
         RegisterField("rtl433.device.wind_gust", "Wind gust in Kph", &wind_gust);
-        RegisterField("rtl433.device.wind_gust_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Wind gust RRD");
+        RegisterField("rtl433.device.wind_gust_rrd", "Wind gust RRD", &wind_gust_rrd);
 
         RegisterField("rtl433.device.rain", "Measured rain", &rain);
-        RegisterField("rtl433.device.rain_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Rain RRD");
+        RegisterField("rtl433.device.rain_rrd", "Rain RRD", &rain_rrd);
 
         RegisterField("rtl433.device.uv_index", "UV index", &uv_index);
-        RegisterField("rtl433.device.uv_index_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "UV Index RRD");
+        RegisterField("rtl433.device.uv_index_rrd", "UV Index RRD", &uv_index_rrd);
 
         RegisterField("rtl433.device.lux", "Lux", &lux);
-        RegisterField("rtl433.device.lux",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Lux RRD");
+        RegisterField("rtl433.device.lux", "Lux RRD", &lux_rrd);
     }
 
     // Wind direction in degrees

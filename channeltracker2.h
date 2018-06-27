@@ -36,17 +36,17 @@
 // channel
 class Channeltracker_V2_Channel : public tracker_component, public SharedGlobalData {
 public:
-    Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) { 
+    Channeltracker_V2_Channel(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) { 
         register_fields();
         reserve_fields(NULL);
 
         // last_device_sec = 0;
     }
 
-    Channeltracker_V2_Channel(GlobalRegistry *in_globalreg, 
-            int in_id, SharedTrackerElement e) : 
-        tracker_component(in_globalreg, in_id) {
+    Channeltracker_V2_Channel(std::shared_ptr<EntryTracker> tracker, 
+            int in_id, std::shared_ptr<TrackerElementMap> e) : 
+        tracker_component(tracker, in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -54,8 +54,16 @@ public:
         // last_device_sec = 0;
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new Channeltracker_V2_Channel(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
     }
 
     __Proxy(channel, std::string, std::string, std::string, channel);
@@ -80,82 +88,41 @@ protected:
     // Timer for updating the device list
     int timer_id;
 
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.channelrec.channel", TrackerString,
-                "logical channel", &channel);
-
-        RegisterField("kismet.channelrec.frequency", TrackerDouble,
-                "physical frequency", &frequency);
-
-        __RegisterComplexField(kis_tracked_rrd<>, packets_rrd_id, 
-                "kismet.channelrec.packets_rrd", "packet count RRD");
-
-        __RegisterComplexField(kis_tracked_rrd<>, data_rrd_id, 
-                "kismet.channelrec.data_rrd", "byte count RRD");
-
-        __RegisterComplexField(kis_tracked_rrd<>, device_rrd_id, 
-                "kismet.channelrec.device_rrd", "active device RRD");
-
-        __RegisterComplexField(kis_tracked_signal_data, signal_data_id, 
-                "kismet.channelrec.signal", "overall signal records");
+        RegisterField("kismet.channelrec.channel", "logical channel", &channel);
+        RegisterField("kismet.channelrec.frequency", "physical frequency", &frequency);
+        RegisterField("kismet.channelrec.packets_rrd", "packet count RRD", &packets_rrd);
+        RegisterField("kismet.channelrec.data_rrd", "byte count RRD", &data_rrd);
+        RegisterField("kismet.channelrec.device_rrd", "active devices RRD", &device_rrd);
+        RegisterField("kismet.channelrec.signal", "signal records", &signal_data);
     }
 
-    virtual void reserve_fields(SharedTrackerElement e) {
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
         tracker_component::reserve_fields(e);
-
-        if (e != NULL) {
-            packets_rrd.reset(new kis_tracked_rrd<>(globalreg, 
-                        packets_rrd_id, e->get_map_value(packets_rrd_id)));
-            data_rrd.reset(new kis_tracked_rrd<>(globalreg, 
-                        data_rrd_id, e->get_map_value(data_rrd_id)));
-            device_rrd.reset(new kis_tracked_rrd<>(globalreg, 
-                        device_rrd_id, e->get_map_value(device_rrd_id)));
-
-            signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id,
-                        e->get_map_value(signal_data_id)));
-        } else {
-            packets_rrd.reset(new kis_tracked_rrd<>(globalreg, packets_rrd_id));
-
-            data_rrd.reset(new kis_tracked_rrd<>(globalreg, data_rrd_id));
-
-            device_rrd.reset(new kis_tracked_rrd<>(globalreg, device_rrd_id));
-
-            signal_data.reset(new kis_tracked_signal_data(globalreg, signal_data_id));
-        }
-
-        add_map(packets_rrd);
-        add_map(data_rrd);
-        add_map(device_rrd);
-        add_map(signal_data);
 
         // Don't fast-forward the device RRD
         device_rrd->update_before_serialize(false);
-
     }
 
     // Channel, as string - Logical channels
-    SharedTrackerElement channel;
+    std::shared_ptr<TrackerElementString> channel;
 
     // Frequency, for collating
-    SharedTrackerElement frequency;
+    std::shared_ptr<TrackerElementDouble> frequency;
 
     // Packets per second RRD
-    int packets_rrd_id;
     std::shared_ptr<kis_tracked_rrd<> > packets_rrd;
 
     // Data in bytes per second RRD
-    int data_rrd_id;
     std::shared_ptr<kis_tracked_rrd<> > data_rrd;
 
     // Devices active per second RRD
-    int device_rrd_id;
     std::shared_ptr<kis_tracked_rrd<> > device_rrd;
 
     // Overall signal data.  This could in theory be populated by spectrum
     // analyzers in the future as well.
-    int signal_data_id;
     std::shared_ptr<kis_tracked_signal_data> signal_data;
 
 };
@@ -197,6 +164,7 @@ protected:
     kis_recursive_timed_mutex lock;
 
     std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<EntryTracker> entrytracker;
 
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);
@@ -206,12 +174,10 @@ protected:
 
     // Seen channels as string-named channels, so logical channel allocation
     // per phy
-    int channel_map_id;
-    SharedTrackerElement channel_map;
+    std::shared_ptr<TrackerElementStringMap> channel_map;
 
     // Collapsed frequency information, multi-phy, spec-an, etc
-    int freq_map_id;
-    SharedTrackerElement frequency_map;
+    std::shared_ptr<TrackerElementDoubleMap> frequency_map;
 
     // Channel/freq content
     int channel_entry_id;
