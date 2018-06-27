@@ -907,21 +907,21 @@ void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
     }
 }
 
-bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(std::string path) {
+bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
     return entrytracker->CanSerialize(httpd->GetSuffix(path));
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(std::string path) {
+std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
     return httpd->GetSuffix(path);
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(std::string path) {
+std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
     return httpd->StripSuffix(path);
 }
 
-bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(std::string path, 
+bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(const std::string& path, 
         std::stringstream &stream, SharedTrackerElement e, 
-        TrackerElementSerializer::rename_map *name_map) {
+        std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
     return entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
 }
 

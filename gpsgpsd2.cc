@@ -26,8 +26,8 @@
 #include "pollabletracker.h"
 #include "timetracker.h"
 
-GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
-    KisGps(in_globalreg, in_builder) {
+GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) : 
+    KisGps(in_builder) {
 
         // Defer making buffers until open, because we might be used to make a 
         // builder instance
@@ -41,10 +41,10 @@ GPSGpsdV2::GPSGpsdV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) 
         si_raw = 0;
 
         pollabletracker = 
-            Globalreg::FetchGlobalAs<PollableTracker>(globalreg, "POLLABLETRACKER");
+            Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
-        auto timetracker = 
-            Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TTIMETRACKER");
+
         error_reconnect_timer = 
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                     [this](int) -> int {
@@ -64,9 +64,9 @@ GPSGpsdV2::~GPSGpsdV2() {
 
     delete(tcphandler);
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    timetracker->RemoveTimer(error_reconnect_timer);
+    std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (timetracker != nullptr)
+        timetracker->RemoveTimer(error_reconnect_timer);
 }
 
 bool GPSGpsdV2::open_gps(std::string in_opts) {
@@ -117,7 +117,7 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
     // Set the read handler to us
     tcphandler->SetReadBufferInterface(this);
     // Link it to a tcp connection
-    tcpclient.reset(new TcpClientV2(globalreg, tcphandler));
+    tcpclient.reset(new TcpClientV2(Globalreg::globalreg, tcphandler));
     tcpclient->Connect(proto_host, proto_port);
 
     // Register a pollable event
@@ -126,9 +126,7 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
     host = proto_host;
     port = proto_port;
 
-    std::stringstream msg;
-    msg << "GPSGpsdV2 connecting to GPSD server on " << host << ":" << port;
-    _MSG(msg.str(), MSGFLAG_INFO);
+    _MSG_INFO("GPSGPSD connecting to GPSD server on {}:{}", host, port);
 
     set_int_device_connected(true);
 
@@ -147,7 +145,7 @@ bool GPSGpsdV2::get_location_valid() {
     }
 
     // If a location is older than 10 seconds, it's no good anymore
-    if (globalreg->timestamp.tv_sec - gps_location->tv.tv_sec > 10) {
+    if (time(0) - gps_location->tv.tv_sec > 10) {
         return false;
     }
 
@@ -640,7 +638,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
         gettimeofday(&(gps_location->tv), NULL);
 
-        if (!set_heading && globalreg->timestamp.tv_sec - last_heading_time > 5 &&
+        if (!set_heading && time(0) - last_heading_time > 5 &&
                 gps_last_location->fix >= 2) {
             gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 

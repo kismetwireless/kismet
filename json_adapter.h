@@ -33,7 +33,7 @@ namespace JsonAdapter {
 // Basic packer with some defaulted options - prettyprint and depth used for
 // recursive indenting and prettifying the output
 void Pack(std::ostream &stream, SharedTrackerElement e,
-        const TrackerElementSerializer::rename_map *name_map = NULL,
+        std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr,
         bool prettyprint = false, unsigned int depth = 0);
 
 std::string SanitizeString(std::string in);
@@ -44,7 +44,7 @@ public:
         TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
-            const rename_map *name_map = nullptr) override {
+            std::shared_ptr<rename_map> name_map = nullptr) override {
         Pack(stream, in_elem, name_map);
     }
 };
@@ -64,7 +64,7 @@ public:
         TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
-            const rename_map *name_map = NULL) override {
+            std::shared_ptr<rename_map> name_map = nullptr) override {
         local_locker lock(&mutex);
 
         if (in_elem->get_type() == TrackerType::TrackerVector) {
@@ -90,7 +90,7 @@ public:
         TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
-            const rename_map *name_map = NULL) override {
+            std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
         JsonAdapter::Pack(stream, in_elem, name_map, true, 1);
     }
@@ -128,7 +128,7 @@ public:
 namespace StorageJsonAdapter {
 
 void Pack(std::ostream &stream, SharedTrackerElement e,
-        const TrackerElementSerializer::rename_map *name_map = NULL);
+        std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
 
 class Serializer : public TrackerElementSerializer {
 public:
@@ -136,7 +136,7 @@ public:
         TrackerElementSerializer() { }
 
     virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
-            const rename_map *name_map = NULL) override {
+            std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
         Pack(stream, in_elem, name_map);
     }

@@ -148,7 +148,7 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
                     }
                 }
 
-                get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, globalreg->timestamp.tv_sec);
+                get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, time(0));
             }
 
             if (in.lay1->noise_dbm != 0) {
@@ -179,8 +179,7 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
                     }
                 }
 
-                get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, 
-                        globalreg->timestamp.tv_sec);
+                get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, time(0));
             }
 
             if (in.lay1->noise_rssi != 0) {
@@ -238,7 +237,7 @@ void kis_tracked_signal_data::register_fields() {
 
     peak_loc_id =
         RegisterField("kismet.common.signal.peak_lock",
-                TrackerElementFactory<kis_tracked_location_triplet>(globalreg, 0),
+                TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
                 "location of strongest observed signal");
 
     RegisterField("kismet.common.signal.maxseenrate",
@@ -250,7 +249,7 @@ void kis_tracked_signal_data::register_fields() {
 
     signal_min_rrd_id =
         RegisterField("kismet.common.signal.signal_rrd",
-                TrackerElementFactory<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(globalreg, 0),
+                TrackerElementFactory<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(entrytracker, 0),
                 "past minute of signal data");
 }
 
@@ -259,11 +258,11 @@ void kis_tracked_signal_data::reserve_fields(std::shared_ptr<TrackerElementMap> 
 
     if (e != NULL) {
         peak_loc =
-            std::make_shared<kis_tracked_location_triplet>(globalreg, peak_loc_id,
-                    e->get_sub(peak_loc_id));
+            std::make_shared<kis_tracked_location_triplet>(entrytracker, peak_loc_id,
+                    e->get_sub_as<TrackerElementMap>(peak_loc_id));
 
         signal_min_rrd =
-            std::make_shared<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(globalreg, signal_min_rrd_id, e->get_sub(signal_min_rrd_id));
+            std::make_shared<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(entrytracker, signal_min_rrd_id, e->get_sub_as<TrackerElementMap>(signal_min_rrd_id));
     } 
 
     insert(peak_loc_id, peak_loc);
@@ -313,7 +312,7 @@ void kis_tracked_seenby_data::register_fields() {
 
     signal_data_id =
         RegisterField("kismet.common.seenby.signal",
-                TrackerElementFactory<kis_tracked_signal_data>(globalreg, 0),
+                TrackerElementFactory<kis_tracked_signal_data>(entrytracker, 0),
                 "signal data");
 }
 
@@ -322,8 +321,8 @@ void kis_tracked_seenby_data::reserve_fields(std::shared_ptr<TrackerElementMap> 
 
     if (e != NULL) {
         signal_data =
-            std::make_shared<kis_tracked_signal_data>(globalreg, signal_data_id,
-                    e->get_sub(signal_data_id));
+            std::make_shared<kis_tracked_signal_data>(entrytracker, signal_data_id,
+                    e->get_sub_as<TrackerElementMap>(signal_data_id));
     }
 
     insert(signal_data_id, signal_data);

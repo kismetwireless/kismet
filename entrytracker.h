@@ -99,7 +99,7 @@ public:
     void RemoveSerializer(const std::string& type);
     bool CanSerialize(const std::string& type);
     bool Serialize(const std::string& type, std::ostream &stream, SharedTrackerElement elem,
-            const TrackerElementSerializer::rename_map* name_map = nullptr);
+            std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);

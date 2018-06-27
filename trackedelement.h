@@ -1276,6 +1276,28 @@ public:
     }
 };
 
+// Device-key map
+class TrackerElementDeviceKeyMap : public TrackerElementCoreMap<device_key> {
+public:
+    TrackerElementDeviceKeyMap() :
+        TrackerElementCoreMap<device_key>(TrackerType::TrackerKeyMap) { }
+
+    TrackerElementDeviceKeyMap(int id) :
+        TrackerElementCoreMap<device_key>(TrackerType::TrackerKeyMap, id) { }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return dup;
+    }
+};
+
 class TrackerElementVector : public TrackerElement {
 public:
     using vector_t = std::vector<SharedTrackerElement>;
@@ -1744,7 +1766,7 @@ public:
     }
 
     virtual void serialize(SharedTrackerElement in_elem, 
-            std::ostream &stream, const rename_map* name_map) = 0;
+            std::ostream &stream, std::shared_ptr<rename_map> name_map) = 0;
 
     // Fields extracted from a summary path need to preserialize their parent
     // paths or updates may not happen in the expected fashion, serializers should

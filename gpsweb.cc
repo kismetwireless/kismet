@@ -23,8 +23,8 @@
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
-GPSWeb::GPSWeb(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
-    KisGps(in_globalreg, in_builder),
+GPSWeb::GPSWeb(SharedGpsBuilder in_builder) : 
+    KisGps(in_builder),
     Kis_Net_Httpd_CPPStream_Handler(NULL) {
 
     last_heading_time = 0;
@@ -40,7 +40,7 @@ bool GPSWeb::open_gps(std::string in_opts) {
     }
 
     // Call the http stream handler init to bind to the webserver
-    Bind_Httpd_Server(globalreg);
+    Bind_Httpd_Server(Globalreg::globalreg);
 
     set_int_gps_description("web-based GPS using location from browser");
 
@@ -198,8 +198,7 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
 
         gettimeofday(&(gps_location->tv), NULL);
 
-        if (globalreg->timestamp.tv_sec - last_heading_time > 5 &&
-                gps_last_location != NULL &&
+        if (time(0) - last_heading_time > 5 && gps_last_location != NULL &&
                 gps_last_location->fix >= 2) {
             gps_location->heading = 
                 GpsCalcHeading(gps_location->lat, gps_location->lon, 

@@ -25,8 +25,8 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
-    GPSNMEA(in_globalreg, in_builder) {
+GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) : 
+    GPSNMEA(in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -38,10 +38,10 @@ GPSSerialV2::GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_build
     last_heading_time = time(0);
 
     pollabletracker =
-        Globalreg::FetchGlobalAs<PollableTracker>(globalreg, "POLLABLETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
     auto timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -59,9 +59,9 @@ GPSSerialV2::~GPSSerialV2() {
 
     pollabletracker->RemovePollable(serialclient);
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    timetracker->RemoveTimer(error_reconnect_timer);
+    std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (timetracker != nullptr)
+        timetracker->RemoveTimer(error_reconnect_timer);
 }
 
 bool GPSSerialV2::open_gps(std::string in_opts) {
@@ -114,7 +114,7 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
     // Set the read handler to us
     nmeahandler->SetReadBufferInterface(this);
     // Link it to a serial port
-    serialclient.reset(new SerialClientV2(globalreg, nmeahandler));
+    serialclient = std::make_shared<SerialClientV2>(Globalreg::globalreg, nmeahandler);
     serialclient->OpenDevice(proto_device, proto_baud);
     // Assign it to our nmea parent interface
     nmeaclient = serialclient;

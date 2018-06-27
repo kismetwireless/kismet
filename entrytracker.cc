@@ -257,7 +257,7 @@ bool EntryTracker::CanSerialize(const std::string& in_name) {
 
 bool EntryTracker::Serialize(const std::string& in_name, std::ostream &stream,
         SharedTrackerElement e,
-        const TrackerElementSerializer::rename_map* name_map) {
+        std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
 
     local_demand_locker lock(&serializer_mutex);
 

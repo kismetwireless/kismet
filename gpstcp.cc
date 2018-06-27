@@ -25,8 +25,8 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-GPSTCP::GPSTCP(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
-    GPSNMEA(in_globalreg, in_builder) {
+GPSTCP::GPSTCP(SharedGpsBuilder in_builder) : 
+    GPSNMEA(in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -37,11 +37,9 @@ GPSTCP::GPSTCP(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) :
 
     last_heading_time = time(0);
 
-    pollabletracker =
-        Globalreg::FetchGlobalAs<PollableTracker>(globalreg, "POLLABLETRACKER");
+    pollabletracker = Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
-    auto timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -59,9 +57,9 @@ GPSTCP::~GPSTCP() {
 
     pollabletracker->RemovePollable(tcpclient);
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
-    timetracker->RemoveTimer(error_reconnect_timer);
+    std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (timetracker != nullptr)
+        timetracker->RemoveTimer(error_reconnect_timer);
 }
 
 bool GPSTCP::open_gps(std::string in_opts) {
@@ -117,7 +115,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
     nmeahandler->SetReadBufferInterface(this);
 
     // Link to a tcp connection
-    tcpclient.reset(new TcpClientV2(globalreg, nmeahandler));
+    tcpclient.reset(new TcpClientV2(Globalreg::globalreg, nmeahandler));
     tcpclient->Connect(proto_host, proto_port);
 
     // Register a pollable event
@@ -126,9 +124,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
     host = proto_host;
     port = proto_port;
 
-    std::stringstream msg;
-    msg << "GPSTCP connecting to GPS NMEA server on " << host << ":" << port;
-    _MSG(msg.str(), MSGFLAG_INFO);
+    _MSG_INFO("GPSTCP connecting to GPS NMEA server on {}:{}", host, port);
 
     set_int_device_connected(true);
 
