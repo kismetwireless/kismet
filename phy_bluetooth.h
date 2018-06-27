@@ -60,42 +60,50 @@ public:
 
 class bluetooth_tracked_device : public tracker_component {
 public:
-    bluetooth_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    bluetooth_tracked_device(std::shared_ptr<EntryTracker> tracker, int in_id) :
+        tracker_component(tracker, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    bluetooth_tracked_device(GlobalRegistry *in_globalreg, int in_id, 
-            SharedTrackerElement e) : 
-        tracker_component(in_globalreg, in_id) {
+    bluetooth_tracked_device(std::shared_ptr<EntryTracker> tracker, int in_id, 
+            std::shared_ptr<TrackerElementMap> e) : 
+        tracker_component(tracker, in_id) {
 
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new bluetooth_tracked_device(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        return dup;
     }
 
-    __ProxyTrackable(service_uuid_vec, TrackerElement, service_uuid_vec);
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        return dup;
+    }
+
+    __ProxyTrackable(service_uuid_vec, TrackerElementVector, service_uuid_vec);
     __Proxy(txpower, int16_t, int16_t, int16_t, txpower);
 
 protected:
-    virtual void register_fields() {
-        RegisterField("bluetooth.device.service_uuid_vec", TrackerVector,
+    virtual void register_fields() override {
+        RegisterField("bluetooth.device.service_uuid_vec",
                 "advertised service UUIDs", &service_uuid_vec);
-        RegisterField("bluetooth.device.txpower", TrackerInt16,
+        RegisterField("bluetooth.device.txpower", 
                 "advertised transmit power", &txpower);
     }
 
-    virtual void reserve_fields(SharedTrackerElement e) {
+    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
         tracker_component::reserve_fields(e);
 
     }
 
-    SharedTrackerElement service_uuid_vec;
-    SharedTrackerElement txpower;
+    std::shared_ptr<TrackerElementVector> service_uuid_vec;
+    std::shared_ptr<TrackerElementInt16> txpower;
 };
 
 class Kis_Bluetooth_Phy : public Kis_Phy_Handler {

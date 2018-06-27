@@ -146,33 +146,30 @@ public:
         // none of it is valid.  This is the simplest case.
         if (in_time - ltime > (60 * 60 * 24)) {
             // Directly fill in this second, clear rest of the minute
-            TrackerElementVector mv(minute_vec);
-            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
-                if (i - mv.begin() == sec_bucket)
+            for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
+                if (i - minute_vec->begin() == sec_bucket)
                     SetTrackerValue<int64_t>(*i, in_s);
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val);
+                    SetTrackerValue<int64_t>(*i, agg.default_val());
             }
 
             // Reset the last hour, setting it to a single sample
             // Get the combined value for the minute
             int64_t min_val = agg.combine_vector(minute_vec);
-            TrackerElementVector hv = TrackerElementVector(hour_vec);
-            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
-                if (i - hv.begin() == min_bucket)
+            for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
+                if (i - hour_vec->begin() == min_bucket)
                     SetTrackerValue<int64_t>(*i, min_val);
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val);
+                    SetTrackerValue<int64_t>(*i, agg.default_val());
             }
 
             // Reset the last day, setting it to a single sample
             int64_t hr_val = agg.combine_vector(hour_vec);
-            TrackerElementVector dv = TrackerElementVector(day_vec);
-            for (TrackerElementVector::iterator i = dv.begin(); i != dv.end(); ++i) {
-                if (i - dv.begin() == hour_bucket)
+            for (auto i = day_vec->begin(); i != day_vec->end(); ++i) {
+                if (i - day_vec->begin() == hour_bucket)
                     SetTrackerValue<int64_t>(*i, hr_val);
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val);
+                    SetTrackerValue<int64_t>(*i, agg.default_val());
             }
 
             set_last_time(in_time);
@@ -191,9 +188,8 @@ public:
             // We only have this entry in the minute, so set it and get the 
             // combined value
             
-            TrackerElementVector mv(minute_vec);
-            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
-                if (i - mv.begin() == sec_bucket)
+            for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
+                if (i - minute_vec->begin() == sec_bucket)
                     SetTrackerValue<int64_t>(*i, in_s);
                 else
                     SetTrackerValue<int64_t>(*i, agg.default_val());
@@ -202,9 +198,8 @@ public:
 
             // We haven't seen anything in this hour, so clear it, set the minute
             // and get the aggregate
-            TrackerElementVector hv = TrackerElementVector(hour_vec);
-            for (TrackerElementVector::iterator i = hv.begin(); i != hv.end(); ++i) {
-                if (i - hv.begin() == min_bucket)
+            for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
+                if (i - hour_vec->begin() == min_bucket)
                     SetTrackerValue<int64_t>(*i, sec_avg);
                 else
                     SetTrackerValue<int64_t>(*i, agg.default_val());
@@ -215,7 +210,7 @@ public:
             // zeroes; fastforward time
             for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
                 e = *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24));
-                SetTrackerValue<int64_t>(e, agg.default_val);
+                SetTrackerValue<int64_t>(e, agg.default_val());
             }
 
             e = *(day_vec->begin() + hour_bucket);
@@ -231,12 +226,11 @@ public:
 
             int64_t sec_avg = 0, min_avg = 0;
 
-            TrackerElementVector mv(minute_vec);
-            for (TrackerElementVector::iterator i = mv.begin(); i != mv.end(); ++i) {
-                if (i - mv.begin() == sec_bucket)
+            for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
+                if (i - minute_vec->begin() == sec_bucket)
                     SetTrackerValue<int64_t>(*i, in_s);
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val);
+                    SetTrackerValue<int64_t>(*i, agg.default_val());
             }
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -244,7 +238,7 @@ public:
             for (int m = 0; 
                     m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
                 e = *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60));
-                SetTrackerValue<int64_t>(e, agg.default_val);
+                SetTrackerValue<int64_t>(e, agg.default_val());
             }
 
             // Set the updated value

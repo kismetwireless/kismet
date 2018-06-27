@@ -82,7 +82,6 @@ protected:
     kis_recursive_timed_mutex monitor_mutex;
 
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
     std::shared_ptr<Devicetracker> devicetracker;
 

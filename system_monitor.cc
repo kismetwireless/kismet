@@ -120,36 +120,13 @@ void Systemmonitor::register_fields() {
 
     mem_rrd_id =
         RegisterField("kismet.system.memory.rrd", 
-                TrackerElementFactory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(globalreg, 0),
+                TrackerElementFactory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
                 "memory used RRD"); 
 
     devices_rrd_id =
         RegisterField("kismet.system.devices.rrd", 
-                TrackerElementFactory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(globalreg, 0),
+                TrackerElementFactory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
                 "device count RRD");
-}
-
-void Systemmonitor::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
-    tracker_component::reserve_fields(e);
-
-    if (e != NULL) {
-        memory_rrd = 
-            std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(globalreg,
-                    mem_rrd_id, e->get_sub(mem_rrd_id));
-        devices_rrd =
-            std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(globalreg,
-                    devices_rrd_id, e->get_sub(devices_rrd_id));
-    } else {
-        memory_rrd = 
-            std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(globalreg,
-                    mem_rrd_id);
-        devices_rrd =
-            std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(globalreg,
-                    devices_rrd_id);
-    }
-
-    insert(memory_rrd);
-    insert(devices_rrd);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
