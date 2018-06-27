@@ -138,9 +138,8 @@ public:
         reserve_fields(e);
     }
 
-    KisLogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder) :
-        tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
-        globalreg(in_globalreg) {
+    KisLogfile(SharedLogBuilder in_builder) :
+        tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
         register_fields();
         reserve_fields(NULL);
         builder = in_builder;
@@ -155,7 +154,7 @@ public:
 
         if (builder != NULL && builder->get_stream()) {
             std::shared_ptr<StreamTracker> streamtracker = 
-                Globalreg::FetchGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
+                Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
             streamtracker->remove_streamer(get_stream_id());
         }
@@ -195,8 +194,6 @@ public:
     __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);
 
 protected:
-    GlobalRegistry *globalreg;
-
     virtual void register_fields() override {
         tracker_component::register_fields();
 
@@ -221,11 +218,11 @@ protected:
 class LogTracker : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public DeferredStartup {
 public:
-    static std::shared_ptr<LogTracker> create_logtracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<LogTracker> mon(new LogTracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->RegisterDeferredGlobal(mon);
-        in_globalreg->InsertGlobal("LOGTRACKER", mon);
+    static std::shared_ptr<LogTracker> create_logtracker() {
+        std::shared_ptr<LogTracker> mon(new LogTracker());
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->RegisterDeferredGlobal(mon);
+        Globalreg::globalreg->InsertGlobal("LOGTRACKER", mon);
         return mon;
     }
 
@@ -255,7 +252,7 @@ public:
 
     static void Usage(const char *argv0);
 private:
-    LogTracker(GlobalRegistry *in_globalreg);
+    LogTracker();
 
 public:
     virtual ~LogTracker();
@@ -266,8 +263,6 @@ public:
     __ProxyPrivSplit(log_template, std::string, std::string, std::string, log_template);
 
 protected:
-    GlobalRegistry *globalreg;
-
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 

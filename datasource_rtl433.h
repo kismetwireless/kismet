@@ -28,8 +28,7 @@ typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
 
 class KisDatasourceRtl433 : public KisDatasource {
 public:
-    KisDatasourceRtl433(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder, 
-            bool in_mqtt);
+    KisDatasourceRtl433(SharedDatasourceBuilder in_builder, bool in_mqtt);
     virtual ~KisDatasourceRtl433();
 
 protected:
@@ -56,7 +55,7 @@ public:
         initialize();
     }
 
-    DatasourceRtl433Builder(GlobalRegistry *in_globalreg) :
+    DatasourceRtl433Builder() :
         KisDatasourceBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
 
         register_fields();
@@ -67,7 +66,7 @@ public:
     virtual ~DatasourceRtl433Builder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this, false));
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, false));
     }
 
     virtual void initialize() override {
@@ -101,7 +100,7 @@ public:
         initialize();
     }
 
-    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg) :
+    DatasourceRtl433MqttBuilder() :
         KisDatasourceBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
 
         register_fields();
@@ -112,7 +111,7 @@ public:
     virtual ~DatasourceRtl433MqttBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this, true));
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, true));
     }
 
     virtual void initialize() override {

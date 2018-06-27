@@ -1699,7 +1699,6 @@ protected:
             SharedTrackerElement *assign;
     };
 
-    GlobalRegistry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
 
     std::vector<std::unique_ptr<registered_field>> registered_fields;

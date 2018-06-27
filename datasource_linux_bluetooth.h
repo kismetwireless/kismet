@@ -30,7 +30,7 @@ typedef std::shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBlueto
 
 class KisDatasourceLinuxBluetooth : public KisDatasource {
 public:
-    KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
+    KisDatasourceLinuxBluetooth(SharedDatasourceBuilder in_builder);
 
     virtual ~KisDatasourceLinuxBluetooth() { };
 
@@ -62,7 +62,7 @@ public:
         initialize();
     }
 
-    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg) :
+    DatasourceLinuxBluetoothBuilder() :
         KisDatasourceBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
 
         register_fields();
@@ -73,8 +73,7 @@ public:
     virtual ~DatasourceLinuxBluetoothBuilder() override { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceLinuxBluetooth(new KisDatasourceLinuxBluetooth(globalreg, 
-                    in_sh_this));
+        return std::make_shared<KisDatasourceLinuxBluetooth>(in_sh_this);
     }
 
     virtual void initialize() override {

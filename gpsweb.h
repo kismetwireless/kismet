@@ -62,11 +62,12 @@ protected:
 
 class GPSWebBuilder : public KisGpsBuilder {
 public:
-    GPSWebBuilder(GlobalRegistry *in_globalreg) : KisGpsBuilder(in_globalreg, 0) { 
+    GPSWebBuilder(std::shared_ptr<EntryTracker> tracker) : 
+        KisGpsBuilder(tracker, 0) { 
         initialize();
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_int_gps_class("web");
         set_int_gps_class_description("Web-based GPS using client browser");
         set_int_gps_priority(0);
@@ -74,7 +75,7 @@ public:
         set_int_singleton(true);
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
+    virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
         return SharedGps(new GPSWeb(globalreg, in_builder));
     }
 };

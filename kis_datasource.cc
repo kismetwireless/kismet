@@ -28,11 +28,9 @@
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
-KisDatasource::KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder) :
+KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
-    KisExternalInterface(in_globalreg) {
-
-    globalreg = in_globalreg;
+    KisExternalInterface() {
     
     register_fields();
     reserve_fields(nullptr);
@@ -1513,7 +1511,7 @@ void KisDatasource::handle_source_error() {
                 "to reconnect to resume capture.";
 
             std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
             alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1535,7 +1533,7 @@ void KisDatasource::handle_source_error() {
                 "closed.";
 
             std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
             alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1573,7 +1571,7 @@ void KisDatasource::handle_source_error() {
             get_source_retry_attempts() << " failures)";
 
         std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
         alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1599,7 +1597,7 @@ void KisDatasource::handle_source_error() {
                                 "re-opened";
 
                             std::shared_ptr<Alertracker> alertracker =
-                                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
                             alertracker->RaiseOneShot("SOURCEOPEN", ss.str(), -1);
 
                             if (get_source_hopping()) {

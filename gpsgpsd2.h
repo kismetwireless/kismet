@@ -79,7 +79,8 @@ protected:
 
 class GPSGpsdV2Builder : public KisGpsBuilder {
 public:
-    GPSGpsdV2Builder(GlobalRegistry *in_globalreg) : KisGpsBuilder(in_globalreg, 0) { 
+    GPSGpsdV2Builder(std::shared_ptr<EntryTracker> tracker) : 
+        KisGpsBuilder(tracker, 0) { 
         initialize();
     }
 

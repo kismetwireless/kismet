@@ -96,8 +96,7 @@ public:
 // After 5 seconds, probing is cancelled.
 class DST_DatasourceProbe {
 public:
-    DST_DatasourceProbe(GlobalRegistry *in_globalreg, std::string in_definition, 
-            std::shared_ptr<TrackerElementVector> in_protovec);
+    DST_DatasourceProbe(std::string in_definition, std::shared_ptr<TrackerElementVector> in_protovec);
     virtual ~DST_DatasourceProbe();
 
     void probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb);
@@ -113,8 +112,6 @@ public:
 
 protected:
     kis_recursive_timed_mutex probe_lock;
-
-    GlobalRegistry *globalreg;
 
     std::shared_ptr<Timetracker> timetracker;
 
@@ -159,8 +156,7 @@ typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 // List requests cancelled after 5 seconds
 class DST_DatasourceList {
 public:
-    DST_DatasourceList(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<TrackerElementVector> in_protovec);
+    DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec);
     virtual ~DST_DatasourceList();
 
     void list_sources(std::function<void (std::vector<SharedInterface>)> in_cb);
@@ -174,8 +170,6 @@ public:
 
 protected:
     kis_recursive_timed_mutex list_lock;
-
-    GlobalRegistry *globalreg;
 
     std::shared_ptr<Timetracker> timetracker;
 
@@ -301,8 +295,7 @@ protected:
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
 class dst_incoming_remote : public KisExternalInterface {
 public:
-    dst_incoming_remote(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+    dst_incoming_remote(std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
             std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
                 uuid srcuuid, std::shared_ptr<BufferHandlerGeneric> handler)> in_cb);
     ~dst_incoming_remote();
@@ -336,14 +329,14 @@ class Datasourcetracker_Httpd_Pcap;
 class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public DeferredStartup, public TcpServerV2 {
 public:
-    static std::shared_ptr<Datasourcetracker> create_dst(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Datasourcetracker> mon(new Datasourcetracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("DATASOURCETRACKER", mon);
-        in_globalreg->RegisterDeferredGlobal(mon);
+    static std::shared_ptr<Datasourcetracker> create_dst() {
+        std::shared_ptr<Datasourcetracker> mon(new Datasourcetracker());
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal("DATASOURCETRACKER", mon);
+        Globalreg::globalreg->RegisterDeferredGlobal(mon);
 
-        std::shared_ptr<PollableTracker> pollabletracker = 
-            std::static_pointer_cast<PollableTracker>(in_globalreg->FetchGlobal("POLLABLETRACKER"));
+        auto pollabletracker =
+            Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
         pollabletracker->RegisterPollable(mon);
 
         mon->datasourcetracker = mon;
@@ -351,7 +344,7 @@ public:
     }
 
 private:
-    Datasourcetracker(GlobalRegistry *in_globalreg);
+    Datasourcetracker();
 
 public:
     virtual ~Datasourcetracker();
@@ -438,8 +431,6 @@ protected:
     // Log the datasources
     virtual void databaselog_write_datasources();
 
-    GlobalRegistry *globalreg;
-
     std::shared_ptr<Datasourcetracker> datasourcetracker;
     std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Timetracker> timetracker;
@@ -505,7 +496,6 @@ protected:
 class Datasourcetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
     Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
-    Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg);
 
     virtual ~Datasourcetracker_Httpd_Pcap() { };
 

@@ -296,7 +296,7 @@ public:
         // printf("debug - rrd - preserialize\n");
         // Update the averages
         if (update_first) {
-            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
+            add_sample(agg.default_val(), time(0));
         }
     }
 
@@ -502,7 +502,7 @@ public:
         Aggregator agg;
 
         if (update_first) {
-            add_sample(agg.default_val(), globalreg->timestamp.tv_sec);
+            add_sample(agg.default_val(), time(0));
         }
     }
 

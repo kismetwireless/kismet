@@ -29,16 +29,15 @@
 #include "kismet_json.h"
 #include "base64.h"
 
-LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
-    tracker_component(in_globalreg, 0),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg),
-    globalreg(in_globalreg) {
+LogTracker::LogTracker() :
+    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
+    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
 
     streamtracker =
-        Globalreg::FetchMandatoryGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     register_fields();
     reserve_fields(NULL);
@@ -48,7 +47,7 @@ LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
 LogTracker::~LogTracker() {
     local_locker lock(&tracker_mutex);
 
-    globalreg->RemoveGlobal("LOGTRACKER");
+    Globalreg::globalreg->RemoveGlobal("LOGTRACKER");
 
     TrackerElementVector v(logfile_vec);
 

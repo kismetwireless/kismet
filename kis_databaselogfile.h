@@ -56,14 +56,14 @@ class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public Lifetim
     public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     static std::shared_ptr<KisDatabaseLogfile> 
-        create_kisdatabaselog(GlobalRegistry *in_globalreg) {
-            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile(in_globalreg));
-            in_globalreg->RegisterLifetimeGlobal(mon);
-            in_globalreg->InsertGlobal("DATABASELOG", mon);
+        create_kisdatabaselog() {
+            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile());
+            Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+            Globalreg::globalreg->InsertGlobal("DATABASELOG", mon);
             return mon;
         }
 
-    KisDatabaseLogfile(GlobalRegistry *in_globalreg);
+    KisDatabaseLogfile();
     virtual ~KisDatabaseLogfile();
 
     void SetDatabaseBuilder(SharedLogBuilder in_builder) {
@@ -118,8 +118,6 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
-    GlobalRegistry *globalreg;
-
     // Is the database even enabled?
     bool db_enabled;
 
@@ -184,7 +182,7 @@ public:
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg) :
+    KisDatabaseLogfileBuilder() :
         KisLogfileBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
 
         register_fields();
@@ -198,7 +196,7 @@ public:
     // logfile system instead
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
         std::shared_ptr<KisDatabaseLogfile> logfile =
-            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>("DATABASELOG");
         logfile->SetDatabaseBuilder(builder);
         return logfile;
     }

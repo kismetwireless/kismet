@@ -23,9 +23,8 @@
 #include "phy_rtl433.h"
 #include "protobuf_cpp/sdrrtl433.pb.h"
 
-KisDatasourceRtl433::KisDatasourceRtl433(GlobalRegistry *in_globalreg,
-        SharedDatasourceBuilder in_builder, bool in_mqtt) :
-    KisDatasource(in_globalreg, in_builder) {
+KisDatasourceRtl433::KisDatasourceRtl433(SharedDatasourceBuilder in_builder, bool in_mqtt) :
+    KisDatasource(in_builder) {
 
     std::string devnum = MungeToPrintable(get_definition_opt("device"));
     if (devnum != "") {

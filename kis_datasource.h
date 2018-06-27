@@ -163,11 +163,11 @@ protected:
 class KisDatasource : public tracker_component, public KisExternalInterface {
 public:
     // Initialize and tell us what sort of builder
-    KisDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
+    KisDatasource(SharedDatasourceBuilder in_builder);
 
     KisDatasource(std::shared_ptr<EntryTracker> tracker, int in_id) :
         tracker_component(tracker, in_id),
-        KisExternalInterface(Globalreg::globalreg) {
+        KisExternalInterface() {
         register_fields();
         reserve_fields(NULL);
     }
@@ -175,7 +175,7 @@ public:
     KisDatasource(std::shared_ptr<EntryTracker> tracker, int in_id,
             std::shared_ptr<TrackerElementMap> e) :
         tracker_component(tracker, in_id),
-        KisExternalInterface(Globalreg::globalreg) {
+        KisExternalInterface() {
         register_fields();
         reserve_fields(e);
     }
@@ -573,11 +573,6 @@ protected:
 
     // Is the source paused?  If so, we throw out packets from it for now
     std::shared_ptr<TrackerElementUInt8> source_paused;
-
-
-    // Global registry all objects have for coordination
-    GlobalRegistry *globalreg;
-
 
 
     // Retry API

@@ -32,9 +32,9 @@
 #include "system_monitor.h"
 #include "json_adapter.h"
 
-Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
+Systemmonitor::Systemmonitor() :
     tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
 
     devicetracker =
         Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
@@ -48,11 +48,12 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 #endif
 
     struct timeval trigger_tm;
-    trigger_tm.tv_sec = globalreg->timestamp.tv_sec + 1;
+    trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
     timer_id = 
-        globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+        timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     // Link the RRD out of the devicetracker
     insert(devicetracker->get_packets_rrd());
@@ -83,19 +84,22 @@ Systemmonitor::Systemmonitor(GlobalRegistry *in_globalreg) :
 
     set_username(uidstr.str());
 
-    set_server_uuid(globalreg->server_uuid);
+    set_server_uuid(Globalreg::globalreg->server_uuid);
 
-    set_server_name(globalreg->kismet_config->FetchOpt("server_name"));
-    set_server_description(globalreg->kismet_config->FetchOpt("server_description"));
-    set_server_location(globalreg->kismet_config->FetchOpt("server_location"));
+    set_server_name(Globalreg::globalreg->kismet_config->FetchOpt("server_name"));
+    set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));
+    set_server_location(Globalreg::globalreg->kismet_config->FetchOpt("server_location"));
 
 }
 
 Systemmonitor::~Systemmonitor() {
     local_locker lock(&monitor_mutex);
 
-    globalreg->RemoveGlobal("SYSTEMMONITOR");
-    globalreg->timetracker->RemoveTimer(timer_id);
+    Globalreg::globalreg->RemoveGlobal("SYSTEMMONITOR");
+
+    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (timetracker != nullptr)
+        timetracker->RemoveTimer(timer_id);
 }
 
 void Systemmonitor::register_fields() {
@@ -136,7 +140,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 
     // Grab the devices
     set_devices(num_devices);
-    devices_rrd->add_sample(num_devices, globalreg->timestamp.tv_sec);
+    devices_rrd->add_sample(num_devices, time(0));
 
 #ifdef SYS_LINUX
     // Grab the memory from /proc
@@ -167,7 +171,7 @@ int Systemmonitor::timetracker_event(int eventid) {
                     m /= 1024;
 
                     set_memory(m);
-                    memory_rrd->add_sample(m, globalreg->timestamp.tv_sec);
+                    memory_rrd->add_sample(m, time(0));
                 }
             }
         }
@@ -177,11 +181,11 @@ int Systemmonitor::timetracker_event(int eventid) {
 
     // Reschedule
     struct timeval trigger_tm;
-    trigger_tm.tv_sec = globalreg->timestamp.tv_sec + 1;
+    trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
     timer_id = 
-        globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+        Globalreg::globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     return 1;
 }
@@ -249,11 +253,11 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         return;
 
     std::shared_ptr<EntryTracker> entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     if (stripped == "/system/status") {
         entrytracker->Serialize(httpd->GetSuffix(path), stream,
-                Globalreg::FetchMandatoryGlobalAs<Systemmonitor>(globalreg, "SYSTEMMONITOR"), 
+                Globalreg::FetchMandatoryGlobalAs<Systemmonitor>("SYSTEMMONITOR"), 
                 nullptr);
 
         return;
