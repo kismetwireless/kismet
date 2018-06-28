@@ -537,13 +537,34 @@ int tracker_component::RegisterField(const std::string& in_name,
     return RegisterField(in_name, TrackerElementFactory<build_type>(), in_desc, in_dest);
 }
 
+template<typename T>
+int tracker_component::RegisterDynamicField(const std::string& in_name, const std::string& in_desc, 
+        std::shared_ptr<T> *in_dest) {
+    using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
+
+    int id = entrytracker->RegisterField(in_name, TrackerElementFactory<build_type>(), in_desc);
+
+    auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest, true));
+    registered_fields.push_back(std::move(rf));
+
+    return id;
+}
+
 
 void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         auto& rf = registered_fields[i];
 
         if (rf->assign != nullptr) {
-            *(rf->assign) = import_or_new(e, rf->id);
+            if (rf->dynamic) {
+                // If the variable is dynamic set the assignment container to null so that
+                // proxydynamictrackable can fill it in;
+                *(rf->assign) = nullptr;
+                insert(rf->id, std::shared_ptr<TrackerElement>());
+            } else {
+                // otherwise generate a variable for the destination
+                *(rf->assign) = import_or_new(e, rf->id);
+            }
         }
     }
 }

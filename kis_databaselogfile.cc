@@ -29,7 +29,7 @@
 
 KisDatabaseLogfile::KisDatabaseLogfile():
     KisLogfile(SharedLogBuilder(NULL)), 
-    KisDatabase("kismetlog") {
+    KisDatabase(Globalreg::globalreg, "kismetlog") {
 
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
@@ -559,7 +559,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     return 1;
 }
 
-int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
+int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_devices) {
     // We avoid using external mutexes here and try to let sqlite3 handle its own
     // internal locking state; we don't want a huge device list write to block packet
     // writes for instance
@@ -576,7 +576,7 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
     std::string typestring;
     std::string keystring;
 
-    for (auto i : in_devices) {
+    for (auto i : *in_devices) {
         if (i == NULL)
             continue;
 
@@ -628,7 +628,7 @@ int KisDatabaseLogfile::log_devices(TrackerElementVector in_devices) {
         std::stringstream sstr;
 
         // Serialize the device
-        JsonAdapter::Pack(Globalreg::globalreg, sstr, d, NULL);
+        JsonAdapter::Pack(sstr, d, NULL);
         std::string streamstring = sstr.str();
         sqlite3_bind_text(device_stmt, spos++, streamstring.c_str(), streamstring.length(), 0);
 
@@ -823,9 +823,7 @@ int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) 
     if (!db_enabled)
         return 0;
 
-    TrackerElementVector v(in_datasource_vec);
-
-    for (auto ds : v) {
+    for (auto ds : *(std::static_pointer_cast<TrackerElementVector>(in_datasource_vec))) {
         r = log_datasource(ds);
 
         if (r < 0)
@@ -861,7 +859,7 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
     sqlite3_bind_text(datasource_stmt, 4, namestring.data(), namestring.length(), 0);
     sqlite3_bind_text(datasource_stmt, 5, intfstring.data(), intfstring.length(), 0);
 
-    JsonAdapter::Pack(Globalreg::globalreg, ss, in_datasource, NULL);
+    JsonAdapter::Pack(ss, in_datasource, NULL);
     jsonstring = ss.str();
 
     sqlite3_bind_text(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), 0);
@@ -911,7 +909,7 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
 
     sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), 0);
 
-    JsonAdapter::Pack(Globalreg::globalreg, ss, in_alert, NULL);
+    JsonAdapter::Pack(ss, in_alert, NULL);
     jsonstring = ss.str();
 
     sqlite3_bind_text(alert_stmt, 8, jsonstring.data(), jsonstring.length(), 0);

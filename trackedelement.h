@@ -1161,7 +1161,8 @@ public:
         auto existing = map.find(i);
 
         if (existing == map.end()) {
-            auto p = std::make_pair(i, std::static_pointer_cast<TrackerElement>(e));
+            auto p = 
+                std::make_pair(i, std::static_pointer_cast<TrackerElement>(e));
             return map.insert(p);
         } else {
             existing->second = std::static_pointer_cast<TrackerElement>(e);
@@ -1692,6 +1693,17 @@ protected:
     int RegisterField(const std::string& in_name, const std::string& in_desc, 
             std::shared_ptr<T> *in_dest);
 
+    // Register a field, automatically deriving its type from the provided destination
+    // field.  The destination field must be specified.
+    //
+    // The field will not be initialized during normal initialization, it will only be
+    // created when the field is accessed.  
+    //
+    // This field should be mapped via the __ProxyDynamicTrackable call
+    template<typename T>
+    int RegisterDynamicField(const std::string& in_name, const std::string& in_desc, 
+            std::shared_ptr<T> *in_dest);
+
     // Register field types and get a field ID.  Called during record creation, prior to 
     // assigning an existing trackerelement tree or creating a new one
     virtual void register_fields() { }
@@ -1713,9 +1725,25 @@ protected:
             registered_field(int id, SharedTrackerElement *assign) { 
                 this->id = id; 
                 this->assign = assign;
+
+                if (assign == nullptr)
+                    this->dynamic = true;
+                else
+                    this->dynamic = false;
+            }
+
+            registered_field(int id, SharedTrackerElement *assign, bool dynamic) {
+                if (this->assign == nullptr)
+                    throw std::runtime_error("attempted to assign a dynamic field to "
+                            "a null destination");
+
+                this->id = id;
+                this->assign = assign;
+                this->dynamic = true;
             }
 
             int id;
+            bool dynamic;
             SharedTrackerElement *assign;
     };
 

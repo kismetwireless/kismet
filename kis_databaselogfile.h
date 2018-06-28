@@ -76,7 +76,7 @@ public:
     virtual int Database_UpgradeDB() override;
 
     // Log a vector of multiple devices, replacing any old device records
-    virtual int log_devices(TrackerElementVector in_devices);
+    virtual int log_devices(std::shared_ptr<TrackerElementVector> in_devices);
 
     // Device logs are non-streaming; we need to know the last time we generated
     // device logs so that we can update just the logs we need.

@@ -233,7 +233,7 @@ public:
     __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
 
     typedef kis_tracked_rrd<> rrdt;
-    __ProxyTrackable(packets_rrd, rrdt, packets_rrd);
+    __ProxyDynamicTrackable(packets_rrd, rrdt, packets_rrd, packets_rrd_id);
 
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
     __ProxyDynamicTrackable(data_rrd, rrdt, data_rrd, data_rrd_id);
@@ -476,7 +476,7 @@ public:
     virtual int Database_UpgradeDB();
 
     // Store a selection of devices
-    virtual int store_devices(TrackerElementVector devices);
+    virtual int store_devices(std::shared_ptr<TrackerElementVector> devices);
 
     // Iterate over all phys and load from the database
     virtual int load_devices();
@@ -551,7 +551,7 @@ public:
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices
     void MatchOnDevices(DevicetrackerFilterWorker *worker, 
-            TrackerElementVector source_vec, bool batch = true);
+            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
 
     using device_map_t = std::map<device_key, std::shared_ptr<kis_tracked_device_base>>;
     using device_itr = device_map_t::iterator;
@@ -650,12 +650,12 @@ public:
     // Store all devices to the database
     virtual int store_devices();
     virtual int store_all_devices();
-    virtual int store_devices(TrackerElementVector devices);
+    virtual int store_devices(std::shared_ptr<TrackerElementVector> devices);
 
     // Store all devices to the database
     virtual void databaselog_write_devices();
     virtual void databaselog_write_all_devices();
-    virtual void databaselog_write_devices(TrackerElementVector devices);
+    virtual void databaselog_write_devices(std::shared_ptr<TrackerElementVector> devices);
 
     // Iterate over all phys and load from the database
     virtual int load_devices();
@@ -685,7 +685,6 @@ protected:
 	std::map<int, int> phy_filterpackets;
 
     // Total packet history
-    int packets_rrd_id;
     std::shared_ptr<kis_tracked_rrd<> > packets_rrd;
 
     // Timeout of idle devices
@@ -729,7 +728,7 @@ protected:
     // Immutable vector, one entry per device; may never be sorted.  Devices
     // which are removed are set to 'null'.  Each position corresponds to the
     // device ID.
-    TrackerElementVector immutable_tracked_vec;
+    std::shared_ptr<TrackerElementVector> immutable_tracked_vec;
 
 	// Filtering
 	FilterCore *track_filter;
