@@ -1843,7 +1843,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
         const SharedTrackerElement& in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         SharedTrackerElement &ret_elem, 
-        TrackerElementSerializer::rename_map &rename_map);
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map);
 
 
 #endif

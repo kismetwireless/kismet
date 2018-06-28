@@ -1092,7 +1092,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
         const SharedTrackerElement& in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         SharedTrackerElement &ret_elem, 
-        TrackerElementSerializer::rename_map &rename_map) {
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
 
     // Poke the pre-serialization function to update anything that needs updating before
     // we create the new meta-object
@@ -1141,7 +1141,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
         if ((*si)->rename.length() != 0 || (*si)->resolved_path.size() > 1) {
             auto sum = std::make_shared<TrackerElementSummary>(*si);
             sum->parent_element = in;
-            rename_map[f] = sum;
+            (*rename_map)[f] = sum;
         }
 
         std::static_pointer_cast<TrackerElementMap>(ret_elem)->insert(f);

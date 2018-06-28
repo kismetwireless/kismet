@@ -140,8 +140,7 @@ void kis_tracked_device_base::register_fields() {
     signal_data_id =
         RegisterDynamicField("kismet.device.base.signal", "signal data", &signal_data);
 
-    RegisterField("kismet.device.base.freq_khz_map", 
-            "packets seen per frequency (khz)", &freq_khz_map);
+    RegisterField("kismet.device.base.freq_khz_map", "packets seen per frequency (khz)", &freq_khz_map);
     RegisterField("kismet.device.base.channel", "channel (phy specific)", &channel);
     RegisterField("kismet.device.base.frequency", "frequency", &frequency);
     RegisterField("kismet.device.base.manuf", "manufacturer name", &manuf);
@@ -1978,7 +1977,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
     }
 
     // Use a function worker to insert it into the db
-    devicetracker_function_worker fw(globalreg,
+    devicetracker_function_worker fw(
             [this, &stmt] 
                 (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 std::shared_ptr<kis_tracked_device_base> kdb =
