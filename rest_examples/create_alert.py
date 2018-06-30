@@ -36,9 +36,9 @@ if results.passwd != None:
 kr = KismetRest.KismetConnector(uri)
 kr.set_login(user, passwd)
 
-print "Defining alert"
+print("Defining alert")
 kr.define_alert("PYTHONTEST", "An alert generated from a python script based on external conditions")
 
-print "Raising alert"
+print("Raising alert")
 kr.raise_alert("PYTHONTEST", "This alert was raised from python as an example", channel="6HT40")
 

@@ -41,12 +41,12 @@ def per_device(d):
     else:
         probessid = "n/a"
 
-    print "{} - {} - {} {} {}".format(
+    print("{} - {} - {} {} {}".format(
             d['kismet.device.base.macaddr'],
             time.ctime(d['kismet.device.base.last_time']),
             d['kismet.common.signal.last_signal_dbm'],
             beaconssid,
-            probessid)
+            probessid))
 
 
 uri = "http://localhost:2501"
@@ -68,7 +68,7 @@ if results.uri != None:
 
 if results.macs != None:
     if results.ssids != None or results.probed != None:
-        print "Can't combine MAC selection with SSID or Probed SSID, sorry"
+        print("Can't combine MAC selection with SSID or Probed SSID, sorry")
         sys.exit(1)
 
 if results.rate != None:
@@ -88,12 +88,12 @@ if results.probed != None:
         regex.append(["dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid", s])
 
 if len(regex) != 0:
-    print "Matching against {} SSIDs".format(len(regex))
+    print("Matching against {} SSIDs".format(len(regex)))
 elif results.macs != None and len(results.macs) != 0:
-    print "Matching against {} MAC addresses".format(len(results.macs))
+    print("Matching against {} MAC addresses".format(len(results.macs)))
     regex = None
 else:
-    print "Reporting all active devices..."
+    print("Reporting all active devices...")
     regex = None
     results.macs = None
 

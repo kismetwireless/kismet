@@ -18,8 +18,8 @@ import time
 # simplified fields our device contains ONLY the macaddr, last beaconed ssid
 # (renamed to simple.last_ssid), and the signal records!
 def per_device(d):
-    print d['kismet.device.base.macaddr'], d['simple.last_ssid'], "pcre", d['kismet.pcre.match']
-    # print d
+    print(d['kismet.device.base.macaddr'], d['simple.last_ssid'], "pcre", d['kismet.pcre.match'])
+    # print(d)
 
 uri = "http://localhost:2501"
 oui = ""
@@ -37,7 +37,7 @@ if results.uri != None:
 if results.oui != None:
     oui = results.oui
 else:
-    print "Expected --oui"
+    print("Expected --oui")
     sys.exit(1)
 
 kr = KismetRest.KismetConnector(uri)

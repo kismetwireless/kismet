@@ -20,7 +20,7 @@ import time
 # simplified fields our device contains ONLY the macaddr, last beaconed ssid
 # (renamed to simple.last_ssid), and the signal records!
 def per_device(d):
-    print d['kismet.device.base.macaddr'], d['simple.last_ssid']
+    print(d['kismet.device.base.macaddr'], d['simple.last_ssid'])
     # print d
 
 uri = "http://localhost:2501"

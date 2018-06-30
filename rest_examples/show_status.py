@@ -26,6 +26,6 @@ kr = KismetRest.KismetConnector(uri)
 
 kstatus = kr.system_status()
 
-print "Kismet server time: {}".format(time.ctime(kstatus['kismet.system.timestamp.sec']))
-print "Devices seen: {}".format(kstatus['kismet.system.devices.count'])
-print "Memory used: {}Kb".format(kstatus['kismet.system.memory.rss'])
+print("Kismet server time: {}".format(time.ctime(kstatus['kismet.system.timestamp.sec'])))
+print("Devices seen: {}".format(kstatus['kismet.system.devices.count']))
+print("Memory used: {}Kb".format(kstatus['kismet.system.memory.rss']))
