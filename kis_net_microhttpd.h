@@ -133,8 +133,6 @@ protected:
     GlobalRegistry *http_globalreg;
 
     std::shared_ptr<Kis_Net_Httpd> httpd;
-    std::shared_ptr<EntryTracker> entrytracker;
-
 };
 
 // Take a C++ stream and use it as a response

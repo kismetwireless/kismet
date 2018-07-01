@@ -878,7 +878,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Allocate some other critical stuff like the entry tracker and the
     // serializers
     std::shared_ptr<EntryTracker> entrytracker =
-        EntryTracker::create_entrytracker(globalregistry);
+        EntryTracker::create_entrytracker(Globalreg::globalreg);
 
     // Base serializers
     entrytracker->RegisterSerializer("json", std::make_shared<JsonAdapter::Serializer>());
