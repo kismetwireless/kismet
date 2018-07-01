@@ -30,9 +30,8 @@ typedef std::shared_ptr<KisDatasourceLinuxWifi> SharedDatasourceLinuxWifi;
 
 class KisDatasourceLinuxWifi : public KisDatasource {
 public:
-    KisDatasourceLinuxWifi(GlobalRegistry *in_globalreg, 
-            SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_globalreg, in_builder) {
+    KisDatasourceLinuxWifi(SharedDatasourceBuilder in_builder) :
+        KisDatasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_linux_wifi");
@@ -50,25 +49,24 @@ public:
 
 class DatasourceLinuxWifiBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceLinuxWifiBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisDatasourceBuilder(in_globalreg, in_id) {
+    DatasourceLinuxWifiBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceLinuxWifiBuilder(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        KisDatasourceBuilder(in_globalreg, in_id, e) {
+    DatasourceLinuxWifiBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    DatasourceLinuxWifiBuilder(GlobalRegistry *in_globalreg) :
-        KisDatasourceBuilder(in_globalreg, 0) {
+    DatasourceLinuxWifiBuilder() :
+        KisDatasourceBuilder() {
 
         register_fields();
         reserve_fields(NULL);
@@ -78,8 +76,7 @@ public:
     virtual ~DatasourceLinuxWifiBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceLinuxWifi(new KisDatasourceLinuxWifi(globalreg, 
-                    in_sh_this));
+        return SharedDatasourceLinuxWifi(new KisDatasourceLinuxWifi(in_sh_this));
     }
 
     virtual void initialize() {

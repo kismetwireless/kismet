@@ -31,19 +31,20 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
 
     message_vec_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.list",
-                TrackerVector, "list of messages");
+                TrackerElementFactory<TrackerElementVector>(),
+                "list of messages");
 
     message_timestamp_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.timestamp",
-                TrackerUInt64, "message update timestamp");
-
-    std::shared_ptr<tracked_message> msg_builder(new tracked_message(globalreg, 0));
+                TrackerElementFactory<TrackerElementUInt64>(),
+                "message update timestamp");
 
     message_entry_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.message",
-                msg_builder, "Kismet message");
+                TrackerElementFactory<tracked_message>(),
+                "Kismet message");
 
-	globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
+    Globalreg::globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
 }
 
 RestMessageClient::~RestMessageClient() {
@@ -53,7 +54,7 @@ RestMessageClient::~RestMessageClient() {
 
     globalreg->RemoveGlobal("REST_MSG_CLIENT");
 
-    message_vec.clear();
+    message_list.clear();
 }
 
 void RestMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
@@ -61,19 +62,19 @@ void RestMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     if (in_flags & MSGFLAG_LOCAL)
         return;
 
-    std::shared_ptr<tracked_message> msg = 
-        std::static_pointer_cast<tracked_message>(globalreg->entrytracker->GetTrackedInstance(message_entry_id));
+    auto msg =
+        std::make_shared<tracked_message>(message_entry_id);
 
     msg->set_from_message(in_msg, in_flags);
 
     {
         local_locker lock(&msg_mutex);
 
-        message_vec.push_back(msg);
+        message_list.push_back(msg);
 
         // Hardcode a backlog count right now
-        if (message_vec.size() > 50) {
-            message_vec.erase(message_vec.begin());
+        if (message_list.size() > 50) {
+            message_list.pop_front();
         }
     }
 }
@@ -151,30 +152,31 @@ void RestMessageClient::Httpd_CreateStreamResponse(
     {
         local_locker lock(&msg_mutex);
 
-        SharedTrackerElement wrapper;
-        SharedTrackerElement msgvec(globalreg->entrytracker->GetTrackedInstance(message_vec_id));
+        std::shared_ptr<TrackerElement> transmit;
+        std::shared_ptr<TrackerElementMap> wrapper;
+        auto msgvec = std::make_shared<TrackerElementVector>(message_vec_id);
        
         // If we're doing a time-since, wrap the vector
         if (wrap) {
-            wrapper.reset(new TrackerElement(TrackerMap));
-            wrapper->add_map(msgvec);
+            wrapper =
+                std::make_shared<TrackerElementMap>();
+            wrapper->insert(msgvec);
 
-            SharedTrackerElement ts =
-                globalreg->entrytracker->GetTrackedInstance(message_timestamp_id);
-            ts->set((uint64_t) globalreg->timestamp.tv_sec);
-            wrapper->add_map(ts);
+            auto ts =
+                std::make_shared<TrackerElementUInt64>(message_timestamp_id, time(0));
+            wrapper->insert(ts);
+
+            transmit = wrapper;
         } else {
-            wrapper = msgvec;
+            transmit = msgvec;
         }
 
-        for (std::vector<std::shared_ptr<tracked_message> >::iterator i = message_vec.begin();
-                i != message_vec.end(); ++i) {
-            if (since_time < (*i)->get_timestamp()) {
-                msgvec->add_vector(*i);
-            }
+        for (auto i : message_list) {
+            if (since_time < i->get_timestamp())
+                msgvec->push_back(i);
         }
 
-        Httpd_Serialize(path, stream, wrapper);
+        Httpd_Serialize(path, stream, transmit);
     }
 }
 

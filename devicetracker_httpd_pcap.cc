@@ -43,7 +43,7 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
         if (tokenurl[4] != "pcap")
             return false;
 
-        TrackedDeviceKey key(tokenurl[3]);
+        device_key key(tokenurl[3]);
         if (key.get_error())
             return false;
 
@@ -94,7 +94,7 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (tokenurl[4] != "pcap")
         return MHD_YES;
 
-    TrackedDeviceKey key(tokenurl[3]);
+    device_key key(tokenurl[3]);
     if (key.get_error())
         return MHD_YES;
 

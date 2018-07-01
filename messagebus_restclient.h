@@ -33,20 +33,34 @@
 
 class tracked_message : public tracker_component {
 public:
-    tracked_message(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    tracked_message() :
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    tracked_message(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    tracked_message(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    tracked_message(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-        }
+    }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new tracked_message(globalreg, get_id()));
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return dup;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return dup;
     }
 
     __Proxy(message, std::string, std::string, std::string, message);
@@ -56,7 +70,7 @@ public:
     void set_from_message(std::string in_msg, int in_flags) {
         set_message(in_msg);
         set_flags(in_flags);
-        set_timestamp(globalreg->timestamp.tv_sec);
+        set_timestamp(time(0));
     }
 
     bool operator<(const tracked_message& comp) const {
@@ -64,28 +78,17 @@ public:
     }
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        message_id =
-            RegisterField("kismet.messagebus.message_string", TrackerString,
-                    "Message content", &message);
-        flags_id =
-            RegisterField("kismet.messagebus.message_flags", TrackerInt32,
-                    "Message flags (per messagebus.h)", &flags);
-        timestamp_id =
-            RegisterField("kismet.messagebus.message_time", TrackerUInt64,
-                    "Message time_t", &timestamp);
+        RegisterField("kismet.messagebus.message_string", "Message content", &message);
+        RegisterField("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
+        RegisterField("kismet.messagebus.message_time", "Message time_t", &timestamp);
     }
 
-    SharedTrackerElement message;
-    int message_id;
-
-    SharedTrackerElement flags;
-    int flags_id;
-
-    SharedTrackerElement timestamp;
-    int timestamp_id;
+    std::shared_ptr<TrackerElementString> message;
+    std::shared_ptr<TrackerElementInt32> flags;
+    std::shared_ptr<TrackerElementUInt64> timestamp;
 };
 
 class RestMessageClient : public MessageClient, public Kis_Net_Httpd_CPPStream_Handler,
@@ -104,19 +107,20 @@ private:
 
 public:
 	virtual ~RestMessageClient();
-    void ProcessMessage(std::string in_msg, int in_flags);
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual void ProcessMessage(std::string in_msg, int in_flags) override;
+
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
 
 protected:
     kis_recursive_timed_mutex msg_mutex;
 
-    std::vector<std::shared_ptr<tracked_message> > message_vec;
+    std::list<std::shared_ptr<tracked_message> > message_list;
 
     int message_vec_id, message_entry_id, message_timestamp_id;
 };

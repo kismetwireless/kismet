@@ -48,20 +48,19 @@ extern "C" {
 // called with allocate should be the amount of space it will use, while the 
 // return value for non-allocate should indicate the new position (absolute new
 // position, not offset!)
-#define DUMPFILE_PPI_PARMS	GlobalRegistry *in_globalreg, int in_allocate, \
-	kis_packet *in_pack, uint8_t *dump_data, int dump_pos, void *aux
+#define DUMPFILE_PPI_PARMS	int in_allocate, kis_packet *in_pack, uint8_t *dump_data, \
+    int dump_pos, void *aux
 typedef int (*dumpfile_ppi_cb)(DUMPFILE_PPI_PARMS);
 
 // Filter to return a packet type for logging (used for derivative pcap loggers,
 // like in plugins)
-#define DUMPFILE_PCAP_FILTER_PARMS	GlobalRegistry *in_globalreg, kis_packet *in_pack, \
-	void *aux
+#define DUMPFILE_PCAP_FILTER_PARMS	kis_packet *in_pack, void *aux
 typedef kis_datachunk *(*dumpfile_pcap_filter_cb)(DUMPFILE_PCAP_FILTER_PARMS);
 
 // Pcap-based packet writer
 class KisPPILogfile : public KisLogfile {
 public:
-    KisPPILogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder);
+    KisPPILogfile(SharedLogBuilder in_builder);
     virtual ~KisPPILogfile();
 
 	static int packet_handler(CHAINCALL_PARMS);
@@ -69,8 +68,8 @@ public:
 	virtual void RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
 	virtual void RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
 
-    virtual bool Log_Open(std::string in_path);
-    virtual void Log_Close();
+    virtual bool Log_Open(std::string in_path) override;
+    virtual void Log_Close() override;
 
 	struct ppi_cb_rec {
 		dumpfile_ppi_cb cb;
@@ -98,38 +97,36 @@ protected:
 
 class KisPPILogfileBuilder : public KisLogfileBuilder {
 public:
-    KisPPILogfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisLogfileBuilder(in_globalreg, in_id) {
+    KisPPILogfileBuilder() :
+        KisLogfileBuilder() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisPPILogfileBuilder(int in_id) :
+        KisLogfileBuilder(in_id) {
            
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPPILogfileBuilder(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        KisLogfileBuilder(in_globalreg, in_id, e) {
+    KisPPILogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisLogfileBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    KisPPILogfileBuilder(GlobalRegistry *in_globalreg) :
-        KisLogfileBuilder(in_globalreg, 0) {
-
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
     virtual ~KisPPILogfileBuilder() { }
 
-    virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
-        return SharedLogfile(new KisPPILogfile(globalreg, builder));
+    virtual SharedLogfile build_logfile(SharedLogBuilder builder) override {
+        return SharedLogfile(new KisPPILogfile(builder));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_log_class("pcapppi");
         set_log_name("PPI legacy pcap");
         set_stream(true);

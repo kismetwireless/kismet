@@ -28,8 +28,8 @@ typedef std::shared_ptr<KisDatasourceFreaklabsZigbee> SharedDatasourceFreaklabsZ
 
 class KisDatasourceFreaklabsZigbee : public KisDatasource {
 public:
-    KisDatasourceFreaklabsZigbee(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_globalreg, in_builder) { 
+    KisDatasourceFreaklabsZigbee(SharedDatasourceBuilder in_builder) :
+        KisDatasource(in_builder) { 
         set_int_source_ipc_binary("kismet_cap_freaklabs_zigbee");
     };
     virtual ~KisDatasourceFreaklabsZigbee() { };
@@ -37,24 +37,23 @@ public:
 
 class DatasourceFreaklabsZigbeeBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceFreaklabsZigbeeBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisDatasourceBuilder(in_globalreg, in_id) {
+    DatasourceFreaklabsZigbeeBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceFreaklabsZigbeeBuilder(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        KisDatasourceBuilder(in_globalreg, in_id, e) {
+    DatasourceFreaklabsZigbeeBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    DatasourceFreaklabsZigbeeBuilder(GlobalRegistry *in_globalreg) :
-        KisDatasourceBuilder(in_globalreg, 0) {
+    DatasourceFreaklabsZigbeeBuilder() :
+        KisDatasourceBuilder(0) {
 
         register_fields();
         reserve_fields(NULL);
@@ -64,7 +63,7 @@ public:
     virtual ~DatasourceFreaklabsZigbeeBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceFreaklabsZigbee(new KisDatasourceFreaklabsZigbee(globalreg, in_sh_this));
+        return SharedDatasourceFreaklabsZigbee(new KisDatasourceFreaklabsZigbee(in_sh_this));
     }
 
     virtual void initialize() {

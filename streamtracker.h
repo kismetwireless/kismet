@@ -213,22 +213,20 @@ public:
     void remove_streamer(double in_id);
 
     // HTTP API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
    
 protected:
     kis_recursive_timed_mutex mutex;
 
     GlobalRegistry *globalreg;
 
-    SharedTrackerElement tracked_stream_map;
-    TrackerElementDoubleMap stream_map;
+    std::shared_ptr<TrackerElementDoubleMap> tracked_stream_map;
 
-    std::shared_ptr<streaming_info_record> info_builder;
     int info_builder_id;
 
     double next_stream_id;

@@ -20,10 +20,8 @@
 
 #include "kis_pcapnglogfile.h"
 
-KisPcapNGLogfile::KisPcapNGLogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder) :
-    KisLogfile(in_globalreg, in_builder) {
-
-    globalreg = in_globalreg;
+KisPcapNGLogfile::KisPcapNGLogfile(SharedLogBuilder in_builder) :
+    KisLogfile(in_builder) {
 
     pcapng_stream = NULL;
     pcapng_file = NULL;
@@ -51,7 +49,7 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
     bufferhandler.reset(new BufferHandler<FileWritebuf>(NULL, pcapng_file));
 
     // Generate the pcap stream itself
-    pcapng_stream = new Pcap_Stream_Ringbuf(globalreg, bufferhandler, NULL, NULL);
+    pcapng_stream = new Pcap_Stream_Ringbuf(Globalreg::globalreg, bufferhandler, NULL, NULL);
 
     _MSG("Opened pcapng log file '" + in_path + "'", MSGFLAG_INFO);
 

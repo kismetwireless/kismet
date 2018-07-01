@@ -77,108 +77,155 @@ SharedTrackerElement StorageLoader::storage_to_tracker(SharedStructured d) {
         throw std::runtime_error("storage object missing 'od'/'objdata'");
 
     elemid = Globalreg::globalreg->entrytracker->GetFieldId(objname);
-    elem.reset(new TrackerElement(objtype, elemid));
+    // elem.reset(new TrackerElement(objtype, elemid));
 
     try {
         switch (objtype) {
             // Integer types are directly coerced
-            case TrackerInt8:
-            case TrackerUInt8:
-            case TrackerInt16:
-            case TrackerUInt16:
-            case TrackerInt32:
-            case TrackerUInt32:
-            case TrackerInt64:
-            case TrackerUInt64:
-            case TrackerFloat:
-            case TrackerDouble:
+            case TrackerType::TrackerInt8:
+                elem = std::make_shared<TrackerElementInt8>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerUInt8:
+                elem = std::make_shared<TrackerElementUInt8>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerInt16:
+                elem = std::make_shared<TrackerElementInt16>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerUInt16:
+                elem = std::make_shared<TrackerElementUInt16>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerInt32:
+                elem = std::make_shared<TrackerElementInt32>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerUInt32:
+                elem = std::make_shared<TrackerElementUInt32>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerInt64:
+                elem = std::make_shared<TrackerElementInt64>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerUInt64:
+                elem = std::make_shared<TrackerElementUInt64>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerFloat:
+                elem = std::make_shared<TrackerElementFloat>();
+                elem->coercive_set(objdata->getNumber());
+                break;
+            case TrackerType::TrackerDouble:
+                elem = std::make_shared<TrackerElementDouble>();
                 elem->coercive_set(objdata->getNumber());
                 break;
                 // String and string-like types are directly coerced
-            case TrackerString:
-            case TrackerMac:
-            case TrackerUuid:
-            case TrackerKey:
+            case TrackerType::TrackerString:
+                elem = std::make_shared<TrackerElementString>();
+                elem->coercive_set(objdata->getString());
+                break;
+            case TrackerType::TrackerMac:
+                elem = std::make_shared<TrackerElementMacAddr>();
+                elem->coercive_set(objdata->getString());
+                break;
+            case TrackerType::TrackerUuid:
+                elem = std::make_shared<TrackerElementUUID>();
+                elem->coercive_set(objdata->getString());
+                break;
+            case TrackerType::TrackerKey:
+                elem = std::make_shared<TrackerElementDeviceKey>();
                 elem->coercive_set(objdata->getString());
                 break;
                 // Map and vector types need to be iteratively processed
-            case TrackerVector:
+            case TrackerType::TrackerVector:
+                elem = std::make_shared<TrackerElementVector>();
                 for (auto i : objdata->getStructuredArray()) {
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i);
+                    auto re = storage_to_tracker(i);
 
                     if (re != NULL)
-                        elem->add_vector(re);
+                        std::static_pointer_cast<TrackerElementVector>(elem)->push_back(re);
                 }
 
                 break;
-            case TrackerMap:
+            case TrackerType::TrackerMap:
+                elem = std::make_shared<TrackerElementMap>();
+
                 for (auto i : objdata->getStructuredStrMap()) {
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+                    auto re = storage_to_tracker(i.second);
 
-                    // We just don't add NULL objects
                     if (re != NULL) 
-                        elem->add_map(re);
+                        std::static_pointer_cast<TrackerElementMap>(elem)->insert(re);
                 }
 
                 break;
-            case TrackerMacMap:
+            case TrackerType::TrackerMacMap:
+                elem = std::make_shared<TrackerElementMacMap>();
+
                 for (auto i : objdata->getStructuredStrMap()) {
                     mac_addr m(i.first);
                     if (m.error)
                         throw std::runtime_error("unable to process mac address key in macmap");
 
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+                    auto re = storage_to_tracker(i.second);
 
                     if (re != NULL)
-                        elem->add_macmap(m, re);
+                        std::static_pointer_cast<TrackerElementMacMap>(elem)->insert(m, re);
                 }
 
                 break;
-            case TrackerIntMap:
+            case TrackerType::TrackerIntMap:
+                elem = std::make_shared<TrackerElementIntMap>();
+
                 for (auto i : objdata->getStructuredNumMap()) {
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+                    auto re = storage_to_tracker(i.second);
 
-                    if (re != NULL) {
-                        elem->add_intmap((int) i.first, re);
-                    }
+                    if (re != NULL) 
+                        std::static_pointer_cast<TrackerElementIntMap>(elem)->insert(i.first, re);
                 }
 
                 break;
-            case TrackerDoubleMap:
+            case TrackerType::TrackerDoubleMap:
+                elem = std::make_shared<TrackerElementDoubleMap>();
+
                 for (auto i : objdata->getStructuredNumMap()) {
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+                    auto re = storage_to_tracker(i.second);
+
+                    if (re != NULL) 
+                        std::static_pointer_cast<TrackerElementDoubleMap>(elem)->insert(i.first, re);
+                }
+            case TrackerType::TrackerStringMap:
+                elem = std::make_shared<TrackerElementStringMap>();
+
+                for (auto i : objdata->getStructuredStrMap()) {
+                    auto re = storage_to_tracker(i.second);
 
                     if (re != NULL)
-                        elem->add_doublemap(i.first, re);
+                        std::static_pointer_cast<TrackerElementStringMap>(elem)->insert(i.first, re);
                 }
 
                 break;
-            case TrackerStringMap:
-                for (auto i : objdata->getStructuredStrMap()) {
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+            case TrackerType::TrackerKeyMap:
+                elem = std::make_shared<TrackerElementDeviceKeyMap>();
 
-                    if (re != NULL)
-                        elem->add_stringmap(i.first, re);
-                }
-
-                break;
-            case TrackerKeyMap:
                 for (auto i : objdata->getStructuredStrMap()) {
-                    TrackedDeviceKey k(i.first);
+                    device_key k(i.first);
                     if (k.get_error())
                         throw std::runtime_error("unable to process device key in keymap");
 
-                    SharedTrackerElement re = storage_to_tracker(entrytracker, i.second);
+                    auto re = storage_to_tracker(i.second);
 
-                    if (re != NULL) {
-                        (*(elem->get_keymap()))[k] = re;
-                    }
+                    if (re != NULL) 
+                        std::static_pointer_cast<TrackerElementDeviceKeyMap>(elem)->insert(k, re);
                 }
                 break;
-            case TrackerByteArray:
+            case TrackerType::TrackerByteArray:
                 // hexstr = hexstr_to_binstr(objdata->getString().c_str());
+                elem = std::make_shared<TrackerElementByteArray>();
 
-                elem->set_bytearray(objdata->getBinaryStr());
+                std::static_pointer_cast<TrackerElementByteArray>(elem)->set(objdata->getBinaryStr());
 
                 break;
             default:
