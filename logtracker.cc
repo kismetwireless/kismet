@@ -59,12 +59,12 @@ void LogTracker::register_fields() {
     RegisterField("kismet.logtracker.logfiles", "active log files", &logfile_vec);
 
     logproto_entry_id =
-        entrytracker->RegisterField("kismet.logtracker.driver",
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.driver",
                 TrackerElementFactory<KisLogfileBuilder>(),
                 "Log driver");
 
     logfile_entry_id =
-        entrytracker->RegisterField("kismet.logtracker.log",
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.log",
                 TrackerElementFactory<KisLogfile>(),
                 "Log file");
 
@@ -386,10 +386,12 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     std::string stripped = Httpd_StripSuffix(url);
 
     if (stripped == "/logging/drivers") {
-        entrytracker->Serialize(httpd->GetSuffix(url), stream, logproto_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                logproto_vec, NULL);
         return;
     } else if (stripped == "/logging/active") {
-        entrytracker->Serialize(httpd->GetSuffix(url), stream, logfile_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                logfile_vec, NULL);
         return;
     }
 
@@ -464,7 +466,8 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 if (logf == NULL) 
                     throw std::runtime_error("unable to open log");
 
-                entrytracker->Serialize(httpd->GetSuffix(url), stream, logf, NULL);
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                        logf, NULL);
 
                 return;
             }
@@ -546,7 +549,7 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (logf == NULL) 
                     throw std::runtime_error("unable to open log");
 
-                entrytracker->Serialize(httpd->GetSuffix(concls->url),
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url),
                         concls->response_stream, logf, NULL);
                 return MHD_YES;
             }
