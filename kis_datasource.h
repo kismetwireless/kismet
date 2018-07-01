@@ -529,7 +529,7 @@ protected:
     std::shared_ptr<TrackerElementString> source_name;
     std::shared_ptr<TrackerElementUUID> source_uuid;
     bool local_uuid;
-    std::shared_ptr<TrackerElementDeviceKey> source_key;
+    std::shared_ptr<TrackerElementUInt32> source_key;
 
     // Read-only tracked element states
     

@@ -59,6 +59,7 @@ int EntryTracker::RegisterField(const std::string& in_name,
 
     auto definition = std::make_shared<reserved_field>();
     definition->field_id = next_field_num++;
+    definition->field_name = in_name;
     definition->field_description = in_desc;
     definition->builder = std::move(in_builder);
 
@@ -90,6 +91,7 @@ std::shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::str
 
     auto definition = std::make_shared<reserved_field>();
     definition->field_id = next_field_num++;
+    definition->field_name = in_name;
     definition->field_description = in_desc;
     definition->builder = std::move(in_builder);
 
@@ -188,19 +190,18 @@ void EntryTracker::Httpd_CreateStreamResponse(
         stream << "<body>";
         stream << "<h2>Kismet field descriptions</h2>";
         stream << "<table padding=\"5\">";
-        stream << "<tr><td><b>Name</b></td><td><b>Type</b></td><td><b>Description</b></td></tr>";
+        stream << "<tr><td><b>Name</b></td><td><b>ID</b></td><td><b>Type</b></td><td><b>Description</b></td></tr>";
 
         for (auto i : field_id_map) {
             stream << "<tr>";
 
             stream << "<td>" << i.second->field_name << "</td>";
-            if (i.second->builder == NULL) {
-                stream << "<td>" << 
-                    i.second->builder->get_type_as_string() << "/" << 
-                    i.second->builder->get_signature() << "</td>"; 
-            } else {
-                stream << "<td>Complex</td>";
-            }
+
+            stream << "<td>" << i.first << "</td>";
+
+            stream << "<td>" << 
+                i.second->builder->get_type_as_string() << "/" << 
+                i.second->builder->get_signature() << "</td>"; 
 
             stream << "<td>" << i.second->field_description << "</td>";
 

@@ -424,7 +424,7 @@ public:
         TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey) { }
 
     TrackerElementDeviceKey(int id) :
-        TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey) { }
+        TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerKey;
@@ -533,14 +533,20 @@ public:
     TrackerElementCoreNumeric() = delete;
 
     TrackerElementCoreNumeric(TrackerType t) :
-        TrackerElement(t) { }
+        TrackerElement(t) { 
+        value = 0;
+    }
 
     TrackerElementCoreNumeric(TrackerType t, int id) :
-        TrackerElement(t, id) { }
+        TrackerElement(t, id) { 
+        value = 0;
+    }
 
     TrackerElementCoreNumeric(TrackerType t, int id, const N& v) :
         TrackerElement(t, id),
-        value(v) { }
+        value(v) { 
+        value = 0;
+    }
 
     virtual void coercive_set(const std::string& in_str) override {
         auto d = std::stod(in_str);

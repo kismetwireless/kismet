@@ -419,8 +419,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             stream << "\"" << euuid.UUID2String() << "\"";
             break;
         case TrackerType::TrackerKey:
-            key = GetTrackerValue<device_key>(e);
-            stream << "\"" << key << "\"";
+            stream << "\"" << GetTrackerValue<device_key>(e).as_string() << "\"";
             break;
         case TrackerType::TrackerVector:
             stream << "[";

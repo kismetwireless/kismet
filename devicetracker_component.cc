@@ -261,10 +261,10 @@ void kis_tracked_signal_data::register_fields() {
 }
 
 kis_tracked_seenby_data::kis_tracked_seenby_data() :
-    tracker_component(0) {
+    tracker_component() {
     register_fields();
     reserve_fields(NULL);
-    }
+}
 
 kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id) : 
     tracker_component(in_id) { 

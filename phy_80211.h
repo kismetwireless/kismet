@@ -515,7 +515,7 @@ protected:
 
     std::shared_ptr<TrackerElementUInt32> startchan;
     std::shared_ptr<TrackerElementUInt32> numchan;
-    std::shared_ptr<TrackerElementUInt32> txpower;
+    std::shared_ptr<TrackerElementInt32> txpower;
 };
 
 class dot11_probed_ssid : public tracker_component {

@@ -262,7 +262,8 @@ public:
 
     __Proxy(num_alerts, uint32_t, unsigned int, unsigned int, alert);
 
-    __ProxyTrackable(signal_data, kis_tracked_signal_data, signal_data);
+    __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data,
+            signal_data_id);
 
     // Intmaps need special care by the caller
     SharedTrackerElement get_freq_khz_map() { return freq_khz_map; }
