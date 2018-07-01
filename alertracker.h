@@ -69,7 +69,7 @@ public:
             delete(gps);
     }
 
-    uint64_t device_key;
+    device_key devicekey;
 
     std::string header;
 	int phy;
@@ -127,7 +127,7 @@ public:
         return dup;
     }
 
-    __Proxy(device_key, uint64_t, uint64_t, uint64_t, device_key);
+    __Proxy(devicekey, device_key, device_key, device_key, devicekey);
 
     __Proxy(header, std::string, std::string, std::string, header);
     __Proxy(phy, uint32_t, uint32_t, uint32_t, phy);
@@ -146,7 +146,7 @@ public:
     __ProxyTrackable(location, kis_tracked_location_triplet, location);
 
     void from_alert_info(kis_alert_info *info) {
-        set_device_key(info->device_key);
+        set_devicekey(info->devicekey);
         set_header(info->header);
         set_phy(info->phy);
         set_timestamp(ts_to_double(info->tm));
@@ -165,7 +165,7 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.alert.device_key", "Device key of linked device", &device_key);
+        RegisterField("kismet.alert.device_key", "Device key of linked device", &devicekey);
         RegisterField("kismet.alert.header", "Alert type", &header);
         RegisterField("kismet.alert.phy_id", "ID of phy generating alert", &phy);
         RegisterField("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
@@ -179,7 +179,7 @@ protected:
         RegisterField("kismet.alert.location", "location", &location);
     }
 
-    std::shared_ptr<TrackerElementDeviceKey> device_key;
+    std::shared_ptr<TrackerElementDeviceKey> devicekey;
     std::shared_ptr<TrackerElementString> header;
     std::shared_ptr<TrackerElementUInt32> phy;
     std::shared_ptr<TrackerElementDouble> timestamp;

@@ -285,14 +285,6 @@ Datasourcetracker::Datasourcetracker() :
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
-    // Create an alert for source errors
-    auto alertracker = Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-
-    alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
-    alertracker->ActivateConfiguredAlert("SOURCEERROR",
-            "A data source encountered an error.  Depending on the source configuration "
-            "Kismet may automatically attempt to re-open the source.");
-
     proto_id = 
         Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.driver",
                 TrackerElementFactory<KisDatasourceBuilder>(),
@@ -310,6 +302,55 @@ Datasourcetracker::Datasourcetracker() :
     datasource_vec =
         Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
                 TrackerElementFactory<TrackerElementVector>(), "Configured sources");
+
+
+}
+
+Datasourcetracker::~Datasourcetracker() {
+    local_locker lock(&dst_lock);
+
+    Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
+
+    if (completion_cleanup_id >= 0)
+        timetracker->RemoveTimer(completion_cleanup_id);
+
+    if (database_log_timer >= 0) {
+        timetracker->RemoveTimer(database_log_timer);
+        databaselog_write_datasources();
+    }
+
+    for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
+        i->second->cancel();
+    }
+
+    for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
+        // TODO implement these
+        // i->second->cancel();
+    }
+
+    datasource_vec.reset();
+}
+
+void Datasourcetracker::databaselog_write_datasources() {
+    if (!database_log_enabled)
+        return;
+
+    std::shared_ptr<KisDatabaseLogfile> dbf =
+        Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+    
+    if (dbf == NULL)
+        return;
+
+    // Fire off a database log
+    dbf->log_datasources(datasource_vec);
+}
+
+std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
+    return config_defaults;
+}
+
+void Datasourcetracker::Deferred_Startup() {
+    bool used_args = false;
 
     completion_cleanup_id = -1;
     next_probe_id = 0;
@@ -430,53 +471,14 @@ Datasourcetracker::Datasourcetracker() :
         database_log_timer = -1;
     }
 
-}
 
-Datasourcetracker::~Datasourcetracker() {
-    local_locker lock(&dst_lock);
+    // Create an alert for source errors
+    auto alertracker = Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
 
-    Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
-
-    if (completion_cleanup_id >= 0)
-        timetracker->RemoveTimer(completion_cleanup_id);
-
-    if (database_log_timer >= 0) {
-        timetracker->RemoveTimer(database_log_timer);
-        databaselog_write_datasources();
-    }
-
-    for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
-        i->second->cancel();
-    }
-
-    for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
-        // TODO implement these
-        // i->second->cancel();
-    }
-
-    datasource_vec.reset();
-}
-
-void Datasourcetracker::databaselog_write_datasources() {
-    if (!database_log_enabled)
-        return;
-
-    std::shared_ptr<KisDatabaseLogfile> dbf =
-        Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
-    
-    if (dbf == NULL)
-        return;
-
-    // Fire off a database log
-    dbf->log_datasources(datasource_vec);
-}
-
-std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
-    return config_defaults;
-}
-
-void Datasourcetracker::Deferred_Startup() {
-    bool used_args = false;
+    alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
+    alertracker->ActivateConfiguredAlert("SOURCEERROR",
+            "A data source encountered an error.  Depending on the source configuration "
+            "Kismet may automatically attempt to re-open the source.");
 
     std::vector<std::string> src_vec;
 
@@ -490,8 +492,8 @@ void Datasourcetracker::Deferred_Startup() {
     optind = 0;
 
     // Activate remote capture
-    std::string listen = config_defaults->get_remote_cap_listen();
-    unsigned int listenport = config_defaults->get_remote_cap_port();
+    listen = config_defaults->get_remote_cap_listen();
+    listenport = config_defaults->get_remote_cap_port();
 
     if (config_defaults->get_remote_cap_listen().length() != 0 && 
             config_defaults->get_remote_cap_port() != 0) {

@@ -345,13 +345,13 @@ protected:
             }
 
             registered_field(int id, SharedTrackerElement *assign, bool dynamic) {
-                if (this->assign == nullptr)
+                if (assign == nullptr && dynamic)
                     throw std::runtime_error("attempted to assign a dynamic field to "
                             "a null destination");
 
                 this->id = id;
                 this->assign = assign;
-                this->dynamic = true;
+                this->dynamic = dynamic;
             }
 
             int id;

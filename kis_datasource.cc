@@ -46,9 +46,6 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
-    datasourcetracker =
-        Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
-
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
     pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
@@ -492,6 +489,9 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
         local_uuid = true;
         set_source_key(Adler32Checksum(u.UUID2String()));
     }
+
+    auto datasourcetracker =
+        Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
 
     set_int_source_retry(get_definition_opt_bool("retry", 
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));

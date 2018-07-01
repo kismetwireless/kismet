@@ -85,7 +85,7 @@ protected:
 
     std::shared_ptr<Devicetracker> devicetracker;
 
-    std::shared_ptr<TrackerElementUInt32> battery_perc;
+    std::shared_ptr<TrackerElementInt32> battery_perc;
     std::shared_ptr<TrackerElementString> battery_charging;
     std::shared_ptr<TrackerElementUInt8> battery_ac;
     std::shared_ptr<TrackerElementUInt32> battery_remaining;

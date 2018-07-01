@@ -336,7 +336,7 @@ class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler,
     public LifetimeGlobal, public DeferredStartup, public TcpServerV2 {
 public:
     static std::shared_ptr<Datasourcetracker> create_dst() {
-        std::shared_ptr<Datasourcetracker> mon(new Datasourcetracker());
+        auto mon = std::make_shared<Datasourcetracker>();
         Globalreg::globalreg->RegisterLifetimeGlobal(mon);
         Globalreg::globalreg->InsertGlobal("DATASOURCETRACKER", mon);
         Globalreg::globalreg->RegisterDeferredGlobal(mon);
@@ -349,7 +349,7 @@ public:
         return mon;
     }
 
-private:
+    // Must be public to accomodate make_shared but should not be called directly
     Datasourcetracker();
 
 public:

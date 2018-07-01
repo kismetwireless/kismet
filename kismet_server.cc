@@ -703,9 +703,9 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGPIPE, SIG_IGN);
 
     // Build the globalregistry
-    globalregistry = new GlobalRegistry;
+    Globalreg::globalreg = new GlobalRegistry;
+    globalregistry = Globalreg::globalreg;
     globalreg = globalregistry;
-    Globalreg::globalreg = globalregistry;
 
     // Fill in base globalreg elements
     globalregistry->version_major = VERSION_MAJOR;
@@ -918,10 +918,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the IPC handler
     IPCRemoteV2Tracker::create_ipcremote(globalregistry);
 
-    // Create the packet chain
-    _MSG("Creating packet chain...", MSGFLAG_INFO);
-    Packetchain::create_packetchain(globalregistry);
-
     // Create the stream tracking
     StreamTracker::create_streamtracker(globalregistry);
 
@@ -934,12 +930,15 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add module registry
     Kis_Httpd_Registry::create_http_registry(globalregistry);
 
-    // Create the alert tracker
-    Alertracker::create_alertracker(globalregistry);
+    // Create the packet chain
+    Packetchain::create_packetchain(globalregistry);
 
     // Add the datasource tracker
     std::shared_ptr<Datasourcetracker> datasourcetracker;
     datasourcetracker = Datasourcetracker::create_dst();
+
+    // Create the alert tracker
+    Alertracker::create_alertracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);

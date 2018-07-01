@@ -275,7 +275,7 @@ protected:
         RegisterField("rtl433.device.uv_index_rrd", "UV Index RRD", &uv_index_rrd);
 
         RegisterField("rtl433.device.lux", "Lux", &lux);
-        RegisterField("rtl433.device.lux", "Lux RRD", &lux_rrd);
+        RegisterField("rtl433.device.lux_rrd", "Lux RRD", &lux_rrd);
     }
 
     // Wind direction in degrees

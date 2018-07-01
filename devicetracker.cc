@@ -273,6 +273,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 TrackerElementFactory<TrackerElementUInt64>(),
                 "Datatable records draw ID");
 
+    // Generate the system-wide packet RRD
+    packets_rrd = 
+        entrytracker->RegisterAndGetFieldAs<kis_tracked_rrd<>>("kismet.device.packets_rrd",
+            TrackerElementFactory<kis_tracked_rrd<>>(), "Packets seen RRD");
+
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
 

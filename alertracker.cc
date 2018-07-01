@@ -84,7 +84,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 
     alert_timestamp_id =
         entrytracker->RegisterField("kismet.alert.timestamp",
-                TrackerElementFactory<TrackerElementVector>(), 
+                TrackerElementFactory<TrackerElementDouble>(), 
                 "alert update timestamp");
 
     alert_entry_id =
