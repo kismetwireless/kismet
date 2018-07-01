@@ -119,6 +119,8 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
+        set_local_name("kismet.datasource.type_driver");
+
         RegisterField("kismet.datasource.driver.type", "Type", &source_type);
         RegisterField("kismet.datasource.driver.description", "Description", &source_description);
 

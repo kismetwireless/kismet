@@ -1401,8 +1401,7 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
 void KisDatasource::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.datasource.source_number", 
-            "internal source number per Kismet instance",
+    RegisterField("kismet.datasource.source_number", "internal source number per Kismet instance",
             &source_number);
     RegisterField("kismet.datasource.source_key", "hashed UUID key", &source_key);
 
