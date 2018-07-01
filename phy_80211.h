@@ -316,7 +316,6 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
     std::shared_ptr<TrackerElementDouble> eapol_time;
     std::shared_ptr<TrackerElementUInt8> eapol_dir;

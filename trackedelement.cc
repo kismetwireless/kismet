@@ -160,6 +160,54 @@ void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
     }
 }
 
+void TrackerElementUUID::coercive_set(const std::string& in_str) {
+    uuid u(in_str);
+
+    if (u.error)
+        throw std::runtime_error("Could not coerce string to UUID");
+
+    value = u;
+}
+
+void TrackerElementUUID::coercive_set(double in_num) {
+    throw std::runtime_error("Cannot coerce UUID from number");
+}
+
+void TrackerElementUUID::coercive_set(const SharedTrackerElement& e) {
+    switch (e->get_type()) {
+        case TrackerType::TrackerUuid:
+            coercive_set(std::static_pointer_cast<TrackerElementUUID>(e)->get().UUID2String());
+            break;
+        default:
+            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
+                        e->get_type_as_string(), get_type_as_string()));
+    }
+}
+
+void TrackerElementMacAddr::coercive_set(const std::string& in_str) {
+    mac_addr m(in_str);
+
+    if (m.error)
+        throw std::runtime_error("Could not coerce string to macaddr");
+
+    value = m;
+}
+
+void TrackerElementMacAddr::coercive_set(double in_num) {
+    throw std::runtime_error("Cannot coerce macaddr from number");
+}
+
+void TrackerElementMacAddr::coercive_set(const SharedTrackerElement& e) {
+    switch (e->get_type()) {
+        case TrackerType::TrackerMac:
+            coercive_set(std::static_pointer_cast<TrackerElementMacAddr>(e)->get().Mac2String());
+            break;
+        default:
+            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
+                        e->get_type_as_string(), get_type_as_string()));
+    }
+}
+
 std::string TrackerElement::type_to_string(TrackerType t) {
     switch (t) {
         case TrackerType::TrackerString:

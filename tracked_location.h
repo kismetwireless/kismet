@@ -34,6 +34,7 @@
 
 #include "globalregistry.h"
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 #include "entrytracker.h"
 
 class kis_gps_packinfo;

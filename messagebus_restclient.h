@@ -29,6 +29,7 @@
 #include "kis_mutex.h"
 #include "messagebus.h"
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 #include "kis_net_microhttpd.h"
 
 class tracked_message : public tracker_component {

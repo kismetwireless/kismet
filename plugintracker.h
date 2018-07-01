@@ -104,6 +104,7 @@
 #include "kis_mutex.h"
 
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 #include "kis_net_microhttpd.h"
 
 // The registration object is created by the plugintracker and given to
