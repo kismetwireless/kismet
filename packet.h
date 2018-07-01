@@ -37,6 +37,7 @@
 #include "macaddr.h"
 #include "packet_ieee80211.h"
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 
 // This is the main switch for how big the vector is.  If something ever starts
 // bumping up against this we'll need to increase it, but that'll slow down 
