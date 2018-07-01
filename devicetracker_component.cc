@@ -32,16 +32,20 @@
 
 #include "devicetracker_component.h"
 
-kis_tracked_ip_data::kis_tracked_ip_data(std::shared_ptr<EntryTracker> tracker, int in_id) : 
-    tracker_component(tracker, in_id) {
+kis_tracked_ip_data::kis_tracked_ip_data() :
+    tracker_component() {
+    register_fields();
+    reserve_fields(NULL);
+}
+
+kis_tracked_ip_data::kis_tracked_ip_data(int in_id) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_tracked_ip_data::kis_tracked_ip_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
-        std::shared_ptr<TrackerElementMap> e) : 
-    tracker_component(tracker, in_id) {
-
+kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
 }
@@ -55,15 +59,20 @@ void kis_tracked_ip_data::register_fields() {
     RegisterField("kismet.common.ipdata.gateway", "ip gateway", &ip_gateway);
 }
 
-kis_tracked_signal_data::kis_tracked_signal_data(std::shared_ptr<EntryTracker> tracker, int in_id) : 
-    tracker_component(tracker, in_id) {
+kis_tracked_signal_data::kis_tracked_signal_data() :
+    tracker_component(0) {
+    register_fields();
+    reserve_fields(NULL);
+}
+
+kis_tracked_signal_data::kis_tracked_signal_data(int in_id) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(NULL);      
 } 
 
-kis_tracked_signal_data::kis_tracked_signal_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
-        std::shared_ptr<TrackerElementMap> e) : 
-    tracker_component(tracker, in_id) {
+kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
 }
@@ -236,9 +245,8 @@ void kis_tracked_signal_data::register_fields() {
 
 
     peak_loc_id =
-        RegisterField("kismet.common.signal.peak_lock",
-                TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                "location of strongest observed signal");
+        RegisterDynamicField("kismet.common.signal.peak_loc",
+                "location of strongest observed signal", &peak_loc);
 
     RegisterField("kismet.common.signal.maxseenrate",
             "maximum observed data rate (phy dependent)", &maxseenrate);
@@ -248,36 +256,24 @@ void kis_tracked_signal_data::register_fields() {
             "bitset of observed carrier types", &carrierset);
 
     signal_min_rrd_id =
-        RegisterField("kismet.common.signal.signal_rrd",
-                TrackerElementFactory<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(entrytracker, 0),
-                "past minute of signal data");
+        RegisterDynamicField("kismet.common.signal.signal_rrd",
+                "past minute of signal data", &signal_min_rrd);
 }
 
-void kis_tracked_signal_data::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
-    tracker_component::reserve_fields(e);
+kis_tracked_seenby_data::kis_tracked_seenby_data() :
+    tracker_component(0) {
+    register_fields();
+    reserve_fields(NULL);
+    }
 
-    if (e != NULL) {
-        peak_loc =
-            std::make_shared<kis_tracked_location_triplet>(entrytracker, peak_loc_id,
-                    e->get_sub_as<TrackerElementMap>(peak_loc_id));
-
-        signal_min_rrd =
-            std::make_shared<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>(entrytracker, signal_min_rrd_id, e->get_sub_as<TrackerElementMap>(signal_min_rrd_id));
-    } 
-
-    insert(peak_loc_id, peak_loc);
-    insert(signal_min_rrd_id, signal_min_rrd);
-}
-
-kis_tracked_seenby_data::kis_tracked_seenby_data(std::shared_ptr<EntryTracker> tracker, int in_id) : 
-    tracker_component(tracker, in_id) { 
+kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id) : 
+    tracker_component(in_id) { 
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_tracked_seenby_data::kis_tracked_seenby_data(std::shared_ptr<EntryTracker> tracker, int in_id, 
-        std::shared_ptr<TrackerElementMap> e) :
-    tracker_component(tracker, in_id) {
+kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
 }
@@ -311,20 +307,7 @@ void kis_tracked_seenby_data::register_fields() {
                 TrackerElementFactory<TrackerElementUInt64>(), "packets per frequency");
 
     signal_data_id =
-        RegisterField("kismet.common.seenby.signal",
-                TrackerElementFactory<kis_tracked_signal_data>(entrytracker, 0),
-                "signal data");
+        RegisterDynamicField("kismet.common.seenby.signal", "signal data", &signal_data);
 }
 
-void kis_tracked_seenby_data::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
-    tracker_component::reserve_fields(e);
-
-    if (e != NULL) {
-        signal_data =
-            std::make_shared<kis_tracked_signal_data>(entrytracker, signal_data_id,
-                    e->get_sub_as<TrackerElementMap>(signal_data_id));
-    }
-
-    insert(signal_data_id, signal_data);
-}
 

@@ -75,8 +75,8 @@ protected:
 
 class GPSSerialV2Builder : public KisGpsBuilder {
 public:
-    GPSSerialV2Builder(std::shared_ptr<EntryTracker> tracker) : 
-        KisGpsBuilder(tracker, 0) { 
+    GPSSerialV2Builder() : 
+        KisGpsBuilder() { 
         initialize();
     }
 

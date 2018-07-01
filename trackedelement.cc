@@ -509,18 +509,19 @@ template<> void SetTrackerValue(const SharedTrackerElement& e, const device_key&
 
 
 std::string tracker_component::get_name() {
-    return entrytracker->GetFieldName(get_id());
+    return Globalreg::globalreg->entrytracker->GetFieldName(get_id());
 }
 
 std::string tracker_component::get_name(int in_id) {
-    return entrytracker->GetFieldName(in_id);
+    return Globalreg::globalreg->entrytracker->GetFieldName(in_id);
 }
 
 int tracker_component::RegisterField(const std::string& in_name, 
         std::unique_ptr<TrackerElement> in_builder,
         const std::string& in_desc, SharedTrackerElement *in_dest) {
 
-    int id = entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
+    int id = 
+        Globalreg::globalreg->entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
 
     if (in_dest != NULL) {
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
@@ -542,7 +543,9 @@ int tracker_component::RegisterDynamicField(const std::string& in_name, const st
         std::shared_ptr<T> *in_dest) {
     using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 
-    int id = entrytracker->RegisterField(in_name, TrackerElementFactory<build_type>(), in_desc);
+    int id = 
+        Globalreg::globalreg->entrytracker->RegisterField(in_name, 
+                TrackerElementFactory<build_type>(), in_desc);
 
     auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest, true));
     registered_fields.push_back(std::move(rf));
@@ -588,7 +591,7 @@ SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerEle
     }
 
     // Build it
-    r = entrytracker->GetSharedInstance(i);
+    r = Globalreg::globalreg->entrytracker->GetSharedInstance(i);
 
     // Add it to our tracked map object
     insert(r);
@@ -612,7 +615,7 @@ SharedTrackerElement tracker_component::get_child_path(const std::vector<std::st
         if (p.length() == 0)
             continue;
 
-        int id = entrytracker->GetFieldId(p);
+        int id = Globalreg::globalreg->entrytracker->GetFieldId(p);
 
         if (id < 0) 
             return nullptr;
@@ -700,24 +703,21 @@ TrackerElementSummary::TrackerElementSummary(const SharedElementSummary& in_c) {
 }
 
 TrackerElementSummary::TrackerElementSummary(const std::string& in_path, 
-        const std::string& in_rename,
-        std::shared_ptr<EntryTracker> entrytracker) {
-    parse_path(StrTokenize(in_path, "/"), in_rename, entrytracker);
+        const std::string& in_rename) {
+    parse_path(StrTokenize(in_path, "/"), in_rename);
 }
 
 TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path,
-        const std::string& in_rename, std::shared_ptr<EntryTracker> entrytracker) {
-    parse_path(in_path, in_rename, entrytracker);
+        const std::string& in_rename) {
+    parse_path(in_path, in_rename);
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::string& in_path, 
-        std::shared_ptr<EntryTracker> entrytracker) {
-    parse_path(StrTokenize(in_path, "/"), "", entrytracker);
+TrackerElementSummary::TrackerElementSummary(const std::string& in_path) {
+    parse_path(StrTokenize(in_path, "/"), "");
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path, 
-        std::shared_ptr<EntryTracker> entrytracker) {
-    parse_path(in_path, "", entrytracker);
+TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path) {
+    parse_path(in_path, "");
 }
 
 TrackerElementSummary::TrackerElementSummary(const std::vector<int>& in_path,
@@ -731,8 +731,7 @@ TrackerElementSummary::TrackerElementSummary(const std::vector<int>& in_path) {
 }
 
 void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path, 
-        const std::string& in_rename,
-        std::shared_ptr<EntryTracker> entrytracker) {
+        const std::string& in_rename) {
 
     if (in_path.size() == 0) {
         return;
@@ -744,7 +743,7 @@ void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path,
         if (pe.length() == 0)
             continue;
 
-        auto id = entrytracker->GetFieldId(pe);
+        auto id = Globalreg::globalreg->entrytracker->GetFieldId(pe);
 
         if (id < 0)
             path_full = false;
@@ -760,12 +759,12 @@ void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path,
 }
 
 SharedTrackerElement GetTrackerElementPath(const std::string& in_path, 
-        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
-    return GetTrackerElementPath(StrTokenize(in_path, "/"), elem, entrytracker);
+        SharedTrackerElement elem) {
+    return GetTrackerElementPath(StrTokenize(in_path, "/"), elem);
 }
 
 SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_path, 
-        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
+        SharedTrackerElement elem) {
 
     if (in_path.size() < 1)
         return nullptr;
@@ -780,7 +779,7 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_pa
         if (pe.length() == 0)
             continue;
 
-        auto id = entrytracker->GetFieldId(pe);
+        auto id = Globalreg::globalreg->entrytracker->GetFieldId(pe);
 
         if (id < 0)
             return nullptr;
@@ -839,12 +838,12 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
 }
 
 std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::string& in_path, 
-        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
-    return GetTrackerElementMultiPath(StrTokenize(in_path, "/"), elem, entrytracker);
+        SharedTrackerElement elem) {
+    return GetTrackerElementMultiPath(StrTokenize(in_path, "/"), elem);
 }
 
 std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<std::string>& in_path, 
-        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker) {
+        SharedTrackerElement elem) {
 
     std::vector<SharedTrackerElement> ret;
 
@@ -860,7 +859,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
         if (x->length() == 0)
             continue;
 
-        auto id = entrytracker->GetFieldId(*x);
+        auto id = Globalreg::globalreg->entrytracker->GetFieldId(*x);
 
         if (id < 0) {
             return ret;
@@ -895,7 +894,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
 
                 for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -909,7 +908,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
 
                 for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -923,7 +922,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
 
                 for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -937,7 +936,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
 
                 for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -951,7 +950,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
 
                 for (auto i : *cn) {
                     std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second, entrytracker);
+                        GetTrackerElementMultiPath(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -1088,8 +1087,7 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
     return ret;
 }
 
-void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
-        const SharedTrackerElement& in, 
+void SummarizeTrackerElement(SharedTrackerElement in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         SharedTrackerElement &ret_elem, 
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
@@ -1114,7 +1112,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
             GetTrackerElementPath((*si)->resolved_path, in);
 
         if (f == NULL) {
-            f = entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
+            f = Globalreg::globalreg->entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
                     TrackerElementFactory<TrackerElementInt8>(),
                     "unallocated field");
 
@@ -1129,7 +1127,7 @@ void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
                 if (lastid < 0)
                     f->set_local_name("unknown" + IntToString(fn));
                 else
-                    f->set_local_name(entrytracker->GetFieldName(lastid));
+                    f->set_local_name(Globalreg::globalreg->entrytracker->GetFieldName(lastid));
             }
         } 
 

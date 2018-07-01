@@ -41,20 +41,19 @@ class kis_gps_packinfo;
 // Component-tracker common GPS element
 class kis_tracked_location_triplet : public tracker_component {
 public:
-    kis_tracked_location_triplet(std::shared_ptr<EntryTracker> tracker, int in_id);
-
-    kis_tracked_location_triplet(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_location_triplet();
+    kis_tracked_location_triplet(int in_id);
+    kis_tracked_location_triplet(int in_id, std::shared_ptr<TrackerElementMap> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -96,20 +95,19 @@ class kis_tracked_location : public tracker_component {
 public:
     const static int precision_multiplier = 10000;
 
-    kis_tracked_location(std::shared_ptr<EntryTracker> tracker, int in_id);
-
-    kis_tracked_location(std::shared_ptr<EntryTracker>, int in_id, 
-            std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_location();
+    kis_tracked_location(int in_id);
+    kis_tracked_location(int in_id, std::shared_ptr<TrackerElementMap> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -131,11 +129,6 @@ public:
 protected:
     virtual void register_fields() override;
 
-    // We override this to nest our complex structures on top; we can be created
-    // over a standard trackerelement map and inherit its sub-maps directly
-    // into locations
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
-
     // We save the IDs here because we dynamically generate them
     std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
     int min_loc_id, max_loc_id, avg_loc_id;
@@ -155,19 +148,19 @@ protected:
 // presents (dbm or rssi)
 class kis_historic_location : public tracker_component {
 public:
-    kis_historic_location(std::shared_ptr<EntryTracker> tracker, int in_id);
-    kis_historic_location(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e);
+    kis_historic_location();
+    kis_historic_location(int in_id);
+    kis_historic_location(int in_id, std::shared_ptr<TrackerElementMap> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -200,19 +193,19 @@ protected:
 // of precision
 class kis_location_history : public tracker_component { 
 public:
-    kis_location_history(std::shared_ptr<EntryTracker> tracker, int in_id);
-    kis_location_history(std::shared_ptr<EntryTracker>, int in_id, 
-            std::shared_ptr<TrackerElementMap> e);
+    kis_location_history();
+    kis_location_history(int in_id);
+    kis_location_history(int in_id, std::shared_ptr<TrackerElementMap> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 

@@ -25,10 +25,8 @@
 #include "packinfo_signal.h"
 
 Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
-    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0), 
+    tracker_component(),
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
-
-    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     // Number of seconds we consider a device to be active on a frequency 
     // after the last time we see it
@@ -80,7 +78,7 @@ void Channeltracker_V2::register_fields() {
 
     channel_entry_id = 
         RegisterField("kismet.channeltracker.channel",
-                TrackerElementFactory<Channeltracker_V2_Channel>(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
+                TrackerElementFactory<Channeltracker_V2_Channel>(),
                 "channel/frequency entry");
 }
 
@@ -236,7 +234,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
         if (imi == cv2->frequency_map->end()) {
             freq_channel =
-                std::make_shared<Channeltracker_V2_Channel>(cv2->entrytracker, cv2->channel_entry_id);
+                std::make_shared<Channeltracker_V2_Channel>(cv2->channel_entry_id);
             freq_channel->set_frequency(l1info->freq_khz);
             cv2->frequency_map->insert(l1info->freq_khz, freq_channel);
         } else {
@@ -250,7 +248,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
             if (smi == cv2->channel_map->end()) {
                 chan_channel =
-                    std::make_shared<Channeltracker_V2_Channel>(cv2->entrytracker, cv2->channel_entry_id);
+                    std::make_shared<Channeltracker_V2_Channel>(cv2->channel_entry_id);
 
                 chan_channel->set_channel(common->channel);
                 cv2->channel_map->insert(common->channel, chan_channel);

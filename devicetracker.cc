@@ -75,7 +75,7 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
 
     // Make a new seenby record
     if (seenby_iter == seenby_map->end()) {
-        seenby = std::make_shared<kis_tracked_seenby_data>(entrytracker, seenby_val_id);
+        seenby = std::make_shared<kis_tracked_seenby_data>(seenby_val_id);
 
         seenby->set_src_uuid(source->get_source_uuid());
         seenby->set_first_time(tv_sec);
@@ -148,7 +148,7 @@ void kis_tracked_device_base::register_fields() {
     RegisterField("kismet.device.base.tags", "set of arbitrary tags, including user notes", &tag_map);
 
     tag_entry_id =
-        entrytracker->RegisterField("kismet.device.base.tag", 
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.device.base.tag", 
                 TrackerElementFactory<TrackerElementString>(), "arbitrary tag");
 
     location_id =
@@ -161,12 +161,12 @@ void kis_tracked_device_base::register_fields() {
 
     // Packet count, not actual frequency, so uint64 not double
     frequency_val_id =
-        entrytracker->RegisterField("kismet.device.base.frequency.count",
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
                 TrackerElementFactory<TrackerElementUInt64>(), "frequency packet count");
 
     seenby_val_id =
-        entrytracker->RegisterField("kismet.device.base.seenby.data",
-                TrackerElementFactory<kis_tracked_seenby_data>(entrytracker, 0),
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.device.base.seenby.data",
+                TrackerElementFactory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
 
     packet_rrd_bin_250_id =
@@ -198,7 +198,7 @@ void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> 
             for (auto s : *seenby_map) {
                 // Build a proper seenby record for each item in the list
                 auto sbd = 
-                    std::make_shared<kis_tracked_seenby_data>(entrytracker, seenby_val_id, 
+                    std::make_shared<kis_tracked_seenby_data>(seenby_val_id, 
                             std::static_pointer_cast<TrackerElementMap>(s.second));
                 // And assign it over the same key
                 s.second = sbd;
@@ -223,11 +223,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     httpd_pcap.reset(new Devicetracker_Httpd_Pcap(globalreg));
 
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     device_base_id =
         entrytracker->RegisterField("kismet.device.base", 
-                TrackerElementFactory<kis_tracked_device_base>(entrytracker, 0),
+                TrackerElementFactory<kis_tracked_device_base>(),
                 "core device record");
     device_list_base_id =
         entrytracker->RegisterField("kismet.device.list",
@@ -748,7 +748,7 @@ std::shared_ptr<kis_tracked_device_base>
             return NULL;
 
         device =
-            std::make_shared<kis_tracked_device_base>(entrytracker, device_base_id);
+            std::make_shared<kis_tracked_device_base>(device_base_id);
         // Device ID is the size of the vector so a new device always gets put
         // in it's numbered slot
         device->set_kis_internal_id(immutable_tracked_vec->size());
@@ -871,7 +871,7 @@ std::shared_ptr<kis_tracked_device_base>
         // data from swamping the cloud
         if (track_history_cloud && pack_gpsinfo->fix >= 2 &&
                 in_pack->ts.tv_sec - device->get_location_cloud()->get_last_sample_ts() >= 1) {
-            auto histloc = std::make_shared<kis_historic_location>(entrytracker, 0);
+            auto histloc = std::make_shared<kis_historic_location>();
 
             histloc->set_lat(pack_gpsinfo->lat);
             histloc->set_lon(pack_gpsinfo->lon);
@@ -1403,14 +1403,14 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
 
         // Process structured object into a shared element
         SharedTrackerElement e = 
-            StorageLoader::storage_to_tracker(entrytracker, sjson);
+            StorageLoader::storage_to_tracker(sjson);
 
         if (e->get_type() != TrackerType::TrackerMap) 
             throw StructuredDataException(fmt::format("Expected a TrackerMap from loading the storage "
                     "element, but got {}", e->type_to_typestring(e->get_type())));
 
         // Adopt it into a device
-        auto kdb = std::make_shared<kis_tracked_device_base>(entrytracker, device_base_id, 
+        auto kdb = std::make_shared<kis_tracked_device_base>(device_base_id, 
                 std::static_pointer_cast<TrackerElementMap>(e));
 
         // Give all the phys a shot at it

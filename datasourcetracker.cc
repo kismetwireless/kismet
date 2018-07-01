@@ -283,7 +283,6 @@ Datasourcetracker::Datasourcetracker() :
     Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg),
     TcpServerV2(Globalreg::globalreg) {
 
-    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
     timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     // Create an alert for source errors
@@ -295,21 +294,21 @@ Datasourcetracker::Datasourcetracker() :
             "Kismet may automatically attempt to re-open the source.");
 
     proto_id = 
-        entrytracker->RegisterField("kismet.datasourcetracker.driver",
-                TrackerElementFactory<KisDatasourceBuilder>(entrytracker, 0),
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.driver",
+                TrackerElementFactory<KisDatasourceBuilder>(),
                 "Datasource driver information");
 
     source_id =
-        entrytracker->RegisterField("kismet.datasourcetracker.datasource",
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.datasource",
                 TrackerElementFactory<KisDatasource>(nullptr),
                 "Datasource");
 
     proto_vec =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.drivers",
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.drivers",
                 TrackerElementFactory<TrackerElementVector>(), "Known drivers");
 
     datasource_vec =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
                 TrackerElementFactory<TrackerElementVector>(), "Configured sources");
 
     completion_cleanup_id = -1;
@@ -319,8 +318,8 @@ Datasourcetracker::Datasourcetracker() :
     next_source_num = 0;
 
     config_defaults = 
-        entrytracker->RegisterAndGetFieldAs<datasourcetracker_defaults>("kismet.datasourcetracker.defaults",
-                TrackerElementFactory<datasourcetracker_defaults>(entrytracker, 0),
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<datasourcetracker_defaults>("kismet.datasourcetracker.defaults",
+                TrackerElementFactory<datasourcetracker_defaults>(),
                 "Datasource default values");
 
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("channel_hop", true)) {

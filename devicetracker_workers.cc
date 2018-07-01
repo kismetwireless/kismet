@@ -80,9 +80,6 @@ void devicetracker_function_worker::Finalize(Devicetracker *devicetracker) {
 devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(const std::string& in_query,
         const std::vector<std::vector<int>> & in_paths) {
 
-    entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
-
     query = in_query;
     fieldpaths = in_paths;
 
@@ -139,17 +136,11 @@ void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __a
 devicetracker_pcre_worker::devicetracker_pcre_worker(
         const std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter>>& in_filter_vec) {
 
-    entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
-
     filter_vec = in_filter_vec;
     error = false;
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(SharedStructured raw_pcre_vec) {
-    entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
-
     error = false;
 
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
@@ -194,9 +185,6 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(SharedStructured raw_pcre_v
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_target,
         SharedStructured raw_pcre_vec) {
-
-    entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
 
     error = false;
 
@@ -246,7 +234,7 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
         // Get complex fields - this lets us search nested vectors
         // or strings or whatnot
         std::vector<SharedTrackerElement> fields = 
-            GetTrackerElementMultiPath(i->target, device, entrytracker);
+            GetTrackerElementMultiPath(i->target, device);
 
         for (auto fi : fields) {
             std::string val;

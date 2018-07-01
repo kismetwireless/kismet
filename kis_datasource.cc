@@ -29,7 +29,7 @@
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
 KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
-    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
+    tracker_component(),
     KisExternalInterface() {
     
     register_fields();
@@ -63,8 +63,8 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     mode_listing = false;
 
     listed_interface_entry_id =
-        entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
-                TrackerElementFactory<KisDatasourceInterface>(entrytracker, 0),
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
+                TrackerElementFactory<KisDatasourceInterface>(),
                 "automatically discovered available interface");
 
     last_pong = time(0);
@@ -908,7 +908,9 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
     }
 
     for (auto rintf : report.interfaces()) {
-        auto intf = std::make_shared<KisDatasourceInterface>(entrytracker, listed_interface_entry_id);
+        auto intf = 
+            std::make_shared<KisDatasourceInterface>(listed_interface_entry_id);
+
         intf->populate(rintf.interface(), rintf.flags());
         intf->set_prototype(get_source_builder());
 
@@ -1462,9 +1464,9 @@ void KisDatasource::register_fields() {
             &source_num_error_packets);
 
     packet_rate_rrd_id = 
-        RegisterField("kismet.datasource.packets_rrd", 
-                TrackerElementFactory<kis_tracked_minute_rrd<>>(entrytracker, 0),
-                "detected packet rate over past 60 seconds");
+        RegisterDynamicField("kismet.datasource.packets_rrd", 
+                "detected packet rate over past 60 seconds",
+                &packet_rate_rrd);
 
     RegisterField("kismet.datasource.retry", 
             "Source will try to re-open after failure", &source_retry);
@@ -1486,12 +1488,6 @@ void KisDatasource::register_fields() {
     RegisterField("kismet.datasource.info.amp_gain", 
             "User-supplied amplifier gain in dB", &source_info_amp_gain);
 
-}
-
-void KisDatasource::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
-    tracker_component::reserve_fields(e);
-
-    // We don't ever instantiate from an existing object so we don't do anything
 }
 
 void KisDatasource::handle_source_error() {

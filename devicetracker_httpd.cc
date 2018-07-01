@@ -262,17 +262,17 @@ void Devicetracker::httpd_all_phys(std::string path, std::ostream &stream,
         transmit = phyvec;
     }
 
-    auto anyphy = std::make_shared<kis_tracked_phy>(entrytracker, phy_base_id);
+    auto anyphy = std::make_shared<kis_tracked_phy>(phy_base_id);
     anyphy->set_from_phy(this, KIS_PHY_ANY);
     phyvec->push_back(anyphy);
 
     for (const auto& mi : phy_handler_map) {
-        auto p = std::make_shared<kis_tracked_phy>(entrytracker, phy_base_id);
+        auto p = std::make_shared<kis_tracked_phy>(phy_base_id);
         p->set_from_phy(this, mi.first);
         phyvec->push_back(p);
     }
 
-    entrytracker->Serialize(httpd->GetSuffix(path), stream, wrapper, NULL);
+    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, wrapper, NULL);
 }
 
 int Devicetracker::Httpd_CreateStreamResponse(
@@ -381,12 +381,12 @@ int Devicetracker::Httpd_CreateStreamResponse(
                         return MHD_YES;
                     } 
 
-                    entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
+                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
 
                     return MHD_YES;
                 }
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
 
                 return MHD_YES;
             } else {
@@ -414,7 +414,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 devvec->push_back(mmpi->second);
             }
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+            Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         } else if (tokenurl[2] == "last-time") {
@@ -448,7 +448,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             MatchOnDevices(&fw);
             devvec = fw.GetMatchedDevices();
 
-            entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+            Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         }
@@ -527,7 +527,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             for (const auto& i : fvec) {
                 if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString(), entrytracker);
+                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
                     StructuredData::string_vec mapvec = i->getStringVec();
@@ -540,7 +540,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }
 
                     auto s = 
-                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1], entrytracker);
+                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 }
             }
@@ -619,13 +619,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
                         SharedTrackerElement simple;
 
-                        SummarizeTrackerElement(entrytracker, mmpi->second, summary_vec,
-                                simple, rename_map);
+                        SummarizeTrackerElement(mmpi->second, summary_vec, simple, rename_map);
 
                         devvec->push_back(simple);
                     }
 
-                    entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                             devvec, rename_map);
 
                     return MHD_YES;
@@ -664,8 +663,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     local_locker devlock(&(dev->device_mutex));
 
-                    SummarizeTrackerElement(entrytracker, dev, summary_vec, simple, rename_map);
-                    entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, simple, rename_map);
+                    SummarizeTrackerElement(dev, summary_vec, simple, rename_map);
+                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
+                            stream, simple, rename_map);
 
                     return MHD_YES;
                 }
@@ -802,7 +802,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             colmap_index->second->getStringVec();
 
                         for (const auto& fn : col_field_vec) {
-                            TrackerElementSummary s(fn, entrytracker);
+                            TrackerElementSummary s(fn);
                             dt_order_fields.push_back(s.resolved_path);
                         }
                     }
@@ -913,7 +913,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     for (vi = pcredevs->begin() + dt_start; vi != ei; ++vi) {
                         SharedTrackerElement simple;
 
-                        SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
+                        SummarizeTrackerElement((*vi), summary_vec, simple, rename_map);
 
                         outdevs->push_back(simple);
                     }
@@ -985,7 +985,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     for (vi = matchvec->begin() + dt_start; vi != ei; ++vi) {
                         SharedTrackerElement simple;
 
-                        SummarizeTrackerElement(entrytracker, (*vi), summary_vec, simple, rename_map);
+                        SummarizeTrackerElement((*vi), summary_vec, simple, rename_map);
 
                         outdevs->push_back(simple);
                     }
@@ -1048,9 +1048,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     for (vi = tracked_vec.begin() + dt_start; vi != ei; ++vi) {
                         SharedTrackerElement simple;
 
-                        SummarizeTrackerElement(entrytracker,
-                                (*vi), summary_vec,
-                                simple, rename_map);
+                        SummarizeTrackerElement((*vi), summary_vec, simple, rename_map);
 
                         outdevs->push_back(simple);
                     }
@@ -1066,7 +1064,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     transmit =outdevs;
                 }
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), stream, transmit, rename_map);
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[3]), stream, 
+                        transmit, rename_map);
                 return MHD_YES;
 
             } else if (tokenurl[2] == "last-time") {
@@ -1132,12 +1131,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     SharedTrackerElement simple;
 
-                    SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
+                    SummarizeTrackerElement(rd, summary_vec, simple, rename_map);
 
                     outdevs->push_back(simple);
                 }
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, rename_map);
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                        outdevs, rename_map);
                 return MHD_YES;
             } else if (tokenurl[2] == "by-phy") {
                 // We don't lock the device list since we use workers
@@ -1215,12 +1215,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     SharedTrackerElement simple;
 
-                    SummarizeTrackerElement(entrytracker, rd, summary_vec, simple, rename_map);
+                    SummarizeTrackerElement(rd, summary_vec, simple, rename_map);
 
                     outdevs->push_back(simple);
                 }
 
-                entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, outdevs, rename_map);
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                        outdevs, rename_map);
                 return MHD_YES;
             }
         }

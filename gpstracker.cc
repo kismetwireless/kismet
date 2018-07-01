@@ -38,7 +38,7 @@ GpsTracker::GpsTracker() :
     Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
 
     tracked_uuid_addition_id = 
-        entrytracker->RegisterField("kismet.common.location.gps_uuid", 
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.common.location.gps_uuid", 
                 TrackerElementFactory<TrackerElementUUID>(),
                 "UUID of GPS reporting location");
 
@@ -73,11 +73,11 @@ GpsTracker::GpsTracker() :
     }
 
     // Register the built-in GPS drivers
-    register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder(entrytracker)));
-    register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder(entrytracker)));
-    register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder(entrytracker)));
-    register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder(entrytracker)));
-    register_gps_builder(SharedGpsBuilder(new GPSWebBuilder(entrytracker)));
+    register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder()));
+    register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder()));
+    register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder()));
+    register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder()));
+    register_gps_builder(SharedGpsBuilder(new GPSWebBuilder()));
 
     // Process any gps options in the config file
     std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->FetchOptVec("gps");
@@ -117,7 +117,7 @@ void GpsTracker::log_snapshot_gps() {
         gettimeofday(&tv, NULL);
 
         std::stringstream ss;
-        entrytracker->Serialize("json", ss, d, NULL);
+        Globalreg::globalreg->entrytracker->Serialize("json", ss, d, NULL);
 
         dbf->log_snapshot(NULL, tv, "GPS", ss.str());
     }
@@ -294,12 +294,14 @@ void GpsTracker::Httpd_CreateStreamResponse(
     std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/gps/drivers") {
-        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_prototypes_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, 
+                gps_prototypes_vec, NULL);
         return;
     }
 
     if (stripped == "/gps/all_gps") {
-        entrytracker->Serialize(httpd->GetSuffix(path), stream, gps_instances_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, 
+                gps_instances_vec, NULL);
         return;
     }
 
@@ -307,7 +309,7 @@ void GpsTracker::Httpd_CreateStreamResponse(
         kis_gps_packinfo *pi = get_best_location();
 
         auto loctrip =
-            std::make_shared<kis_tracked_location_triplet>(entrytracker, 0);
+            std::make_shared<kis_tracked_location_triplet>();
         auto ue =
             std::make_shared<TrackerElementUUID>(tracked_uuid_addition_id);
 
@@ -329,7 +331,7 @@ void GpsTracker::Httpd_CreateStreamResponse(
             loctrip->set_valid(false);
         }
 
-        entrytracker->Serialize(httpd->GetSuffix(path), stream, loctrip, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, loctrip, NULL);
         return;
     }
 

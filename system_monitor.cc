@@ -33,7 +33,7 @@
 #include "json_adapter.h"
 
 Systemmonitor::Systemmonitor() :
-    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0),
+    tracker_component(),
     Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
 
     devicetracker =
@@ -245,11 +245,8 @@ void Systemmonitor::Httpd_CreateStreamResponse(
     if (!Httpd_CanSerialize(path))
         return;
 
-    std::shared_ptr<EntryTracker> entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
-
     if (stripped == "/system/status") {
-        entrytracker->Serialize(httpd->GetSuffix(path), stream,
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream,
                 Globalreg::FetchMandatoryGlobalAs<Systemmonitor>("SYSTEMMONITOR"), 
                 nullptr);
 
@@ -266,7 +263,7 @@ void Systemmonitor::Httpd_CreateStreamResponse(
         set_timestamp_sec(now.tv_sec);
         set_timestamp_usec(now.tv_usec);
 
-        entrytracker->Serialize(httpd->GetSuffix(path), stream, tse, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, tse, NULL);
 
         return;
     } else {

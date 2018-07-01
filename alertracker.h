@@ -97,28 +97,33 @@ public:
 
 class tracked_alert : public tracker_component {
 public:
-    tracked_alert(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    tracked_alert() :
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    tracked_alert(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    tracked_alert(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    tracked_alert(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -171,26 +176,7 @@ protected:
         RegisterField("kismet.alert.channel", "Phy-specific channel", &channel);
         RegisterField("kismet.alert.frequency", "Frequency (khz)", &frequency);
         RegisterField("kismet.alert.text", "Alert text", &text);
-
-        location_id = 
-            RegisterField("kismet.alert.location", 
-                    TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                    "location");
-    }
-
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
-        tracker_component::reserve_fields(e);
-
-        if (e != NULL) {
-            location =
-                std::make_shared<kis_tracked_location_triplet>(entrytracker, location_id,
-                        e->get_sub_as<TrackerElementMap>(location_id));
-        } else {
-            location =
-                std::make_shared<kis_tracked_location_triplet>(entrytracker, location_id);
-        }
-
-        insert(location);
+        RegisterField("kismet.alert.location", "location", &location);
     }
 
     std::shared_ptr<TrackerElementDeviceKey> device_key;
@@ -204,9 +190,7 @@ protected:
     std::shared_ptr<TrackerElementString> channel;
     std::shared_ptr<TrackerElementDouble> frequency;
     std::shared_ptr<TrackerElementString> text;
-
     std::shared_ptr<kis_tracked_location_triplet> location;
-    int location_id;
 };
 
 
@@ -220,28 +204,33 @@ enum alert_time_unit {
 
 class tracked_alert_definition : public tracker_component {
 public:
-    tracked_alert_definition(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    tracked_alert_definition() :
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    tracked_alert_definition(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    tracked_alert_definition(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    tracked_alert_definition(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 

@@ -51,7 +51,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
 
     bluetooth_device_entry_id =
         entrytracker->RegisterField("bluetooth.device", 
-                TrackerElementFactory<bluetooth_tracked_device>(entrytracker, 0),
+                TrackerElementFactory<bluetooth_tracked_device>(),
                 "Bluetooth device");
 
     packetchain->RegisterHandler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
@@ -136,8 +136,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
         _MSG(ss.str(), MSGFLAG_INFO);
 
         btdev =
-            std::make_shared<bluetooth_tracked_device>(btphy->entrytracker, 
-                    btphy->bluetooth_device_entry_id);
+            std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
         basedev->insert(btdev);
     }
@@ -190,8 +189,8 @@ void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
     // Adopt it into a dot11
     if (btdevi != storage->end()) {
         auto btdev = 
-            std::make_shared<bluetooth_tracked_device>(entrytracker, bluetooth_device_entry_id,
-                    btdevi->second);
+            std::make_shared<bluetooth_tracked_device>(bluetooth_device_entry_id, 
+                    std::static_pointer_cast<TrackerElementMap>(btdevi->second));
         std::static_pointer_cast<TrackerElementMap>(in_device)->insert(btdev);
     }
 }

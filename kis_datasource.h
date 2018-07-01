@@ -54,16 +54,22 @@ class KisDatasource;
 
 class KisDatasourceBuilder : public tracker_component {
 public:
-    KisDatasourceBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    KisDatasourceBuilder() :
+        tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatasourceBuilder(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    KisDatasourceBuilder(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisDatasourceBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
         initialize();
@@ -71,13 +77,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -165,16 +171,22 @@ public:
     // Initialize and tell us what sort of builder
     KisDatasource(SharedDatasourceBuilder in_builder);
 
-    KisDatasource(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id),
+    KisDatasource() :
+        tracker_component(0),
         KisExternalInterface() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasource(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id),
+    KisDatasource(int in_id) :
+        tracker_component(in_id),
+        KisExternalInterface() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    KisDatasource(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id),
         KisExternalInterface() {
         register_fields();
         reserve_fields(e);
@@ -481,7 +493,6 @@ protected:
     // TrackerComponent API, we can't ever get instantiated from a saved element
     // so we always initialize as if we're a new object
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
 
     // We don't build quite like a normal object so just remember what our
     // element ID is - it's a generic TrackerMap which holds our serializable
@@ -677,15 +688,20 @@ typedef std::shared_ptr<KisDatasource> SharedDatasource;
 
 class KisDatasourceInterface : public tracker_component {
 public:
-    KisDatasourceInterface(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    KisDatasourceInterface() :
+        tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasourceInterface(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    KisDatasourceInterface(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    KisDatasourceInterface(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
@@ -694,13 +710,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 

@@ -44,9 +44,14 @@ typedef std::shared_ptr<KisGps> SharedGps;
 // the basic priority, the type and default name, and so on.
 class KisGpsBuilder : public tracker_component {
 public:
-    KisGpsBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    KisGpsBuilder() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
 
+    KisGpsBuilder(int in_id) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
@@ -55,13 +60,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -148,14 +153,11 @@ protected:
         RegisterField("kismet.gps.connected", "GPS device is connected", &gps_connected);
 
         tracked_location_id = 
-            RegisterField("kismet.gps.location", 
-                    TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                    "current location");
+            RegisterDynamicField("kismet.gps.location", "current location", &tracked_location);
 
         tracked_last_location_id = 
-            RegisterField("kismet.gps.last_location",
-                    TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                    "previous location");
+            RegisterDynamicField("kismet.gps.last_location",
+                    "previous location", &tracked_last_location);
 
         RegisterField("kismet.gps.uuid", "UUID", &gps_uuid);
         RegisterField("kismet.gps.definition", "GPS definition", &gps_definition);
@@ -164,27 +166,6 @@ protected:
 
         RegisterField("kismet.gps.data_only", 
                 "GPS is used for populating data only, never for live location", &gps_data_only);
-    }
-
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
-        tracker_component::reserve_fields(e);
-
-        if (e != NULL) {
-            tracked_location =
-                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_location_id, 
-                        e->get_sub_as<TrackerElementMap>(tracked_location_id));
-            tracked_last_location =
-                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_last_location_id,
-                        e->get_sub_as<TrackerElementMap>(tracked_last_location_id));
-        } else {
-            tracked_location =
-                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_location_id);
-            tracked_last_location =
-                std::make_shared<kis_tracked_location_triplet>(entrytracker, tracked_last_location_id);
-        }
-
-        insert(tracked_location);
-        insert(tracked_last_location);
     }
 
     // Push the locations into the tracked locations and swap

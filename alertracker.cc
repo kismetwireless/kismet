@@ -89,7 +89,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 
     alert_entry_id =
         entrytracker->RegisterField("kismet.alert.alert",
-                TrackerElementFactory<tracked_alert>(entrytracker, 0),
+                TrackerElementFactory<tracked_alert>(),
                 "Kismet alert");
 
 
@@ -100,7 +100,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 
     alert_def_id =
         entrytracker->RegisterField("kismet.alert.alert_definition",
-                TrackerElementFactory<tracked_alert_definition>(entrytracker, 0),
+                TrackerElementFactory<tracked_alert_definition>(),
                 "Kismet alert definition");
 
 	// Register the alert component
@@ -174,7 +174,7 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
     }
 
     auto arec =
-        std::make_shared<tracked_alert_definition>(entrytracker, alert_def_id);
+        std::make_shared<tracked_alert_definition>(alert_def_id);
 
     arec->set_alert_ref(next_alert_id++);
     arec->set_header(StrUpper(in_header));
@@ -327,7 +327,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
         std::shared_ptr<KisDatabaseLogfile> dbf =
             Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
         if (dbf != NULL) {
-            auto ta = std::make_shared<tracked_alert>(entrytracker, alert_entry_id);
+            auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
             dbf->log_alert(ta);
         }
@@ -374,7 +374,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
         std::shared_ptr<KisDatabaseLogfile> dbf =
             Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
         if (dbf != NULL) {
-            auto ta = std::make_shared<tracked_alert>(entrytracker, alert_entry_id);
+            auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
             dbf->log_alert(ta);
         }
@@ -699,7 +699,7 @@ void Alertracker::Httpd_CreateStreamResponse(
 
         for (auto i : alert_backlog) {
             if (since_time < ts_to_double((i)->tm)) {
-                auto ta = std::make_shared<tracked_alert>(entrytracker, alert_entry_id);
+                auto ta = std::make_shared<tracked_alert>(alert_entry_id);
                 ta->from_alert_info(i);
                 msgvec->push_back(ta);
             }

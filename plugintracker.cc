@@ -162,7 +162,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         cf.ParseConfig(manifest.c_str());
 
-        SharedPluginData preg(new PluginRegistrationData(entrytracker, 0));
+        SharedPluginData preg(new PluginRegistrationData());
 
         preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/");
         preg->set_plugin_dirname(plugfile->d_name);

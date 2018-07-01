@@ -104,17 +104,20 @@ class Devicetracker;
 // Base of all device tracking under the new trackerentry system
 class kis_tracked_device_base : public tracker_component {
 public:
-    kis_tracked_device_base(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
-
+    kis_tracked_device_base() :
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    kis_tracked_device_base(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) : 
-        tracker_component(tracker, in_id) {
-        
+    kis_tracked_device_base(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_tracked_device_base(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
@@ -123,13 +126,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -791,15 +794,20 @@ protected:
 
 class kis_tracked_phy : public tracker_component {
 public:
-    kis_tracked_phy(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    kis_tracked_phy() :
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    kis_tracked_phy(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    kis_tracked_phy(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_tracked_phy(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -807,13 +815,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -905,8 +913,6 @@ public:
     virtual void Finalize(Devicetracker *devicetracker);
 
 protected:
-    std::shared_ptr<EntryTracker> entrytracker;
-
     std::string query;
     std::vector<std::vector<int> > fieldpaths;
 
@@ -970,9 +976,6 @@ public:
     virtual void Finalize(Devicetracker *devicetracker);
 
 protected:
-    GlobalRegistry *globalreg;
-    std::shared_ptr<EntryTracker> entrytracker;
-
     int pcre_match_id;
 
     std::vector<std::shared_ptr<devicetracker_pcre_worker::pcre_filter> > filter_vec;

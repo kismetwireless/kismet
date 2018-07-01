@@ -92,28 +92,34 @@ public:
 // Base rtl device record
 class rtl433_tracked_common : public tracker_component {
 public:
-    rtl433_tracked_common(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    rtl433_tracked_common() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    rtl433_tracked_common(int in_id) :
+        tracker_component(in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_common(std::shared_ptr<EntryTracker> tracker, int in_id, 
+    rtl433_tracked_common(int in_id, 
             std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -148,28 +154,33 @@ protected:
 // fields for thermometers but uses the same base IDs
 class rtl433_tracked_thermometer : public tracker_component {
 public:
-    rtl433_tracked_thermometer(std::shared_ptr<EntryTracker> tracker, int in_id) :
-       tracker_component(tracker, in_id) {
+    rtl433_tracked_thermometer() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    rtl433_tracked_thermometer(int in_id) :
+       tracker_component(in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_thermometer(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    rtl433_tracked_thermometer(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -183,53 +194,51 @@ public:
 protected:
     virtual void register_fields() override {
         RegisterField("rtl433.device.temperature", "Temperature in degrees Celsius", &temperature);
-        RegisterField("rtl433.device.temperature_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Temperature history RRD");
+        RegisterField("rtl433.device.temperature_rrd", "Temperature history RRD", &temperature_rrd);
         RegisterField("rtl433.device.humidity", "Humidity", &humidity);
-        RegisterField("rtl433.device.humidity_rrd",
-                TrackerElementFactory<kis_tracked_rrd<rtl433_empty_aggregator>>(entrytracker, 0),
-                "Humidity history RRD");
+        RegisterField("rtl433.device.humidity_rrd", "Humidity history RRD", &humidity_rrd);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
     // for some types of sensors
     std::shared_ptr<TrackerElementDouble> temperature;
-
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> temperature_rrd;
 
     // Basic humidity in percentage, from multiple sensors
     std::shared_ptr<TrackerElementInt32> humidity;
-
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> humidity_rrd;
-
 };
 
 // Weather station type data
 class rtl433_tracked_weatherstation : public tracker_component {
 public:
-    rtl433_tracked_weatherstation(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    rtl433_tracked_weatherstation() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    rtl433_tracked_weatherstation(int in_id) :
+        tracker_component(in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_weatherstation(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    rtl433_tracked_weatherstation(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -296,28 +305,33 @@ protected:
 // TPMS tire pressure sensors
 class rtl433_tracked_tpms : public tracker_component {
 public:
-    rtl433_tracked_tpms(std::shared_ptr<EntryTracker> tracker, int in_id) :
-       tracker_component(tracker, in_id) {
+    rtl433_tracked_tpms() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    rtl433_tracked_tpms(int in_id) :
+       tracker_component(in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_tpms(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    rtl433_tracked_tpms(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -346,28 +360,33 @@ protected:
 // Switch panels
 class rtl433_tracked_switch : public tracker_component {
 public:
-    rtl433_tracked_switch(std::shared_ptr<EntryTracker> tracker, int in_id) :
-       tracker_component(tracker, in_id) {
+    rtl433_tracked_switch() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    rtl433_tracked_switch(int in_id) :
+       tracker_component(in_id) {
             register_fields();
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_switch(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    rtl433_tracked_switch(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -424,10 +443,10 @@ protected:
     bool is_tpms(Json::Value json);
     bool is_switch(Json::Value json);
 
-    void add_weather_station(Json::Value json, SharedTrackerElement rtlholder);
-    void add_thermometer(Json::Value json, SharedTrackerElement rtlholder);
-    void add_tpms(Json::Value json, SharedTrackerElement rtlholder);
-    void add_switch(Json::Value json, SharedTrackerElement rtlholder);
+    void add_weather_station(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_thermometer(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_switch(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
 
     double f_to_c(double f);
 

@@ -27,8 +27,7 @@
 #include "messagebus.h"
 #include "kis_httpd_registry.h"
 
-Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg,
-        Devicetracker *in_tracker, int in_phyid) :
+Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker, int in_phyid) :
     Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
 
@@ -42,13 +41,14 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg,
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
 
-    std::shared_ptr<zwave_tracked_device> builder(new zwave_tracked_device(globalreg, 0));
     zwave_device_id =
-        entrytracker->RegisterField("zwave.device", builder, "Z-Wave Device");
+        Globalreg::globalreg->entrytracker->RegisterField("zwave.device",
+                TrackerElementFactory<zwave_tracked_device>(),
+                "Z-Wave device");
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "/js/kismet.ui.zwave.js");
 }
 
@@ -180,15 +180,15 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
 
     basedev->set_devicename(devname);
 
-    std::shared_ptr<zwave_tracked_device> zdev =
-        std::static_pointer_cast<zwave_tracked_device>(basedev->get_map_value(zwave_device_id));
+    auto zdev =
+        basedev->get_sub_as<zwave_tracked_device>(zwave_device_id);
 
     bool newzdev = false;
 
     if (zdev == NULL) {
         zdev = 
-            std::static_pointer_cast<zwave_tracked_device>(entrytracker->GetTrackedInstance(zwave_device_id));
-        basedev->add_map(zdev);
+            std::make_shared<zwave_tracked_device>(zwave_device_id);
+        basedev->insert(zdev);
         newzdev = true;
     }
 

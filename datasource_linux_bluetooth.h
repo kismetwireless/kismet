@@ -45,25 +45,23 @@ protected:
 
 class DatasourceLinuxBluetoothBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceLinuxBluetoothBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        KisDatasourceBuilder(tracker, in_id) {
-
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceLinuxBluetoothBuilder(std::shared_ptr<EntryTracker> tracker, int in_id,
-        std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(tracker, in_id, e) {
-
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
     DatasourceLinuxBluetoothBuilder() :
-        KisDatasourceBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
+        KisDatasourceBuilder() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    DatasourceLinuxBluetoothBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
+
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    DatasourceLinuxBluetoothBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(NULL);

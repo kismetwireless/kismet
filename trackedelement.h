@@ -185,6 +185,18 @@ public:
     // Called after serialization is completed
     virtual void post_serialize() { }
 
+    template<typename CT>
+    static std::shared_ptr<CT> safe_cast_as(std::shared_ptr<TrackerElement> e) {
+        if (e == nullptr)
+            throw std::runtime_error(fmt::format("null trackedelement can not be safely cast"));
+
+        if (e->get_type() != CT::static_type())
+            throw std::runtime_error(fmt::format("trackedelement can not safely cast a {} to a {}",
+                        e->get_type_as_string(), type_to_string(CT::static_type())));
+
+        return std::static_pointer_cast<CT>(e);
+    }
+
     uint32_t get_signature() const {
         return signature;
     }
@@ -309,6 +321,10 @@ public:
     TrackerElementString(int id, const std::string& s) :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerString, id, s) { }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerString;
+    }
+
     virtual void coercive_set(const std::string& in_str) override;
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const SharedTrackerElement& e) override;
@@ -337,6 +353,10 @@ public:
 
     TrackerElementByteArray(int id, const std::string& s) :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerString, id, s) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerByteArray;
+    }
 
     virtual void coercive_set(const std::string& in_str) override {
         value = in_str;
@@ -403,6 +423,10 @@ public:
     TrackerElementDeviceKey(int id) :
         TrackerElementCoreScalar<device_key>(TrackerType::TrackerKey) { }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerKey;
+    }
+
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a devicekey from a string"));
     }
@@ -437,6 +461,13 @@ public:
     TrackerElementUUID(int id) :
         TrackerElementCoreScalar<uuid>(TrackerType::TrackerUuid, id) { }
 
+    TrackerElementUUID(int id, const uuid& u) :
+        TrackerElementCoreScalar<uuid>(TrackerType::TrackerUuid, id, u) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerUuid;
+    }
+
     virtual void coercive_set(const std::string& in_str) override;
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const SharedTrackerElement& e) override;
@@ -468,6 +499,10 @@ public:
 
     TrackerElementMacAddr(int id, const mac_addr& m) :
         TrackerElementCoreScalar<mac_addr>(TrackerType::TrackerMac, id, m) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerMac;
+    }
 
     virtual void coercive_set(const std::string& in_str) override;
     virtual void coercive_set(double in_num) override;
@@ -679,6 +714,10 @@ public:
             value_max = INT8_MAX;
         }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerUInt8;
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -711,6 +750,10 @@ public:
             value_min = INT8_MIN;
             value_max = INT8_MAX;
         }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerInt8;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -745,6 +788,10 @@ public:
             value_max = UINT16_MAX;
         }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerUInt16;
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -777,6 +824,10 @@ public:
             value_min = INT16_MIN;
             value_max = INT16_MAX;
         }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerInt16;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -811,6 +862,10 @@ public:
             value_max = UINT32_MAX;
         }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerUInt32;
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -843,6 +898,10 @@ public:
             value_min = INT32_MIN;
             value_max = INT32_MAX;
         }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerInt32;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -877,6 +936,10 @@ public:
             value_max = UINT64_MAX;
         }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerUInt64;
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -909,6 +972,10 @@ public:
             value_min = INT64_MIN;
             value_max = INT64_MAX;
         }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerInt64;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -943,6 +1010,10 @@ public:
             value_max = std::numeric_limits<float>::max();
         }
 
+    static TrackerType static_type() {
+        return TrackerType::TrackerFloat;
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -975,6 +1046,10 @@ public:
             value_min = std::numeric_limits<double>::min();
             value_max = std::numeric_limits<double>::max();
         }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerDouble;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1085,14 +1160,14 @@ protected:
 class TrackerElementMap : public TrackerElementCoreMap<int> {
 public:
     TrackerElementMap() :
-        TrackerElementCoreMap<int>(TrackerType::TrackerMap) {
-
-        }
+        TrackerElementCoreMap<int>(TrackerType::TrackerMap) { }
 
     TrackerElementMap(int id) :
-        TrackerElementCoreMap<int>(TrackerType::TrackerMap, id) {
+        TrackerElementCoreMap<int>(TrackerType::TrackerMap, id) { }
 
-        }
+    static TrackerType static_type() {
+        return TrackerType::TrackerMap;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1179,14 +1254,14 @@ public:
 class TrackerElementIntMap : public TrackerElementCoreMap<int> {
 public:
     TrackerElementIntMap() :
-        TrackerElementCoreMap<int>(TrackerType::TrackerIntMap) {
-
-        }
+        TrackerElementCoreMap<int>(TrackerType::TrackerIntMap) { }
 
     TrackerElementIntMap(int id) :
-        TrackerElementCoreMap<int>(TrackerType::TrackerIntMap, id) {
+        TrackerElementCoreMap<int>(TrackerType::TrackerIntMap, id) { }
 
-        }
+    static TrackerType static_type() {
+        return TrackerType::TrackerIntMap;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1206,14 +1281,14 @@ public:
 class TrackerElementDoubleMap : public TrackerElementCoreMap<double> {
 public:
     TrackerElementDoubleMap() :
-        TrackerElementCoreMap<double>(TrackerType::TrackerDoubleMap) {
-
-        }
+        TrackerElementCoreMap<double>(TrackerType::TrackerDoubleMap) { }
 
     TrackerElementDoubleMap(int id) :
-        TrackerElementCoreMap<double>(TrackerType::TrackerDoubleMap, id) {
+        TrackerElementCoreMap<double>(TrackerType::TrackerDoubleMap, id) { }
 
-        }
+    static TrackerType static_type() {
+        return TrackerType::TrackerDoubleMap;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1232,14 +1307,14 @@ public:
 class TrackerElementMacMap : public TrackerElementCoreMap<mac_addr> {
 public:
     TrackerElementMacMap() :
-        TrackerElementCoreMap<mac_addr>(TrackerType::TrackerMacMap) {
-
-        }
+        TrackerElementCoreMap<mac_addr>(TrackerType::TrackerMacMap) { }
 
     TrackerElementMacMap(int id) :
-        TrackerElementCoreMap<mac_addr>(TrackerType::TrackerMacMap, id) {
+        TrackerElementCoreMap<mac_addr>(TrackerType::TrackerMacMap, id) { }
 
-        }
+    static TrackerType static_type() {
+        return TrackerType::TrackerMacMap;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1258,14 +1333,14 @@ public:
 class TrackerElementStringMap : public TrackerElementCoreMap<std::string> {
 public:
     TrackerElementStringMap() :
-        TrackerElementCoreMap<std::string>(TrackerType::TrackerStringMap) {
-
-        }
+        TrackerElementCoreMap<std::string>(TrackerType::TrackerStringMap) { }
 
     TrackerElementStringMap(int id) :
-        TrackerElementCoreMap<std::string>(TrackerType::TrackerStringMap, id) {
+        TrackerElementCoreMap<std::string>(TrackerType::TrackerStringMap, id) { }
 
-        }
+    static TrackerType static_type() {
+        return TrackerType::TrackerStringMap;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1288,6 +1363,10 @@ public:
 
     TrackerElementDeviceKeyMap(int id) :
         TrackerElementCoreMap<device_key>(TrackerType::TrackerKeyMap, id) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerKeyMap;
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -1313,6 +1392,10 @@ public:
 
     TrackerElementVector(int id) :
         TrackerElement(TrackerType::TrackerVector, id) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerVector;
+    }
 
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a vector from a string"));
@@ -1554,11 +1637,11 @@ class tracker_component : public TrackerElementMap {
     virtual std::shared_ptr<ttype> get_##name() { \
         return cvar; \
     } \
-    virtual void set_##name(const std::shared_ptr<ttype>& in) { \
+    virtual void set_##name(std::shared_ptr<ttype> in) { \
         if (cvar != NULL) \
             erase(cvar); \
         cvar = in; \
-        if (cvar != NULL) \
+        if (in != NULL) \
             insert(cvar); \
     }  \
     virtual SharedTrackerElement get_tracker_##name() { \
@@ -1600,13 +1683,13 @@ class tracker_component : public TrackerElementMap {
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
-            cvar = std::static_pointer_cast<ttype>(tracker_component::entrytracker->GetSharedInstance(id)); \
+            cvar = std::static_pointer_cast<ttype>(Globalreg::globalreg->entrytracker->GetSharedInstance(id)); \
             if (cvar != NULL) \
                 insert(std::static_pointer_cast<TrackerElement>(cvar)); \
         } \
         return cvar; \
     } \
-    virtual void set_tracker_##name(const std::shared_ptr<ttype>& in) { \
+    virtual void set_tracker_##name(std::shared_ptr<ttype> in) { \
         if (cvar != NULL) \
             erase(std::static_pointer_cast<TrackerElement>(cvar)); \
         cvar = in; \
@@ -1635,30 +1718,26 @@ class tracker_component : public TrackerElementMap {
     }
 
 public:
-    tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        TrackerElementMap(in_id),
-        entrytracker(tracker) {
+    tracker_component() :
+        TrackerElementMap(0) { }
 
-    }
+    tracker_component(int in_id) :
+        TrackerElementMap(in_id) { }
 
-    tracker_component(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e __attribute__((unused))) :
-        TrackerElementMap(in_id),
-        entrytracker(tracker) {
-
-    }
+    tracker_component(int in_id, std::shared_ptr<TrackerElementMap> e __attribute__((unused))) :
+        TrackerElementMap(in_id) { }
 
 	virtual ~tracker_component() { }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
@@ -1747,8 +1826,6 @@ protected:
             SharedTrackerElement *assign;
     };
 
-    std::shared_ptr<EntryTracker> entrytracker;
-
     std::vector<std::unique_ptr<registered_field>> registered_fields;
 };
 
@@ -1758,17 +1835,13 @@ using SharedElementSummary =  std::shared_ptr<TrackerElementSummary>;
 // Element simplification record for summarizing and simplifying records
 class TrackerElementSummary {
 public:
-    TrackerElementSummary(const std::string& in_path, const std::string& in_rename, 
-            std::shared_ptr<EntryTracker> entrytracker);
+    TrackerElementSummary(const std::string& in_path, const std::string& in_rename);
 
-    TrackerElementSummary(const std::vector<std::string>& in_path, const std::string& in_rename,
-            std::shared_ptr<EntryTracker> entrytracker);
+    TrackerElementSummary(const std::vector<std::string>& in_path, const std::string& in_rename);
 
-    TrackerElementSummary(const std::string& in_path, 
-            std::shared_ptr<EntryTracker> entrytracker);
+    TrackerElementSummary(const std::string& in_path);
 
-    TrackerElementSummary(const std::vector<std::string>& in_path, 
-            std::shared_ptr<EntryTracker> entrytracker);
+    TrackerElementSummary(const std::vector<std::string>& in_path);
 
     TrackerElementSummary(const std::vector<int>& in_path, const std::string& in_rename);
     TrackerElementSummary(const std::vector<int>& in_path);
@@ -1781,8 +1854,7 @@ public:
     std::string rename;
 
 protected:
-    void parse_path(const std::vector<std::string>& in_path, const std::string& in_rename, 
-            std::shared_ptr<EntryTracker> entrytracker);
+    void parse_path(const std::vector<std::string>& in_path, const std::string& in_rename);
 };
 
 // Generic serializer class to allow easy swapping of serializers
@@ -1810,11 +1882,10 @@ protected:
 
 // Get an element using path semantics
 // Full std::string path
-SharedTrackerElement GetTrackerElementPath(const std::string& in_path, 
-        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker);
+SharedTrackerElement GetTrackerElementPath(const std::string& in_path, SharedTrackerElement elem);
 // Split std::string path
 SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_path, 
-        SharedTrackerElement elem, std::shared_ptr<EntryTracker> entrytracker);
+        SharedTrackerElement elem);
 // Resolved field ID path
 SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path, 
         SharedTrackerElement elem);
@@ -1826,12 +1897,10 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
 // it would return a vector of dot11.advertised.ssid for every SSID in
 // the dot11.device.advertised.ssid.map keyed map
 std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::string& in_path,
-        SharedTrackerElement elem,
-        std::shared_ptr<EntryTracker> entrytracker);
+        SharedTrackerElement elem);
 // Split std::string path
 std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<std::string>& in_path, 
-        SharedTrackerElement elem,
-        std::shared_ptr<EntryTracker> entrytracker);
+        SharedTrackerElement elem);
 // Resolved field ID path
 std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<int>& in_path, 
         SharedTrackerElement elem);
@@ -1839,11 +1908,9 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned in ret_elem, and the rename mapping for serialization is
 // completed in rename.
-void SummarizeTrackerElement(std::shared_ptr<EntryTracker> entrytracker,
-        const SharedTrackerElement& in, 
+void SummarizeTrackerElement(SharedTrackerElement in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         SharedTrackerElement &ret_elem, 
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map);
-
 
 #endif

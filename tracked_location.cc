@@ -24,17 +24,23 @@
 #include "tracked_location.h"
 #include "gpstracker.h"
 
-kis_tracked_location_triplet::kis_tracked_location_triplet(std::shared_ptr<EntryTracker> tracker, 
-        int in_id) : 
-    tracker_component(tracker, in_id) {
+kis_tracked_location_triplet::kis_tracked_location_triplet() :
+    tracker_component(0) { 
+
+    register_fields();
+    reserve_fields(NULL);
+}
+
+kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id) : 
+    tracker_component(in_id) {
 
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_tracked_location_triplet::kis_tracked_location_triplet(std::shared_ptr<EntryTracker> tracker, 
-        int in_id, std::shared_ptr<TrackerElementMap> e) : 
-    tracker_component(tracker, in_id) {
+kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id, 
+        std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(in_id) {
 
     register_fields();
     reserve_fields(e);
@@ -110,15 +116,20 @@ void kis_tracked_location_triplet::register_fields() {
     RegisterField("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
 }
 
-kis_tracked_location::kis_tracked_location(std::shared_ptr<EntryTracker> tracker, int in_id) :
-    tracker_component(tracker, in_id) { 
+kis_tracked_location::kis_tracked_location() :
+    tracker_component(0) {
     register_fields();
     reserve_fields(NULL);
 }
 
-kis_tracked_location::kis_tracked_location(std::shared_ptr<EntryTracker> tracker, int in_id, 
-        std::shared_ptr<TrackerElementMap> e) : 
-    tracker_component(tracker, in_id) {
+kis_tracked_location::kis_tracked_location(int in_id) :
+    tracker_component(in_id) { 
+    register_fields();
+    reserve_fields(NULL);
+}
+
+kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(in_id) {
 
     register_fields();
     reserve_fields(e);
@@ -130,6 +141,21 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
 
     if (fix > get_fix()) {
         set_fix(fix);
+    }
+
+    if (min_loc == nullptr) {
+        min_loc = std::make_shared<kis_tracked_location_triplet>(min_loc_id);
+        insert(min_loc);
+    }
+
+    if (max_loc == nullptr) {
+        max_loc = std::make_shared<kis_tracked_location_triplet>(max_loc_id);
+        insert(max_loc);
+    }
+
+    if (avg_loc == nullptr) {
+        avg_loc = std::make_shared<kis_tracked_location_triplet>(avg_loc_id);
+        insert(avg_loc);
     }
 
     if (in_lat < min_loc->get_lat() || min_loc->get_lat() == 0) {
@@ -205,21 +231,15 @@ void kis_tracked_location::register_fields() {
     RegisterField("kismet.common.location.loc_valid", "location data valid", &loc_valid);
     RegisterField("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
 
-    // These are registered specially w/ no target variables because we use dynamic proxying
-    // to save memory
     min_loc_id = 
-        RegisterField("kismet.common.location.min_loc",
-                TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                "Minimum corner of bounding rectangle");
+        RegisterDynamicField("kismet.common.location.min_loc",
+                "Minimum corner of bounding rectangle", &min_loc);
     max_loc_id = 
-        RegisterField("kismet.common.location.max_loc",
-                TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                "Maximume corner of bounding rectangle");
-
+        RegisterDynamicField("kismet.common.location.max_loc",
+                "Maximume corner of bounding rectangle", &max_loc);
     avg_loc_id = 
-        RegisterField("kismet.common.location.avg_loc",
-                TrackerElementFactory<kis_tracked_location_triplet>(entrytracker, 0),
-                "Average GPS center of all samples");
+        RegisterDynamicField("kismet.common.location.avg_loc",
+                "Average GPS center of all samples", &avg_loc);
 
     RegisterField("kismet.common.location.avg_lat", "run-time average latitude", &avg_lat);
     RegisterField("kismet.common.location.avg_lon", "run-time average longitude", &avg_lon);
@@ -230,35 +250,20 @@ void kis_tracked_location::register_fields() {
 
 }
 
-void kis_tracked_location::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
-    tracker_component::reserve_fields(e);
-
-    if (e != NULL) {
-        min_loc.reset(new kis_tracked_location_triplet(entrytracker, min_loc_id, 
-                    e->get_sub_as<TrackerElementMap>(min_loc_id)));
-        max_loc.reset(new kis_tracked_location_triplet(entrytracker, max_loc_id, 
-                    e->get_sub_as<TrackerElementMap>(max_loc_id)));
-        avg_loc.reset(new kis_tracked_location_triplet(entrytracker, avg_loc_id, 
-                    e->get_sub_as<TrackerElementMap>(avg_loc_id)));
-    } else {
-        min_loc.reset(new kis_tracked_location_triplet(entrytracker, min_loc_id));
-        max_loc.reset(new kis_tracked_location_triplet(entrytracker, max_loc_id));
-        avg_loc.reset(new kis_tracked_location_triplet(entrytracker, avg_loc_id));
-    }
-
-    insert(avg_loc);
-    insert(min_loc);
-    insert(max_loc);
+kis_historic_location::kis_historic_location() :
+    tracker_component(0) {
+    register_fields();
+    reserve_fields(NULL);
 }
 
-kis_historic_location::kis_historic_location(std::shared_ptr<EntryTracker> tracker, 
-        int in_id) : tracker_component(tracker, in_id) {
+kis_historic_location::kis_historic_location(int in_id) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_historic_location::kis_historic_location(std::shared_ptr<EntryTracker> tracker, int in_id, 
-        std::shared_ptr<TrackerElementMap> e) : tracker_component(tracker, in_id) {
+kis_historic_location::kis_historic_location(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
 }
@@ -276,15 +281,20 @@ void kis_historic_location::register_fields() {
     RegisterField("kismet.historic.location.frequency", "frequency (khz)", &frequency);
 }
 
-kis_location_history::kis_location_history(std::shared_ptr<EntryTracker> tracker, int in_id) : 
-    tracker_component(tracker, in_id) {
+kis_location_history::kis_location_history() :
+    tracker_component(0) {
+    register_fields();
+    reserve_fields(NULL);
+    }
+
+kis_location_history::kis_location_history(int in_id) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(NULL);
 } 
 
-kis_location_history::kis_location_history(std::shared_ptr<EntryTracker> tracker, int in_id,
-        std::shared_ptr<TrackerElementMap> e) : 
-    tracker_component(tracker, in_id) {
+kis_location_history::kis_location_history(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
 }
@@ -348,8 +358,8 @@ void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_
             frequency += gl->get_frequency();
         }
 
-        std::shared_ptr<kis_historic_location> aggloc = 
-            std::make_shared<kis_historic_location>(entrytracker, 0);
+        auto aggloc =
+            std::make_shared<kis_historic_location>();
 
         aggloc->set_lat(lat / samples_100->size());
         aggloc->set_lon(lon / samples_100->size());
@@ -398,8 +408,8 @@ void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_
                 frequency += gl->get_frequency();
             }
 
-            std::shared_ptr<kis_historic_location> aggloc10 = 
-                std::make_shared<kis_historic_location>(entrytracker, 0);
+            auto aggloc10 =
+                std::make_shared<kis_historic_location>();
 
             aggloc10->set_lat(lat / samples_10k->size());
             aggloc10->set_lon(lon / samples_10k->size());

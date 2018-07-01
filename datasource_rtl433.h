@@ -39,27 +39,25 @@ protected:
 
 class DatasourceRtl433Builder : public KisDatasourceBuilder {
 public:
-    DatasourceRtl433Builder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        KisDatasourceBuilder(tracker, in_id) {
+    DatasourceRtl433Builder() :
+        KisDatasourceBuilder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtl433Builder(std::shared_ptr<EntryTracker> tracker, int in_id,
-        std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(tracker, in_id, e) {
+    DatasourceRtl433Builder(int in_id) :
+        KisDatasourceBuilder(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    DatasourceRtl433Builder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
-        initialize();
-    }
-
-    DatasourceRtl433Builder() :
-        KisDatasourceBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
-
-        register_fields();
-        reserve_fields(NULL);
         initialize();
     }
 
@@ -84,27 +82,24 @@ public:
 
 class DatasourceRtl433MqttBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceRtl433MqttBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        KisDatasourceBuilder(tracker, in_id) {
+    DatasourceRtl433MqttBuilder() :
+        KisDatasourceBuilder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtl433MqttBuilder(std::shared_ptr<EntryTracker> tracker, int in_id,
-        std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(tracker, in_id, e) {
+    DatasourceRtl433MqttBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
 
+    DatasourceRtl433MqttBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
         register_fields();
         reserve_fields(e);
-        initialize();
-    }
-
-    DatasourceRtl433MqttBuilder() :
-        KisDatasourceBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
-
-        register_fields();
-        reserve_fields(NULL);
         initialize();
     }
 

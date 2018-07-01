@@ -111,17 +111,23 @@
 // the registration process
 class PluginRegistrationData : public tracker_component {
 public:
-    PluginRegistrationData(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    PluginRegistrationData() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+        dlfile = NULL;
+    }
+
+    PluginRegistrationData(int in_id) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
 
         dlfile = NULL;
     }
 
-    PluginRegistrationData(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    PluginRegistrationData(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -136,13 +142,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 

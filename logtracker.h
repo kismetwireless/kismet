@@ -42,8 +42,15 @@ typedef std::shared_ptr<KisLogfile> SharedLogfile;
 // attributes
 class KisLogfileBuilder : public tracker_component {
 public:
-    KisLogfileBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    KisLogfileBuilder() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisLogfileBuilder(int in_id) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
 
@@ -57,9 +64,8 @@ public:
         initialize();
     }
 
-    KisLogfileBuilder(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    KisLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -78,13 +84,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -125,21 +131,26 @@ protected:
 // streaming logs (like gps or pcapng streams); 
 class KisLogfile : public tracker_component, public streaming_agent {
 public:
-    KisLogfile(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    KisLogfile() :
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisLogfile(std::shared_ptr<EntryTracker> tracker, int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    KisLogfile(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    KisLogfile(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     KisLogfile(SharedLogBuilder in_builder) :
-        tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
         builder = in_builder;
@@ -162,13 +173,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -269,14 +280,13 @@ protected:
     kis_recursive_timed_mutex tracker_mutex;
 
     std::shared_ptr<StreamTracker> streamtracker;
-    std::shared_ptr<EntryTracker> entrytracker;
 
     // Vector of prototypes
-    SharedTrackerElement logproto_vec;
+    std::shared_ptr<TrackerElementVector> logproto_vec;
     int logproto_entry_id;
 
     // Vector of logs
-    SharedTrackerElement logfile_vec;
+    std::shared_ptr<TrackerElementVector> logfile_vec;
     int logfile_entry_id;
 
     // Various global config items common to all

@@ -36,17 +36,22 @@
 // channel
 class Channeltracker_V2_Channel : public tracker_component, public SharedGlobalData {
 public:
-    Channeltracker_V2_Channel(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) { 
+    Channeltracker_V2_Channel() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    Channeltracker_V2_Channel(int in_id) :
+        tracker_component(in_id) { 
         register_fields();
         reserve_fields(NULL);
 
         // last_device_sec = 0;
     }
 
-    Channeltracker_V2_Channel(std::shared_ptr<EntryTracker> tracker, 
-            int in_id, std::shared_ptr<TrackerElementMap> e) : 
-        tracker_component(tracker, in_id) {
+    Channeltracker_V2_Channel(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+        tracker_component(in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -56,13 +61,13 @@ public:
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -164,7 +169,6 @@ protected:
     kis_recursive_timed_mutex lock;
 
     std::shared_ptr<Devicetracker> devicetracker;
-    std::shared_ptr<EntryTracker> entrytracker;
 
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);

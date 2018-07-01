@@ -165,28 +165,26 @@ protected:
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
 public:
-    KisDatabaseLogfileBuilder(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        KisLogfileBuilder(tracker, in_id) {
+    KisDatabaseLogfileBuilder() :
+        KisLogfileBuilder() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisDatabaseLogfileBuilder(int in_id) :
+        KisLogfileBuilder(in_id) {
            
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        KisLogfileBuilder(tracker, in_id, e) {
+    KisDatabaseLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisLogfileBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
-        initialize();
-    }
-
-    KisDatabaseLogfileBuilder() :
-        KisLogfileBuilder(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
-
-        register_fields();
-        reserve_fields(NULL);
         initialize();
     }
 

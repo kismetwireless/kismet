@@ -45,8 +45,8 @@ public:
 
 class GPSFakeBuilder : public KisGpsBuilder {
 public:
-    GPSFakeBuilder(std::shared_ptr<EntryTracker> tracker) : 
-        KisGpsBuilder(entrytracker, 0) { 
+    GPSFakeBuilder() : 
+        KisGpsBuilder() { 
         initialize();
     }
 

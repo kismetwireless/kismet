@@ -23,13 +23,13 @@
 #include "timetracker.h"
 
 KisGps::KisGps(SharedGpsBuilder in_builder) : 
-    tracker_component(Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER"), 0) {
+    tracker_component() {
 
     register_fields();
     reserve_fields(NULL);
 
     // Force the ID
-    tracked_id = entrytracker->RegisterField("kismet.gps.instance", 
+    tracked_id = Globalreg::globalreg->entrytracker->RegisterField("kismet.gps.instance", 
             TrackerElementFactory<TrackerElementMap>(),
             "GPS");
 

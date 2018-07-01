@@ -45,33 +45,34 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         packetchain->RegisterPacketComponent("METABLOB");
 
     rtl433_holder_id =
-        entrytracker->RegisterField("rtl433.device", TrackerMap, 
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device", 
+                TrackerElementFactory<TrackerElementMap>(),
                 "rtl_433 device");
 
-    std::shared_ptr<rtl433_tracked_common> commonbuilder(new rtl433_tracked_common(globalreg, 0));
     rtl433_common_id =
-        entrytracker->RegisterField("rtl433.device.common",
-                commonbuilder, "Shared RTL433 device info");
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.common",
+                TrackerElementFactory<rtl433_tracked_common>(),
+                "Common RTL433 device info");
 
-    std::shared_ptr<rtl433_tracked_thermometer> thermbuilder(new rtl433_tracked_thermometer(globalreg, 0));
     rtl433_thermometer_id =
-        entrytracker->RegisterField("rtl433.device.thermometer",
-                thermbuilder, "RTL433 thermometer");
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.thermometer",
+                TrackerElementFactory<rtl433_tracked_thermometer>(),
+                "RTL433 thermometer");
 
-    std::shared_ptr<rtl433_tracked_tpms> tpmsbuilder(new rtl433_tracked_tpms(globalreg, 0));
     rtl433_tpms_id =
-        entrytracker->RegisterField("rtl433.device.tpms",
-                tpmsbuilder, "RTL433 TPMS");
-
-    std::shared_ptr<rtl433_tracked_weatherstation> weatherbuilder(new rtl433_tracked_weatherstation(globalreg, 0));
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.tpms",
+                TrackerElementFactory<rtl433_tracked_tpms>(),
+                "RTL433 TPMS tire pressure");
+    
     rtl433_weatherstation_id =
-        entrytracker->RegisterField("rtl433.device.weatherstation",
-                weatherbuilder, "RTL433 weather station");
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.weatherstation",
+                TrackerElementFactory<rtl433_tracked_weatherstation>(),
+                "RTL433 weather station");
 
-    std::shared_ptr<rtl433_tracked_switch> switchbuilder(new rtl433_tracked_switch(globalreg, 0));
     rtl433_switch_id =
-        entrytracker->RegisterField("rtl433.device.switch",
-                switchbuilder, "RTL433 switch");
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.switch",
+                TrackerElementFactory<rtl433_tracked_switch>(),
+                "RTL433 power switch");
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
@@ -200,23 +201,23 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     basedev->set_type_string("RTL433 Sensor");
     basedev->set_devicename(dn);
 
-    SharedTrackerElement rtlholder = basedev->get_map_value(rtl433_holder_id);
-
+    auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtl433_holder_id);
     bool newrtl = false;
 
     if (rtlholder == NULL) {
-        rtlholder = entrytracker->GetTrackedInstance(rtl433_holder_id);
-        basedev->add_map(rtlholder);
+        rtlholder =
+            std::make_shared<TrackerElementMap>(rtl433_holder_id);
+        basedev->insert(rtlholder);
         newrtl = true;
     }
 
-    std::shared_ptr<rtl433_tracked_common> commondev = 
-        std::static_pointer_cast<rtl433_tracked_common>(rtlholder->get_map_value(rtl433_common_id));
+    auto commondev =
+        rtlholder->get_sub_as<rtl433_tracked_common>(rtl433_common_id);
 
     if (commondev == NULL) {
-        commondev = 
-            std::static_pointer_cast<rtl433_tracked_common>(entrytracker->GetTrackedInstance(rtl433_common_id));
-        rtlholder->add_map(commondev);
+        commondev =
+            std::make_shared<rtl433_tracked_common>(rtl433_common_id);
+        rtlholder->insert(commondev);
 
         commondev->set_model(dn);
 
@@ -348,7 +349,8 @@ bool Kis_RTL433_Phy::is_switch(Json::Value json) {
     return false;
 }
 
-void Kis_RTL433_Phy::add_weather_station(Json::Value json, SharedTrackerElement rtlholder) {
+void Kis_RTL433_Phy::add_weather_station(Json::Value json, 
+        std::shared_ptr<TrackerElementMap> rtlholder) {
     auto direction_j = json["direction_deg"];
     auto windstrength_j = json["windstrength"];
     auto winddirection_j = json["winddirection"];
@@ -362,13 +364,13 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json, SharedTrackerElement 
             !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull() || !uv_index_j.isNull() ||
             !lux_j.isNull()) {
 
-        std::shared_ptr<rtl433_tracked_weatherstation> weatherdev = 
-            rtlholder->get_map_value_as<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
+        auto weatherdev = 
+            rtlholder->get_sub_as<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
 
         if (weatherdev == NULL) {
             weatherdev = 
-                entrytracker->GetTrackedInstanceAs<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
-            rtlholder->add_map(weatherdev);
+                std::make_shared<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
+            rtlholder->insert(weatherdev);
         }
 
         if (direction_j.isNumeric()) {
@@ -415,20 +417,20 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json, SharedTrackerElement 
     }
 }
 
-void Kis_RTL433_Phy::add_thermometer(Json::Value json, SharedTrackerElement rtlholder) {
+void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
     auto humidity_j = json["humidity"];
     auto moisture_j = json["moisture"];
     auto temp_f_j = json["temperature_F"];
     auto temp_c_j = json["temperature_C"];
 
     if (!humidity_j.isNull() || !moisture_j.isNull() || !temp_f_j.isNull() || !temp_c_j.isNull()) {
-        std::shared_ptr<rtl433_tracked_thermometer> thermdev = 
-            rtlholder->get_map_value_as<rtl433_tracked_thermometer>(rtl433_thermometer_id);
+        auto thermdev = 
+            rtlholder->get_sub_as<rtl433_tracked_thermometer>(rtl433_thermometer_id);
 
         if (thermdev == NULL) {
             thermdev = 
-                entrytracker->GetTrackedInstanceAs<rtl433_tracked_thermometer>(rtl433_thermometer_id);
-            rtlholder->add_map(thermdev);
+                std::make_shared<rtl433_tracked_thermometer>(rtl433_thermometer_id);
+            rtlholder->insert(thermdev);
         }
 
         if (humidity_j.isNumeric()) {
@@ -449,7 +451,7 @@ void Kis_RTL433_Phy::add_thermometer(Json::Value json, SharedTrackerElement rtlh
     }
 }
 
-void Kis_RTL433_Phy::add_tpms(Json::Value json, SharedTrackerElement rtlholder) {
+void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
     auto type_j = json["type"];
     auto pressure_j = json["pressure_bar"];
     auto flags_j = json["flags"];
@@ -458,13 +460,13 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, SharedTrackerElement rtlholder) 
     auto code_j = json["code"];
 
     if (type_j.isString() && type_j.asString() == "TPMS") {
-        std::shared_ptr<rtl433_tracked_tpms> tpmsdev = 
-            rtlholder->get_map_value_as<rtl433_tracked_tpms>(rtl433_tpms_id);
+        auto tpmsdev = 
+            rtlholder->get_sub_as<rtl433_tracked_tpms>(rtl433_tpms_id);
 
         if (tpmsdev == NULL) {
             tpmsdev = 
-                entrytracker->GetTrackedInstanceAs<rtl433_tracked_tpms>(rtl433_tpms_id);
-            rtlholder->add_map(tpmsdev);
+                std::make_shared<rtl433_tracked_tpms>(rtl433_tpms_id);
+            rtlholder->insert(tpmsdev);
         }
 
         if (pressure_j.isNumeric()) {
@@ -491,18 +493,18 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, SharedTrackerElement rtlholder) 
 
 }
 
-void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder) {
+void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
 
     if (!sw0_j.isNull() || !sw1_j.isNull()) {
-        std::shared_ptr<rtl433_tracked_switch> switchdev = 
-            rtlholder->get_map_value_as<rtl433_tracked_switch>(rtl433_switch_id);
+        auto switchdev = 
+            rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
 
         if (switchdev == NULL) {
             switchdev = 
-                entrytracker->GetTrackedInstanceAs<rtl433_tracked_switch>(rtl433_switch_id);
-            rtlholder->add_map(switchdev);
+                std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
+            rtlholder->insert(switchdev);
         }
 
         int x;
@@ -513,8 +515,7 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder
         else
             x = 1;
 
-        TrackerElementVector vec(switchdev->get_switch_vec());
-        vec.clear();
+        switchdev->get_switch_vec()->clear();
 
         while (1) {
             int v = 0;
@@ -537,8 +538,8 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, SharedTrackerElement rtlholder
                 break;
             }
 
-            SharedTrackerElement e = switchdev->make_switch_entry(v);
-            vec.push_back(e);
+            auto e = switchdev->make_switch_entry(v);
+            switchdev->get_switch_vec()->push_back(e);
         }
     }
 }

@@ -202,28 +202,33 @@ typedef std::shared_ptr<DST_DatasourceList> SharedDSTList;
 // Tracker/serializable record of default values used for all datasources
 class datasourcetracker_defaults : public tracker_component {
 public:
-    datasourcetracker_defaults(std::shared_ptr<EntryTracker> tracker, int in_id) :
-        tracker_component(tracker, in_id) {
+    datasourcetracker_defaults() :
+        tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    datasourcetracker_defaults(std::shared_ptr<EntryTracker> tracker, int in_id,
-            std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(tracker, in_id) {
+    datasourcetracker_defaults(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    datasourcetracker_defaults(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, 0));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return dup;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(entrytracker, in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return dup;
     }
 
@@ -432,7 +437,6 @@ protected:
     virtual void databaselog_write_datasources();
 
     std::shared_ptr<Datasourcetracker> datasourcetracker;
-    std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Timetracker> timetracker;
 
     kis_recursive_timed_mutex dst_lock;
