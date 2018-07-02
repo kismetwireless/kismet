@@ -53,30 +53,15 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
-
-        /*
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
-                    TrackerMap, "Log type definition / driver");
-        }
-        */
-
+        set_local_name("kismet.log.type_driver");
         initialize();
     }
 
     KisLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
         tracker_component(in_id) {
-
         register_fields();
         reserve_fields(e);
-
-        /*
-        if (in_id == 0) {
-            tracked_id = entrytracker->RegisterField("kismet.log.type_driver",
-                    TrackerMap, "Log type definition / driver");
-        }
-        */
-
+        set_local_name("kismet.log.type_driver");
         initialize();
     }
 

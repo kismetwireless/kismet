@@ -124,6 +124,10 @@ public:
 
     virtual ~kis_tracked_device_base() { }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("kis_tracked_device_base");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -812,6 +816,10 @@ public:
 
         register_fields();
         reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("kis_tracked_phy");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {

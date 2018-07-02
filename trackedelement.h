@@ -159,13 +159,11 @@ public:
 
     TrackerElement(TrackerType t) : 
         type(t),
-        tracked_id(-1), 
-        signature(static_cast<uint32_t>(t)) { }
+        tracked_id(-1) { }
 
     TrackerElement(TrackerType t, int id) :
         type(t),
-        tracked_id(id),
-        signature(static_cast<uint32_t>(t)) { }
+        tracked_id(id) { }
 
     virtual ~TrackerElement() { };
 
@@ -202,8 +200,8 @@ public:
         return std::static_pointer_cast<CT>(e);
     }
 
-    uint32_t get_signature() const {
-        return signature;
+    virtual uint32_t get_signature() const {
+        return static_cast<uint32_t>(type);
     }
 
     int get_id() const {
@@ -259,8 +257,6 @@ public:
 protected:
     TrackerType type;
     int tracked_id;
-
-    uint32_t signature;
 
     // Overridden name for this instance only
     std::string local_name;

@@ -75,6 +75,10 @@ public:
         initialize();
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("KisDatasourceBuilder");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -195,6 +199,10 @@ public:
     }
 
     virtual ~KisDatasource();
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("KisDatasource");
+    }
 
     // Fetch default per-source options.  These override the global defaults,
     // but are overridden by specific commands inside the definition.
@@ -705,6 +713,10 @@ public:
     }
 
     virtual ~KisDatasourceInterface() { };
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("KisDatasourceInterface");
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
