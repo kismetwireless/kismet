@@ -108,13 +108,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     // By default a RRD will fast forward to the current time before
@@ -453,13 +453,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     // By default a RRD will fast forward to the current time before

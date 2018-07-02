@@ -122,13 +122,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(devicekey, device_key, device_key, device_key, devicekey);
@@ -233,13 +233,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(header, std::string, std::string, std::string, header);

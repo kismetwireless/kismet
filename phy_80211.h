@@ -291,13 +291,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -359,13 +359,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -445,13 +445,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(group_name, std::string, std::string, std::string, ssid_group_name);
@@ -509,13 +509,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(startchan, uint32_t, uint32_t, uint32_t, startchan);
@@ -561,13 +561,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -644,13 +644,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -877,13 +877,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
@@ -1035,13 +1035,13 @@ public:
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return dup;
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return dup;
+        return std::move(dup);
     }
 
     static void attach_base_parent(std::shared_ptr<dot11_tracked_device> self, 
