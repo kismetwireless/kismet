@@ -24,32 +24,27 @@
 #include "datasourcetracker.h"
 #include "entrytracker.h"
 #include "alertracker.h"
+#include "packetchain.h"
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
-KisDatasource::KisDatasource(GlobalRegistry *in_globalreg, 
-        SharedDatasourceBuilder in_builder) :
-    tracker_component(in_globalreg, 0),
-    KisExternalInterface(in_globalreg) {
-
-    globalreg = in_globalreg;
+KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
+    tracker_component(),
+    KisExternalInterface() {
     
     register_fields();
-    reserve_fields(NULL);
+    reserve_fields(nullptr);
 
-    set_source_builder(in_builder);
-
-    if (in_builder != NULL)
-        add_map(in_builder);
+    if (in_builder != nullptr) {
+        set_source_builder(in_builder);
+        insert(in_builder);
+    }
 
     timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-
-    datasourcetracker =
-        Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DATASOURCETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
@@ -64,12 +59,10 @@ KisDatasource::KisDatasource(GlobalRegistry *in_globalreg,
     mode_probing = false;
     mode_listing = false;
 
-    std::shared_ptr<EntryTracker> entrytracker = 
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
-    listed_interface_builder =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.listed_interface", 
-                SharedInterface(new KisDatasourceInterface(globalreg, 0)), 
-                    "auto-discovered interface");
+    listed_interface_entry_id =
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
+                TrackerElementFactory<KisDatasourceInterface>(),
+                "automatically discovered available interface");
 
     last_pong = time(0);
 
@@ -244,20 +237,20 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     }
 
     // Convert the std::vector to a channel vector
-    SharedTrackerElement elem(get_source_hop_vec()->clone_type());
-    TrackerElementVector vec(elem);
+    auto vec = std::make_shared<TrackerElementVector>(source_hop_vec_id);
 
-    for (auto i = in_chans.begin(); i != in_chans.end(); ++i) {
-        SharedTrackerElement c(channel_entry_builder->clone_type());
-        c->set(*i);
-        vec.push_back(c);
+    for (auto i : in_chans) {
+        auto c = std::make_shared<TrackerElementString>(channel_entry_id);
+        c->set(i);
+        vec->push_back(c);
     }
 
     // Call the common function that takes a sharedtrackerelement of channels
-    set_channel_hop(in_rate, elem, in_shuffle, in_offt, in_transaction, in_cb);
+    set_channel_hop(in_rate, vec, in_shuffle, in_offt, in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel_hop(double in_rate, SharedTrackerElement in_chans,
+void KisDatasource::set_channel_hop(double in_rate, 
+        std::shared_ptr<TrackerElementVector> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(&ext_mutex);
@@ -497,6 +490,9 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
         set_source_key(Adler32Checksum(u.UUID2String()));
     }
 
+    auto datasourcetracker =
+        Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+
     set_int_source_retry(get_definition_opt_bool("retry", 
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));
 
@@ -621,9 +617,9 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, std::str
     KismetDatasource::ProbeSourceReport report;
 
     if (!report.ParseFromString(in_content)) {
-        _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
-                std::string(" could not parse the probe report, something is wrong with "
-                    "the remote capture tool"), MSGFLAG_ERROR);
+        _MSG_ERROR("Kismet datasource driver '{}' could not parse the probe report received "
+                "from the capture tool, something is wrong with the capture binary '{}'",
+                source_builder->get_source_type(), source_ipc_binary->get());
         trigger_error("Invalid KDSPROBESOURCEREPORT");
         return;
     }
@@ -636,13 +632,13 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, std::str
     }
 
     if (report.has_channels()) {
-        TrackerElementVector chan_vec(get_int_source_channels_vec());
-        chan_vec.clear();
+        source_channels_vec->clear();
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
-            SharedTrackerElement chanstr = channel_entry_builder->clone_type();
+            auto chanstr =
+                std::make_shared<TrackerElementString>(channel_entry_id);
             chanstr->set(report.channels().channels(x));
-            chan_vec.push_back(chanstr);
+            source_channels_vec->push_back(chanstr);
         }
     }
 
@@ -687,13 +683,14 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
     }
 
     if (report.has_channels()) {
-        TrackerElementVector chan_vec(get_int_source_channels_vec());
-        chan_vec.clear();
+        source_channels_vec->clear();
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
-            SharedTrackerElement chanstr = channel_entry_builder->clone_type();
+            auto chanstr = 
+                std::make_shared<TrackerElementString>(channel_entry_id);
             chanstr->set(report.channels().channels(x));
-            chan_vec.push_back(chanstr);
+
+            source_channels_vec->push_back(chanstr);
         }
     }
 
@@ -755,17 +752,13 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
     // If we have a 'block_channels=' in the source, use the list to mask
     // out any channels we think we support that are otherwise blocked
 
-    // Grab our source and hop vectors
-    TrackerElementVector source_chan_vec(get_int_source_channels_vec());
-    TrackerElementVector hop_chan_vec(get_int_source_hop_vec());
-
-    hop_chan_vec.clear();
+    source_hop_vec->clear();
 
     // Add the channel= to the channels list
     std::string def_chan = get_definition_opt("channel");
     if (def_chan != "") {
         bool append = true;
-        for (auto sci : source_chan_vec) {
+        for (auto sci : *source_hop_vec) {
             if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
                 append = false;
                 break;
@@ -773,9 +766,8 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
         }
 
         if (append) {
-            SharedTrackerElement dce(new TrackerElement(TrackerString));
-            dce->set(def_chan);
-            source_chan_vec.push_back(dce);
+            auto dce = std::make_shared<TrackerElementString>(channel_entry_id, def_chan);
+            source_channels_vec->push_back(dce);
         }
     }
 
@@ -787,15 +779,13 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
         // If we override the channels, use our supplied list entirely, and we don't
         // care about the blocked channels
         for (auto dc : def_vec) {
-            SharedTrackerElement dce(new TrackerElement(TrackerString));
-            dce->set(dc);
-
-            hop_chan_vec.push_back(dce);
+            auto dce = std::make_shared<TrackerElementString>(channel_entry_id, dc);
+            source_hop_vec->push_back(dce);
 
             // Do we need to add the custom channels to the list of channels the
             // source supports?
             bool append = true;
-            for (auto sci : source_chan_vec) {
+            for (auto sci : *source_channels_vec) {
                 if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
                     append = false;
                     break;
@@ -803,27 +793,27 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
             }
 
             if (append) 
-                source_chan_vec.push_back(dce);
+                source_channels_vec->push_back(dce);
         }
     } else if (add_vec.size() != 0) {
         // Add all our existing channels, filtering for blocked channels
-        for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+        for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (StrLower(GetTrackerValue<std::string>(*c)) == StrLower(bchan)) {
+                if (StrLower(GetTrackerValue<std::string>(c)) == StrLower(bchan)) {
                     skip = true;
                     break;
                 }
             }
 
             if (!skip)
-                hop_chan_vec.push_back(*c);
+                source_hop_vec->push_back(c);
         }
 
         for (auto ac : add_vec) {
             // Add any new channels from the add_vec, we don't filter blocked channels here
             bool append = true;
-            for (auto sci : source_chan_vec) {
+            for (auto sci : *source_channels_vec) {
                 if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
                     append = false;
                     break;
@@ -831,28 +821,25 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
             }
 
             if (append) {
-                SharedTrackerElement ace(new TrackerElement(TrackerString));
-                ace->set(ac);
-
-                hop_chan_vec.push_back(ace);
-
-                source_chan_vec.push_back(ace);
+                auto ace = std::make_shared<TrackerElementString>(channel_entry_id, ac);
+                source_hop_vec->push_back(ace);
+                source_channels_vec->push_back(ace);
             }
         }
 
     } else {
         // Otherwise, or hop list is our channels list, filtering for blocks
-        for (auto c = source_chan_vec.begin(); c != source_chan_vec.end(); ++c) {
+        for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (StrLower(GetTrackerValue<std::string>(*c)) == StrLower(bchan)) {
+                if (StrLower(GetTrackerValue<std::string>(c)) == StrLower(bchan)) {
                     skip = true;
                     break;
                 }
             }
 
             if (!skip)
-                hop_chan_vec.push_back(*c);
+                source_hop_vec->push_back(c);
         }
     }
 
@@ -921,7 +908,9 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
     }
 
     for (auto rintf : report.interfaces()) {
-        SharedInterface intf = std::static_pointer_cast<KisDatasourceInterface>(listed_interface_builder->clone_type());
+        auto intf = 
+            std::make_shared<KisDatasourceInterface>(listed_interface_entry_id);
+
         intf->populate(rintf.interface(), rintf.flags());
         intf->set_prototype(get_source_builder());
 
@@ -1014,13 +1003,11 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::strin
         if (report.hopping().has_offset())
             set_int_source_hop_offset(report.hopping().offset());
 
-        TrackerElementVector hop_vec(get_int_source_hop_vec());
-        hop_vec.clear();
+        source_hop_vec->clear();
 
         for (auto c : report.hopping().channels()) {
-            SharedTrackerElement chanstr = channel_entry_builder->clone_type();
-            chanstr->set(c);
-            hop_vec.push_back(chanstr);
+            auto chanstr = std::make_shared<TrackerElementString>(channel_entry_id, c);
+            source_hop_vec->push_back(chanstr);
         }
     }
 
@@ -1331,7 +1318,8 @@ unsigned int KisDatasource::send_configure_channel(std::string in_chan,
 }
 
 unsigned int KisDatasource::send_configure_channel_hop(double in_rate, 
-        SharedTrackerElement in_chans, bool in_shuffle, unsigned int in_offt,
+        std::shared_ptr<TrackerElementVector> in_chans,
+        bool in_shuffle, unsigned int in_offt,
         unsigned int in_transaction,
         configure_callback_t in_cb) {
 
@@ -1351,9 +1339,7 @@ unsigned int KisDatasource::send_configure_channel_hop(double in_rate,
     ch->set_shuffle(in_shuffle);
     ch->set_offset(in_offt);
 
-    TrackerElementVector ch_vec(in_chans);
-
-    for (auto chi : ch_vec)  {
+    for (auto chi : *in_chans)  {
         ch->add_channels(GetTrackerValue<std::string>(chi));
     }
 
@@ -1415,114 +1401,92 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
 void KisDatasource::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.datasource.source_number", TrackerUInt64,
-            "internal source number per Kismet instance",
+    RegisterField("kismet.datasource.source_number", "internal source number per Kismet instance",
             &source_number);
-    RegisterField("kismet.datasource.source_key", TrackerUInt32,
-            "hashed UUID key", &source_key);
+    RegisterField("kismet.datasource.source_key", "hashed UUID key", &source_key);
 
-    RegisterField("kismet.datasource.paused", TrackerUInt8,
+    RegisterField("kismet.datasource.paused", 
             "capture is paused (no packets will be processed from this source)", &source_paused);
 
-    RegisterField("kismet.datasource.ipc_binary", TrackerString,
-            "capture command", &source_ipc_binary);
-    RegisterField("kismet.datasource.ipc_pid", TrackerInt64,
-            "capture process", &source_ipc_pid);
+    RegisterField("kismet.datasource.ipc_binary", "capture command", &source_ipc_binary);
+    RegisterField("kismet.datasource.ipc_pid", "capture process", &source_ipc_pid);
 
-    RegisterField("kismet.datasource.running", TrackerUInt8,
-            "capture is running", &source_running);
+    RegisterField("kismet.datasource.running", "capture is running", &source_running);
 
-    RegisterField("kismet.datasource.remote", TrackerUInt8,
+    RegisterField("kismet.datasource.remote", 
             "capture is connected from a remote server", &source_remote);
 
-    RegisterField("kismet.datasource.passive", TrackerUInt8,
+    RegisterField("kismet.datasource.passive", 
             "capture is a post-able passive capture", &source_passive);
 
-    RegisterField("kismet.datasource.name", TrackerString,
-            "Human-readable name", &source_name);
-    RegisterField("kismet.datasource.uuid", TrackerUuid,
-            "UUID", &source_uuid);
+    RegisterField("kismet.datasource.name", "Human-readable name", &source_name);
+    RegisterField("kismet.datasource.uuid", "UUID", &source_uuid);
 
-    RegisterField("kismet.datasource.definition", TrackerString,
-            "Original source= definition", &source_definition);
-    RegisterField("kismet.datasource.interface", TrackerString,
-            "Interface", &source_interface);
-    RegisterField("kismet.datasource.capture_interface", TrackerString,
-            "Interface", &source_cap_interface);
-    RegisterField("kismet.datasource.hardware", TrackerString,
-            "Hardware / chipset", &source_hardware);
+    RegisterField("kismet.datasource.definition", "Original source= definition", &source_definition);
+    RegisterField("kismet.datasource.interface", "Interface", &source_interface);
+    RegisterField("kismet.datasource.capture_interface", "Interface", &source_cap_interface);
+    RegisterField("kismet.datasource.hardware", "Hardware / chipset", &source_hardware);
 
-    RegisterField("kismet.datasource.dlt", TrackerUInt32,
-            "DLT (link type)", &source_dlt);
+    RegisterField("kismet.datasource.dlt", "DLT (link type)", &source_dlt);
 
-    RegisterField("kismet.datasource.warning", TrackerString,
-            "Warning or unusual interface state", &source_warning);
+    RegisterField("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
 
-    channel_entry_builder.reset(new TrackerElement(TrackerString, 0));
-    RegisterComplexField("kismet.datasource.channel_entry",
-            channel_entry_builder, "Channel");
+    channel_entry_id = 
+        RegisterField("kismet.datasource.channel_entry",
+                TrackerElementFactory<TrackerElementString>(),
+                "Channel");
 
-    RegisterField("kismet.datasource.channels", TrackerVector,
-            "Supported channels", &source_channels_vec);
-    RegisterField("kismet.datasource.hopping", TrackerUInt8,
-            "Source is channel hopping", &source_hopping);
-    RegisterField("kismet.datasource.channel", TrackerString,
-            "Current channel", &source_channel);
-    RegisterField("kismet.datasource.hop_rate", TrackerDouble,
-            "Hop rate if channel hopping", &source_hop_rate);
-    RegisterField("kismet.datasource.hop_channels", TrackerVector,
-            "Hop pattern if hopping", &source_hop_vec);
-    RegisterField("kismet.datasource.hop_split", TrackerUInt8,
+    RegisterField("kismet.datasource.channels", "Supported channels", &source_channels_vec);
+    RegisterField("kismet.datasource.hopping", "Source is channel hopping", &source_hopping);
+    RegisterField("kismet.datasource.channel", "Current channel", &source_channel);
+    RegisterField("kismet.datasource.hop_rate", "Hop rate if channel hopping", &source_hop_rate);
+    source_hop_vec_id = 
+        RegisterField("kismet.datasource.hop_channels", "Hop pattern if hopping", &source_hop_vec);
+    RegisterField("kismet.datasource.hop_split", 
             "Split hopping among same type interfaces", &source_hop_split);
-    RegisterField("kismet.datasource.hop_offset", TrackerUInt32,
+    RegisterField("kismet.datasource.hop_offset", 
             "Offset into hopping list for multiple sources", &source_hop_offset);
-    RegisterField("kismet.datasource.hop_shuffle", TrackerUInt8,
+    RegisterField("kismet.datasource.hop_shuffle", 
             "Shuffle channels while hopping", &source_hop_shuffle);
-    RegisterField("kismet.datasource.hop_shuffle_skip", TrackerUInt32,
+    RegisterField("kismet.datasource.hop_shuffle_skip", 
             "Number of channels skipped by source during hop shuffling", 
             &source_hop_shuffle_skip);
 
-    RegisterField("kismet.datasource.error", TrackerUInt8,
-            "Source is in error state", &source_error);
-    RegisterField("kismet.datasource.error_reason", TrackerString,
+    RegisterField("kismet.datasource.error", "Source is in error state", &source_error);
+    RegisterField("kismet.datasource.error_reason", 
             "Last known reason for error state", &source_error_reason);
 
-    RegisterField("kismet.datasource.num_packets", TrackerUInt64,
+    RegisterField("kismet.datasource.num_packets", 
             "Number of packets seen by source", &source_num_packets);
-    RegisterField("kismet.datasource.num_error_packets", TrackerUInt64,
+    RegisterField("kismet.datasource.num_error_packets", 
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
 
-    packet_rate_rrd_id = RegisterComplexField("kismet.datasource.packets_rrd", 
-            std::shared_ptr<kis_tracked_minute_rrd<> >(new kis_tracked_minute_rrd<>(globalreg, 0)), 
-            "packet rate over past minute");
+    packet_rate_rrd_id = 
+        RegisterDynamicField("kismet.datasource.packets_rrd", 
+                "detected packet rate over past 60 seconds",
+                &packet_rate_rrd);
 
-    RegisterField("kismet.datasource.retry", TrackerUInt8,
+    RegisterField("kismet.datasource.retry", 
             "Source will try to re-open after failure", &source_retry);
-    RegisterField("kismet.datasource.retry_attempts", TrackerUInt32,
+    RegisterField("kismet.datasource.retry_attempts", 
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
-    RegisterField("kismet.datasource.total_retry_attempts", TrackerUInt32,
+    RegisterField("kismet.datasource.total_retry_attempts", 
             "Total unsuccessful retry attempts", &source_total_retry_attempts);
 
-    RegisterField("kismet.datasource.info.antenna_type", TrackerString,
+    RegisterField("kismet.datasource.info.antenna_type", 
             "User-supplied antenna type", &source_info_antenna_type);
-    RegisterField("kismet.datasource.info.antenna_gain", TrackerDouble,
+    RegisterField("kismet.datasource.info.antenna_gain", 
             "User-supplied antenna gain in dB", &source_info_antenna_gain);
-    RegisterField("kismet.datasource.info.antenna_orientation", TrackerDouble,
+    RegisterField("kismet.datasource.info.antenna_orientation", 
             "User-supplied antenna orientation", &source_info_antenna_orientation);
-    RegisterField("kismet.datasource.info.antenna_beamwidth", TrackerDouble,
+    RegisterField("kismet.datasource.info.antenna_beamwidth", 
             "User-supplied antenna beamwidth", &source_info_antenna_beamwidth);
-    RegisterField("kismet.datasource.info.amp_type", TrackerString,
+    RegisterField("kismet.datasource.info.amp_type", 
             "User-supplied amplifier type", &source_info_amp_type);
-    RegisterField("kismet.datasource.info.amp_gain", TrackerDouble,
+    RegisterField("kismet.datasource.info.amp_gain", 
             "User-supplied amplifier gain in dB", &source_info_amp_gain);
 
-}
-
-void KisDatasource::reserve_fields(SharedTrackerElement e) {
-    tracker_component::reserve_fields(e);
-
-    // We don't ever instantiate from an existing object so we don't do anything
 }
 
 void KisDatasource::handle_source_error() {
@@ -1542,7 +1506,7 @@ void KisDatasource::handle_source_error() {
                 "to reconnect to resume capture.";
 
             std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
             alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1564,7 +1528,7 @@ void KisDatasource::handle_source_error() {
                 "closed.";
 
             std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
             alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1602,7 +1566,7 @@ void KisDatasource::handle_source_error() {
             get_source_retry_attempts() << " failures)";
 
         std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
         alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1628,7 +1592,7 @@ void KisDatasource::handle_source_error() {
                                 "re-opened";
 
                             std::shared_ptr<Alertracker> alertracker =
-                                Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+                                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
                             alertracker->RaiseOneShot("SOURCEOPEN", ss.str(), -1);
 
                             if (get_source_hopping()) {

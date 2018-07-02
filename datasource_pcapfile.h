@@ -28,9 +28,8 @@ typedef std::shared_ptr<KisDatasourcePcapfile> SharedDatasourcePcapfile;
 
 class KisDatasourcePcapfile : public KisDatasource {
 public:
-    KisDatasourcePcapfile(GlobalRegistry *in_globalreg, 
-            SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_globalreg, in_builder) {
+    KisDatasourcePcapfile(SharedDatasourceBuilder in_builder) :
+        KisDatasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_pcapfile");
@@ -57,25 +56,24 @@ public:
 
 class DatasourcePcapfileBuilder : public KisDatasourceBuilder {
 public:
-    DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisDatasourceBuilder(in_globalreg, in_id) {
+    DatasourcePcapfileBuilder() :
+        KisDatasourceBuilder() {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        KisDatasourceBuilder(in_globalreg, in_id, e) {
+    DatasourcePcapfileBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourcePcapfileBuilder(GlobalRegistry *in_globalreg) :
-        KisDatasourceBuilder(in_globalreg, 0) {
+    DatasourcePcapfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(NULL);
@@ -85,8 +83,7 @@ public:
     virtual ~DatasourcePcapfileBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourcePcapfile(new KisDatasourcePcapfile(globalreg, 
-                    in_sh_this));
+        return SharedDatasourcePcapfile(new KisDatasourcePcapfile(in_sh_this));
     }
 
     virtual void initialize() {

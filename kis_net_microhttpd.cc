@@ -882,7 +882,6 @@ Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
     http_globalreg = in_globalreg;
 
     Bind_Httpd_Server(in_globalreg);
-
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
@@ -901,28 +900,25 @@ void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
             std::static_pointer_cast<Kis_Net_Httpd>(in_globalreg->FetchGlobal("HTTPD_SERVER"));
         if (httpd != NULL)
             httpd->RegisterHandler(this);
-
-        entrytracker = 
-            std::static_pointer_cast<EntryTracker>(http_globalreg->FetchGlobal("ENTRY_TRACKER"));
     }
 }
 
-bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(std::string path) {
-    return entrytracker->CanSerialize(httpd->GetSuffix(path));
+bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
+    return Globalreg::globalreg->entrytracker->CanSerialize(httpd->GetSuffix(path));
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(std::string path) {
+std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
     return httpd->GetSuffix(path);
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(std::string path) {
+std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
     return httpd->StripSuffix(path);
 }
 
-bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(std::string path, 
+bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(const std::string& path, 
         std::stringstream &stream, SharedTrackerElement e, 
-        TrackerElementSerializer::rename_map *name_map) {
-    return entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
+        std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
+    return Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
 }
 
 int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 

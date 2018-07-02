@@ -37,6 +37,7 @@
 #include "macaddr.h"
 #include "packet_ieee80211.h"
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 
 // This is the main switch for how big the vector is.  If something ever starts
 // bumping up against this we'll need to increase it, but that'll slow down 
@@ -108,21 +109,38 @@ protected:
 // can recall and expose via the REST interface, for instance
 class kis_tracked_packet : public tracker_component {
 public:
-    kis_tracked_packet(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    kis_tracked_packet() :
+        tracker_component() {
+            register_fields();
+            reserve_fields(NULL);
+    }
+
+    kis_tracked_packet(int in_id) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    kis_tracked_packet(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    kis_tracked_packet(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new kis_tracked_packet(globalreg, get_id()));
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("kis_tracked_packet");
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
     }
 
     __Proxy(ts_sec, uint64_t, time_t, time_t, ts_sec);
@@ -130,46 +148,24 @@ public:
     __Proxy(dlt, uint64_t, uint64_t, uint64_t, dlt);
     __Proxy(source, uint64_t, uint64_t, uint64_t, source);
 
-    __ProxyTrackable(data, TrackerElement, data);
+    __ProxyTrackable(data, TrackerElementByteArray, data);
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        ts_sec_id =
-            RegisterField("kismet.packet.ts_sec", TrackerUInt64,
-                    "packet timestamp (second)", &ts_sec);
-        ts_usec_id =
-            RegisterField("kismet.packet.ts_usec", TrackerUInt64,
-                    "packet timestamp (usec)", &ts_usec);
-
-        dlt_id =
-            RegisterField("kismet.packet.dlt", TrackerUInt64,
-                    "packet DLT linktype", &dlt);
-        source_id =
-            RegisterField("kismet.packet.source", TrackerUInt64,
-                    "packetsource id", &source);
-
-        data_id =
-            RegisterField("kismet.packet.data", TrackerByteArray,
-                    "packet data", &data);
+        RegisterField("kismet.packet.ts_sec", "packet timestamp (second)", &ts_sec);
+        RegisterField("kismet.packet.ts_usec", "packet timestamp (usec)", &ts_usec);
+        RegisterField("kismet.packet.dlt", "packet DLT linktype", &dlt);
+        RegisterField("kismet.packet.source", "packetsource id", &source);
+        RegisterField("kismet.packet.data", "packet data", &data);
     }
 
-    int ts_sec_id;
-    SharedTrackerElement ts_sec;
-
-    int ts_usec_id;
-    SharedTrackerElement ts_usec;
-
-    int dlt_id;
-    SharedTrackerElement dlt;
-
-    int source_id;
-    SharedTrackerElement source;
-
-    int data_id;
-    SharedTrackerElement data;
-
+    std::shared_ptr<TrackerElementUInt64> ts_sec;
+    std::shared_ptr<TrackerElementUInt64> ts_usec;
+    std::shared_ptr<TrackerElementUInt64> dlt;
+    std::shared_ptr<TrackerElementUInt64> source;
+    std::shared_ptr<TrackerElementByteArray> data;
 };
 
 // Arbitrary data chunk, decapsulated from the link headers

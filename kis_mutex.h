@@ -92,7 +92,6 @@ private:
 #if ALWAYS_USE_KISMET_MUTEX != 0 || \
     (!defined(__clang__) && defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || \
         (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
-#warning Using pthread emulated mutex 
 using kis_recursive_timed_mutex = kis_recursive_pthread_timed_mutex;
 #else
 using kis_recursive_timed_mutex = std::recursive_timed_mutex;

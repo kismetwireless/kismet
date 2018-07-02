@@ -56,27 +56,27 @@ class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public Lifetim
     public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     static std::shared_ptr<KisDatabaseLogfile> 
-        create_kisdatabaselog(GlobalRegistry *in_globalreg) {
-            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile(in_globalreg));
-            in_globalreg->RegisterLifetimeGlobal(mon);
-            in_globalreg->InsertGlobal("DATABASELOG", mon);
+        create_kisdatabaselog() {
+            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile());
+            Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+            Globalreg::globalreg->InsertGlobal("DATABASELOG", mon);
             return mon;
         }
 
-    KisDatabaseLogfile(GlobalRegistry *in_globalreg);
+    KisDatabaseLogfile();
     virtual ~KisDatabaseLogfile();
 
     void SetDatabaseBuilder(SharedLogBuilder in_builder) {
         builder = in_builder;
     }
 
-    virtual bool Log_Open(std::string in_path);
-    virtual void Log_Close();
+    virtual bool Log_Open(std::string in_path) override;
+    virtual void Log_Close() override;
 
-    virtual int Database_UpgradeDB();
+    virtual int Database_UpgradeDB() override;
 
     // Log a vector of multiple devices, replacing any old device records
-    virtual int log_devices(TrackerElementVector in_devices);
+    virtual int log_devices(std::shared_ptr<TrackerElementVector> in_devices);
 
     // Device logs are non-streaming; we need to know the last time we generated
     // device logs so that we can update just the logs we need.
@@ -108,18 +108,16 @@ public:
     static void Usage(const char *argv0);
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
-    GlobalRegistry *globalreg;
-
     // Is the database even enabled?
     bool db_enabled;
 
@@ -167,28 +165,26 @@ protected:
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
 public:
-    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisLogfileBuilder(in_globalreg, in_id) {
+    KisDatabaseLogfileBuilder() :
+        KisLogfileBuilder() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    KisDatabaseLogfileBuilder(int in_id) :
+        KisLogfileBuilder(in_id) {
            
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        KisLogfileBuilder(in_globalreg, in_id, e) {
+    KisDatabaseLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisLogfileBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
-        initialize();
-    }
-
-    KisDatabaseLogfileBuilder(GlobalRegistry *in_globalreg) :
-        KisLogfileBuilder(in_globalreg, 0) {
-
-        register_fields();
-        reserve_fields(NULL);
         initialize();
     }
 
@@ -198,7 +194,7 @@ public:
     // logfile system instead
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
         std::shared_ptr<KisDatabaseLogfile> logfile =
-            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>("DATABASELOG");
         logfile->SetDatabaseBuilder(builder);
         return logfile;
     }

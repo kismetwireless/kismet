@@ -21,8 +21,8 @@
 #include "gpstracker.h"
 #include "messagebus.h"
 
-GPSFake::GPSFake(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder) : 
-    KisGps(in_globalreg, in_builder) { }
+GPSFake::GPSFake(SharedGpsBuilder in_builder) : 
+    KisGps(in_builder) { }
 
 GPSFake::~GPSFake() { }
 
@@ -69,12 +69,10 @@ bool GPSFake::open_gps(std::string in_opts) {
         gps_location->fix = 3;
     }
 
-    std::stringstream msg;
-    msg << "GPSVirtual setting location to " << gps_location->lat << "," <<
-        gps_location->lon << " @ " << gps_location->alt << "m";
-    _MSG(msg.str(), MSGFLAG_INFO);
+    _MSG_INFO("GPSVirtual using location {},{} @ {}", gps_location->lat,
+            gps_location->lon, gps_location->alt);
 
-    msg.str("");
+    std::stringstream msg;
     msg << "Virtual GPS at " << gps_location->lat << "," << 
         gps_location->lon << " @ " << gps_location->alt << "m";
     set_int_gps_description(msg.str());

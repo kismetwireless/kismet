@@ -73,11 +73,11 @@ public:
 
     // Shortcut to checking if the serializer can handle this, since most
     // endpoints will be implementing serialization
-    virtual bool Httpd_CanSerialize(std::string path);
+    virtual bool Httpd_CanSerialize(const std::string& path);
 
     // Shortcuts for getting path info
-    virtual std::string Httpd_GetSuffix(std::string path);
-    virtual std::string Httpd_StripSuffix(std::string path);
+    virtual std::string Httpd_GetSuffix(const std::string& path);
+    virtual std::string Httpd_StripSuffix(const std::string& path);
 
 
     // By default, the Kismet HTTPD implementation will cache all POST variables
@@ -133,8 +133,6 @@ protected:
     GlobalRegistry *http_globalreg;
 
     std::shared_ptr<Kis_Net_Httpd> httpd;
-    std::shared_ptr<EntryTracker> entrytracker;
-
 };
 
 // Take a C++ stream and use it as a response
@@ -164,9 +162,9 @@ public:
 
     // Shortcuts to the entry tracker and serializer since most endpoints will
     // need to serialize
-    virtual bool Httpd_Serialize(std::string path, std::stringstream &stream,
+    virtual bool Httpd_Serialize(const std::string& path, std::stringstream &stream,
             SharedTrackerElement e, 
-            TrackerElementSerializer::rename_map *name_map = NULL);
+            std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
 };
 
 // Fallback handler to report that we can't serve static files

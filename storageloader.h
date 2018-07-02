@@ -37,8 +37,7 @@
 
 namespace StorageLoader {
 
-SharedTrackerElement storage_to_tracker(std::shared_ptr<EntryTracker> entrytracker,
-        SharedStructured d); 
+SharedTrackerElement storage_to_tracker(SharedStructured d); 
 
 };
 

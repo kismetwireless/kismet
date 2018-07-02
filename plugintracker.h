@@ -104,6 +104,7 @@
 #include "kis_mutex.h"
 
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 #include "kis_net_microhttpd.h"
 
 // The registration object is created by the plugintracker and given to
@@ -111,17 +112,23 @@
 // the registration process
 class PluginRegistrationData : public tracker_component {
 public:
-    PluginRegistrationData(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    PluginRegistrationData() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+        dlfile = NULL;
+    }
+
+    PluginRegistrationData(int in_id) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
 
         dlfile = NULL;
     }
 
-    PluginRegistrationData(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    PluginRegistrationData(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
 
         register_fields();
         reserve_fields(e);
@@ -134,8 +141,20 @@ public:
             dlclose(dlfile);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new PluginRegistrationData(globalreg, get_id()));
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("PluginRegistrationData");
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
     }
 
     __Proxy(plugin_name, std::string, std::string, std::string, plugin_name);
@@ -158,37 +177,29 @@ public:
     }
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.plugin.name", TrackerString,
-                "plugin name", &plugin_name);
-        RegisterField("kismet.plugin.description", TrackerString,
-                "plugin description", &plugin_description);
-        RegisterField("kismet.plugin.author", TrackerString,
-                "plugin author", &plugin_author);
-        RegisterField("kismet.plugin.version", TrackerString,
-                "plugin version", &plugin_version);
-        RegisterField("kismet.plugin.shared_object", TrackerString,
-                "plugin shared object filename", &plugin_so);
-        RegisterField("kismet.plugin.dirname", TrackerString,
-                "plugin directory name", &plugin_dirname);
-        RegisterField("kismet.plugin.path", TrackerString, 
-                "path to plugin content", &plugin_path);
-        RegisterField("kismet.plugin.jsmodule", TrackerString,
-                "Plugin javascript module", &plugin_js);
+        RegisterField("kismet.plugin.name", "plugin name", &plugin_name);
+        RegisterField("kismet.plugin.description", "plugin description", &plugin_description);
+        RegisterField("kismet.plugin.author", "plugin author", &plugin_author);
+        RegisterField("kismet.plugin.version", "plugin version", &plugin_version);
+        RegisterField("kismet.plugin.shared_object", "plugin shared object filename", &plugin_so);
+        RegisterField("kismet.plugin.dirname", "plugin directory name", &plugin_dirname);
+        RegisterField("kismet.plugin.path", "path to plugin content", &plugin_path);
+        RegisterField("kismet.plugin.jsmodule", "Plugin javascript module", &plugin_js);
     }
 
-    SharedTrackerElement plugin_name;
-    SharedTrackerElement plugin_author;
-    SharedTrackerElement plugin_description;
-    SharedTrackerElement plugin_version;
+    std::shared_ptr<TrackerElementString> plugin_name;
+    std::shared_ptr<TrackerElementString> plugin_author;
+    std::shared_ptr<TrackerElementString> plugin_description;
+    std::shared_ptr<TrackerElementString> plugin_version;
 
-    SharedTrackerElement plugin_so;
-    SharedTrackerElement plugin_dirname;
-    SharedTrackerElement plugin_path;
+    std::shared_ptr<TrackerElementString> plugin_so;
+    std::shared_ptr<TrackerElementString> plugin_dirname;
+    std::shared_ptr<TrackerElementString> plugin_path;
 
-    SharedTrackerElement plugin_js;
+    std::shared_ptr<TrackerElementString> plugin_js;
 
     void *dlfile;
 
@@ -274,8 +285,7 @@ protected:
 	int ScanDirectory(DIR *in_dir, std::string in_path);
 
     // Final vector of registered activated plugins
-    SharedTrackerElement plugin_registry;
-    TrackerElementVector plugin_registry_vec;
+    std::shared_ptr<TrackerElementVector> plugin_registry_vec;
 
     // List of plugins before they're loaded
     std::vector<SharedPluginData> plugin_preload;

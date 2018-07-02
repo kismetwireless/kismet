@@ -36,12 +36,10 @@
 #include "endian_magic.h"
 #include "kis_databaselogfile.h"
 
-DST_DatasourceProbe::DST_DatasourceProbe(GlobalRegistry *in_globalreg, 
-        std::string in_definition, SharedTrackerElement in_protovec) {
+DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition, 
+        std::shared_ptr<TrackerElementVector> in_protovec) {
 
-    globalreg = in_globalreg;
-
-    timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     definition = in_definition;
     proto_vec = in_protovec;
@@ -146,12 +144,10 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
 
     probe_cb = in_cb;
 
-    TrackerElementVector vec(proto_vec);
-
     std::vector<SharedDatasourceBuilder> remote_builders;
 
-    for (auto i = vec.begin(); i != vec.end(); ++i) {
-        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
+    for (auto i : *proto_vec) {
+        auto b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
         if (!b->get_probe_capable())
             continue;
@@ -180,11 +176,8 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
 
 }
 
-DST_DatasourceList::DST_DatasourceList(GlobalRegistry *in_globalreg,
-        SharedTrackerElement in_protovec) {
-    globalreg = in_globalreg;
-
-    timetracker = Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+DST_DatasourceList::DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec) {
+    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     proto_vec = in_protovec;
 
@@ -253,12 +246,10 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
 
     list_cb = in_cb;
 
-    TrackerElementVector vec(proto_vec);
-
     std::vector<SharedDatasourceBuilder> remote_builders;
 
-    for (auto i = vec.begin(); i != vec.end(); ++i) {
-        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
+    for (auto i : *proto_vec) {
+        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
         if (!b->get_list_capable())
             continue;
@@ -288,42 +279,78 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
 }
 
 
-Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg),
-    TcpServerV2(in_globalreg) {
-    globalreg = in_globalreg;
+Datasourcetracker::Datasourcetracker() :
+    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg),
+    TcpServerV2(Globalreg::globalreg) {
 
-    entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
-    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    proto_id = 
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.driver",
+                TrackerElementFactory<KisDatasourceBuilder>(),
+                "Datasource driver information");
 
-    // Create an alert for source errors
-    std::shared_ptr<Alertracker> alertracker =
-        Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-
-    alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
-    alertracker->ActivateConfiguredAlert("SOURCEERROR",
-            "A data source encountered an error.  Depending on the source configuration "
-            "Kismet may automatically attempt to re-open the source.");
-
-    dst_proto_builder =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.driver", 
-                SharedDatasourceBuilder(new KisDatasourceBuilder(globalreg, 0)), 
-                    "Datasource driver");
-
-    dst_source_builder =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.datasource",
-                SharedDatasource(new KisDatasource(globalreg, 0)),
+    source_id =
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.datasource",
+                TrackerElementFactory<KisDatasource>(nullptr),
                 "Datasource");
 
     proto_vec =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.drivers",
-                TrackerVector, "Known drivers");
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.drivers",
+                TrackerElementFactory<TrackerElementVector>(), "Known drivers");
 
     datasource_vec =
-        entrytracker->RegisterAndGetField("kismet.datasourcetracker.sources",
-                TrackerVector, "Configured sources");
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
+                TrackerElementFactory<TrackerElementVector>(), "Configured sources");
+
+
+}
+
+Datasourcetracker::~Datasourcetracker() {
+    local_locker lock(&dst_lock);
+
+    Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
+
+    if (completion_cleanup_id >= 0)
+        timetracker->RemoveTimer(completion_cleanup_id);
+
+    if (database_log_timer >= 0) {
+        timetracker->RemoveTimer(database_log_timer);
+        databaselog_write_datasources();
+    }
+
+    for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
+        i->second->cancel();
+    }
+
+    for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
+        // TODO implement these
+        // i->second->cancel();
+    }
+
+    datasource_vec.reset();
+}
+
+void Datasourcetracker::databaselog_write_datasources() {
+    if (!database_log_enabled)
+        return;
+
+    std::shared_ptr<KisDatabaseLogfile> dbf =
+        Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+    
+    if (dbf == NULL)
+        return;
+
+    // Fire off a database log
+    dbf->log_datasources(datasource_vec);
+}
+
+std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
+    return config_defaults;
+}
+
+void Datasourcetracker::Deferred_Startup() {
+    bool used_args = false;
 
     completion_cleanup_id = -1;
     next_probe_id = 0;
@@ -332,20 +359,18 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     next_source_num = 0;
 
     config_defaults = 
-        std::static_pointer_cast<datasourcetracker_defaults>(
-                entrytracker->RegisterAndGetField("kismet.datasourcetracker.defaults", 
-                    std::shared_ptr<datasourcetracker_defaults>(new 
-                        datasourcetracker_defaults(globalreg, 0)), 
-                    "Datasource default values"));
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<datasourcetracker_defaults>("kismet.datasourcetracker.defaults",
+                TrackerElementFactory<datasourcetracker_defaults>(),
+                "Datasource default values");
 
-    if (globalreg->kismet_config->FetchOptBoolean("channel_hop", true)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("channel_hop", true)) {
         _MSG("Enabling channel hopping by default on sources which support channel "
                 "control.", MSGFLAG_INFO);
         config_defaults->set_hop(true);
     }
 
     std::string optval;
-    if ((optval = globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
+    if ((optval = Globalreg::globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
         double dv = string_to_rate(optval, 1);
         config_defaults->set_hop_rate(dv);
         _MSG("Setting default channel hop rate to " + optval, MSGFLAG_INFO);
@@ -355,25 +380,25 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         config_defaults->set_hop_rate(1);
     }
 
-    if (globalreg->kismet_config->FetchOptBoolean("split_source_hopping", true)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("split_source_hopping", true)) {
         _MSG("Enabling channel list splitting on sources which share the same list "
                 "of channels", MSGFLAG_INFO);
         config_defaults->set_split_same_sources(true);
     }
 
-    if (globalreg->kismet_config->FetchOptBoolean("randomized_hopping", true)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("randomized_hopping", true)) {
         _MSG("Enabling channel list shuffling to optimize overlaps", MSGFLAG_INFO);
         config_defaults->set_random_channel_order(true);
     }
 
-    if (globalreg->kismet_config->FetchOptBoolean("retry_on_source_error", true)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("retry_on_source_error", true)) {
         _MSG("Sources will be re-opened if they encounter an error", MSGFLAG_INFO);
         config_defaults->set_retry_on_error(true);
     }
 
-    std::string listen = globalreg->kismet_config->FetchOpt("remote_capture_listen");
+    std::string listen = Globalreg::globalreg->kismet_config->FetchOpt("remote_capture_listen");
     uint32_t listenport = 
-        globalreg->kismet_config->FetchOptUInt("remote_capture_port", 0);
+        Globalreg::globalreg->kismet_config->FetchOptUInt("remote_capture_port", 0);
 
     if (listen.length() == 0) {
         _MSG("No remote_capture_listen= line found in kismet.conf; no remote "
@@ -388,21 +413,21 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
     config_defaults->set_remote_cap_listen(listen);
     config_defaults->set_remote_cap_port(listenport);
 
-    config_defaults->set_remote_cap_timestamp(globalreg->kismet_config->FetchOptBoolean("override_remote_timestamp", true));
+    config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->FetchOptBoolean("override_remote_timestamp", true));
 
-    httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap(globalreg));
+    httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap());
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_datasources", 
             "/js/kismet.ui.datasources.js");
 
     database_log_enabled = false;
 
-    if (globalreg->kismet_config->FetchOptBoolean("kis_log_datasources", true)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_datasources", true)) {
         unsigned int lograte =
-            globalreg->kismet_config->FetchOptUInt("kis_log_datasource_rate", 30);
+            Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_datasource_rate", 30);
 
         _MSG("Saving datasources to the Kismet database log every " + UIntToString(lograte) + 
                 " seconds.", MSGFLAG_INFO);
@@ -446,53 +471,14 @@ Datasourcetracker::Datasourcetracker(GlobalRegistry *in_globalreg) :
         database_log_timer = -1;
     }
 
-}
 
-Datasourcetracker::~Datasourcetracker() {
-    local_locker lock(&dst_lock);
+    // Create an alert for source errors
+    auto alertracker = Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
 
-    globalreg->RemoveGlobal("DATA_SOURCE_TRACKER");
-
-    if (completion_cleanup_id >= 0)
-        timetracker->RemoveTimer(completion_cleanup_id);
-
-    if (database_log_timer >= 0) {
-        timetracker->RemoveTimer(database_log_timer);
-        databaselog_write_datasources();
-    }
-
-    for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
-        i->second->cancel();
-    }
-
-    for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
-        // TODO implement these
-        // i->second->cancel();
-    }
-
-    datasource_vec.reset();
-}
-
-void Datasourcetracker::databaselog_write_datasources() {
-    if (!database_log_enabled)
-        return;
-
-    std::shared_ptr<KisDatabaseLogfile> dbf =
-        Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
-    
-    if (dbf == NULL)
-        return;
-
-    // Fire off a database log
-    dbf->log_datasources(datasource_vec);
-}
-
-std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
-    return config_defaults;
-}
-
-void Datasourcetracker::Deferred_Startup() {
-    bool used_args = false;
+    alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
+    alertracker->ActivateConfiguredAlert("SOURCEERROR",
+            "A data source encountered an error.  Depending on the source configuration "
+            "Kismet may automatically attempt to re-open the source.");
 
     std::vector<std::string> src_vec;
 
@@ -506,8 +492,8 @@ void Datasourcetracker::Deferred_Startup() {
     optind = 0;
 
     // Activate remote capture
-    std::string listen = config_defaults->get_remote_cap_listen();
-    unsigned int listenport = config_defaults->get_remote_cap_port();
+    listen = config_defaults->get_remote_cap_listen();
+    listenport = config_defaults->get_remote_cap_port();
 
     if (config_defaults->get_remote_cap_listen().length() != 0 && 
             config_defaults->get_remote_cap_port() != 0) {
@@ -517,14 +503,14 @@ void Datasourcetracker::Deferred_Startup() {
             _MSG("Failed to launch remote capture TCP server, check your "
                     "remote_capture_listen= and remote_capture_port= lines in "
                     "kismet.conf", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
         }
     }
 
     remote_complete_timer = -1;
 
     while (1) {
-        int r = getopt_long(globalreg->argc, globalreg->argv, "-c:",
+        int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-c:",
                 packetsource_long_options, &option_idx);
 
         if (r < 0) break;
@@ -539,7 +525,7 @@ void Datasourcetracker::Deferred_Startup() {
         _MSG("Data sources passed on the command line (via -c source), ignoring "
                 "source= definitions in the Kismet config file.", MSGFLAG_INFO);
     } else {
-        src_vec = globalreg->kismet_config->FetchOptVec("source");
+        src_vec = Globalreg::globalreg->kismet_config->FetchOptVec("source");
     }
 
     if (src_vec.size() == 0) {
@@ -573,48 +559,39 @@ void Datasourcetracker::Deferred_Startup() {
 void Datasourcetracker::Deferred_Shutdown() {
     local_locker lock(&dst_lock);
 
-    TrackerElementVector dvec(datasource_vec);
-
-    for (auto i = dvec.begin(); i != dvec.end(); ++i) {
-        SharedDatasource ds = std::static_pointer_cast<KisDatasource>(*i);
-
-        ds->close_source();
+    for (auto i : *datasource_vec) {
+        std::static_pointer_cast<KisDatasource>(i)->close_source();
     }
 }
 
 void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     local_locker lock(&dst_lock);
 
-    for (unsigned int x = 0; x < datasource_vec->size(); x++) {
-        std::shared_ptr<KisDatasource> kds = 
-            std::static_pointer_cast<KisDatasource>(datasource_vec->get_vector_value(x));
-        in_worker->handle_datasource(kds);
+    for (auto kds : *datasource_vec) {
+        in_worker->handle_datasource(std::static_pointer_cast<KisDatasource>(kds));
     }
 
     in_worker->finalize();
 }
 
-bool Datasourcetracker::remove_datasource(uuid in_uuid) {
+bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
-    TrackerElementVector dsv(datasource_vec);
-
     // Look for it in the sources vec and fully close it and get rid of it
-    for (auto i = dsv.begin(); i != dsv.end(); ++i) {
+    for (auto i = datasource_vec->begin(); i != datasource_vec->end(); ++i) {
         SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
 
         if (kds->get_source_uuid() == in_uuid) {
             std::stringstream ss;
 
-            ss << "Closing source '" << kds->get_source_name() << "' and removing "
-                "from list of sources.";
-            _MSG(ss.str(), MSGFLAG_INFO);
+            _MSG_INFO("Closing source '{}' and removing it from the list of available "
+                    "datasources.", kds->get_source_name());
 
             // Close it
             kds->close_source();
 
             // Remove it
-            dsv.erase(i);
+            datasource_vec->erase(i);
 
             // Done
             return true;
@@ -624,37 +601,29 @@ bool Datasourcetracker::remove_datasource(uuid in_uuid) {
     return false;
 }
 
-SharedDatasource Datasourcetracker::find_datasource(uuid in_uuid) {
+SharedDatasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
-    TrackerElementVector dsv(datasource_vec);
+    for (auto i : *datasource_vec) {
+        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(i);
 
-    // Look for it in the sources vec and fully close it and get rid of it
-    for (auto i = dsv.begin(); i != dsv.end(); ++i) {
-        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
-
-        if (kds->get_source_uuid() == in_uuid) {
+        if (kds->get_source_uuid() == in_uuid) 
             return kds;
-        }
     }
 
-    return NULL;
+    return nullptr;
 }
 
-bool Datasourcetracker::close_datasource(uuid in_uuid) {
+bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
-    TrackerElementVector dsv(datasource_vec);
-
-    // Look for it in the sources vec and fully close it and get rid of it
-    for (auto i = dsv.begin(); i != dsv.end(); ++i) {
-        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
+    for (auto i : *datasource_vec) {
+        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) {
             std::stringstream ss;
 
-            ss << "Closing source '" << kds->get_source_name() << "'";
-            _MSG(ss.str(), MSGFLAG_INFO);
+            _MSG_INFO("Closing source '{}'", kds->get_source_name());
 
             // Close it
             kds->close_source();
@@ -670,26 +639,23 @@ bool Datasourcetracker::close_datasource(uuid in_uuid) {
 int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
     local_locker lock(&dst_lock);
 
-    TrackerElementVector vec(proto_vec);
-
-    for (auto i = vec.begin(); i != vec.end(); ++i) {
-        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(*i);
+    for (auto i : *proto_vec) {
+        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
         if (StrLower(b->get_source_type()) == StrLower(in_builder->get_source_type())) {
-            _MSG("A datasource driver has already been registered for '" + 
-                    b->get_source_type() + "', cannot register it twice.",
-                    MSGFLAG_ERROR);
+            _MSG_ERROR("A dtasource driver has already been registered for source type '{}', "
+                    "cannot register it twice; check your plugins", b->get_source_type());
             return -1;
         }
     }
 
-    vec.push_back(in_builder);
+    proto_vec->push_back(in_builder);
 
     return 1;
 }
 
-void Datasourcetracker::open_datasource(std::string in_source, 
-        std::function<void (bool, std::string, SharedDatasource)> in_cb) {
+void Datasourcetracker::open_datasource(const std::string& in_source, 
+        const std::function<void (bool, std::string, SharedDatasource)>& in_cb) {
     // fprintf(stderr, "debug - DST open source %s\n", in_source.c_str());
 
     // Open a datasource only from the string definition
@@ -729,10 +695,8 @@ void Datasourcetracker::open_datasource(std::string in_source,
 
         bool proto_found = false;
 
-        TrackerElementVector vec(proto_vec);
-
-        for (auto i = vec.begin(); i != vec.end(); ++i) {
-            proto = std::static_pointer_cast<KisDatasourceBuilder>(*i);
+        for (auto i : *proto_vec) {
+            proto = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
             if (StrLower(proto->get_source_type()) == StrLower(type)) {
                 proto_found = true;
@@ -764,11 +728,10 @@ void Datasourcetracker::open_datasource(std::string in_source,
     // tell it to call our CB when it completes.  The probe will find if there 
     // is a driver that can claim the source string we were given, and 
     // we'll initiate opening it if there is
-    _MSG("Probing for datasource type for '" + interface + "'", MSGFLAG_INFO);
+    _MSG_INFO("Probing interface '{}' to find datasource type", interface);
 
     // Create a DSTProber to handle the probing
-    SharedDSTProbe dst_probe(new DST_DatasourceProbe(globalreg, 
-                in_source, proto_vec));
+    SharedDSTProbe dst_probe(new DST_DatasourceProbe(in_source, proto_vec));
     unsigned int probeid = ++next_probe_id;
 
     // Record it
@@ -820,9 +783,9 @@ void Datasourcetracker::open_datasource(std::string in_source,
     return;
 }
 
-void Datasourcetracker::open_datasource(std::string in_source, 
+void Datasourcetracker::open_datasource(const std::string& in_source, 
         SharedDatasourceBuilder in_proto,
-        std::function<void (bool, std::string, SharedDatasource)> in_cb) {
+        const std::function<void (bool, std::string, SharedDatasource)>& in_cb) {
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
@@ -870,21 +833,19 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
 
     if (database_log_enabled) {
         std::shared_ptr<KisDatabaseLogfile> dbf =
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
 
         if (dbf != NULL) {
             dbf->log_datasource(in_source);
         }
     }
 
-    TrackerElementVector vec(datasource_vec);
-    vec.push_back(in_source);
+    datasource_vec->push_back(in_source);
 }
 
-void Datasourcetracker::list_interfaces(std::function<void (std::vector<SharedInterface>)> in_cb) {
-
+void Datasourcetracker::list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb) {
     // Create a DSTProber to handle the probing
-    SharedDSTList dst_list(new DST_DatasourceList(globalreg, proto_vec));
+    SharedDSTList dst_list(new DST_DatasourceList(proto_vec));
     unsigned int listid = 0;
    
     {
@@ -903,11 +864,9 @@ void Datasourcetracker::list_interfaces(std::function<void (std::vector<SharedIn
 
         // Figure out what interfaces are in use by active sources and amend their
         // UUID records in the listing
-        TrackerElementVector dsv(datasource_vec);
         for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
-            for (auto s = dsv.begin(); s != dsv.end(); ++s) {
-                SharedDatasource sds =
-                    std::static_pointer_cast<KisDatasource>(*s);
+            for (auto s : *datasource_vec) {
+                SharedDatasource sds = std::static_pointer_cast<KisDatasource>(s);
                 if (!sds->get_source_remote() &&
                         ((*il)->get_interface() == sds->get_source_interface() ||
                          (*il)->get_interface() == sds->get_source_cap_interface())) {
@@ -955,7 +914,7 @@ void Datasourcetracker::schedule_cleanup() {
 }
 
 void Datasourcetracker::NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) {
-    dst_incoming_remote *incoming = new dst_incoming_remote(globalreg, conn_handler, 
+    dst_incoming_remote *incoming = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
                     uuid in_uuid, std::shared_ptr<BufferHandlerGeneric> in_handler) {
             in_handler->RemoveReadBufferInterface();
@@ -966,16 +925,14 @@ void Datasourcetracker::NewConnection(std::shared_ptr<BufferHandlerGeneric> conn
 }
 
 void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
-        std::string in_type, std::string in_definition, uuid in_uuid, 
+        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
         std::shared_ptr<BufferHandlerGeneric> in_handler) {
     SharedDatasource merge_target_device;
      
     local_locker lock(&dst_lock);
 
     // Look for an existing datasource with the same UUID
-    TrackerElementVector ds_vector(datasource_vec);
-
-    for (auto p : ds_vector) {
+    for (auto p : *datasource_vec) {
         SharedDatasource d = std::static_pointer_cast<KisDatasource>(p);
 
         if (!d->get_source_builder()->get_remote_capable())
@@ -989,15 +946,14 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 
     if (merge_target_device != NULL) {
         if (merge_target_device->get_source_running()) {
-            _MSG("Incoming connection for source " + in_uuid.UUID2String() + " matches " +
-                    merge_target_device->get_source_name() + " which is still marked as "
-                    "running.  The running instance will be closed.  Make sure that multiple "
-                    "remote capture binaries are not running for the same "
-                    "source.", MSGFLAG_ERROR);
+            _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
+                    "which is still running.  The running instance will be closed; make sure "
+                    "that multiple remote captures are not running for the same source.",
+                    in_uuid.UUID2String(), merge_target_device->get_source_name());
             merge_target_device->close_source();
         } else {
-            _MSG("Matching remote source '" + in_definition + "' with existing source "
-                    "with UUID " + in_uuid.UUID2String(), MSGFLAG_INFO);
+            _MSG_INFO("Matching new remote source '{}' with known source with UUID '{}'",
+                    in_definition, in_uuid.UUID2String());
         }
                     
         // Explicitly unlock our mutex before running a thread
@@ -1015,10 +971,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
     }
 
     // Otherwise look for a prototype that can handle it
-
-    TrackerElementVector proto_vector(proto_vec);
-
-    for (auto p : proto_vector) {
+    for (auto p : *proto_vec) {
         SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(p);
 
         if (!b->get_remote_capable())
@@ -1042,9 +995,10 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         }
     }
 
-    _MSG("Datasourcetracker could not find local handler for remote source type '" +
-            in_type + "' definition '" + in_definition + "', closing connection.",
-            MSGFLAG_ERROR);
+    _MSG_ERROR("Kismet could not find a datasource driver for incoming remote source "
+            "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
+            "data source drivers and that any necessary plugins have been loaded.",
+            in_type, in_definition);
     in_handler->ProtocolError();
 
 }
@@ -1053,11 +1007,9 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 // exist, and are hopping
 class dst_chansplit_worker : public DST_Worker {
 public:
-    dst_chansplit_worker(GlobalRegistry *in_globalreg, 
-            Datasourcetracker *in_dst,
+    dst_chansplit_worker(Datasourcetracker *in_dst,
             std::shared_ptr<datasourcetracker_defaults> in_defaults, 
             SharedDatasource in_ds) {
-        globalreg = in_globalreg;
         dst = in_dst;
         defaults = in_defaults;
         target_sources.push_back(in_ds);
@@ -1080,16 +1032,16 @@ public:
 
         bool match_list = true;
 
-        TrackerElementVector initial_channels(initial_ds->get_source_channels_vec());
-        TrackerElementVector compare_channels(in_src->get_source_channels_vec());
+        auto initial_channels = initial_ds->get_source_channels_vec();
+        auto compare_channels = in_src->get_source_channels_vec();
 
-        if (initial_channels.size() != compare_channels.size())
+        if (initial_channels->size() != compare_channels->size())
             return;
 
-        for (auto first_chan : initial_channels) {
+        for (auto first_chan : *initial_channels) {
             bool matched_cur_chan = false;
 
-            for (auto comp_chan : compare_channels) {
+            for (auto comp_chan : *compare_channels) {
                 if (GetTrackerValue<std::string>(first_chan) == 
                         GetTrackerValue<std::string>(comp_chan)) {
                     matched_cur_chan = true;
@@ -1120,22 +1072,20 @@ public:
                 match_type, target_sources.size());
 
         int nintf = 0;
-        for (auto ds = target_sources.begin(); ds != target_sources.end(); ++ds) {
+        for (auto ds : target_sources) {
             int offt_count = target_sources.size();
 
-            SharedTrackerElement ds_hopchans = (*ds)->get_source_hop_vec();
-            TrackerElementVector ds_hopvec(ds_hopchans);
+            auto ds_hopchans = (ds)->get_source_hop_vec();
 
-            int ds_offt = (ds_hopvec.size() / offt_count) * nintf;
+            int ds_offt = (ds_hopchans->size() / offt_count) * nintf;
 
-            double rate = dst->string_to_rate((*ds)->get_definition_opt("channel_hoprate"), -1);
+            double rate = dst->string_to_rate(ds->get_definition_opt("channel_hoprate"), -1);
 
             if (rate < 0) {
                 rate = defaults->get_hop_rate();
             }
 
-            (*ds)->set_channel_hop(rate, ds_hopchans, 
-                    defaults->get_random_channel_order(),
+            ds->set_channel_hop(rate, ds_hopchans, defaults->get_random_channel_order(),
                     ds_offt, 0, NULL);
 
             nintf++;
@@ -1145,8 +1095,6 @@ public:
 
 protected:
     std::string match_type;
-
-    GlobalRegistry *globalreg;
 
     Datasourcetracker *dst;
 
@@ -1167,7 +1115,7 @@ void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
     if (config_defaults->get_hop()) {
         // Do we split sources?
         if (config_defaults->get_split_same_sources()) {
-            dst_chansplit_worker worker(globalreg, this, config_defaults, in_ds);
+            dst_chansplit_worker worker(this, config_defaults, in_ds);
             iterate_datasources(&worker);
         } else {
             in_ds->set_channel_hop(config_defaults->get_hop_rate(),
@@ -1352,7 +1300,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         }
 
         // Locker for waiting for the list callback
-        std::shared_ptr<conditional_locker<std::vector<SharedInterface> > > cl(new conditional_locker<std::vector<SharedInterface> >());
+        std::shared_ptr<conditional_locker<std::vector<SharedInterface>>> cl(new conditional_locker<std::vector<SharedInterface> >());
 
         cl->lock();
 
@@ -1360,20 +1308,18 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         list_interfaces(
                 [cl](std::vector<SharedInterface> iflist) {
                     cl->unlock(iflist);
-
                 });
 
         // Block until the list cmd unlocks us
         std::vector<SharedInterface> iflist = cl->block_until();
 
-        SharedTrackerElement il(new TrackerElement(TrackerVector));
-        TrackerElementVector iv(il);
+        auto iv = std::make_shared<TrackerElementVector>();
 
-        for (auto i = iflist.begin(); i != iflist.end(); ++i) {
-            iv.push_back(*i);
+        for (auto i : iflist) {
+            iv->push_back(i);
         }
 
-        Httpd_Serialize(path, stream, il);
+        Httpd_Serialize(path, stream, iv);
 
         return;
     }
@@ -1395,12 +1341,10 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
             SharedDatasource ds;
 
-            TrackerElementVector svec(datasource_vec);
-
             {
                 local_locker lock(&dst_lock);
-                for (auto i = svec.begin(); i != svec.end(); ++i) {
-                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(*i);
+                for (auto i : *datasource_vec) {
+                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
@@ -1425,11 +1369,11 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                     _MSG("Closing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->disable_source();
-                    stream << "Closing source " << ds->get_uuid().UUID2String();
+                    stream << "Closing source " << ds->get_source_uuid().UUID2String();
                     return;
                 } else {
                     stream << "Source already closed, disabling source " <<
-                        ds->get_uuid().UUID2String();
+                        ds->get_source_uuid().UUID2String();
                     ds->disable_source();
                     return;
                 }
@@ -1574,9 +1518,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     throw std::runtime_error("Unknown source");
 
-                TrackerElementVector dsvec(datasource_vec);
-                for (auto i = dsvec.begin(); i != dsvec.end(); ++i) {
-                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(*i);
+                for (auto i : *datasource_vec) {
+                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
@@ -1598,8 +1541,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         throw std::runtime_error("could not parse channel");
                     }
 
-                    _MSG("Setting source '" + ds->get_source_name() + "' channel '" +
-                            ch + "'", MSGFLAG_INFO);
+                    _MSG_INFO("Setting data source '{}' channel '{}'",
+                            ds->get_source_name(), ch);
 
                     bool cmd_complete_success = false;
 
@@ -1646,9 +1589,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         chstruct = structdata->getStructuredByKey("channels");
                         converted_channels = chstruct->getStringVec();
                     } else {
-                        TrackerElementVector dscv(ds->get_source_hop_vec());
-                        for (auto c : dscv)
-                            converted_channels.push_back(c->get_string());
+                        for (auto c : *(ds->get_source_hop_vec()))
+                            converted_channels.push_back(GetTrackerValue<std::string>(c));
                     }
 
                     std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
@@ -1662,8 +1604,8 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         structdata->getKeyAsNumber("shuffle",
                                 ds->get_source_hop_shuffle());
 
-                    _MSG("Source '" + ds->get_source_name() + "' setting hopping "
-                            "pattern and rate", MSGFLAG_INFO);
+                    _MSG_INFO("Source '{}' setting new hop rate and channel pattern.",
+                            ds->get_source_name());
 
                     bool cmd_complete_success = false;
 
@@ -1762,12 +1704,6 @@ double Datasourcetracker::string_to_rate(std::string in_str, double in_default) 
     }
 }
 
-Datasourcetracker_Httpd_Pcap::Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg) : 
-    Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) {
-
-}
-
-
 bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, 
         const char *method) {
     if (strcmp(method, "GET") == 0) {
@@ -1798,12 +1734,12 @@ bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path,
 
                     if (datasourcetracker == NULL) {
                         datasourcetracker =
-                            Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>(http_globalreg, "DATASOURCETRACKER");
+                            Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
                     }
 
                     if (packetchain == NULL) {
                         std::shared_ptr<Packetchain> packetchain = 
-                            Globalreg::FetchMandatoryGlobalAs<Packetchain>(http_globalreg, "PACKETCHAIN");
+                            Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
                         pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
                     }
 
@@ -1829,7 +1765,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
     }
 
     std::shared_ptr<StreamTracker> streamtracker =
-        Globalreg::FetchMandatoryGlobalAs<StreamTracker>(http_globalreg, "STREAMTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
@@ -1845,7 +1781,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
         Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
             (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
        
-        Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
+        Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(Globalreg::globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
         saux->set_aux(psrb, 
@@ -1879,12 +1815,10 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
                 }
 
                 datasourcetracker =
-                    Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>(http_globalreg, 
-                            "DATASOURCETRACKER");
+                    Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
 
                 std::shared_ptr<Packetchain> packetchain = 
-                    Globalreg::FetchMandatoryGlobalAs<Packetchain>(http_globalreg, 
-                            "PACKETCHAIN");
+                    Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
                 pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
                 SharedDatasource ds = datasourcetracker->find_datasource(u);
@@ -1906,7 +1840,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
 
                 // Fetch the datasource component and compare *source numbers*, not
                 // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
-                Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(http_globalreg,
+                Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(Globalreg::globalreg,
                         saux->get_rbhandler(), 
                         [this, dsnum] (kis_packet *packet) -> bool {
                             packetchain_comp_datasource *datasrcinfo = 
@@ -1946,11 +1880,10 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
     return MHD_YES;
 }
 
-dst_incoming_remote::dst_incoming_remote(GlobalRegistry *in_globalreg,
-        std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+dst_incoming_remote::dst_incoming_remote(std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
         std::function<void (dst_incoming_remote *, std::string, std::string, 
             uuid, std::shared_ptr<BufferHandlerGeneric>)> in_cb) :
-    KisExternalInterface(in_globalreg) {
+    KisExternalInterface() {
     
     cb = in_cb;
 
@@ -2000,7 +1933,7 @@ void dst_incoming_remote::kill() {
     close_external();
 
     std::shared_ptr<Datasourcetracker> datasourcetracker =
-        Globalreg::FetchGlobalAs<Datasourcetracker>(globalreg, "DATASOURCETRACKER");
+        Globalreg::FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
 
     if (datasourcetracker != NULL) 
         datasourcetracker->queue_dead_remote(this);

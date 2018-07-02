@@ -29,11 +29,11 @@
 
 class KisPcapNGLogfile : public KisLogfile {
 public:
-    KisPcapNGLogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder);
+    KisPcapNGLogfile(SharedLogBuilder in_builder);
     virtual ~KisPcapNGLogfile();
 
-    virtual bool Log_Open(std::string in_path);
-    virtual void Log_Close();
+    virtual bool Log_Open(std::string in_path) override;
+    virtual void Log_Close() override;
 
 protected:
     Pcap_Stream_Ringbuf *pcapng_stream;
@@ -43,35 +43,31 @@ protected:
 
 class KisPcapNGLogfileBuilder : public KisLogfileBuilder {
 public:
-    KisPcapNGLogfileBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisLogfileBuilder(in_globalreg, in_id) {
-
+    KisPcapNGLogfileBuilder() :
+        KisLogfileBuilder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPcapNGLogfileBuilder(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        KisLogfileBuilder(in_globalreg, in_id, e) {
+    KisPcapNGLogfileBuilder(int in_id) :
+        KisLogfileBuilder(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
 
+    KisPcapNGLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisLogfileBuilder(in_id, e) {
         register_fields();
         reserve_fields(e);
-        initialize();
-    }
-
-    KisPcapNGLogfileBuilder(GlobalRegistry *in_globalreg) :
-        KisLogfileBuilder(in_globalreg, 0) {
-
-        register_fields();
-        reserve_fields(NULL);
         initialize();
     }
 
     virtual ~KisPcapNGLogfileBuilder() { }
 
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
-        return SharedLogfile(new KisPcapNGLogfile(globalreg, builder));
+        return SharedLogfile(new KisPcapNGLogfile(builder));
     }
 
     virtual void initialize() {

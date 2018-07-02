@@ -231,8 +231,8 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     if (httpd != NULL)
         httpd->StopHttpd();
 
-    std::shared_ptr<Devicetracker> devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER");
+    auto devicetracker =
+        Globalreg::FetchGlobalAs<Devicetracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
         devicetracker->store_all_devices();
         devicetracker->databaselog_write_all_devices();
@@ -703,9 +703,9 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGPIPE, SIG_IGN);
 
     // Build the globalregistry
-    globalregistry = new GlobalRegistry;
+    Globalreg::globalreg = new GlobalRegistry;
+    globalregistry = Globalreg::globalreg;
     globalreg = globalregistry;
-    Globalreg::globalreg = globalregistry;
 
     // Fill in base globalreg elements
     globalregistry->version_major = VERSION_MAJOR;
@@ -878,17 +878,16 @@ int main(int argc, char *argv[], char *envp[]) {
     // Allocate some other critical stuff like the entry tracker and the
     // serializers
     std::shared_ptr<EntryTracker> entrytracker =
-        EntryTracker::create_entrytracker(globalregistry);
+        EntryTracker::create_entrytracker(Globalreg::globalreg);
 
     // Base serializers
-    entrytracker->RegisterSerializer("json", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("ekjson", std::shared_ptr<TrackerElementSerializer>(new EkJsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("prettyjson", std::shared_ptr<TrackerElementSerializer>(new PrettyJsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("storagejson", std::shared_ptr<TrackerElementSerializer>(new StorageJsonAdapter::Serializer(globalregistry)));
+    entrytracker->RegisterSerializer("json", std::make_shared<JsonAdapter::Serializer>());
+    entrytracker->RegisterSerializer("ekjson", std::make_shared<EkJsonAdapter::Serializer>());
+    entrytracker->RegisterSerializer("prettyjson", std::make_shared<PrettyJsonAdapter::Serializer>());
+    entrytracker->RegisterSerializer("storagejson", std::make_shared<StorageJsonAdapter::Serializer>());
 
-    entrytracker->RegisterSerializer("jcmd", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
-    entrytracker->RegisterSerializer("cmd", std::shared_ptr<TrackerElementSerializer>(new JsonAdapter::Serializer(globalregistry)));
-
+    entrytracker->RegisterSerializer("jcmd", std::make_shared<JsonAdapter::Serializer>());
+    entrytracker->RegisterSerializer("cmd", std::make_shared<JsonAdapter::Serializer>());
 
     if (daemonize) {
         int pid = fork();
@@ -919,10 +918,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the IPC handler
     IPCRemoteV2Tracker::create_ipcremote(globalregistry);
 
-    // Create the packet chain
-    _MSG("Creating packet chain...", MSGFLAG_INFO);
-    Packetchain::create_packetchain(globalregistry);
-
     // Create the stream tracking
     StreamTracker::create_streamtracker(globalregistry);
 
@@ -935,12 +930,15 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add module registry
     Kis_Httpd_Registry::create_http_registry(globalregistry);
 
-    // Create the alert tracker
-    Alertracker::create_alertracker(globalregistry);
+    // Create the packet chain
+    Packetchain::create_packetchain(globalregistry);
 
     // Add the datasource tracker
     std::shared_ptr<Datasourcetracker> datasourcetracker;
-    datasourcetracker = Datasourcetracker::create_dst(globalregistry);
+    datasourcetracker = Datasourcetracker::create_dst();
+
+    // Create the alert tracker
+    Alertracker::create_alertracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
@@ -965,36 +963,36 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Dissector_IPdata(globalregistry);
 
     // Register the base PHYs
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
 
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalregistry, "DEVICE_TRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         CatchShutdown(-1);
 
     // Add the datasources
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder(globalregistry)));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder(globalregistry)));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder(globalregistry)));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder(globalregistry)));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder(globalregistry)));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder(globalregistry)));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceFreaklabsZigbeeBuilder(globalregistry)));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceFreaklabsZigbeeBuilder()));
 
     // Create the database logger as a global because it's a special case
-    KisDatabaseLogfile::create_kisdatabaselog(globalregistry);
+    KisDatabaseLogfile::create_kisdatabaselog();
 
-    LogTracker::create_logtracker(globalregistry);
+    LogTracker::create_logtracker();
 
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPPILogfileBuilder(globalregistry)));
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder(globalregistry)));
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>(globalregistry, "LOGTRACKER")->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder(globalregistry)));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>("LOGTRACKER")->register_log(SharedLogBuilder(new KisPPILogfileBuilder()));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>("LOGTRACKER")->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder()));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>("LOGTRACKER")->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
 
 
     std::shared_ptr<Plugintracker> plugintracker;
@@ -1022,7 +1020,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the GPS components
-    GpsTracker::create_gpsmanager(globalregistry);
+    GpsTracker::create_gpsmanager();
 
     // Create the manuf db
     globalregistry->manufdb = new Manuf(globalregistry);
@@ -1036,7 +1034,7 @@ int main(int argc, char *argv[], char *envp[]) {
         CatchShutdown(-1);
 
     // Add system monitor 
-    Systemmonitor::create_systemmonitor(globalregistry);
+    Systemmonitor::create_systemmonitor();
 
     // Set the global silence now that we're set up
     glob_silent = local_silent;

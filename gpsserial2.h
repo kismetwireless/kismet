@@ -37,7 +37,7 @@
 
 class GPSSerialV2 : public GPSNMEA {
 public:
-    GPSSerialV2(GlobalRegistry *in_globalreg, SharedGpsBuilder in_builder);
+    GPSSerialV2(SharedGpsBuilder in_builder);
     virtual ~GPSSerialV2();
 
     // BufferInterface API - buffer available implemented in gpsnmea
@@ -75,12 +75,12 @@ protected:
 
 class GPSSerialV2Builder : public KisGpsBuilder {
 public:
-    GPSSerialV2Builder(GlobalRegistry *in_globalreg) : 
-        KisGpsBuilder(in_globalreg, 0) { 
+    GPSSerialV2Builder() : 
+        KisGpsBuilder() { 
         initialize();
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_int_gps_class("serial");
         set_int_gps_class_description("serial-attached NMEA gps (includes USB GPS)");
         set_int_gps_priority(-1000);
@@ -88,8 +88,8 @@ public:
         set_int_singleton(false);
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
-        return SharedGps(new GPSSerialV2(globalreg, in_builder));
+    virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
+        return SharedGps(new GPSSerialV2(in_builder));
     }
 };
 

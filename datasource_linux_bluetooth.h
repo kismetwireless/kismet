@@ -30,8 +30,7 @@ typedef std::shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBlueto
 
 class KisDatasourceLinuxBluetooth : public KisDatasource {
 public:
-    KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, 
-            SharedDatasourceBuilder in_builder);
+    KisDatasourceLinuxBluetooth(SharedDatasourceBuilder in_builder);
 
     virtual ~KisDatasourceLinuxBluetooth() { };
 
@@ -46,39 +45,36 @@ protected:
 
 class DatasourceLinuxBluetoothBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisDatasourceBuilder(in_globalreg, in_id) {
+    DatasourceLinuxBluetoothBuilder() :
+        KisDatasourceBuilder() {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    DatasourceLinuxBluetoothBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        KisDatasourceBuilder(in_globalreg, in_id, e) {
+    DatasourceLinuxBluetoothBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceLinuxBluetoothBuilder(GlobalRegistry *in_globalreg) :
-        KisDatasourceBuilder(in_globalreg, 0) {
+    virtual ~DatasourceLinuxBluetoothBuilder() override { }
 
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
+    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
+        return std::make_shared<KisDatasourceLinuxBluetooth>(in_sh_this);
     }
 
-    virtual ~DatasourceLinuxBluetoothBuilder() { }
-
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceLinuxBluetooth(new KisDatasourceLinuxBluetooth(globalreg, 
-                    in_sh_this));
-    }
-
-    virtual void initialize() {
+    virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
         
         set_source_type("linuxbluetooth");

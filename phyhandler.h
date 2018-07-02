@@ -66,7 +66,7 @@ public:
 protected:
     virtual void SetPhyName(std::string in_phyname) {
         phyname = in_phyname;
-        phyname_hash = TrackedDeviceKey::gen_pkey(phyname);
+        phyname_hash = device_key::gen_pkey(phyname);
     }
 
 	GlobalRegistry *globalreg;

@@ -25,8 +25,8 @@
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
-KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(GlobalRegistry *in_globalreg, 
-        SharedDatasourceBuilder in_builder) : KisDatasource(in_globalreg, in_builder) {
+KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(SharedDatasourceBuilder in_builder) : 
+    KisDatasource(in_builder) {
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 

@@ -55,8 +55,8 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
     PreludeInitClient(PRELUDE_ANALYZER_MODEL);
 #endif
 
-    packetchain = Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-    entrytracker = Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+    packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
 
 	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
 		int scantmp;
@@ -79,25 +79,29 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 
     alert_vec_id =
         entrytracker->RegisterField("kismet.alert.list",
-                TrackerVector, "list of alerts");
+                TrackerElementFactory<TrackerElementVector>(), 
+                "list of alerts");
+
     alert_timestamp_id =
         entrytracker->RegisterField("kismet.alert.timestamp",
-                TrackerDouble, "alert update timestamp");
+                TrackerElementFactory<TrackerElementDouble>(), 
+                "alert update timestamp");
 
-    std::shared_ptr<tracked_alert> alert_builder(new tracked_alert(globalreg, 0));
     alert_entry_id =
         entrytracker->RegisterField("kismet.alert.alert",
-                alert_builder, "Kismet alert");
+                TrackerElementFactory<tracked_alert>(),
+                "Kismet alert");
 
-    alert_defs = 
-        entrytracker->RegisterAndGetField("kismet.alert.definition_list",
-                TrackerVector, "Kismet alert definitions");
-    alert_defs_vec = TrackerElementVector(alert_defs);
 
-    shared_alert_def def_builder(new tracked_alert_definition(globalreg, 0));
+    alert_defs_vec = 
+        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.alert.definition_list",
+                TrackerElementFactory<TrackerElementVector>(), 
+                "Kismet alert definitions");
+
     alert_def_id =
         entrytracker->RegisterField("kismet.alert.alert_definition",
-                def_builder, "Kismet alert definition");
+                TrackerElementFactory<tracked_alert_definition>(),
+                "Kismet alert definition");
 
 	// Register the alert component
 	_PCM(PACK_COMP_ALERT) =
@@ -169,7 +173,8 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
         return -1;
     }
 
-    shared_alert_def arec = std::static_pointer_cast<tracked_alert_definition>(entrytracker->GetTrackedInstance(alert_def_id));
+    auto arec =
+        std::make_shared<tracked_alert_definition>(alert_def_id);
 
     arec->set_alert_ref(next_alert_id++);
     arec->set_header(StrUpper(in_header));
@@ -184,7 +189,7 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
 	alert_name_map[arec->get_header()] = arec->get_alert_ref();
 	alert_ref_map[arec->get_alert_ref()] = arec;
 
-    alert_defs_vec.push_back(arec);
+    alert_defs_vec->push_back(arec);
 
 	return arec->get_alert_ref();
 }
@@ -322,7 +327,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
         std::shared_ptr<KisDatabaseLogfile> dbf =
             Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
         if (dbf != NULL) {
-            std::shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
+            auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
             dbf->log_alert(ta);
         }
@@ -369,7 +374,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
         std::shared_ptr<KisDatabaseLogfile> dbf =
             Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
         if (dbf != NULL) {
-            std::shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
+            auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
             dbf->log_alert(ta);
         }
@@ -659,7 +664,7 @@ void Alertracker::Httpd_CreateStreamResponse(
 
     if (tokenurl[1] == "alerts") {
         if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
-            Httpd_Serialize(path, stream, alert_defs);
+            Httpd_Serialize(path, stream, alert_defs_vec);
             return;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
@@ -672,35 +677,36 @@ void Alertracker::Httpd_CreateStreamResponse(
         }
     }
 
-    std::shared_ptr<TrackerElement> wrapper;
-    std::shared_ptr<TrackerElement> msgvec(new TrackerElement(TrackerVector, alert_vec_id));
+    std::shared_ptr<TrackerElement> transmit;
+    std::shared_ptr<TrackerElementMap> wrapper;
+    std::shared_ptr<TrackerElementVector> msgvec = std::make_shared<TrackerElementVector>(alert_vec_id);
 
     // If we're doing a time-since, wrap the vector
     if (wrap) {
-        wrapper.reset(new TrackerElement(TrackerMap));
-        wrapper->add_map(msgvec);
+        wrapper = std::make_shared<TrackerElementMap>();
+        wrapper->insert(msgvec);
 
-        SharedTrackerElement ts(new TrackerElement(TrackerDouble, alert_timestamp_id));
-        ts->set((double) ts_now_to_double());
-        wrapper->add_map(ts);
+        auto ts = std::make_shared<TrackerElementDouble>(alert_timestamp_id, ts_now_to_double());
+        wrapper->insert(ts);
+
+        transmit = wrapper;
     } else {
-        wrapper = msgvec;
+        transmit = msgvec;
     }
 
     {
         local_locker lock(&alert_mutex);
 
-        for (std::vector<kis_alert_info *>::iterator i = alert_backlog.begin();
-                i != alert_backlog.end(); ++i) {
-            if (since_time < ts_to_double((*i)->tm)) {
-                std::shared_ptr<tracked_alert> ta(new tracked_alert(globalreg, alert_entry_id));
-                ta->from_alert_info(*i);
-                msgvec->add_vector(ta);
+        for (auto i : alert_backlog) {
+            if (since_time < ts_to_double((i)->tm)) {
+                auto ta = std::make_shared<tracked_alert>(alert_entry_id);
+                ta->from_alert_info(i);
+                msgvec->push_back(ta);
             }
         }
     }
 
-    Httpd_Serialize(path, stream, wrapper);
+    Httpd_Serialize(path, stream, transmit);
 }
 
 int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
@@ -754,7 +760,7 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             if (phyname != "any" && phyname != "") {
                 std::shared_ptr<Devicetracker> devicetracker = 
-                    Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+                    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICETRACKER");
                 Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
 
                 if (phyh == NULL)

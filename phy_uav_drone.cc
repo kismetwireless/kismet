@@ -24,7 +24,7 @@
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
 
-void uav_manuf_match::set_uav_manuf_ssid_regex(std::string in_regexstr) {
+void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
 #ifdef HAVE_LIBPCRE
     const char *compile_error, *study_error;
     int erroroffset;
@@ -53,7 +53,7 @@ void uav_manuf_match::set_uav_manuf_ssid_regex(std::string in_regexstr) {
     uav_manuf_ssid_regex->set(in_regexstr);
 }
 
-bool uav_manuf_match::match_record(mac_addr in_mac, std::string in_ssid) {
+bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in_ssid) {
     if (get_uav_manuf_mac().longmac != 0) {
         if (get_uav_manuf_mac() == in_mac) {
             if (get_uav_manuf_partial() || get_uav_manuf_ssid_regex() == "")
@@ -86,8 +86,6 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
 
     packetchain =
         Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-    entrytracker =
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -97,19 +95,19 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         packetchain->RegisterPacketComponent("DEVICE");
 
     uav_device_id =
-        entrytracker->RegisterField("uav.device",
-                std::shared_ptr<uav_tracked_device>(new uav_tracked_device(globalreg, 0)),
+        Globalreg::globalreg->entrytracker->RegisterField("uav.device",
+                TrackerElementFactory<uav_tracked_device>(),
                 "UAV device");
 
-    manuf_match_vec.reset(new TrackerElement(TrackerVector));
+    manuf_match_vec =
+        std::make_shared<TrackerElementVector>();
 
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
-    packetchain->RegisterHandler(Kis_UAV_Phy::CommonClassifier, 
-            this, CHAINPOS_TRACKER, 65535);
+    packetchain->RegisterHandler(Kis_UAV_Phy::CommonClassifier, this, CHAINPOS_TRACKER, 65535);
 
     // Register js module for UI
-    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
+    auto httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_uav", "/js/kismet.ui.uav.js");
 
@@ -125,17 +123,22 @@ Kis_UAV_Phy::~Kis_UAV_Phy() {
 }
 
 
-void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
-        SharedTrackerElement in_device) {
+void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerElement in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 
-    // Does the imported record have UAV?
-    auto devi = in_storage->find(uav_device_id);
+    auto storage_map =
+        TrackerElement::safe_cast_as<TrackerElementMap>(in_storage);
 
-    if (devi != in_storage->end()) {
-        std::shared_ptr<uav_tracked_device> uavdev(new uav_tracked_device(globalreg, uav_device_id, devi->second));
-        in_device->add_map(uavdev);
+    // Does the imported record have UAV?
+    auto devi = storage_map->find(uav_device_id);
+
+    if (devi != storage_map->end()) {
+        auto uavdev =
+            std::make_shared<uav_tracked_device>(uav_device_id, 
+                    TrackerElement::safe_cast_as<TrackerElementMap>(devi->second));
+
+        TrackerElement::safe_cast_as<TrackerElementMap>(in_device)->insert(uavdev);
     }
 }
 
@@ -184,12 +187,13 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     //
                     // Look for subcommand of 0, with 0 content
                     if (dot11info->droneid->raw_record_data().substr(0, 32).find_first_not_of(std::string("\x00", 1)) == std::string::npos) {
-                        std::shared_ptr<uav_tracked_device> uavdev = 
-                            std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+                        auto uavdev =
+                            basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
-                        if (uavdev == NULL) {
-                            uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-                            basedev->add_map(uavdev);
+                        if (uavdev == nullptr) {
+                            uavdev =
+                                std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                            basedev->insert(uavdev);
                         }
 
                         uavdev->set_uav_manufacturer("DJI");
@@ -200,13 +204,14 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                 } 
 
                 auto flightinfo = dot11info->droneid->flight_reg_record();
-                if (flightinfo != NULL) {
-                    std::shared_ptr<uav_tracked_device> uavdev = 
-                        std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+                if (flightinfo != nullptr) {
+                    auto uavdev =
+                        basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
-                    if (uavdev == NULL) {
-                        uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-                        basedev->add_map(uavdev);
+                    if (uavdev == nullptr) {
+                        uavdev =
+                            std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                        basedev->insert(uavdev);
                     }
 
                     if (flightinfo->state_serial_valid()) {
@@ -219,11 +224,12 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
                     uavdev->set_tracker_last_telem_loc(telem);
 
-                    TrackerElementVector tvec(uavdev->get_tracker_uav_telem_history());
-                    tvec.push_back(telem);
+                    auto tvec = uavdev->get_uav_telem_history();
 
-                    if (tvec.size() > 128)
-                        tvec.erase(tvec.begin());
+                    tvec->push_back(telem);
+
+                    if (tvec->size() > 128)
+                        tvec->erase(tvec->begin());
 
                     uavdev->set_uav_match_type("DroneID");
 
@@ -232,19 +238,20 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
                     // Set the home location
                     if (flightinfo->home_lat() != 0 && flightinfo->home_lon() != 0) {
-                        std::shared_ptr<kis_tracked_location_triplet> homeloc = uavdev->get_home_location();
+                        auto homeloc = uavdev->get_home_location();
                         homeloc->set(flightinfo->home_lat(), flightinfo->home_lon());
                     }
                 } 
                
                 auto flightpurpose = dot11info->droneid->flight_purpose_record();
                 if (flightpurpose != NULL) {
-                    std::shared_ptr<uav_tracked_device> uavdev = 
-                        std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+                    auto uavdev =
+                        basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
                     if (uavdev == NULL) {
-                        uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-                        basedev->add_map(uavdev);
+                        uavdev =
+                            std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                        basedev->insert(uavdev);
                     }
 
                     uavdev->set_uav_serialnumber(MungeToPrintable(flightpurpose->serialnumber()));
@@ -263,18 +270,17 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                 (dot11info->subtype == packet_sub_beacon ||
                  dot11info->subtype == packet_sub_probe_resp)) {
 
-            TrackerElementVector matchv(uavphy->manuf_match_vec);
-            for (auto mi : matchv) {
-                std::shared_ptr<uav_manuf_match> m = 
-                    std::static_pointer_cast<uav_manuf_match>(mi);
+            for (auto mi : *(uavphy->manuf_match_vec)) {
+                auto m = std::static_pointer_cast<uav_manuf_match>(mi);
 
                 if (m->match_record(dot11info->bssid_mac, dot11info->ssid)) {
-                    std::shared_ptr<uav_tracked_device> uavdev = 
-                        std::static_pointer_cast<uav_tracked_device>(basedev->get_map_value(uavphy->uav_device_id));
+                    auto uavdev =
+                        basedev->get_sub_as<uav_tracked_device>(uavphy->uav_device_id);
 
-                    if (uavdev == NULL) {
-                        uavdev.reset(new uav_tracked_device(globalreg, uavphy->uav_device_id));
-                        basedev->add_map(uavdev);
+                    if (uavdev == nullptr) {
+                        uavdev =
+                            std::make_shared<uav_tracked_device>(uavphy->uav_device_id);
+                        basedev->insert(uavdev);
                         uavdev->set_uav_manufacturer(m->get_uav_manuf_name());
                         uavdev->set_uav_model(m->get_uav_manuf_model());
                     }
@@ -318,7 +324,8 @@ void Kis_UAV_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     if (stripped == "/phy/phyuav/manuf_matchers") {
         local_locker lock(&uav_mutex);
-        entrytracker->Serialize(httpd->GetSuffix(url), stream, manuf_match_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                manuf_match_vec, NULL);
         return;
     }
 
@@ -342,15 +349,12 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
 
     std::string name = in_def.substr(0, cpos);
 
-    TrackerElementVector matches(manuf_match_vec);
-
-    for (auto i : matches) {
-        std::shared_ptr<uav_manuf_match> mi = 
-            std::static_pointer_cast<uav_manuf_match>(i);
+    for (auto i : *manuf_match_vec) {
+        auto mi = std::static_pointer_cast<uav_manuf_match>(i);
 
         if (mi->get_uav_match_name() == name) {
-            _MSG("Invalid 'uav_match' configuration line, match name '" + name + "' already "
-                    "in use.", MSGFLAG_ERROR);
+            _MSG_INFO("Invalud 'uav_match=' configuration line, match name '{}' already in use.",
+                    name);
             return false;
         }
     }
@@ -382,7 +386,8 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
         }
     }
 
-    std::shared_ptr<uav_manuf_match> manufmatch(new uav_manuf_match(globalreg, 0));
+    auto manufmatch =
+        std::make_shared<uav_manuf_match>();
 
     try {
         manufmatch->set_uav_match_name(name);
@@ -399,12 +404,12 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
 
         manufmatch->set_uav_manuf_partial(matchany);
     } catch (const std::exception& e) {
-        _MSG("Invalid 'uav_match' configuration line, " + std::string(e.what()) + " in definition " +
-                "'" + in_def + "'", MSGFLAG_ERROR);
+        _MSG_ERROR("Invalid 'uav_match=' configuration line: {} in devinition '{}'",
+                e.what(), in_def);
         return false;
     }
 
-    matches.push_back(manufmatch);
+    manuf_match_vec->push_back(manufmatch);
 
     return true;
 }

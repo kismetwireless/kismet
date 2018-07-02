@@ -29,30 +29,23 @@
 #include "kismet_json.h"
 #include "base64.h"
 
-LogTracker::LogTracker(GlobalRegistry *in_globalreg) :
-    tracker_component(in_globalreg, 0),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg),
-    globalreg(in_globalreg) {
+LogTracker::LogTracker() :
+    tracker_component(),
+    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
 
     streamtracker =
-        Globalreg::FetchMandatoryGlobalAs<StreamTracker>(globalreg, "STREAMTRACKER");
-
-    entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     register_fields();
     reserve_fields(NULL);
-
 }
 
 LogTracker::~LogTracker() {
     local_locker lock(&tracker_mutex);
 
-    globalreg->RemoveGlobal("LOGTRACKER");
+    Globalreg::globalreg->RemoveGlobal("LOGTRACKER");
 
-    TrackerElementVector v(logfile_vec);
-
-    for (auto i : v) {
+    for (auto i : *logfile_vec) {
         SharedLogfile f = std::static_pointer_cast<KisLogfile>(i);
         f->Log_Close();
     }
@@ -62,38 +55,27 @@ LogTracker::~LogTracker() {
 }
 
 void LogTracker::register_fields() { 
-    RegisterField("kismet.logtracker.drivers", TrackerVector,
-            "supported log types", &logproto_vec);
-    RegisterField("kismet.logtracker.logfiles", TrackerVector,
-            "active log files", &logfile_vec);
+    RegisterField("kismet.logtracker.drivers", "supported log types", &logproto_vec);
+    RegisterField("kismet.logtracker.logfiles", "active log files", &logfile_vec);
 
     logproto_entry_id =
-        entrytracker->RegisterField("kismet.logtracker.driver",
-                SharedLogBuilder(new KisLogfileBuilder(globalreg, 0)),
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.driver",
+                TrackerElementFactory<KisLogfileBuilder>(),
                 "Log driver");
 
     logfile_entry_id =
-        entrytracker->RegisterField("kismet.logtracker.log",
-                SharedLogfile(new KisLogfile(globalreg, 0)),
+        Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.log",
+                TrackerElementFactory<KisLogfile>(),
                 "Log file");
 
-    // Normally we'd have to register entity IDs here but we'll never snapshot
-    // the log state so we don't care
-    
-    RegisterField("kismet.logtracker.logging_enabled", TrackerUInt8,
-            "logging enabled", &logging_enabled);
-    RegisterField("kismet.logtracker.title", TrackerString,
-            "session title", &log_title);
-    RegisterField("kismet.logtracker.prefix", TrackerString,
-            "log prefix path", &log_prefix);
-    RegisterField("kismet.logtracker.template", TrackerString,
-            "log name template", &log_template);
-
-    RegisterField("kismet.logtracker.log_types", TrackerVector,
-            "enabled log types", &log_types_vec);
+    RegisterField("kismet.logtracker.logging_enabled", "logging enabled", &logging_enabled);
+    RegisterField("kismet.logtracker.title", "session title", &log_title);
+    RegisterField("kismet.logtracker.prefix", "log prefix path", &log_prefix);
+    RegisterField("kismet.logtracker.template", "log name template", &log_template);
+    RegisterField("kismet.logtracker.log_types", "enabled log types", &log_types_vec);
 }
 
-void LogTracker::reserve_fields(SharedTrackerElement e) {
+void LogTracker::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     tracker_component::reserve_fields(e);
 
     // Normally we'd need to implement vector repair for the complex nested
@@ -120,7 +102,7 @@ void LogTracker::Deferred_Startup() {
 	optind = 0;
 
     while (1) {
-        int r = getopt_long(globalreg->argc, globalreg->argv,
+        int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv,
                 "-T:t:np:", 
                 logfile_long_options, &option_idx);
         if (r < 0) break;
@@ -140,9 +122,9 @@ void LogTracker::Deferred_Startup() {
         }
     }
 
-    if (!globalreg->kismet_config->FetchOptBoolean("log_config_present", false)) {
+    if (!Globalreg::globalreg->kismet_config->FetchOptBoolean("log_config_present", false)) {
         std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
         alertracker->RaiseOneShot("CONFIGERROR", "It looks like Kismet is missing "
                 "the kismet_logging.conf config file.  This file was added recently "
                 "in development.  Without it, logging will not perform as expected.  "
@@ -151,43 +133,41 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (arg_enable < 0)
-        set_int_logging_enabled(globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
+        set_int_logging_enabled(Globalreg::globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
     else
         set_int_logging_enabled(false);
 
     if (argtitle.length() == 0)
-        set_int_log_title(globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
+        set_int_log_title(Globalreg::globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
     else
         set_int_log_title(argtitle);
 
     if (argprefix.length() == 0) 
-        set_int_log_prefix(globalreg->kismet_config->FetchOptDfl("log_prefix", "./"));
+        set_int_log_prefix(Globalreg::globalreg->kismet_config->FetchOptDfl("log_prefix", "./"));
     else
         set_int_log_prefix(argprefix);
 
-    set_int_log_template(globalreg->kismet_config->FetchOptDfl("log_template", 
+    set_int_log_template(Globalreg::globalreg->kismet_config->FetchOptDfl("log_template", 
                 "%p/%n-%D-%t-%i.%l"));
 
 
     std::vector<std::string> types;
    
     if (argtypes.length() == 0)
-        types = StrTokenize(globalreg->kismet_config->FetchOpt("log_types"), ",");
+        types = StrTokenize(Globalreg::globalreg->kismet_config->FetchOpt("log_types"), ",");
     else
         types = StrTokenize(argtypes, ",");
         
 
-    TrackerElementVector v(log_types_vec);
-
     for (auto t : types) {
-        SharedTrackerElement e(new TrackerElement(TrackerString, 0));
-        e->set((std::string) t);
-        v.push_back(e);
+        auto e = std::make_shared<TrackerElementString>();
+        e->set(t);
+        log_types_vec->push_back(e);
     }
 
     if (!get_logging_enabled()) {
         std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
         alertracker->RaiseOneShot("LOGDISABLED", "Logging has been disabled via the Kismet "
                 "config files or the command line.  Pcap, database, and related logs "
                 "will not be saved.", -1);
@@ -196,8 +176,8 @@ void LogTracker::Deferred_Startup() {
     }
 
     // Open all of them
-    for (auto t : v) {
-        std::string logtype = GetTrackerValue<std::string>(t);
+    for (auto t : *log_types_vec) {
+        auto logtype = GetTrackerValue<std::string>(t);
         open_log(logtype);
     }
 
@@ -205,9 +185,7 @@ void LogTracker::Deferred_Startup() {
 }
 
 void LogTracker::Deferred_Shutdown() {
-    TrackerElementVector logfiles(logfile_vec);
-
-    for (auto l : logfiles) {
+    for (auto l : *logfile_vec) {
         SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
 
         lf->Log_Close();
@@ -219,10 +197,8 @@ void LogTracker::Deferred_Shutdown() {
 int LogTracker::register_log(SharedLogBuilder in_builder) {
     local_locker lock(&tracker_mutex);
 
-    TrackerElementVector vec(logproto_vec);
-
-    for (auto i : vec) {
-        SharedLogBuilder b = std::static_pointer_cast<KisLogfileBuilder>(i);
+    for (auto i : *logproto_vec) {
+        auto b = std::static_pointer_cast<KisLogfileBuilder>(i);
 
         if (StrLower(b->get_log_class()) == StrLower(in_builder->get_log_class())) {
             _MSG("A logfile driver has already been registered for '" + 
@@ -232,7 +208,7 @@ int LogTracker::register_log(SharedLogBuilder in_builder) {
         }
     }
 
-    vec.push_back(in_builder);
+    logproto_vec->push_back(in_builder);
 
     return 1;
 }
@@ -246,10 +222,8 @@ SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
 
     SharedLogBuilder target_builder;
 
-    TrackerElementVector builders(logproto_vec);
-
-    for (auto b : builders) {
-        std::shared_ptr<KisLogfileBuilder> builder = std::static_pointer_cast<KisLogfileBuilder>(b);
+    for (auto b : *logproto_vec) {
+        auto builder = std::static_pointer_cast<KisLogfileBuilder>(b);
 
         if (builder->get_log_class() == in_class) {
             return open_log(builder, in_title);
@@ -269,12 +243,10 @@ SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder, std::string in_t
     if (in_builder == NULL)
         return NULL;
 
-    TrackerElementVector logfiles(logfile_vec);
-
     // If it's a singleton, make sure we're the only one
     if (in_builder->get_singleton()) {
-        for (auto l : logfiles) {
-            SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
+        for (auto l : *logfile_vec) {
+            auto lf = std::static_pointer_cast<KisLogfile>(l);
 
             if (lf->get_builder()->get_log_class() == in_builder->get_log_class() &&
                     lf->get_log_open()) {
@@ -287,10 +259,10 @@ SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder, std::string in_t
 
     SharedLogfile lf = in_builder->build_logfile(in_builder);
     lf->set_id(logfile_entry_id);
-    logfiles.push_back(lf);
+    logfile_vec->push_back(lf);
 
     std::string logpath =
-        globalreg->kismet_config->ExpandLogPath(get_log_template(),
+        Globalreg::globalreg->kismet_config->ExpandLogPath(get_log_template(),
                 in_title, lf->get_builder()->get_log_class(), 1, 0);
 
     if (!lf->Log_Open(logpath)) {
@@ -350,10 +322,8 @@ bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&tracker_mutex);
 
-            TrackerElementVector fvec(logfile_vec);
-
-            for (auto lfi : fvec) {
-                std::shared_ptr<KisLogfile> lf = std::static_pointer_cast<KisLogfile>(lfi);
+            for (auto lfi : *logfile_vec) {
+                auto lf = std::static_pointer_cast<KisLogfile>(lfi);
 
                 if (lf->get_log_uuid() == u)
                     return true;
@@ -364,11 +334,8 @@ bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&tracker_mutex);
 
-            TrackerElementVector lfvec(logproto_vec);
-
-            for (auto lfi : lfvec) {
-                std::shared_ptr<KisLogfileBuilder> lfb =
-                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+            for (auto lfi : *logproto_vec) {
+                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3])
                     return true;
@@ -397,11 +364,8 @@ bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
 
             local_locker lock(&tracker_mutex);
 
-            TrackerElementVector lfvec(logproto_vec);
-
-            for (auto lfi : lfvec) {
-                std::shared_ptr<KisLogfileBuilder> lfb =
-                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+            for (auto lfi : *logproto_vec) {
+                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3])
                     return true;
@@ -422,10 +386,12 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     std::string stripped = Httpd_StripSuffix(url);
 
     if (stripped == "/logging/drivers") {
-        entrytracker->Serialize(httpd->GetSuffix(url), stream, logproto_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                logproto_vec, NULL);
         return;
     } else if (stripped == "/logging/active") {
-        entrytracker->Serialize(httpd->GetSuffix(url), stream, logfile_vec, NULL);
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                logfile_vec, NULL);
         return;
     }
 
@@ -453,12 +419,10 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
             local_locker lock(&tracker_mutex);
 
-            TrackerElementVector fvec(logfile_vec);
-
             std::shared_ptr<KisLogfile> logfile;
 
-            for (auto lfi : fvec) {
-                std::shared_ptr<KisLogfile> lf = std::static_pointer_cast<KisLogfile>(lfi);
+            for (auto lfi : *logfile_vec) {
+                auto lf = std::static_pointer_cast<KisLogfile>(lfi);
 
                 if (lf->get_log_uuid() == u) {
                     logfile = lf;
@@ -480,13 +444,10 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         } else if (tokenurl[2] == "by-class") {
             local_locker lock(&tracker_mutex);
 
-            TrackerElementVector lfvec(logproto_vec);
-
             std::shared_ptr<KisLogfileBuilder> builder;
 
-            for (auto lfi : lfvec) {
-                std::shared_ptr<KisLogfileBuilder> lfb =
-                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+            for (auto lfi : *logproto_vec) {
+                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3]) {
                     builder = lfb;
@@ -505,7 +466,8 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 if (logf == NULL) 
                     throw std::runtime_error("unable to open log");
 
-                entrytracker->Serialize(httpd->GetSuffix(url), stream, logf, NULL);
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+                        logf, NULL);
 
                 return;
             }
@@ -560,13 +522,10 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         if (tokenurl[2] == "by-class") {
             local_locker lock(&tracker_mutex);
 
-            TrackerElementVector lfvec(logproto_vec);
-
             std::shared_ptr<KisLogfileBuilder> builder;
 
-            for (auto lfi : lfvec) {
-                std::shared_ptr<KisLogfileBuilder> lfb =
-                    std::static_pointer_cast<KisLogfileBuilder>(lfi);
+            for (auto lfi : *logproto_vec) {
+                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3]) {
                     builder = lfb;
@@ -590,7 +549,7 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (logf == NULL) 
                     throw std::runtime_error("unable to open log");
 
-                entrytracker->Serialize(httpd->GetSuffix(concls->url),
+                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url),
                         concls->response_stream, logf, NULL);
                 return MHD_YES;
             }

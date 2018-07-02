@@ -28,49 +28,46 @@ typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
 
 class KisDatasourceRtl433 : public KisDatasource {
 public:
-    KisDatasourceRtl433(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder, 
-            bool in_mqtt);
+    KisDatasourceRtl433(SharedDatasourceBuilder in_builder, bool in_mqtt);
     virtual ~KisDatasourceRtl433();
 
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
-            open_callback_t in_cb);
+            open_callback_t in_cb) override;
 
 };
 
 class DatasourceRtl433Builder : public KisDatasourceBuilder {
 public:
-    DatasourceRtl433Builder(GlobalRegistry *in_globalreg, int in_id) :
-        KisDatasourceBuilder(in_globalreg, in_id) {
+    DatasourceRtl433Builder() :
+        KisDatasourceBuilder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtl433Builder(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        KisDatasourceBuilder(in_globalreg, in_id, e) {
+    DatasourceRtl433Builder(int in_id) :
+        KisDatasourceBuilder(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
+
+    DatasourceRtl433Builder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    DatasourceRtl433Builder(GlobalRegistry *in_globalreg) :
-        KisDatasourceBuilder(in_globalreg, 0) {
-
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
     virtual ~DatasourceRtl433Builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this, false));
+    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, false));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_source_type("rtl433");
         set_source_description("rtl_433 USB SDR");
 
@@ -85,37 +82,34 @@ public:
 
 class DatasourceRtl433MqttBuilder : public KisDatasourceBuilder {
 public:
-    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg, int in_id) :
-        KisDatasourceBuilder(in_globalreg, in_id) {
+    DatasourceRtl433MqttBuilder() :
+        KisDatasourceBuilder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg, int in_id,
-        SharedTrackerElement e) :
-        KisDatasourceBuilder(in_globalreg, in_id, e) {
+    DatasourceRtl433MqttBuilder(int in_id) :
+        KisDatasourceBuilder(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        initialize();
+    }
 
+    DatasourceRtl433MqttBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        KisDatasourceBuilder(in_id, e) {
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    DatasourceRtl433MqttBuilder(GlobalRegistry *in_globalreg) :
-        KisDatasourceBuilder(in_globalreg, 0) {
-
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
     virtual ~DatasourceRtl433MqttBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(globalreg, in_sh_this, true));
+    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
+        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, true));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_source_type("rtl433mqtt");
         set_source_description("rtl_433 MQTT feed");
 

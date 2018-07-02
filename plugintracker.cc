@@ -42,8 +42,7 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
     globalreg = in_globalreg;
 
-    plugin_registry.reset(new TrackerElement(TrackerVector));
-    plugin_registry_vec = TrackerElementVector(plugin_registry);
+    plugin_registry_vec = std::make_shared<TrackerElementVector>();
 
     int option_idx = 0;
     int cmdline_disable = 0;
@@ -163,7 +162,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         cf.ParseConfig(manifest.c_str());
 
-        SharedPluginData preg(new PluginRegistrationData(globalreg, 0));
+        SharedPluginData preg(new PluginRegistrationData());
 
         preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/");
         preg->set_plugin_dirname(plugfile->d_name);
@@ -386,7 +385,7 @@ int Plugintracker::ActivatePlugins() {
 
         _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);
 
-        plugin_registry_vec.push_back(x);
+        plugin_registry_vec->push_back(x);
     }
 
     // Reset the segv handler
@@ -400,7 +399,7 @@ int Plugintracker::ActivatePlugins() {
 int Plugintracker::FinalizePlugins() {
     // Look only at plugins that have a dl file, and attempt to run the finalize
     // function in each
-    for (auto x : plugin_registry_vec) {
+    for (auto x : *plugin_registry_vec) {
         SharedPluginData pd = std::dynamic_pointer_cast<PluginRegistrationData>(x);
 
         void *dlfile;
@@ -428,7 +427,6 @@ int Plugintracker::ShutdownPlugins() {
 
     _MSG("Shutting down plugins...", MSGFLAG_INFO);
 
-    plugin_registry_vec.clear();
     plugin_preload.clear();
 
     return 0;
@@ -459,6 +457,6 @@ void Plugintracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (stripped == "/plugins/all_plugins") {
         local_locker locker(&plugin_lock);
 
-        Httpd_Serialize(path, stream, plugin_registry);
+        Httpd_Serialize(path, stream, plugin_registry_vec);
     }
 }

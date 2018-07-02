@@ -59,7 +59,7 @@ struct KisExternalHttpUri {
 // Basic external interface, implements the core ping/pong/id/message/etc protocols
 class KisExternalInterface : public BufferInterface {
 public:
-    KisExternalInterface(GlobalRegistry *in_globalreg);
+    KisExternalInterface();
     virtual ~KisExternalInterface();
 
     // Connect an existing buffer, such as a TCP socket or IPC pipe
@@ -112,8 +112,6 @@ protected:
     // with the IPC instance.
     std::shared_ptr<IPCRemoteV2> ipc_remote;
 
-    GlobalRegistry *globalreg;
-
     std::shared_ptr<Timetracker> timetracker;
 
     uint32_t seqno;
@@ -128,7 +126,7 @@ protected:
 
 class KisExternalHttpInterface : public KisExternalInterface, Kis_Net_Httpd_Chain_Stream_Handler {
 public:
-    KisExternalHttpInterface(GlobalRegistry *in_globalreg);
+    KisExternalHttpInterface();
     virtual ~KisExternalHttpInterface();
 
     // Trigger an error condition and call all the related functions

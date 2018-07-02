@@ -30,6 +30,7 @@
 #include "util.h"
 #include "kis_datasource.h"
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 #include "kis_net_microhttpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
@@ -96,8 +97,7 @@ public:
 // After 5 seconds, probing is cancelled.
 class DST_DatasourceProbe {
 public:
-    DST_DatasourceProbe(GlobalRegistry *in_globalreg, std::string in_definition, 
-            SharedTrackerElement in_protovec);
+    DST_DatasourceProbe(std::string in_definition, std::shared_ptr<TrackerElementVector> in_protovec);
     virtual ~DST_DatasourceProbe();
 
     void probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb);
@@ -114,14 +114,12 @@ public:
 protected:
     kis_recursive_timed_mutex probe_lock;
 
-    GlobalRegistry *globalreg;
-
     std::shared_ptr<Timetracker> timetracker;
 
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_probe_map;
 
-    SharedTrackerElement proto_vec;
+    std::shared_ptr<TrackerElementVector> proto_vec;
 
     // Vector of sources we're still waiting to return from probing
     std::vector<SharedDatasource> probe_vec;
@@ -159,7 +157,7 @@ typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 // List requests cancelled after 5 seconds
 class DST_DatasourceList {
 public:
-    DST_DatasourceList(GlobalRegistry *in_globalreg, SharedTrackerElement in_protovec);
+    DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec);
     virtual ~DST_DatasourceList();
 
     void list_sources(std::function<void (std::vector<SharedInterface>)> in_cb);
@@ -174,14 +172,12 @@ public:
 protected:
     kis_recursive_timed_mutex list_lock;
 
-    GlobalRegistry *globalreg;
-
     std::shared_ptr<Timetracker> timetracker;
 
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_list_map;
 
-    SharedTrackerElement proto_vec;
+    std::shared_ptr<TrackerElementVector> proto_vec;
 
     // Vector of sources we're still waiting to return from listing 
     std::vector<SharedDatasource> list_vec;
@@ -207,21 +203,38 @@ typedef std::shared_ptr<DST_DatasourceList> SharedDSTList;
 // Tracker/serializable record of default values used for all datasources
 class datasourcetracker_defaults : public tracker_component {
 public:
-    datasourcetracker_defaults(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    datasourcetracker_defaults() :
+        tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
-        }
+    }
 
-    datasourcetracker_defaults(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    datasourcetracker_defaults(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    datasourcetracker_defaults(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new datasourcetracker_defaults(globalreg, get_id()));
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("datasourcetracker_defaults");
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
     }
 
     __Proxy(hop_rate, double, double, double, hop_rate);
@@ -236,54 +249,53 @@ public:
     __Proxy(remote_cap_timestamp, uint8_t, bool, bool, remote_cap_timestamp);
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasourcetracker.default.hop_rate", TrackerDouble,
+        RegisterField("kismet.datasourcetracker.default.hop_rate",
                 "default hop rate for sources", &hop_rate);
-        RegisterField("kismet.datasourcetracker.default.hop", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.hop", 
                 "do sources hop by default", &hop);
-        RegisterField("kismet.datasourcetracker.default.split", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.split", 
                 "split channels among sources with the same type", 
                 &split_same_sources);
-        RegisterField("kismet.datasourcetracker.default.random_order", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.random_order", 
                 "scramble channel order to maximize use of overlap",
                 &random_channel_order);
-        RegisterField("kismet.datasourcetracker.default.retry_on_error", TrackerUInt8,
+        RegisterField("kismet.datasourcetracker.default.retry_on_error", 
                 "re-open sources if an error occurs", &retry_on_error);
 
         RegisterField("kismet.datasourcetracker.default.remote_cap_listen", 
-                TrackerString, "listen address for remote capture",
+                "listen address for remote capture",
                 &remote_cap_listen);
         RegisterField("kismet.datasourcetracker.default.remote_cap_port",
-                TrackerUInt32, "listen port for remote capture",
+                "listen port for remote capture",
                 &remote_cap_port);
 
         RegisterField("kismet.datasourcetracker.default.remote_cap_timestamp",
-                TrackerUInt8, "overwrite remote capture timestamp with server timestamp",
+                "overwrite remote capture timestamp with server timestamp",
                 &remote_cap_timestamp);
     }
 
     // Double hoprate per second
-    SharedTrackerElement hop_rate;
+    std::shared_ptr<TrackerElementDouble> hop_rate;
 
     // Boolean, do we hop at all
-    SharedTrackerElement hop;
+    std::shared_ptr<TrackerElementUInt8> hop;
 
     // Boolean, do we try to split channels up among the same driver?
-    SharedTrackerElement split_same_sources;
+    std::shared_ptr<TrackerElementUInt8> split_same_sources;
 
     // Boolean, do we scramble the hop pattern?
-    SharedTrackerElement random_channel_order;
+    std::shared_ptr<TrackerElementUInt8> random_channel_order;
 
     // Boolean, do we retry on errors?
-    SharedTrackerElement retry_on_error;
+    std::shared_ptr<TrackerElementUInt8> retry_on_error;
 
     // Remote listen
-    SharedTrackerElement remote_cap_listen;
-    SharedTrackerElement remote_cap_port;
-
-    SharedTrackerElement remote_cap_timestamp;
+    std::shared_ptr<TrackerElementString> remote_cap_listen;
+    std::shared_ptr<TrackerElementUInt32> remote_cap_port;
+    std::shared_ptr<TrackerElementUInt8> remote_cap_timestamp;
 
 };
 
@@ -293,8 +305,7 @@ protected:
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
 class dst_incoming_remote : public KisExternalInterface {
 public:
-    dst_incoming_remote(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+    dst_incoming_remote(std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
             std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
                 uuid srcuuid, std::shared_ptr<BufferHandlerGeneric> handler)> in_cb);
     ~dst_incoming_remote();
@@ -328,32 +339,32 @@ class Datasourcetracker_Httpd_Pcap;
 class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public DeferredStartup, public TcpServerV2 {
 public:
-    static std::shared_ptr<Datasourcetracker> create_dst(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Datasourcetracker> mon(new Datasourcetracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("DATASOURCETRACKER", mon);
-        in_globalreg->RegisterDeferredGlobal(mon);
+    static std::shared_ptr<Datasourcetracker> create_dst() {
+        auto mon = std::make_shared<Datasourcetracker>();
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal("DATASOURCETRACKER", mon);
+        Globalreg::globalreg->RegisterDeferredGlobal(mon);
 
-        std::shared_ptr<PollableTracker> pollabletracker = 
-            std::static_pointer_cast<PollableTracker>(in_globalreg->FetchGlobal("POLLABLETRACKER"));
+        auto pollabletracker =
+            Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
         pollabletracker->RegisterPollable(mon);
 
         mon->datasourcetracker = mon;
         return mon;
     }
 
-private:
-    Datasourcetracker(GlobalRegistry *in_globalreg);
+    // Must be public to accomodate make_shared but should not be called directly
+    Datasourcetracker();
 
 public:
     virtual ~Datasourcetracker();
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
-    virtual void Deferred_Startup();
+    virtual void Deferred_Startup() override;
 
     // Shut down all sources, this happens as kismet is terminating
-    virtual void Deferred_Shutdown();
+    virtual void Deferred_Shutdown() override;
 
     // Add a driver
     int register_datasource(SharedDatasourceBuilder in_builder);
@@ -365,52 +376,54 @@ public:
     //
     // Optional completion function will be called, asynchronously,
     // on completion.
-    void open_datasource(std::string in_source, 
-            std::function<void (bool, std::string, SharedDatasource)> in_cb);
+    void open_datasource(const std::string& in_source, 
+            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
 
     // Launch a source with a known prototype, given a basic source line
     // and a prototype.
     //
     // Optional completion function will be called on error or success
-    void open_datasource(std::string in_source, SharedDatasourceBuilder in_proto,
-            std::function<void (bool, std::string, SharedDatasource)> in_cb);
+    void open_datasource(const std::string& in_source, SharedDatasourceBuilder in_proto,
+            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
 
     // Close a datasource - stop it if necessary, and place it into a closed state
     // without automatic reconnection.
-    bool close_datasource(uuid in_uuid);
+    bool close_datasource(const uuid& in_uuid);
 
     // Remove a data source by UUID; stop it if necessary
-    bool remove_datasource(uuid in_uuid);
+    bool remove_datasource(const uuid& in_uuid);
 
     // Try to instantiate a remote data source
-    void open_remote_datasource(dst_incoming_remote *incoming, std::string in_type, 
-            std::string in_definition, uuid in_uuid,
+    void open_remote_datasource(dst_incoming_remote *incoming, 
+            const std::string& in_type, 
+            const std::string& in_definition, 
+            const uuid& in_uuid,
             std::shared_ptr<BufferHandlerGeneric> in_handler);
 
     // Find a datasource
-    SharedDatasource find_datasource(uuid in_uuid);
+    SharedDatasource find_datasource(const uuid& in_uuid);
 
     // List potential sources
     //
     // Optional completion function will be called with list of possible sources.
-    void list_interfaces(std::function<void (std::vector<SharedInterface>)> in_cb);
+    void list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb);
 
     // HTTP api
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
     void iterate_datasources(DST_Worker *in_worker);
 
     // TCPServerV2 API
-    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler);
+    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) override;
 
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);
@@ -428,22 +441,19 @@ protected:
     // Log the datasources
     virtual void databaselog_write_datasources();
 
-    GlobalRegistry *globalreg;
-
     std::shared_ptr<Datasourcetracker> datasourcetracker;
-    std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Timetracker> timetracker;
 
     kis_recursive_timed_mutex dst_lock;
 
-    SharedTrackerElement dst_proto_builder;
-    SharedTrackerElement dst_source_builder;
+    int proto_id;
+    int source_id;
 
     // Available prototypes
-    SharedTrackerElement proto_vec;
+    std::shared_ptr<TrackerElementVector> proto_vec;
 
     // Active data sources
-    SharedTrackerElement datasource_vec;
+    std::shared_ptr<TrackerElementVector> datasource_vec;
 
     // Sub-workers probing for a source definition
     std::map<unsigned int, SharedDSTProbe> probing_map;
@@ -495,7 +505,6 @@ protected:
 class Datasourcetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
     Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
-    Datasourcetracker_Httpd_Pcap(GlobalRegistry *in_globalreg);
 
     virtual ~Datasourcetracker_Httpd_Pcap() { };
 

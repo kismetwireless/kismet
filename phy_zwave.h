@@ -40,40 +40,55 @@
 
 class zwave_tracked_device : public tracker_component {
 public:
-    zwave_tracked_device(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
-            register_fields();
-            reserve_fields(NULL);
-        }
-
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new zwave_tracked_device(globalreg, get_id()));
+    zwave_tracked_device() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
     }
 
-    zwave_tracked_device(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    zwave_tracked_device(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    zwave_tracked_device(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("zwave_tracked_device");
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
     }
 
     __Proxy(homeid, uint32_t, uint32_t, uint32_t, homeid);
     __Proxy(deviceid, uint8_t, uint8_t, uint8_t, deviceid);
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("zwave.device.home_id", TrackerUInt32,
-                "Z-Wave network Home ID packed as U32", &homeid);
-        RegisterField("zwave.device.device_id", TrackerUInt8,
-                "Z-Wave network device ID", &deviceid);
+        RegisterField("zwave.device.home_id", "Z-Wave network Home ID packed as U32", &homeid);
+        RegisterField("zwave.device.device_id", "Z-Wave network device ID", &deviceid);
     }
 
     // 4-byte homeid
-    SharedTrackerElement homeid;
+    std::shared_ptr<TrackerElementUInt32> homeid;
     // 1 byte device id
-    SharedTrackerElement deviceid;
+    std::shared_ptr<TrackerElementUInt8> deviceid;
 };
 
 class Kis_Zwave_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {

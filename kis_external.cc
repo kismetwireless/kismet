@@ -28,12 +28,11 @@
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 
-KisExternalInterface::KisExternalInterface(GlobalRegistry *in_globalreg) :
+KisExternalInterface::KisExternalInterface() :
     BufferInterface() {
-    globalreg = in_globalreg;
 
     timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     seqno = 0;
 
@@ -217,11 +216,11 @@ bool KisExternalInterface::run_ipc() {
     ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024 * 1024), (1024 * 1024)));
     ringbuf_handler->SetReadBufferInterface(this);
 
-    ipc_remote.reset(new IPCRemoteV2(globalreg, ringbuf_handler));
+    ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
 
     // Get allowed paths for binaries
     std::vector<std::string> bin_paths = 
-        globalreg->kismet_config->FetchOptVec("helper_binary_path");
+        Globalreg::globalreg->kismet_config->FetchOptVec("helper_binary_path");
 
     if (bin_paths.size() == 0) {
         _MSG("No helper_binary_path found in kismet.conf, make sure your config "
@@ -232,7 +231,7 @@ bool KisExternalInterface::run_ipc() {
 
     // Explode any expansion macros in the path and add it to the list we search
     for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-        ipc_remote->add_path(globalreg->kismet_config->ExpandLogPath(*i, "", "", 0, 1));
+        ipc_remote->add_path(Globalreg::globalreg->kismet_config->ExpandLogPath(*i, "", "", 0, 1));
     }
 
     int ret = ipc_remote->launch_kis_binary(external_binary, external_binary_args);
@@ -245,7 +244,7 @@ bool KisExternalInterface::run_ipc() {
     }
 
     auto remotehandler = 
-        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>(globalreg, "IPCHANDLER");
+        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>("IPCHANDLER");
     remotehandler->add_ipc(ipc_remote);
 
     return true;
@@ -420,9 +419,9 @@ unsigned int KisExternalInterface::send_shutdown(std::string reason) {
     return send_packet(c);
 }
 
-KisExternalHttpInterface::KisExternalHttpInterface(GlobalRegistry *in_globalreg) :
-    KisExternalInterface(in_globalreg), 
-    Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg) {
+KisExternalHttpInterface::KisExternalHttpInterface() :
+    KisExternalInterface(), 
+    Kis_Net_Httpd_Chain_Stream_Handler(Globalreg::globalreg) {
 
     http_session_id = 0;
 }

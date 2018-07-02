@@ -2445,7 +2445,7 @@ std::shared_ptr<dot11_tracked_eapol>
         tp->set_dlt(chunk->dlt);
         tp->set_source(chunk->source_id);
 
-        tp->get_data()->set_bytearray(chunk->data, chunk->length);
+        tp->get_data()->set(chunk->data, chunk->length);
 
         if (rsnkey->key_info_key_ack() && !rsnkey->key_info_key_mic() &&
                 !rsnkey->key_info_install()) {
@@ -2475,7 +2475,7 @@ std::shared_ptr<dot11_tracked_eapol>
         }
 
         eapol->set_eapol_install(rsnkey->key_info_install());
-        eapol->set_eapol_nonce(rsnkey->wpa_key_nonce());
+        eapol->set_eapol_nonce_bytes(rsnkey->wpa_key_nonce());
         eapol->set_eapol_replay_counter(rsnkey->replay_counter());
 
         // fprintf(stderr, "debug - eapol %u\n", eapol->get_eapol_msg_num());

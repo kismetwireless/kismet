@@ -27,9 +27,8 @@
 #include "kis_ppi.h"
 #include "phy_80211.h"
 
-KisPPILogfile::KisPPILogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_builder) : 
-    KisLogfile(in_globalreg, in_builder) {
-	globalreg = in_globalreg;
+KisPPILogfile::KisPPILogfile(SharedLogBuilder in_builder) : 
+    KisLogfile(in_builder) {
 
 	// Default to dot11
 	dlt = DLT_IEEE802_11;
@@ -41,13 +40,15 @@ KisPPILogfile::KisPPILogfile(GlobalRegistry *in_globalreg, SharedLogBuilder in_b
 	dumper = NULL;
     dump_filep = NULL;
 
-    pack_comp_80211 = globalreg->packetchain->RegisterPacketComponent("PHY80211");
-    pack_comp_mangleframe = globalreg->packetchain->RegisterPacketComponent("MANGLEDATA");
-    pack_comp_radiodata = globalreg->packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = globalreg->packetchain->RegisterPacketComponent("GPS");
-    pack_comp_checksum = globalreg->packetchain->RegisterPacketComponent("CHECKSUM");
-    pack_comp_decap = globalreg->packetchain->RegisterPacketComponent("DECAP");
-    pack_comp_linkframe = globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+
+    pack_comp_80211 = packetchain->RegisterPacketComponent("PHY80211");
+    pack_comp_mangleframe = packetchain->RegisterPacketComponent("MANGLEDATA");
+    pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
+    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
+    pack_comp_checksum = packetchain->RegisterPacketComponent("CHECKSUM");
+    pack_comp_decap = packetchain->RegisterPacketComponent("DECAP");
+    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
 }
 
 bool KisPPILogfile::Log_Open(std::string in_path) {
@@ -59,22 +60,22 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 	dumper = NULL;
     dump_filep = NULL;
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    auto packetchain =
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
 	dumpfile = pcap_open_dead(DLT_PPI, MAX_PACKET_LEN);
 
 	if (dumpfile == NULL) {
-		_MSG("Failed to prep pcap dump file '" + in_path + "': " +
-                kis_strerror_r(errno), MSGFLAG_ERROR);
+        _MSG_ERROR("Failed to prepare pcap/ppi dump file '{}': {}",
+                in_path, kis_strerror_r(errno));
         return false;
 	}
 
     // Open as a filepointer
     dump_filep = fopen(in_path.c_str(), "wb");
     if (dump_filep == NULL) {
-        _MSG("Failed to open pcap dump file '" + in_path + "': " +
-                std::string(strerror(errno)), MSGFLAG_FATAL);
+        _MSG_ERROR("Failed to open pcap/ppi dump file '{}' for writing: {}",
+                in_path, kis_strerror_r(errno));
         return false;
     }
 
@@ -83,13 +84,13 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 
 	dumper = pcap_dump_fopen(dumpfile, dump_filep);
     if (dumper == NULL) {
-        _MSG("Failed to open pcap dump file '" + in_path + "': " +
-                std::string(strerror(errno)), MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
+        _MSG_FATAL("Unable to open pcap/ppi dump file '{}': {}",
+                in_path, kis_strerror_r(errno));
+        Globalreg::globalreg->fatal_condition = 1;
         return false;
 	}
 
-	_MSG("Opened pcapdump log file '" + in_path + "'", MSGFLAG_INFO);
+    _MSG_INFO("Opened PPI pcap log file '{}'", in_path);
 
     set_int_log_open(true);
 
@@ -103,8 +104,8 @@ void KisPPILogfile::Log_Close() {
 
     set_int_log_open(false);
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    auto packetchain =
+        Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
     if (packetchain != NULL) 
         packetchain->RemoveHandler(&KisPPILogfile::packet_handler, CHAINPOS_LOGGING);
 
@@ -176,11 +177,10 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
 
     if (ppilog->cbfilter != NULL) {
         // If we have a filter, grab the data using that
-        chunk = (*(ppilog->cbfilter))(ppilog->globalreg, in_pack, ppilog->cbaux);
+        chunk = (*(ppilog->cbfilter))(in_pack, ppilog->cbaux);
     } else if (chunk == NULL) {
         // Look for the 802.11 frame
         if ((chunk = (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_decap)) == NULL) {
-
             // Look for any link frame, we'll check the DLT soon
             chunk = (kis_datachunk *) in_pack->fetch(ppilog->pack_comp_linkframe);
         }
@@ -247,8 +247,7 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
     //(f.ex) plugin-spectool
     // Collate the allocation sizes of any callbacks
     for (unsigned int p = 0; p < ppilog->ppi_cb_vec.size(); p++) {
-        ppi_len += (*(ppilog->ppi_cb_vec[p].cb))(globalreg, 1, in_pack, NULL, 0,
-                ppilog->ppi_cb_vec[p].aux);
+        ppi_len += (*(ppilog->ppi_cb_vec[p].cb))(1, in_pack, NULL, 0, ppilog->ppi_cb_vec[p].aux);
     }
 
     dump_len += ppi_len; //dumplen now accounts for all ppi data
@@ -420,7 +419,7 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
     // Collate the allocation sizes of any callbacks
     for (unsigned int p = 0; p < ppilog->ppi_cb_vec.size(); p++) {
         // Ignore errors for now
-        ppi_pos = (*(ppilog->ppi_cb_vec[p].cb))(globalreg, 0, in_pack, dump_data, ppi_pos,
+        ppi_pos = (*(ppilog->ppi_cb_vec[p].cb))(0, in_pack, dump_data, ppi_pos,
                 ppilog->ppi_cb_vec[p].aux);
     }
 

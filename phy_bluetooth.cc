@@ -39,19 +39,19 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
     globalreg = in_globalreg;
 
     alertracker = 
-        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
     packetchain = 
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
     entrytracker = 
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
     devicetracker = 
-        Globalreg::FetchGlobalAs<Devicetracker>(globalreg, "DEVICE_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICETRACKER");
 
     SetPhyName("Bluetooth");
 
     bluetooth_device_entry_id =
         entrytracker->RegisterField("bluetooth.device", 
-                std::shared_ptr<bluetooth_tracked_device>(new bluetooth_tracked_device(globalreg, 0)),
+                TrackerElementFactory<bluetooth_tracked_device>(),
                 "Bluetooth device");
 
     packetchain->RegisterHandler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
@@ -122,21 +122,23 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "Bluetooth");
 
-    if (basedev == NULL)
+    if (basedev == nullptr)
         return 0;
 
-    std::shared_ptr<bluetooth_tracked_device> btdev =
-        std::static_pointer_cast<bluetooth_tracked_device>(basedev->get_map_value(btphy->bluetooth_device_entry_id));
+    auto btdev =
+        basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
-    if (btdev == NULL) {
+    if (btdev == nullptr) {
         std::stringstream ss;
         ss << "Detected new Bluetooth device " << btpi->address.Mac2String();
         if (btpi->name.length() > 0) 
             ss << " (" << btpi->name << ")";
         _MSG(ss.str(), MSGFLAG_INFO);
 
-        btdev.reset(new bluetooth_tracked_device(globalreg, btphy->bluetooth_device_entry_id));
-        basedev->add_map(btdev);
+        btdev =
+            std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+
+        basedev->insert(btdev);
     }
 
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
@@ -161,14 +163,13 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     btdev->set_txpower(btpi->txpower);
 
     // Reset the service UUID vector
-    TrackerElementVector sv(btdev->get_tracker_service_uuid_vec());
-    sv.clear();
+    auto uuid_vec = btdev->get_service_uuid_vec();
+
+    uuid_vec->clear();
 
     for (auto u : btpi->service_uuid_vec) {
-        SharedTrackerElement tu(new TrackerElement(TrackerUuid));
-        tu->set(u);
-
-        sv.push_back(tu);
+        auto tu = std::make_shared<TrackerElementUUID>(0, u);
+        uuid_vec->push_back(tu);
     }
 
     return 0;
@@ -177,16 +178,20 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
 void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage, 
         SharedTrackerElement in_device) {
 
-    if (in_storage == NULL || in_device == NULL)
+    if (in_storage == nullptr || in_device == nullptr)
         return;
 
+    auto storage = std::static_pointer_cast<TrackerElementMap>(in_storage);
+
     // Does the imported record have bt?
-    auto btdevi = in_storage->find(bluetooth_device_entry_id);
+    auto btdevi = storage->find(bluetooth_device_entry_id);
 
     // Adopt it into a dot11
-    if (btdevi != in_storage->end()) {
-        std::shared_ptr<bluetooth_tracked_device> btdev(new bluetooth_tracked_device(globalreg, bluetooth_device_entry_id, btdevi->second));
-        in_device->add_map(btdev);
+    if (btdevi != storage->end()) {
+        auto btdev = 
+            std::make_shared<bluetooth_tracked_device>(bluetooth_device_entry_id, 
+                    std::static_pointer_cast<TrackerElementMap>(btdevi->second));
+        std::static_pointer_cast<TrackerElementMap>(in_device)->insert(btdev);
     }
 }
 
