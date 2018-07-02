@@ -57,7 +57,6 @@ public:
     // Combine a vector for a higher-level record (seconds to minutes, minutes to 
     // hours, and so on).
     static int64_t combine_vector(std::shared_ptr<TrackerElementVector> e) {
-
         int64_t avg = 0;
         for (auto i : *e)
             avg += GetTrackerValue<int64_t>(i);
@@ -270,7 +269,7 @@ public:
             // changes up
             if (in_time == ltime) {
                 e = *(minute_vec->begin() + sec_bucket);
-                SetTrackerValue<int64_t>(e, in_s);
+                SetTrackerValue<int64_t>(e, agg.combine_element(GetTrackerValue<int64_t>(e), in_s));
             } else {
                 for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60));
@@ -503,7 +502,7 @@ public:
             // and propagate the averages up
             if (in_time == ltime) {
                 e = *(minute_vec->begin() + sec_bucket);
-                SetTrackerValue<int64_t>(e, in_s);
+                SetTrackerValue<int64_t>(e, agg.combine_element(GetTrackerValue<int64_t>(e), in_s));
             } else {
                 for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
                     e = *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60));
