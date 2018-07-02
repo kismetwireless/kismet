@@ -1456,7 +1456,7 @@ public:
         return vector.cend();
     }
 
-    iterator erase(const_iterator i) {
+    iterator erase(iterator i) {
         return vector.erase(i);
     }
 
