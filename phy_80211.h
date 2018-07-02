@@ -284,6 +284,10 @@ public:
         reserve_fields(e);
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_tracked_eapol");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -346,6 +350,10 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_tracked_nonce");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
@@ -430,6 +438,10 @@ public:
 #endif
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_tracked_ssid_alert");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -490,6 +502,10 @@ public:
         reserve_fields(e);
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_11d_tracked_range_info");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -537,6 +553,10 @@ public:
             register_fields();
             reserve_fields(e);
         }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_probed_ssid");
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -616,6 +636,10 @@ public:
             register_fields();
             reserve_fields(e);
         }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_advertised_ssid");
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -846,6 +870,10 @@ public:
             reserve_fields(e);
         }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_client");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -999,6 +1027,10 @@ public:
             register_fields();
             reserve_fields(e);
         }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_tracked_device");
+    }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;

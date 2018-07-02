@@ -35,6 +35,7 @@
 
 #include "globalregistry.h"
 #include "trackedelement.h"
+#include "trackedcomponent.h"
 #include "entrytracker.h"
 
 // Aggregator class used for RRD.  Performs functions like combining elements
@@ -78,7 +79,7 @@ template <class Aggregator = kis_tracked_rrd_default_aggregator>
 class kis_tracked_rrd : public tracker_component {
 public:
     kis_tracked_rrd() :
-        tracker_component(0) {
+        tracker_component() {
         register_fields();
         reserve_fields(NULL);
         update_first = true;
@@ -98,6 +99,10 @@ public:
         reserve_fields(e);
         update_first = true;
 
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("kis_tracked_rrd");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
@@ -439,6 +444,10 @@ public:
         register_fields();
         reserve_fields(e);
         update_first = true;
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("kis_tracked_minute_rrd");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {

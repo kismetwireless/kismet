@@ -63,6 +63,10 @@ public:
         reserve_fields(e);
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("uav_tracked_telemetry");
+    }
+
     virtual ~uav_tracked_telemetry() { }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
@@ -204,6 +208,10 @@ public:
 #endif
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("uav_match");
+    }
+
     __Proxy(uav_match_name, std::string, std::string, std::string, uav_match_name);
 
     __Proxy(uav_manuf_name, std::string, std::string, std::string, uav_manuf_name);
@@ -269,6 +277,10 @@ public:
     }
 
     virtual ~uav_tracked_device() { }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("uav_tracked_device");
+    }
 
     __Proxy(uav_manufacturer, std::string, std::string, std::string, uav_manufacturer);
     __Proxy(uav_model, std::string, std::string, std::string, uav_model);

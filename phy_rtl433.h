@@ -111,6 +111,10 @@ public:
         reserve_fields(e);
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("rtl433_tracked_common");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -172,6 +176,10 @@ public:
         reserve_fields(e);
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("rtl433_tracked_thermometer");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -228,6 +236,10 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("rtl433_tracked_weatherstation");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
@@ -323,6 +335,10 @@ public:
         reserve_fields(e);
     }
 
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("rtl433_tracked_tpms");
+    }
+
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
@@ -376,6 +392,10 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("rtl433_tracked_switch");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
