@@ -267,7 +267,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     }
 #endif
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_packet_rrds", true)) {
+    if (!globalreg->kismet_config->FetchOptBoolean("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
         ram_no_rrd = true;
     } else {
@@ -705,7 +705,7 @@ std::shared_ptr<kis_tracked_device_base>
                 device->set_frequency(pack_l1info->freq_khz);
 
             Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
-            (*(device->get_signal_data())) += *sc;
+            device->get_signal_data()->append_signal(*sc, !ram_no_rrd);
 
             delete(sc);
 
@@ -771,7 +771,7 @@ std::shared_ptr<kis_tracked_device_base>
             sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
         }
 
-        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc);
+        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);
 
         if (sc != NULL)
             delete(sc);

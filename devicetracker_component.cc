@@ -78,7 +78,7 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<Trac
     reserve_fields(e);
 }
 
-kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const kis_layer1_packinfo& lay1) {
+void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd) {
     if (lay1.signal_type == kis_l1_signal_type_dbm) {
         if (lay1.signal_dbm != 0) {
             last_signal_dbm->set(lay1.signal_dbm);
@@ -90,6 +90,9 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const kis_layer1_p
             if ((*max_signal_dbm) == 0 || (*max_signal_dbm) < lay1.signal_dbm) {
                 max_signal_dbm->set(lay1.signal_dbm);
             }
+
+            if (update_rrd)
+                get_signal_min_rrd()->add_sample(lay1.signal_dbm, time(0));
         }
 
         if (lay1.noise_dbm != 0) {
@@ -114,6 +117,9 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const kis_layer1_p
             if ((*max_signal_rssi) == 0 || (*max_signal_rssi) < lay1.signal_rssi) {
                 max_signal_rssi->set(lay1.signal_rssi);
             }
+
+            if (update_rrd)
+                get_signal_min_rrd()->add_sample(lay1.signal_rssi, time(0));
         }
 
         if (lay1.noise_rssi != 0) {
@@ -135,11 +141,9 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const kis_layer1_p
             maxseenrate->set((double) lay1.datarate);
         }
     }
-
-    return *this;
 }
 
-kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig_Combo& in) {
+void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool update_rrd) {
     if (in.lay1 != NULL) {
         if (in.lay1->signal_type == kis_l1_signal_type_dbm) {
             if (in.lay1->signal_dbm != 0) {
@@ -158,7 +162,8 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
                     }
                 }
 
-                get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, time(0));
+                if (update_rrd)
+                    get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, time(0));
             }
 
             if (in.lay1->noise_dbm != 0) {
@@ -189,7 +194,8 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
                     }
                 }
 
-                get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, time(0));
+                if (update_rrd)
+                    get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, time(0));
             }
 
             if (in.lay1->noise_rssi != 0) {
@@ -213,8 +219,6 @@ kis_tracked_signal_data& kis_tracked_signal_data::operator+= (const Packinfo_Sig
             maxseenrate->set((double) in.lay1->datarate);
         }
     }
-
-    return *this;
 }
 
 void kis_tracked_signal_data::register_fields() {
@@ -326,7 +330,8 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
 }
 
 void kis_tracked_device_base::inc_seenby_count(KisDatasource *source, 
-        time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo) {
+        time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo,
+        bool update_rrd) {
     std::shared_ptr<kis_tracked_seenby_data> seenby;
 
     auto seenby_iter = seenby_map->find(source->get_source_key());
@@ -344,7 +349,7 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
             seenby->inc_frequency_count(frequency);
 
         if (siginfo != NULL)
-            (*(seenby->get_signal_data())) += *siginfo;
+            (seenby->get_signal_data())->append_signal(*siginfo, update_rrd);
 
         seenby_map->insert(source->get_source_key(), seenby);
 
@@ -358,7 +363,7 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
             seenby->inc_frequency_count(frequency);
 
         if (siginfo != NULL)
-            (*(seenby->get_signal_data())) += *siginfo;
+            seenby->get_signal_data()->append_signal(*siginfo, update_rrd);
     }
 }
 

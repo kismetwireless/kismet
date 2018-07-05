@@ -106,8 +106,8 @@ public:
         return std::move(dup);
     }
 
-    kis_tracked_signal_data& operator+= (const kis_layer1_packinfo& lay1);
-	kis_tracked_signal_data& operator+= (const Packinfo_Sig_Combo& in);
+    void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd = true);
+    void append_signal(const Packinfo_Sig_Combo& in, bool update_rrd = true);
 
     __ProxyGet(last_signal_dbm, int32_t, int, last_signal_dbm);
     __ProxyGet(min_signal_dbm, int32_t, int, min_signal_dbm);
@@ -422,7 +422,7 @@ public:
     }
 
     void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
-            Packinfo_Sig_Combo *siginfo);
+            Packinfo_Sig_Combo *siginfo, bool update_rrd);
 
     __ProxyTrackable(tag_map, TrackerElementStringMap, tag_map);
 
