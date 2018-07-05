@@ -415,6 +415,9 @@ protected:
     time_t last_database_logged;
     kis_recursive_timed_mutex databaselog_mutex;
     bool databaselog_logging;
+
+    // Do we constrain memory by not tracking RRD data?
+    bool ram_no_rrd;
 };
 
 class kis_tracked_phy : public tracker_component {

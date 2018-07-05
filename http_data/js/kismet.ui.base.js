@@ -804,30 +804,41 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
         var dh = $('div:eq(4)', target);
         var dd = $('div:eq(5)', target);
 
-        var mdata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_SECOND, data['kismet.device.base.packets.rrd']['kismet.common.rrd.minute_vec'], {});
-        var hdata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_MINUTE, data['kismet.device.base.packets.rrd']['kismet.common.rrd.hour_vec'], {});
-        var ddata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_HOUR, data['kismet.device.base.packets.rrd']['kismet.common.rrd.day_vec'], {});
+        var mdata = [];
+        var hdata = [];
+        var ddata = [];
 
-        m.sparkline(mdata, { type: "bar",
-                height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
-            });
-        h.sparkline(hdata,
-            { type: "bar",
-                height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
-            });
-        d.sparkline(ddata,
-            { type: "bar",
-                height: 12,
-                barColor: '#000000',
-                nullColor: '#000000',
-                zeroColor: '#000000'
-            });
+        if (('kismet.device.base.packets.rrd' in data)) {
+            mdata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_SECOND, data['kismet.device.base.packets.rrd']['kismet.common.rrd.minute_vec'], {});
+            hdata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_MINUTE, data['kismet.device.base.packets.rrd']['kismet.common.rrd.hour_vec'], {});
+            ddata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_HOUR, data['kismet.device.base.packets.rrd']['kismet.common.rrd.day_vec'], {});
+
+            m.sparkline(mdata, { type: "bar",
+                    height: 12,
+                    barColor: '#000000',
+                    nullColor: '#000000',
+                    zeroColor: '#000000'
+                });
+            h.sparkline(hdata,
+                { type: "bar",
+                    height: 12,
+                    barColor: '#000000',
+                    nullColor: '#000000',
+                    zeroColor: '#000000'
+                });
+            d.sparkline(ddata,
+                { type: "bar",
+                    height: 12,
+                    barColor: '#000000',
+                    nullColor: '#000000',
+                    zeroColor: '#000000'
+                });
+        } else {
+            m.html("<i>No packet data available</i>");
+            h.html("<i>No packet data available</i>");
+            d.html("<i>No packet data available</i>");
+        }
+            
 
         if ('kismet.device.base.datasize.rrd' in data) {
             var dmdata = kismet.RecalcRrdData(data['kismet.device.base.datasize.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_SECOND, data['kismet.device.base.datasize.rrd']['kismet.common.rrd_minute_vec'], {});

@@ -267,6 +267,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     }
 #endif
 
+    if (!globalreg->kismet_config->FetchOptBoolean("track_device_packet_rrds", true)) {
+        _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
+        ram_no_rrd = true;
+    } else {
+        ram_no_rrd = false;
+    }
+
     if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
         unsigned int lograte = 
             globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
@@ -517,7 +524,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	kis_common_info *pack_common =
 		(kis_common_info *) in_pack->fetch(pack_comp_common);
 
-    packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
+    if (!ram_no_rrd)
+        packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
 	num_packets++;
 
@@ -648,7 +656,8 @@ std::shared_ptr<kis_tracked_device_base>
     if (in_flags & UCD_UPDATE_PACKETS) {
         device->inc_packets();
 
-        device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
+        if (!ram_no_rrd)
+            device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
 
         if (pack_common != NULL) {
             if (pack_common->error)
@@ -658,24 +667,27 @@ std::shared_ptr<kis_tracked_device_base>
                 // TODO fix directional data
                 device->inc_data_packets();
                 device->inc_datasize(pack_common->datasize);
-                device->get_data_rrd()->add_sample(pack_common->datasize,
-                        globalreg->timestamp.tv_sec);
 
-                if (pack_common->datasize <= 250)
-                    device->get_packet_rrd_bin_250()->add_sample(1, 
+                if (!ram_no_rrd) {
+                    device->get_data_rrd()->add_sample(pack_common->datasize,
                             globalreg->timestamp.tv_sec);
-                else if (pack_common->datasize <= 500)
-                    device->get_packet_rrd_bin_500()->add_sample(1, 
-                            globalreg->timestamp.tv_sec);
-                else if (pack_common->datasize <= 1000)
-                    device->get_packet_rrd_bin_1000()->add_sample(1, 
-                            globalreg->timestamp.tv_sec);
-                else if (pack_common->datasize <= 1500)
-                    device->get_packet_rrd_bin_1500()->add_sample(1, 
-                            globalreg->timestamp.tv_sec);
-                else 
-                    device->get_packet_rrd_bin_jumbo()->add_sample(1, 
-                            globalreg->timestamp.tv_sec);
+
+                    if (pack_common->datasize <= 250)
+                        device->get_packet_rrd_bin_250()->add_sample(1, 
+                                globalreg->timestamp.tv_sec);
+                    else if (pack_common->datasize <= 500)
+                        device->get_packet_rrd_bin_500()->add_sample(1, 
+                                globalreg->timestamp.tv_sec);
+                    else if (pack_common->datasize <= 1000)
+                        device->get_packet_rrd_bin_1000()->add_sample(1, 
+                                globalreg->timestamp.tv_sec);
+                    else if (pack_common->datasize <= 1500)
+                        device->get_packet_rrd_bin_1500()->add_sample(1, 
+                                globalreg->timestamp.tv_sec);
+                    else 
+                        device->get_packet_rrd_bin_jumbo()->add_sample(1, 
+                                globalreg->timestamp.tv_sec);
+                }
 
             } else if (pack_common->type == packet_basic_mgmt ||
                     pack_common->type == packet_basic_phy) {
