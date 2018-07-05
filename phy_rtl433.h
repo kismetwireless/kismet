@@ -59,15 +59,13 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVector> e) {
+    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
         int64_t avg = 0;
         int64_t avg_c = 0;
 
         for (auto i : *e) {
-            int64_t v = GetTrackerValue<int64_t>(i);
-
-            if (v != default_val()) {
-                avg += GetTrackerValue<int64_t>(i);
+            if (i != default_val()) {
+                avg += i;
                 avg_c++;
             }
         }

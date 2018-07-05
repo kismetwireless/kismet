@@ -56,10 +56,10 @@ public:
 
     // Combine a vector for a higher-level record (seconds to minutes, minutes to 
     // hours, and so on).
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVector> e) {
+    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
         int64_t avg = 0;
         for (auto i : *e)
-            avg += GetTrackerValue<int64_t>(i);
+            avg += i;
 
         return avg / e->size();
     }
@@ -150,17 +150,15 @@ public:
             return;
         }
         
-        std::shared_ptr<TrackerElement> e;
-
         // If we haven't seen data in a day, we reset everything because
         // none of it is valid.  This is the simplest case.
         if (in_time - ltime > (60 * 60 * 24)) {
             // Directly fill in this second, clear rest of the minute
             for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
                 if (i - minute_vec->begin() == sec_bucket)
-                    SetTrackerValue<int64_t>(*i, in_s);
+                    *i = in_s;
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val());
+                    *i = agg.default_val();
             }
 
             // Reset the last hour, setting it to a single sample
@@ -168,18 +166,18 @@ public:
             int64_t min_val = agg.combine_vector(minute_vec);
             for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
                 if (i - hour_vec->begin() == min_bucket)
-                    SetTrackerValue<int64_t>(*i, min_val);
+                    *i = min_val;
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val());
+                    *i = agg.default_val();
             }
 
             // Reset the last day, setting it to a single sample
             int64_t hr_val = agg.combine_vector(hour_vec);
             for (auto i = day_vec->begin(); i != day_vec->end(); ++i) {
                 if (i - day_vec->begin() == hour_bucket)
-                    SetTrackerValue<int64_t>(*i, hr_val);
+                    *i = hr_val;
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val());
+                    *i = agg.default_val();
             }
 
             set_last_time(in_time);
@@ -200,9 +198,9 @@ public:
             
             for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
                 if (i - minute_vec->begin() == sec_bucket)
-                    SetTrackerValue<int64_t>(*i, in_s);
+                    *i = in_s;
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val());
+                    *i = agg.default_val();
             }
             sec_avg = agg.combine_vector(minute_vec);
 
@@ -210,21 +208,19 @@ public:
             // and get the aggregate
             for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
                 if (i - hour_vec->begin() == min_bucket)
-                    SetTrackerValue<int64_t>(*i, sec_avg);
+                    *i = sec_avg;
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val());
+                    *i = agg.default_val();
             }
             min_avg = agg.combine_vector(hour_vec);
 
             // Fill the hours between the last time we saw data and now with
             // zeroes; fastforward time
             for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
-                e = *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24));
-                SetTrackerValue<int64_t>(e, agg.default_val());
+                *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = agg.default_val();
             }
 
-            e = *(day_vec->begin() + hour_bucket);
-            SetTrackerValue<int64_t>(e, min_avg);
+            *(day_vec->begin() + hour_bucket) = min_avg;
 
         } else if (in_time - ltime > 60) {
             // - Calculate the average seconds
@@ -238,28 +234,25 @@ public:
 
             for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
                 if (i - minute_vec->begin() == sec_bucket)
-                    SetTrackerValue<int64_t>(*i, in_s);
+                    *i = in_s;
                 else
-                    SetTrackerValue<int64_t>(*i, agg.default_val());
+                    *i = agg.default_val();
             }
             sec_avg = agg.combine_vector(minute_vec);
 
             // Zero between last and current
             for (int m = 0; 
                     m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
-                e = *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60));
-                SetTrackerValue<int64_t>(e, agg.default_val());
+                *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60)) = agg.default_val();
             }
 
             // Set the updated value
-            e = *(hour_vec->begin() + min_bucket);
-            SetTrackerValue<int64_t>(e, sec_avg);
+            *(hour_vec->begin() + min_bucket) = sec_avg;;
 
             min_avg = agg.combine_vector(hour_vec);
 
             // Reset the hour
-            e = *(day_vec->begin() + hour_bucket);
-            SetTrackerValue<int64_t>(e, min_avg);
+            *(day_vec->begin() + hour_bucket) = min_avg;
         } else {
             // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
             // If in_time == last_time then we're updating an existing record,
@@ -268,16 +261,14 @@ public:
             // Otherwise, fast-forward seconds with zero data, then propagate the
             // changes up
             if (in_time == ltime) {
-                e = *(minute_vec->begin() + sec_bucket);
-                SetTrackerValue<int64_t>(e, agg.combine_element(GetTrackerValue<int64_t>(e), in_s));
+                int64_t v = *(minute_vec->begin() + sec_bucket);
+                *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
             } else {
                 for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                    e = *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60));
-                    SetTrackerValue<int64_t>(e, agg.default_val());
+                    *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
                 }
 
-                e = *(minute_vec->begin() + sec_bucket);
-                SetTrackerValue<int64_t>(e, in_s);
+                *(minute_vec->begin() + sec_bucket) = in_s;
             }
 
             // Update all the averages
@@ -286,14 +277,12 @@ public:
             sec_avg = agg.combine_vector(minute_vec);
 
             // Set the minute
-            e = *(hour_vec->begin() + min_bucket);
-            SetTrackerValue<int64_t>(e, sec_avg);
+            *(hour_vec->begin() + min_bucket) = sec_avg;
 
             min_avg = agg.combine_vector(hour_vec);
 
             // Set the hour
-            e = *(day_vec->begin() + hour_bucket);
-            SetTrackerValue<int64_t>(e, min_avg);
+            *(day_vec->begin() + hour_bucket) = min_avg;
         }
 
         set_last_time(in_time);
@@ -375,22 +364,19 @@ protected:
         int x;
         if ((x = minute_vec->size()) != 60) {
             for ( ; x < 60; x++) {
-                auto se = std::make_shared<TrackerElementInt64>(second_entry_id);
-                minute_vec->push_back(se);
+                minute_vec->push_back(0);
             }
         }
 
         if ((x = hour_vec->size()) != 60) {
             for ( ; x < 60; x++) {
-                auto he = std::make_shared<TrackerElementInt64>(minute_entry_id);
-                hour_vec->push_back(he);
+                hour_vec->push_back(0);
             }
         }
 
         if ((x = day_vec->size()) != 24) {
             for ( ; x < 24; x++) {
-                auto de = std::make_shared<TrackerElementInt64>(hour_entry_id);
-                day_vec->push_back(de);
+                day_vec->push_back(0);
             }
         }
 
@@ -402,9 +388,9 @@ protected:
 
     std::shared_ptr<TrackerElementUInt64> last_time;
 
-    std::shared_ptr<TrackerElementVector> minute_vec;
-    std::shared_ptr<TrackerElementVector> hour_vec;
-    std::shared_ptr<TrackerElementVector> day_vec;
+    std::shared_ptr<TrackerElementVectorDouble> minute_vec;
+    std::shared_ptr<TrackerElementVectorDouble> hour_vec;
+    std::shared_ptr<TrackerElementVectorDouble> day_vec;
 
     std::shared_ptr<TrackerElementInt64> blank_val;
     std::shared_ptr<TrackerElementString> aggregator_name;
@@ -492,8 +478,7 @@ public:
         // If we haven't seen data in a minute, wipe
         if (in_time - ltime > 60) {
             for (int x = 0; x < 60; x++) {
-                e = *(minute_vec->begin() + x);
-                SetTrackerValue<int64_t>(e, agg.default_val());
+                *(minute_vec->begin() + x) = agg.default_val();
             }
         } else {
             // If in_time == last_time then we're updating an existing record, so
@@ -501,16 +486,14 @@ public:
             // Otherwise, fast-forward seconds with zero data, average the seconds,
             // and propagate the averages up
             if (in_time == ltime) {
-                e = *(minute_vec->begin() + sec_bucket);
-                SetTrackerValue<int64_t>(e, agg.combine_element(GetTrackerValue<int64_t>(e), in_s));
+                uint64_t v = *(minute_vec->begin() + sec_bucket);
+                *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
             } else {
                 for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                    e = *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60));
-                    SetTrackerValue<int64_t>(e, agg.default_val());
+                    *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
                 }
 
-                e = *(minute_vec->begin() + sec_bucket);
-                SetTrackerValue<int64_t>(e, in_s);
+                *(minute_vec->begin() + sec_bucket) = in_s;
             }
         }
 
@@ -562,8 +545,7 @@ protected:
         int x;
         if ((x = minute_vec->size()) != 60) {
             for ( ; x < 60; x++) {
-                auto me = std::make_shared<TrackerElementInt64>(second_entry_id);
-                minute_vec->push_back(me);
+                minute_vec->push_back(0);
             }
         }
 
@@ -573,7 +555,7 @@ protected:
     }
 
     std::shared_ptr<TrackerElementUInt64> last_time;
-    std::shared_ptr<TrackerElementVector> minute_vec;
+    std::shared_ptr<TrackerElementVectorDouble> minute_vec;
     std::shared_ptr<TrackerElementInt64> blank_val;
     std::shared_ptr<TrackerElementString> aggregator_name;
 
@@ -594,11 +576,11 @@ public:
     }
 
     // Select the strongest signal of the bucket
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVector> e) {
+    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
         int64_t avg = 0, avgc = 0;
 
         for (auto i : *e) {
-            int64_t v = GetTrackerValue<int64_t>(i);
+            int64_t v = i;
 
             if (v == 0)
                 continue;
@@ -652,11 +634,11 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVector> e) {
+    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
         int64_t avg = 0;
 
         for (auto i : *e) 
-            avg += GetTrackerValue<int64_t>(i);
+            avg += i;
 
         return avg / e->size();
     }
