@@ -486,8 +486,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
     Kis_Net_Httpd_Connection *concls = NULL;
 
-    cookieval = MHD_lookup_connection_value(connection, 
-            MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
+    cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
         auto si = kishttpd->session_map.find(cookieval);
@@ -602,6 +601,19 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
                 method, upload_data, upload_data_size);
     } else {
         // Handle GET + any others
+        
+        MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, 
+                [](void *cls, enum MHD_ValueKind, const char *key, const char *value) -> int {
+                    auto concls = static_cast<Kis_Net_Httpd_Connection *>(cls);
+
+                    concls->variable_cache[key] = std::make_shared<std::stringstream>();
+
+                    if (value != nullptr)
+                        concls->variable_cache[key]->write(value, strlen(value));
+
+                    return MHD_YES;
+                }, concls);
+        
         ret = handler->Httpd_HandleGetRequest(kishttpd, concls, url, method, 
                 upload_data, upload_data_size);
     }
@@ -622,8 +634,7 @@ int Kis_Net_Httpd::http_post_handler(void *coninfo_cls, enum MHD_ValueKind kind,
     } else {
         // Cache all the variables by name until we're complete
         if (concls->variable_cache.find(key) == concls->variable_cache.end())
-            concls->variable_cache[key] = 
-                std::unique_ptr<std::stringstream>(new std::stringstream);
+            concls->variable_cache[key] = std::make_shared<std::stringstream>();
 
         concls->variable_cache[key]->write(data, size);
 

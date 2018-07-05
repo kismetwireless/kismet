@@ -411,7 +411,7 @@ public:
     std::stringstream response_stream;
 
     // Cache of variables in session
-    std::map<std::string, std::unique_ptr<std::stringstream> > variable_cache;
+    std::map<std::string, std::shared_ptr<std::stringstream> > variable_cache;
 
     // Optional alternate filename to pass to the browser for downloading
     std::string optional_filename;
