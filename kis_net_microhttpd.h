@@ -75,6 +75,12 @@ public:
     // endpoints will be implementing serialization
     virtual bool Httpd_CanSerialize(const std::string& path);
 
+    // Shortcut for serializing; expects the path or the final element of the path
+    virtual void Httpd_Serialize(const std::string& path, 
+            std::ostream& stream,
+            std::shared_ptr<TrackerElement> elem, 
+            std::shared_ptr<TrackerElementSerializer::rename_map> rename);
+
     // Shortcuts for getting path info
     virtual std::string Httpd_GetSuffix(const std::string& path);
     virtual std::string Httpd_StripSuffix(const std::string& path);

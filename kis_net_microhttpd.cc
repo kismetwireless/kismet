@@ -918,6 +918,13 @@ bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
     return Globalreg::globalreg->entrytracker->CanSerialize(httpd->GetSuffix(path));
 }
 
+void Kis_Net_Httpd_Handler::Httpd_Serialize(const std::string& path, 
+        std::ostream& stream,
+        std::shared_ptr<TrackerElement> elem, 
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename) {
+    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, elem, rename);
+}
+
 std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
     return httpd->GetSuffix(path);
 }
