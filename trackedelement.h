@@ -151,6 +151,9 @@ enum class TrackerType {
 
     // Key-map (Large keys, 128 bit or higher, using the TrackedKey class)
     TrackerKeyMap = 21,
+
+    // Vector of scalar double, not object, values
+    TrackerVectorDouble = 22,
 };
 
 class TrackerElement {
@@ -1395,45 +1398,33 @@ public:
     }
 };
 
-class TrackerElementVector : public TrackerElement {
+// Core vector
+template<typename T>
+class TrackerElementCoreVector : public TrackerElement {
 public:
-    using vector_t = std::vector<SharedTrackerElement>;
-    using iterator = vector_t::iterator;
-    using const_iterator = vector_t::const_iterator;
+    using vector_t = std::vector<T>;
+    using iterator = typename vector_t::iterator;
+    using const_iterator = typename vector_t::const_iterator;
 
-    TrackerElementVector() : 
-        TrackerElement(TrackerType::TrackerVector) { }
+    TrackerElementCoreVector() = delete;
 
-    TrackerElementVector(int id) :
-        TrackerElement(TrackerType::TrackerVector, id) { }
+    TrackerElementCoreVector(TrackerType t) :
+        TrackerElement(t) { }
 
-    static TrackerType static_type() {
-        return TrackerType::TrackerVector;
-    }
+    TrackerElementCoreVector(TrackerType t, int id) :
+        TrackerElement(t, id) { }
 
     virtual void coercive_set(const std::string& in_str) override {
-        throw(std::runtime_error("Cannot coercive_set a vector from a string"));
+        throw(std::runtime_error("Cannot coercive_set a scalar vector from a string"));
     }
 
     virtual void coercive_set(double in_num) override {
-        throw(std::runtime_error("Cannot coercive_set a vector from a numeric"));
+        throw(std::runtime_error("Cannot coercive_set a scalar vector from a numeric"));
     }
 
     // Attempt to coerce one complete item to another
     virtual void coercive_set(const SharedTrackerElement& in_elem) override {
-        throw(std::runtime_error("Cannot coercive_set a vector from an element"));
-    }
-
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
+        throw(std::runtime_error("Cannot coercive_set a scalar vector from an element"));
     }
 
     vector_t& get() {
@@ -1480,21 +1471,16 @@ public:
         return vector.size();
     }
 
-    SharedTrackerElement& operator[](size_t pos) {
+    T& operator[](size_t pos) {
         return vector[pos];
     }
 
-    void push_back(const SharedTrackerElement v) {
+    void push_back(const T& v) {
         vector.push_back(v);
     }
 
-    void push_back(SharedTrackerElement&& v) {
+    void push_back(const T&& v) {
         vector.push_back(v);
-    }
-
-    template<typename TE>
-    void push_back(TE v) {
-        vector.push_back(std::static_pointer_cast<TrackerElement>(v));
     }
 
     template<class... Args >
@@ -1504,6 +1490,61 @@ public:
 
 protected:
     vector_t vector;
+};
+
+class TrackerElementVector : public TrackerElementCoreVector<std::shared_ptr<TrackerElement>> {
+public:
+    TrackerElementVector() : 
+        TrackerElementCoreVector(TrackerType::TrackerVector) { }
+
+    TrackerElementVector(int id) :
+        TrackerElementCoreVector(TrackerType::TrackerVector, id) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerVector;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    template<typename TE>
+    void push_back(TE v) {
+        vector.push_back(std::static_pointer_cast<TrackerElement>(v));
+    }
+};
+
+class TrackerElementVectorDouble : public TrackerElementCoreVector<double> {
+public:
+    TrackerElementVectorDouble() :
+        TrackerElementCoreVector<double>(TrackerType::TrackerVectorDouble) { }
+
+    TrackerElementVectorDouble(int id) :
+        TrackerElementCoreVector<double>(TrackerType::TrackerVectorDouble, id) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerVectorDouble;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
 };
 
 // Templated generic access functions

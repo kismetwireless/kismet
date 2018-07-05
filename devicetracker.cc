@@ -522,12 +522,12 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 	}
 
 	kis_common_info *pack_common =
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
+        (kis_common_info *) in_pack->fetch(pack_comp_common);
 
     if (!ram_no_rrd)
         packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
 
-	num_packets++;
+    num_packets++;
 
 	// If we can't figure it out at all (no common layer) just bail
 	if (pack_common == NULL)

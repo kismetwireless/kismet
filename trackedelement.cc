@@ -254,9 +254,11 @@ std::string TrackerElement::type_to_string(TrackerType t) {
             return "map[key, x]";
         case TrackerType::TrackerByteArray:
             return "bytearray";
-        default:
-            return "unknown";
+        case TrackerType::TrackerVectorDouble:
+            return "vector[double]";
     }
+
+    return "unknown";
 }
 
 std::string TrackerElement::type_to_typestring(TrackerType t) {
@@ -305,9 +307,11 @@ std::string TrackerElement::type_to_typestring(TrackerType t) {
             return "TrackerByteArray";
         case TrackerType::TrackerKeyMap:
             return "TrackerKeyMap";
-        default:
-            return "TrackerUnknown";
+        case TrackerType::TrackerVectorDouble:
+            return "TrackerVectorDouble";
     }
+
+    return "TrackerUnknown";
 }
 
 TrackerType TrackerElement::typestring_to_type(const std::string& s) {
@@ -355,6 +359,8 @@ TrackerType TrackerElement::typestring_to_type(const std::string& s) {
         return TrackerType::TrackerByteArray;
     if (s == "TrackerKeyMap")
         return TrackerType::TrackerKeyMap;
+    if (s == "TrackerVectorDouble")
+        return TrackerType::TrackerVectorDouble;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
