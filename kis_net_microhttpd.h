@@ -79,7 +79,7 @@ public:
     virtual void Httpd_Serialize(const std::string& path, 
             std::ostream& stream,
             std::shared_ptr<TrackerElement> elem, 
-            std::shared_ptr<TrackerElementSerializer::rename_map> rename);
+            std::shared_ptr<TrackerElementSerializer::rename_map> rename = nullptr);
 
     // Shortcuts for getting path info
     virtual std::string Httpd_GetSuffix(const std::string& path);
@@ -165,12 +165,6 @@ public:
             Kis_Net_Httpd_Connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
-
-    // Shortcuts to the entry tracker and serializer since most endpoints will
-    // need to serialize
-    virtual bool Httpd_Serialize(const std::string& path, std::stringstream &stream,
-            SharedTrackerElement e, 
-            std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
 };
 
 // Fallback handler to report that we can't serve static files

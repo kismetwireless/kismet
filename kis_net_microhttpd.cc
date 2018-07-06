@@ -933,12 +933,6 @@ std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
     return httpd->StripSuffix(path);
 }
 
-bool Kis_Net_Httpd_CPPStream_Handler::Httpd_Serialize(const std::string& path, 
-        std::stringstream &stream, SharedTrackerElement e, 
-        std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
-    return Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, e, name_map);
-}
-
 int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
