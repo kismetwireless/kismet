@@ -543,9 +543,7 @@ public:
 
     TrackerElementCoreNumeric(TrackerType t, int id, const N& v) :
         TrackerElement(t, id),
-        value(v) { 
-        value = 0;
-    }
+        value(v) { }
 
     virtual void coercive_set(const std::string& in_str) override {
         auto d = std::stod(in_str);
