@@ -305,6 +305,22 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             }
             stream << indent << "}";
             break;
+        case TrackerType::TrackerDoubleMapDouble:
+            stream << ppendl << indent << "{" << ppendl;
+
+            prepend_comma = false;
+            for (auto i : *(std::static_pointer_cast<TrackerElementDoubleMapDouble>(e))) {
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
+                // Double keys are handled as strings in json
+                stream << indent << "\"" << std::fixed << i.first << "\": ";
+                stream << i.second;
+                stream << ppendl;
+            }
+            stream << indent << "}";
+            break;
         case TrackerType::TrackerKeyMap:
             stream << ppendl << indent << "{" << ppendl;
 
@@ -578,6 +594,21 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                 // Double keys are handled as strings in json
                 stream << "\"" << std::fixed << i.first << "\": ";
                 StorageJsonAdapter::Pack(stream, i.second, name_map);
+            }
+            stream << "}";
+            break;
+        case TrackerType::TrackerDoubleMapDouble:
+            stream << "{";
+
+            prepend_comma = false;
+            for (auto i : *(std::static_pointer_cast<TrackerElementDoubleMapDouble>(e))) {
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
+                // Double keys are handled as strings in json
+                stream << "\"" << std::fixed << i.first << "\": ";
+                stream << i.second;
             }
             stream << "}";
             break;

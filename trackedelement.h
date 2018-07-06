@@ -152,8 +152,16 @@ enum class TrackerType {
     // Key-map (Large keys, 128 bit or higher, using the TrackedKey class)
     TrackerKeyMap = 21,
 
+    // "Complex-Scalar" types provide memory-efficient maps for specific collections
+    // of data Kismet uses; RRDs use vectors of doubles and frequency counting use maps
+    // of double:double, both of which benefit greatly from not tracking element fields for 
+    // the collected types.
+    
     // Vector of scalar double, not object, values
     TrackerVectorDouble = 22,
+
+    // Map of double:double, not object, values
+    TrackerDoubleMapDouble = 23,
 };
 
 class TrackerElement {
@@ -1077,10 +1085,10 @@ public:
 
 
 // Superclass for generic access to maps via multiple key structures
-template <class K>
+template <typename K, typename V>
 class TrackerElementCoreMap : public TrackerElement {
 public:
-    using map_t = std::map<K, SharedTrackerElement>;
+    using map_t = std::map<K, V>;
     using iterator = typename map_t::iterator;
     using const_iterator = typename map_t::const_iterator;
     using pair = std::pair<K, SharedTrackerElement>;
@@ -1163,22 +1171,22 @@ public:
         return map.insert(p);
     }
 
-    std::pair<iterator, bool> insert(const K& i, SharedTrackerElement e) {
+    std::pair<iterator, bool> insert(const K& i, const V& e) {
         return insert(std::make_pair(i, e));
     }
 
 protected:
-    std::map<K, SharedTrackerElement> map;
+    std::map<K, V> map;
 };
 
 // Dictionary / map-by-id
-class TrackerElementMap : public TrackerElementCoreMap<int> {
+class TrackerElementMap : public TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>> {
 public:
     TrackerElementMap() :
-        TrackerElementCoreMap<int>(TrackerType::TrackerMap) { }
+        TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMap) { }
 
     TrackerElementMap(int id) :
-        TrackerElementCoreMap<int>(TrackerType::TrackerMap, id) { }
+        TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerMap;
@@ -1266,13 +1274,13 @@ public:
 };
 
 // Int-keyed map
-class TrackerElementIntMap : public TrackerElementCoreMap<int> {
+class TrackerElementIntMap : public TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>> {
 public:
     TrackerElementIntMap() :
-        TrackerElementCoreMap<int>(TrackerType::TrackerIntMap) { }
+        TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerIntMap) { }
 
     TrackerElementIntMap(int id) :
-        TrackerElementCoreMap<int>(TrackerType::TrackerIntMap, id) { }
+        TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerIntMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerIntMap;
@@ -1293,13 +1301,13 @@ public:
 };
 
 // Double-keyed map
-class TrackerElementDoubleMap : public TrackerElementCoreMap<double> {
+class TrackerElementDoubleMap : public TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>> {
 public:
     TrackerElementDoubleMap() :
-        TrackerElementCoreMap<double>(TrackerType::TrackerDoubleMap) { }
+        TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>>(TrackerType::TrackerDoubleMap) { }
 
     TrackerElementDoubleMap(int id) :
-        TrackerElementCoreMap<double>(TrackerType::TrackerDoubleMap, id) { }
+        TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>>(TrackerType::TrackerDoubleMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerDoubleMap;
@@ -1319,13 +1327,13 @@ public:
 };
 
 // Mac-keyed map
-class TrackerElementMacMap : public TrackerElementCoreMap<mac_addr> {
+class TrackerElementMacMap : public TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>> {
 public:
     TrackerElementMacMap() :
-        TrackerElementCoreMap<mac_addr>(TrackerType::TrackerMacMap) { }
+        TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMacMap) { }
 
     TrackerElementMacMap(int id) :
-        TrackerElementCoreMap<mac_addr>(TrackerType::TrackerMacMap, id) { }
+        TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMacMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerMacMap;
@@ -1345,13 +1353,13 @@ public:
 };
 
 // String-keyed map
-class TrackerElementStringMap : public TrackerElementCoreMap<std::string> {
+class TrackerElementStringMap : public TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>> {
 public:
     TrackerElementStringMap() :
-        TrackerElementCoreMap<std::string>(TrackerType::TrackerStringMap) { }
+        TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>>(TrackerType::TrackerStringMap) { }
 
     TrackerElementStringMap(int id) :
-        TrackerElementCoreMap<std::string>(TrackerType::TrackerStringMap, id) { }
+        TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>>(TrackerType::TrackerStringMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerStringMap;
@@ -1371,13 +1379,39 @@ public:
 };
 
 // Device-key map
-class TrackerElementDeviceKeyMap : public TrackerElementCoreMap<device_key> {
+class TrackerElementDeviceKeyMap : public TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>> {
 public:
     TrackerElementDeviceKeyMap() :
-        TrackerElementCoreMap<device_key>(TrackerType::TrackerKeyMap) { }
+        TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>>(TrackerType::TrackerKeyMap) { }
 
     TrackerElementDeviceKeyMap(int id) :
-        TrackerElementCoreMap<device_key>(TrackerType::TrackerKeyMap, id) { }
+        TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>>(TrackerType::TrackerKeyMap, id) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerKeyMap;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+};
+
+// Double::Double map
+class TrackerElementDoubleMapDouble : public TrackerElementCoreMap<double, double> {
+public:
+    TrackerElementDoubleMapDouble() :
+        TrackerElementCoreMap<double, double>(TrackerType::TrackerKeyMap) { }
+
+    TrackerElementDoubleMapDouble(int id) :
+        TrackerElementCoreMap<double, double>(TrackerType::TrackerKeyMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerKeyMap;
