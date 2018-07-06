@@ -584,8 +584,8 @@ CC="$CXX"
 AC_CHECK_LIB([stdc++], [main],
         foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 
-if test "$foundcxxl"x == "x" -a "$caponly" = 1; then
-	AC_MSG_ERROR(Neither standard gcc stdc++ libraries found.)
+if test "$foundcxxl"x == "x" -a "$caponly" != 1; then
+	AC_MSG_ERROR(No standard stdc++ libraries found.)
 fi
 CC="$oCC"
 AC_SUBST(CXXLIBS)
@@ -634,87 +634,86 @@ else
 fi
 AC_SUBST(mangrp)
 
-# We need microhttpd
-if test "$caponly" != 1; then
+termcontrol="none";
+    
+# We need microhttpd and curses if we're building kismet_server
+if test "$caponly" == 0; then
 
-HAVE_LIBMICROHTTPD=0
-AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
-             KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
-             HAVE_LIBMICROHTTPD=0)
-if test "$HAVE_LIBMICROHTTPD" = 0 -a "$caponly" = 0; then
-    AC_MSG_ERROR([libmicrohttpd is needed and is not available])
-elif test "$HAVE_LIBMICROHTTPD" = 1; then
-    AC_CHECK_HEADER([microhttpd.h], 
-    	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
-        AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
-fi
-
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-    #include <microhttpd.h>
+    HAVE_LIBMICROHTTPD=0
+    AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
+                 KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
+                 HAVE_LIBMICROHTTPD=0)
+    if test "$HAVE_LIBMICROHTTPD" == 0 -a "$caponly" == 0; then
+        AC_MSG_ERROR([libmicrohttpd is needed and is not available])
+    elif test "$HAVE_LIBMICROHTTPD" = 1; then
+        AC_CHECK_HEADER([microhttpd.h], 
+        	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
+            AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
+    fi
+    
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        #include <microhttpd.h>
+        ]], [[
+        #if MHD_VERSION <= 0x00093700
+        #error MHD_TOO_OLD
+        #endif
+        ]])],[mhd_too_old=0],[mhd_too_old=1])
+    
+    if test "$mhd_too_old" = 1; then
+        AC_MSG_ERROR(sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/)
+    fi
+    
+    OLIBS="$LIBS"
+    LIBS="$LIBS -lmicrohttpd"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        #include <microhttpd.h>
     ]], [[
-    #if MHD_VERSION <= 0x00093700
-    #error MHD_TOO_OLD
-    #endif
-    ]])],[mhd_too_old=0],[mhd_too_old=1])
+        struct MHD_Daemon *microhttpd = NULL;
+        MHD_quiesce_daemon(microhttpd);
+        return 0;
+    ]])],[mhd_quiesce=1],[mhd_quiesce=0])
+    LIBS="$OLIBS"
+    
+    if test "$mhd_quiesce" = 1; then
+        AC_DEFINE(MHD_QUIESCE, 1, Able to use MHD_quiesce_daemon to shut down)
+    else
+        AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
+    fi
 
-if test "$mhd_too_old" = 1; then
-    AC_MSG_ERROR(sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/)
-fi
-
-OLIBS="$LIBS"
-LIBS="$LIBS -lmicrohttpd"
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-    #include <microhttpd.h>
-]], [[
-    struct MHD_Daemon *microhttpd = NULL;
-    MHD_quiesce_daemon(microhttpd);
-    return 0;
-]])],[mhd_quiesce=1],[mhd_quiesce=0])
-LIBS="$OLIBS"
-
-if test "$mhd_quiesce" = 1; then
-    AC_DEFINE(MHD_QUIESCE, 1, Able to use MHD_quiesce_daemon to shut down)
-else
-    AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
-fi
+    # Check for ncurses for pretty wrapper; no longer mandatory
+    
+    OLIBS="$LIBS"
+    AC_CHECK_LIB([ncurses], [initscr],
+                 AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
+                     foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
+    
+    if test "$foundlcurses" != "yes"; then
+        AC_CHECK_LIB([curses], [initscr],
+                     AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
+                         foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
+    fi
+    
+    if test "$foundlcurses" != "yes"; then
+        AC_MSG_WARN(Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper)
+    fi
+    
+    AC_CHECK_LIB([ncurses], [stdscr], [], [])
+    AC_CHECK_LIB([tinfo], [stdscr], curseaux="$curseaux -ltinfo")
+    
+    if test "$termcontrol" = "ncurses"; then
+        AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
+    else
+        AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
+    fi
+    
+    if test "$foundhcurses" != "yes"; then
+        AC_MSG_WARN(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
+    fi
+    
+    KSLIBS="$KSLIBS $curseaux"
 
 fi # caponly
 
-# Check for ncurses for pretty wrapper; no longer mandatory
-
-termcontrol="none";
-
-OLIBS="$LIBS"
-AC_CHECK_LIB([ncurses], [initscr],
-             AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
-                 foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
-
-if test "$foundlcurses" != "yes"; then
-    AC_CHECK_LIB([curses], [initscr],
-                 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
-                     foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
-fi
-
-if test "$foundlcurses" != "yes"; then
-    AC_MSG_WARN(Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper)
-fi
-
-AC_CHECK_LIB([ncurses], [stdscr], [], [])
-AC_CHECK_LIB([tinfo], [stdscr], curseaux="$curseaux -ltinfo")
-
-if test "$termcontrol" = "ncurses"; then
-    AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
-else
-    AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
-fi
-
-if test "$foundhcurses" != "yes"; then
-    AC_MSG_WARN(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
-fi
-
-KSLIBS="$KSLIBS $curseaux"
-
-# TODO - check for advanced curses stuff here like cdk/panels
 
 # Check for process title manipulation stuff, from proftpd configure.in
 AC_CHECK_FUNCS(setproctitle)
@@ -941,29 +940,29 @@ if test "$wantpcre" = "yes"; then
 fi
 
 # Don't check for sqlite3 if we're only building datasources
-if test "$caponly" = 0; then
-# Check for sqlite3
-sql3l=no
-AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
-
-if test "$sql3l" != "yes"; then
-	AC_MSG_ERROR(Failed to find libsqlite3)
-fi
-
-
-sql3h=no
-AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
-
-if test "$sql3h" != "yes"; then
-	AC_MSG_ERROR(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
-fi
-
-if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
-AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
-LIBS="$LIBS -lsqlite3"
-else
-    AC_MSG_ERROR(Failed to find sqlite3)
-fi # sqlite3
+if test "$caponly" == 0; then
+    # Check for sqlite3
+    sql3l=no
+    AC_CHECK_LIB([sqlite3], [sqlite3_libversion], sql3l=yes, sql3l=no)
+    
+    if test "$sql3l" != "yes"; then
+    	AC_MSG_ERROR(Failed to find libsqlite3)
+    fi
+    
+    
+    sql3h=no
+    AC_CHECK_HEADER([sqlite3.h], sql3h=yes, sql3h=no)
+    
+    if test "$sql3h" != "yes"; then
+    	AC_MSG_ERROR(Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages)
+    fi
+    
+    if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
+    AC_DEFINE(HAVE_LIBSQLITE3, 1, libsqlite3 database support)
+    LIBS="$LIBS -lsqlite3"
+    else
+        AC_MSG_ERROR(Failed to find sqlite3)
+    fi # sqlite3
 
 fi # caponly
 
@@ -1110,33 +1109,35 @@ fi
 
 AC_SUBST(PYTHON2)
 
+PKG_PROG_PKG_CONFIG
+
 if test "$caponly" = 0; then
-# We only *require* protobuf for C++
-PKG_CHECK_MODULES(protobuf, [protobuf], have_protobuf_pkg=yes)
-if test x"$have_protobuf_pkg" != "xyes"; then
-    AC_MSG_ERROR([missing google libprotobuf])
-fi
-
-AC_ARG_WITH(protoc,
-	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
-    [ ])
-
-if test x"$with_protoc" == "x"; then
-    PROTOCBIN=protoc
-    AC_CHECK_PROG(protoc, [protoc], yes)
-    if test x"$protoc" != x"yes"; then
-        AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+    # We only *require* protobuf for C++
+    PKG_CHECK_MODULES([protobuf], [protobuf], have_protobuf_pkg=yes)
+    if test x"$have_protobuf_pkg" != "xyes"; then
+        AC_MSG_ERROR([missing google libprotobuf])
     fi
-else
-    PROTOCBIN=$with_protoc
-fi
-
-PROTOLIBS=`pkg-config --libs protobuf`
-PROTOCFLAGS=`pkg-config --cflags protobuf`
-fi
+    
+    AC_ARG_WITH(protoc,
+    	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
+        [ ])
+    
+    if test x"$with_protoc" == "x"; then
+        PROTOCBIN=protoc
+        AC_CHECK_PROG(protoc, [protoc], yes)
+        if test x"$protoc" != x"yes"; then
+            AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+        fi
+    else
+        PROTOCBIN=$with_protoc
+    fi
+    
+    PROTOLIBS=`pkg-config --libs protobuf`
+    PROTOCFLAGS=`pkg-config --cflags protobuf`
+fi  # caponly
 
 # We need protobuf-c all the time
-PKG_CHECK_MODULES(libprotobufc, [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)
+PKG_CHECK_MODULES([libprotobufc], [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)
 if test x"$have_protobufc_pkg" != "xyes"; then
     # Look for the old version (old ubuntu, maybe others)
     AC_CHECK_HEADER([google/protobuf-c/protobuf-c.h], 
@@ -1203,17 +1204,12 @@ if test "$bsdradiotap" = "yes"; then
 	radiotaploc="system (BSD)"
 fi
 
-# havenetlink=no
 if test "$linux" = "yes"; then
-AC_CHECK_PROG(havepkgconfig, [pkg-config], yes, no)
-if test "$havepkgconfig" = "no"; then
-  AC_MSG_WARN(Missing pkg-config will lead to multiple other checks failing)
-fi
 
 NMLIBS=""
 NMCFLAGS=""
 
-PKG_CHECK_MODULES(libnm, [libnm], havelibnm=yes, havelibnm=no)
+PKG_CHECK_MODULES([libnm], [libnm], havelibnm=yes, havelibnm=no)
 if test $havelibnm = yes; then
     NMLIBS=`pkg-config --libs libnm`
     NMCFLAGS=`pkg-config --cflags libnm`
@@ -1237,7 +1233,7 @@ if test "$havelibnm" = "yes"; then
 	LIBS="$OLIBS"
     CPPFLAGS="$OCPPFL"
 else
-	AC_MSG_WARN(Libnm missing device_set_managed function, looks like a very old version)
+	AC_MSG_WARN(Libnm missing device_set_managed function may be a very old version)
 	havelibnm=no
     NMLIBS=""
     NMCFLAGS=""

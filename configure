@@ -646,7 +646,6 @@ NMCFLAGS
 NMLIBS
 libnm_LIBS
 libnm_CFLAGS
-havepkgconfig
 PROTOCCFLAGS
 PROTOCLIBS
 PROTOCCBIN
@@ -5792,7 +5791,7 @@ $as_echo "no" >&6; }
 	fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        as_fn_error $? "Missing python-setuptools, if you would like to build without python entirely, use --disable-python, otherwise install python-setuptools" "$LINENO" 5
+        as_fn_error $? "Missing python-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python-setuptools" "$LINENO" 5
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
@@ -7270,8 +7269,8 @@ if test "x$ac_cv_lib_stdcpp_main" = xyes; then :
 fi
 
 
-if test "$foundcxxl"x == "x" -a "$caponly" = 1; then
-	as_fn_error $? "Neither standard gcc stdc++ libraries found." "$LINENO" 5
+if test "$foundcxxl"x == "x" -a "$caponly" != 1; then
+	as_fn_error $? "No standard stdc++ libraries found." "$LINENO" 5
 fi
 CC="$oCC"
 
@@ -7363,11 +7362,13 @@ else
 fi
 
 
-# We need microhttpd
-if test "$caponly" != 1; then
+termcontrol="none";
 
-HAVE_LIBMICROHTTPD=0
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
+# We need microhttpd and curses if we're building kismet_server
+if test "$caponly" == 0; then
+
+    HAVE_LIBMICROHTTPD=0
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
 $as_echo_n "checking for MHD_start_daemon in -lmicrohttpd... " >&6; }
 if ${ac_cv_lib_microhttpd_MHD_start_daemon+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7409,10 +7410,10 @@ else
   HAVE_LIBMICROHTTPD=0
 fi
 
-if test "$HAVE_LIBMICROHTTPD" = 0 -a "$caponly" = 0; then
-    as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
-elif test "$HAVE_LIBMICROHTTPD" = 1; then
-    ac_fn_cxx_check_header_mongrel "$LINENO" "microhttpd.h" "ac_cv_header_microhttpd_h" "$ac_includes_default"
+    if test "$HAVE_LIBMICROHTTPD" == 0 -a "$caponly" == 0; then
+        as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
+    elif test "$HAVE_LIBMICROHTTPD" = 1; then
+        ac_fn_cxx_check_header_mongrel "$LINENO" "microhttpd.h" "ac_cv_header_microhttpd_h" "$ac_includes_default"
 if test "x$ac_cv_header_microhttpd_h" = xyes; then :
 
 $as_echo "#define HAVE_MICROHTTPD_H 1" >>confdefs.h
@@ -7422,20 +7423,20 @@ else
 fi
 
 
-fi
+    fi
 
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-    #include <microhttpd.h>
+        #include <microhttpd.h>
 
 int
 main ()
 {
 
-    #if MHD_VERSION <= 0x00093700
-    #error MHD_TOO_OLD
-    #endif
+        #if MHD_VERSION <= 0x00093700
+        #error MHD_TOO_OLD
+        #endif
 
   ;
   return 0;
@@ -7449,24 +7450,24 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-if test "$mhd_too_old" = 1; then
-    as_fn_error $? "sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/" "$LINENO" 5
-fi
+    if test "$mhd_too_old" = 1; then
+        as_fn_error $? "sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/" "$LINENO" 5
+    fi
 
-OLIBS="$LIBS"
-LIBS="$LIBS -lmicrohttpd"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    OLIBS="$LIBS"
+    LIBS="$LIBS -lmicrohttpd"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-    #include <microhttpd.h>
+        #include <microhttpd.h>
 
 int
 main ()
 {
 
-    struct MHD_Daemon *microhttpd = NULL;
-    MHD_quiesce_daemon(microhttpd);
-    return 0;
+        struct MHD_Daemon *microhttpd = NULL;
+        MHD_quiesce_daemon(microhttpd);
+        return 0;
 
   ;
   return 0;
@@ -7479,25 +7480,21 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-LIBS="$OLIBS"
+    LIBS="$OLIBS"
 
-if test "$mhd_quiesce" = 1; then
+    if test "$mhd_quiesce" = 1; then
 
 $as_echo "#define MHD_QUIESCE 1" >>confdefs.h
 
-else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&5
+    else
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&5
 $as_echo "$as_me: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&2;}
-fi
+    fi
 
-fi # caponly
+    # Check for ncurses for pretty wrapper; no longer mandatory
 
-# Check for ncurses for pretty wrapper; no longer mandatory
-
-termcontrol="none";
-
-OLIBS="$LIBS"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
+    OLIBS="$LIBS"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
 $as_echo_n "checking for initscr in -lncurses... " >&6; }
 if ${ac_cv_lib_ncurses_initscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7537,12 +7534,12 @@ if test "x$ac_cv_lib_ncurses_initscr" = xyes; then :
 
 $as_echo "#define HAVE_LIBNCURSES 1" >>confdefs.h
  \
-                 foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses"
+                     foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses"
 fi
 
 
-if test "$foundlcurses" != "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lcurses" >&5
+    if test "$foundlcurses" != "yes"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lcurses" >&5
 $as_echo_n "checking for initscr in -lcurses... " >&6; }
 if ${ac_cv_lib_curses_initscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7582,17 +7579,17 @@ if test "x$ac_cv_lib_curses_initscr" = xyes; then :
 
 $as_echo "#define HAVE_LIBCURSES 1" >>confdefs.h
  \
-                     foundlcurses=yes curseaux="-lcurses" termcontrol="curses"
+                         foundlcurses=yes curseaux="-lcurses" termcontrol="curses"
 fi
 
-fi
+    fi
 
-if test "$foundlcurses" != "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&5
+    if test "$foundlcurses" != "yes"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&5
 $as_echo "$as_me: WARNING: Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper" >&2;}
-fi
+    fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdscr in -lncurses" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdscr in -lncurses" >&5
 $as_echo_n "checking for stdscr in -lncurses... " >&6; }
 if ${ac_cv_lib_ncurses_stdscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7637,7 +7634,7 @@ _ACEOF
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdscr in -ltinfo" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdscr in -ltinfo" >&5
 $as_echo_n "checking for stdscr in -ltinfo... " >&6; }
 if ${ac_cv_lib_tinfo_stdscr+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7678,30 +7675,31 @@ if test "x$ac_cv_lib_tinfo_stdscr" = xyes; then :
 fi
 
 
-if test "$termcontrol" = "ncurses"; then
-    ac_fn_cxx_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"
+    if test "$termcontrol" = "ncurses"; then
+        ac_fn_cxx_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"
 if test "x$ac_cv_header_ncurses_h" = xyes; then :
   foundhcurses=yes
 fi
 
 
-else
-    ac_fn_cxx_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
+    else
+        ac_fn_cxx_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
 if test "x$ac_cv_header_curses_h" = xyes; then :
   foundhcurses=yes
 fi
 
 
-fi
+    fi
 
-if test "$foundhcurses" != "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&5
+    if test "$foundhcurses" != "yes"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&5
 $as_echo "$as_me: WARNING: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&2;}
-fi
+    fi
 
-KSLIBS="$KSLIBS $curseaux"
+    KSLIBS="$KSLIBS $curseaux"
 
-# TODO - check for advanced curses stuff here like cdk/panels
+fi # caponly
+
 
 # Check for process title manipulation stuff, from proftpd configure.in
 for ac_func in setproctitle
@@ -8249,10 +8247,10 @@ $as_echo "#define HAVE_LIBPCRE 1" >>confdefs.h
 fi
 
 # Don't check for sqlite3 if we're only building datasources
-if test "$caponly" = 0; then
-# Check for sqlite3
-sql3l=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
+if test "$caponly" == 0; then
+    # Check for sqlite3
+    sql3l=no
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sqlite3_libversion in -lsqlite3" >&5
 $as_echo_n "checking for sqlite3_libversion in -lsqlite3... " >&6; }
 if ${ac_cv_lib_sqlite3_sqlite3_libversion+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8295,13 +8293,13 @@ else
 fi
 
 
-if test "$sql3l" != "yes"; then
-	as_fn_error $? "Failed to find libsqlite3" "$LINENO" 5
-fi
+    if test "$sql3l" != "yes"; then
+    	as_fn_error $? "Failed to find libsqlite3" "$LINENO" 5
+    fi
 
 
-sql3h=no
-ac_fn_cxx_check_header_mongrel "$LINENO" "sqlite3.h" "ac_cv_header_sqlite3_h" "$ac_includes_default"
+    sql3h=no
+    ac_fn_cxx_check_header_mongrel "$LINENO" "sqlite3.h" "ac_cv_header_sqlite3_h" "$ac_includes_default"
 if test "x$ac_cv_header_sqlite3_h" = xyes; then :
   sql3h=yes
 else
@@ -8310,18 +8308,18 @@ fi
 
 
 
-if test "$sql3h" != "yes"; then
-	as_fn_error $? "Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" "$LINENO" 5
-fi
+    if test "$sql3h" != "yes"; then
+    	as_fn_error $? "Failed to find sqlite3 headers check that the libsqlite3-devel package is installed if your distribution provides separate packages" "$LINENO" 5
+    fi
 
-if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
+    if test "$sql3h" = "yes" -a "$sql3l" = "yes"; then
 
 $as_echo "#define HAVE_LIBSQLITE3 1" >>confdefs.h
 
-LIBS="$LIBS -lsqlite3"
-else
-    as_fn_error $? "Failed to find sqlite3" "$LINENO" 5
-fi # sqlite3
+    LIBS="$LIBS -lsqlite3"
+    else
+        as_fn_error $? "Failed to find sqlite3" "$LINENO" 5
+    fi # sqlite3
 
 fi # caponly
 
@@ -8984,8 +8982,6 @@ fi
 
 
 
-if test "$caponly" = 0; then
-# We only *require* protobuf for C++
 
 
 
@@ -9107,6 +9103,9 @@ $as_echo "no" >&6; }
 	fi
 fi
 
+if test "$caponly" = 0; then
+    # We only *require* protobuf for C++
+
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5
 $as_echo_n "checking for protobuf... " >&6; }
@@ -9197,9 +9196,9 @@ else
 $as_echo "yes" >&6; }
 	have_protobuf_pkg=yes
 fi
-if test x"$have_protobuf_pkg" != "xyes"; then
-    as_fn_error $? "missing google libprotobuf" "$LINENO" 5
-fi
+    if test x"$have_protobuf_pkg" != "xyes"; then
+        as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+    fi
 
 
 # Check whether --with-protoc was given.
@@ -9208,9 +9207,9 @@ if test "${with_protoc+set}" = set; then :
 fi
 
 
-if test x"$with_protoc" == "x"; then
-    PROTOCBIN=protoc
-    # Extract the first word of "protoc", so it can be a program name with args.
+    if test x"$with_protoc" == "x"; then
+        PROTOCBIN=protoc
+        # Extract the first word of "protoc", so it can be a program name with args.
 set dummy protoc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -9247,16 +9246,16 @@ $as_echo "no" >&6; }
 fi
 
 
-    if test x"$protoc" != x"yes"; then
-        as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
+        if test x"$protoc" != x"yes"; then
+            as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
+        fi
+    else
+        PROTOCBIN=$with_protoc
     fi
-else
-    PROTOCBIN=$with_protoc
-fi
 
-PROTOLIBS=`pkg-config --libs protobuf`
-PROTOCFLAGS=`pkg-config --cflags protobuf`
-fi
+    PROTOLIBS=`pkg-config --libs protobuf`
+    PROTOCFLAGS=`pkg-config --cflags protobuf`
+fi  # caponly
 
 # We need protobuf-c all the time
 
@@ -9501,50 +9500,7 @@ $as_echo "#define HAVE_BSD_SYS_RADIOTAP 1" >>confdefs.h
 	radiotaploc="system (BSD)"
 fi
 
-# havenetlink=no
 if test "$linux" = "yes"; then
-# Extract the first word of "pkg-config", so it can be a program name with args.
-set dummy pkg-config; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_prog_havepkgconfig+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$havepkgconfig"; then
-  ac_cv_prog_havepkgconfig="$havepkgconfig" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_havepkgconfig="yes"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  test -z "$ac_cv_prog_havepkgconfig" && ac_cv_prog_havepkgconfig="no"
-fi
-fi
-havepkgconfig=$ac_cv_prog_havepkgconfig
-if test -n "$havepkgconfig"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $havepkgconfig" >&5
-$as_echo "$havepkgconfig" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-if test "$havepkgconfig" = "no"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Missing pkg-config will lead to multiple other checks failing" >&5
-$as_echo "$as_me: WARNING: Missing pkg-config will lead to multiple other checks failing" >&2;}
-fi
 
 NMLIBS=""
 NMCFLAGS=""
@@ -9661,8 +9617,8 @@ rm -f core conftest.err conftest.$ac_objext \
 	LIBS="$OLIBS"
     CPPFLAGS="$OCPPFL"
 else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Libnm missing device_set_managed function" >&5
-$as_echo "$as_me: WARNING: Libnm missing device_set_managed function" >&2;}
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Libnm missing device_set_managed function may be a very old version" >&5
+$as_echo "$as_me: WARNING: Libnm missing device_set_managed function may be a very old version" >&2;}
 	havelibnm=no
     NMLIBS=""
     NMCFLAGS=""
