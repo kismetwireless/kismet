@@ -242,7 +242,7 @@ int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
 
     // Don't override if this packet already has a location, which could
     // come from a drone or from a PPI file
-    if (in_pack->fetch(_PCM(PACK_COMP_GPS)) != NULL)
+    if (in_pack->fetch(gpstracker->pack_comp_gps) != NULL)
         return 1;
 
     kis_gps_packinfo *gpsloc = gpstracker->get_best_location();
@@ -251,7 +251,7 @@ int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
         return 0;
 
     // Insert into chain; we were given a new location
-    in_pack->insert(_PCM(PACK_COMP_GPS), gpsloc);
+    in_pack->insert(gpstracker->pack_comp_gps, gpsloc);
 
     return 1;
 }
