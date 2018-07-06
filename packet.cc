@@ -52,6 +52,9 @@ kis_packet::kis_packet(GlobalRegistry *in_globalreg) {
 
 kis_packet::~kis_packet() {
     for (auto pcm : content_vec) {
+        if (pcm == nullptr)
+            continue;
+
         if (pcm->self_destruct)
             delete pcm;
     }
