@@ -224,7 +224,7 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
 void kis_tracked_signal_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.signal.last_signal", "most recent signal", &last_signal_dbm);
+    RegisterField("kismet.common.signal.last_signal_dbm", "most recent signal (dBm)", &last_signal_dbm);
     RegisterField("kismet.common.signal.last_noise", "most recent noise (dBm)", &last_noise_dbm);
 
     RegisterField("kismet.common.signal.min_signal", "minimum signal (dBm)", &min_signal_dbm);
