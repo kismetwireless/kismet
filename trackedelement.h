@@ -1091,7 +1091,7 @@ public:
     using map_t = std::map<K, V>;
     using iterator = typename map_t::iterator;
     using const_iterator = typename map_t::const_iterator;
-    using pair = std::pair<K, SharedTrackerElement>;
+    using pair = std::pair<K, V>;
 
     TrackerElementCoreMap() = delete;
 
