@@ -51,26 +51,18 @@ kis_packet::kis_packet(GlobalRegistry *in_globalreg) {
 }
 
 kis_packet::~kis_packet() {
-	// Delete everything we contain when we die.  I hope whomever put
-	// it there expected this.
-	for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++) {
-		packet_component *pcm = content_vec[y];
-
-		if (pcm == NULL)
-			continue;
-
-		// If it's marked for self-destruction, delete it.  Otherwise, 
-		// someone else is responsible for removing it.
-		if (pcm->self_destruct)
-			delete pcm;
-
-		content_vec[y] = NULL;
-	}
+    for (auto pcm : content_vec) {
+        if (pcm->self_destruct)
+            delete pcm;
+    }
 }
    
 void kis_packet::insert(const unsigned int index, packet_component *data) {
-	if (index >= MAX_PACKET_COMPONENTS)
-		return;
+	if (index >= MAX_PACKET_COMPONENTS) 
+        throw std::runtime_error(fmt::format("Attempted to reference packet component index {} "
+                    "outside of the maximum bounds {}; this implies the pack_comp_x or _PCM "
+                    "index is corrupt.", index, MAX_PACKET_COMPONENTS));
+
 	if (content_vec[index] != NULL)
 		fprintf(stderr, "DEBUG/WARNING: Leaking packet component %u/%s, inserting "
 				"on top of existing\n", index,
