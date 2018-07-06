@@ -287,11 +287,9 @@ void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
     auto i = freq_khz_map->find(frequency);
 
     if (i == freq_khz_map->end()) {
-        auto e = std::make_shared<TrackerElementUInt64>(frequency_val_id);
-        e->set(1);
-        freq_khz_map->insert(std::make_pair(frequency, e));
+        freq_khz_map->insert(frequency, 1);
     } else {
-        *(std::static_pointer_cast<TrackerElementUInt64>(i->second)) += 1;
+        i->second += 1;
     }
 }
 
@@ -322,10 +320,9 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
     auto i = freq_khz_map->find(frequency);
 
     if (i == freq_khz_map->end()) {
-        auto e = std::make_shared<TrackerElementDouble>(frequency_val_id, 1);
-        freq_khz_map->insert(frequency, e);
+        freq_khz_map->insert(frequency, 1);
     } else {
-        *(std::static_pointer_cast<TrackerElementDouble>(i->second)) += 1;
+        i->second += 1;
     }
 }
 
