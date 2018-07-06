@@ -29,9 +29,8 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
     reserve_fields(NULL);
 
     // Force the ID
-    tracked_id = Globalreg::globalreg->entrytracker->RegisterField("kismet.gps.instance", 
-            TrackerElementFactory<TrackerElementMap>(),
-            "GPS");
+    set_id(Globalreg::globalreg->entrytracker->RegisterField("kismet.gps.instance", 
+            TrackerElementFactory<TrackerElementMap>(), "GPS"));
 
     // Link the builder
     gps_prototype = in_builder;
@@ -39,6 +38,11 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
 
     gps_location = new kis_gps_packinfo();
     gps_last_location = new kis_gps_packinfo();
+
+    tracked_location =
+        std::make_shared<kis_tracked_location_triplet>(tracked_location_id);
+    tracked_last_location =
+        std::make_shared<kis_tracked_location_triplet>(tracked_last_location_id);
 }
 
 KisGps::~KisGps() {
