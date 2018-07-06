@@ -1408,13 +1408,13 @@ public:
 class TrackerElementDoubleMapDouble : public TrackerElementCoreMap<double, double> {
 public:
     TrackerElementDoubleMapDouble() :
-        TrackerElementCoreMap<double, double>(TrackerType::TrackerKeyMap) { }
+        TrackerElementCoreMap<double, double>(TrackerType::TrackerDoubleMapDouble) { }
 
     TrackerElementDoubleMapDouble(int id) :
-        TrackerElementCoreMap<double, double>(TrackerType::TrackerKeyMap, id) { }
+        TrackerElementCoreMap<double, double>(TrackerType::TrackerDoubleMapDouble, id) { }
 
     static TrackerType static_type() {
-        return TrackerType::TrackerKeyMap;
+        return TrackerType::TrackerDoubleMapDouble;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
