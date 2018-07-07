@@ -109,21 +109,15 @@ public:
     void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd = true);
     void append_signal(const Packinfo_Sig_Combo& in, bool update_rrd = true);
 
-    __ProxyGet(last_signal_dbm, int32_t, int, last_signal_dbm);
-    __ProxyGet(min_signal_dbm, int32_t, int, min_signal_dbm);
-    __ProxyGet(max_signal_dbm, int32_t, int, max_signal_dbm);
+    __ProxyGet(signal_type, std::string, std::string, signal_type);
 
-    __ProxyGet(last_noise_dbm, int32_t, int, last_noise_dbm);
-    __ProxyGet(min_noise_dbm, int32_t, int, min_noise_dbm);
-    __ProxyGet(max_noise_dbm, int32_t, int, max_noise_dbm);
+    __ProxyGet(last_signal, int32_t, int, last_signal);
+    __ProxyGet(min_signal, int32_t, int, min_signal);
+    __ProxyGet(max_signal, int32_t, int, max_signal);
 
-    __ProxyGet(last_signal_rssi, int32_t, int, last_signal_rssi);
-    __ProxyGet(min_signal_rssi, int32_t, int, min_signal_rssi);
-    __ProxyGet(max_signal_rssi, int32_t, int, max_signal_rssi);
-
-    __ProxyGet(last_noise_rssi, int32_t, int, last_noise_rssi);
-    __ProxyGet(min_noise_rssi, int32_t, int, min_noise_rssi);
-    __ProxyGet(max_noise_rssi, int32_t, int, max_noise_rssi);
+    __ProxyGet(last_noise, int32_t, int, last_noise);
+    __ProxyGet(min_noise, int32_t, int, min_noise);
+    __ProxyGet(max_noise, int32_t, int, max_noise);
 
     __ProxyGet(maxseenrate, double, double, maxseenrate);
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
@@ -137,23 +131,16 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementInt32> last_signal_dbm;
-    std::shared_ptr<TrackerElementInt32> last_noise_dbm;
+    std::shared_ptr<TrackerElementInt32> last_signal;
+    std::shared_ptr<TrackerElementInt32> last_noise;
 
-    std::shared_ptr<TrackerElementInt32> min_signal_dbm;
-    std::shared_ptr<TrackerElementInt32> min_noise_dbm;
+    std::shared_ptr<TrackerElementInt32> min_signal;
+    std::shared_ptr<TrackerElementInt32> min_noise;
 
-    std::shared_ptr<TrackerElementInt32> max_signal_dbm;
-    std::shared_ptr<TrackerElementInt32> max_noise_dbm;
+    std::shared_ptr<TrackerElementInt32> max_signal;
+    std::shared_ptr<TrackerElementInt32> max_noise;
 
-    std::shared_ptr<TrackerElementInt32> last_signal_rssi;
-    std::shared_ptr<TrackerElementInt32> last_noise_rssi;
-
-    std::shared_ptr<TrackerElementInt32> min_signal_rssi;
-    std::shared_ptr<TrackerElementInt32> min_noise_rssi;
-
-    std::shared_ptr<TrackerElementInt32> max_signal_rssi;
-    std::shared_ptr<TrackerElementInt32> max_noise_rssi;
+    std::shared_ptr<TrackerElementString> signal_type;
 
     int peak_loc_id;
     std::shared_ptr<kis_tracked_location_triplet> peak_loc;
@@ -166,6 +153,8 @@ protected:
     // should not mix rssi and dbm signal reporting.
     int signal_min_rrd_id;
     std::shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> > signal_min_rrd;
+
+    int sig_type;
 };
 
 class kis_tracked_seenby_data : public tracker_component {

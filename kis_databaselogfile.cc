@@ -597,7 +597,7 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
         sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), keystring.length(), 0);
         sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), phystring.length(), 0);
         sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), macstring.length(), 0);
-        sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal_dbm());
+        sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
 
         if (d->get_tracker_location() != NULL) {
             sqlite3_bind_int64(device_stmt, spos++, 

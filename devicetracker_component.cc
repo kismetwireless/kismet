@@ -64,31 +64,50 @@ kis_tracked_signal_data::kis_tracked_signal_data() :
     tracker_component(0) {
     register_fields();
     reserve_fields(NULL);
+
+    sig_type = 0;
+    signal_type->set("none");
 }
 
 kis_tracked_signal_data::kis_tracked_signal_data(int in_id) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(NULL);      
+
+    sig_type = 0;
+    signal_type->set("none");
 } 
 
 kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
+
+    if (signal_type->get() == "dbm")
+        sig_type = 1;
+    else if (signal_type->get() == "rssi")
+        sig_type = 2;
+    else
+        sig_type = 0;
+
 }
 
 void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd) {
-    if (lay1.signal_type == kis_l1_signal_type_dbm) {
-        if (lay1.signal_dbm != 0) {
-            last_signal_dbm->set(lay1.signal_dbm);
+    if (lay1.signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
+        if (sig_type == 0) {
+            signal_type->set("dbm");
+            sig_type = 1;
+        }
 
-            if ((*min_signal_dbm) == 0 || (*min_signal_dbm) > lay1.signal_dbm) {
-                min_signal_dbm->set(lay1.signal_dbm);
+        if (lay1.signal_dbm != 0) {
+            last_signal->set(lay1.signal_dbm);
+
+            if ((*min_signal) == 0 || (*min_signal) > lay1.signal_dbm) {
+                min_signal->set(lay1.signal_dbm);
             }
 
-            if ((*max_signal_dbm) == 0 || (*max_signal_dbm) < lay1.signal_dbm) {
-                max_signal_dbm->set(lay1.signal_dbm);
+            if ((*max_signal) == 0 || (*max_signal) < lay1.signal_dbm) {
+                max_signal->set(lay1.signal_dbm);
             }
 
             if (update_rrd)
@@ -96,26 +115,31 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
         }
 
         if (lay1.noise_dbm != 0) {
-            last_noise_dbm->set(lay1.noise_dbm);
+            last_noise->set(lay1.noise_dbm);
 
-            if ((*min_noise_dbm) == 0 || (*min_noise_dbm) > lay1.noise_dbm) {
-                min_noise_dbm->set(lay1.noise_dbm);
+            if ((*min_noise) == 0 || (*min_noise) > lay1.noise_dbm) {
+                min_noise->set(lay1.noise_dbm);
             }
 
-            if ((*max_noise_dbm) == 0 || (*max_noise_dbm) < lay1.noise_dbm) {
-                max_noise_dbm->set(lay1.noise_dbm);
+            if ((*max_noise) == 0 || (*max_noise) < lay1.noise_dbm) {
+                max_noise->set(lay1.noise_dbm);
             }
         }
-    } else if (lay1.signal_type == kis_l1_signal_type_rssi) {
-        if (lay1.signal_rssi != 0) {
-            last_signal_rssi->set(lay1.signal_rssi);
+    } else if (lay1.signal_type == kis_l1_signal_type_rssi && (sig_type == 0 || sig_type == 2)) {
+        if (sig_type == 0) {
+            signal_type->set("rssi");
+            sig_type = 2;
+        }
 
-            if ((*min_signal_rssi) == 0 || (*min_signal_rssi) > lay1.signal_rssi) {
-                min_signal_dbm->set(lay1.signal_rssi);
+        if (lay1.signal_rssi != 0) {
+            last_signal->set(lay1.signal_rssi);
+
+            if ((*min_signal) == 0 || (*min_signal) > lay1.signal_rssi) {
+                min_signal->set(lay1.signal_rssi);
             }
 
-            if ((*max_signal_rssi) == 0 || (*max_signal_rssi) < lay1.signal_rssi) {
-                max_signal_rssi->set(lay1.signal_rssi);
+            if ((*max_signal) == 0 || (*max_signal) < lay1.signal_rssi) {
+                max_signal->set(lay1.signal_rssi);
             }
 
             if (update_rrd)
@@ -123,14 +147,14 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
         }
 
         if (lay1.noise_rssi != 0) {
-            last_noise_rssi->set(lay1.noise_rssi);
+            last_noise->set(lay1.noise_rssi);
 
-            if ((*min_noise_rssi) == 0 || (*min_noise_rssi) > lay1.noise_rssi) {
-                min_noise_rssi->set(lay1.noise_rssi);
+            if ((*min_noise) == 0 || (*min_noise) > lay1.noise_rssi) {
+                min_noise->set(lay1.noise_rssi);
             }
 
-            if ((*max_noise_rssi) == 0 || (*max_noise_rssi) < lay1.noise_rssi) {
-                max_noise_rssi->set(lay1.noise_rssi);
+            if ((*max_noise) == 0 || (*max_noise) < lay1.noise_rssi) {
+                max_noise->set(lay1.noise_rssi);
             }
         }
 
@@ -145,17 +169,22 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
 
 void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool update_rrd) {
     if (in.lay1 != NULL) {
-        if (in.lay1->signal_type == kis_l1_signal_type_dbm) {
+        if (in.lay1->signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
+            if (sig_type == 0) {
+                signal_type->set("dbm");
+                sig_type = 1;
+            }
+
             if (in.lay1->signal_dbm != 0) {
 
-                last_signal_dbm->set(in.lay1->signal_dbm);
+                last_signal->set(in.lay1->signal_dbm);
 
-                if ((*min_signal_dbm) == 0 || (*min_signal_dbm) > in.lay1->signal_dbm) {
-                    min_signal_dbm->set(in.lay1->signal_dbm);
+                if ((*min_signal) == 0 || (*min_signal) > in.lay1->signal_dbm) {
+                    min_signal->set(in.lay1->signal_dbm);
                 }
 
-                if ((*max_signal_dbm) == 0 || (*max_signal_dbm) < in.lay1->signal_dbm) {
-                    max_signal_dbm->set(in.lay1->signal_dbm);
+                if ((*max_signal) == 0 || (*max_signal) < in.lay1->signal_dbm) {
+                    max_signal->set(in.lay1->signal_dbm);
 
                     if (in.gps != NULL) {
                         get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, in.gps->fix);
@@ -167,26 +196,31 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
             }
 
             if (in.lay1->noise_dbm != 0) {
-                last_noise_dbm->set(in.lay1->noise_dbm);
+                last_noise->set(in.lay1->noise_dbm);
 
-                if ((*min_noise_dbm) == 0 || (*min_noise_dbm) > in.lay1->noise_dbm) {
-                    min_noise_dbm->set(in.lay1->noise_dbm);
+                if ((*min_noise) == 0 || (*min_noise) > in.lay1->noise_dbm) {
+                    min_noise->set(in.lay1->noise_dbm);
                 }
 
-                if ((*max_noise_dbm) == 0 || (*max_noise_dbm) < in.lay1->noise_dbm) {
-                    max_noise_dbm->set(in.lay1->noise_dbm);
+                if ((*max_noise) == 0 || (*max_noise) < in.lay1->noise_dbm) {
+                    max_noise->set(in.lay1->noise_dbm);
                 }
+            } 
+        } else if (in.lay1->signal_type == kis_l1_signal_type_rssi && (sig_type == 0 || sig_type == 2)) {
+            if (sig_type == 0) {
+                signal_type->set("rssi");
+                sig_type = 2;
             }
-        } else if (in.lay1->signal_type == kis_l1_signal_type_rssi) {
-            if (in.lay1->signal_rssi != 0) {
-                last_signal_rssi->set(in.lay1->signal_rssi);
 
-                if ((*min_signal_rssi) == 0 || (*min_signal_rssi) > in.lay1->signal_rssi) {
-                    min_signal_dbm->set(in.lay1->signal_rssi);
+            if (in.lay1->signal_rssi != 0) {
+                last_signal->set(in.lay1->signal_rssi);
+
+                if ((*min_signal) == 0 || (*min_signal) > in.lay1->signal_rssi) {
+                    min_signal->set(in.lay1->signal_rssi);
                 }
 
-                if ((*max_signal_rssi) == 0 || (*max_signal_rssi) < in.lay1->signal_rssi) {
-                    max_signal_rssi->set(in.lay1->signal_rssi);
+                if ((*max_signal) == 0 || (*max_signal) < in.lay1->signal_rssi) {
+                    max_signal->set(in.lay1->signal_rssi);
 
                     if (in.gps != NULL) {
                         get_peak_loc()->set(in.gps->lat, in.gps->lon, in.gps->alt, 
@@ -199,14 +233,14 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
             }
 
             if (in.lay1->noise_rssi != 0) {
-                last_noise_rssi->set(in.lay1->noise_rssi);
+                last_noise->set(in.lay1->noise_rssi);
 
-                if ((*min_noise_rssi) == 0 || (*min_noise_rssi) > in.lay1->noise_rssi) {
-                    min_noise_rssi->set(in.lay1->noise_rssi);
+                if ((*min_noise) == 0 || (*min_noise) > in.lay1->noise_rssi) {
+                    min_noise->set(in.lay1->noise_rssi);
                 }
 
-                if ((*max_noise_rssi) == 0 || (*max_noise_rssi) < in.lay1->noise_rssi) {
-                    max_noise_rssi->set(in.lay1->noise_rssi);
+                if ((*max_noise) == 0 || (*max_noise) < in.lay1->noise_rssi) {
+                    max_noise->set(in.lay1->noise_rssi);
                 }
             }
 
@@ -224,30 +258,16 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
 void kis_tracked_signal_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.signal.last_signal_dbm", "most recent signal (dBm)", &last_signal_dbm);
-    RegisterField("kismet.common.signal.last_noise", "most recent noise (dBm)", &last_noise_dbm);
+    RegisterField("kismet.common.signal.type", "signal type", &signal_type);
 
-    RegisterField("kismet.common.signal.min_signal", "minimum signal (dBm)", &min_signal_dbm);
-    RegisterField("kismet.common.signal.min_noise_dbm", "minimum noise (dBm)", &min_noise_dbm);
+    RegisterField("kismet.common.signal.last_signal", "most recent signal", &last_signal);
+    RegisterField("kismet.common.signal.last_noise", "most recent noise", &last_noise);
 
-    RegisterField("kismet.common.signal.max_signal_dbm", "maximum signal (dBm)", &max_signal_dbm);
-    RegisterField("kismet.common.signal.max_noise_dbm", "maximum noise (dBm)", &max_noise_dbm);
+    RegisterField("kismet.common.signal.min_signal", "minimum signal", &min_signal);
+    RegisterField("kismet.common.signal.min_noise", "minimum noise", &min_noise);
 
-    RegisterField("kismet.common.signal.last_signal_rssi", 
-            "most recent signal (RSSI)", &last_signal_rssi);
-    RegisterField("kismet.common.signal.last_noise_rssi", 
-            "most recent noise (RSSI)", &last_noise_rssi);
-
-    RegisterField("kismet.common.signal.min_signal_rssi",
-            "minimum signal (rssi)", &min_signal_rssi);
-    RegisterField("kismet.common.signal.min_noise_rssi",
-            "minimum noise (RSSI)", &min_noise_rssi);
-
-    RegisterField("kismet.common.signal.max_signal_rssi",
-            "maximum signal (RSSI)", &max_signal_rssi);
-    RegisterField("kismet.common.signal.max_noise_rssi",
-            "maximum noise (RSSI)", &max_noise_rssi);
-
+    RegisterField("kismet.common.signal.max_signal", "maximum signal", &max_signal);
+    RegisterField("kismet.common.signal.max_noise", "maximum noise", &max_noise);
 
     peak_loc_id =
         RegisterDynamicField("kismet.common.signal.peak_loc",

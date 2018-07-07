@@ -128,7 +128,7 @@ kismet_ui.AddDeviceColumn('column_phy', {
 
 kismet_ui.AddDeviceColumn('column_signal', {
     sTitle: 'Signal',
-    field: 'kismet.device.base.signal/kismet.common.signal.last_signal_dbm',
+    field: 'kismet.device.base.signal/kismet.common.signal.last_signal',
     description: 'Last-seen signal',
     width: "6em",
     renderfunc: function(d, t, r, m) {
@@ -462,10 +462,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 id: "group_signal_data",
 
                 filter: function(opts) {
-                    var db = kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.last_signal_dbm");
-                    var rssi = kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.last_signal_rssi");
+                    var db = kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.last_signal");
 
-                    if (db == 0 && rssi == 0)
+                    if (db == 0)
                         return false;
 
                     return true;
@@ -538,112 +537,58 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     */
 
                 },
-                { // Only show when dbm
-                    field: "kismet.device.base.signal/kismet.common.signal.last_signal_dbm",
+                {
+                    field: "kismet.device.base.signal/kismet.common.signal.last_signal",
                     title: "Latest Signal",
-                    help: "Most recent signal level seen, in dBm.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
+                    help: "Most recent signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
                     render: function(opts) {
-                        return opts['value'] + " dBm";
+                        return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
                 },
-                { // Only show when rssi
-                    field: "kismet.device.base.signal/kismet.common.signal.last_signal_rssi",
-                    title: "Latest Signal",
-                    help: "Most recent signal level seen, in RSSI.  RSSI signals are specific to the drivers reporting them and cannot be converted to a known dBm signal level.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
-                    render: function(opts) {
-                        return opts['value'] + " RSSI";
-                    },
-                    filterOnZero: true,
-                },
-                { // Only show when dbm
-                    field: "kismet.device.base.signal/kismet.common.signal.last_noise_dbm",
+                { 
+                    field: "kismet.device.base.signal/kismet.common.signal.last_noise",
                     title: "Latest Noise",
-                    help: "Most recent noise level seen, in dBm.  Few drivers can report noise levels.",
+                    help: "Most recent noise level seen.  Few drivers can report noise levels.",
                     render: function(opts) {
-                        return opts['value'] + " dBm";
+                        return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
                 },
-                { // Only show when rssi
-                    field: "kismet.device.base.signal/kismet.common.signal.last_noise_rssi",
-                    title: "Latest Noise",
-                    help: "Most recent noise level seen, in RSSI.  RSSI levels are specific to the drivers reporting them and cannot be converted to a known dBm signal level.  Few drivers can report noise levels.",
-                    render: function(opts) {
-                        return opts['value'] + " RSSI";
-                    },
-                    filterOnZero: true,
-                },
-                { // Only show when dbm
-                    field: "kismet.device.base.signal/kismet.common.signal.min_signal_dbm",
+                { 
+                    field: "kismet.device.base.signal/kismet.common.signal.min_signal",
                     title: "Min. Signal",
-                    help: "Weakest signal level seen, in dBm.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
+                    help: "Weakest signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
                     render: function(opts) {
-                        return opts['value'] + " dBm";
+                        return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
                 },
-                { // Only show when rssi
-                    field: "kismet.device.base.signal/kismet.common.signal.min_signal_rssi",
-                    title: "Min. Signal",
-                    help: "Weakest signal level seen, in RSSI.  RSSI values are specific to the capture driver and cannot be converted to standard dBm signal levels.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
-                    render: function(opts) {
-                        return opts['value'] + " RSSI";
-                    },
-                    filterOnZero: true,
-                },
-                { // Only show when dbm
-                    field: "kismet.device.base.signal/kismet.common.signal.max_signal_dbm",
+                { 
+                    field: "kismet.device.base.signal/kismet.common.signal.max_signal",
                     title: "Max. Signal",
-                    help: "Strongest signal level seen, in dBm.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
+                    help: "Strongest signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
                     render: function(opts) {
-                        return opts['value'] + " dBm";
+                        return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
                 },
-                { // Only show when rssi
-                    field: "kismet.device.base.signal/kismet.common.signal.max_signal_rssi",
-                    title: "Max. Signal",
-                    help: "Strongest signal level seen, in RSSI.  RSSI values are specific to the capture driver and cannot be converted to standard dBm signal levels.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
-                    filterOnZero: true,
-                    render: function(opts) {
-                        return opts['value'] + " RSSI";
-                    },
-                },
-                { // Only show when dbm
-                    field: "kismet.device.base.signal/kismet.common.signal.min_noise_dbm",
+                { 
+                    field: "kismet.device.base.signal/kismet.common.signal.min_noise",
                     title: "Min. Noise",
                     filterOnZero: true,
-                    help: "Least amount of interference or noise seen, in dBm.  Most capture drivers are not capable of measuring noise levels.",
+                    help: "Least amount of interference or noise seen.  Most capture drivers are not capable of measuring noise levels.",
                     render: function(opts) {
-                        return opts['value'] + " dBm";
+                        return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                 },
-                { // Only show when rssi
-                    field: "kismet.device.base.signal/kismet.common.signal.min_noise_rssi",
-                    title: "Min. Noise",
-                    filterOnZero: true,
-                    help: "Least amount of interference or noise seen, in RSSI.  Most capture drivers are not capable of measuring noise levels.",
-                    render: function(opts) {
-                        return opts['value'] + " RSSI";
-                    },
-                },
-                { // Only show when dbm
-                    field: "kismet.device.base.signal/kismet.common.signal.max_noise_dbm",
+                { 
+                    field: "kismet.device.base.signal/kismet.common.signal.max_noise",
                     title: "Max. Noise",
                     filterOnZero: true,
-                    help: "Largest amount of interference or noise seen, in dBm.  Most capture drivers are not capable of measuring noise levels.",
+                    help: "Largest amount of interference or noise seen.  Most capture drivers are not capable of measuring noise levels.",
                     render: function(opts) {
-                        return opts['value'] + " dBm";
-                    },
-                },
-                { // Only show when rssi
-                    field: "kismet.device.base.signal/kismet.common.signal.max_noise_rssi",
-                    title: "Max. Noise",
-                    filterOnZero: true,
-                    help: "Largest amount of interference or noise seen, in dBm.  Most capture drivers are not capable of measuring noise levels.",
-                    render: function(opts) {
-                        return opts['value'] + " RSSI";
+                        return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                 },
                 { // Pseudo-field of aggregated location, only show when the location is valid
@@ -1644,7 +1589,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
         sigicon.removeClass('fa-arrow-up');
         sigicon.removeClass('fa-arrow-down');
 
-        signal = data['kismet.device.base.signal']['kismet.common.signal.last_signal_dbm'];
+        signal = data['kismet.device.base.signal']['kismet.common.signal.last_signal'];
 
         if (signal < lastsignal) {
             sigicon.addClass('k-dsd-arrow-down');
@@ -1656,14 +1601,20 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
             sigicon.show();
         }
 
+        var typestr = "";
+        if (data['kismet.device.base.signal']['kismet.common.signal.type'] == "dbm")
+            typestr = " dBm";
+        else if (data['kismet.device.base.signal']['kismet.common.signal.type'] == "rssi") 
+            typestr = " RSSI";
+
         $('.k-dsd-lastsignal', devsignal_panel.content)
-        .text(signal + " dBm");
+            .text(signal + typestr);
 
         $('.k-dsd-minsignal', devsignal_panel.content)
-        .text(data['kismet.device.base.signal']['kismet.common.signal.min_signal_dbm'] + " dBm");
+        .text(data['kismet.device.base.signal']['kismet.common.signal.min_signal'] + typestr);
 
         $('.k-dsd-maxsignal', devsignal_panel.content)
-        .text(data['kismet.device.base.signal']['kismet.common.signal.max_signal_dbm'] + " dBm");
+        .text(data['kismet.device.base.signal']['kismet.common.signal.max_signal'] + typestr);
 
         // Common point titles
         var pointtitles = new Array();
