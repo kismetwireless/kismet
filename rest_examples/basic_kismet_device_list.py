@@ -15,7 +15,7 @@ import argparse
 import time
 
 def per_device(d):
-    print d['kismet.device.base.macaddr']
+    print(d['kismet.device.base.macaddr'])
 
 uri = "http://localhost:2501"
 

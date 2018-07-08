@@ -59,7 +59,7 @@ parser.add_argument('--uri', action="store", dest="uri")
 parser.add_argument('--mac', action="append", dest="macs")
 parser.add_argument('--ssid', action="append", dest="ssids")
 parser.add_argument('--probed', action="append", dest="probed")
-parser.add_argument('--rate', action="store", dest="rate")
+parser.add_argument('--rate', action="store", dest="rate", type=int)
 
 results = parser.parse_args()
 
