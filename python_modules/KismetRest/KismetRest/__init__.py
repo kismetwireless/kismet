@@ -809,6 +809,24 @@ class KismetConnector:
 
         return v[0]
 
+    def messages(self, ts_sec=0, ts_usec=0):
+        """
+        Fetch message object, containing metadata and list of messages, optionally
+        filtered to messages since a given timestamp
+        """
+
+        (r, v) = self.__get_json_url("messagebus/last-time/{}.{}/messages.json".format(ts_sec, ts_usec), stream=False)
+
+        return v[0]
+
+    def location(self):
+        """
+        Fetch the gps location
+        """
+        (r, status) = self.__get_json_url("gps/location.json", stream=False)
+
+        return status[0]
+
 
 if __name__ == "__main__":
     x = KismetConnector()
