@@ -37,6 +37,12 @@ class rtl433_empty_aggregator {
 public:
     // Select the most extreme value
     static int64_t combine_element(const int64_t a, const int64_t b) {
+        if (a == default_val())
+            return b;
+
+        if (b == default_val())
+            return a;
+
         if (a < 0 && b < 0) {
             if (a < b)
                 return a;
