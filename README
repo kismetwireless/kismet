@@ -865,6 +865,14 @@ xx. Data source: Pcapfile
 
     Pcapfile Options
 
+    pps=rate
+
+        Normally pcapfiles are replayed as quickly as possible, on very large pcaps
+        this can lead to processing and memory problems.  Specifying a packet-per-second
+        rate throttles the pcap replay rate.  
+
+        This option cannot be combined with the realtime option.
+
     realtime=true | false
 
         Normally pcapfiles are replayed as quickly as possible.  Specifying the

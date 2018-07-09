@@ -73,8 +73,11 @@ typedef struct {
     char *pcapfname;
     int datalink_type;
     int override_dlt;
+
     int realtime;
     struct timeval last_ts;
+
+    unsigned int pps_throttle;
 } local_pcap_t;
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -219,6 +222,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             local_pcap->realtime = 1;
         }
+    } else if ((placeholder_len = cf_find_flag(&placeholder, "pps", definition)) > 0) {
+        unsigned int pps;
+        if (sscanf(placeholder, "%u", &pps) == 1) {
+            snprintf(errstr, PCAP_ERRBUF_SIZE,
+                    "Pcapfile '%s' will throttle to %u packets per second", pcapfname, pps);
+            cf_send_message(caph, errstr,MSGFLAG_INFO);
+            local_pcap->pps_throttle = pps;
+        }
     }
 
     return 1;
@@ -263,6 +274,14 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         if (delay_usec != 0) {
             usleep(delay_usec);
         }
+    }
+
+    /* If we're doing 'packet per second' throttling, delay accordingly */
+    if (local_pcap->pps_throttle > 0) {
+        delay_usec = 1000000L / local_pcap->pps_throttle;
+
+        if (delay_usec != 0)
+            usleep(delay_usec);
     }
 
     /* Try repeatedly to send the packet; go into a thread wait state if
@@ -319,7 +338,8 @@ int main(int argc, char *argv[]) {
         .override_dlt = -1,
         .realtime = 0,
         .last_ts.tv_sec = 0,
-        .last_ts.tv_usec = 0
+        .last_ts.tv_usec = 0,
+        .pps_throttle = 0,
     };
 
 #if 0
