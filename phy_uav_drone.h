@@ -226,7 +226,7 @@ public:
     bool match_record(const mac_addr& in_mac, const std::string& in_ssid);
 
 protected:
-    virtual void register_fields() {
+    virtual void register_fields() override {
         tracker_component::register_fields();
 
         RegisterField("uav_match_name", "Match name", &uav_match_name);
