@@ -139,6 +139,9 @@ class Kis_Net_Httpd;
 #define _MSG(x, y)	Globalreg::globalreg->messagebus->InjectMessage((x), (y))
 
 // fmt-enabled msgbus
+#define _MSG_DEBUG(...) \
+    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_DEBUG)
+
 #define _MSG_INFO(...) \
     Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_INFO)
 
