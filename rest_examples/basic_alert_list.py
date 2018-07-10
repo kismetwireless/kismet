@@ -25,6 +25,6 @@ kr = KismetRest.KismetConnector(uri)
 alerts = kr.alerts()
 
 for a in alerts['kismet.alert.list']:
-    print a['kismet.alert.header'], a['kismet.alert.text'], a['kismet.alert.transmitter_mac'], a['kismet.alert.source_mac']
+    print(a['kismet.alert.header'], a['kismet.alert.text'], a['kismet.alert.transmitter_mac'], a['kismet.alert.source_mac'])
 
 

@@ -239,7 +239,7 @@ class ExternalInterface(object):
         calc_csum = ExternalInterface.adler32(content)
 
         if not calc_csum == checksum:
-            print content.encode('hex')
+            print(content.encode('hex'))
             raise BufferError("Invalid checksum in packet header {} vs {}".format(calc_csum, checksum))
 
         cmd = kismet_pb2.Command()
@@ -248,7 +248,7 @@ class ExternalInterface(object):
         if cmd.command in self.handlers:
             self.handlers[cmd.command](cmd.seqno, cmd.content)
         else:
-            print "Unhandled", cmd.command
+            print("Unhandled", cmd.command)
 
         self.rbuffer = self.rbuffer[12 + sz:]
 

@@ -25,29 +25,29 @@ kr = KismetRest.KismetConnector(uri)
 datasources = kr.datasources()
 
 for ds in datasources:
-    print "UUID: {}".format(ds['kismet.datasource.uuid'])
-    print "Name: {}".format(ds['kismet.datasource.name'])
+    print("UUID: {}".format(ds['kismet.datasource.uuid']))
+    print("Name: {}".format(ds['kismet.datasource.name']))
 
     if not ds['kismet.datasource.running']:
-        print "Running: FALSE"
+        print("Running: FALSE")
 
-    print "Source type: {}".format(ds['kismet.datasource.type_driver']['kismet.datasource.driver.type'])
+    print("Source type: {}".format(ds['kismet.datasource.type_driver']['kismet.datasource.driver.type']))
 
     if ds['kismet.datasource.remote']:
-        print "Remote: True"
+        print("Remote: True")
 
     if ds['kismet.datasource.hopping']:
-        print "Hopping: True"
+        print("Hopping: True")
     else:
-        print "Hopping: False"
+        print("Hopping: False")
 
     if len(ds['kismet.datasource.hop_channels']):
-        print "Channels: {}".format(", ".join(ds['kismet.datasource.hop_channels']))
+        print("Channels: {}".format(", ".join(ds['kismet.datasource.hop_channels'])))
 
     if len(ds['kismet.datasource.channel']):
-        print "Channel: {}".format(ds['kismet.datasource.channel'])
+        print("Channel: {}".format(ds['kismet.datasource.channel']))
 
-    print "Packets: {}".format(ds['kismet.datasource.num_packets'])
+    print("Packets: {}".format(ds['kismet.datasource.num_packets']))
 
-    print
+    print("")
 

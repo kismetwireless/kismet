@@ -81,8 +81,8 @@ class KismetRtl433(object):
                 self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
                 self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
             except OSError:
-                print "kismet_cap_sdr_rtl433: Unable to find librtlsdr; make sure both librtlsdr and "
-                print "rtl_433 are installed."
+                print("kismet_cap_sdr_rtl433: Unable to find librtlsdr; make sure both librtlsdr and ")
+                print("rtl_433 are installed.")
     
                 sys.exit(1)
         else:
@@ -118,13 +118,13 @@ class KismetRtl433(object):
             if not "success" in self.proberet:
                 print("Could not configure local source {}, check your source options and config.")
                 if "message" in self.proberet:
-                    print self.proberet["message"]
+                    print(self.proberet["message"])
                 sys.exit(0)
 
             if not self.proberet["success"]:
                 print("Could not configure local source {}, check your source options and config.")
                 if "message" in self.proberet:
-                    print self.proberet["message"]
+                    print(self.proberet["message"])
                 sys.exit(0)
 
             print("Connecting to remote server {}".format(self.config.connect))
@@ -389,7 +389,7 @@ class KismetRtl433(object):
         return ret
 
     def datasource_configure(self, seqno, config):
-        #print config
+        #print(config)
 
         return {"success": True}
 
@@ -411,11 +411,11 @@ class KismetRtl433(object):
 
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
-            print e
+            print(e)
             self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtl_433")
             return False
         except Exception as e:
-            print e
+            print(e)
             self.kismet.send_datasource_error_report(message = "Could not process output of rtl_433")
             return False
 
