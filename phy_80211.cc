@@ -1419,8 +1419,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         return;
     }
 
-    if (dot11info->channel != "0")
+    if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
+    }
 
     auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
 

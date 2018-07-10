@@ -699,8 +699,9 @@ std::shared_ptr<kis_tracked_device_base>
 
 	if ((in_flags & UCD_UPDATE_FREQUENCIES)) {
         if (pack_l1info != NULL) {
-            if (!(pack_l1info->channel == "0"))
+            if (pack_l1info->channel != "0" && pack_l1info->channel != "") {
                 device->set_channel(pack_l1info->channel);
+            }
             if (pack_l1info->freq_khz != 0)
                 device->set_frequency(pack_l1info->freq_khz);
 
@@ -711,19 +712,15 @@ std::shared_ptr<kis_tracked_device_base>
 
             device->inc_frequency_count((int) pack_l1info->freq_khz);
         } else if (pack_common != NULL) {
-            if (!(pack_common->channel == "0"))
+            if (pack_common->channel != "0" && pack_common->channel != "") {
                 device->set_channel(pack_common->channel);
+            }
             if (pack_common->freq_khz != 0)
                 device->set_frequency(pack_common->freq_khz);
             
             device->inc_frequency_count((int) pack_common->freq_khz);
         }
 	}
-
-	if ((in_flags & UCD_UPDATE_FREQUENCIES) && pack_common != NULL) {
-        if (!(pack_common->channel == "0"))
-            device->set_channel(pack_common->channel);
-    }
 
     if (((in_flags & UCD_UPDATE_LOCATION) ||
                 ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
