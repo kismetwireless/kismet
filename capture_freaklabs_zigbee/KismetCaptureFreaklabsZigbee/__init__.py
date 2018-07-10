@@ -275,13 +275,13 @@ class KismetFreaklabsZigbee(object):
             if not "success" in self.proberet:
                 print("Could not configure local source {}, check your source options and config.")
                 if "message" in self.proberet:
-                    print self.proberet["message"]
+                    print(self.proberet["message"])
                 sys.exit(0)
 
             if not self.proberet["success"]:
                 print("Could not configure local source {}, check your source options and config.")
                 if "message" in self.proberet:
-                    print self.proberet["message"]
+                    print(self.proberet["message"])
                 sys.exit(0)
 
             print("Connecting to remote server {}".format(self.config.connect))

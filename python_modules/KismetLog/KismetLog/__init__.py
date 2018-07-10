@@ -41,7 +41,7 @@ class KismetLog:
                             mt = "OR"
                         select = select + " " + mt + " " + m
                 self.query = self.query + select
-            print self.query
+            print(self.query)
             self.cursor.execute(self.query, self.replacements)
 
         return self.cursor.fetchone()

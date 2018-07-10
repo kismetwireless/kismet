@@ -166,7 +166,7 @@ class KismetConnector:
                 lcachef.close()
             except Exception as e:
                 if self.debug:
-                    print "Failed to read session cache:", e
+                    print("Failed to read session cache:", e)
 
     def __update_session(self):
         """
@@ -186,7 +186,7 @@ class KismetConnector:
             pass
         except Exception as e:
             if self.debug:
-                print "DEBUG - Failed to save session:", e
+                print("DEBUG - Failed to save session:", e)
 
     def __process_json_object(self, r, j, callback, args=None):
         """
@@ -201,7 +201,7 @@ class KismetConnector:
             obj = json.loads(decoded_line)
         except Exception as e:
             if self.debug:
-                print "Failed to parse JSON: {}, {}, {}".format(r.url, e.message, j)
+                print("Failed to parse JSON: {}, {}, {}".format(r.url, e.message, j))
 
             raise KismetRequestException("Unable to parse JSON on req {}: {}"
                                          .format(r.url, e.message), r.status_code)
@@ -258,20 +258,20 @@ class KismetConnector:
             r = self.session.get("%s/%s" % (self.host_uri, url), stream=stream)
         except Exception as e:
             if self.debug:
-                print "Failed to get object: ", e
+                print("Failed to get object: ", e)
             raise KismetRequestException("Failed to get object: {}".format(e.message), -1)
 
         # login required
         if r.status_code == 401:
             if self.debug:
-                print "DEBUG - Login required & no valid login provided"
+                print("DEBUG - Login required & no valid login provided")
 
             raise KismetLoginException("Login required for {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
-                print "Request failed:", r.status_code
+                print("Request failed:", r.status_code)
 
             raise KismetRequestException("Request failed {} {}".format(url, r.status_code), r.status_code)
 
@@ -295,20 +295,20 @@ class KismetConnector:
             r = self.session.get("%s/%s" % (self.host_uri, url))
         except Exception as e:
             if self.debug:
-                print "Failed to get object: ", e
+                print("Failed to get object: ", e)
             raise KismetRequestException("Failed to get object: {}".format(e.message), -1)
 
         # login required
         if r.status_code == 401:
             if self.debug:
-                print "DEBUG - Login required & no valid login provided"
+                print("DEBUG - Login required & no valid login provided")
 
             raise KismetLoginException("Login required for {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
-                print "Request failed:", r.status_code
+                print("Request failed:", r.status_code)
 
             raise KismetRequestException("Request failed {} {}".format(url, r.status_code), r.status_code)
 
@@ -338,20 +338,20 @@ class KismetConnector:
             r = self.session.post("%s/%s" % (self.host_uri, url), data=fd, stream=stream)
         except Exception as e:
             if self.debug:
-                print "Failed to POST object: ", e
+                print("Failed to POST object: ", e)
             raise KismetRequestException("Failed to POST to {} {}".format(url, e.message), -1)
 
         # login required
         if r.status_code == 401:
             if self.debug:
-                print "DEBUG - Login required & no valid login provided"
+                print("DEBUG - Login required & no valid login provided")
 
             raise KismetLoginException("Login required for POST {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
-                print "Request failed:", r.status_code, r.content
+                print("Request failed:", r.status_code, r.content)
 
             raise KismetRequestException("Request failed for POST {} {}".format(url, r.status_code), r.status_code)
 
@@ -384,20 +384,20 @@ class KismetConnector:
             r = self.session.post("%s/%s" % (self.host_uri, url), data=fd)
         except Exception as e:
             if self.debug:
-                print "Failed to POST object: ", e
+                print("Failed to POST object: ", e)
             raise KismetRequestException("Failed to POST object: {}".format(e.message), -1)
 
         # login required
         if r.status_code == 401:
             if self.debug:
-                print "DEBUG - Login required & no valid login provided"
+                print("DEBUG - Login required & no valid login provided")
 
             raise KismetLoginException("Login required for POST {}".format(url), r.status_code)
 
         # Did we succeed?
         if not r.status_code == 200:
             if self.debug:
-                print "Request failed:", r.status_code
+                print("Request failed:", r.status_code)
 
             raise KismetRequestException("Request failed for POST {} {}".format(url, r.status_code), r.status_code)
 
@@ -416,7 +416,7 @@ class KismetConnector:
         r = self.session.get("%s/session/check_session" % self.host_uri)
 
         if not r.status_code == 200:
-            print "Invalid session"
+            print("Invalid session")
             return False
 
         self.__update_session()
@@ -812,4 +812,4 @@ class KismetConnector:
 
 if __name__ == "__main__":
     x = KismetConnector()
-    print x.system_status()
+    print(x.system_status())
