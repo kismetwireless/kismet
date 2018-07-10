@@ -1077,3 +1077,57 @@ void SummarizeTrackerElement(SharedTrackerElement in,
     in->post_serialize();
 }
 
+bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
+        const std::shared_ptr<TrackerElement> rhs) {
+
+    // Only allow equal compares
+    if (lhs->get_type() != rhs->get_type())
+        throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
+                    "{} < {}", lhs->get_type_as_string(), rhs->get_type_as_string()));
+
+    switch (lhs->get_type()) {
+        case TrackerType::TrackerString:
+            return TrackerElement::safe_cast_as<TrackerElementString>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementString>(rhs));
+        case TrackerType::TrackerInt8:
+            return TrackerElement::safe_cast_as<TrackerElementInt8>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt8>(rhs));
+        case TrackerType::TrackerUInt8:
+            return TrackerElement::safe_cast_as<TrackerElementUInt8>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt8>(rhs));
+        case TrackerType::TrackerInt16:
+            return TrackerElement::safe_cast_as<TrackerElementInt16>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt16>(rhs));
+        case TrackerType::TrackerUInt16:
+            return TrackerElement::safe_cast_as<TrackerElementUInt16>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt16>(rhs));
+        case TrackerType::TrackerInt32:
+            return TrackerElement::safe_cast_as<TrackerElementInt32>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt32>(rhs));
+        case TrackerType::TrackerUInt32:
+            return TrackerElement::safe_cast_as<TrackerElementUInt32>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt32>(rhs));
+        case TrackerType::TrackerInt64:
+            return TrackerElement::safe_cast_as<TrackerElementInt64>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt64>(rhs));
+        case TrackerType::TrackerUInt64:
+            return TrackerElement::safe_cast_as<TrackerElementUInt64>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt64>(rhs));
+        case TrackerType::TrackerFloat:
+            return TrackerElement::safe_cast_as<TrackerElementFloat>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementFloat>(rhs));
+        case TrackerType::TrackerDouble:
+            return TrackerElement::safe_cast_as<TrackerElementDouble>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementDouble>(rhs));
+        case TrackerType::TrackerMac:
+            return TrackerElement::safe_cast_as<TrackerElementMacAddr>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementMacAddr>(rhs));
+        case TrackerType::TrackerUuid:
+            return TrackerElement::safe_cast_as<TrackerElementUUID>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUUID>(rhs));
+        case TrackerType::TrackerByteArray:
+            return TrackerElement::safe_cast_as<TrackerElementByteArray>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementByteArray>(rhs));
+        case TrackerType::TrackerKey:
+        case TrackerType::TrackerVector:
+        case TrackerType::TrackerMap:
+        case TrackerType::TrackerIntMap:
+        case TrackerType::TrackerMacMap:
+        case TrackerType::TrackerStringMap:
+        case TrackerType::TrackerDoubleMap:
+        case TrackerType::TrackerKeyMap:
+        case TrackerType::TrackerVectorDouble:
+        case TrackerType::TrackerDoubleMapDouble:
+            throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
+                        lhs->get_type_as_string()));
+    }
+
+    return false;
+}
+

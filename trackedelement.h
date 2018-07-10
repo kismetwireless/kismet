@@ -204,9 +204,11 @@ public:
         if (e == nullptr)
             throw std::runtime_error(fmt::format("null trackedelement can not be safely cast"));
 
+#if TE_TYPE_SAFETY == 1
         if (e->get_type() != CT::static_type())
             throw std::runtime_error(fmt::format("trackedelement can not safely cast a {} to a {}",
                         e->get_type_as_string(), type_to_string(CT::static_type())));
+#endif
 
         return std::static_pointer_cast<CT>(e);
     }
@@ -314,6 +316,30 @@ public:
         value = in;
     }
 
+    inline bool operator<(const TrackerElementCoreScalar<P>& rhs) {
+        return value < rhs.value;
+    }
+
+    inline bool operator<(const std::shared_ptr<TrackerElement> rhs) {
+        if (get_type() != rhs->get_type())
+            throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
+                        "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
+
+        return value < std::static_pointer_cast<TrackerElementCoreScalar<P>>(rhs)->value;
+    }
+
+    
+    inline virtual bool less_than(const TrackerElementCoreScalar<P>& rhs) {
+        return value < rhs.value;
+    }
+
+    inline virtual bool less_than(const std::shared_ptr<TrackerElement> rhs) {
+        if (get_type() != rhs->get_type())
+            throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
+                        "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
+
+        return value < std::static_pointer_cast<TrackerElementCoreScalar<P>>(rhs)->value;
+    }
 
 protected:
     P value;
@@ -706,12 +732,23 @@ public:
         return *this;
     }
 
+    inline virtual bool less_than(const TrackerElementCoreNumeric<N>& rhs) {
+        return value < rhs.value;
+    }
+
+    inline virtual bool less_than(const std::shared_ptr<TrackerElement> rhs) {
+        if (get_type() != rhs->get_type())
+            throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
+                        "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
+
+        return value < std::static_pointer_cast<TrackerElementCoreNumeric<N>>(rhs)->value;
+    }
+
 protected:
     // Min/max ranges for conversion
     double value_min, value_max;
     N value;
 };
-
 
 class TrackerElementUInt8 : public TrackerElementCoreNumeric<uint8_t> {
 public:
@@ -1696,5 +1733,9 @@ void SummarizeTrackerElement(SharedTrackerElement in,
         const std::vector<SharedElementSummary>& in_summarization, 
         SharedTrackerElement &ret_elem, 
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map);
+
+// Handle comparing fields
+bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
+        const std::shared_ptr<TrackerElement> rhs);
 
 #endif

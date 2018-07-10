@@ -798,8 +798,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             dt_order_dir = 1;
 
                         // Resolve the paths
-                        StructuredData::string_vec col_field_vec = 
-                            colmap_index->second->getStringVec();
+                        auto col_field_vec = colmap_index->second->getStringVec();
 
                         for (const auto& fn : col_field_vec) {
                             TrackerElementSummary s(fn);
@@ -809,10 +808,10 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     // Force a length if we think we're doing a smart position and
                     // something has gone wonky
-                    if (in_dt_length <= 0 || in_dt_length > 200) {
+                    if (in_dt_length <= 0 || in_dt_length > 500) {
                         fprintf(stderr, "debug - in datatables server-side length was out of "
                                 "bounds, asked for %d\n", in_dt_length);
-                        dt_length = 200;
+                        dt_length = 300;
                     } else {
                         dt_length = in_dt_length;
                     }
@@ -894,9 +893,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 }
 
                                 if (dt_order_dir == 0)
-                                    return fa < fb;
+                                    return SortTrackerElementLess(fa, fb);
 
-                                return fb < fa;
+                                return SortTrackerElementLess(fb, fa);
                                 });
                     }
 
@@ -960,9 +959,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 }
 
                                 if (dt_order_dir == 0)
-                                    return fa < fb;
+                                    return SortTrackerElementLess(fa, fb);
 
-                                return fb < fa;
+                                return SortTrackerElementLess(fb, fa);
                                 });
                     }
 
@@ -1029,10 +1028,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                         break;
                                 }
 
-                                if (dt_order_dir == 0)
-                                    return fa < fb;
 
-                                return fb < fa;
+                                if (dt_order_dir == 0)
+                                    return SortTrackerElementLess(fa, fb);
+
+                                return SortTrackerElementLess(fb, fa);
                                 });
                     }
 
