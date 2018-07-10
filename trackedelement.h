@@ -377,6 +377,9 @@ public:
         return std::move(dup);
     }
 
+    using TrackerElementCoreScalar<std::string>::less_than;
+    inline virtual bool less_than(const TrackerElementString& rhs);
+
 };
 
 class TrackerElementByteArray : public TrackerElementCoreScalar<std::string> {

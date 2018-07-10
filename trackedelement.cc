@@ -160,6 +160,10 @@ void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
     }
 }
 
+bool TrackerElementString::less_than(const TrackerElementString& rhs) {
+    return doj::alphanum_comp(value, rhs.value);
+}
+
 void TrackerElementUUID::coercive_set(const std::string& in_str) {
     uuid u(in_str);
 
