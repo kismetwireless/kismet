@@ -198,17 +198,17 @@ class tracker_component : public TrackerElementMap {
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
-            cvar = std::static_pointer_cast<ttype>(Globalreg::globalreg->entrytracker->GetSharedInstance(id)); \
+            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
             if (cvar != NULL) \
-                insert(std::static_pointer_cast<TrackerElement>(cvar)); \
+                insert(cvar); \
         } \
         return cvar; \
     } \
     virtual void set_tracker_##name(std::shared_ptr<ttype> in) { \
-        if (cvar != NULL) \
-            erase(std::static_pointer_cast<TrackerElement>(cvar)); \
+        if (cvar != nullptr) \
+            erase(cvar); \
         cvar = in; \
-        if (cvar != NULL) { \
+        if (cvar != nullptr) { \
             cvar->set_id(id); \
             insert(std::static_pointer_cast<TrackerElement>(cvar)); \
         } \

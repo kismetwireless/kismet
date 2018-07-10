@@ -1309,7 +1309,15 @@ public:
     }
 
     iterator erase(SharedTrackerElement e) {
-        return map.erase(map.find(e->get_id()));
+        if (e == nullptr)
+            throw std::runtime_error("Attempted to erase null value from map");
+
+        auto i = map.find(e->get_id());
+
+        if (i != map.end())
+            return map.erase(i);
+
+        return i;
     }
 };
 
