@@ -282,7 +282,7 @@ ${FORCECONFINSTTARGETS}: install_force_conf_%:
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  
 
 suidinstall: $(PS) $(DATASOURCE_BINS)
-	-groupadd -f $(SUIDGROUP)
+	-groupadd -r -f $(SUIDGROUP)
 
 	@$(MAKE) -e commoninstall
 	@$(MAKE) -e binsuidinstall
