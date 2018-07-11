@@ -1,17 +1,77 @@
 # Extending Kismet: Creating Tracked Components
 
-Kismet serves complex objects over a REST interface by implementing "tracked components".
+Kismet manages complex objects with arbitrary serialization and logging by implementing "tracked elements"; Tracked elements are introspectable in C++ and can be dynamically exported to other formats via the serialization API, such as JSON which is used heavily in the web interface.
 
-Tracked components are introspectable via C++ code and can be dynamically exported to other formats, such as msgpack (which is used heavily in the web interface).
+Tracked elements represent a compromise between the efficiency of native C++ types and the necessity of dynamic data handling and serialization.
 
-## Deriving from tracker_component
-Any data you wish to expose as an object must be derived from tracker_component.
+Unless you are writing a native C++ plugin, you do not need to worry about tracked elements at all; if you ARE, then there are some guidelines to follow.
 
-A tracker_component is, internally, a tracked element map, which contains multiple objects, organized as a named dictionary.  This structure typically matches how data presented to the user or to scripts is organized.
+## Anatomy of a `TrackerElement`
 
-Tracker_component objects are derived directly from the base TrackerElement.  A tracker_component may be generated and destroyed for a communication, or used as a permanent storage mechanism.  Kismet typically uses tracker_components to store an object for its entire life cycle when possible.
+Generally speaking a plugin should not define a new `TrackerElement` itself, it should implement a `tracked_component` (more on these in the next section); however they form the basic building blocks of both `tracked_component` and of the data held by custom components.
 
-TrackerElements use C++11 `shared_ptr<>` semantics to manage memory.  For simpler reference, SharedTrackerElement is defined as a `shared_ptr<TrackerElement>`.
+All tracked elements are derived from `TrackerElement`; This super-class contains no actual data storage.
+
+Via subclassing and templates, `TrackerElement` implements basic scalar data types (non-POD basic data types such as `std::string`, `uuid`, `mac_addr` and similar), basic numeric types of the standard sizes (`uint8_t` through `uint64_t`, 4-byte `float` and 8-byte `double`), and various complex data types such as `vector` and `map`.
+
+`TrackerElement` subtypes are named accordingly, ie:
+
+* `TrackerElementString`
+* `TrackerElementUInt8`
+* `TrackerElementInt32`
+* `TrackerElementVector`
+* `TrackerElementDoubleMap`
+
+and can be found in tracked_element.h
+
+
+
+> #### Vectors and maps
+>
+> `TrackerElement` represents complex data types in two main formats:
+>
+> 1. A `std::vector` or `std::map` of `TrackerElement` records.  This allows constructing complex dictionary-like or list-like records of arbitrary fields, `tracked_component` complex records, MAC addresses, and so on.
+> 2. Optimized `TrackedElementVectorDouble` and `TrackedElementDoubleMapDouble` which contain, respectively, raw `double` values and raw `double:double` key:value pairs.
+>
+> If your plugin stores purely numerical data, such as a vector of signal values, it is *significantly* more efficient to use the `TrackedElementVectorDouble` (or equivalent DoubleMapDouble) objects, and will consume less than half the RAM using a traditional `TrackerElementVector` would use.
+
+
+
+Each `TrackerElement` derivative also contains:
+
+1. A `TrackerType::...` type which enforces type-safety on get/set operations
+2. A `uint32_t` signature which is used to enforce type-safety on complex types
+3. An optional local name
+
+Each derived type contains
+
+1. A get/set function for its type
+2. Optional `coercive_set` functions which allow importing generic types (such as strings to UUID or mac_addr, and various precision numbers to numeric types)
+3. A `clone_type` function which is responsible for returning a `std::unique_ptr` instance of a new object of this type, which is integral to the field creation and tracking system.
+4. Optional additional support functions, such as standard STL iterator implementations for vector and map elements
+
+## `TrackerElement` lifecycle
+
+`TrackerElements` are nearly always stored and processed as C++11 `std::shared_ptr` smart-pointer managed objects.  This allows usage counting and automatic deletion of a `TrackerElement`, which may be found hosted in many dynamic representations of data over its lifecycle.
+
+It is almost never necessary (or wise, or even possible) to create a naked `TrackedElement` or a naked `TrackedElement *` pointer.
+
+## `tracker_component`
+
+A `tracker_component` is derived from a `TrackedElementMap`, which implements a dictionary of fields.
+
+Collections of data maintained and exposed by a plugin should be derived from the `tracker_component` class; Kismet uses this class to maintain all internal state about devices and other data, and a `tracker_component` can be directly inserted into an existing device record.
+
+The `tracker_component` also implements a collection of helper macros which will automatically define getter/setter functions, with optional casting, as well as support for dynamic field creation on first use.
+
+The `tracker_component` has all of the existing `TrackedElement` features, but also specifies two additional core functions:
+
+1. `register_fields()` which is called during construction and is responsible for defining all the fields that this object needs (typically using the `register_field` function)
+2. `reserve_fields(std::shared_ptr<TrackerElement> e)` which is called during construction and is responsible for allocating any *custom fields* which cannot, for some reason, be allocated automatically by the registration system.  Typically the only actions which are needed here are re-typing complex fields during loading from stored data.
+
+## Deriving from `tracker_component`
+
+Any data you wish to expose as an object must be derived from `tracker_component`.  To do this, there are a number of functions you must implement.
 
 ### First, the boilerplate:
 
@@ -22,26 +82,56 @@ We need to create a message record which has a timestamp, the message content, a
 ```C++
 class WebTrackedMessage : public tracker_component {
 public:
-    // tracker_component constructor which takes in the global registry 
-    // pointer and the id of this element
-    WebTrackedMessage(GlobalRegistry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
-        // Register and reserve fields will be covered later
+    // tracker_component base constructor
+    WebTrackedmessage() :
+    tracker_component() {
+        // We always have to call register and reserve
+        register_fields();
+        reserve_fields(NULL);
+    }
+    
+    // Constructor which takes the ID
+    WebTrackedMessage(int in_id) :
+    tracker_component(in_id) {
+        // We always have to call register and reserve
         register_fields();
         reserve_fields(NULL);
     }
 
-    // The second common constructor, which takes in the globalreg
-    // pointer and id, but also a pointer to a an existing data
-    // object.  This is used to construct a custom object from
-    // a base which already contains the same fields
-    WebTrackedMessage(GlobalRegistry *in_globalreg, int in_id,
-            SharedTrackerElement e) :
-        tracker_component(in_globalreg, in_id) {
+    // The final default constructor, which takes both and ID and a pointer to
+    // existing object data; this is used to craft a custom object from a base
+    // which already contains these fields; this can happen when loading stored
+    // data or deserializing IPC data
+    WebTrackedMessage(int in_id, std::shared_ptr<TrackerElement> e) :
+        tracker_component(in_id) {
         // Again the register and reserve, but this time we pass the
         // pre-existing element to the reserve_fields object
         register_fields();
         reserve_fields(e);
+    }
+    
+    // We need to provide a signature for this type, since all tracker_components
+    // are TrackerType::TrackerMap at their base; typically this signature can be
+    // a quick checksum of the type name.
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("WebTrackedMessage");
+    }
+    
+    // Finally, we need to provide the clone type functions, which will
+    // tell the field registration system how to create a field of our type
+    // when loading data.  These boilerplate implementations use the C++11
+    // decltype methods to automatically generate the proper type, but MUST
+    // be included in every subclass!
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
     }
 
     // Finally, we need to provide a mechanism for cloning the type
@@ -59,16 +149,14 @@ This creates a tracked object, but there is nothing inside of it.  To do that, w
 
 ### TrackerElement Fields
 
-To track a basic field, we generally only need to track the field itself, so lets add:
+For fields that are always present, we only need to track the field itself.  Lets define some basic type fields; notice that we always define them as `std::shared_ptr`, and that we use the proper `TrackerElementXyz` sub-type for each.
 
 ```C++
 protected:
-    SharedTrackerElement timestamp;
-    SharedTrackerElement message;
-    SharedTrackerElement flags;
+	std::shared_ptr<TrackerElementUInt64> timestamp;
+	std::shared_ptr<TrackerElementString> message;
+	std::shared_ptr<TrackerElementInt32> flags;
 ```
-
-This gives us three fields, and id values for them.
 
 ### Registering Fields
 
@@ -77,60 +165,24 @@ To actually use the fields, they need to be initialized with a type and name.  T
 ```C++
 protected:
     virtual void register_fields() {
-        // Call the parent register_fields() function
+        // Call the parent register_fields() function, you MUST do this
         tracker_component::register_fields();
 
-        // Register the timestamp as a uint64_t
-        RegisterField("kismet.message.timestamp", 
-                TrackerUInt64, "message timestamp", &timestamp);
-
-        // Register the message as a basic string
-        RegisterField("kismet.message.message",
-                TrackerString, "message content", &message);
-
-        // Register the flags as an int32_t
-        RegisterField("kismet.message.flags",
-                TrackerInt32, "message flags", &flags);
+        RegisterField("webmsg.message.timestamp", "message timestamp", &timestamp);
+        RegisterField("webmsg.message.message", "message content", &message);
+        RegisterField("webmsg.message.flags", "message flags", &flags);
     }
 ```
 
 `RegisterField(...)` is part of the base tracker_component class, and handles the connection between a tracked data set and the tracking system which assigns fields.
 
-It requires a name (which should be unique, you can ensure uniqueness by including a reference to your module in the name), a type (used to manage introspection and export, the list is below), a description (which is shown on the tracked_fields page and is helpful for future developers), and finally a pointer to the `shared_ptr` where your class will hold the data when it is assembled.
+To register a field, you need:
 
-RegisterField will return the internal id of the field which is created - most of the time this is not necessary, however when registering more complex instances, such as data held inside a vector, it may be necessary to save the field id.
+1. A field name (which must be unique, you can ensure uniqueness by including your plugin type in the name; Kismet uses basic namespacing conventions to keep fields unique)
+2. A human-readable description; this will be shown in the tracked_fields page and is helpful for future developers and consumers of your API
+3. A *pointer* to the *shared pointer* where your field resides.  This allows the field registration system to automatically create your fields and place them in your variables for you.
 
-### Field Primitives
-
-TrackerElements can store most types of data as a primitive:
-
-|Tracker Type|C++ Type|Description|
-|---------|--------|-----------|
-TrackerString | string | Basic std::string
-TrackerInt8 | int8_t | 8bit signed 
-TrackerUInt8 | uint8_t | 8bit unsigned
-TrackerInt16 | int16_t | 16bit signed
-TrackerUInt16 | uint16_t | 16bit unsigned
-TrackerInt32 | int32_t | 32bit signed
-TrackerUInt32 | uint32_t | 32bit unsigned
-TrackerInt64 | int64_t | 64bit signed
-TrackerUInt64 | uint64_t | 64bit unsigned
-TrackerFloat | float | Floating-point value
-TrackerDouble | double | Double-precision floating point value
-TrackerMac | mac_addr | Kismet MAC address record
-TrackerUuid | uuid | Kismet UUID record
-TrackerByteArray | uint8_t* | Arbitrary array of bytes
-
-TrackerElements can also contain more complex data:
-
-|Tracker Type|C++ Equivalent|Description|
-|---------|--------|-----------|
-TrackerMap | map/dictionary | Element contains additional sub-fields.  All tracker_component objects are Maps internally.
-TrackerVector | `vector<SharedTrackerElement>` | Element is a vector of additional elements
-TrackerIntMap | `map<int, SharedTrackerElement>` | Element is an integer-indexed map of additional elements.  This is useful for representing a keyed list of data.
-TrackerMacMap | `map<mac_addr, SharedTrackerElement>` | Element is a MAC-indexed map of additional elements.  This is useful for representing a keyed list of data such as device relationships.
-TrackerStringMap | `map<string, SharedTrackerElement>` | Element is a string-indexed map of additional elements.  This is useful for representing a keyed list of data such as advertised names.
-TrackerDoubleMap | `map<double, SharedTrackerElement>` | Element is a double-indexed map of additional elements.
+register_field will return the internal id of the field which is created - most of the time this is not necessary, however when registering more complex objects or a dynamic object it may be necessary to save this ID.
 
 ### Accessing the data:  Proxy Functions
 
@@ -197,41 +249,6 @@ public:
     }
 ```
 
-### Using Vector and Map elements
-
-More complex field types - vectors and maps - need special handling.  Typically they do not get manipulated with traditional get/set functions.
-
-#### Using vectors and maps locally
-
-It is possible to use a TrackerElement directly via the complex access APIs, ie `add_vector()`, `add_doublemap()`, etc.  However, it is much simpler to use the wrapper classes which translate the TrackerElements to behave like the STL library versions of their data.
-
-```C++
-public:
-    void do_something_on_stringmap(string in_key) {
-        // Assuming that example_map is a TrackerStringMap, wrap it with
-        // a TrackerElementStringMap class
-        TrackerElementStringMap smap(example_map);
-
-        if (smap->find(in_key) != smap.end()) {
-            // ...
-        }
-
-        for (TrackerElementStringMap::iterator i = smap.begin();
-                i != smap.end(); ++i) {
-            // ...
-        }
-    }
-```
-
-Wrapper classes are provided for all of the TrackerElement variants:
-
-* `TrackerElementVector`
-* `TrackerElementMap`
-* `TrackerElementIntMap`
-* `TrackerElementStringMap`
-* `TrackerElementDoubleMap`
-* `TrackerElementMacMap`
-
 #### Accessing from outside the object
 
 It may be necessary to allow access from outside callers.  This is only required for other code directly accessing your object; for exporting your data via the REST interface and other serialization methods, so long as your data is in `TrackerElement` objects it will be handled automatically.
@@ -245,7 +262,7 @@ In some instances you may wish to write methods which provide access to the comp
 ```C++
 public:
     void example_vec_push_back(SharedTrackerElement e) {
-        example_vec->add_vector(e);
+        example_vec->push_back(e);
     }
 ```
 
@@ -257,7 +274,7 @@ By directly returning a pointer to the TrackedElement you can allow consumers to
 
 ```C++
 public:
-    __ProxyTrackable(example_vec, TrackedElement, example_vec);
+    __ProxyTrackable(example_vec, TrackedElementVector, example_vec);
 ```
 
 `__ProxyTrackable(...)` takes a name, and the type of shared pointer to return.  This can be used to automatically cast custom data objects to the proper type on access, here, we use TrackedElement and don't change anything.  Finally, it takes the variable.
@@ -273,240 +290,6 @@ A caller could use this via:
     }
     ...
 ```
-
-##### Method three: Provide wrapper objects and expose them
-
-It may make sense to expose the wrapper objects (`TrackerElementVector` and friends):
-
-```C+++
-public:
-    shared_ptr<TrackerElementVector> get_foo_vec() {
-        return foovec_wrapper;
-    }
-
-protected:
-    SharedTrackerElement foovec;
-    shared_ptr<TrackerElementVector> foovec_wrapper;
-```
-
-Then there is the question of how to assign the wrapper during the creation.  To do this, we need to override the `reserve_fields(...)` function.  This function is responsible for allocating fields defined in `register_fields()`, and in complex classes, is used to map complex sub-types.
-
-We can ignore the more complex issues, for now, and just use it to build our wrapper.
-
-```C++
-private:
-    virtual void reserve_fields(SharedTrackerElement e) {
-        tracker_component::reserve_fields(e);
-
-        foovec_wrapper.reset(new TrackerElementVec(foovec));
-    }
-```
-
-Thanks to the C++11 `shared_ptr<>`, the memory used by the wrapper is automatically released when our class is destroyed.
-
-#### Restoring stored maps and vectors
-
-Stored maps and vectors need special care, if they contain complex tracked elements.
-
-As part of the `reserve_fields(...)` function, any vectors, maps, intmaps, stringmaps, doublemaps, or related structures which contain a complex element must rebuild the list as the proper type.
-
-For example, given a vector element defined as:
-
-```c++
-void SomeFoo::register_fields() {
-...
-    // Define a tracked vector
-    RegisterField("foo.example.foo_vec", TrackerVector, "example vector", &foo_vec);
-    
-    // Get the ID for the complex object that will be contained in foo_vec; 'foo_complex'
-    // is a trackercomponent we defined elsewhere
-    // We use the RegisterComplex with an inline builder object.
-    foo_vec_entry_id = RegisterComplexField("foo.example.foo_vec_entry", std::shared_ptr<foo_complex>(new foo_complex(globalreg, 0)), "foo entry");
-    ...
-}
-```
-Then the `reserve_fields(...)` function must include:
-
-```c++
-void SomeFoo::reserve_fields(SharedTrackerElement e) {
-    tracker_component::reserve_fields(e);
-
-    ...
-
-    if (e != NULL) {
-        // Use a TrackerElementVector alias to make it simpler
-        TrackerElementVector v(foo_vec);
-
-        // Currently the vector contains the generic versions of any data that
-        // was loaded from storage; we need to convert them to our complex
-        // type; foo_complex
-        for (auto i = v.begin(); i != v.end(); ++i) {
-            // Generate a foo_complex object, we need to pass it the entry id, and the
-            // generic object in the vector; if it was a map, we'd pass it i->second
-            std::shared_ptr<foo_complex> nc(new foo_complex(globalreg, foo_vec_entry_id, *i));
-
-            // Replace the existing object in the tree with the complex object we
-            // just created; we simply replace the content of the iterator.  If 
-            // this were a map, we'd replace i->second.
-            *i = nc;
-        }
-
-    }
-
-    ...
-```
-
-This needs to be done for any vectors or maps which contain complex types.
-
-## Including complex sub-components
-
-Being able to nest complex objects inside a `tracker_component` is one of the major advantages it offers, and code and data-type re-use is encouraged whenever possible.
-
-Lets say we want to add a location to our data type.  A location block is already defined in `devicetracker_component.h`.
-
-### First, add the location elements
-
-Unlike many other `TrackerElement` / `tracker_component` derived item, we need the ID and the element to track it.  In this case, we'll use the actual C++ class, remembering to include `devicetracker_component.h`.  Remember to use shared_ptr to define these complex variables:
-
-```C++
-private:
-    int location_id;
-    shared_ptr<kis_tracked_location> location;
-```
-
-### Registering complex elements
-
-To register an element derived from a complex class like `kis_tracked_location`, we need to provide an instance of the C++ class.  Later, the entry tracker code will use this class to call `clone_type()` and generate a new instance for us.  
-
-To do this, our `register_fields()` function looks like this now:
-
-```C++
-private:
-    virtual void register_fields() {
-        ... Existing field registration
-
-        // We instantiate a builder, passing in globalreg, and an id of 0.  The
-        // entry tracker will fill in the correct ID later.  We defined the builder
-        // as a shared_ptr
-        shared_ptr<kis_tracked_location> loc_builder(new kis_tracked_location(globalreg, 0));
-
-        // Register the field as complex type, providing our builder.  We still
-        // give it a name based on our class, and a description
-        location_id =
-            RegisterComplexField("foo.location", loc_builder, "location");
-    }
-```
-
-Alternately, the `__RegisterComplexField` macro can be used to simplify the process:
-
-```C++
-private:
-    virtual void register_fields() {
-        ... Existing field registration
-
-        // Register using the __RegisterComplexField macro, which takes the class
-        // of the complex object, the id, the field name, and the description
-        __RegisterComplexField(kis_tracked_location, location_id,
-            "foo.location", "location");
-    }
-```
-
-### Allocating the complex element
-
-Also, special care needs to be taken for actually allocating the complex element.  As we learned above, allocating fields is done in the `reserve_fields(...)` function.
-
-The `reserve_fields(...)` method is used to both allocate new instances of fields, or to attach fields to an existing TrackerElement (for instance, once received from a generic deserialization of incoming data).  
-
-For our complex element, we simply need to instantiate it using the incoming data:
-
-```C++
-private:
-    virtual void reserve_fields(SharedTrackerElement e) {
-        // We MUST call the parent instance
-        tracker_component::reserve_fields(e);
-
-        // The parent takes care of anything that uses TrackerElement, we only
-        // have to worry about the custom fields
-
-        if (e != NULL) {
-            // If we're absorbing an existing generic structure, all we
-            // need to do is instantiate a new object of the right ID.
-            // It's already part of the map for the base object.
-          
-            // So we pass globalreg, the id we got from registering,
-            // and then we search in our object for the sub-tree of data
-            // matching our ID, which was built for us during deserializaton
-            // Since all elements are shared_ptr constructs, we use the 
-            // .reset function to re-assign to our new object
-            location.reset(new kis_tracked_location(globalreg, location_id,
-                    e->get_map_value(location_id)));
-        } else {
-            // Otherwise, we're making a whole new object.  This is usually the
-            // case.
-
-            // So make a new location object, and assign it using reset
-            location.reset(new kis_tracked_location(globalreg, location_id));
-        }
-
-        // And then attach it to our map so that it's tracked correctly
-        add_map(location);
-    }
-```
-
-### Dynamic complex elements
-
-Complex elements typically hold many sub-fields - for example a RRD can hold over a hundred samples, and some records, like signal or location, can rapidly grow in size.
-
-If possible, these elements should be allocated dynamically, instead of inserted in every object.  Kismet provides a mechanism to do this simply via `__ProxyDynamicTrackable(...)` which defines functions to automatically create the complex record at the first `get` request - this allows you to keep the rest of your code simple.
-
-To use the dynamic method of defining a complex object, first change your `__ProxyTrackable` to `__ProxyDynamicTrackable`.  This takes an additional argument:  the ID of the complex to create:
-
-```C++
-__ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
-```
-
-This defines a get_location(...) function which will automatically create a kis_tracked_location if we don't have one.
-
-Next, we modify our reserve_fields function:
-
-```C++
-private:
-    virtual void reserve_fields(SharedTrackerElement e) {
-        // We MUST call the parent instance
-        tracker_component::reserve_fields(e);
-
-        // The parent takes care of anything that uses TrackerElement, we only
-        // have to worry about the custom fields
-
-        if (e != NULL) {
-            if (e->get_map_value(location_id) != NULL) {
-                location.reset(new kis_tracked_location(globalreg, location_id,
-                    e->get_map_value(location_id)));
-            }
-        } 
-
-
-        add_map(location_id, location);
-    }
-```
-
-Notice two important changes:
-
-1. We only allocate the `location` record if we are inheriting an object which defines it.  We do NOT create an empty `location` if the object we're absorbing into our record does not have it, or if we're creating an entirely new class, we leave the `shared_ptr` set to NULL.
-2. We *must* provide the field id in the `add_map` call now.  `add_map(SharedElement *)` extracts the id from the element automatically - but our element may be NULL!  By providing the ID we place the element in the map as a placeholder with a NULL value.  When we create it dynamically later, it will be filled in in-place.
-
-With these two changes, all the memory used by the `kis_tracked_location` complex will only be allocated once a location has been obtained, so long as all accesses to it are handled via `whatever->get_location()->...`.
-
-Empty objects will be serialized as a uint8 zero value:
-
-```json
-"kismet_device_base_packet_bin_250": 0,
-"kismet_device_base_packet_bin_500": 0,
-```
-
-### Providing access
-
-Providing access to the child custom type is much the same as providing access to complex `TrackerElement` types, either by providing custom APIs or providing direct access via `__ProxyTrackable(...)`.
 
 ## Serialization
 
@@ -545,7 +328,7 @@ A more common condition is when creating temporary records for exporting, for in
 ```C++
 
 int foo::bar() {
-    shared_ptr<some_component> c(new some_component(globalreg, some_component_id));
+    auto c = std::make_shared<some_component>(some_component_id);
 
     // Do stuff, 'c' is automatically freed when all references expire.
     // This can include passing it to a serializer, embedding it in an object
