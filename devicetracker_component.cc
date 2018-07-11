@@ -428,7 +428,7 @@ void kis_tracked_device_base::register_fields() {
     RegisterField("kismet.device.base.tags", "set of arbitrary tags, including user notes", &tag_map);
 
     tag_entry_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.device.base.tag", 
+        RegisterField("kismet.device.base.tag", 
                 TrackerElementFactory<TrackerElementString>(), "arbitrary tag");
 
     location_id =
@@ -441,11 +441,11 @@ void kis_tracked_device_base::register_fields() {
 
     // Packet count, not actual frequency, so uint64 not double
     frequency_val_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.device.base.frequency.count",
+        RegisterField("kismet.device.base.frequency.count",
                 TrackerElementFactory<TrackerElementUInt64>(), "frequency packet count");
 
     seenby_val_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.device.base.seenby.data",
+        RegisterField("kismet.device.base.seenby.data",
                 TrackerElementFactory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
 
