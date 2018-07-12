@@ -299,14 +299,14 @@ public:
         locked = false;
         data = in_data;
         lk.unlock();
-        cv.notify_one();
+        cv.notify_all();
     }
 
     void unlock() {
         std::unique_lock<std::mutex> lk(m);
         locked = false;
         lk.unlock();
-        cv.notify_one();
+        cv.notify_all();
     }
 
 

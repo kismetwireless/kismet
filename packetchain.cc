@@ -66,16 +66,11 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     // Lock the packet conditional
     packet_condition.lock();
 
-    // Create a pthread thread because we have to manipulate the stack size;
-    // The decoder thread handles almost everything about a packet and some
-    // libcs seem to limit us in bad ways
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    /*
-     * Disable - doesn't fix musl bug, might break other platforms
-    pthread_attr_setstacksize(&attr, (1024 * 1024 * 8));
-    */
-    pthread_create(&packet_thread, &attr, Packetchain::packet_queue_processor, (void *) this);
+    for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
+        packet_threads.push_back(std::thread([this]() { 
+            packet_queue_processor();
+        }));
+    }
 }
 
 Packetchain::~Packetchain() {
@@ -85,7 +80,8 @@ Packetchain::~Packetchain() {
         packetchain_shutdown = true;
         packet_condition.unlock();
 
-        pthread_join(packet_thread, NULL);
+        for (auto& t : packet_threads)
+            t.join();
     }
 
     {
@@ -214,23 +210,22 @@ kis_packet *Packetchain::GeneratePacket() {
     return newpack;
 }
 
-void *Packetchain::packet_queue_processor(void *in_packetchain) {
-    Packetchain *packetchain = (Packetchain *) in_packetchain;
+void Packetchain::packet_queue_processor() {
     kis_packet *packet = NULL;
-    local_demand_locker queue_lock(&(packetchain->packetqueue_mutex));
-    local_demand_locker chain_lock(&(packetchain->packetchain_mutex));
+    local_demand_locker queue_lock(&(packetqueue_mutex));
+    local_demand_locker chain_lock(&(packetchain_mutex));
 
     while (1) {
         queue_lock.lock();
 
         // Are we shutting down?
-        if (packetchain->packetchain_shutdown)
-            return NULL;
+        if (packetchain_shutdown)
+            return;
       
-        if (packetchain->packet_queue.size() != 0) {
+        if (packet_queue.size() != 0) {
             // Get the next packet
-            packet = packetchain->packet_queue.front();
-            packetchain->packet_queue.pop();
+            packet = packet_queue.front();
+            packet_queue.pop();
 
             // Unlock the queue while we process that packet
             queue_lock.unlock();
@@ -238,63 +233,63 @@ void *Packetchain::packet_queue_processor(void *in_packetchain) {
             // Lock the  packet chain itself because we need to have consistent
             // packet chain vectors
             
-            for (auto pcl : packetchain->postcap_chain) {
+            for (auto pcl : postcap_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : packetchain->llcdissect_chain) {
+            for (auto pcl : llcdissect_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : packetchain->decrypt_chain) {
+            for (auto pcl : decrypt_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : packetchain->datadissect_chain) {
+            for (auto pcl : datadissect_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : packetchain->classifier_chain) {
+            for (auto pcl : classifier_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : packetchain->tracker_chain) {
+            for (auto pcl : tracker_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : packetchain->logging_chain) {
+            for (auto pcl : logging_chain) {
                 if (pcl->callback != NULL)
-                    pcl->callback(packetchain->globalreg, pcl->auxdata, packet);
+                    pcl->callback(globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            packetchain->DestroyPacket(packet);
+            DestroyPacket(packet);
 
             // re-loop in case we have more packets
             continue;
         } else {
             // We have no packets, lock our conditional until something queues 
             // a new packet and fall out of the selector
-            packetchain->packet_condition.lock();
+            packet_condition.lock();
         }
 
         // No packets; fall through to blocking until we have them
@@ -302,7 +297,7 @@ void *Packetchain::packet_queue_processor(void *in_packetchain) {
 
 
         // Block until something pokes the conditional locker
-        packetchain->packet_condition.block_until();
+        packet_condition.block_until();
     }
 }
 
