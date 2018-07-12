@@ -587,6 +587,9 @@ std::shared_ptr<kis_tracked_device_base>
             mac_addr in_mac, Kis_Phy_Handler *in_phy, kis_packet *in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
+    // We must protect the device list to determine if the device is 'new'
+    local_locker list_locker(&devicelist_mutex);
+
     std::stringstream sstr;
 
     bool new_device = false;
@@ -779,7 +782,6 @@ std::shared_ptr<kis_tracked_device_base>
 
     // Add the new device at the end once we've populated it
     if (new_device) {
-        local_locker devlocker(&devicelist_mutex);
         tracked_map[key] = device;
         tracked_vec.push_back(device);
         immutable_tracked_vec->push_back(device);
