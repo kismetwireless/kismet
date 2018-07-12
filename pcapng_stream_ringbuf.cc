@@ -293,6 +293,8 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
 
 int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
         struct timeval *in_tv, std::vector<data_block> in_blocks) {
+    local_locker lg(&packet_mutex);
+
     uint8_t *retbuf;
 
     // Interface ID for multiple interfaces per file
@@ -438,6 +440,8 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 }
 
 int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
+    local_locker lg(&packet_mutex);
+
     SharedDatasource kis_datasource;
 
     packetchain_comp_datasource *datasrcinfo = 

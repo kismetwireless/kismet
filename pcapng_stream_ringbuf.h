@@ -185,6 +185,8 @@ protected:
 
     // Map kismet internal interface ID to log interface ID
     std::map<unsigned int, unsigned int> datasource_id_map;
+
+    kis_recursive_timed_mutex packet_mutex;
     
 };
 

@@ -75,8 +75,6 @@ Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {
 int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
     Kis_Bluetooth_Phy *btphy = (Kis_Bluetooth_Phy *) auxdata;
 
-    devicelist_scope_locker listlock(btphy->devicetracker);
-
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
 
@@ -124,6 +122,8 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
 
     if (basedev == nullptr)
         return 0;
+
+    local_locker bssidlock(&(basedev->device_mutex));
 
     auto btdev =
         basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);

@@ -187,6 +187,8 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTL433 Sensor");
 
+    local_locker bssidlock(&(basedev->device_mutex));
+
     // Get rid of our pseudopacket
     delete(pack);
 

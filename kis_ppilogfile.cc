@@ -154,6 +154,8 @@ void KisPPILogfile::RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
 int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
     KisPPILogfile *ppilog = (KisPPILogfile *) auxdata;
 
+    local_locker lg(&(ppilog->packet_mutex));
+
     if (ppilog->stream_paused)
         return 1;
 
