@@ -161,7 +161,7 @@ void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
 }
 
 bool TrackerElementString::less_than(const TrackerElementString& rhs) {
-    return doj::alphanum_comp(value, rhs.value);
+    return doj::alphanum_comp(value, rhs.value) < 0;
 }
 
 void TrackerElementUUID::coercive_set(const std::string& in_str) {
@@ -1091,33 +1091,33 @@ bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs,
 
     switch (lhs->get_type()) {
         case TrackerType::TrackerString:
-            return TrackerElement::safe_cast_as<TrackerElementString>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementString>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementString>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementString>(rhs));
         case TrackerType::TrackerInt8:
-            return TrackerElement::safe_cast_as<TrackerElementInt8>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt8>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementInt8>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt8>(rhs));
         case TrackerType::TrackerUInt8:
-            return TrackerElement::safe_cast_as<TrackerElementUInt8>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt8>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementUInt8>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt8>(rhs));
         case TrackerType::TrackerInt16:
-            return TrackerElement::safe_cast_as<TrackerElementInt16>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt16>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementInt16>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt16>(rhs));
         case TrackerType::TrackerUInt16:
-            return TrackerElement::safe_cast_as<TrackerElementUInt16>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt16>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementUInt16>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt16>(rhs));
         case TrackerType::TrackerInt32:
-            return TrackerElement::safe_cast_as<TrackerElementInt32>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt32>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementInt32>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt32>(rhs));
         case TrackerType::TrackerUInt32:
-            return TrackerElement::safe_cast_as<TrackerElementUInt32>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt32>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementUInt32>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt32>(rhs));
         case TrackerType::TrackerInt64:
-            return TrackerElement::safe_cast_as<TrackerElementInt64>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementInt64>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementInt64>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt64>(rhs));
         case TrackerType::TrackerUInt64:
-            return TrackerElement::safe_cast_as<TrackerElementUInt64>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUInt64>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementUInt64>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt64>(rhs));
         case TrackerType::TrackerFloat:
-            return TrackerElement::safe_cast_as<TrackerElementFloat>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementFloat>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementFloat>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementFloat>(rhs));
         case TrackerType::TrackerDouble:
-            return TrackerElement::safe_cast_as<TrackerElementDouble>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementDouble>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementDouble>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementDouble>(rhs));
         case TrackerType::TrackerMac:
-            return TrackerElement::safe_cast_as<TrackerElementMacAddr>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementMacAddr>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementMacAddr>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementMacAddr>(rhs));
         case TrackerType::TrackerUuid:
-            return TrackerElement::safe_cast_as<TrackerElementUUID>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementUUID>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementUUID>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUUID>(rhs));
         case TrackerType::TrackerByteArray:
-            return TrackerElement::safe_cast_as<TrackerElementByteArray>(lhs)->less_than(TrackerElement::safe_cast_as<TrackerElementByteArray>(rhs));
+            return TrackerElement::safe_cast_as<TrackerElementByteArray>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementByteArray>(rhs));
         case TrackerType::TrackerKey:
         case TrackerType::TrackerVector:
         case TrackerType::TrackerMap:
