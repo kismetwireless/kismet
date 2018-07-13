@@ -1445,6 +1445,10 @@ public:
     virtual void LoadPhyStorage(SharedTrackerElement in_storage,
             SharedTrackerElement in_device);
 
+    // Convert a frequency in KHz to an IEEE 80211 channel name; MAY THROW AN EXCEPTION
+    // if this cannot be converted or is an invalid frequency
+    static const std::string KhzToChannel(const double in_khz);
+
 protected:
     std::shared_ptr<Alertracker> alertracker;
     std::shared_ptr<Packetchain> packetchain;

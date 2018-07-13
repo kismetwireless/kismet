@@ -679,6 +679,26 @@ Kis_80211_Phy::~Kis_80211_Phy() {
     delete[] recent_packet_checksums;
 }
 
+const std::string Kis_80211_Phy::KhzToChannel(const double in_khz) {
+    if (in_khz == 0)
+        throw std::runtime_error("invalid freq");
+
+    int mhz = in_khz / 1000;
+
+    if (mhz == 2484)
+        return "14";
+    else if (mhz < 2484)
+        return fmt::format("{}", (mhz - 2407) / 5);
+    else if (mhz >= 4910 && mhz <= 4980)
+        return fmt::format("{}", (mhz - 4000) / 5);
+    else if (mhz <= 45000)
+        return fmt::format("{}", (mhz - 5000) / 5);
+    else if (mhz >= 58320 && mhz <= 64800)
+        return fmt::format("{}", (mhz - 56160) / 2160);
+    else
+        return fmt::format("{}", mhz);
+}
+
 int Kis_80211_Phy::LoadWepkeys() {
     // Convert the WEP mappings to our real map
     std::vector<std::string> raw_wepmap_vec;
@@ -880,6 +900,18 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                bssid_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
+                    bssid_dev->get_channel() == "")) {
+                try {
+                    bssid_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
+            }
+
             // Detect if we're an adhoc bssid
             if (dot11info->ibss) {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
@@ -925,6 +957,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                source_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != source_dev->get_frequency() ||
+                    source_dev->get_channel() == "")) {
+                try {
+                    source_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
+            }
+
             // If it's sending ibss-flagged packets it's got to be adoc
             if (dot11info->ibss) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
@@ -966,6 +1009,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
             dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             dest_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                dest_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
+                    dest_dev->get_channel() == "")) {
+                try {
+                    dest_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
+            }
         }
 
         // Safety check that our BSSID device exists
