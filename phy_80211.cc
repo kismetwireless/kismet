@@ -1012,7 +1012,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 dest_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != dest_dev->get_frequency() ||
                     dest_dev->get_channel() == "")) {
                 try {
                     dest_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
@@ -1148,6 +1148,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                bssid_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
+                    bssid_dev->get_channel() == "")) {
+                try {
+                    bssid_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
+            }
+
             if (dot11info->distrib == distrib_adhoc) {
                 // Otherwise, we're some sort of adhoc device
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
@@ -1205,6 +1216,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
 
                 dot11info->new_device = true;
+            }
+
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                source_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != source_dev->get_frequency() ||
+                    source_dev->get_channel() == "")) {
+                try {
+                    source_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
             }
 
             if (dot11info->subtype == packet_sub_data_null ||
@@ -1294,6 +1316,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                dest_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != dest_dev->get_frequency() ||
+                    dest_dev->get_channel() == "")) {
+                try {
+                    dest_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
+            }
+
             // If it's from the ess, we're some sort of wired device; set the type
             // accordingly
             if (dot11info->distrib == distrib_inter) {
@@ -1340,6 +1373,17 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11_tracked_device::attach_base_parent(dest_dot11, other_dev);
 
                 dot11info->new_device = true;
+            }
+
+            if (dot11info->channel != "0" && dot11info->channel != "") {
+                other_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != other_dev->get_frequency() ||
+                    other_dev->get_channel() == "")) {
+                try {
+                    other_dev->set_channel(KhzToChannel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
             }
 
             other_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
