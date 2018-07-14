@@ -1,19 +1,49 @@
-Kismet 2017-??-??
+Kismet xyz 2018-07-RC1
 Mike Kershaw <dragorn@kismetwireless.net>
 https://www.kismetwireless.net
 
-[ New kismet readme, in progress ]
+*** MAJOR KISMET UPDATE ***
+*** Kismet RC1 / Beta   ***
+
+    Welcome to the new, major rewrite of Kismet!  This version changes 
+    almost everything, hopefully for the better, including:
+
+    * Web-based UI allowing for much simpler presentation of data and 
+      compatibility with mobile devices
+    * Standard JSON-based data export for easy scripting against Kismet
+      instances
+    * Support for wireless protocols beyond Wi-Fi, like basic Bluetooth
+      scanning, thermometer and weather station detection with the 
+      RTL-SDR hardware, and more on the way
+    * New remote-capture code optimized for binary size and RAM, allowing
+      extremely low-end embedded devices to be used for packet capture
+    * New logging format which can encapsulate complex information about
+      devices, system state, alerts, messages, and packets in a single
+      file with simple tools for extracting standard formats
+    * Pcap-NG multi-interface logs with complete original headers, readable
+      by Wireshark and other tools
+
+    Please remember that as a pre-release, there is still some work to be 
+    done, but the new version has been in use for some time and 
+    has been performing well.
+
+    Setting up the new Kismet is generally simpler than the older versions,
+    keep reading for more information!
 
 **. Quick Setup Guide
 
     Kismet has many configuration knobs and options; but for the quickest
     way to get the basics working:
 
-    1.  Install dependencies.  Kismet needs a number of libraries and 
+    1.  Uninstall any existing Kismet installs.  If you installed Kismet
+        using a package from your distribution, uninstall it the same way;
+        if you compiled it yourself, be sure to remove it.
+
+    2.  Install dependencies.  Kismet needs a number of libraries and 
         development headers to compile; these should be available in 
         nearly all distributions.  
 
-        For Ubuntu:
+        For Ubuntu/Kali/Mint:
 
         $ sudo apt-get install build-essential git libmicrohttpd-dev \
             pkg-config zlib1g-dev libnl-3-dev libnl-genl-3-dev libcap-dev \
@@ -36,7 +66,7 @@ https://www.kismetwireless.net
             https://github.com/merbanan/rtl_433
         if it is not otherwise provided by your distribution.
 
-    2.  Clone Kismet from git.  If you haven't cloned Kismet before:
+    3.  Clone Kismet from git.  If you haven't cloned Kismet before:
 
         $ git clone https://www.kismetwireless.net/git/kismet.git
 
@@ -45,7 +75,7 @@ https://www.kismetwireless.net
         $ cd kismet
         $ git pull
 
-    3.  Run configure.  This will find all the specifics about your system
+    4.  Run configure.  This will find all the specifics about your system
         and prepare Kismet for compiling.  If you have any missing dependencies
         or incompatible library versions, they will show up here.
 
@@ -56,7 +86,7 @@ https://www.kismetwireless.net
         summary will show key features and raise warnings for missing dependencies which
         will drastically affect the compiled Kismet.
 
-    4.  Compile Kismet.  
+    5.  Compile Kismet.  
 
         $ make
 
@@ -65,19 +95,26 @@ https://www.kismetwireless.net
 
         $ make -j4
 
-    5.  Install Kismet.  Generally, you should install Kismet as suid-root; 
+        C++ uses quite a bit of RAM to compile, so depending on the RAM available on
+        your system you may wish to 
+
+    6.  Install Kismet.  Generally, you should install Kismet as suid-root; 
         Kismet will automatically add a group and install the capture binaries
         accordingly.
 
+        When installed suid-root, Kismet will launch the binaries which control the
+        channels and interfaces with the needed privileges, but will keep the packet
+        decoding and web interface running without root privileges.
+
         $ sudo make suidinstall
 
-    6.  Put yourself in the Kismet group.
+    7.  Put yourself in the Kismet group.
 
         $ sudo usermod -a -G kismet foouser
 
         This will add 'foouser' to the Kismet group.
 
-    7.  Log out and back in.  Linux does not update groups until you log in; if
+    8.  Log out and back in.  Linux does not update groups until you log in; if
         you have just added yourself to the Kismet group you will have to 
         re-log in.
 
@@ -85,7 +122,7 @@ https://www.kismetwireless.net
 
         $ groups
 
-    8.  You're now ready to run Kismet!  Point it at your network interface... Different
+    9.  You're now ready to run Kismet!  Point it at your network interface... Different
         distributions (and kernel versions, and distribution versions) name interfaces
         differently; your interface may be 'wlan0' or 'wlan1', or it may be named 
         something like 'wlp0s1', or it may be named using the MAC address of the card
@@ -116,7 +153,7 @@ https://www.kismetwireless.net
         and most other actions, but you CAN NOT control Kismet data sources,
         view pcaps, or perform other actions.
 
-    9.  Point your browser at http://localhost:2501
+    10.  Point your browser at http://localhost:2501
 
         You will be prompted to do basic configuration - Kismet has many options
         in the web UI which can be tweaked.
@@ -216,7 +253,8 @@ https://www.kismetwireless.net
     Sometimes the changes cause problems with Git - such as when temporary files
     are replaced with permanent files, or when the Makefile removes files that
     are now needed.  If there are problems compiling, the easiest first step is
-    to remove the checkout of directory and clone a new copy.
+    to remove the checkout of directory and clone a new copy (simply do a 
+    `rm -rf` of the copy you checked out, and `git clone` a new copy)
 
 xx. Installing Kismet - Suid vs Normal
 
