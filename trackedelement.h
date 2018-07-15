@@ -583,7 +583,17 @@ public:
         value(v) { }
 
     virtual void coercive_set(const std::string& in_str) override {
-        auto d = std::stod(in_str);
+        // Inefficient workaround for compilers that don't define std::stod properly
+        // auto d = std::stod(in_str);
+        
+        std::stringstream ss(in_str);
+        double d;
+
+        ss >> d;
+
+        if (ss.fail())
+            throw std::runtime_error("could not convert string to numeric");
+
         coercive_set(d);
     }
 
