@@ -144,6 +144,8 @@ class dot11_packinfo : public packet_component {
             datasize = 0;
             qos = 0;
 
+            maxrate = 0;
+
             // Many of thse will not be available until the IE tags are parsed
             ietag_csum = 0;
 
