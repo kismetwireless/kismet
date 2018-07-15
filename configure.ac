@@ -1375,6 +1375,7 @@ if test "$linux" = "yes"; then
         AC_CHECK_LIB([sensors], [sensors_init],
     			HAVE_LIBLMSENSORS=1,
                 AC_MSG_WARN([libsensors not available]))
+        LIBS="$LIBS -lsensors"
     else
         LMSENSORS_MISSING_REASON="Missing libhackrf/hackrf.h"
     fi

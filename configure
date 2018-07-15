@@ -10139,6 +10139,7 @@ else
 $as_echo "$as_me: WARNING: libsensors not available" >&2;}
 fi
 
+        LIBS="$LIBS -lsensors"
     else
         LMSENSORS_MISSING_REASON="Missing libhackrf/hackrf.h"
     fi
