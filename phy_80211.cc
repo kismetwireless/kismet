@@ -1155,6 +1155,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+            bssid_dot11->set_last_bssid(bssid_dev->get_macaddr());
+
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 bssid_dev->set_channel(dot11info->channel);
             } else if (pack_l1info != NULL && (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
@@ -1224,6 +1226,11 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
                 dot11info->new_device = true;
             }
+
+            if (bssid_dev != nullptr)
+                source_dot11->set_last_bssid(bssid_dev->get_macaddr());
+            else
+                source_dot11->set_last_bssid(mac_addr());
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 source_dev->set_channel(dot11info->channel);
