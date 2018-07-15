@@ -187,6 +187,14 @@ kismet_ui.AddDeviceColumn('wifi_clients', {
     width: '2em'
 });
 
+kismet_ui.AddDeviceColumn('wifi_last_bssid', {
+    sTitle: 'BSSID',
+    field: 'dot11.device/dot11.device.last_bssid',
+    description: 'Last associated BSSID',
+    sortable: true,
+    searchable: true
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
