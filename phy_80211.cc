@@ -900,6 +900,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
+            bssid_dot11->set_last_bssid(bssid_dev->get_macaddr());
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 bssid_dev->set_channel(dot11info->channel);
@@ -955,6 +956,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11_tracked_device::attach_base_parent(source_dot11, source_dev);
 
                 dot11info->new_device = true;
+            }
+
+            if (bssid_dev != nullptr) {
+                source_dot11->set_last_bssid(bssid_dev->get_macaddr());
+            } else {
+                source_dot11->set_last_bssid(mac_addr());
             }
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
@@ -1940,6 +1947,11 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
     if (client_record->get_last_time() < in_pack->ts.tv_sec) {
         client_record->set_last_time(in_pack->ts.tv_sec);
     }
+
+    if (bssiddev != nullptr) 
+        clientdot11->set_last_bssid(bssiddev->get_macaddr());
+    else
+        clientdot11->set_last_bssid(mac_addr());
 
     // Handle the data records for this client association, we're not just a 
     // management link
