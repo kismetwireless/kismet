@@ -53,8 +53,8 @@ exit 0
 %doc docs/howto
 %config /etc/kismet/kismet.conf
 %config /etc/kismet/kismet_httpd.conf
-/usr/bin/kismet_capture_tools/kismet_cap_pcapfile
-%attr(4550,root,kismet) /usr/bin/kismet_capture_tools/kismet_cap_linux_wifi
+/usr/bin/kismet_cap_pcapfile
+%attr(4550,root,kismet) /usr/bin/kismet_cap_linux_wifi
 /usr/bin/kismet
 /usr/bin/kismet_server
 /usr/share/man/man1/*
