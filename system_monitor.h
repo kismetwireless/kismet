@@ -103,6 +103,9 @@ protected:
     std::shared_ptr<TrackerElementUInt64> devices;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
 
+    std::shared_ptr<TrackerElementStringMap> sensors_fans;
+    std::shared_ptr<TrackerElementStringMap> sensors_temp;
+
     long mem_per_page;
 };
 

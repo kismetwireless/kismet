@@ -25,6 +25,10 @@
 
 #include <pwd.h>
 
+#ifdef HAVE_SENSORS_SENSORS_H
+#include <sensors/sensors.h>
+#endif
+
 #include "globalregistry.h"
 #include "util.h"
 #include "battery.h"
@@ -90,6 +94,10 @@ Systemmonitor::Systemmonitor() :
     set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));
     set_server_location(Globalreg::globalreg->kismet_config->FetchOpt("server_location"));
 
+#if defined(SYS_LINUX) and defined(HAVE_SENSORS_SENSORS_H)
+    sensors_init(NULL);
+#endif
+
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -124,6 +132,9 @@ void Systemmonitor::register_fields() {
 
     RegisterField("kismet.system.memory.rrd", "memory used RRD", &memory_rrd); 
     RegisterField("kismet.system.devices.rrd", "device count RRD", &devices_rrd);
+
+    RegisterField("kismet.system.sensors.fan", "fan sensors", &sensors_fans);
+    RegisterField("kismet.system.sensors.temp", "temperature sensors", &sensors_temp);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
@@ -169,6 +180,77 @@ int Systemmonitor::timetracker_event(int eventid) {
             }
         }
     }
+
+#endif
+
+#if defined(SYS_LINUX) and defined(HAVE_SENSORS_SENSORS_H)
+    sensors_fans->clear();
+    sensors_temp->clear();
+
+    int sensor_nr = 0;
+    while (auto chip = sensors_get_detected_chips(NULL, &sensor_nr)) {
+        int i = 0;
+        while (auto fi = sensors_get_features(chip, &i)) {
+            char *label;
+            char chipname[64];
+            const char* adapter_name;
+            double val;
+            const sensors_subfeature *sf;
+
+            std::string synth_name;
+
+            switch (fi->type) {
+                case SENSORS_FEATURE_TEMP:
+                    sf = sensors_get_subfeature(chip, fi, SENSORS_SUBFEATURE_TEMP_INPUT);
+
+                    if (sf == nullptr)
+                        break;
+
+                    adapter_name = sensors_get_adapter_name(&chip->bus);
+                    sensors_snprintf_chip_name(chipname, 64, chip);
+                    label = sensors_get_label(chip, fi);
+                    sensors_get_value(chip, sf->number, &val);
+
+                    synth_name = fmt::format("{}-{}-{}", 
+                            MungeToPrintable(chipname),
+                            MungeToPrintable(label),
+                            MungeToPrintable(adapter_name));
+
+                    sensors_temp->insert(synth_name, 
+                            std::make_shared<TrackerElementDouble>(0, val));
+
+                    free(label);
+
+                    break;
+
+                case SENSORS_FEATURE_FAN:
+                    sf = sensors_get_subfeature(chip, fi, SENSORS_SUBFEATURE_FAN_INPUT);
+
+                    if (sf == nullptr)
+                        break;
+
+                    adapter_name = sensors_get_adapter_name(&chip->bus);
+                    sensors_snprintf_chip_name(chipname, 64, chip);
+                    label = sensors_get_label(chip, fi);
+                    sensors_get_value(chip, sf->number, &val);
+
+                    synth_name = fmt::format("{}-{}-{}", 
+                            MungeToPrintable(chipname),
+                            MungeToPrintable(label),
+                            MungeToPrintable(adapter_name));
+
+                    sensors_fans->insert(synth_name, 
+                            std::make_shared<TrackerElementDouble>(0, val));
+
+                    free(label);
+
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
 
 #endif
 
