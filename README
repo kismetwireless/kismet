@@ -49,7 +49,7 @@ https://www.kismetwireless.net
             pkg-config zlib1g-dev libnl-3-dev libnl-genl-3-dev libcap-dev \
             libpcap-dev libncurses5-dev libnm-dev libdw-dev \
             libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
-            protobuf-compiler protobuf-c-compiler
+            protobuf-compiler protobuf-c-compiler libsensors4-dev
 
         On some platforms, libprotobuf-c-dev may be called 
         libprotobuf-c0-dev

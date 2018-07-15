@@ -1365,6 +1365,22 @@ else
 	suidgroup="kismet"
 fi
 
+
+if test "$linux" = "yes"; then
+    AC_CHECK_HEADERS([sensors/sensors.h],
+        HAVE_LMSENSORS_H=1,
+        AC_MSG_WARN("libsensors lm-sensors missing"))
+    
+    if test "$HAVE_LMSENSORS_H" = 1; then
+        AC_CHECK_LIB([sensors], [sensors_init],
+    			HAVE_LIBLMSENSORS=1,
+                AC_MSG_WARN([libsensors not available]))
+    else
+        LMSENSORS_MISSING_REASON="Missing libhackrf/hackrf.h"
+    fi
+fi
+
+
 AC_ARG_WITH(suidgroup,
 	[  --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process ],
 	[
@@ -1379,8 +1395,6 @@ if test "$cygwin" = "yes"; then
 	suid="no"
 fi
 
-
-# We include GPS handling code regardless, for now.
 AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 
 AC_ARG_ENABLE(optimization,
@@ -1563,6 +1577,15 @@ if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf " lm-sensors monitoring: "
+if test "$HAVE_LIBLMSENSORS" = 1; then
+	echo "yes";
+elif test "$linux" != "yes"; then
+    echo "n/a (only Linux)"
+else
+	echo "no (will not be able to monitor system temperature, etc)";
 fi
 
 # printf "       HackRF spectrum: "

@@ -198,6 +198,9 @@
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
+/* Define to 1 if you have the <sensors/sensors.h> header file. */
+#undef HAVE_SENSORS_SENSORS_H
+
 /* Define to 1 if you have the `setproctitle' function. */
 #undef HAVE_SETPROCTITLE
 

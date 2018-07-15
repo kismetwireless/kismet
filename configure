@@ -10078,6 +10078,74 @@ else
 fi
 
 
+if test "$linux" = "yes"; then
+    for ac_header in sensors/sensors.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "sensors/sensors.h" "ac_cv_header_sensors_sensors_h" "$ac_includes_default"
+if test "x$ac_cv_header_sensors_sensors_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SENSORS_SENSORS_H 1
+_ACEOF
+ HAVE_LMSENSORS_H=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"libsensors lm-sensors missing\"" >&5
+$as_echo "$as_me: WARNING: \"libsensors lm-sensors missing\"" >&2;}
+fi
+
+done
+
+
+    if test "$HAVE_LMSENSORS_H" = 1; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sensors_init in -lsensors" >&5
+$as_echo_n "checking for sensors_init in -lsensors... " >&6; }
+if ${ac_cv_lib_sensors_sensors_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsensors  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char sensors_init ();
+int
+main ()
+{
+return sensors_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_sensors_sensors_init=yes
+else
+  ac_cv_lib_sensors_sensors_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sensors_sensors_init" >&5
+$as_echo "$ac_cv_lib_sensors_sensors_init" >&6; }
+if test "x$ac_cv_lib_sensors_sensors_init" = xyes; then :
+  HAVE_LIBLMSENSORS=1
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libsensors not available" >&5
+$as_echo "$as_me: WARNING: libsensors not available" >&2;}
+fi
+
+    else
+        LMSENSORS_MISSING_REASON="Missing libhackrf/hackrf.h"
+    fi
+fi
+
+
+
 # Check whether --with-suidgroup was given.
 if test "${with_suidgroup+set}" = set; then :
   withval=$with_suidgroup;
@@ -10094,8 +10162,6 @@ if test "$cygwin" = "yes"; then
 	suid="no"
 fi
 
-
-# We include GPS handling code regardless, for now.
 
 $as_echo "#define HAVE_GPS 1" >>confdefs.h
 
@@ -11578,6 +11644,15 @@ if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf " lm-sensors monitoring: "
+if test "$HAVE_LIBLMSENSORS" = 1; then
+	echo "yes";
+elif test "$linux" != "yes"; then
+    echo "n/a (only Linux)"
+else
+	echo "no (will not be able to monitor system temperature, etc)";
 fi
 
 # printf "       HackRF spectrum: "
