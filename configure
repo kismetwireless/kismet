@@ -674,7 +674,6 @@ LIBPRELUDE_PTHREAD_CFLAGS
 LIBPRELUDE_CFLAGS
 LIBPRELUDE_CONFIG
 caplibs
-mangrp
 instgrp
 CXXLIBS
 LIBMLIB
@@ -7348,17 +7347,6 @@ else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 	instgrp="root"
-fi
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for group 'man'" >&5
-$as_echo_n "checking for group 'man'... " >&6; }
-if test "`grep -e ^man: /etc/group`" = ""; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no.  Using '$instgrp'" >&5
-$as_echo "no.  Using '$instgrp'" >&6; }
-	mangrp="$instgrp"
-else
-	mangrp="man"
 fi
 
 

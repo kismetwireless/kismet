@@ -251,12 +251,6 @@ commoninstall: $(INSTBINS)
 		(cd capture_freaklabs_zigbee && $(MAKE) install) \
 	fi;
 
-	mkdir -p $(MAN)/man1
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
-
-	mkdir -p $(MAN)/man5
-	$(INSTALL) -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
-
 	mkdir -p $(LIB)/pkgconfig
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 packaging/kismet.pc $(LIB)/pkgconfig/kismet.pc
 

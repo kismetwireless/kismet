@@ -625,15 +625,6 @@ else
 fi
 AC_SUBST(instgrp)
 
-AC_MSG_CHECKING([for group 'man'])
-if test "`grep -e ^man: /etc/group`" = ""; then
-	AC_MSG_RESULT([no.  Using '$instgrp'])
-	mangrp="$instgrp"
-else
-	mangrp="man"
-fi
-AC_SUBST(mangrp)
-
 termcontrol="none";
     
 # We need microhttpd and curses if we're building kismet_server
