@@ -878,11 +878,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 fa = GetTrackerElementPath(ofi, a);
                                 fb = GetTrackerElementPath(ofi, b);
 
-                                if (fa == nullptr)
-                                    return true;
+                                if (fa == nullptr) {
+                                    if (dt_order_dir == 0) {
+                                        return false;
+                                    } else {
+                                        return true;
+                                    }
+                                }
 
-                                if (fb == nullptr)
-                                    return false;
+                                if (fb == nullptr) {
+                                    if (dt_order_dir == 0) {
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                }
 
                                 if (dt_order_dir == 0)
                                     return SortTrackerElementLess(fa, fb);
@@ -936,11 +946,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 fa = GetTrackerElementPath(ofi, a);
                                 fb = GetTrackerElementPath(ofi, b);
 
-                                if (fa == nullptr)
-                                    return true;
+                                if (fa == nullptr) {
+                                    if (dt_order_dir == 0) {
+                                        return false;
+                                    } else {
+                                        return true;
+                                    }
+                                }
 
-                                if (fb == nullptr)
-                                    return false;
+                                if (fb == nullptr) {
+                                    if (dt_order_dir == 0) {
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                }
 
                                 if (dt_order_dir == 0)
                                     return SortTrackerElementLess(fa, fb);
@@ -998,11 +1018,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 fa = GetTrackerElementPath(ofi, a);
                                 fb = GetTrackerElementPath(ofi, b);
 
-                                if (fa == nullptr)
-                                    return true;
+                                if (fa == nullptr) {
+                                    if (dt_order_dir == 0) {
+                                        return false;
+                                    } else {
+                                        return true;
+                                    }
+                                }
 
-                                if (fb == nullptr)
-                                    return false;
+                                if (fb == nullptr) {
+                                    if (dt_order_dir == 0) {
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                }
 
                                 if (dt_order_dir == 0)
                                     return SortTrackerElementLess(fa, fb);
