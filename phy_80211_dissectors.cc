@@ -678,8 +678,14 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+        } else if (fc->subtype == 14) {
+            packinfo->subtype = packet_sub_action_noack;
+
+            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
         } else {
-            fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
+            fprintf(stderr, "debug - unhandled type - %u %u\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
         }
 
