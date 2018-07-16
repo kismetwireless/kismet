@@ -1927,124 +1927,128 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
         kis_gps_packinfo *pack_gpsinfo,
         kis_data_packinfo *pack_datainfo) {
 
-    local_locker bssidlock(&(bssiddev->device_mutex));
-    local_locker clientlock(&(clientdev->device_mutex));
+    if (bssiddev == nullptr)
+        return;
 
-    // Create and map the client behavior record for this BSSID
-    auto client_map(clientdot11->get_client_map());
-    std::shared_ptr<dot11_client> client_record;
+    {
+        local_locker clientlock(&(clientdev->device_mutex));
 
-    auto cmi = client_map->find(bssiddev->get_macaddr());
-    bool new_client_record = false;
+        // Create and map the client behavior record for this BSSID
+        auto client_map(clientdot11->get_client_map());
+        std::shared_ptr<dot11_client> client_record;
 
-    if (cmi == client_map->end()) {
-        client_record = clientdot11->new_client();
-        new_client_record = true;
-        client_map->insert(bssiddev->get_macaddr(), client_record);
-    } else {
-        client_record = 
-            std::static_pointer_cast<dot11_client>(cmi->second);
-    }
+        auto cmi = client_map->find(bssiddev->get_macaddr());
+        bool new_client_record = false;
 
-    if (new_client_record) {
-        client_record->set_bssid(bssiddev->get_macaddr());
-        client_record->set_first_time(in_pack->ts.tv_sec);
-    }
-
-    if (client_record->get_last_time() < in_pack->ts.tv_sec) {
-        client_record->set_last_time(in_pack->ts.tv_sec);
-    }
-
-    if (bssiddev != nullptr) 
-        clientdot11->set_last_bssid(bssiddev->get_macaddr());
-    else
-        clientdot11->set_last_bssid(mac_addr());
-
-    // Handle the data records for this client association, we're not just a 
-    // management link
-    if (dot11info->type == packet_data) {
-        if (dot11info->fragmented)
-            client_record->inc_num_fragments(1);
-
-        if (dot11info->retry) {
-            client_record->inc_num_retries(1);
-            client_record->inc_datasize_retry(dot11info->datasize);
+        if (cmi == client_map->end()) {
+            client_record = clientdot11->new_client();
+            new_client_record = true;
+            client_map->insert(bssiddev->get_macaddr(), client_record);
+        } else {
+            client_record = 
+                std::static_pointer_cast<dot11_client>(cmi->second);
         }
 
-        if (pack_datainfo != NULL && pack_datainfo->proto == proto_eap) {
-            if (pack_datainfo->auxstring != "") {
-                client_record->set_eap_identity(pack_datainfo->auxstring);
+        if (new_client_record) {
+            client_record->set_bssid(bssiddev->get_macaddr());
+            client_record->set_first_time(in_pack->ts.tv_sec);
+        }
+
+        if (client_record->get_last_time() < in_pack->ts.tv_sec) {
+            client_record->set_last_time(in_pack->ts.tv_sec);
+        }
+
+        clientdot11->set_last_bssid(bssiddev->get_macaddr());
+
+        // Handle the data records for this client association, we're not just a 
+        // management link
+        if (dot11info->type == packet_data) {
+            if (dot11info->fragmented)
+                client_record->inc_num_fragments(1);
+
+            if (dot11info->retry) {
+                client_record->inc_num_retries(1);
+                client_record->inc_datasize_retry(dot11info->datasize);
             }
 
-            if (pack_datainfo->discover_vendor != "") {
-                if (client_record->get_dhcp_vendor() != "" &&
-                        client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
-                        alertracker->PotentialAlert(alert_dhcpos_ref)) {
-                    std::string al = "IEEE80211 network BSSID " + 
-                        client_record->get_bssid().Mac2String() +
-                        " client " + 
-                        clientdev->get_macaddr().Mac2String() + 
-                        "changed advertised DHCP vendor from '" +
-                        client_record->get_dhcp_vendor() + "' to '" +
-                        pack_datainfo->discover_vendor + "' which may indicate "
-                        "client spoofing or impersonation";
-
-                    alertracker->RaiseAlert(alert_dhcpos_ref, in_pack,
-                            dot11info->bssid_mac, dot11info->source_mac,
-                            dot11info->dest_mac, dot11info->other_mac,
-                            dot11info->channel, al);
+            if (pack_datainfo != NULL && pack_datainfo->proto == proto_eap) {
+                if (pack_datainfo->auxstring != "") {
+                    client_record->set_eap_identity(pack_datainfo->auxstring);
                 }
 
-                client_record->set_dhcp_vendor(pack_datainfo->discover_vendor);
-            }
+                if (pack_datainfo->discover_vendor != "") {
+                    if (client_record->get_dhcp_vendor() != "" &&
+                            client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
+                            alertracker->PotentialAlert(alert_dhcpos_ref)) {
+                        std::string al = "IEEE80211 network BSSID " + 
+                            client_record->get_bssid().Mac2String() +
+                            " client " + 
+                            clientdev->get_macaddr().Mac2String() + 
+                            "changed advertised DHCP vendor from '" +
+                            client_record->get_dhcp_vendor() + "' to '" +
+                            pack_datainfo->discover_vendor + "' which may indicate "
+                            "client spoofing or impersonation";
 
-            if (pack_datainfo->discover_host != "") {
-                if (client_record->get_dhcp_host() != "" &&
-                        client_record->get_dhcp_host() != pack_datainfo->discover_host &&
-                        alertracker->PotentialAlert(alert_dhcpname_ref)) {
-						std::string al = "IEEE80211 network BSSID " + 
-							client_record->get_bssid().Mac2String() +
-							" client " + 
-							clientdev->get_macaddr().Mac2String() + 
-							"changed advertised DHCP hostname from '" +
-							client_record->get_dhcp_host() + "' to '" +
-							pack_datainfo->discover_host + "' which may indicate "
-							"client spoofing or impersonation";
+                        alertracker->RaiseAlert(alert_dhcpos_ref, in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel, al);
+                    }
+
+                    client_record->set_dhcp_vendor(pack_datainfo->discover_vendor);
+                }
+
+                if (pack_datainfo->discover_host != "") {
+                    if (client_record->get_dhcp_host() != "" &&
+                            client_record->get_dhcp_host() != pack_datainfo->discover_host &&
+                            alertracker->PotentialAlert(alert_dhcpname_ref)) {
+                        std::string al = "IEEE80211 network BSSID " + 
+                            client_record->get_bssid().Mac2String() +
+                            " client " + 
+                            clientdev->get_macaddr().Mac2String() + 
+                            "changed advertised DHCP hostname from '" +
+                            client_record->get_dhcp_host() + "' to '" +
+                            pack_datainfo->discover_host + "' which may indicate "
+                            "client spoofing or impersonation";
 
                         alertracker->RaiseAlert(alert_dhcpname_ref, in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
                                 dot11info->dest_mac, dot11info->other_mac,
                                 dot11info->channel, al);
+                    }
+
+                    client_record->set_dhcp_host(pack_datainfo->discover_host);
                 }
 
-                client_record->set_dhcp_host(pack_datainfo->discover_host);
+                if (pack_datainfo->cdp_dev_id != "") {
+                    client_record->set_cdp_device(pack_datainfo->cdp_dev_id);
+                }
+
+                if (pack_datainfo->cdp_port_id != "") {
+                    client_record->set_cdp_port(pack_datainfo->cdp_port_id);
+                }
             }
 
-            if (pack_datainfo->cdp_dev_id != "") {
-                client_record->set_cdp_device(pack_datainfo->cdp_dev_id);
-            }
-
-            if (pack_datainfo->cdp_port_id != "") {
-                client_record->set_cdp_port(pack_datainfo->cdp_port_id);
-            }
         }
 
+        // Update the GPS info
+        if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+            client_record->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->fix);
+        }
+
+        // Update the forward map to the bssid
+        client_record->set_bssid_key(bssiddev->get_key());
     }
 
-    // Update the GPS info
-    if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
-        client_record->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix);
-    }
-
-    // Update the forward map to the bssid
-    client_record->set_bssid_key(bssiddev->get_key());
-
-    // Update the backwards map to the client
-    if (bssiddot11->get_associated_client_map()->find(clientdev->get_macaddr()) ==
-            bssiddot11->get_associated_client_map()->end()) {
-        bssiddot11->get_associated_client_map()->insert(clientdev->get_macaddr(),
-                clientdev->get_tracker_key());
+    {
+        local_locker bssidlock(&(bssiddev->device_mutex));
+        // Update the backwards map to the client
+        if (bssiddot11->get_associated_client_map()->find(clientdev->get_macaddr()) ==
+                bssiddot11->get_associated_client_map()->end()) {
+            bssiddot11->get_associated_client_map()->insert(clientdev->get_macaddr(),
+                    clientdev->get_tracker_key());
+        }
     }
 }
 
@@ -2060,140 +2064,78 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
     if (eapol == NULL)
         return;
 
-    local_locker bssid_locker(&(bssid_dev->device_mutex));
-    local_locker dest_locker(&(dest_dev->device_mutex));
+    if (bssid_dev == nullptr || dest_dev == nullptr)
+        return;
 
-    auto bssid_vec(bssid_dot11->get_wpa_key_vec());
+    {
+        local_locker bssid_locker(&(bssid_dev->device_mutex));
 
-    // Start doing something smart here about eliminating
-    // records - we want to do our best to keep a 1, 2, 3, 4
-    // handshake sequence, so find out what duplicates we have
-    // and eliminate the oldest one of them if we need to
-    uint8_t keymask = 0;
+        auto bssid_vec(bssid_dot11->get_wpa_key_vec());
 
-    if (bssid_vec->size() > 16) {
-        for (TrackerElementVector::iterator kvi = bssid_vec->begin();
-                kvi != bssid_vec->end(); ++kvi) {
-            std::shared_ptr<dot11_tracked_eapol> ke = std::static_pointer_cast<dot11_tracked_eapol>(*kvi);
+        // Start doing something smart here about eliminating
+        // records - we want to do our best to keep a 1, 2, 3, 4
+        // handshake sequence, so find out what duplicates we have
+        // and eliminate the oldest one of them if we need to
+        uint8_t keymask = 0;
 
-            uint8_t knum = (1 << ke->get_eapol_msg_num());
+        if (bssid_vec->size() > 16) {
+            for (TrackerElementVector::iterator kvi = bssid_vec->begin();
+                    kvi != bssid_vec->end(); ++kvi) {
+                auto ke = std::static_pointer_cast<dot11_tracked_eapol>(*kvi);
 
-            // If this is a duplicate handshake number, we can get
-            // rid of this one
-            if ((keymask & knum) == knum) {
-                bssid_vec->erase(kvi);
-                break;
-            }
+                uint8_t knum = (1 << ke->get_eapol_msg_num());
 
-            // Otherwise put this key in the keymask
-            keymask |= knum;
-        }
-    }
-
-    bssid_vec->push_back(eapol);
-
-    // Calculate the key mask of seen handshake keys
-    keymask = 0;
-    for (auto kvi : *bssid_vec) {
-        keymask |= (1 << std::static_pointer_cast<dot11_tracked_eapol>(kvi)->get_eapol_msg_num());
-    }
-
-    bssid_dot11->set_wpa_present_handshake(keymask);
-
-    // Look for replays against the target (which might be the bssid, or might
-    // be a client, depending on the direction); we track the EAPOL records per
-    // destination in the destination device record
-    bool dupe_nonce = false;
-    bool new_nonce = true;
-
-    // Look for replay attacks; only compare non-zero nonces
-    if (eapol->get_eapol_msg_num() == 3 &&
-            eapol->get_eapol_nonce_bytes().find_first_not_of(std::string("\x00", 1)) != 
-            std::string::npos) {
-        dupe_nonce = false;
-        new_nonce = true;
-
-        for (auto i : *(dest_dot11->get_wpa_nonce_vec())) {
-            std::shared_ptr<dot11_tracked_nonce> nonce =
-                std::static_pointer_cast<dot11_tracked_nonce>(i);
-
-            // If the nonce strings match
-            if (nonce->get_eapol_nonce_bytes() == eapol->get_eapol_nonce_bytes()) {
-                new_nonce = false;
-
-                if (eapol->get_eapol_replay_counter() <=
-                        nonce->get_eapol_replay_counter()) {
-
-                    // Is it an earlier (or equal) replay counter? Then we
-                    // have a problem; inspect the timestamp
-                    double tdif = 
-                        eapol->get_eapol_time() - 
-                        nonce->get_eapol_time();
-
-                    // Retries should fall w/in this range 
-                    if (tdif > 1.0f || tdif < -1.0f)
-                        dupe_nonce = true;
-                } else {
-                    // Otherwise increment the replay counter we record
-                    // for this nonce
-                    nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
+                // If this is a duplicate handshake number, we can get
+                // rid of this one
+                if ((keymask & knum) == knum) {
+                    bssid_vec->erase(kvi);
+                    break;
                 }
-                break;
+
+                // Otherwise put this key in the keymask
+                keymask |= knum;
             }
         }
 
-        if (!dupe_nonce) {
-            if (new_nonce) {
-                std::shared_ptr<dot11_tracked_nonce> n = 
-                    dest_dot11->create_tracked_nonce();
+        bssid_vec->push_back(eapol);
 
-                n->set_from_eapol(eapol);
-
-                auto ev = dest_dot11->get_wpa_nonce_vec();
-
-                // Limit the size of stored nonces
-                if (ev->size() > 128)
-                    ev->erase(ev->begin());
-
-                ev->push_back(n);
-            }
-        } else {
-            std::stringstream ss;
-            std::string nonce = eapol->get_eapol_nonce_bytes();
-
-            for (size_t b = 0; b < nonce.length(); b++) {
-                ss << std::uppercase << std::setfill('0') << std::setw(2) <<
-                    std::hex << (int) (nonce[b] & 0xFF);
-            }
-
-            alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
-                    dot11info->bssid_mac, dot11info->source_mac, 
-                    dot11info->dest_mac, dot11info->other_mac,
-                    dot11info->channel,
-                    "WPA EAPOL RSN frame seen with a previously used nonce; "
-                    "this may indicate a KRACK-style WPA attack (nonce: " + 
-                    ss.str() + ")");
+        // Calculate the key mask of seen handshake keys
+        keymask = 0;
+        for (auto kvi : *bssid_vec) {
+            keymask |= (1 << std::static_pointer_cast<dot11_tracked_eapol>(kvi)->get_eapol_msg_num());
         }
-    } else if (eapol->get_eapol_msg_num() == 1 &&
-            eapol->get_eapol_nonce_bytes().find_first_not_of(std::string("\x00", 1)) != std::string::npos) {
-        // Don't compare zero nonces
-        auto eav = dest_dot11->get_wpa_anonce_vec();
-        dupe_nonce = false;
-        new_nonce = true;
 
-        for (auto i : *eav) {
-            std::shared_ptr<dot11_tracked_nonce> nonce =
-                std::static_pointer_cast<dot11_tracked_nonce>(i);
+        bssid_dot11->set_wpa_present_handshake(keymask);
+    }
 
-            // If the nonce strings match
-            if (nonce->get_eapol_nonce_bytes() == eapol->get_eapol_nonce_bytes()) {
-                new_nonce = false;
+    {
+        local_locker dest_locker(&(dest_dev->device_mutex));
+        // Look for replays against the target (which might be the bssid, or might
+        // be a client, depending on the direction); we track the EAPOL records per
+        // destination in the destination device record
+        bool dupe_nonce = false;
+        bool new_nonce = true;
 
-                if (eapol->get_eapol_replay_counter() <=
-                        nonce->get_eapol_replay_counter()) {
-                    // Is it an earlier (or equal) replay counter? Then we
-                    // have a problem; inspect the retry and timestamp
-                    if (dot11info->retry) {
+        // Look for replay attacks; only compare non-zero nonces
+        if (eapol->get_eapol_msg_num() == 3 &&
+                eapol->get_eapol_nonce_bytes().find_first_not_of(std::string("\x00", 1)) != 
+                std::string::npos) {
+            dupe_nonce = false;
+            new_nonce = true;
+
+            for (auto i : *(dest_dot11->get_wpa_nonce_vec())) {
+                std::shared_ptr<dot11_tracked_nonce> nonce =
+                    std::static_pointer_cast<dot11_tracked_nonce>(i);
+
+                // If the nonce strings match
+                if (nonce->get_eapol_nonce_bytes() == eapol->get_eapol_nonce_bytes()) {
+                    new_nonce = false;
+
+                    if (eapol->get_eapol_replay_counter() <=
+                            nonce->get_eapol_replay_counter()) {
+
+                        // Is it an earlier (or equal) replay counter? Then we
+                        // have a problem; inspect the timestamp
                         double tdif = 
                             eapol->get_eapol_time() - 
                             nonce->get_eapol_time();
@@ -2202,46 +2144,115 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
                         if (tdif > 1.0f || tdif < -1.0f)
                             dupe_nonce = true;
                     } else {
-                        // Otherwise duplicate w/ out retry is immediately bad
-                        dupe_nonce = true;
+                        // Otherwise increment the replay counter we record
+                        // for this nonce
+                        nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
                     }
-                } else {
-                    // Otherwise increment the replay counter
-                    nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
+                    break;
                 }
-                break;
-            }
-        }
-
-        if (!dupe_nonce) {
-            if (new_nonce) {
-                std::shared_ptr<dot11_tracked_nonce> n = 
-                    dest_dot11->create_tracked_nonce();
-
-                n->set_from_eapol(eapol);
-
-                // Limit the size of stored nonces
-                if (eav->size() > 128)
-                    eav->erase(eav->begin());
-
-                eav->push_back(n);
-            }
-        } else {
-            std::stringstream ss;
-            std::string nonce = eapol->get_eapol_nonce_bytes();
-
-            for (size_t b = 0; b < nonce.length(); b++) {
-                ss << std::uppercase << std::setfill('0') << std::setw(2) <<
-                    std::hex << (int) (nonce[b] & 0xFF);
             }
 
-            alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
-                    dot11info->bssid_mac, dot11info->source_mac, 
-                    dot11info->dest_mac, dot11info->other_mac,
-                    dot11info->channel,
-                    "WPA EAPOL RSN frame seen with a previously used anonce; "
-                    "this may indicate a KRACK-style WPA attack (anonce: " +
-                    ss.str() + ")");
+            if (!dupe_nonce) {
+                if (new_nonce) {
+                    std::shared_ptr<dot11_tracked_nonce> n = 
+                        dest_dot11->create_tracked_nonce();
+
+                    n->set_from_eapol(eapol);
+
+                    auto ev = dest_dot11->get_wpa_nonce_vec();
+
+                    // Limit the size of stored nonces
+                    if (ev->size() > 128)
+                        ev->erase(ev->begin());
+
+                    ev->push_back(n);
+                }
+            } else {
+                std::stringstream ss;
+                std::string nonce = eapol->get_eapol_nonce_bytes();
+
+                for (size_t b = 0; b < nonce.length(); b++) {
+                    ss << std::uppercase << std::setfill('0') << std::setw(2) <<
+                        std::hex << (int) (nonce[b] & 0xFF);
+                }
+
+                alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel,
+                        "WPA EAPOL RSN frame seen with a previously used nonce; "
+                        "this may indicate a KRACK-style WPA attack (nonce: " + 
+                        ss.str() + ")");
+            }
+        } else if (eapol->get_eapol_msg_num() == 1 &&
+                eapol->get_eapol_nonce_bytes().find_first_not_of(std::string("\x00", 1)) != std::string::npos) {
+            // Don't compare zero nonces
+            auto eav = dest_dot11->get_wpa_anonce_vec();
+            dupe_nonce = false;
+            new_nonce = true;
+
+            for (auto i : *eav) {
+                std::shared_ptr<dot11_tracked_nonce> nonce =
+                    std::static_pointer_cast<dot11_tracked_nonce>(i);
+
+                // If the nonce strings match
+                if (nonce->get_eapol_nonce_bytes() == eapol->get_eapol_nonce_bytes()) {
+                    new_nonce = false;
+
+                    if (eapol->get_eapol_replay_counter() <=
+                            nonce->get_eapol_replay_counter()) {
+                        // Is it an earlier (or equal) replay counter? Then we
+                        // have a problem; inspect the retry and timestamp
+                        if (dot11info->retry) {
+                            double tdif = 
+                                eapol->get_eapol_time() - 
+                                nonce->get_eapol_time();
+
+                            // Retries should fall w/in this range 
+                            if (tdif > 1.0f || tdif < -1.0f)
+                                dupe_nonce = true;
+                        } else {
+                            // Otherwise duplicate w/ out retry is immediately bad
+                            dupe_nonce = true;
+                        }
+                    } else {
+                        // Otherwise increment the replay counter
+                        nonce->set_eapol_replay_counter(eapol->get_eapol_replay_counter());
+                    }
+                    break;
+                }
+            }
+
+            if (!dupe_nonce) {
+                if (new_nonce) {
+                    std::shared_ptr<dot11_tracked_nonce> n = 
+                        dest_dot11->create_tracked_nonce();
+
+                    n->set_from_eapol(eapol);
+
+                    // Limit the size of stored nonces
+                    if (eav->size() > 128)
+                        eav->erase(eav->begin());
+
+                    eav->push_back(n);
+                }
+            } else {
+                std::stringstream ss;
+                std::string nonce = eapol->get_eapol_nonce_bytes();
+
+                for (size_t b = 0; b < nonce.length(); b++) {
+                    ss << std::uppercase << std::setfill('0') << std::setw(2) <<
+                        std::hex << (int) (nonce[b] & 0xFF);
+                }
+
+                alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac, 
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel,
+                        "WPA EAPOL RSN frame seen with a previously used anonce; "
+                        "this may indicate a KRACK-style WPA attack (anonce: " +
+                        ss.str() + ")");
+            }
         }
     }
 }
