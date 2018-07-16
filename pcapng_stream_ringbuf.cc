@@ -27,18 +27,13 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
 
     globalreg = in_globalreg;
     
-    packetchain = 
-        std::static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
-
     handler = in_handler;
 
     accept_cb = accept_filter;
     selector_cb = data_selector;
 
-    packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
-            handle_chain_packet(packet);
-            return 1;
-        }, CHAINPOS_LOGGING, -100);
+    packetchain = 
+        std::static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
@@ -51,12 +46,17 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
 
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
     handler->ProtocolError();
-    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
 }
 
 void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
-    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
     handler->ProtocolError();
+}
+
+ssize_t Pcap_Stream_Ringbuf::buffer_available() {
+    if (handler != nullptr) 
+        return handler->GetWriteBufferAvailable();
+
+    return 0;
 }
 
 int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app) {
@@ -479,7 +479,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachun
 //
 // Interface descriptors are automatically created during packet insertion, and
 // packets linked to the proper interface.
-void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
+void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
     kis_datachunk *target_datachunk;
 
     // If we have an accept filter and it rejects, we're done
@@ -511,5 +511,27 @@ void Pcap_Stream_Ringbuf::handle_chain_packet(kis_packet *in_packet) {
     if (check_over_size() || check_over_packets()) {
         handler->ProtocolError();
     }
+}
+
+Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg,
+        std::shared_ptr<BufferHandlerGeneric> in_handler,
+        std::function<bool (kis_packet *)> accept_filter,
+        std::function<kis_datachunk * (kis_packet *)> data_selector) :
+    Pcap_Stream_Ringbuf(in_globalreg, in_handler, accept_filter, data_selector) {
+
+    packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
+            handle_packet(packet);
+            return 1;
+        }, CHAINPOS_LOGGING, -100);
+}
+
+Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
+    handler->ProtocolError();
+    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+}
+
+void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
+    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+    handler->ProtocolError();
 }
 

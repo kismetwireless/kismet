@@ -146,6 +146,8 @@ public:
         size_t len;
     };
 
+    ssize_t buffer_available();
+
 protected:
     virtual int pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app);
 
@@ -164,7 +166,7 @@ protected:
     virtual int pcapng_write_packet(unsigned int in_sourcenumber, struct timeval *in_tv,
             std::vector<data_block> in_blocks);
 
-    virtual void handle_chain_packet(kis_packet *in_packet);
+    virtual void handle_packet(kis_packet *in_packet);
 
     size_t PAD_TO_32BIT(size_t in) {
         while (in % 4) in++;
@@ -173,11 +175,10 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    std::shared_ptr<Packetchain> packetchain;
-
     std::shared_ptr<BufferHandlerGeneric> handler;
 
-    int packethandler_id;
+    std::shared_ptr<Packetchain> packetchain;
+
     int pack_comp_linkframe, pack_comp_datasrc;
 
     std::function<bool (kis_packet *)> accept_cb;
@@ -188,6 +189,22 @@ protected:
 
     kis_recursive_timed_mutex packet_mutex;
     
+};
+
+class Pcap_Stream_Packetchain : public Pcap_Stream_Ringbuf {
+public:
+    Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg, 
+            std::shared_ptr<BufferHandlerGeneric> in_handler,
+            std::function<bool (kis_packet *)> accept_filter,
+            std::function<kis_datachunk * (kis_packet *)> data_selector);
+
+    virtual ~Pcap_Stream_Packetchain();
+
+    virtual void stop_stream(std::string in_reason);
+
+protected:
+    int packethandler_id;
+
 };
 
 #endif

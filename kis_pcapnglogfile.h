@@ -36,7 +36,7 @@ public:
     virtual void Log_Close() override;
 
 protected:
-    Pcap_Stream_Ringbuf *pcapng_stream;
+    Pcap_Stream_Packetchain *pcapng_stream;
     std::shared_ptr<BufferHandler<FileWritebuf> > bufferhandler;
     FileWritebuf *pcapng_file;
 };

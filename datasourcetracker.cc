@@ -1781,7 +1781,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
         Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
             (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
        
-        Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(Globalreg::globalreg,
+        auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
         saux->set_aux(psrb, 
@@ -1840,7 +1840,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
 
                 // Fetch the datasource component and compare *source numbers*, not
                 // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
-                Pcap_Stream_Ringbuf *psrb = new Pcap_Stream_Ringbuf(Globalreg::globalreg,
+                auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
                         saux->get_rbhandler(), 
                         [this, dsnum] (kis_packet *packet) -> bool {
                             packetchain_comp_datasource *datasrcinfo = 
