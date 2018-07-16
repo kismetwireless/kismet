@@ -28,8 +28,6 @@
 class Phy_80211_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
     Phy_80211_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
-    Phy_80211_Httpd_Pcap(GlobalRegistry *in_globalreg) : 
-        Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) { }
 
     virtual ~Phy_80211_Httpd_Pcap() { };
 

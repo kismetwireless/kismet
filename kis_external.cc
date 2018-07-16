@@ -418,7 +418,7 @@ unsigned int KisExternalInterface::send_shutdown(std::string reason) {
 
 KisExternalHttpInterface::KisExternalHttpInterface() :
     KisExternalInterface(), 
-    Kis_Net_Httpd_Chain_Stream_Handler(Globalreg::globalreg) {
+    Kis_Net_Httpd_Chain_Stream_Handler() {
 
     http_session_id = 0;
 }

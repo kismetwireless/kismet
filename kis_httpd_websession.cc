@@ -27,7 +27,7 @@
 #include "alertracker.h"
 
 Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
     globalreg = in_globalreg;
 
     activated = false;

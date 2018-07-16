@@ -31,7 +31,7 @@
 
 LogTracker::LogTracker() :
     tracker_component(),
-    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     streamtracker =
         Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");

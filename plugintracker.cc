@@ -39,7 +39,7 @@
 
 Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     LifetimeGlobal(),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
     globalreg = in_globalreg;
 
     plugin_registry_vec = std::make_shared<TrackerElementVector>();

@@ -72,8 +72,7 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
-    std::shared_ptr<Packetchain> packetchain = 
-        std::static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
     int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
     // /devices/by-key/[key]/pcap/[key].pcapng
@@ -111,7 +110,7 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
       
     // Filter based on the device key
-    auto *psrb = new Pcap_Stream_Packetchain(http_globalreg,
+    auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
             saux->get_rbhandler(), 
             [key, pack_comp_device](kis_packet *packet) -> bool {
                 kis_tracked_device_info *devinfo = 
@@ -129,8 +128,7 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 return false;
             }, NULL);
 
-    std::shared_ptr<StreamTracker> streamtracker =
-        std::static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
+    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     saux->set_aux(psrb, 
         [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {

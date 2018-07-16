@@ -80,7 +80,7 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
 Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
     Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     phyname = "UAV";
 

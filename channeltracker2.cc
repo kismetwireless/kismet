@@ -26,7 +26,7 @@
 
 Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
     tracker_component(),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     // Number of seconds we consider a device to be active on a frequency 
     // after the last time we see it

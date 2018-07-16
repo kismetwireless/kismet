@@ -48,8 +48,7 @@ class EntryTracker;
 // Basic request handler from MHD
 class Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_Handler() { }
-    Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg);
+    Kis_Net_Httpd_Handler();
     virtual ~Kis_Net_Httpd_Handler();
 
     // Bind a http server if we need to do that later in the instantiation
@@ -136,8 +135,6 @@ public:
     }
 
 protected:
-    GlobalRegistry *http_globalreg;
-
     std::shared_ptr<Kis_Net_Httpd> httpd;
 };
 
@@ -145,8 +142,6 @@ protected:
 class Kis_Net_Httpd_CPPStream_Handler : public Kis_Net_Httpd_Handler {
 public:
     Kis_Net_Httpd_CPPStream_Handler() { }
-    Kis_Net_Httpd_CPPStream_Handler(GlobalRegistry *in_globalreg) :
-        Kis_Net_Httpd_Handler(in_globalreg) { };
     virtual ~Kis_Net_Httpd_CPPStream_Handler() { };
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
@@ -189,11 +184,6 @@ public:
         // Default rb size
         k_n_h_r_ringbuf_size = 1024*1024*4;
     }
-    Kis_Net_Httpd_Buffer_Stream_Handler(GlobalRegistry *in_globalreg) :
-        Kis_Net_Httpd_Handler(in_globalreg) { 
-        // Default rb size
-        k_n_h_r_ringbuf_size = 1024*1024*4;
-    };
     virtual ~Kis_Net_Httpd_Buffer_Stream_Handler();
 
     virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
@@ -252,9 +242,6 @@ class Kis_Net_Httpd_Ringbuf_Stream_Handler : public Kis_Net_Httpd_Buffer_Stream_
 public:
     Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
 
-    Kis_Net_Httpd_Ringbuf_Stream_Handler(GlobalRegistry *in_globalreg) :
-        Kis_Net_Httpd_Buffer_Stream_Handler(in_globalreg) { }
-
 protected:
     virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
         return std::static_pointer_cast<BufferHandlerGeneric>(std::shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
@@ -264,9 +251,6 @@ protected:
 class Kis_Net_Httpd_Chain_Stream_Handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
 public:
     Kis_Net_Httpd_Chain_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
-
-    Kis_Net_Httpd_Chain_Stream_Handler(GlobalRegistry *in_globalreg) :
-        Kis_Net_Httpd_Buffer_Stream_Handler(in_globalreg) { }
 
 protected:
     virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {

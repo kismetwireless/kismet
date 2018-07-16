@@ -25,7 +25,7 @@
 
 RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
     MessageClient(in_globalreg, in_aux),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     globalreg = in_globalreg;
 

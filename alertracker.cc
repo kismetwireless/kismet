@@ -33,7 +33,7 @@
 #include "kis_databaselogfile.h"
 
 Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 	globalreg = in_globalreg;
 	next_alert_id = 0;
 

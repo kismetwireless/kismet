@@ -204,7 +204,7 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, 
 		Devicetracker *in_tracker, int in_phyid) : 
 	Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     alertracker =
         Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
@@ -583,7 +583,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
 	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
 	globalreg->InsertGlobal("SSID_CONF_FILE", std::shared_ptr<ConfigFile>(ssid_conf));
 
-    httpd_pcap.reset(new Phy_80211_Httpd_Pcap(globalreg));
+    httpd_pcap.reset(new Phy_80211_Httpd_Pcap());
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 

@@ -58,7 +58,7 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 }
 
 Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Chain_Stream_Handler(in_globalreg),
+    Kis_Net_Httpd_Chain_Stream_Handler(),
     KisDatabase(in_globalreg, "devicetracker") {
 
 	globalreg = in_globalreg;
@@ -67,7 +67,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     immutable_tracked_vec = std::make_shared<TrackerElementVector>();
 
     // Create the pcap httpd
-    httpd_pcap.reset(new Devicetracker_Httpd_Pcap(globalreg));
+    httpd_pcap = std::make_shared<Devicetracker_Httpd_Pcap>();
 
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");

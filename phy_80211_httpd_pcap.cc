@@ -67,7 +67,7 @@ bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method
 
 
         // Does it exist?
-        device_key targetkey(http_globalreg->server_uuid_hash, 
+        device_key targetkey(Globalreg::globalreg->server_uuid_hash, 
                 dot11phy->FetchPhynameHash(), dmac);
 
         if (devicetracker->FetchDevice(targetkey) != NULL)
@@ -122,7 +122,7 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
 
     // Does it exist?
-    device_key targetkey(http_globalreg->server_uuid_hash, 
+    device_key targetkey(Globalreg::globalreg->server_uuid_hash, 
             dot11phy->FetchPhynameHash(), 
             dmac);
 
@@ -130,17 +130,15 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if ((dev = devicetracker->FetchDevice(targetkey)) == NULL)
         return MHD_YES;
 
-    std::shared_ptr<StreamTracker> streamtracker =
-        std::static_pointer_cast<StreamTracker>(http_globalreg->FetchGlobal("STREAMTRACKER"));
-    std::shared_ptr<Packetchain> packetchain = 
-        std::static_pointer_cast<Packetchain>(http_globalreg->FetchGlobal("PACKETCHAIN"));
+    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
     int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
       
     // Filter based on the device key
-    auto *psrb = new Pcap_Stream_Packetchain(http_globalreg,
+    auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
             saux->get_rbhandler(), 
             [dmac, pack_comp_dot11](kis_packet *packet) -> bool {
                 dot11_packinfo *dot11info =

@@ -1036,6 +1036,9 @@ int main(int argc, char *argv[], char *envp[]) {
     // Add system monitor 
     Systemmonitor::create_systemmonitor();
 
+    // Start up any code that needs everything to be loaded
+    globalregistry->Start_Deferred();
+
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
@@ -1047,13 +1050,6 @@ int main(int argc, char *argv[], char *envp[]) {
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER")->StartHttpd();
-
-    // Blab about starting
-    globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
-            MSGFLAG_INFO);
-
-    // Start up any code that needs everything to be loaded
-    globalregistry->Start_Deferred();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);

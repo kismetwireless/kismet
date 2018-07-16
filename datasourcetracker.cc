@@ -280,7 +280,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
 
 
 Datasourcetracker::Datasourcetracker() :
-    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg),
+    Kis_Net_Httpd_CPPStream_Handler(),
     TcpServerV2(Globalreg::globalreg) {
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
@@ -415,7 +415,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->FetchOptBoolean("override_remote_timestamp", true));
 
-    httpd_pcap.reset(new Datasourcetracker_Httpd_Pcap());
+    httpd_pcap = std::make_shared<Datasourcetracker_Httpd_Pcap>();
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
@@ -1704,8 +1704,7 @@ double Datasourcetracker::string_to_rate(std::string in_str, double in_default) 
     }
 }
 
-bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, 
-        const char *method) {
+bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
 
         // Total pcap of all data; we put it in 2 locations
@@ -1764,8 +1763,7 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
         return MHD_YES;
     }
 
-    std::shared_ptr<StreamTracker> streamtracker =
-        Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
+    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {

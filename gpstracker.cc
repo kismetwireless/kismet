@@ -35,7 +35,7 @@
 #include "kis_databaselogfile.h"
 
 GpsTracker::GpsTracker() :
-    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     tracked_uuid_addition_id = 
         Globalreg::globalreg->entrytracker->RegisterField("kismet.common.location.gps_uuid", 

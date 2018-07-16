@@ -512,16 +512,16 @@ public:
     // Same for HandlePostRequest
    
     // Standard path validation
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     // We use this to attach the pcap stream
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size); 
+            size_t *upload_data_size) override; 
 
     // We don't currently handle POSTed data
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override {
         return 0;
     }
 

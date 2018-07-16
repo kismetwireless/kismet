@@ -888,30 +888,25 @@ int Kis_Net_Httpd::SendStandardHttpResponse(Kis_Net_Httpd *httpd,
     return SendHttpResponse(httpd, connection);
 }
 
-Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler(GlobalRegistry *in_globalreg) {
+Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler() {
     httpd = NULL;
-    http_globalreg = in_globalreg;
 
-    Bind_Httpd_Server(in_globalreg);
+    Bind_Httpd_Server(Globalreg::globalreg);
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
     httpd = 
-        std::static_pointer_cast<Kis_Net_Httpd>(http_globalreg->FetchGlobal("HTTPD_SERVER"));
+        Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
 
     if (httpd != NULL)
         httpd->RemoveHandler(this);
 }
 
 void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
-    if (in_globalreg != NULL) {
-        http_globalreg = in_globalreg;
+    httpd = Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
 
-        httpd = 
-            std::static_pointer_cast<Kis_Net_Httpd>(in_globalreg->FetchGlobal("HTTPD_SERVER"));
-        if (httpd != NULL)
-            httpd->RegisterHandler(this);
-    }
+    if (httpd != NULL)
+        httpd->RegisterHandler(this);
 }
 
 bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {

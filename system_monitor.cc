@@ -38,7 +38,7 @@
 
 Systemmonitor::Systemmonitor() :
     tracker_component(),
-    Kis_Net_Httpd_CPPStream_Handler(Globalreg::globalreg) {
+    Kis_Net_Httpd_CPPStream_Handler() {
 
     devicetracker =
         Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");

@@ -23,7 +23,7 @@
 #include "kis_httpd_registry.h"
 
 Kis_Httpd_Registry::Kis_Httpd_Registry(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg), 
+    Kis_Net_Httpd_CPPStream_Handler(), 
     LifetimeGlobal() {
 
     globalreg = in_globalreg;

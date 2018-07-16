@@ -22,7 +22,7 @@
 #include "entrytracker.h"
 
 StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(in_globalreg), 
+    Kis_Net_Httpd_CPPStream_Handler(), 
     LifetimeGlobal() {
 
     globalreg = in_globalreg;

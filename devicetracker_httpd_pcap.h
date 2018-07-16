@@ -29,8 +29,6 @@
 class Devicetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
     Devicetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
-    Devicetracker_Httpd_Pcap(GlobalRegistry *in_globalreg) : 
-        Kis_Net_Httpd_Ringbuf_Stream_Handler(in_globalreg) { }
 
     virtual ~Devicetracker_Httpd_Pcap() { };
 
