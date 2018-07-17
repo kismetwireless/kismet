@@ -86,7 +86,6 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
         buf_sz += sizeof(pcapng_option) + PAD_TO_32BIT(in_app.length());
 
     if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
-        handler->ProtocolError();
         return -1;
     }
 
@@ -94,7 +93,6 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
 
     if (buf == NULL) {
         delete[] buf;
-        handler->ProtocolError();
         return -1;
     }
 
@@ -179,8 +177,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
     ifname = in_datasource->get_source_name();
 
     std::string ifdesc;
-    if (in_datasource->get_source_cap_interface() !=
-            in_datasource->get_source_interface()) {
+    if (in_datasource->get_source_cap_interface() != in_datasource->get_source_interface()) {
         ifdesc = "capture interface for " + in_datasource->get_source_interface();
     }
 
@@ -222,14 +219,12 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     }
 
     if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
-        handler->ProtocolError();
         return -1;
     }
 
     retbuf = new uint8_t[buf_sz];
 
     if (retbuf == NULL) {
-        handler->ProtocolError();
         return -1;
     }
 
@@ -329,7 +324,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 
     // Drop packet if we can't put it in the buffer
     if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
-        fprintf(stderr, "WARNING - pcapng ringbuf stream dropping packets\n");
+        // fprintf(stderr, "WARNING - pcapng ringbuf stream dropping packets\n");
         return 0;
     }
 
