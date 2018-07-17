@@ -880,17 +880,17 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                                 if (fa == nullptr) {
                                     if (dt_order_dir == 0) {
-                                        return false;
-                                    } else {
                                         return true;
+                                    } else {
+                                        return false;
                                     }
                                 }
 
                                 if (fb == nullptr) {
                                     if (dt_order_dir == 0) {
-                                        return true;
-                                    } else {
                                         return false;
+                                    } else {
+                                        return true;
                                     }
                                 }
 
@@ -948,17 +948,17 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                                 if (fa == nullptr) {
                                     if (dt_order_dir == 0) {
-                                        return false;
-                                    } else {
                                         return true;
+                                    } else {
+                                        return false;
                                     }
                                 }
 
                                 if (fb == nullptr) {
                                     if (dt_order_dir == 0) {
-                                        return true;
-                                    } else {
                                         return false;
+                                    } else {
+                                        return true;
                                     }
                                 }
 
@@ -1020,17 +1020,17 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                                 if (fa == nullptr) {
                                     if (dt_order_dir == 0) {
-                                        return false;
-                                    } else {
                                         return true;
+                                    } else {
+                                        return false;
                                     }
                                 }
 
                                 if (fb == nullptr) {
                                     if (dt_order_dir == 0) {
-                                        return true;
-                                    } else {
                                         return false;
+                                    } else {
+                                        return true;
                                     }
                                 }
 
