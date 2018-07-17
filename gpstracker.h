@@ -106,10 +106,12 @@ public:
  * is going to be used */
 class GpsTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
+    static std::string global_name() { return "GPSTRACKER"; }
+
     static std::shared_ptr<GpsTracker> create_gpsmanager() {
         std::shared_ptr<GpsTracker> mon(new GpsTracker());
         Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("GPSTRACKER", mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

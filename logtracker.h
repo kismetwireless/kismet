@@ -222,11 +222,13 @@ protected:
 class LogTracker : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal, public DeferredStartup {
 public:
+    static std::string global_name() { return "LOGTRACKER"; }
+
     static std::shared_ptr<LogTracker> create_logtracker() {
         std::shared_ptr<LogTracker> mon(new LogTracker());
         Globalreg::globalreg->RegisterLifetimeGlobal(mon);
         Globalreg::globalreg->RegisterDeferredGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("LOGTRACKER", mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

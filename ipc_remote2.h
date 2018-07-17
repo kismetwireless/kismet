@@ -126,10 +126,12 @@ protected:
  */
 class IPCRemoteV2Tracker : public TimetrackerEvent, public LifetimeGlobal {
 public:
+    static std::string global_name() { return "IPCHANDLER"; }
+
     static std::shared_ptr<IPCRemoteV2Tracker> create_ipcremote(GlobalRegistry *in_globalreg) {
         std::shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("IPCHANDLER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

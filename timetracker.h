@@ -82,11 +82,13 @@ public:
         }
     };
 
+    static std::string global_name() { return "TIMETRACKER"; }
+
     static std::shared_ptr<Timetracker> create_timetracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Timetracker> mon(new Timetracker(in_globalreg));
         in_globalreg->timetracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("TIMETRACKER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 private:

@@ -130,11 +130,13 @@ class Devicetracker : public Kis_Net_Httpd_Chain_Stream_Handler,
 friend class DevicetrackerStateStore;
 
 public:
+    static std::string global_name() { return "DEVICETRACKER"; }
+
     static std::shared_ptr<Devicetracker> create_devicetracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Devicetracker> mon(new Devicetracker(in_globalreg));
         in_globalreg->devicetracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("DEVICETRACKER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

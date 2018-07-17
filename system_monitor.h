@@ -33,10 +33,12 @@
 class Systemmonitor : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler,
     public LifetimeGlobal, public TimetrackerEvent {
 public:
+    static std::string global_name() { return "SYSTEMMONITOR"; }
+
     static std::shared_ptr<Systemmonitor> create_systemmonitor() {
         std::shared_ptr<Systemmonitor> mon(new Systemmonitor());
         Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("SYSTEMMONITOR", mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

@@ -140,10 +140,12 @@ class Channeltracker_V2 : public tracker_component,
     public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal, 
     public TimetrackerEvent {
 public:
+    static std::string global_name() { return "CHANNEL_TRACKER"; }
+
     static std::shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("CHANNEL_TRACKER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

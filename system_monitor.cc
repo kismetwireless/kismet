@@ -40,8 +40,7 @@ Systemmonitor::Systemmonitor() :
     tracker_component(),
     Kis_Net_Httpd_CPPStream_Handler() {
 
-    devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
+    devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
     register_fields();
     reserve_fields(NULL);
@@ -55,7 +54,7 @@ Systemmonitor::Systemmonitor() :
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>();
     timer_id = 
         timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
@@ -329,7 +328,7 @@ void Systemmonitor::Httpd_CreateStreamResponse(
 
     if (stripped == "/system/status") {
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream,
-                Globalreg::FetchMandatoryGlobalAs<Systemmonitor>("SYSTEMMONITOR"), 
+                Globalreg::FetchMandatoryGlobalAs<Systemmonitor>(), 
                 nullptr);
 
         return;

@@ -319,11 +319,13 @@ public:
         int limit_burst;
 	};
 
+    static std::string global_name() { return "ALERTTRACKER"; }
+
     static std::shared_ptr<Alertracker> create_alertracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Alertracker> mon(new Alertracker(in_globalreg));
         in_globalreg->alertracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("ALERTTRACKER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

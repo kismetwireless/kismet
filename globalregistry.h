@@ -360,6 +360,11 @@ namespace Globalreg {
         return FetchGlobalAs<T>(globalreg, in_name);
     }
 
+    template<typename T>
+    std::shared_ptr<T> FetchGLobalAs() {
+        return FetchGlobalAs<T>(globalreg, T::global_name());
+    }
+
     template<typename T> 
     std::shared_ptr<T> FetchMandatoryGlobalAs(GlobalRegistry *in_globalreg, 
             const std::string& in_name) {
@@ -375,6 +380,11 @@ namespace Globalreg {
     template<typename T> 
     std::shared_ptr<T> FetchMandatoryGlobalAs(const std::string& in_name) {
         return FetchMandatoryGlobalAs<T>(Globalreg::globalreg, in_name);
+    }
+
+    template<typename T>
+    std::shared_ptr<T> FetchMandatoryGlobalAs() {
+        return FetchMandatoryGlobalAs<T>(Globalreg::globalreg, T::global_name());
     }
 }
 

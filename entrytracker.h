@@ -36,11 +36,13 @@
 // Allocate and track named fields and give each one a custom int
 class EntryTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
+    static std::string global_name() { return "ENTRYTRACKER"; }
+
     static std::shared_ptr<EntryTracker> create_entrytracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<EntryTracker> mon(new EntryTracker(in_globalreg));
         in_globalreg->entrytracker = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("ENTRYTRACKER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 

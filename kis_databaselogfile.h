@@ -55,13 +55,15 @@
 class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
     public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
+    static std::string global_name() { return "DATABASELOG"; }
+
     static std::shared_ptr<KisDatabaseLogfile> 
         create_kisdatabaselog() {
             std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile());
             Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-            Globalreg::globalreg->InsertGlobal("DATABASELOG", mon);
+            Globalreg::globalreg->InsertGlobal(global_name(), mon);
             return mon;
-        }
+    }
 
     KisDatabaseLogfile();
     virtual ~KisDatabaseLogfile();
