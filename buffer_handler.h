@@ -381,7 +381,7 @@ public:
     BufferInterface();
     virtual ~BufferInterface();
 
-    // Called when the linked buffer grows
+    // Called when the linked buffer has new data available
     virtual void BufferAvailable(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
