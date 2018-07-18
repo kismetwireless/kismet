@@ -1044,6 +1044,26 @@ xx. Remote Packet Capture
         Rename the virtual GPS reported on this source; otherwise the capture
         name "fixed-remote" is used.
 
+xx. Compiling Only the Capture Tools
+
+    Typically, you will want to compile all of Kismet.  If you're doing specific
+    remote-capture installs, however, you may wish to compile only the 
+    binaries used by Kismet to enable capture mode and pass packets to a 
+    full Kismet server.
+
+    To compile ONLY the capture tools:
+
+    Tell configure to only configure the capture tools; this will allow you
+    to configure without installing the server dependencies such as C++,
+    microhttpd, protobuf-C++, etc.  You will still need to install dependencies
+    such as protobuf-c, build-essentials, and similar.
+    $ ./configure --enable-capture-tools-only
+
+    Once configure has completed, compile the capture tools:
+    $ make datasources
+
+    You can now copy the compiled datasources to your target.
+
 xx. Tuning Kismet Packet Capture
 
     Kismet has a number of tuning options to handle quirks in different types 
