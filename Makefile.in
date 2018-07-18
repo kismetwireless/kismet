@@ -31,6 +31,9 @@ DOT11_PARSERS = \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o
 
+# To prevent a deps problem, we define these targets via autoconf to reference
+# the variable setting the list
+PROTOBUF_CPP_O_TARGET = @PROTOBUF_CPP_O_TARGET@
 PROTOBUF_CPP_O = \
 	protobuf_cpp/kismet.pb.cc.o \
 	protobuf_cpp/http.pb.cc.o \
@@ -38,6 +41,7 @@ PROTOBUF_CPP_O = \
 	protobuf_cpp/linuxbluetooth.pb.cc.o \
 	protobuf_cpp/sdrrtl433.pb.cc.o
 
+PROTOBUF_CPP_H_TARGET = @PROTOBUF_CPP_H_TARGET@
 PROTOBUF_CPP_H = \
 	protobuf_cpp/kismet.pb.h \
 	protobuf_cpp/http.pb.h \
@@ -120,7 +124,7 @@ PSO	= util.cc.o globalregistry.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o filtercore.cc.o \
 	psutils.cc.o battery.cc.o \
 	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
-	$(PROTOBUF_CPP_O) kis_external.cc.o \
+	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o \
 	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \
@@ -162,7 +166,7 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PROTOBUF_CPP_O) $(PROTOBUF_CPP_H) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
+$(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
@@ -472,7 +476,7 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 %.c.d:  %.c $(PROTOBUF_C_H)
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
-%.cc.d: %.cc $(PROTOBUF_CPP_H)
+%.cc.d: %.cc $(PROTOBUF_CPP_H_TARGET)
 	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
 
 .PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h

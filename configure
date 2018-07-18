@@ -646,6 +646,8 @@ NMCFLAGS
 NMLIBS
 libnm_LIBS
 libnm_CFLAGS
+PROTOBUF_CPP_H_TARGET
+PROTOBUF_CPP_O_TARGET
 PROTOCCFLAGS
 PROTOCLIBS
 PROTOCCBIN
@@ -9243,6 +9245,10 @@ fi
 
     PROTOLIBS=`pkg-config --libs protobuf`
     PROTOCFLAGS=`pkg-config --cflags protobuf`
+
+    # Enable the C++ targets
+    PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
+    PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
 fi  # caponly
 
 # We need protobuf-c all the time
@@ -9429,6 +9435,8 @@ fi
 else
     PROTOCCBIN=$with_protocc
 fi
+
+
 
 
 

@@ -1125,6 +1125,10 @@ if test "$caponly" = 0; then
     
     PROTOLIBS=`pkg-config --libs protobuf`
     PROTOCFLAGS=`pkg-config --cflags protobuf`
+
+    # Enable the C++ targets
+    PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
+    PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
 fi  # caponly
 
 # We need protobuf-c all the time
@@ -1167,6 +1171,8 @@ AC_SUBST(PROTOCFLAGS)
 AC_SUBST(PROTOCCBIN)
 AC_SUBST(PROTOCLIBS)
 AC_SUBST(PROTOCCFLAGS)
+AC_SUBST(PROTOBUF_CPP_O_TARGET)
+AC_SUBST(PROTOBUF_CPP_H_TARGET)
 
 if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for BSD net80211/radiotap support)
