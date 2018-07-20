@@ -755,6 +755,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_optimization
 enable_capture_tools_only
 enable_python_tools
 enable_largefile
@@ -771,7 +772,6 @@ with_protoc
 with_protocc
 with_netlink_tiny
 with_suidgroup
-enable_optimization
 enable_asan
 enable_tsan
 '
@@ -1427,6 +1427,7 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --disable-optimization  Disable compiler optimization
   --enable-capture-tools-only  Configure and build for capture tools and remote only
   --disable-python-tools  Disable Python modules and Python-only data sources
   --disable-largefile     omit support for large files
@@ -5001,6 +5002,19 @@ $as_echo "#define HAVE_CXX11 1" >>confdefs.h
 
 
 
+
+# Check whether --enable-optimization was given.
+if test "${enable_optimization+set}" = set; then :
+  enableval=$enable_optimization; want_optimization=no
+else
+  want_optimization=yes
+fi
+
+
+if test "$want_optimization"x == "yes"x; then
+    CXXFLAGS="-O3"
+    CFLAGS="-O3"
+fi
 
 if test "$cygwin" = "yes"; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking cygwin compile flags" >&5

@@ -182,6 +182,16 @@ AX_CXX_COMPILE_STDCXX_11(, [mandatory])
 
 AC_SUBST(PLUGINLDFLAGS)
 
+AC_ARG_ENABLE([optimization],
+        AS_HELP_STRING([--disable-optimization], [Disable compiler optimization]),
+        [want_optimization=no],
+        [want_optimization=yes])
+
+if test "$want_optimization"x == "yes"x; then
+    CXXFLAGS="-O3"
+    CFLAGS="-O3"
+fi
+
 if test "$cygwin" = "yes"; then
 	AC_MSG_CHECKING(cygwin compile flags)
 	AC_MSG_RESULT(__MINGW32__)
