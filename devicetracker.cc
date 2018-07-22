@@ -394,9 +394,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 Devicetracker::~Devicetracker() {
     local_locker lock(&devicelist_mutex);
 
-    store_all_devices();
-    databaselog_write_all_devices();
-
     if (statestore != NULL) {
         delete(statestore);
         statestore = NULL;
@@ -1181,12 +1178,6 @@ void Devicetracker::databaselog_write_devices() {
     last_database_logged = time(0);
 
     databaselog_write_devices(devs);
-}
-
-void Devicetracker::databaselog_write_all_devices() {
-    last_database_logged = time(0);
-
-    databaselog_write_devices(immutable_tracked_vec);
 }
 
 void Devicetracker::databaselog_write_devices(std::shared_ptr<TrackerElementVector> vec) {

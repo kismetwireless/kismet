@@ -235,7 +235,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
         Globalreg::FetchGlobalAs<Devicetracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
         devicetracker->store_all_devices();
-        devicetracker->databaselog_write_all_devices();
+        devicetracker->databaselog_write_devices();
     }
 
     // Shutdown everything

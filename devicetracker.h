@@ -284,7 +284,6 @@ public:
 
     // Store all devices to the database
     virtual void databaselog_write_devices();
-    virtual void databaselog_write_all_devices();
     virtual void databaselog_write_devices(std::shared_ptr<TrackerElementVector> devices);
 
     // Iterate over all phys and load from the database
