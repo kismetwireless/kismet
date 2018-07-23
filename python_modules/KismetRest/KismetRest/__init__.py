@@ -636,7 +636,7 @@ class KismetConnector:
         """
 
         cmd = {
-            "hoprate": rate
+            "rate": rate
         }
 
         (r, v) = self.__post_string_url("datasource/by-uuid/{}/set_channel.cmd".format(uuid), cmd)
@@ -654,7 +654,7 @@ class KismetConnector:
         """
 
         cmd = {
-            "hoprate": rate,
+            "rate": rate,
             "channels": channels
         }
 
