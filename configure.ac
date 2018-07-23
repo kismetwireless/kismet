@@ -178,7 +178,9 @@ else
 
 fi
 
-AX_CXX_COMPILE_STDCXX_11(, [mandatory])
+AX_CXX_COMPILE_STDCXX(11, , [mandatory])
+AX_CXX_COMPILE_STDCXX(14, ,[optional])
+AX_CXX_COMPILE_STDCXX(17, , [optional])
 
 AC_SUBST(PLUGINLDFLAGS)
 
