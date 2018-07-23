@@ -972,6 +972,11 @@ void KisDatabaseLogfile::Usage(const char *argv0) {
 }
 
 bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) {
+    std::string stripped = Httpd_StripSuffix(path);
+    std::string suffix = Httpd_GetSuffix(path);
+
+    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng")
+        return true;
 
     return false;
 }
@@ -985,6 +990,12 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 }
 
 int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string suffix = Httpd_GetSuffix(concls->url);
+
+    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
+
+    }
 
     return 0;
 }
