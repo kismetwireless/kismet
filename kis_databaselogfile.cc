@@ -989,3 +989,18 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return 0;
 }
 
+Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
+        std::shared_ptr<BufferHandlerGeneric> in_handler,
+        std::string sql_filter) :
+    Pcap_Stream_Ringbuf(in_globalreg, in_handler, NULL, NULL) {
+
+}
+
+Pcap_Stream_Database::~Pcap_Stream_Database() {
+
+}
+
+void Pcap_Stream_Database::stop_stream(std::string in_reason) {
+
+}
+

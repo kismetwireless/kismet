@@ -47,6 +47,7 @@
 #include "alertracker.h"
 #include "logtracker.h"
 #include "packetchain.h"
+#include "pcapng_stream_ringbuf.h"
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
@@ -209,6 +210,22 @@ public:
         set_log_description("Unified Kismet log containing device, data source, packet, "
                 "alert, and other runtime data");
     }
+};
+
+class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
+public:
+    Pcap_Stream_Database(GlobalRegistry *in_globalreg, 
+            std::shared_ptr<BufferHandlerGeneric> in_handler,
+            std::string sql_filter);
+
+    virtual ~Pcap_Stream_Database();
+
+    virtual void stop_stream(std::string in_reason);
+
+protected:
+    int packethandler_id;
+
+    conditional_locker<int> buffer_available_locker;
 };
 
 
