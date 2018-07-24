@@ -40,12 +40,10 @@
 
 #include <kis_external.h>
 
-GlobalRegistry *globalreg = NULL;
-
 class ExternalProxyTest : public KisExternalHttpInterface {
 public:
     ExternalProxyTest(GlobalRegistry *in_globalreg) :
-        KisExternalHttpInterface(in_globalreg) {
+        KisExternalHttpInterface() {
 
             printf("debug - initializing proxytest interface\n");
 
@@ -55,11 +53,11 @@ public:
             ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024 * 1024), (1024 * 1024)));
             ringbuf_handler->SetReadBufferInterface(this);
 
-            ipc_remote.reset(new IPCRemoteV2(globalreg, ringbuf_handler));
+            ipc_remote.reset(new IPCRemoteV2(in_globalreg, ringbuf_handler));
 
             // Get allowed paths for binaries
             std::vector<std::string> bin_paths = 
-                globalreg->kismet_config->FetchOptVec("helper_binary_path");
+                in_globalreg->kismet_config->FetchOptVec("helper_binary_path");
 
             if (bin_paths.size() == 0) {
                 _MSG("No helper_binary_path found in kismet.conf, make sure your config "
@@ -70,7 +68,7 @@ public:
 
             // Explode any expansion macros in the path and add it to the list we search
             for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-                ipc_remote->add_path(globalreg->kismet_config->ExpandLogPath(*i, "", "", 0, 1));
+                ipc_remote->add_path(in_globalreg->kismet_config->ExpandLogPath(*i, "", "", 0, 1));
             }
 
             int ret = ipc_remote->launch_kis_binary(external_binary, std::vector<std::string>());
