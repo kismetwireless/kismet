@@ -160,7 +160,7 @@ void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
     }
 }
 
-bool TrackerElementString::less_than(const TrackerElementString& rhs) {
+bool TrackerElementString::less_than(const TrackerElementString& rhs) const {
     return doj::alphanum_comp(value, rhs.value) < 0;
 }
 

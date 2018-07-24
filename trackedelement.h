@@ -329,16 +329,16 @@ public:
     }
 
     
-    inline virtual bool less_than(const TrackerElementCoreScalar<P>& rhs) {
+    inline bool less_than(const TrackerElementCoreScalar<P>& rhs) const {
         return value < rhs.value;
     }
 
-    inline virtual bool less_than(const std::shared_ptr<TrackerElement> rhs) {
+    inline bool less_than(const std::shared_ptr<TrackerElement> rhs) const {
         if (get_type() != rhs->get_type())
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
-        return value < std::static_pointer_cast<TrackerElementCoreScalar<P>>(rhs)->value;
+        return value < safe_cast_as<TrackerElementCoreScalar<P>>(rhs)->value;
     }
 
 protected:
@@ -378,7 +378,7 @@ public:
     }
 
     using TrackerElementCoreScalar<std::string>::less_than;
-    inline virtual bool less_than(const TrackerElementString& rhs);
+    inline bool less_than(const TrackerElementString& rhs) const;
 
 };
 
@@ -745,16 +745,16 @@ public:
         return *this;
     }
 
-    inline virtual bool less_than(const TrackerElementCoreNumeric<N>& rhs) {
+    inline bool less_than(const TrackerElementCoreNumeric<N>& rhs) const {
         return value < rhs.value;
     }
 
-    inline virtual bool less_than(const std::shared_ptr<TrackerElement> rhs) {
+    inline bool less_than(const std::shared_ptr<TrackerElement> rhs) const {
         if (get_type() != rhs->get_type())
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
-        return value < std::static_pointer_cast<TrackerElementCoreNumeric<N>>(rhs)->value;
+        return value < safe_cast_as<TrackerElementCoreNumeric<N>>(rhs)->value;
     }
 
 protected:
