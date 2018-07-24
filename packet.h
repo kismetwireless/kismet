@@ -440,6 +440,9 @@ public:
     int signal_dbm, signal_rssi;
     int noise_dbm, noise_rssi;
 
+    // Per-antenna info, mapped to the antenna number
+    std::map<uint8_t, int> antenna_signal_map;
+
     // What carrier brought us this packet?
     phy_carrier_type carrier;
 
