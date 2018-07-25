@@ -31,6 +31,7 @@
 
 #include <mutex>
 #include <chrono>
+#include <atomic>
 
 // Seconds a lock is allowed to be held before throwing a timeout error
 #define KIS_THREAD_DEADLOCK_TIMEOUT     15
@@ -104,9 +105,70 @@ using kis_recursive_timed_mutex = std::recursive_timed_mutex;
 // we no longer unlock AGAIN at descope
 class local_locker {
 public:
-    local_locker(kis_recursive_timed_mutex *in) {
-        cpplock = in;
-       
+    local_locker(kis_recursive_timed_mutex *in) : 
+        cpplock(*in),
+        hold_lock(true) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock.lock();
+#else
+        if (!cpplock.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+        }
+#endif
+    }
+
+    local_locker(kis_recursive_timed_mutex& in) : 
+        cpplock(in),
+        hold_lock(true) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock.lock();
+#else
+        if (!cpplock.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+        }
+#endif
+    }
+
+    local_locker() = delete;
+
+    void unlock() {
+        hold_lock = false;
+        cpplock.unlock();
+    }
+
+    ~local_locker() {
+        if (hold_lock)
+            cpplock.unlock();
+    }
+
+protected:
+    kis_recursive_timed_mutex& cpplock;
+    std::atomic<bool> hold_lock;
+};
+
+
+// RAII-style scoped locker, but only locks on demand, not creation
+class local_demand_locker {
+public:
+    local_demand_locker(kis_recursive_timed_mutex *in) : 
+        cpplock(in),
+        hold_lock(false) { }
+
+    void unlock() {
+        if (!hold_lock)
+            return;
+
+        hold_lock = false;
+        cpplock->unlock();
+    }
+
+    void lock() {
+        if (hold_lock)
+            throw(std::runtime_error("possible deadlock - demand_locker locking while "
+                        "already holding a lock"));
+
+        hold_lock = true;
+
 #ifdef DISABLE_MUTEX_TIMEOUT
         cpplock->lock();
 #else
@@ -116,65 +178,13 @@ public:
 #endif
     }
 
-    void unlock() {
-        if (cpplock != NULL) {
-            cpplock->unlock();
-            cpplock = NULL;
-        }
-    }
-
-    ~local_locker() {
-        if (cpplock != NULL)
-            cpplock->unlock();
-    }
-
-protected:
-    kis_recursive_timed_mutex *cpplock;
-};
-
-
-// RAII-style scoped locker, but only locks on demand, not creation
-class local_demand_locker {
-public:
-    local_demand_locker(kis_recursive_timed_mutex *in) {
-        cpplock = in;
-        hold_lock = false;
-    }
-
-    void unlock() {
-        if (!hold_lock)
-            return;
-
-        if (cpplock != NULL)
-            cpplock->unlock();
-
-        hold_lock = false;
-    }
-
-    void lock() {
-        if (hold_lock)
-            throw(std::runtime_error("possible deadlock - demand_locker locking while already holding a lock"));
-
-        if (cpplock != NULL) {
-#ifdef DISABLE_MUTEX_TIMEOUT
-            cpplock->lock();
-#else
-            if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-                throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
-            }
-#endif
-            hold_lock = true;
-        }
-    }
-
     ~local_demand_locker() {
         unlock();
     }
 
 protected:
     kis_recursive_timed_mutex *cpplock;
-    bool hold_lock;
-
+    std::atomic<bool> hold_lock;
 };
 
 // Act as a scoped locker on a mutex that never expires; used for performing
@@ -198,18 +208,10 @@ public:
 // when it leaves scope
 class local_unlocker {
 public:
-    local_unlocker(kis_recursive_timed_mutex *in) {
-        cpplock = in;
-    }
-
-    void unlock() {
-        if (cpplock != NULL)
-            cpplock->unlock();
-    }
+    local_unlocker(kis_recursive_timed_mutex *in) : cpplock(in) { }
 
     ~local_unlocker() {
-        if (cpplock != NULL)
-            cpplock->unlock();
+        cpplock->unlock();
     }
 
 protected:
