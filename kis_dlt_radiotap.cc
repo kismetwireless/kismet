@@ -237,6 +237,8 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
     // not from the byte following the last bitmap. 
     iter_start = (u_char*)(linkchunk->data); 
 
+    bool assigned_signal = false;
+
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp; presentp++, bit0 += 32) {
         // printf("record num %d\n", record_num);
         // printf("present %x\n", *presentp);
@@ -408,10 +410,15 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
         }
 
         if (signal_present) {
-            if (record_antenna < 0) {
+            // If we haven't assigned a signal, assign the first one we see as the
+            // overall signal level
+            if (!assigned_signal) {
+                assigned_signal = true;
                 radioheader->signal_type = kis_l1_signal_type_dbm;
                 radioheader->signal_dbm = record_signal;
-            } else {
+            }
+
+            if (record_antenna >= 0) {
                 radioheader->signal_type = kis_l1_signal_type_dbm;
                 radioheader->antenna_signal_map[record_antenna] = record_signal;
             }
