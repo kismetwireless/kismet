@@ -73,8 +73,6 @@ KisDatabaseLogfile::KisDatabaseLogfile():
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
-    local_locker dblock(&ds_mutex);
-
     Log_Close();
 }
 
