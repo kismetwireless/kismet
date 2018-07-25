@@ -38,6 +38,7 @@
 #include <math.h>
 #include <string.h>
 
+#include <atomic>
 #include <string>
 #include <map>
 #include <vector>
@@ -256,14 +257,12 @@ int GetLengthTagOffsets(unsigned int init_offset,
 template<class t>
 class conditional_locker {
 public:
-    conditional_locker() {
-        locked = false;
-    }
+    conditional_locker() : 
+        locked(false) { }
 
-    conditional_locker(t in_data) {
-        locked = false;
-        data = in_data;
-    }
+    conditional_locker(t in_data) :
+        locked(false),
+        data(in_data) { }
 
     ~conditional_locker() {
         unlock();
@@ -279,14 +278,12 @@ public:
     // whatever value we were unlocked with
     t block_until() {
         std::unique_lock<std::mutex> lk(m);
-
-        // Return false if waiting is to be continued, so the inverse of the
-        // lock state
         cv.wait(lk, [this](){ return !locked; });
-
         return data;
     }
 
+    // Block for a given number of milliseconds, returning false if it did not
+    // successfully unlock
     bool block_for_ms(const std::chrono::milliseconds& rel_time) {
         std::unique_lock<std::mutex> lk(m);
         return cv.wait_for(lk, rel_time, [this](){ return !locked; });
@@ -296,16 +293,20 @@ public:
     // waiting for us, and passing whatever data we'd like to pass
     void unlock(t in_data) {
         std::unique_lock<std::mutex> lk(m);
+
         locked = false;
         data = in_data;
+
         lk.unlock();
         cv.notify_all();
     }
 
     void unlock() {
         std::unique_lock<std::mutex> lk(m);
+
         locked = false;
         lk.unlock();
+
         cv.notify_all();
     }
 
@@ -313,7 +314,7 @@ public:
 protected:
     std::mutex m;
     std::condition_variable cv;
-    bool locked;
+    std::atomic<bool> locked;
     t data;
 };
 
