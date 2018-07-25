@@ -33,6 +33,10 @@
 #include <chrono>
 #include <atomic>
 
+#include <pthread.h>
+
+#include "fmt.h"
+
 // Seconds a lock is allowed to be held before throwing a timeout error
 #define KIS_THREAD_DEADLOCK_TIMEOUT     15
 
@@ -112,7 +116,10 @@ public:
         cpplock.lock();
 #else
         if (!cpplock.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+            auto native_m = cpplock.native_handle();
+            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
+                            "timeout, appears to be locked by {}",
+                            native_m->__data.__owner)));
         }
 #endif
     }
@@ -124,7 +131,10 @@ public:
         cpplock.lock();
 #else
         if (!cpplock.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+            auto native_m = cpplock.native_handle();
+            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
+                            "timeout, appears to be locked by {}",
+                            native_m->__data.__owner)));
         }
 #endif
     }
@@ -173,7 +183,10 @@ public:
         cpplock->lock();
 #else
         if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+            auto native_m = cpplock->native_handle();
+            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
+                            "timeout, appears to be locked by {}",
+                            native_m->__data.__owner)));
         }
 #endif
     }
@@ -196,7 +209,10 @@ public:
         in->lock();
 #else
         if (!in->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            throw(std::runtime_error("deadlocked thread: mutex not available w/in timeout"));
+            auto native_m = in->native_handle();
+            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
+                            "timeout, appears to be locked by {}",
+                            native_m->__data.__owner)));
         }
 #endif
     }
