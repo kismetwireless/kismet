@@ -124,10 +124,6 @@ protected:
     // Is the database even enabled?
     bool db_enabled;
 
-    // Per-table mutexes to prevent clobbering prepared statements
-    kis_recursive_timed_mutex device_mutex, packet_mutex, data_mutex,
-        alert_mutex, msg_mutex, snapshot_mutex, datasource_mutex;
-
     std::shared_ptr<Devicetracker> devicetracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,

@@ -116,7 +116,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
-            local_locker lock(&transaction_mutex);
+            local_locker dblock(&ds_mutex);
 
             sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
             sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
@@ -140,7 +140,6 @@ void KisDatabaseLogfile::Log_Close() {
 
     // End the transaction
     {
-        local_locker translock(&transaction_mutex);
         sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
     }
 
@@ -152,49 +151,42 @@ void KisDatabaseLogfile::Log_Close() {
         packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
 
     {
-        local_locker lock(&device_mutex);
         if (device_stmt != NULL)
             sqlite3_finalize(device_stmt);
         device_stmt = NULL;
     }
 
     {
-        local_locker lock(&packet_mutex);
         if (packet_stmt != NULL)
             sqlite3_finalize(packet_stmt);
         packet_stmt = NULL;
     }
 
     {
-        local_locker lock(&datasource_mutex);
         if (datasource_stmt != NULL)
             sqlite3_finalize(datasource_stmt);
         datasource_stmt = NULL;
     }
 
     {
-        local_locker lock(&data_mutex);
         if (data_stmt != NULL)
             sqlite3_finalize(data_stmt);
         data_stmt = NULL;
     }
 
     { 
-        local_locker lock(&alert_mutex);
         if (alert_stmt != NULL)
             sqlite3_finalize(alert_stmt);
         alert_stmt = NULL;
     }
 
     {
-        local_locker lock(&msg_mutex);
         if (msg_stmt != NULL)
             sqlite3_finalize(msg_stmt);
         msg_stmt = NULL;
     }
 
     {
-        local_locker lock(&snapshot_mutex);
         if (snapshot_stmt != NULL)
             sqlite3_finalize(snapshot_stmt);
         snapshot_stmt = NULL;
@@ -595,7 +587,7 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
         std::string streamstring = sstr.str();
 
         {
-            local_locker lock(&device_mutex);
+            local_locker dblock(&ds_mutex);
             sqlite3_reset(device_stmt);
 
             sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
@@ -706,7 +698,7 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     }
 
     {
-        local_locker lock(&packet_mutex);
+        local_locker dblock(&ds_mutex);
         sqlite3_reset(packet_stmt);
 
         sqlite3_bind_int64(packet_stmt, 1, in_pack->ts.tv_sec);
@@ -788,7 +780,7 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     std::string uuidstring = datasource_uuid.UUID2String();
 
     {
-        local_locker lock(&data_mutex);
+        local_locker dblock(&ds_mutex);
         sqlite3_reset(data_stmt);
 
         sqlite3_bind_int64(data_stmt, 1, tv.tv_sec);
@@ -858,7 +850,7 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
     jsonstring = ss.str();
 
     {
-        local_locker lock(&datasource_mutex);
+        local_locker dblock(&ds_mutex);
         sqlite3_reset(datasource_stmt);
 
         sqlite3_bind_text(datasource_stmt, 1, uuidstring.data(), uuidstring.length(), 0);
@@ -899,7 +891,7 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     fractpart = modf(in_alert->get_timestamp(), &intpart);
 
     {
-        local_locker lock(&alert_mutex);
+        local_locker dblock(&ds_mutex);
         sqlite3_reset(alert_stmt);
 
         sqlite3_bind_int64(alert_stmt, 1, intpart);
@@ -937,7 +929,7 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     if (!db_enabled)
         return 0;
 
-    local_locker lock(&snapshot_mutex);
+    local_locker dblock(&ds_mutex);
     sqlite3_reset(snapshot_stmt);
 
     sqlite3_bind_int64(snapshot_stmt, 1, tv.tv_sec);
