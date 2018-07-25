@@ -564,8 +564,6 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
     // internal locking state; we don't want a huge device list write to block packet
     // writes for instance
     
-    local_locker lock(&device_mutex);
-
     if (!db_enabled)
         return 0;
 
@@ -580,8 +578,6 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
         if (i == NULL)
             continue;
 
-        sqlite3_reset(device_stmt);
-
         std::shared_ptr<kis_tracked_device_base> d =
             std::static_pointer_cast<kis_tracked_device_base>(i);
 
@@ -592,51 +588,57 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
 
         int spos = 1;
 
-        sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
-        sqlite3_bind_int64(device_stmt, spos++, d->get_last_time());
-        sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), keystring.length(), 0);
-        sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), phystring.length(), 0);
-        sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), macstring.length(), 0);
-        sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
-
-        if (d->get_tracker_location() != NULL) {
-            sqlite3_bind_int64(device_stmt, spos++, 
-                    d->get_location()->get_min_loc()->get_lat() * 100000);
-            sqlite3_bind_int64(device_stmt, spos++,
-                    d->get_location()->get_min_loc()->get_lon() * 100000);
-            sqlite3_bind_int64(device_stmt, spos++,
-                    d->get_location()->get_max_loc()->get_lat() * 100000);
-            sqlite3_bind_int64(device_stmt, spos++,
-                    d->get_location()->get_max_loc()->get_lon() * 100000);
-            sqlite3_bind_int64(device_stmt, spos++,
-                    d->get_location()->get_avg_loc()->get_lat() * 100000);
-            sqlite3_bind_int64(device_stmt, spos++,
-                    d->get_location()->get_avg_loc()->get_lon() * 100000);
-        } else {
-            // Empty location
-            sqlite3_bind_int(device_stmt, spos++, 0);
-            sqlite3_bind_int(device_stmt, spos++, 0);
-            sqlite3_bind_int(device_stmt, spos++, 0);
-            sqlite3_bind_int(device_stmt, spos++, 0);
-            sqlite3_bind_int(device_stmt, spos++, 0);
-            sqlite3_bind_int(device_stmt, spos++, 0);
-        }
-
-        sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
-        sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), typestring.length(), 0);
-
         std::stringstream sstr;
 
         // Serialize the device
         JsonAdapter::Pack(sstr, d, NULL);
         std::string streamstring = sstr.str();
-        sqlite3_bind_text(device_stmt, spos++, streamstring.c_str(), streamstring.length(), 0);
 
-        if (sqlite3_step(device_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert device in " +
-                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            Log_Close();
-            return -1;
+        {
+            local_locker lock(&device_mutex);
+            sqlite3_reset(device_stmt);
+
+            sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
+            sqlite3_bind_int64(device_stmt, spos++, d->get_last_time());
+            sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), keystring.length(), 0);
+            sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), phystring.length(), 0);
+            sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), macstring.length(), 0);
+            sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
+
+            if (d->get_tracker_location() != NULL) {
+                sqlite3_bind_int64(device_stmt, spos++, 
+                        d->get_location()->get_min_loc()->get_lat() * 100000);
+                sqlite3_bind_int64(device_stmt, spos++,
+                        d->get_location()->get_min_loc()->get_lon() * 100000);
+                sqlite3_bind_int64(device_stmt, spos++,
+                        d->get_location()->get_max_loc()->get_lat() * 100000);
+                sqlite3_bind_int64(device_stmt, spos++,
+                        d->get_location()->get_max_loc()->get_lon() * 100000);
+                sqlite3_bind_int64(device_stmt, spos++,
+                        d->get_location()->get_avg_loc()->get_lat() * 100000);
+                sqlite3_bind_int64(device_stmt, spos++,
+                        d->get_location()->get_avg_loc()->get_lon() * 100000);
+            } else {
+                // Empty location
+                sqlite3_bind_int(device_stmt, spos++, 0);
+                sqlite3_bind_int(device_stmt, spos++, 0);
+                sqlite3_bind_int(device_stmt, spos++, 0);
+                sqlite3_bind_int(device_stmt, spos++, 0);
+                sqlite3_bind_int(device_stmt, spos++, 0);
+                sqlite3_bind_int(device_stmt, spos++, 0);
+            }
+
+            sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
+            sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), typestring.length(), 0);
+
+            sqlite3_bind_text(device_stmt, spos++, streamstring.c_str(), streamstring.length(), 0);
+
+            if (sqlite3_step(device_stmt) != SQLITE_DONE) {
+                _MSG("KisDatabaseLogfile unable to insert device in " +
+                        ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+                Log_Close();
+                return -1;
+            }
         }
     }
 
@@ -644,12 +646,8 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
 }
 
 int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
-    local_locker lock(&packet_mutex);
-    
     if (!db_enabled)
         return 0;
-
-    sqlite3_reset(packet_stmt);
 
     std::string phystring;
     std::string macstring;
@@ -679,7 +677,6 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
 
     Kis_Phy_Handler *phyh = NULL;
 
-
     // Packets are no longer a 1:1 with a device
     keystring = "0";
 
@@ -708,53 +705,58 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         sourceuuidstring = "00000000-0000-0000-0000-000000000000";
     }
 
-    sqlite3_bind_int64(packet_stmt, 1, in_pack->ts.tv_sec);
-    sqlite3_bind_int64(packet_stmt, 2, in_pack->ts.tv_usec);
+    {
+        local_locker lock(&packet_mutex);
+        sqlite3_reset(packet_stmt);
 
-    sqlite3_bind_text(packet_stmt, 3, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(packet_stmt, 4, macstring.c_str(), macstring.length(), 0);
-    sqlite3_bind_text(packet_stmt, 5, deststring.c_str(), deststring.length(), 0);
-    sqlite3_bind_text(packet_stmt, 6, transstring.c_str(), transstring.length(), 0);
-    sqlite3_bind_text(packet_stmt, 7, keystring.c_str(), keystring.length(), 0);
-    sqlite3_bind_double(packet_stmt, 8, frequency);
+        sqlite3_bind_int64(packet_stmt, 1, in_pack->ts.tv_sec);
+        sqlite3_bind_int64(packet_stmt, 2, in_pack->ts.tv_usec);
 
-    if (gpsdata != NULL) {
-        sqlite3_bind_int64(packet_stmt, 9, gpsdata->lat * 100000);
-        sqlite3_bind_int64(packet_stmt, 10, gpsdata->lon * 100000);
-    } else {
-        sqlite3_bind_int(packet_stmt, 9, 0);
-        sqlite3_bind_int(packet_stmt, 10, 0);
-    }
+        sqlite3_bind_text(packet_stmt, 3, phystring.c_str(), phystring.length(), 0);
+        sqlite3_bind_text(packet_stmt, 4, macstring.c_str(), macstring.length(), 0);
+        sqlite3_bind_text(packet_stmt, 5, deststring.c_str(), deststring.length(), 0);
+        sqlite3_bind_text(packet_stmt, 6, transstring.c_str(), transstring.length(), 0);
+        sqlite3_bind_text(packet_stmt, 7, keystring.c_str(), keystring.length(), 0);
+        sqlite3_bind_double(packet_stmt, 8, frequency);
 
-    if (chunk != NULL) {
-        sqlite3_bind_int64(packet_stmt, 11, chunk->length);
-    } else {
-        sqlite3_bind_int(packet_stmt, 11, 0);
-    }
+        if (gpsdata != NULL) {
+            sqlite3_bind_int64(packet_stmt, 9, gpsdata->lat * 100000);
+            sqlite3_bind_int64(packet_stmt, 10, gpsdata->lon * 100000);
+        } else {
+            sqlite3_bind_int(packet_stmt, 9, 0);
+            sqlite3_bind_int(packet_stmt, 10, 0);
+        }
 
-    if (radioinfo != NULL) {
-        sqlite3_bind_int(packet_stmt, 12, radioinfo->signal_dbm);
-    } else {
-        sqlite3_bind_int(packet_stmt, 12, 0);
-    }
+        if (chunk != NULL) {
+            sqlite3_bind_int64(packet_stmt, 11, chunk->length);
+        } else {
+            sqlite3_bind_int(packet_stmt, 11, 0);
+        }
 
-    sqlite3_bind_text(packet_stmt, 13, sourceuuidstring.c_str(), sourceuuidstring.length(), 0);
+        if (radioinfo != NULL) {
+            sqlite3_bind_int(packet_stmt, 12, radioinfo->signal_dbm);
+        } else {
+            sqlite3_bind_int(packet_stmt, 12, 0);
+        }
 
-    if (chunk != NULL) {
-        sqlite3_bind_int(packet_stmt, 14, chunk->dlt);
-        sqlite3_bind_blob(packet_stmt, 15, (const char *) chunk->data, chunk->length, 0);
-    } else {
-        sqlite3_bind_int(packet_stmt, 14, -1);
-        sqlite3_bind_text(packet_stmt, 15, "", 0, 0);
-    }
+        sqlite3_bind_text(packet_stmt, 13, sourceuuidstring.c_str(), sourceuuidstring.length(), 0);
 
-    sqlite3_bind_int(packet_stmt, 16, in_pack->error);
+        if (chunk != NULL) {
+            sqlite3_bind_int(packet_stmt, 14, chunk->dlt);
+            sqlite3_bind_blob(packet_stmt, 15, (const char *) chunk->data, chunk->length, 0);
+        } else {
+            sqlite3_bind_int(packet_stmt, 14, -1);
+            sqlite3_bind_text(packet_stmt, 15, "", 0, 0);
+        }
 
-    if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
-        _MSG("KisDatabaseLogfile unable to insert packet in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
+        sqlite3_bind_int(packet_stmt, 16, in_pack->error);
+
+        if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
+            _MSG("KisDatabaseLogfile unable to insert packet in " +
+                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            Log_Close();
+            return -1;
+        }
     }
 
     // If the packet has a metablob record, log that
@@ -778,40 +780,42 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
 int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
         std::string phystring, mac_addr devmac, uuid datasource_uuid, 
         std::string type, std::string json) {
-    local_locker lock(&data_mutex);
 
     if (!db_enabled)
         return 0;
 
-    sqlite3_reset(data_stmt);
-
     std::string macstring = devmac.Mac2String();
     std::string uuidstring = datasource_uuid.UUID2String();
 
-    sqlite3_bind_int64(data_stmt, 1, tv.tv_sec);
-    sqlite3_bind_int64(data_stmt, 2, tv.tv_usec);
+    {
+        local_locker lock(&data_mutex);
+        sqlite3_reset(data_stmt);
 
-    sqlite3_bind_text(data_stmt, 3, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(data_stmt, 4, macstring.c_str(), macstring.length(), 0);
+        sqlite3_bind_int64(data_stmt, 1, tv.tv_sec);
+        sqlite3_bind_int64(data_stmt, 2, tv.tv_usec);
 
-    if (gps != NULL) {
-        sqlite3_bind_int64(data_stmt, 5, gps->lat * 100000);
-        sqlite3_bind_int64(data_stmt, 6, gps->lon * 100000);
-    } else {
-        sqlite3_bind_int(data_stmt, 5, 0);
-        sqlite3_bind_int(data_stmt, 6, 0);
-    }
+        sqlite3_bind_text(data_stmt, 3, phystring.c_str(), phystring.length(), 0);
+        sqlite3_bind_text(data_stmt, 4, macstring.c_str(), macstring.length(), 0);
 
-    sqlite3_bind_text(data_stmt, 7, uuidstring.c_str(), uuidstring.length(), 0);
+        if (gps != NULL) {
+            sqlite3_bind_int64(data_stmt, 5, gps->lat * 100000);
+            sqlite3_bind_int64(data_stmt, 6, gps->lon * 100000);
+        } else {
+            sqlite3_bind_int(data_stmt, 5, 0);
+            sqlite3_bind_int(data_stmt, 6, 0);
+        }
 
-    sqlite3_bind_text(data_stmt, 8, type.data(), type.length(), 0);
-    sqlite3_bind_text(data_stmt, 9, json.data(), json.length(), 0);
+        sqlite3_bind_text(data_stmt, 7, uuidstring.c_str(), uuidstring.length(), 0);
 
-    if (sqlite3_step(data_stmt) != SQLITE_DONE) {
-        _MSG("KisDatabaseLogfile unable to insert data in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
+        sqlite3_bind_text(data_stmt, 8, type.data(), type.length(), 0);
+        sqlite3_bind_text(data_stmt, 9, json.data(), json.length(), 0);
+
+        if (sqlite3_step(data_stmt) != SQLITE_DONE) {
+            _MSG("KisDatabaseLogfile unable to insert data in " +
+                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            Log_Close();
+            return -1;
+        }
     }
 
     return 1;
@@ -834,15 +838,12 @@ int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) 
 }
 
 int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
-    local_locker lock(&datasource_mutex);
 
     if (!db_enabled)
         return 0;
 
     std::shared_ptr<KisDatasource> ds =
         std::static_pointer_cast<KisDatasource>(in_datasource);
-
-    sqlite3_reset(datasource_stmt);
 
     std::string uuidstring = ds->get_source_uuid().UUID2String();
     std::string typestring = ds->get_source_builder()->get_source_type();
@@ -853,34 +854,35 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
     std::stringstream ss;
     std::string jsonstring;
 
-    sqlite3_bind_text(datasource_stmt, 1, uuidstring.data(), uuidstring.length(), 0);
-    sqlite3_bind_text(datasource_stmt, 2, typestring.data(), typestring.length(), 0);
-    sqlite3_bind_text(datasource_stmt, 3, defstring.data(), defstring.length(), 0);
-    sqlite3_bind_text(datasource_stmt, 4, namestring.data(), namestring.length(), 0);
-    sqlite3_bind_text(datasource_stmt, 5, intfstring.data(), intfstring.length(), 0);
-
     JsonAdapter::Pack(ss, in_datasource, NULL);
     jsonstring = ss.str();
 
-    sqlite3_bind_text(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), 0);
+    {
+        local_locker lock(&datasource_mutex);
+        sqlite3_reset(datasource_stmt);
 
-    if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
-        _MSG("KisDatabaseLogfile unable to insert datasource in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
+        sqlite3_bind_text(datasource_stmt, 1, uuidstring.data(), uuidstring.length(), 0);
+        sqlite3_bind_text(datasource_stmt, 2, typestring.data(), typestring.length(), 0);
+        sqlite3_bind_text(datasource_stmt, 3, defstring.data(), defstring.length(), 0);
+        sqlite3_bind_text(datasource_stmt, 4, namestring.data(), namestring.length(), 0);
+        sqlite3_bind_text(datasource_stmt, 5, intfstring.data(), intfstring.length(), 0);
+
+        sqlite3_bind_text(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), 0);
+
+        if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
+            _MSG("KisDatabaseLogfile unable to insert datasource in " +
+                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            Log_Close();
+            return -1;
+        }
     }
 
     return 1;
 }
 
 int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
-    local_locker lock(&alert_mutex);
-
     if (!db_enabled)
         return 0;
-
-    sqlite3_reset(alert_stmt);
 
     std::string macstring = in_alert->get_transmitter_mac().Mac2String();
     std::string phystring = devicetracker->FetchPhyName(in_alert->get_phy());
@@ -889,36 +891,41 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     std::stringstream ss;
     std::string jsonstring;
 
+    JsonAdapter::Pack(ss, in_alert, NULL);
+    jsonstring = ss.str();
+
     // Break the double timestamp into two integers
     double intpart, fractpart;
     fractpart = modf(in_alert->get_timestamp(), &intpart);
 
-    sqlite3_bind_int64(alert_stmt, 1, intpart);
-    sqlite3_bind_int64(alert_stmt, 2, fractpart * 1000000);
+    {
+        local_locker lock(&alert_mutex);
+        sqlite3_reset(alert_stmt);
 
-    sqlite3_bind_text(alert_stmt, 3, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(alert_stmt, 4, macstring.c_str(), macstring.length(), 0);
+        sqlite3_bind_int64(alert_stmt, 1, intpart);
+        sqlite3_bind_int64(alert_stmt, 2, fractpart * 1000000);
 
-    if (in_alert->get_location()->get_valid()) {
-        sqlite3_bind_int64(alert_stmt, 5, in_alert->get_location()->get_lat() * 100000);
-        sqlite3_bind_int64(alert_stmt, 6, in_alert->get_location()->get_lon() * 100000);
-    } else {
-        sqlite3_bind_int(alert_stmt, 5, 0);
-        sqlite3_bind_int(alert_stmt, 6, 0);
-    }
+        sqlite3_bind_text(alert_stmt, 3, phystring.c_str(), phystring.length(), 0);
+        sqlite3_bind_text(alert_stmt, 4, macstring.c_str(), macstring.length(), 0);
 
-    sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), 0);
+        if (in_alert->get_location()->get_valid()) {
+            sqlite3_bind_int64(alert_stmt, 5, in_alert->get_location()->get_lat() * 100000);
+            sqlite3_bind_int64(alert_stmt, 6, in_alert->get_location()->get_lon() * 100000);
+        } else {
+            sqlite3_bind_int(alert_stmt, 5, 0);
+            sqlite3_bind_int(alert_stmt, 6, 0);
+        }
 
-    JsonAdapter::Pack(ss, in_alert, NULL);
-    jsonstring = ss.str();
+        sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), 0);
 
-    sqlite3_bind_text(alert_stmt, 8, jsonstring.data(), jsonstring.length(), 0);
+        sqlite3_bind_text(alert_stmt, 8, jsonstring.data(), jsonstring.length(), 0);
 
-    if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
-        _MSG("KisDatabaseLogfile unable to insert alert in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
+        if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
+            _MSG("KisDatabaseLogfile unable to insert alert in " +
+                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            Log_Close();
+            return -1;
+        }
     }
 
     return 1;
@@ -927,12 +934,10 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
 int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         std::string snaptype, std::string json) {
 
-    local_locker lock(&snapshot_mutex);
-
     if (!db_enabled)
         return 0;
 
-
+    local_locker lock(&snapshot_mutex);
     sqlite3_reset(snapshot_stmt);
 
     sqlite3_bind_int64(snapshot_stmt, 1, tv.tv_sec);
