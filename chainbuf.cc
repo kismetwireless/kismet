@@ -79,11 +79,19 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
     size_t total_written = 0;
 
     while (total_written < in_sz) {
+        if (write_offt >= chunk_sz - 1)
+            throw std::runtime_error(fmt::format("chainbuf corrupted, write_offt {} >= chunk {}",
+                        write_offt, chunk_sz));
+
         // Available in this chunk
-        size_t free_chunk_sz = chunk_sz - write_offt;
+        size_t free_chunk_sz = chunk_sz - 1 - write_offt;
 
         // Whole buffer or whole chunk
         size_t w_sz = std::min(in_sz - total_written, free_chunk_sz);
+
+        if (!((write_offt + w_sz) < chunk_sz))
+            throw std::runtime_error(fmt::format("chainbuf corrupted, write_offt {} chunk {} wsz {}",
+                        write_offt, chunk_sz, w_sz));
 
         // fprintf(stderr, "debug - chainbuf - in_sz %lu free in block %lu total written %lu\n", in_sz, free_chunk_sz, total_written);
 
@@ -92,8 +100,10 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
         if (in_data != NULL) {
             if (w_sz == 1)
                 write_buf[write_offt] = in_data[total_written];
-            else
+            else {
+                // fprintf(stderr, "debug - %u %lu %lu %lu %lu %lu\n", write_block, chunk_sz, write_offt, total_written, w_sz, in_sz);
                 memcpy(write_buf + write_offt, in_data + total_written, w_sz);
+            }
         }
 
         write_offt += w_sz;
@@ -109,6 +119,8 @@ ssize_t Chainbuf::write(uint8_t *in_data, size_t in_sz) {
             buff_vec.push_back(newchunk);
             write_block++;
             write_buf = buff_vec[write_block];
+
+            // fprintf(stderr, "debug - allocated new chunk %u\n", write_block);
 
             if (read_buf == NULL) {
                 read_buf = buff_vec[read_block];
@@ -143,7 +155,7 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
     size_t goal_sz = std::min(used(), in_sz);
 
     // If we're contiguous 
-    if (read_offt + goal_sz <= chunk_sz) {
+    if (read_offt + goal_sz < chunk_sz) {
         free_read = false;
         peek_reserved = true;
 
@@ -166,7 +178,7 @@ ssize_t Chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
         if (read_block + block_offt >= buff_vec.size())
             throw std::runtime_error("chainbuf ran out of room in buffer vector during peek");
 
-        size_t copy_sz = chunk_sz - offt;
+        size_t copy_sz = chunk_sz - 1 - offt;
         if (left < copy_sz)
             copy_sz = left;
 
@@ -210,7 +222,7 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
 
     // Pick the least size: a zero-copy of our buffer, the requested size,
     // or the amount actually used
-    size_t goal_sz = std::min(chunk_sz - read_offt, in_sz);
+    size_t goal_sz = std::min(chunk_sz - 1 - read_offt, in_sz);
     goal_sz = std::min(goal_sz, used());
 
     *ret_data = read_buf + read_offt;
@@ -271,7 +283,9 @@ size_t Chainbuf::consume(size_t in_sz) {
         // fprintf(stderr, "debug - chainbuf - consumed, read_offt %lu\n", read_offt);
 
         // We've jumped to the next block...
-        if (read_offt >= chunk_sz) {
+        if (read_offt >= chunk_sz - 1) {
+            // fprintf(stderr, "debug - read consumed %u, deleting\n", read_block);
+
             // Universal read offt jumps
             read_offt = 0;
 
