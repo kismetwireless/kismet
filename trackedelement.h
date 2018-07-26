@@ -178,12 +178,6 @@ public:
 
     virtual ~TrackerElement() { };
 
-    TrackerElement(TrackerElement&&) = default;
-    TrackerElement& operator=(TrackerElement&&) = default;
-
-    TrackerElement(TrackerElement&) = delete;
-    TrackerElement& operator=(TrackerElement&) = delete;
-
     // Factory-style for easily making more of the same if we're subclassed
     virtual std::unique_ptr<TrackerElement> clone_type() {
         return nullptr;
@@ -1504,6 +1498,10 @@ public:
     TrackerElementCoreVector(TrackerType t, int id) :
         TrackerElement(t, id) { }
 
+    TrackerElementCoreVector(TrackerType t, int id, std::shared_ptr<TrackerElementCoreVector<T>> v) :
+        TrackerElement(t, id),
+        vector(v->vector) { }
+
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a scalar vector from a string"));
     }
@@ -1590,6 +1588,9 @@ public:
     TrackerElementVector(int id) :
         TrackerElementCoreVector(TrackerType::TrackerVector, id) { }
 
+    TrackerElementVector(std::shared_ptr<TrackerElementVector> v) :
+        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id(), v) { }
+
     static TrackerType static_type() {
         return TrackerType::TrackerVector;
     }
@@ -1604,11 +1605,6 @@ public:
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
-    }
-
-    template<typename TE>
-    void push_back(TE v) {
-        vector.push_back(std::static_pointer_cast<TrackerElement>(v));
     }
 };
 

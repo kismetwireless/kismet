@@ -780,9 +780,12 @@ std::shared_ptr<kis_tracked_device_base>
     // Add the new device at the end once we've populated it
     if (new_device) {
         tracked_map[key] = device;
+
         tracked_vec.push_back(device);
         immutable_tracked_vec->push_back(device);
-        tracked_mac_multimap.emplace(in_mac, device);
+
+        auto mm_pair = std::make_pair(in_mac, device);
+        tracked_mac_multimap.insert(mm_pair);
     }
 
     return device;
@@ -820,7 +823,9 @@ void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> wo
 }
 
 void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
-    MatchOnDevices(worker, immutable_tracked_vec, batch);
+    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
+
+    MatchOnDevices(worker, immutable_copy, batch);
 }
 
 // Simple std::sort comparison function to order by the least frequently
