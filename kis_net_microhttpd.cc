@@ -1145,7 +1145,13 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
         Kis_Net_Httpd_Buffer_Stream_Handler *in_handler,
         Kis_Net_Httpd_Connection *in_httpd_connection,
         std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
-        void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) {
+        void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) :
+    httpd_stream_handler(in_handler),
+    httpd_connection(in_httpd_connection),
+    ringbuf_handler(in_ringbuf_handler),
+    in_error(false),
+    aux(in_aux),
+    free_aux_cb(in_free_aux) {
 
     httpd_stream_handler = in_handler;
     httpd_connection = in_httpd_connection;
@@ -1153,10 +1159,8 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
     aux = in_aux;
     free_aux_cb = in_free_aux;
 
-    cl.reset(new conditional_locker<int>());
+    cl = std::make_shared<conditional_locker<int>>();
     cl->lock();
-
-    in_error = false;
 
     // If the buffer encounters an error, unlock the variable and set the error state
     ringbuf_handler->SetProtocolErrorCb([this]() {
@@ -1169,10 +1173,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
 
 Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
     // Get out of the lock and flag an error so we end
-    local_demand_locker dlock(&error_mutex);
-    dlock.lock();
     in_error = true;
-    dlock.unlock();
 
     cl->unlock(0);
 
@@ -1186,18 +1187,15 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute_
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
-    // fprintf(stderr, "debug - knmh - unlocking %lu\n", in_amt);
     cl->unlock(1);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data() {
+void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHandlerGeneric> rbh) {
     while (1) {
         { 
-            // Scope this block
             local_locker lock(&aux_mutex);
 
             // Immediately return if we have pending data
-            std::shared_ptr<BufferHandlerGeneric> rbh = get_rbhandler();
             if (rbh->GetReadBufferUsed()) {
                 return;
             }
@@ -1242,7 +1240,7 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         // We get called as soon as the webserver has either a) processed our request
         // or b) sent what we gave it; we need to hold the thread until we
         // get more data in the buf, so we block until we have data
-        stream_aux->block_until_data();
+        stream_aux->block_until_data(rbh);
 
         read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
 
@@ -1272,6 +1270,8 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 static void free_buffer_aux_callback(void *cls) {
     Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
+    // fprintf(stderr, "debug - free_buffer_aux\n");
+
     aux->get_buffer_event_mutex()->lock();
 
     aux->ringbuf_handler->ProtocolError();
@@ -1283,7 +1283,7 @@ static void free_buffer_aux_callback(void *cls) {
     unsigned char *zbuf;
 
     while (1) {
-        aux->block_until_data();
+        aux->block_until_data(rbh);
 
         read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
 
@@ -1337,7 +1337,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
             std::thread([this, &cl, aux, httpd, connection, url, method, 
-                    upload_data, upload_data_size]{
+                    upload_data, upload_data_size] {
                 // Unlock the http thread as soon as we've spawned it
                 cl.unlock(1);
 
@@ -1350,10 +1350,12 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 // the stream closing
                 try {
                     if (r == MHD_YES) {
+                        // fprintf(stderr, "debug - triggering error\n");
                         aux->sync();
                         aux->trigger_error();
                     }
                 } catch (std::exception& e) {
+                    // fprintf(stderr, "debug - exception - triggering error\n");
                     aux->sync();
                     aux->trigger_error();
                 }

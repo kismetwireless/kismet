@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <stdio.h>
 #include <time.h>
 #include <list>
@@ -277,21 +278,12 @@ public:
     virtual ~Kis_Net_Httpd_Buffer_Stream_Aux();
 
     bool get_in_error() { 
-        local_locker lock(&error_mutex);
         return in_error;
     }
 
     void trigger_error() {
-        // Scope so we're done with our mutex by the time we release the conditional
-        // locker
-        local_demand_locker lock(&error_mutex);
-        lock.lock();
         in_error = true;
-        lock.unlock();
-
-        // Unlock the conditional locker
         cl->unlock(0);
-
     }
 
     void set_aux(void *in_aux, 
@@ -323,7 +315,7 @@ public:
 
     // Block until data is available (called by the buffer_event_cb in the http
     // session)
-    void block_until_data();
+    void block_until_data(std::shared_ptr<BufferHandlerGeneric> rbh);
 
     // Get the buffer event mutex
     kis_recursive_timed_mutex *get_buffer_event_mutex() {
@@ -332,7 +324,6 @@ public:
 
 public:
     kis_recursive_timed_mutex aux_mutex;
-    kis_recursive_timed_mutex error_mutex;
     kis_recursive_timed_mutex buffer_event_mutex;
 
     // Stream handler we belong to
@@ -348,7 +339,7 @@ public:
     std::shared_ptr<conditional_locker<int> > cl;
 
     // Are we in error?
-    bool in_error;
+    std::atomic<bool> in_error;
 
     // Possible worker thread for processing the buffer fill
     std::thread generator_thread;
