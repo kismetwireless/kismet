@@ -1280,44 +1280,18 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 static void free_buffer_aux_callback(void *cls) {
     Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
-    // Generate a protocol error
-    aux->ringbuf_handler->ProtocolError();
-
-    // Spin consuming all of the buffer until whatever is generating it finishes
-    auto rbh = aux->get_rbhandler();
-
-    size_t read_sz = 0;
-    unsigned char *zbuf;
-
-    bool drain_done = false;
-
-    while (!drain_done) {
-        while (read_sz == 0) {
-            aux->block_until_data();
-
-            read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
-
-            if (read_sz == 0) {
-                if (aux->get_in_error()) {
-                    aux->get_buffer_event_mutex()->unlock();
-                    drain_done = true;
-                    break;
-                }
-            }
-        }
-
-        rbh->PeekFreeWriteBufferData(zbuf);
-        rbh->ConsumeWriteBufferData(read_sz);
-    }
+    // fprintf(stderr, "debug - free aux callback %p\n", cls);
 
     // Wait for the thread to complete
     aux->generator_thread.join();
 
+    // fprintf(stderr, "debug - generator unlocked %p\n", cls);
 
     if (aux->free_aux_cb != NULL) {
         aux->free_aux_cb(aux);
     }
 
+    aux->ringbuf_handler->ProtocolError();
 
     delete(aux);
 }

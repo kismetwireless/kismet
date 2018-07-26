@@ -21,7 +21,6 @@
 
 #include "config.h"
 
-#include <atomic>
 #include <stdio.h>
 #include <time.h>
 #include <list>
@@ -278,6 +277,7 @@ public:
     virtual ~Kis_Net_Httpd_Buffer_Stream_Aux();
 
     bool get_in_error() { 
+        local_locker lock(&error_mutex);
         return in_error;
     }
 
@@ -348,7 +348,7 @@ public:
     std::shared_ptr<conditional_locker<int> > cl;
 
     // Are we in error?
-    std::atomic<bool> in_error;
+    bool in_error;
 
     // Possible worker thread for processing the buffer fill
     std::thread generator_thread;
