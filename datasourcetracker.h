@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <string>
 #include <vector>
 #include <map>
@@ -191,7 +192,7 @@ protected:
     std::string definition;
 
     std::function<void (std::vector<SharedInterface>)> list_cb;
-    bool cancelled;
+    std::atomic<bool> cancelled;
 
     int cancel_timer;
 

@@ -190,6 +190,13 @@ DST_DatasourceList::DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_
 DST_DatasourceList::~DST_DatasourceList() {
     local_locker lock(&list_lock);
 
+    cancelled = true;
+
+    // Cancel any pending timer
+    if (cancel_timer >= 0) {
+        timetracker->RemoveTimer(cancel_timer);
+    }
+
     // Cancel any probing sources and delete them
     for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
         (*i)->close_source();
@@ -198,6 +205,9 @@ DST_DatasourceList::~DST_DatasourceList() {
 
 void DST_DatasourceList::cancel() {
     local_locker lock(&list_lock);
+
+    if (cancelled)
+        return;
 
     cancelled = true;
 
@@ -845,7 +855,7 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
 
 void Datasourcetracker::list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb) {
     // Create a DSTProber to handle the probing
-    SharedDSTList dst_list(new DST_DatasourceList(proto_vec));
+    auto dst_list = std::make_shared<DST_DatasourceList>(proto_vec);
     unsigned int listid = 0;
    
     {
@@ -1300,7 +1310,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         }
 
         // Locker for waiting for the list callback
-        std::shared_ptr<conditional_locker<std::vector<SharedInterface>>> cl(new conditional_locker<std::vector<SharedInterface> >());
+        auto cl = std::make_shared<conditional_locker<std::vector<SharedInterface> >>();
 
         cl->lock();
 
