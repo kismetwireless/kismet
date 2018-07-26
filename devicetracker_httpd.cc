@@ -313,7 +313,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
         // Instantiate a manual serializer
         JsonAdapter::Serializer serial; 
 
-        devicetracker_function_worker fw( 
+        auto fw = std::make_shared<devicetracker_function_worker>(
                 [&stream, &serial](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                     serial.serialize(d, stream);
                     stream << "\n";
@@ -321,9 +321,9 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     // Return false because we're not building a list, we're serializing
                     // per element
                     return false;
-                }, NULL);
+                }, nullptr);
 
-        MatchOnDevices(&fw);
+        MatchOnDevices(fw);
         return MHD_YES;
     }
 
@@ -437,16 +437,16 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
             std::shared_ptr<TrackerElementVector> devvec;
 
-            devicetracker_function_worker fw(
+            auto fw = std::make_shared<devicetracker_function_worker>(
                     [devvec, lastts](Devicetracker *, 
                         std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
-                    }, NULL);
-            MatchOnDevices(&fw);
-            devvec = fw.GetMatchedDevices();
+                    }, nullptr);
+            MatchOnDevices(fw);
+            devvec = fw->GetMatchedDevices();
 
             Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
@@ -849,10 +849,10 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (regexdata != NULL) {
                     // If we're doing a basic regex outside of devicetables
                     // shenanigans...
-                    devicetracker_pcre_worker worker(regexdata);
-                    MatchOnDevices(&worker);
+                    auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
+                    MatchOnDevices(worker);
 
-                    auto pcredevs = worker.GetMatchedDevices();
+                    auto pcredevs = worker->GetMatchedDevices();
 
                     // Check DT ranges
                     if (dt_start >= pcredevs->size())
@@ -924,11 +924,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // which we have flagged as searchable, and which is a string or
                     // mac which we can treat as a string.
 
-                    devicetracker_stringmatch_worker worker(dt_search, dt_search_paths);
-                    MatchOnDevices(&worker);
+                    auto worker = 
+                        std::make_shared<devicetracker_stringmatch_worker>(dt_search, dt_search_paths);
+                    MatchOnDevices(worker);
 
-
-                    auto matchvec = worker.GetMatchedDevices();
+                    auto matchvec = worker->GetMatchedDevices();
 
                     if (dt_order_col >= 0 && dt_order_fields.size() > 0) {
                         kismet__stable_sort(matchvec->begin(), matchvec->end(), 
@@ -1106,21 +1106,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 //  List of devices that pass the regex filter
                 auto regexdevs = std::make_shared<TrackerElementVector>();
 
-                devicetracker_function_worker tw(
+                auto tw = std::make_shared<devicetracker_function_worker>(
                         [lastts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
-                        }, NULL);
-                MatchOnDevices(&tw);
-                timedevs = tw.GetMatchedDevices();
+                        }, nullptr);
+                MatchOnDevices(tw);
+                timedevs = tw->GetMatchedDevices();
 
                 if (regexdata != NULL) {
-                    devicetracker_pcre_worker worker(regexdata);
-                    MatchOnDevices(&worker, timedevs);
-                    regexdevs = worker.GetMatchedDevices();
+                    auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
+                    MatchOnDevices(worker, timedevs);
+                    regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;
                 }
@@ -1173,39 +1173,39 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 std::shared_ptr<TrackerElementVector> regexdevs;
 
                 // Filter by time first, it's fast
-                devicetracker_function_worker tw(
+                auto tw = std::make_shared<devicetracker_function_worker>(
                         [post_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= post_ts)
                             return false;
 
                         return true;
-                        }, NULL);
+                        }, nullptr);
 
-                devicetracker_function_worker pw(
+                auto pw = std::make_shared<devicetracker_function_worker>(
                         [phydevs, phy](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_phyname() != phy->FetchPhyName())
                             return false;
 
                         return true;
-                        }, NULL);
+                        }, nullptr);
 
                 if (post_ts != 0) {
                     // time-match then phy-match then pass to regex
-                    MatchOnDevices(&tw);
-                    timedevs = tw.GetMatchedDevices();
-                    MatchOnDevices(&pw, timedevs);
-                    phydevs = pw.GetMatchedDevices();
+                    MatchOnDevices(tw);
+                    timedevs = tw->GetMatchedDevices();
+                    MatchOnDevices(pw, timedevs);
+                    phydevs = pw->GetMatchedDevices();
                 }  else {
                     // Phy match only
-                    MatchOnDevices(&pw);
-                    phydevs = pw.GetMatchedDevices();
+                    MatchOnDevices(pw);
+                    phydevs = pw->GetMatchedDevices();
                 }
 
                 if (regexdata != NULL) {
-                    devicetracker_pcre_worker worker(regexdata);
-                    MatchOnDevices(&worker, phydevs);
-                    regexdevs = worker.GetMatchedDevices();
+                    auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
+                    MatchOnDevices(worker, phydevs);
+                    regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = phydevs;
                 }

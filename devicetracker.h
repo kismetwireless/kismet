@@ -176,11 +176,11 @@ public:
     // to operate.
     //
     // Typically used to build a subset of devices for serialization
-    void MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch = true);
+    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices
-    void MatchOnDevices(DevicetrackerFilterWorker *worker, 
+    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
 
     using device_map_t = std::map<device_key, std::shared_ptr<kis_tracked_device_base>>;

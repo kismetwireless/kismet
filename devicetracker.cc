@@ -794,101 +794,32 @@ bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, 
+void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
         std::shared_ptr<TrackerElementVector> vec, bool batch) {
 
     kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
-                if (val == NULL)
-                    return;
+           if (val == nullptr)
+               return;
 
-                std::shared_ptr<kis_tracked_device_base> v = 
-                    std::static_pointer_cast<kis_tracked_device_base>(val);
+           std::shared_ptr<kis_tracked_device_base> v = 
+               std::static_pointer_cast<kis_tracked_device_base>(val);
 
-                bool m;
+           bool m;
 
-                // Lock the device itself inside the worker op
-                {
-                    local_locker devlocker(&(v->device_mutex));
-                    m = worker->MatchDevice(this, v);
-                }
+           // Lock the device itself inside the worker op
+           {
+               local_locker devlocker(&(v->device_mutex));
+               m = worker->MatchDevice(this, v);
+           }
 
-                if (m) 
-                    worker->MatchedDevice(v);
-            });
-
-    worker->Finalize(this);
-
-#if 0
-    // We chunk into blocks of 500 devices and perform the match in 
-    // batches; this prevents a single query from running so long that
-    // things fall down.  It is slightly less efficient on huge data sets,
-    // but the tradeoff is a naive client being able to crash the whole
-    // show by doing a query against 20,000 devices in one go.
-   
-    // Handle non-batched stuff like internal memory management ops
-    if (!batch) {
-        local_locker lock(&devicelist_mutex);
-
-        kismet__for_each(vec.begin(), vec.end(), 
-                [&](SharedTrackerElement val) {
-                std::shared_ptr<kis_tracked_device_base> v = 
-                        std::static_pointer_cast<kis_tracked_device_base>(val);
-                    worker->MatchDevice(this, v);
-                });
-
-        worker->Finalize(this);
-        return;
-    }
-    
-    size_t dpos = 0;
-    size_t chunk_sz = 10;
-
-    while (1) {
-        local_demand_locker lock(&devicelist_mutex);
-
-        lock.lock();
-
-        auto b = vec.begin() + dpos;
-        auto e = b + chunk_sz;
-        bool last_loop = false;
-
-        if (e > vec.end()) {
-            e = vec.end();
-            last_loop = true;
-        }
-
-        // Parallel for-each while inside a lock
-        
-        
-        kismet__for_each(b, e, 
-                [&](SharedTrackerElement val) {
-
-                if (val == NULL)
-                    return;
-                std::shared_ptr<kis_tracked_device_base> v = 
-                std::static_pointer_cast<kis_tracked_device_base>(val);
-
-                worker->MatchDevice(this, v);
-                });
-
-        lock.unlock();
-
-        if (last_loop)
-            break;
-
-        dpos += chunk_sz;
-
-        // We're now unlocked, do a tiny sleep to let another thread grab the lock
-        // if it needs to
-        usleep(1000);
-
-    }
+           if (m) 
+               worker->MatchedDevice(v);
+       });
 
     worker->Finalize(this);
-#endif
 }
 
-void Devicetracker::MatchOnDevices(DevicetrackerFilterWorker *worker, bool batch) {
+void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
     MatchOnDevices(worker, immutable_tracked_vec, batch);
 }
 
@@ -1831,7 +1762,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
     }
 
     // Use a function worker to insert it into the db
-    devicetracker_function_worker fw(
+    auto fw = std::make_shared<devicetracker_function_worker>(
             [this, &stmt] 
                 (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 std::shared_ptr<kis_tracked_device_base> kdb =
@@ -1884,11 +1815,11 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
                 sqlite3_step(stmt);
 
                 return false;
-            }, NULL);
+            }, nullptr);
 
     // Perform the write as a single transaction
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    devicetracker->MatchOnDevices(&fw, devices);
+    devicetracker->MatchOnDevices(fw, devices);
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 
     sqlite3_finalize(stmt);

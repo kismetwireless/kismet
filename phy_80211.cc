@@ -2639,9 +2639,10 @@ protected:
 int Kis_80211_Phy::timetracker_event(int eventid) {
     // Spawn a worker to handle this
     if (eventid == device_idle_timer) {
-        phy80211_devicetracker_expire_worker worker(globalreg,
+        auto worker = 
+            std::make_shared<phy80211_devicetracker_expire_worker>(globalreg,
                 device_idle_expiration, device_idle_min_packets, dot11_device_entry_id);
-        devicetracker->MatchOnDevices(&worker);
+        devicetracker->MatchOnDevices(worker);
     }
 
     // Loop
