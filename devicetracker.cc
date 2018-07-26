@@ -872,11 +872,7 @@ int Devicetracker::timetracker_event(int eventid) {
                         auto iti = immutable_tracked_vec->begin() + d->get_kis_internal_id();
                         (*iti).reset();
 
-
                         purged = true;
-
-                        // fprintf(stderr, "debug - thinking we're purging %s refcount %d\n", d->get_macaddr().Mac2String().c_str(), d.use_count());
-
 
                         return true;
                     }
@@ -1058,14 +1054,17 @@ void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
     tracked_map[device->get_key()] = device;
     tracked_vec.push_back(device);
     immutable_tracked_vec->push_back(device);
-    tracked_mac_multimap.emplace(device->get_macaddr(), device);
+
+    auto mm_pair = std::make_pair(device->get_macaddr(), device);
+    tracked_mac_multimap.emplace(mm_pair);
 }
 
 int Devicetracker::store_devices() {
     auto devs = std::make_shared<TrackerElementVector>();
+    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
 
     // Find anything that has changed
-    for (auto v : *immutable_tracked_vec) {
+    for (auto v : *immutable_copy) {
         if (v == NULL)
             continue;
 
@@ -1080,9 +1079,10 @@ int Devicetracker::store_devices() {
 }
 
 int Devicetracker::store_all_devices() {
+    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
     last_devicelist_saved = time(0);
 
-    return store_devices(immutable_tracked_vec);
+    return store_devices(immutable_copy);
 }
 
 int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) {
@@ -1099,9 +1099,10 @@ int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) 
 
 void Devicetracker::databaselog_write_devices() {
     auto devs = std::make_shared<TrackerElementVector>();
+    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
 
     // Find anything that has changed
-    for (auto v : *immutable_tracked_vec) {
+    for (auto v : *immutable_copy) {
         if (v == NULL)
             continue;
 
