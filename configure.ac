@@ -184,15 +184,8 @@ AX_CXX_COMPILE_STDCXX(17, , [optional])
 
 AC_SUBST(PLUGINLDFLAGS)
 
-AC_ARG_ENABLE([optimization],
-        AS_HELP_STRING([--disable-optimization], [Disable compiler optimization]),
-        [want_optimization=no],
-        [want_optimization=yes])
-
-if test "$want_optimization"x == "yes"x; then
-    CXXFLAGS="-O3"
-    CFLAGS="-O3"
-fi
+CXXFLAGS="$CXXFLAGS -O3"
+CFLAGS="$CFLAGS -O3"
 
 if test "$cygwin" = "yes"; then
 	AC_MSG_CHECKING(cygwin compile flags)
@@ -1438,7 +1431,7 @@ AC_ARG_ENABLE(asan,
 	[want_asan=no]
 )
 if test "$want_asan" == "yes"; then
-    CPPFLAGS="$CPPFLAGS -fsanitize=address"
+    CPPFLAGS="$CPPFLAGS -fsanitize=address -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=address"
 fi
 
@@ -1451,7 +1444,7 @@ AC_ARG_ENABLE(tsan,
 	[want_tsan=no]
 )
 if test "$want_tsan" == "yes"; then
-    CPPFLAGS="$CPPFLAGS -fsanitize=thread"
+    CPPFLAGS="$CPPFLAGS -fsanitize=thread -fno-omit-frame-pointer"
     LDFLAGS="$LDFLAGS -fsanitize=thread"
 fi
 
