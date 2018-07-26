@@ -1341,21 +1341,19 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 // Unlock the http thread as soon as we've spawned it
                 cl.unlock(1);
 
-                int r = Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
-                        upload_data_size);
-
                 // Trigger 'error' when the function is complete & returns a 'complete' value;
                 // causing us to finish the stream; if the stream returns a MHD_NO we expect
                 // it to close its stream itself later; if we have an exception, treat it as
                 // the stream closing
                 try {
+                    int r = Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+                            upload_data_size);
+
                     if (r == MHD_YES) {
-                        // fprintf(stderr, "debug - triggering error\n");
                         aux->sync();
                         aux->trigger_error();
                     }
                 } catch (std::exception& e) {
-                    // fprintf(stderr, "debug - exception - triggering error\n");
                     aux->sync();
                     aux->trigger_error();
                 }
@@ -1408,11 +1406,15 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
             std::thread([this, &cl, aux, connection] {
                 cl.unlock(1);
 
-                int r = Httpd_PostComplete(connection);
-
-                // Trigger 'error' when the function is complete, causing us to finish 
-                // the stream
-                if (r == MHD_YES) {
+                try {
+                    int r = Httpd_PostComplete(connection);
+                    if (r == MHD_YES) {
+                        // fprintf(stderr, "debug - triggering complete\n");
+                        aux->sync();
+                        aux->trigger_error();
+                    }
+                } catch (std::exception& e) {
+                    // fprintf(stderr, "debug - exception - triggering error\n");
                     aux->sync();
                     aux->trigger_error();
                 }

@@ -297,7 +297,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStreambuf *) (aux->aux));
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
@@ -463,14 +463,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
 
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStreambuf(saux->get_rbhandler());
+    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
     std::ostream stream(streambuf);
 
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStreambuf *) (aux->aux));
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we

@@ -1498,10 +1498,6 @@ public:
     TrackerElementCoreVector(TrackerType t, int id) :
         TrackerElement(t, id) { }
 
-    TrackerElementCoreVector(TrackerType t, int id, std::shared_ptr<TrackerElementCoreVector<T>> v) :
-        TrackerElement(t, id),
-        vector(v->vector) { }
-
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a scalar vector from a string"));
     }
@@ -1589,7 +1585,9 @@ public:
         TrackerElementCoreVector(TrackerType::TrackerVector, id) { }
 
     TrackerElementVector(std::shared_ptr<TrackerElementVector> v) :
-        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id(), v) { }
+        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
+        vector = v->vector;
+    }
 
     static TrackerType static_type() {
         return TrackerType::TrackerVector;
