@@ -1559,8 +1559,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             ssidstr = "SSID '" + ssid->get_ssid() + "'";
         }
 
-        _MSG("802.11 Wi-Fi device " + basedev->get_macaddr().Mac2String() + 
-                " advertising " + ssidstr, MSGFLAG_INFO);
+        _MSG("802.11 Wi-Fi device " + basedev->get_macaddr().Mac2String() + " advertising " + ssidstr, MSGFLAG_INFO);
 
         if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
                 ssid->get_ssid() == "AirJack" ) {
