@@ -1176,14 +1176,6 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
 
     cl->unlock(0);
 
-    // Lock that the buffer callback has ended!
-    local_demand_locker bclock(&buffer_event_mutex);
-    bclock.lock();
-
-    // Lock out the interface itself
-    local_demand_locker lock(&aux_mutex);
-    lock.lock();
-
     if (ringbuf_handler) {
         ringbuf_handler->RemoveWriteBufferInterface();
         ringbuf_handler->SetProtocolErrorCb(NULL);
@@ -1280,18 +1272,41 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 static void free_buffer_aux_callback(void *cls) {
     Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
-    // fprintf(stderr, "debug - free aux callback %p\n", cls);
+    aux->get_buffer_event_mutex()->lock();
 
-    // Wait for the thread to complete
+    aux->ringbuf_handler->ProtocolError();
+
+    // Consume any backlog if the thread is still processing
+    std::shared_ptr<BufferHandlerGeneric> rbh = aux->get_rbhandler();
+
+    size_t read_sz = 0;
+    unsigned char *zbuf;
+
+    while (1) {
+        aux->block_until_data();
+
+        read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
+
+        if (read_sz == 0) {
+            rbh->PeekFreeWriteBufferData(zbuf);
+
+            if (aux->get_in_error()) {
+                break;
+            }
+        }
+
+        rbh->PeekFreeWriteBufferData(zbuf);
+        rbh->ConsumeWriteBufferData(read_sz);
+    }
+
+    aux->get_buffer_event_mutex()->unlock();
+
+    // Get the thread that's generating data
     aux->generator_thread.join();
-
-    // fprintf(stderr, "debug - generator unlocked %p\n", cls);
 
     if (aux->free_aux_cb != NULL) {
         aux->free_aux_cb(aux);
     }
-
-    aux->ringbuf_handler->ProtocolError();
 
     delete(aux);
 }
