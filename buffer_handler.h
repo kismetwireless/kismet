@@ -369,6 +369,8 @@ protected:
     int sync() override;
 
 private:
+    kis_recursive_timed_mutex mutex;
+
     // buf handler we bind to
     std::shared_ptr<BufferHandlerGeneric > rb_handler;
     

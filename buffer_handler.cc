@@ -212,8 +212,7 @@ bool BufferHandlerGeneric::PutWriteBufferData(std::string in_data) {
 }
 
     
-size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz,
-        bool in_atomic) {
+size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic) {
     size_t ret;
 
     {
@@ -543,19 +542,27 @@ BufferHandlerOStringStreambuf::~BufferHandlerOStringStreambuf() {
 }
 
 std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::streamsize n) {
+    local_locker l(mutex);
+
     std::streamsize sz = std::stringbuf::xsputn(s, n);
 
-    if (str().length() >= 1024)
+    if (str().length() >= 1024) {
+        // fprintf(stderr, "debug - xsputn len %lu\n", str().length());
         sync();
+    }
 
     return sz;
 }
 
 BufferHandlerOStringStreambuf::int_type BufferHandlerOStringStreambuf::overflow(int_type ch) {
+    local_locker l(mutex);
+
     BufferHandlerOStringStreambuf::int_type it = std::stringbuf::overflow(ch);
 
-    if (str().length() >= 1024)
+    if (str().length() >= 1024) {
+        // fprintf(stderr, "debug - overflow len %lu\n", str().length());
         sync();
+    }
 
     return it;
 }
@@ -565,14 +572,17 @@ int BufferHandlerOStringStreambuf::sync() {
         return -1;
     }
 
+    local_locker l(mutex);
+
     size_t sz = str().length();
 
-    // fprintf(stderr, "debug - ostringstreambuf syncing %lu\n", sz);
+    // fprintf(stderr, "debug - sync %lu\n", sz);
+
     ssize_t written = 
-        rb_handler->PutWriteBufferData((void *) str().c_str(), (size_t) sz, true);
+        rb_handler->PutWriteBufferData((void *) str().data(), sz, true);
 
     if (written != (ssize_t) sz) {
-        fprintf(stderr, "debug - ostringstreambuf couldn't write temp string, wrote %lu of %lu\n", written, sz);
+        // fprintf(stderr, "debug - ostringstreambuf couldn't write temp string, wrote %lu of %lu\n", written, sz);
         return -1;
     }
 
