@@ -428,6 +428,9 @@ function channelcoverage_display_refresh() {
                     display: true,
                     text: 'Per-Source Channel Coverage',
                 },
+                legend: {
+                    display: false,
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
