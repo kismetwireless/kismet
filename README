@@ -377,6 +377,17 @@ xx. Configuration Override Files - kismet_site.conf
     Typical uses of this file might include changing the http data directory,
     defining sources and memory options, forcing or disabling logging, and so on.
 
+xx. Starting Kismet
+
+    Kismet can be started normally from the command line, and will run in a small
+    ncurses-based wrapper which will show the most recent server output, and a
+    redirect to the web-based interface.
+
+    Kismet can also be started as a service; typically in this usage you should
+    also pass `--no-ncurses` to prevent the ncurses wrapper from loading.
+
+    Example systemd scripts can be found in the packaging/systemd/ directory of
+    the Kismet source.
 
 xx. Kismet Data Sources
 
