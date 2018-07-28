@@ -77,6 +77,8 @@ KisDatabaseLogfile::~KisDatabaseLogfile() {
 }
 
 bool KisDatabaseLogfile::Log_Open(std::string in_path) {
+    local_locker dbl(ds_mutex);
+
     bool dbr = Database_Open(in_path);
 
     if (!dbr)
@@ -568,8 +570,7 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
         if (i == NULL)
             continue;
 
-        std::shared_ptr<kis_tracked_device_base> d =
-            std::static_pointer_cast<kis_tracked_device_base>(i);
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
 
         phystring = d->get_phyname();
         macstring = d->get_macaddr().Mac2String();

@@ -37,6 +37,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -122,7 +123,7 @@ public:
 
 protected:
     // Is the database even enabled?
-    bool db_enabled;
+    std::atomic<bool> db_enabled;
 
     std::shared_ptr<Devicetracker> devicetracker;
 
@@ -130,7 +131,7 @@ protected:
         pack_comp_device, pack_comp_datasource, pack_comp_common,
         pack_comp_metablob;
 
-    time_t last_device_log;
+    std::atomic<time_t> last_device_log;
 
     // Prebaked parameterized statements
     sqlite3_stmt *device_stmt;

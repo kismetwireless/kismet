@@ -1099,18 +1099,21 @@ int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) 
 
 void Devicetracker::databaselog_write_devices() {
     auto devs = std::make_shared<TrackerElementVector>();
-    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
 
     // Find anything that has changed
-    for (auto v : *immutable_copy) {
-        if (v == NULL)
-            continue;
+    auto fw = std::make_shared<devicetracker_function_worker>(
+            [this, devs] 
+                (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
-        std::shared_ptr<kis_tracked_device_base> kdb =
-            std::static_pointer_cast<kis_tracked_device_base>(v);
-        if (kdb->get_mod_time() > last_database_logged)
-            devs->push_back(v);
-    }
+                if (d->get_mod_time() > last_database_logged) {
+                    devs->push_back(d);
+                    return true;
+                }
+
+                return false;
+        }, nullptr);
+
+    MatchOnDevices(fw);
 
     last_database_logged = time(0);
 
