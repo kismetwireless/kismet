@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <stdio.h>
 #include <time.h>
 #include <list>
@@ -302,10 +303,10 @@ protected:
     int dt_length_id, dt_filter_id, dt_draw_id;
 
 	// Total # of packets
-	int num_packets;
-	int num_datapackets;
-	int num_errorpackets;
-	int num_filterpackets;
+    std::atomic<int> num_packets;
+	std::atomic<int> num_datapackets;
+	std::atomic<int> num_errorpackets;
+	std::atomic<int> num_filterpackets;
 
 	// Per-phy #s of packets
     std::map<int, int> phy_packets;
@@ -332,7 +333,7 @@ protected:
     int device_storage_timer;
 
     // Timestamp for the last time we removed a device
-    time_t full_refresh_time;
+    std::atomic<time_t> full_refresh_time;
 
     // Do we track history clouds?
     bool track_history_cloud;
@@ -383,10 +384,10 @@ protected:
                 const unsigned char *raw_stored_data, unsigned long stored_len);
 
     // Timestamp of the last time we wrote the device list, if we're storing state
-    time_t last_devicelist_saved;
+    std::atomic<time_t> last_devicelist_saved;
 
     kis_recursive_timed_mutex storing_mutex;
-    bool devices_storing;
+    std::atomic<bool> devices_storing;
 
     // Do we store devices?
     bool persistent_storage;
