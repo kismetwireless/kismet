@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <atomic>
 #include <unistd.h>
 #include <memory>
 
@@ -205,10 +206,10 @@ public:
 	
     // Fatal terminate condition, as soon as we detect this in the main code we
     // should initiate a shutdown
-    int fatal_condition;
+    std::atomic<int> fatal_condition;
 	// Are we in "spindown" mode, where we're giving components a little time
 	// to clean up their business with pollables and shut down
-	int spindown;
+    std::atomic<int> spindown;
 
 	// Did we receive a SIGWINCH that hasn't been dealt with yet?
 	bool winch;
@@ -238,7 +239,7 @@ public:
 
 	// Vector of child signals
     pid_t sigchild_vec[1024];
-    unsigned int sigchild_vec_pos;
+    std::atomic<unsigned int> sigchild_vec_pos;
 	
     time_t start_time;
     std::string servername;
@@ -327,7 +328,7 @@ protected:
     std::map<std::string, int> ext_name_map;
     // External globals
     std::map<int, std::shared_ptr<void> > ext_data_map;
-    int next_ext_ref;
+    std::atomic<int> next_ext_ref;
 
     kis_recursive_timed_mutex lifetime_mutex;
     std::vector<std::shared_ptr<LifetimeGlobal> > lifetime_vec;
