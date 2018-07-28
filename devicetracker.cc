@@ -1106,7 +1106,6 @@ void Devicetracker::databaselog_write_devices() {
                 (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                 if (d->get_mod_time() > last_database_logged) {
-                    devs->push_back(d);
                     return true;
                 }
 
@@ -1117,7 +1116,7 @@ void Devicetracker::databaselog_write_devices() {
 
     last_database_logged = time(0);
 
-    databaselog_write_devices(devs);
+    databaselog_write_devices(fw->GetMatchedDevices());
 }
 
 void Devicetracker::databaselog_write_devices(std::shared_ptr<TrackerElementVector> vec) {
