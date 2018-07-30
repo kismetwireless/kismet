@@ -470,13 +470,15 @@ protected:
     // Central packet dispatch override to add the datasource commands
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
 
-    virtual void handle_packet_configure_report(uint32_t in_seqno, std::string in_packet);
-    virtual void handle_packet_data_report(uint32_t in_seqno, std::string in_packet);
-    virtual void handle_packet_error_report(uint32_t in_seqno, std::string in_packet);
-    virtual void handle_packet_interfaces_report(uint32_t in_seqno, std::string in_packet);
-    virtual void handle_packet_opensource_report(uint32_t in_seqno, std::string in_packet);
-    virtual void handle_packet_probesource_report(uint32_t in_seqno, std::string in_packet);
-    virtual void handle_packet_warning_report(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_msg_proxy(const std::string& msg, const int type) override;
+
+    virtual void handle_packet_configure_report(uint32_t in_seqno, const std::string& in_packet);
+    virtual void handle_packet_data_report(uint32_t in_seqno, const std::string& in_packet);
+    virtual void handle_packet_error_report(uint32_t in_seqno, const std::string& in_packet);
+    virtual void handle_packet_interfaces_report(uint32_t in_seqno, const std::string& in_packet);
+    virtual void handle_packet_opensource_report(uint32_t in_seqno, const std::string& in_packet);
+    virtual void handle_packet_probesource_report(uint32_t in_seqno, const std::string& in_packet);
+    virtual void handle_packet_warning_report(uint32_t in_seqno, const std::string& in_packet);
 
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);

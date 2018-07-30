@@ -286,6 +286,12 @@ void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ring
         std::string in_definition, open_callback_t in_cb) {
     local_locker lock(&ext_mutex);
 
+    // We can't reconnect failed interfaces that are remote
+    set_int_source_retry(false);
+    
+    // We're remote
+    set_int_source_remote(true);
+
     // Kill any error handlers
     if (error_timer_id > 0)
         timetracker->RemoveTimer(error_timer_id);
@@ -306,12 +312,6 @@ void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ring
         _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
         return;
     }
-
-    // We can't reconnect failed interfaces that are remote
-    set_int_source_retry(false);
-    
-    // We're remote
-    set_int_source_remote(true);
 
     // Send an opensource
     send_open_source(in_definition, 0, in_cb);
@@ -610,7 +610,15 @@ bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> 
     return false;
 }
 
-void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_msg_proxy(const std::string& msg, const int type) {
+    if (get_source_remote())
+        _MSG(fmt::format("{} - {}", get_source_name(), msg), type);
+    else
+        _MSG(msg, type);
+}
+
+void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, 
+        const std::string& in_content) {
     local_demand_locker lock(&ext_mutex);
     lock.lock();
 
@@ -662,7 +670,8 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, std::str
 
 }
 
-void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, 
+        const std::string& in_content) {
     local_demand_locker lock(&ext_mutex);
 
     KismetDatasource::OpenSourceReport report;
@@ -885,7 +894,8 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, std::stri
     }
 }
 
-void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, 
+        const std::string& in_content) {
     local_demand_locker lock(&ext_mutex);
     lock.lock();
 
@@ -939,7 +949,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, std::stri
 
 }
 
-void KisDatasource::handle_packet_error_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_packet_error_report(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(&ext_mutex);
 
     KismetDatasource::ErrorReport report;
@@ -953,14 +963,14 @@ void KisDatasource::handle_packet_error_report(uint32_t in_seqno, std::string in
     }
 
     if (report.has_message())
-        _MSG(report.message().msgtext(), MSGFLAG_ERROR);
+        handle_msg_proxy(report.message().msgtext(), MSGFLAG_ERROR);
 
     if (!report.success().success()) {
         trigger_error("Fatal error from remote source");
     }
 }
 
-void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std::string& in_content) {
     local_demand_locker lock(&ext_mutex);
     lock.lock();
 
@@ -1030,7 +1040,7 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, std::strin
 
 }
 
-void KisDatasource::handle_packet_data_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_packet_data_report(uint32_t in_seqno, const std::string& in_content) {
     // If we're paused, throw away this packet
     {
         local_locker lock(&ext_mutex);
@@ -1050,7 +1060,7 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, std::string in_
     }
 
     if (report.has_message()) 
-        _MSG(report.message().msgtext(), report.message().msgtype());
+        handle_msg_proxy(report.message().msgtext(), report.message().msgtype());
 
     if (report.has_warning())
         set_int_source_warning(report.warning());
@@ -1139,7 +1149,7 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, std::string in_
 
 }
 
-void KisDatasource::handle_packet_warning_report(uint32_t in_seqno, std::string in_content) {
+void KisDatasource::handle_packet_warning_report(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(&ext_mutex);
 
     KismetDatasource::WarningReport report;

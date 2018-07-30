@@ -92,11 +92,14 @@ protected:
     // Central packet dispatch handler
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
 
+    // Generic msg proxy
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) = 0; 
+
     // Packet handlers
-    virtual void handle_packet_message(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_ping(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_pong(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_shutdown(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_message(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_ping(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_pong(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -130,10 +133,10 @@ public:
     virtual ~KisExternalHttpInterface();
 
     // Trigger an error condition and call all the related functions
-    virtual void trigger_error(std::string reason);
+    virtual void trigger_error(std::string reason) override;
 
     // Webserver proxy interface - standard verifypath
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     // Called as a connection is being set up;  brokers access with the http
     // proxy
@@ -148,7 +151,7 @@ public:
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 
     // Called when a POST event is complete - all data has been uploaded and
     // cached in the connection info; brokers connections to to the proxy
@@ -157,16 +160,18 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused)));
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override;
 
 protected:
     // Central packet dispatch handler
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override; 
 
     // Packet handlers
-    virtual void handle_packet_http_register(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_http_response(uint32_t in_seqno, std::string in_content);
-    virtual void handle_packet_http_auth_request(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_http_register(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_http_response(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const std::string& in_content);
 
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);

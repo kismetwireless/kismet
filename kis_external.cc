@@ -336,7 +336,7 @@ bool KisExternalInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Co
     return false;
 }
 
-void KisExternalInterface::handle_packet_message(uint32_t in_seqno, std::string in_content) {
+void KisExternalInterface::handle_packet_message(uint32_t in_seqno, const std::string& in_content) {
     KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromString(in_content)) {
@@ -345,14 +345,14 @@ void KisExternalInterface::handle_packet_message(uint32_t in_seqno, std::string 
         return;
     }
 
-    _MSG(m.msgtext(), m.msgtype());
+    handle_msg_proxy(m.msgtext(), m.msgtype());
 }
 
-void KisExternalInterface::handle_packet_ping(uint32_t in_seqno, std::string in_content) {
+void KisExternalInterface::handle_packet_ping(uint32_t in_seqno, const std::string& in_content) {
     send_pong(in_seqno);
 }
 
-void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, std::string in_content) {
+void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(&ext_mutex);
 
     KismetExternal::Pong p;
@@ -365,7 +365,7 @@ void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, std::string in_
     last_pong = time(0);
 }
 
-void KisExternalInterface::handle_packet_shutdown(uint32_t in_seqno, std::string in_content) {
+void KisExternalInterface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(&ext_mutex);
 
     KismetExternal::ExternalShutdown s;
@@ -469,7 +469,12 @@ bool KisExternalHttpInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal
     return false;
 }
 
-void KisExternalHttpInterface::handle_packet_http_register(uint32_t in_seqno, std::string in_content) {
+void KisExternalHttpInterface::handle_msg_proxy(const std::string& msg, const int msgtype) {
+    _MSG(msg, msgtype);
+}
+
+void KisExternalHttpInterface::handle_packet_http_register(uint32_t in_seqno, 
+        const std::string& in_content) {
     local_locker lock(&ext_mutex);
 
     KismetExternalHttp::HttpRegisterUri uri;
@@ -490,7 +495,8 @@ void KisExternalHttpInterface::handle_packet_http_register(uint32_t in_seqno, st
     http_proxy_uri_map[exturi->method].push_back(exturi);
 }
 
-void KisExternalHttpInterface::handle_packet_http_response(uint32_t in_seqno, std::string in_content) {
+void KisExternalHttpInterface::handle_packet_http_response(uint32_t in_seqno, 
+        const std::string& in_content) {
     local_locker lock(&ext_mutex);
 
     KismetExternalHttp::HttpResponse resp;
@@ -549,7 +555,7 @@ void KisExternalHttpInterface::handle_packet_http_response(uint32_t in_seqno, st
 }
 
 void KisExternalHttpInterface::handle_packet_http_auth_request(uint32_t in_seqno, 
-        std::string in_content) {
+        const std::string& in_content) {
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
     if (!rt.ParseFromString(in_content)) {

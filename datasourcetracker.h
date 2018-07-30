@@ -312,7 +312,11 @@ public:
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the newsource
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
+        _MSG(fmt::format("(Remote) - {}", msg), msgtype);
+    }
 
     virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
 
@@ -322,7 +326,7 @@ public:
         std::swap(handshake_thread, t);
     }
 
-    virtual void BufferError(std::string in_error);
+    virtual void BufferError(std::string in_error) override;
 
 protected:
     // Timeout for killing this connection
