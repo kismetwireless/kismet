@@ -4,7 +4,7 @@ include $(TOPDIR)/rules.mk
 # easily adapted to other OpenWRT builds.
 
 PKG_NAME:=kismet-2018-tetra
-PKG_VERSION:=git
+PKG_VERSION:=08-BETA1
 PKG_RELEASE:=0
 
 PKG_SOURCE_PROTO:=git
@@ -22,7 +22,7 @@ HOST_BUILD_DEPENDS:=protobuf/host
 define Package/kismet-2018-tetra
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Kismet for Tetra (2018)
+  TITLE:=Kismet for Tetra (2018-08-BETA1)
   #DESCRIPTION:=This variable is obsolete. use the Package/name/description define instead!
   URL:=https://www.kismetwireless.net/
   DEPENDS:=+libpthread +libpcap +libpcre +libmicrohttpd +libnl +libcap +libstdcpp +libncurses +libsqlite3 +zlib +protobuf +libprotobuf-c

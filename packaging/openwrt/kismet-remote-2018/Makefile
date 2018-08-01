@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=kismet-remote
-PKG_VERSION:=2018git
-PKG_RELEASE:=1
+PKG_VERSION:=2018-08-BETA1
+PKG_RELEASE:=0
 
 PKG_SOURCE_PROTO:=git
 #PKG_SOURCE_URL:=/home/dragorn/src/kismet
@@ -22,7 +22,7 @@ PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
 define Package/kismet-remote
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Kismet (2018)
+  TITLE:=Kismet Remote Capture (2018-08-BETA1)
   URL:=https://www.kismetwireless.net/
   DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
 endef
