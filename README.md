@@ -252,6 +252,13 @@ Controlling network interfaces on most systems requires root, or super-user acce
 While written with security strongly in mind, Kismet is a large and complex program, which handles possibly hostile data from the world.  This makes it a very bad choice to run as root.
 
 To mitigate this, Kismet uses separate processes to control the network interfaces and capture packets.  These capture programs are much smaller than Kismet itself, and do minimal (or no) processing on the contents of the packets they receive.
+## Starting Kismet
+
+Kismet can be started normally from the command line, and will run in a small ncurses-based wrapper which will show the most recent server output, and a redirect to the web-based interface.
+    
+Kismet can also be started as a service; typically in this usage you should also pass `--no-ncurses` to prevent the ncurses wrapper from loading.
+    
+An example systemd script is in the `packaging/systemd/` directory of the Kismet source.
 
 ## Configuring Kismet
 
@@ -335,14 +342,6 @@ source=wlan1
 source=wlan2
 ```
 
-## Starting Kismet
-
-Kismet can be started normally from the command line, and will run in a small ncurses-based wrapper which will show the most recent server output, and a redirect to the web-based interface.
-    
-Kismet can also be started as a service; typically in this usage you should also pass `--no-ncurses` to prevent the ncurses wrapper from loading.
-    
-An example systemd script is in the `packaging/systemd/` directory of the Kismet source.
-
 ## Kismet Data Sources
 
 Kismet gets data (which can be packets, devices, or other information) from "data sources".
@@ -355,523 +354,335 @@ Data sources can be created several ways:
   
 Source definitions look like:
 ```
-source=[interface]:[option, option, option]
+source=[interface]:[option, option, option]h
 ```
 
-    For example to capture from a Linux Wi-Fi device on 'wlan1' with no special
-    options:
+For example to capture from a Linux Wi-Fi device on 'wlan1' with no special options:
+   ```
+   source=wlan1
+   ```
+
+To capture from a Linux Wi-Fi device on wlan1 while setting some special options, like telling it to not change channels and to capture from channel 6:
+   ```
+   source=wlan1:channel_hop=false,channel=6
+   source=wlan1:channel_hop=false,channel=11HT-
+   ```
+
+Different data sources have different options, read on for more information about the different capture sources Kismet supports.
     
-        source=wlan1
-    
-    To capture from a Linux Wi-Fi device on wlan1 while setting some special
-    options, like telling it to not change channels and to go to channel 6
-    to start with:
-    
-        source=wlan1:channel_hop=false,channel=6
-        source=wlan1:channel_hop=false,channel=11HT-
-    
-    Different data sources have different options, read on for more information
-    about the different capture sources Kismet supports.
-    
-    When no options are provided for a data source, the defaults are controlled 
-    by settings in kismet.conf:
-    
-    channel_hop=true | false
-    
-        Controls if new sources enable channel hopping.  Because radios can only
-        look at one channel at a time (typically), channel hopping jumps around
-        the known channels.
-    
-        Typically, channel hopping should be turned on.  It can be turned off on
-        individual data sources.
-    
-    channel_hop_speed=channels/sec | channels/min
-    
-        Channel hopping can happen either X times a second, or X times a minute.
-        Slower channel hopping may capture more information on a busy channel, but
-        will miss brief bursts of traffic on other channels; faster channel hopping
-        may see more momentary traffic but will fail to capture complete records.
-    
-        By default, Kismet hops at 5 channels a second.
-    
-        Examples:
-            channel_hop_speed=5/sec
-            channel_hop_speed=10/min
-    
-    split_source_hopping=true | false
-    
-        Kismet can run with multiple interfaces for the same protocol - for instance,
-        two, three, or even more Wi-Fi cards.  Typically it does not make sense to
-        have multiple sources of the same type hopping to the same channel at the
-        same time.  With split-hopping, Kismet will take the channel list for devices
-        of the same type, and start each source at a different part of the channel
-        list, maximizing coverage.
-    
-        Generally there is no reason to turn this off.
-    
+When no options are provided for a data source, the defaults are controlled by settings in kismet.conf; these defaults are applied to all new datasources:
+
+* `channel_hop=true | false`
+   Determine if datasources enable channel hopping.  Because radios can only tune to a single channel at a time (typically, the exceptions are weird enough that you'll only encounter them on specialized non Wi-Fi hardware), Kismet needs to jump the data source around different channels.
+   Typically, channel hopping should be turned on.  You can disable it for specific data sources if you want to zero in on a specific channel with known traffic on it.
+
+* `channel_hop_speed=channels/sec | channels/min`
+   The channel hop speed controls how quickly Kismet hops through the channels.
+   Finding the right balance of channel hop speed can depend on your environment, hardware, and goals.
+   The faster you change channels, the more likely you are to see devices, but the less likely you are to capture useful data streams from them.  Conversely, a slower hopping rate can yield more data, but miss devies which have a very short duty cycle.
+   By default, Kismet hops at 5 channels a second.
+   Examples:
+   ```
+   channel_hop_speed=5/sec
+   channel_hop_speed=10/min
+   ```
+
+* `split_source_hopping=true | false`
+   Kismet supports capturing from multiple data sources at once - for instance, two, three, or a dozen Wi-Fi cards.  Typically it does not make sense to have multiple data sources capturing on the same channel at the same time.
+   With split-hopping, Kismet will take the channel list for devices of the same type and divide it among the number of datasources available, maximizing channel coverage.
+   Generally there is no reason to disable this option.
+
+* `randomized_hopping=true | false`
+   Generally, data sources retreive the list of channels in sequential order.  On some data source types (like Wi-Fi), channels can overlap; hopping in a semi-random order increases the channel coverage by leveraging channel overlap to observe adjacent channels whenever possible.
+   Generally, there is no reason to turn this off.
+
     randomized_hopping=true | false
-    
-        Generally, data sources retrieve the list of channels in sequential order.
-        On some source types (like Wi-Fi), channels can overlap; hopping in a 
-        semi-random order increases channel coverage by using overlap to spy on
-        nearby channels when possible.
-    
-        Generally, there is no reason to turn this off.
-    
-    retry_on_source_error=true | false
-    
-        If true, Kismet will try to re-open a source which is in an error state
-        after five seconds.
-    
-    timestamp=true | false
-    
-        If true, Kismet will override the timestamp of the packet with the 
-        local timestamp of the server; this is the default behavior for
-        remote capture sources but can be turned off either on a per-source
-        basis or by turning it off in kismet.conf
 
 
+* `retry_on_source_error=true | false`
+   Kismet will try to re-open a source which is in an error state after five seconds.  This helps Kismet re-open sources which are disconnected or have a driver error.
+   There is generally no reason to turn this off.
 
-Naming and describing data sources
+* `timestamp=true | false`
+   Typically, Kismet will override the timestamp of the packet with the local timestamp of the server; this is the default behavior for remote data sources, but it can be turned off either on a per-source basis or in `kismet.conf` globabally.
+   Generally the defaults have the proper behavior, especially for remote data sources which may not be NTP time synced with the Kismet server.
 
-    Datasources allow for annotations; these have no role in how Kismet operates,
-    but the information is stored alongside the source definition and is available
-    in the Kismet logs and in the web interface.
-    
-    The following information can be set in a source, but is not required:
-    
-    name=arbtitrary name
-    
-        Gives the source a human-readable name.  This name shows up in the
-        web UI and logs.  This can be extremely useful when running remote
-        captures where multiple interfaces might be enumerated as 'wlan0'
-        for instance.
-    
-        source=wlan0:name=foobar_main_card
-    
-    info_antenna_type=arbitrary string type
-    
-        Denotes the antenna type; this is a string which should have some
-        sort of meaning to you, for example:
-    
-        source=wlan0:info_antenna_type=omni
-    
-    info_antenna_gain=value in dB
-    
-        Antenna gain in dB, for example:
-    
-        source=wlan0:info_antenna_type=omni,info_antenna_gain=5.5
-    
-    info_antenna_orientation=degrees
-    
-        Antenna orientation, if a fixed antenna, in degrees:
-    
-        source=wlan0:info_antenna_orientation=180
-    
-    info_antenna_beamwidth=width in degrees
-    
-        Antenna beamwidth
-    
-        source=wlan0:info_antenna_type=yagi,info_antenna_beamwidth=30
-    
-    info_amp_type=amplifier type
-    
-        Arbitrary string type of amplifier, if one is present:
-    
-        source=wlan0:info_amp_type=custom_duplex
-    
-    info_amp_gain=gain in dB
-    
-        Amplifier gain in dB:
-    
-        source=wlan0:info_amp_gain=20
+### Naming and describing data sources
 
+Datasources allow for annotations; these have no role in how Kismet operates, but the information is stored alongside the source definition and is available in the Kismet logs and in the web interface.
 
-    Kismet will attempt to open all the sources defined on the command line 
-    (with the '-c' option), or if no sources are defined on the command line, 
-    all the sources defined in the Kismet config files.
-    
-    If a source has no functional type and encounters an error on startup,
-    it will be ignored - for instance if a source is defined as:
-        source=wlx4494fcf30eb3
-    
-    and that device is not connected when Kismet is started, it will be ignored.
-    
-    However, if the type is known, for instance:
-        source=wlx4494fcf30eb3:type=linuxwifi
-    
-    then Kismet will know how to re-start it in the future, and will detect when
-    the device is plugged in.
+The following information can be set in a source, but is not required:
 
+* `name=arbitrary name`
+   Give the source a human-readable name.  This name shows up in the web UI and the Kismet log files.  This can be extremely useful when running remote capture where multiple sensors might all have `wlan0`, or simply to give interfaces a more descriptive name.
+   ```
+   source=wlan0:name=foobar_some_sensor
+   ```
 
-​    
-Datasource: Linux Wi-Fi
+* `info_antenna_type=arbitrary antenna type`
+   Give the source a human-readable antenna type.  This type shows up in the logs.
+   ```
+   source=wlan0:name=foobar,info_antenna_type=omni
+   ```
 
-    Most likely this will be the main data source most people use when capturing
-    with Kismet.
-    
-    The Linux Wi-Fi data source handles capturing from Wi-Fi interfaces using the
-    two most recent Linux standards:  The new netlink/mac80211 standard present
-    since approximately 2007, and the legacy ioctl-based IW extensions system
-    present since approximately 2002.
-    
-    Packet capture on Wi-Fi is accomplished via "monitor mode", a special mode 
-    where the card is told to report all packets seen, and to report them at
-    the 802.11 link layer instead of emulating an Ethernet device.
-    
-    The Linux Wi-Fi source will auto-detect supported interfaces by querying the
-    network interface list and checking for wireless configuration APIs.  It
-    can be manually specified with 'type=linuxwifi':
-    
-        source=wlan1:type=linuxwifi
-    
-    The Linux Wi-Fi capture uses the 'kismet_cap_linux_wifi' tool, and should
-    typically be installed suid-root:  Linux requires root to manipulate the
-    network interfaces and create new ones.
-    
-    Example source definitions:
-        source=wlan0
-        source=wlan1:name=some_meaningful_name
-    
-    Supported Hardware
-    
-    Not all hardware and drivers support monitor mode, but the majority do.  
-    Typically any driver shipped with the Linux kernel supports monitor mode,
-    and does so in a standard way Kismet understands.  If a specific piece of 
-    hardware does not have a Linux driver yet, or does not have a standard driver 
-    with monitor mode support, Kismet will not be able to use it.
-    
-    The Linux Wi-Fi source is known to support, among others:
-        - All Atheros-based cards (ath5k, ath9k, ath10k with some restrictions, 
-          USB-based atheros cards like the AR9271) (* Some issues)
-        - Modern Intel-based cards (all supported by the iwlwifi driver including
-          the 3945, 4965, 7265, 8265 and similar) (* Some issues)
-        - Realtek USB devices (rtl8180 and rtl8187, such as the Alfa AWUS036H)
-        - Realtek USB 802.11AC (rtl8812au), with some restrictions
-        - Realtek USB 802.11AC (rtl8814), with some restrictions
-        - RALink rt2x00 based devices
-        - ZyDAS cards
-        - Almost all drivers shipped with the Linux kernel
-    
-    Devices known to have issues:
-        - ath9k Atheros 802.11abgn cards are typically the most reliable, however
-          they appear to return false packets with valid checksums on very small
-          packets such as phy/control and powersave control packets.  This may
-          lead Kismet to detect spurious devices not actually present.
-        - ath10k Atheros 802.11AC cards have many problems, including floods of
-          spurious packets in monitor mode.  These packets carry 'valid' checksum
-          flags, making it impossible to programmatically filter them.  Expect
-          large numbers of false devices.
-        - iwlwifi Intel cards appear to have errors when tuning to HT40 and VHT
-          channels, leading to microcode/firmware crashes and resets of the card.
-          Kismet works around this by disabling HT and VHT channels and only
-          tuning to stock channels.
-        - rtl8812au Realtek 802.11AC cards, such as the Alfa 802.11AC USB cards,
-          have no in-kernel drivers.  There are many variants of the out-of-kernel
-          driver, however most do NOT support monitor mode.
-          A variant of the one driver currently known to work in monitor mode,
-          with patches to compile on modern kernels, is available at:
-          https://github.com/aircrack-ng/rtl8812au.git
-    
-    It will NOT work with:
-        - Raspberry Pi 3 or ZeroW built-in Wi-Fi using standard drivers.  The Broadcom
-          embedded firmware does not support monitor mode.  It may be possible
-          to get it working with the Nexmon driver project, available at: 
-              https://github.com/seemoo-lab/nexmon
-          The Kali distribution for the Raspberry Pi3 and Raspberry Pi 0W includes
-          the nexmon patches and should work fine.
-        - Most out-of-kernel drivers installed by a distribution outside of
-          the normal kernel driver set.  Some distributions (raspbian for instance)
-          package custom drivers for many of the cheaper USB Wi-Fi adapters, and
-          these drivers do not support monitor mode.
-    
-    Many more devices should be supported - if yours isn't listed and works, let
-    us know via Twitter (@kismetwireless).  
+* `info_antenna_gain=value in dB`
+   Antenna gain in dB.  This gain is saved in the Kismet logs that describe the datasources.
+   ```
+   source=wlan0:name=foobar,info_antenna_type=omni,info_antenna_gain=5.5
+   ```
+   
+* `info_antenna_orientation=degrees`
+   Antenna orientation, in degrees.  This is useful for a fixed antenna deployment where different sources have physical coverage areas.
+   ```
+   source=wlan0:name=foobar,info_antenna_orientation=180
+   ```
+   
+* `info_antenna_beamwidth=width in degrees`
+   Antenna beamwidth in degrees.  This is useful for annotating sources with fixed antennas with specific beamwidths, like sector antennas.
+   ```
+   source=wlan0:info_antenna_type=sector,info_antenna_beamwidth=30
+   ```
+   
+* `info_amp_type=amplifier type`
+   Arbitrary human-readable type of amplifier, if one is present:
+   ```
+   source=wlan0:info_amp_type=custom_duplex
+   ```
 
+* `info_amp_gain=gain in dB`
+   Amplifier gain, if any:
+   ```
+   source=wlan0:info_amp_type=custom_duplex,info_amp_gain=20
+   ```
 
-​    
-    Wi-Fi Channels
+#### Setting source IDs
+Typically Kismet generates a UUID based on attributes of the source - the interface MAC address if the datasource is linked to a physical interface, the devices position in the USB bus, or some other consistent identifier.
+To override the UUID generation, the `uuid=...` parameter can be set:
+```
+source=wlan0:name=foo,uuid=AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE
+```
+If you are assigning custom UUIDs, you **must ensure** that every UUID is **unique**.  Each data source **must have** its own unique identifier.
+
+### Multiple Kismet Datasources
+
+Kismet will attempt to open all the sources defined on the command line (with the `-c` option), or if no sources are defined on the command line, all the sources defined in the Kismet config files.
     
-    Wi-Fi channels in Kismet define both the basic channel number, and extra channel
-    attributes such as 802.11N 40MHz channels, 802.11AC 80MHz and 160MHz channels,
-    and non-standard half and quarter rate channels at 10MHz and 5MHz.
+If a source has no functional type and encounters an error on startup, it will be ignored - for instance if a source is defined as:
+   ```
+   source=wlx4494fcf30eb3
+   ```
+and that device is not connected when Kismet is started, it will raise an error but will be ignored.
+
+To force Kismet to try to open a device which could not be found at startup, you will need to provide the source type; for instance, the same source defined with the type field:
+   ```
+   source=wlx4494fcf30eb3:type=linuxwifi
+   ```
+will continually try to re-open the device.
+
+### Wi-Fi
+
+#### Wi-Fi Channels
+
+Wi-Fi channels in Kismet define both the basic channel number, and extra channel attributes such as 802.11N 40MHz channels, 802.11AC 80MHz and 160MHz channels, and non-standard half and quarter rate channels at 10MHz and 5MHz.
     
-    Kismet will auto-detect the supported channels on most Wi-Fi cards.  Monitoring
-    on HT40, VHT80, and VHT160 requires support from your card.
+Kismet will auto-detect the supported channels on most Wi-Fi cards.  Monitoring on HT40, VHT80, and VHT160 requires support from your card.
     
-    Channels can be defined by number or by frequency.
+Channels can be defined by number or by frequency.
+
+| Definition | Interpretation                                               |
+| ---------- | ------------------------------------------------------------ |
+| xx         | Basic 20MHz channel, such as `6` or `153`                    |
+| xxxx       | Basic 20MHz frequency, such as `2412`                        |
+| xxHT40+    | 40MHz 802.11n with upper secondary channel, such as `6HT40+` |
+| xxHT40-    | 40MHz 802.11n with lower secondary channel, such as `6HT40-` |
+| xxVHT80    | 80MHz 802.11ac channel, such as `116VHT80`                   |
+| xxVHT160   | 160MHz 802.11ac channel, such as `36VHT160`                  |
+| xxW10      | 10MHz half-channel, a non-standard channel type supported on some Atheros devices.  This cannot be automatically detected, you must manually add it to the channel list for a source. |
+| xxW5       | 5MHz quater-channel, a non-standard channel type supported on some Atheros devices.  This cannot be automatically detected, you must manually add it to the channel list for a source. |
+
+#### Datasource: Linux Wi-Fi
+
+Most likely this will be the main data source most people use when capturing with Kismet.
     
-        XX          20MHz channel, such as '6' or '153'
-        XXXX        20MHz frequency, such as '2412'
-        XXHT40+     40MHz, 802.11N/AC, upper secondary, such as '6HT40+' or '2412HT40+'
-        XXHT40-     40MHz, 802.11N/AC, lower secondary, such as '53HT40-'
-        XXVHT80     80MHz, 802.11AC, 80MHz wide AC channel, such as '116VHT80'
-        XXVHT160    160MHz, 802.11AC, 160MHz wide AC channel, '36VHT160'
-        XXW10       10MHz half-channel, supported on some Atheros cards and few others.
-                    Not auto-detected and must be manually added.
-        XXW5        5MHz quarter-channel, supported on some Atheros cards and few others.
-                    Not auto-detected and must be manually added.
+The Linux Wi-Fi data source handles capturing from Wi-Fi interfaces using the two most recent Linux standards:  The new netlink/mac80211 standard present since approximately 2007, and the legacy ioctl-based IW extensions system present since approximately 2002.
     
-    Wi-Fi Source Parameters
+Packet capture on Wi-Fi is accomplished via "monitor mode", a special mode where the card is told to report all packets seen, and to report them at the 802.11 link layer instead of emulating an Ethernet device.
     
-    Linux Wi-Fi sources accept several options in the source definition:
+The Linux Wi-Fi source will auto-detect supported interfaces by querying the network interface list and checking for wireless configuration APIs.  It can be manually specified with `type=linuxwifi`:
+   ```
+   source=wlan1:type=linuxwifi
+   ```
+
+The Linux Wi-Fi capture uses the 'kismet_cap_linux_wifi' tool, and should
+typically be installed suid-root:  Linux requires root to manipulate the
+network interfaces and create new ones.
     
-    add_channels="channel list"
+Example source definitions:
+   ```
+   source=wlan0
+   source=wlan1:name=some_meaningful_name
+   ```
+
+#### Supported Hardware
+
+Not all hardware and drivers support monitor mode, but the majority do.  Typically any driver shipped with the Linux kernel supports monitor mode, and does so in a standard way Kismet understands.  If a specific piece of hardware does not have a Linux driver yet, or does not have a standard driver with monitor mode support, Kismet will not be able to use it.
     
-        A comma-separated list of channels to be added to the detected channels on
-        this source.  Kismet will auto-detect channels, then append any channels
-        from this list.
+The Linux Wi-Fi source is known to support, among others:
+* All Atheros-based cards (ath5k, ath9k, ath10k with some restrictions,  USB-based atheros cards like the AR9271) (* Some issues)
+* Modern Intel-based cards (all supported by the iwlwifi driver including the 3945, 4965, 7265, 8265 and similar) (* Some issues)
+* Realtek USB devices (rtl8180 and rtl8187, such as the Alfa AWUS036H)
+* Realtek USB 802.11AC (rtl8812au, rtl8814), with *the proper drivers*.  There are no in-kernel drivers for these cards.  There are multiple forks of the out-of-kernel tree, with varying levels of support for monitor mode and injection; the most likely to work is the variant maintained by the Aircrack-NG team, which can be found at https://github.com/aircrack-ng/rtl8812au.git
+* RALink rt2x00 based devices
+* ZyDAS cards
+* Broadcom cards such as those found in the Raspberry Pi 3 and Raspberry Pi 0W, *if you are using the nexmon drivers*.  It is not posisble to use Kismet with the *default drivers* from Raspbian or similar distributions.
+   The Kali distribution for the Raspberry Pi *includes the nexmon patches already* and will work.
+   To patch your own distribution with nexmon, consult the nexmon site at: https://github.com/seemoo-lab/nexmon
+* Almost all drivers shipped with the Linux kernel
+  
+Devices known to have issues:
+* ath9k Atheros 802.11abgn cards are typically the most reliable, however they appear to return false packets with valid checksums on very small packets such as phy/control and powersave control packets.  This may lead Kismet to detect spurious devices not actually present.
+* ath10k Atheros 802.11AC cards have many problems, including floods of spurious packets in monitor mode.  These packets carry 'valid' checksum flags, making it impossible to programmatically filter them.  Expect large numbers of false devices.  It appears this will require a fix to the closed-source Atheros firmware to resolve.
+* iwlwifi Intel cards appear to have errors when tuning to HT40 and VHT channels, leading to microcode/firmware crashes and resets of the card. Kismet works around this by disabling HT and VHT channels and only tuning to basic channels.  This means you will miss data packets from 11n and 11ac networks.
+
+Kismet generally *will not work* with most other out-of-kernel (drivers not shipped with Linux itself), specifically drivers such as the SerialMonkey RTL drivers used for many of the cheap, tiny cards shipped with devices like the Raspberry Pi and included in distributions like Raspbian.  Some times it's possible to find other, supported drivers for the same hardware, however some cards have no working solution.
+
+Many more devices should be supported - if yours isn't listed and works, let us know via Twitter (@kismetwireless).  
+
+##### Linux Wi-Fi Source Parameters
+Linux Wi-Fi sources accept several options in the source definition, in addition to the common name, informational, and UUID elements:
+
+* `add_channels="channel1,channel2,channel3"`
+   A comma-separated list of channels *that will be appended* to the detected list of channels on a data source.  Kismet will autodetect supported channels, then include channels in this list.
+   The list of channels *must be enclosed in quotes*, as in:
+   ```
+   source=wlan0:add_channels="1W5,6W5,36W5",name=foo
+   ```
+   If you are configuring the list of Kismet sources from the command line, you will need to escape the quotes or the shell will try to interpret them incorrectly:
+   ```bash
+   $ kismet -c wlan0:add_channels=\"1W5,6W5\",name=foo
+   ```
+   This option is most useful for including special channels which are not auto-detected, such as the 5MHz and 10MHz custom Atheros channels.
+
+* `channel=channel definition`
+   When channel hopping is disabled, set the channel the card monitors.
+   ```
+   source=wlan0:name=foo,channel=6
+   ```
+   
+* `channels="channel,channel,channel"`
+   Override the autodetected channel list and provide a fixed list.  Unlike `add_channels` this *replaces* the list of channels Kismet would normally use.
+   This must be quoted, as in:
+   ```
+   source=wlan0:name=foo,channels="1,6,36,11HT40-"
+   ```
+   If you are defining the Kismet sources from the command line, you will need to escape the quotes or the shell will try to interpret them incorrectly:
+   ```bash
+   $ kismet -c wlan0:name="foo",channels=\"1,6,36,11HT40-\"
+   ```
+   
+* `channel_hop=true | false`
+   Enable or disable channel hopping on this source only.  If this option is omitted, Kismet will use the default global channel hopping configuration.
+
+* `channel_hoprate=channels/sec | channels/min`
+   Control the per-source channel hop rate.  If this option is omitted, Kismet will use the default global channel hop rate.
+
+* `fcsfail=true | false`
+   Wi-Fi packets contain a `frame checksum` or `FCS`.  Some drivers report this as the FCS bytes, while others report it as a flag in the capture headers which indicates if the packet was received correctly.
+   Generally packets which fail the FCS checksum are garbage - they are packets which are corrupted, usually due to in-air collisions with other packets.  These can be extremely common in busy wireless environments.
+   Usually there is no reason to set this option unless you are doing specific research on non-standard pacets and hope to glean some information from corrupted packets.
+
+* `ht_channels=true | false`
+   Kismet will detect and tune to HT40 channels when available; to disable this, set `ht_channels=false` on your source definition.
+   Kismet will automatically disable HT channels on some devices such as the Intel iwlwifi drivers because it is known to cause problems; if you want to force Kismet to attempt HT tuning on these devices, set `ht_channels=true` to force it.  **WARNING**: This causes firmware crashes currently on all tested Intel cards.
+   See the `vht_channels` option for similar control over 80MHz and 160MHz VHT channels.
+
+* `ignoreprimary=true | false`
+   Linux mac80211 drivers use `virtual interfaces` or `VIFs` to set different interface modes and behaviors:  A single Wi-Fi card might have `wlan0` as the "normal" (or "managed") Wi-Fi interface; Kismet would then create `wlan0mon` as the monitor-mode capture interface.
+   Typically, all non-monitor interfaces must be disabled (set to `down` state) for capture to work reliably and for channel setting (and channel hopping) to function.
+   In the rare case where you are attempting to run Kismet on the same interface as an access point or client, you will want to leave the base interface configured and running (while losing the ability to channel hop); by settng `ignoreprimary=true` on your Kismet source line, Kismet will no longer bring down any related interface on the same Wi-Fi card.
+   This **almost always** must be combined with also setting `hop=false` because channel control is not possible in this configuration, and depending on the Wi-Fi card type, may prevent proper data capture.
+
+* `plcpfail=true | false`
+   Some drivers have the ability to report data that *looked* like a packet, but which have invalid radio-level packet headers (the Wi-Fi `PLCP` which is not typically exposed to the capture layer).  Generally these events have no meaning, and few drivers are able to report them.
+   Usually there is no good reason to turn this on, unless you are doing research attempting to capture Wi-Fi-like data.
+
+* `vif=foo`
+   Many drivers use `virtual interfaces` or `VIFs` to control behavior.  Kismet will make a monitor mode virtual interface (vif) automatically, named after some simple rules:
+   * If the interface given to Kismet on the source definition is already in monitor mode, Kismet will use that interface and not create a VIF
+   * If the interface name is too long, such as when some distributions use the entire MAC address as the interface name, Kismet will make a new interface named `kismonX`
+   * Otherwise, Kismet will add `mon` to the interface; ie given an interface `wlan0`, Kismet will create `wlan0mon`
+   
+   The `vif=` option allows setting a custom name which will be used instead of generating the monitor interface name.
+   
+* `vht_channels=true | false`
+   Kismet will tune to VHT80 and VHT160 channels when available; `vht_channels=false` will exclude them from this list.
+   Kismet will automatically exclude VHT channels from devices known to have probems tuning to them, specifically the Intel `iwlwifi` drivers will crash when tuning to VHT channels.  To *force* Kismet to include VHT channels on these devices, set `vht_channels=true` on your source.  **WARNING**: This will cause firmware resets on all currently tested Intel Wi-Fi cards!
+   See the ht_channels option for similar control over HT40 channels.
+   
+* `retry=true | false`
+   Automatically try to re-open this interface if an error occurs.  If the capture source encounters a fatal error, Kismet will try to re-open it in five seconds.  If this is omitted, the source will use the global retry option.
+
+##### Special Linux Wi-Fi Drivers
+Some drivers require special behavior - whenever possible, Kismet will detect these drivers and "do the right thing".
+
+* The rtl8812 and rtl8814 drivers (available at https://github.com/aircrack-ng/rtl8812au.git) support monitor mode, however they do not properly implement the mac80211 control layer; while they support creating VIFs for monitor mode, they do not actualy provide packets.  Kismet will detect the `8812au` and `8814` drivers and configure the base interface in monitor mode using legacy ioctls.
+* The nexmon driver patches for Broadcom devices do not enter monitor mode normally; Kismet will detect the drivers and use the nexmon-custom ioctls.
+
+#### Data source: OSX Wifi
+Kismet can use the built-in Wi-Fi on a Mac, but ONLY the built-in Wi-Fi; Unfortunately currently there appear to be no drivers for OSX for USB devices which support monitor mode.
     
-        This list MUST BE IN QUOTES, for example:
+Kismet uses the `kismet_cap_osx_corewlan_wifi` tool for capturing on OSX.
     
-            source=wlan0:name=foo,add_channels="1W5,6W5",hop_rate=1/sec
-    
-        If you are providing this list via the command line '-c' option,
-        you will need to escape the quotes to keep your shell from hiding them,
-        for example:
-    
-            $ kismet -c wlan0:name=foo,add_channels=\"1W5,6W5\",hop_rate=1/sec
-    
-        This option is most useful for including non-standard channels supported
-        by some interfaces, such as 5 and 10MHz wide channels on Atheros cards.
-    
-    channel=channel-def
-    
-        When channel hopping is disabled, set a specific channel.
-    
-    channels="channel list"
-    
-        A comma-separated list of channels to be used on this source, instead of
-        the default channels automatically detected. 
-    
-        This list MUST BE IN QUOTES, for example:
-    
-            source=wlan0:name=foo,channels="1,2,6HT40+,53,57",hop_rate=1/sec
-    
-        If you are providing this source via the command line '-c' option, you
-        will need to escape the quotes to keep your shell from hiding them,
-        for example:
-    
-            $ kismet -c wlan0:name=foo,channels=\"1,2,6HT40+,53\",hop_rate=1/sec
-    
-        You may specify channels which are not detected by the source probe, however
-        if the source cannot tune to them, there will be errors.
-    
-    channel_hop=true | false
-    
-        Enable channel hopping on this source.  If this is omitted, the source
-        will use the global hopping option.
-    
-    channel_hoprate=channels/sec | channels/min
-    
-        Like the global channel_hop_rate configuration option, this sets the 
-        speed of channel hopping on this source only.  If this is omitted,
-        the source will use the global hop rate.
-    
-    fcsfail=true | false
-    
-        Mac80211-based drivers sometimes have the option to report packets 
-        which do not pass the frame checksum, or FCS.  Generally these packets
-        are garbage - they are packets which, due to in-air corruption due to
-        collisions with other packets, have become corrupt.
-    
-        Usually there is no good reason to turn this on unless you are doing
-        research on non-standard packets and hope to glean some sort of
-        information from them.
-    
-    ht_channels=true | false
-    
-        Kismet will tune to HT40 channels when available; to disable this 
-        behavior, set ht_channels to false and Kismet will no longer index
-        HT40+ and HT40- variants in the autodetected channel list.
-    
-        This option may also be used to override Kismet disabling HT channels
-        on some drivers where there have been known problems, such as 
-        Intel iwlwifi; to FORCE Kismet to use HT40 channels, set ht_channels=true.
-        WARNING: This causes firmware resets on all currently known Intel cards!
-    
-        See the vht_channels option for similar control over 80 and 160MHz channels.
-    
-    ignoreprimary=true | false
-    
-        mac80211-based drivers use multiple virtual interfaces to control
-        behavior:  A single Wi-Fi interface might have 'wlan0' as the 
-        "normal" Wi-Fi interface, and Kismet would make 'wlan0mon' as the
-        capture interface.
-    
-        Typically, all non-monitor interfaces must be placed into a "down"
-        state for capture to work reliably, or for channel hopping to work.
-    
-        In the rare case where you are attempting to run Kismet on the same
-        interface as another mode (such as access point or client), you 
-        may want to leave the base interface running.  If you set 
-        "ignoreprimary=true" on the source, Kismet will not bring down the
-        primary interface.
-    
-        This *almost always* must be combined with "hop=false" or setting
-        channels will fail.
-    
-    plcpfail=true | false
-    
-        mac80211-based drivers sometimes have the ability to report events
-        that may have looked like packets, but which have invalid low-level
-        packet headers (PLCP).  Generally these events have no meaning, and
-        very few drivers are able to report them.
-    
-        Usually there is no good reason to turn this on, unless you are 
-        doing research attempting to capture Wi-Fi-like encoded data which
-        is not actually Wi-Fi.
-    
-    uuid=AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE
-    
-        Assign a custom UUID to this source.  If no custom UUID is provided,
-        a UUID is computed from the MAC address and the name of the datasource
-        capture engine; the auto-generated UUID will be consistent as long as
-        the MAC address of the capture interface remains the same.
-    
-        If you are assigning custom UUIDs, you *must ensure* that every UUID
-        is *unique*.  Each data source must have its own unique identifier.
-    
-    vif=foo
-    
-        mac80211-based drivers use multiple virtual interfaces to control 
-        behavior.  Kismet will make a monitor mode virtual interface (vif)
-        automatically, named after some simple rules:
-            - If the interface given to Kismet on the source definition is
-              already in monitor mode, Kismet will use that interface and
-              not create a VIF
-            - If the interface name is too long, such as when some 
-              distributions use the entire MAC address as the interface name,
-              Kismet will make a new interface named 'kismonX'
-            - Otherwise, Kismet will add 'mon' to the interface; ie given an
-              interface 'wlan0', Kismet will create 'wlan0mon'
-    
-        The 'vif=' option allows setting a custom name which will be used
-        instead of creating a name.
-    
-    vht_channels=true | false
-    
-        Kismet will tune to VHT80 and VHT160 channels when available; to disable 
-        this behavior, set vht_channels to false and Kismet will no longer index
-        VHT80 and VHT160 variants in the autodetected channel list.
-    
-        This option may also be used to override Kismet disabling VHT channels
-        on some drivers where there have been known problems, such as 
-        Intel iwlwifi; to FORCE Kismet to use VHT channels, set vht_channels=true.
-        WARNING: This causes firmware resets on all currently known Intel cards!
-    
-        See the ht_channels option for similar control over HT40 channels.
-    
-    retry=true | false
-        
-        Automatically try to re-open this interface if an error occurs.  If the
-        capture source encounters a fatal error, Kismet will try to re-open it in
-        five seconds.  If this is omitted, the source will use the global retry
-        option.
+##### OSX Wi-fi Parameters
+
+OSX Wi-Fi sources support the standard options supported by all sources (such as name, uuid, and informational elements) as well as:
+* `channels="channel,channel,channel"`
+   Override the autodetected channel list and provide a fixed list.  Unlike `add_channels` this *replaces* the list of channels Kismet would normally use.
+   This must be quoted, as in:
+   ```
+   source=wlan0:name=foo,channels="1,6,36,11HT40-"
+   ```
+   If you are defining the Kismet sources from the command line, you will need to escape the quotes or the shell will try to interpret them incorrectly:
+   ```bash
+   $ kismet -c wlan0:name="foo",channels=\"1,6,36,11HT40-\"
+   ```
+   
+* `channel_hop=true | false`
+   Enable or disable channel hopping on this source only.  If this option is omitted, Kismet will use the default global channel hopping configuration.
+
+* `channel_hoprate=channels/sec | channels/min`
+   Control the per-source channel hop rate.  If this option is omitted, Kismet will use the default global channel hop rate.
 
 
-    Special Drivers
-    
-    Some drivers require special behavior - whenever possible, Kismet will detect
-    these drivers and "do the right thing".
-    
-    - The rtl8812au driver (available at https://github.com/astsam/rtl8812au)
-      supports monitor mode on these interfaces, however it appears to be 
-      very timing sensitive.  Additionally, it supports creating mac80211 VIFs,
-      but does NOT support capturing using them!  It will only support capturing
-      from the base interface, which must be placed in monitor mode using
-      the legacy ioctls.
-    
-      Additionally, the rtl8812au will sometimes refuse to tune to channels it
-      reports as supported - other times it works as expected.  Kismet will continue
-      despite intermittent errors.
+### Datasource: Linux Bluetooth
 
+Bluetooth uses a frequency-hopping system with dynamic MAC addresses and other oddities - this makes sniffing it not as straightforward as capturing Wi-Fi.
 
+Currently the Kismet implementation of Bluetooth discovery uses the Linux HCI layer to perform device scans to detect dicoverable Bluetooth Classic devices and BTLE devices; this is an active scan, not passive monitoring.
+    
+The Linux Bluetooth source will auto-detect supported interfaces by querying the bluetooth interface list.  It can be manually specified with `type=linuxbluetooth`.
+    
+The Linux Bluetooth capture uses the 'kismet_cap_linux_bluetooth' tool, and should typically be installed suid-root:  Linux requires root to manipulate the `rfkill` state and the management socket of the Bluetooth interface.
+    
+#### Example source
+```
+source=hci0:name=linuxbt
+```
 
-Datasource: Linux Bluetooth
+#### Supported Hardware
 
-    Bluetooth uses a frequency-hopping system with dynamic MAC addresses and other
-    oddities - this makes sniffing it not as straightforward as capturing Wi-Fi.
+For simply identifying Bluetooth (and BTLE) devices, the Linux Bluetooth  datasource can use any standard Bluetooth interface supported by Linux.
     
-    The Linux Bluetooth source will auto-detect supported interfaces by querying the
-    bluetooth interface list.  It can be manually specified with 'type=linuxbluetooth'.
+This includes almost any built-in Bluetooth interface, as well as external USB interfaces such as the Sena UD100.
     
-    The Linux Bluetooth capture uses the 'kismet_cap_linux_bluetooth' tool, and should
-    typically be installed suid-root:  Linux requires root to manipulate the
-    'rfkill' state and the management socket of the Bluetooth interface.
-    
-    Example source
-    
-        source=hci0:name=linuxbt
-    
-    Supported Hardware
-    
-    For simply identifying Bluetooth (and BTLE) devices, the Linux Bluetooth 
-    datasource can use any standard Bluetooth interface supported by Linux.
-    
-    This includes almost any built-in Bluetooth interface, as well as external
-    USB interfaces such as the Sena UD100.
-    
-    Service Scanning
-    
-    By default, the Kismet Linux Bluetooth data source turns on the Bluetooth
-    interface and enables scanning mode.  This allows it to see broadcasting
-    Bluetooth (and BTLE) devices and some basic information such as the device
-    name, but does not allow it to index services on the device.
-    
-    Bluetooth Source Parameters
-    
-    uuid=AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE
-    
-        Assign a custom UUID to this source.  If no custom UUID is provided,
-        a purely random UUID is generated.
+#### Service Scanning
 
+By default, the Kismet Linux Bluetooth data source turns on the Bluetooth interface and enables scanning mode.  This allows it to see broadcasting Bluetooth (and BTLE) devices and some basic information such as the device name, but does not allow it to index services on the device.
 
-
-Data source: OSX Wifi
-
-    Kismet can use the built-in Wi-Fi on a Mac, but ONLY the built-in Wi-Fi;
-    Unfortunately currently there appear to be no drivers for OSX for USB
-    devices which support monitor mode.
+Complex service scanning and enumeration will be coming in a future revision.
     
-    Kismet uses the kismet_cap_osx_corewlan_wifi tool for capturing on OSX.
-    
-    OSX Wifi Parameters
-    
-    channel=channel-def
-    
-        When channel hopping is disabled, set a specific channel.
-    
-    channels="channel list"
-    
-        A comma-separated list of channels to be used on this source, instead of
-        the default channels automatically detected. 
-    
-        This list MUST BE IN QUOTES, for example:
-    
-            source=en1:name=foo,channels="1,2,6HT40+,53,57",hop_rate=1/sec
-    
-        If you are providing this source via the command line '-c' option, you
-        will need to escape the quotes to keep your shell from hiding them,
-        for example:
-    
-            $ kismet -c en1:name=foo,channels=\"1,2,6HT40+,53\",hop_rate=1/sec
-    
-        You may specify channels which are not detected by the source probe, however
-        if the source cannot tune to them, there will be errors.
-    
-    channel_hop=true | false
-    
-        Enable channel hopping on this source.  If this is omitted, the source
-        will use the global hopping option.
-    
-    channel_hoprate=channels/sec | channels/min
-    
-        Like the global channel_hop_rate configuration option, this sets the 
-        speed of channel hopping on this source only.  If this is omitted,
-        the source will use the global hop rate.
-
-
+#### Bluetooth Source Parameters
+Linux Bluetooth sources support all the common configuration options such as name, information elements, and UUID.
 
 Data source: Pcapfile
 
