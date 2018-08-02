@@ -1386,7 +1386,9 @@ if test "$linux" = "yes"; then
         AC_CHECK_LIB([sensors], [sensors_init],
     			HAVE_LIBLMSENSORS=1,
                 AC_MSG_WARN([libsensors not available]))
-        LIBS="$LIBS -lsensors"
+        if test "$HAVE_LIBLMSENSORS" = 1; then
+            LIBS="$LIBS -lsensors"
+        fi
     else
         LMSENSORS_MISSING_REASON="Missing sensors/sensors.h"
     fi

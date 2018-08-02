@@ -12444,7 +12444,9 @@ else
 $as_echo "$as_me: WARNING: libsensors not available" >&2;}
 fi
 
-        LIBS="$LIBS -lsensors"
+        if test "$HAVE_LIBLMSENSORS" = 1; then
+            LIBS="$LIBS -lsensors"
+        fi
     else
         LMSENSORS_MISSING_REASON="Missing sensors/sensors.h"
     fi
