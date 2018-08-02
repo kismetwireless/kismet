@@ -68,6 +68,9 @@ class KismetRtl433(object):
         # We're usually not remote
         self.proberet = None
 
+        # Do we have librtl?
+        self.have_librtl = False
+
         if not self.mqtt_mode:
             self.driverid = "rtl433"
             # Use ctypes to load librtlsdr and probe for supported USB devices
@@ -80,11 +83,9 @@ class KismetRtl433(object):
                 self.rtl_get_device_name.restype = ctypes.c_char_p
                 self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
                 self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+                self.have_librtl = True
             except OSError:
-                print("kismet_cap_sdr_rtl433: Unable to find librtlsdr; make sure both librtlsdr and ")
-                print("rtl_433 are installed.")
-    
-                sys.exit(1)
+                self.have_librtl = False
         else:
             self.driverid = "rtl433mqtt"
 
@@ -309,6 +310,10 @@ class KismetRtl433(object):
             ret['hardware'] = "MQTT"
             ret['uuid'] = self.__get_mqtt_uuid(options)
         else:
+            # Do we have librtl?
+            if not self.have_librtl:
+                return None
+
             if self.mqtt_mode:
                 return None
 
@@ -354,6 +359,11 @@ class KismetRtl433(object):
 
             self.mqtt_mode = True
         else:
+            if not self.have_librtl:
+                ret["success"] = False
+                ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
+                return ret
+
             try:
                 intnum = int(source[7:])
             except ValueError:
