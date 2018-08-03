@@ -53,7 +53,6 @@ class KismetRtl433(object):
 
         self.opts['rtlbin'] = 'rtl_433'
         self.opts['channel'] = "433.920MHz"
-        self.opts['frequency'] = None
         self.opts['gain'] = None
         self.opts['device'] = None
 
@@ -179,17 +178,17 @@ class KismetRtl433(object):
         """ Internal thread for running the rtl binary """
         cmd = [ self.opts['rtlbin'], '-F', 'json' ]
 
-        if not self.opts['device'] is None:
+        if self.opts['device'] is not None:
             cmd.append('-d')
             cmd.append("{}".format(self.opts['device']))
 
-        if not self.opts['gain'] is None:
+        if self.opts['gain'] is not None:
             cmd.append('-g')
             cmd.append("{}".format(self.opts['gain']))
 
-        if not self.opts['frequency'] is None:
+        if self.opts['channel'] is not None:
             cmd.append('-f')
-            cmd.append("{}".format(self.opts['frequency']))
+            cmd.append("{}".format(self.opts['channel']))
 
         seen_any_valid = False
         failed_once = False
@@ -375,6 +374,9 @@ class KismetRtl433(object):
                 ret["success"] = False
                 ret["message"] = "Could not find rtl-sdr device {}".format(intnum)
                 return ret
+
+            if 'channel' in options:
+                self.opts['channel'] = options['channel']
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
             ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
