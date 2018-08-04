@@ -68,7 +68,7 @@ extern "C" {
 #endif
 }
 
-static int packetnum = 0;
+// static std::atomic<int> packetnum {0};
 
 // Convert the beacon interval to # of packets per second
 unsigned int Ieee80211Interval2NSecs(int in_interval) {
@@ -753,7 +753,7 @@ int Kis_80211_Phy::LoadWepkeys() {
 // Common classifier responsible for generating the common devices & mapping wifi packets
 // to those devices
 int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
-    packetnum++;
+    // packetnum++;
 
     Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
 
@@ -888,9 +888,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (bssid_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi access point " << 
-                    bssid_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi access point {}",
+                        bssid_dev->get_macaddr().Mac2String());
 
                 bssid_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -946,9 +945,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (source_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    source_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
+                        source_dev->get_macaddr().Mac2String());
 
                 source_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1001,9 +999,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (dest_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    dest_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
+                        dest_dev->get_macaddr().Mac2String());
 
                 dest_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1144,9 +1141,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (bssid_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    bssid_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
+                        bssid_dev->get_macaddr().Mac2String());
 
                 bssid_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1216,9 +1212,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (source_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    source_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
+                        source_dev->get_macaddr().Mac2String());
 
                 source_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1319,9 +1314,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (dest_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    dest_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
+                        dest_dev->get_macaddr().Mac2String());
 
                 dest_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1378,9 +1372,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (other_dot11 == NULL) {
-                newdevstr << "Detected new 802.11 Wi-Fi device " << 
-                    other_dev->get_macaddr().Mac2String() << " packet " << packetnum;
-                _MSG(newdevstr.str(), MSGFLAG_INFO);
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
+                        other_dev->get_macaddr().Mac2String());
 
                 dest_dot11 =
                     std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
