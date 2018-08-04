@@ -895,9 +895,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 }
 
                                 if (dt_order_dir == 0)
-                                    return SortTrackerElementLess(fa, fb);
+                                    return FastSortTrackerElementLess(fa, fb);
 
-                                return SortTrackerElementLess(fb, fa);
+                                return FastSortTrackerElementLess(fb, fa);
                         });
                     }
 
@@ -963,9 +963,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 }
 
                                 if (dt_order_dir == 0)
-                                    return SortTrackerElementLess(fa, fb);
+                                    return FastSortTrackerElementLess(fa, fb);
 
-                                return SortTrackerElementLess(fb, fa);
+                                return FastSortTrackerElementLess(fb, fa);
                         });
                     }
 
@@ -1035,9 +1035,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 }
 
                                 if (dt_order_dir == 0)
-                                    return SortTrackerElementLess(fa, fb);
+                                    return FastSortTrackerElementLess(fa, fb);
 
-                                return SortTrackerElementLess(fb, fa);
+                                return FastSortTrackerElementLess(fb, fa);
                             });
                     }
 

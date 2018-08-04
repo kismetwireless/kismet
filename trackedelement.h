@@ -1753,4 +1753,10 @@ void SummarizeTrackerElement(SharedTrackerElement in,
 bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
         const std::shared_ptr<TrackerElement> rhs);
 
+// Compare fields, in a faster, but not type-safe, way.  This should be used only when
+// the caller is positive that both fields are of the same type, but avoids a number of
+// compares.
+bool FastSortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
+        const std::shared_ptr<TrackerElement> rhs) noexcept;
+
 #endif

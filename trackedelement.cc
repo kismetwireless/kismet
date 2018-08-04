@@ -1135,3 +1135,51 @@ bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs,
     return false;
 }
 
+bool FastSortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
+        const std::shared_ptr<TrackerElement> rhs) noexcept {
+
+    switch (lhs->get_type()) {
+        case TrackerType::TrackerString:
+            return std::static_pointer_cast<TrackerElementString>(lhs)->less_than(*std::static_pointer_cast<TrackerElementString>(rhs));
+        case TrackerType::TrackerInt8:
+            return std::static_pointer_cast<TrackerElementInt8>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt8>(rhs));
+        case TrackerType::TrackerUInt8:
+            return std::static_pointer_cast<TrackerElementUInt8>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt8>(rhs));
+        case TrackerType::TrackerInt16:
+            return std::static_pointer_cast<TrackerElementInt16>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt16>(rhs));
+        case TrackerType::TrackerUInt16:
+            return std::static_pointer_cast<TrackerElementUInt16>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt16>(rhs));
+        case TrackerType::TrackerInt32:
+            return std::static_pointer_cast<TrackerElementInt32>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt32>(rhs));
+        case TrackerType::TrackerUInt32:
+            return std::static_pointer_cast<TrackerElementUInt32>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt32>(rhs));
+        case TrackerType::TrackerInt64:
+            return std::static_pointer_cast<TrackerElementInt64>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt64>(rhs));
+        case TrackerType::TrackerUInt64:
+            return std::static_pointer_cast<TrackerElementUInt64>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt64>(rhs));
+        case TrackerType::TrackerFloat:
+            return std::static_pointer_cast<TrackerElementFloat>(lhs)->less_than(*std::static_pointer_cast<TrackerElementFloat>(rhs));
+        case TrackerType::TrackerDouble:
+            return std::static_pointer_cast<TrackerElementDouble>(lhs)->less_than(*std::static_pointer_cast<TrackerElementDouble>(rhs));
+        case TrackerType::TrackerMac:
+            return std::static_pointer_cast<TrackerElementMacAddr>(lhs)->less_than(*std::static_pointer_cast<TrackerElementMacAddr>(rhs));
+        case TrackerType::TrackerUuid:
+            return std::static_pointer_cast<TrackerElementUUID>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUUID>(rhs));
+        case TrackerType::TrackerByteArray:
+            return std::static_pointer_cast<TrackerElementByteArray>(lhs)->less_than(*std::static_pointer_cast<TrackerElementByteArray>(rhs));
+        case TrackerType::TrackerKey:
+        case TrackerType::TrackerVector:
+        case TrackerType::TrackerMap:
+        case TrackerType::TrackerIntMap:
+        case TrackerType::TrackerMacMap:
+        case TrackerType::TrackerStringMap:
+        case TrackerType::TrackerDoubleMap:
+        case TrackerType::TrackerKeyMap:
+        case TrackerType::TrackerVectorDouble:
+        case TrackerType::TrackerDoubleMapDouble:
+            return false;
+    }
+
+    return false;
+}
+
