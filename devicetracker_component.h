@@ -291,12 +291,13 @@ public:
             [this](std::string i) -> bool {
 
             // Override the common name if there's no username
-            if (get_username() == "") 
-                set_commonname(i);
+            if (has_username())
+                if (get_username() == "")
+                    set_commonname(i);
             return true;
             });
 
-    __ProxyL(username, std::string, std::string, std::string, username,
+    __ProxyDynamicL(username, std::string, std::string, std::string, username, username_id,
             [this](std::string i) -> bool {
 
             // Always override the common name
@@ -463,6 +464,7 @@ protected:
 
     // User name for arbitrary naming
     std::shared_ptr<TrackerElementString> username;
+    int username_id;
 
     // Common name connected via preserialize
     std::shared_ptr<TrackerElementString> commonname;
