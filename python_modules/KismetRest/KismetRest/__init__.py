@@ -606,6 +606,16 @@ class KismetConnector:
         (r, v) = self.__get_json_url("datasource/all_sources.json", stream=False)
 
         return v[0]
+        
+    def datasource_list_interfaces(self):
+        """
+        datasource_list_interfaces() -> Interfaces list
+        
+        Return list of all available interfaces
+        """
+        (r, v) = self.__get_json_url("datasource/list_interfaces.json", stream=False)
+        
+        return v[0]
 
     def config_datasource_set_channel(self, uuid, channel):
         """
