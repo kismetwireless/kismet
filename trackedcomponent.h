@@ -98,6 +98,51 @@ class tracker_component : public TrackerElementMap {
         cvar->set((ptype) in); \
     }
 
+// Proxy, connected to a dynamic element.  Getting or setting the dynamic element
+// creates it.  The lamda function is called after setting.
+#define __ProxyDynamicL(name, ptype, itype, rtype, cvar, id, lambda) \
+    virtual SharedTrackerElement get_tracker_##name() { \
+        if (cvar == nullptr) { \
+            using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
+            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            if (cvar != nullptr) \
+                insert(cvar); \
+        } \
+        return cvar; \
+    } \
+    virtual rtype get_##name() { \
+        if (cvar == nullptr) { \
+            using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
+            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            if (cvar != nullptr) \
+                insert(cvar); \
+        } \
+        return (rtype) GetTrackerValue<ptype>(cvar); \
+    } \
+    virtual bool set_##name(const itype& in) { \
+        if (cvar == nullptr) { \
+            using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
+            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            if (cvar != nullptr) \
+                insert(cvar); \
+        } \
+        cvar->set((ptype) in); \
+        return lambda(in); \
+    } \
+    virtual void set_only_##name(const itype& in) { \
+        if (cvar == nullptr) { \
+            using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
+            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            if (cvar != nullptr) \
+                insert(cvar); \
+        } \
+        cvar->set((ptype) in); \
+    } \
+    virtual bool has_##name() const { \
+        return cvar != nullptr; \
+    }
+
+
 // Only proxy a Get function
 #define __ProxyGet(name, ptype, rtype, cvar) \
     virtual rtype get_##name() { \
