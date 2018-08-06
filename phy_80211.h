@@ -683,7 +683,8 @@ public:
 
     __Proxy(ietag_checksum, uint32_t, uint32_t, uint32_t, ietag_checksum);
 
-    __Proxy(dot11d_country, std::string, std::string, std::string, dot11d_country);
+    __ProxyDynamic(dot11d_country, std::string, std::string, std::string, dot11d_country, 
+            dot11d_country_id);
 
     __ProxyTrackable(dot11d_vec, TrackerElementVector, dot11d_vec);
 
@@ -699,12 +700,16 @@ public:
         }
     }
 
-    __Proxy(wps_state, uint32_t, uint32_t, uint32_t, wps_state);
-    __Proxy(wps_manuf, std::string, std::string, std::string, wps_manuf);
-    __Proxy(wps_device_name, std::string, std::string, std::string, wps_device_name);
-    __Proxy(wps_model_name, std::string, std::string, std::string, wps_model_name);
-    __Proxy(wps_model_number, std::string, std::string, std::string, wps_model_number);
-    __Proxy(wps_serial_number, std::string, std::string, std::string, wps_serial_number);
+    __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
+    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
+    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, 
+            wps_device_name_id);
+    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, 
+            wps_model_name_id);
+    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number,
+            wps_model_number_id);
+    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
+            wps_serial_number_id);
 
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
@@ -746,7 +751,9 @@ protected:
         RegisterField("dot11.advertisedssid.ietag_checksum", 
                 "checksum of all ie tags", &ietag_checksum);
 
-        RegisterField("dot11.advertisedssid.dot11d_country", "802.11d country", &dot11d_country);
+        dot11d_country_id = 
+            RegisterDynamicField("dot11.advertisedssid.dot11d_country", "802.11d country", 
+                    &dot11d_country);
         RegisterField("dot11.advertisedssid.dot11d_list", "802.11d channel list", &dot11d_vec);
 
         dot11d_country_entry_id =
@@ -754,12 +761,21 @@ protected:
                     TrackerElementFactory<dot11_11d_tracked_range_info>(0),
                     "dot11d entry");
 
-        RegisterField("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
-        RegisterField("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
-        RegisterField("dot11.advertisedssid.wps_device_name", "wps device name", &wps_device_name);
-        RegisterField("dot11.advertisedssid.wps_model_name", "wps model name", &wps_model_name);
-        RegisterField("dot11.advertisedssid.wps_model_number", "wps model number", &wps_model_number);
-        RegisterField("dot11.advertisedssid.wps_serial_number", 
+        wps_state_id =
+            RegisterDynamicField("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
+        wps_manuf_id =
+            RegisterDynamicField("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
+        wps_device_name_id =
+            RegisterDynamicField("dot11.advertisedssid.wps_device_name", "wps device name", 
+                    &wps_device_name);
+        wps_model_name_id =
+            RegisterDynamicField("dot11.advertisedssid.wps_model_name", "wps model name", 
+                    &wps_model_name);
+        wps_model_number_id =
+            RegisterDynamicField("dot11.advertisedssid.wps_model_number", "wps model number", 
+                    &wps_model_number);
+        wps_serial_number_id = 
+            RegisterDynamicField("dot11.advertisedssid.wps_serial_number", 
                 "wps serial number", &wps_serial_number);
 
         location_id = 
@@ -822,16 +838,29 @@ protected:
     // IE tag dot11d country / power restrictions from 802.11d; 
     // deprecated but still in use
     std::shared_ptr<TrackerElementString> dot11d_country;
+    int dot11d_country_id;
+
     std::shared_ptr<TrackerElementVector> dot11d_vec;
     int dot11d_country_entry_id;
 
     // WPS components
     std::shared_ptr<TrackerElementUInt32> wps_state;
+    int wps_state_id;
+
     std::shared_ptr<TrackerElementString> wps_manuf;
+    int wps_manuf_id;
+
     std::shared_ptr<TrackerElementString> wps_device_name;
+    int wps_device_name_id;
+
     std::shared_ptr<TrackerElementString> wps_model_name;
+    int wps_model_name_id;
+
     std::shared_ptr<TrackerElementString> wps_model_number;
+    int wps_model_number_id;
+
     std::shared_ptr<TrackerElementString> wps_serial_number;
+    int wps_serial_number_id;
 
     std::shared_ptr<kis_tracked_location> location;
     int location_id;
@@ -895,16 +924,16 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __Proxy(dhcp_host, std::string, std::string, std::string, dhcp_host);
-    __Proxy(dhcp_vendor, std::string, std::string, std::string, dhcp_vendor);
+    __ProxyDynamic(dhcp_host, std::string, std::string, std::string, dhcp_host, dhcp_host_id);
+    __ProxyDynamic(dhcp_vendor, std::string, std::string, std::string, dhcp_vendor, dhcp_vendor_id);
 
     __Proxy(tx_cryptset, uint64_t, uint64_t, uint64_t, tx_cryptset);
     __Proxy(rx_cryptset, uint64_t, uint64_t, uint64_t, rx_cryptset);
 
-    __Proxy(eap_identity, std::string, std::string, std::string, eap_identity);
+    __ProxyDynamic(eap_identity, std::string, std::string, std::string, eap_identity, eap_identity_id);
 
-    __Proxy(cdp_device, std::string, std::string, std::string, cdp_device);
-    __Proxy(cdp_port, std::string, std::string, std::string, cdp_port);
+    __ProxyDynamic(cdp_device, std::string, std::string, std::string, cdp_device, cdp_device_id);
+    __ProxyDynamic(cdp_port, std::string, std::string, std::string, cdp_port, cdp_port_id);
 
     __Proxy(decrypted, uint8_t, bool, bool, decrypted);
 
@@ -931,13 +960,18 @@ protected:
         RegisterField("dot11.client.first_time", "first time seen", &first_time);
         RegisterField("dot11.client.last_time", "last time seen", &last_time);
         RegisterField("dot11.client.type", "type of client", &client_type);
-        RegisterField("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
-        RegisterField("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
+        dhcp_host_id =
+            RegisterDynamicField("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
+        dhcp_vendor_id =
+            RegisterDynamicField("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
         RegisterField("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
         RegisterField("dot11.client.rx_cryptset", "bitset of received enryption", &rx_cryptset);
-        RegisterField("dot11.client.eap_identity", "EAP identity", &eap_identity);
-        RegisterField("dot11.client.cdp_device", "CDP device", &cdp_device);
-        RegisterField("dot11.client.cdp_port", "CDP port", &cdp_port);
+        eap_identity_id = 
+            RegisterDynamicField("dot11.client.eap_identity", "EAP identity", &eap_identity);
+        cdp_device_id = 
+            RegisterDynamicField("dot11.client.cdp_device", "CDP device", &cdp_device);
+        cdp_port_id =
+            RegisterDynamicField("dot11.client.cdp_port", "CDP port", &cdp_port);
         RegisterField("dot11.client.decrypted", "client decrypted", &decrypted);
         
         ipdata_id =
@@ -961,14 +995,22 @@ protected:
     std::shared_ptr<TrackerElementUInt32> client_type;
 
     std::shared_ptr<TrackerElementString> dhcp_host;
+    int dhcp_host_id;
+
     std::shared_ptr<TrackerElementString> dhcp_vendor;
+    int dhcp_vendor_id;
 
     std::shared_ptr<TrackerElementUInt64> tx_cryptset;
     std::shared_ptr<TrackerElementUInt64> rx_cryptset;
+
     std::shared_ptr<TrackerElementString> eap_identity;
+    int eap_identity_id;
 
     std::shared_ptr<TrackerElementString> cdp_device;
+    int cdp_device_id;
+
     std::shared_ptr<TrackerElementString> cdp_port;
+    int cdp_port_id;
 
     std::shared_ptr<TrackerElementUInt8> decrypted;
 
@@ -1095,13 +1137,15 @@ public:
     __Proxy(datasize_retry, uint64_t, uint64_t, uint64_t, datasize_retry);
     __ProxyIncDec(datasize_retry, uint64_t, uint64_t, datasize_retry);
 
-    __Proxy(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid);
+    __ProxyDynamic(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid, last_bssid_id);
 
-    __Proxy(last_probed_ssid, std::string, std::string, std::string, last_probed_ssid);
+    __ProxyDynamic(last_probed_ssid, std::string, std::string, std::string, last_probed_ssid,
+            last_probed_ssid_id);
     __Proxy(last_probed_ssid_csum, uint32_t, uint32_t, 
             uint32_t, last_probed_ssid_csum);
 
-    __Proxy(last_beaconed_ssid, std::string, std::string, std::string, last_beaconed_ssid);
+    __ProxyDynamic(last_beaconed_ssid, std::string, std::string, std::string, last_beaconed_ssid,
+            last_beaconed_ssid_id);
     __Proxy(last_beaconed_ssid_csum, uint32_t, uint32_t, 
             uint32_t, last_beaconed_ssid_csum);
 
@@ -1200,16 +1244,19 @@ protected:
         RegisterField("dot11.device.datasize", "data in bytes", &datasize);
         RegisterField("dot11.device.datasize_retry", "retried data in bytes", &datasize_retry);
 
-        RegisterField("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
+        last_probed_ssid_id =
+            RegisterDynamicField("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
         RegisterField("dot11.device.last_probed_ssid_csum", 
                 "last probed ssid checksum", &last_probed_ssid_csum);
 
-        RegisterField("dot11.device.last_beaconed_ssid", 
-                "last beaconed ssid", &last_beaconed_ssid);
+        last_beaconed_ssid_id =
+            RegisterDynamicField("dot11.device.last_beaconed_ssid", 
+                    "last beaconed ssid", &last_beaconed_ssid);
         RegisterField("dot11.device.last_beaconed_ssid_checksum", 
                 "last beaconed ssid checksum", &last_beaconed_ssid_csum);
 
-        RegisterField("dot11.device.last_bssid", "last BSSID", &last_bssid);
+        last_bssid_id =
+            RegisterDynamicField("dot11.device.last_bssid", "last BSSID", &last_bssid);
 
         RegisterField("dot11.device.last_beacon_timestamp",
                 "unix timestamp of last beacon frame", 
@@ -1320,12 +1367,17 @@ protected:
     std::shared_ptr<TrackerElementUInt64> datasize_retry;
 
     std::shared_ptr<TrackerElementString> last_probed_ssid;
+    int last_probed_ssid_id;
+
     std::shared_ptr<TrackerElementUInt32> last_probed_ssid_csum;
 
     std::shared_ptr<TrackerElementString> last_beaconed_ssid;
+    int last_beaconed_ssid_id;
+
     std::shared_ptr<TrackerElementUInt32> last_beaconed_ssid_csum;
 
     std::shared_ptr<TrackerElementMacAddr> last_bssid;
+    int last_bssid_id;
 
     std::shared_ptr<TrackerElementUInt64> last_beacon_timestamp;
 
