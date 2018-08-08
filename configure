@@ -686,6 +686,12 @@ BUILD_PYTHON_MODULES
 EGREP
 GREP
 CXXCPP
+BASE_DIR
+DATA_DIR
+LIB_DIR
+BIN_DIR
+LOCALSTATE_DIR
+CONFFILE_DIR
 PLUGINLDFLAGS
 HAVE_CXX17
 HAVE_CXX14
@@ -7327,6 +7333,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
 LOCALSTATE_DIR=$localstatedir
 LOCALSTATE_DIR=`(
                  test "$prefix" = NONE && prefix=$ac_default_prefix
@@ -7337,6 +7344,7 @@ LOCALSTATE_DIR=`(
 cat >>confdefs.h <<_ACEOF
 #define LOCALSTATE_DIR "$LOCALSTATE_DIR"
 _ACEOF
+
 
 
 BIN_DIR=$bindir
@@ -7351,6 +7359,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
 LIB_DIR=$libdir
 LIB_DIR=`(
     test "$prefix" = NONE && prefix=$ac_default_prefix
@@ -7363,6 +7372,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
 DATA_DIR=$datarootdir
 DATA_DIR=`(
     test "$prefix" = NONE && prefix=$ac_default_prefix
@@ -7373,6 +7383,15 @@ DATA_DIR=`(
 cat >>confdefs.h <<_ACEOF
 #define DATA_LOC "$DATA_DIR"
 _ACEOF
+
+
+
+BASE_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$prefix"
+)`
+
 
 
 # Check for endian

@@ -207,6 +207,7 @@ CONFFILE_DIR=`(
     eval echo "$CONFFILE_DIR"
 )`
 AC_DEFINE_UNQUOTED(SYSCONF_LOC, "$CONFFILE_DIR", system config directory)
+AC_SUBST(CONFFILE_DIR)
 
 LOCALSTATE_DIR=$localstatedir
 LOCALSTATE_DIR=`(
@@ -215,6 +216,7 @@ LOCALSTATE_DIR=`(
                  eval echo "$LOCALSTATE_DIR"
                 )`
 AC_DEFINE_UNQUOTED(LOCALSTATE_DIR, "$LOCALSTATE_DIR", system state directory)
+AC_SUBST(LOCALSTATE_DIR)
 
 BIN_DIR=$bindir
 BIN_DIR=`(
@@ -223,6 +225,7 @@ BIN_DIR=`(
     eval echo "$BIN_DIR"
 )`
 AC_DEFINE_UNQUOTED(BIN_LOC, "$BIN_DIR", system binary directory)
+AC_SUBST(BIN_DIR)
 
 LIB_DIR=$libdir
 LIB_DIR=`(
@@ -231,6 +234,7 @@ LIB_DIR=`(
     eval echo "$LIB_DIR"
 )`
 AC_DEFINE_UNQUOTED(LIB_LOC, "$LIB_DIR", system library directory)
+AC_SUBST(LIB_DIR)
 
 DATA_DIR=$datarootdir
 DATA_DIR=`(
@@ -239,6 +243,15 @@ DATA_DIR=`(
     eval echo "$DATA_DIR"
 )`
 AC_DEFINE_UNQUOTED(DATA_LOC, "$DATA_DIR", system data directory)
+AC_SUBST(DATA_DIR)
+
+BASE_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$prefix"
+)`
+AC_SUBST(BASE_DIR)
+
 
 # Check for endian
 AC_C_BIGENDIAN
