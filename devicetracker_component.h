@@ -291,9 +291,13 @@ public:
             [this](std::string i) -> bool {
 
             // Override the common name if there's no username
-            if (has_username())
+            if (has_username()) {
                 if (get_username() == "")
                     set_commonname(i);
+            } else {
+                set_commonname(i);
+            }
+
             return true;
             });
 
