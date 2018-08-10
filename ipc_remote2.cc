@@ -419,7 +419,6 @@ void IPCRemoteV2::set_tracker_free(bool in_free) {
 int IPCRemoteV2::soft_kill() {
     local_locker lock(&ipc_locker);
 
-    // fprintf(stderr, "debug - IPCRemoteV2 soft_kill %d ipeclient != null, removing pollable and closing pipes\n", child_pid);
     if (pipeclient != NULL) {
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
@@ -428,14 +427,12 @@ int IPCRemoteV2::soft_kill() {
     if (child_pid <= 0)
         return -1;
 
-    // fprintf(stderr, "debug - sending sigterm to %d\n", child_pid);
     return kill(child_pid, SIGTERM);
 }
 
 int IPCRemoteV2::hard_kill() {
     local_locker lock(&ipc_locker);
 
-    // fprintf(stderr, "debug - IPCRemoteV2 hard_kill %d pipeclient != null, removing pollable and closing pipes\n", child_pid);
     if (pipeclient != NULL) {
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
@@ -450,9 +447,12 @@ int IPCRemoteV2::hard_kill() {
 void IPCRemoteV2::notify_killed(int in_exit) {
     std::stringstream ss;
 
-    // fprintf(stderr, "debug - ipcremote2 notify_killed\n");
+    // Pull anything left in the buffer and process it
+    if (pipeclient != nullptr) {
+        pipeclient->FlushRead();
+    }
 
-    if (ipchandler != NULL) {
+    if (ipchandler != nullptr) {
         ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " << in_exit;
         ipchandler->BufferError(ss.str());
     }

@@ -194,6 +194,56 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
+int PipeClient::FlushRead() {
+    local_locker lock(&pipe_lock);
+
+    std::stringstream msg;
+
+    uint8_t *buf;
+    size_t len;
+    ssize_t ret, iret;
+
+    if (read_fd > -1) {
+        // Allocate the biggest buffer we can fit in the ring, read as much
+        // as we can at once.
+       
+        while (handler->GetReadBufferAvailable()) {
+            len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
+                    handler->GetReadBufferAvailable());
+
+            if ((ret = read(read_fd, buf, len)) <= 0) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    if (ret == 0) {
+                        msg << "Pipe client closing - remote side closed pipe";
+                    } else {
+                        msg << "Pipe client error reading - " << kis_strerror_r(errno);
+                    }
+
+                    handler->CommitReadBufferData(buf, 0);
+                    handler->BufferError(msg.str());
+
+                    ClosePipes();
+
+                    return 0;
+                } else {
+                    // Jump out of read loop
+                    handler->CommitReadBufferData(buf, 0);
+                    break;
+                }
+            } else {
+                iret = handler->CommitReadBufferData(buf, ret);
+
+                if (!iret) {
+                    ClosePipes();
+                    return 0;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 void PipeClient::ClosePipes() {
     local_locker lock(&pipe_lock);
 
