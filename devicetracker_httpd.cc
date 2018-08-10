@@ -835,8 +835,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     wrapper->insert(draw_elem);
 
                     // Make the length and filter elements
-                    dt_length_elem = 
-                        std::make_shared<TrackerElementUInt64>(dt_length_id, tracked_vec.size());
+                    {
+                        local_locker lock(devicelist_mutex);
+                        dt_length_elem = 
+                            std::make_shared<TrackerElementUInt64>(dt_length_id, tracked_vec.size());
+                    }
                     dt_length_elem->set_local_name("recordsTotal");
                     wrapper->insert(dt_length_elem);
 
@@ -993,17 +996,21 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         outdevs->push_back(simple);
                     }
                 } else {
-                    local_locker listlock(&devicelist_mutex);
+                    // Only lock while copying the vector
+                    local_demand_locker listlock(&devicelist_mutex);
+                    listlock.lock();
+                    auto tracked_vec_copy = tracked_vec;
+                    listlock.unlock();
 
                     // Check DT ranges
-                    if (dt_start >= tracked_vec.size())
+                    if (dt_start >= tracked_vec_copy.size())
                         dt_start = 0;
 
                     if (dt_filter_elem != NULL)
-                        SetTrackerValue<uint64_t>(dt_filter_elem, tracked_vec.size());
+                        SetTrackerValue<uint64_t>(dt_filter_elem, tracked_vec_copy.size());
 
                     if (dt_order_col >= 0 && dt_order_fields.size() > 0) {
-                        kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
+                        kismet__stable_sort(tracked_vec_copy.begin(), tracked_vec_copy.end(), 
                                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
                                 SharedTrackerElement fa;
                                 SharedTrackerElement fb;
@@ -1045,12 +1052,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator ei;
 
                     // Set the iterator endpoint for our length
-                    if (dt_length == 0 || dt_length + dt_start >= tracked_vec.size())
-                        ei = tracked_vec.end();
+                    if (dt_length == 0 || dt_length + dt_start >= tracked_vec_copy.size())
+                        ei = tracked_vec_copy.end();
                     else
-                        ei = tracked_vec.begin() + dt_start + dt_length;
+                        ei = tracked_vec_copy.begin() + dt_start + dt_length;
 
-                    for (vi = tracked_vec.begin() + dt_start; vi != ei; ++vi) {
+                    for (vi = tracked_vec_copy.begin() + dt_start; vi != ei; ++vi) {
                         SharedTrackerElement simple;
 
                         SummarizeTrackerElement((*vi), summary_vec, simple, rename_map);
