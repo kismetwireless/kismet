@@ -559,24 +559,26 @@ void Datasourcetracker::Deferred_Startup() {
         return;
     }
 
-    for (unsigned int i = 0; i < src_vec.size(); i++) {
-        open_datasource(src_vec[i], 
-                [src_vec, i](bool success, std::string reason, SharedDatasource) {
-            if (success) {
-                _MSG("Data source '" + src_vec[i] + "' launched successfully.", 
-                        MSGFLAG_INFO);
-            } else {
-                if (reason.length() != 0) {
-                    _MSG("Data source '" + src_vec[i] + "' failed to launch: " + reason,
-                            MSGFLAG_ERROR);
+    auto source_t = std::thread([](Datasourcetracker *dst, const std::vector<std::string>& src_vec) {
+        for (unsigned int i = 0; i < src_vec.size(); i++) {
+            dst->open_datasource(src_vec[i], 
+                    [src_vec, i](bool success, std::string reason, SharedDatasource) {
+                if (success) {
+                    _MSG("Data source '" + src_vec[i] + "' launched successfully.", 
+                            MSGFLAG_INFO);
                 } else {
-                    _MSG("Data source '" + src_vec[i] + "' failed to launch, "
-                            "no error given.", MSGFLAG_ERROR);
+                    if (reason.length() != 0) {
+                        _MSG("Data source '" + src_vec[i] + "' failed to launch: " + reason,
+                                MSGFLAG_ERROR);
+                    } else {
+                        _MSG("Data source '" + src_vec[i] + "' failed to launch, "
+                                "no error given.", MSGFLAG_ERROR);
+                    }
                 }
-            }
-        });
-    }
-
+            });
+        }
+    }, this, src_vec);
+    source_t.detach();
 
     return;
 }
