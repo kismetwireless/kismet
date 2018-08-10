@@ -60,8 +60,6 @@ void PollableTracker::Maintenance() {
 }
 
 int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
-    local_locker lock(&pollable_mutex);
-
     Maintenance();
 
     int max_fd = 0;
@@ -77,7 +75,6 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
 }
 
 int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
-    local_locker lock(&pollable_mutex);
     int r;
     int num = 0;
 
