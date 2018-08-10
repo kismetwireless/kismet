@@ -195,6 +195,9 @@ void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))
 }
 
 void KisExternalInterface::BufferError(std::string in_error) {
+    // Try to read anything left in the buffer in case we're exiting w/ pending valid data
+    BufferAvailable(0);
+    
     close_external();
 }
 

@@ -117,9 +117,8 @@ protected:
 
     std::shared_ptr<Timetracker> timetracker;
 
-    uint32_t seqno;
-
-    time_t last_pong;
+    std::atomic<uint32_t> seqno;
+    std::atomic<time_t> last_pong;
 
     std::string external_binary;
     std::vector<std::string> external_binary_args;

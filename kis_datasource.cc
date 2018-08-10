@@ -83,7 +83,7 @@ KisDatasource::~KisDatasource() {
     if (ping_timer_id > 0)
         timetracker->RemoveTimer(ping_timer_id);
 
-    command_ack_map.empty();
+    command_ack_map.clear();
 
     // We don't call a normal close here because we can't risk double-free
     // or going through commands again - if the source is being deleted, it should
@@ -122,7 +122,8 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
 
 void KisDatasource::probe_interface(std::string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
     mode_probing = true;
 
@@ -132,7 +133,9 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
     // and call the cb instantly
     if (!get_source_builder()->get_probe_capable()) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, false, "Driver not capable of probing");
+            lock.lock();
         }
 
         return;
@@ -141,29 +144,40 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, false, "Malformed source config");
+            lock.lock();
         }
 
         return;
     }
 
     // Launch the IPC
-    launch_ipc();
-
-    // Create and send list command
-    send_probe_source(in_definition, in_transaction, in_cb);
+    if (launch_ipc()) {
+        // Create and send probe command
+        send_probe_source(in_definition, in_transaction, in_cb);
+    } else {
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "Failed to launch IPC to probe source");
+            lock.lock();
+        }
+    }
 }
 
 void KisDatasource::open_interface(std::string in_definition, unsigned int in_transaction, 
         open_callback_t in_cb) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
     set_int_source_definition(in_definition);
 
     // Populate our local info about the interface
     if (!parse_interface_definition(in_definition)) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, false, "Malformed source config");
+            lock.lock();
         }
 
         return;
@@ -184,8 +198,11 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
         set_int_source_running(1);
         set_int_source_error(0);
 
-        if (in_cb != NULL)
+        if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, true, "Source opened");
+            lock.lock();
+        }
 
         return;
     }
@@ -193,7 +210,9 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
     // If we can't open local interfaces, die
     if (!get_source_builder()->get_local_capable()) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, false, "Driver does not support direct capture");
+            lock.lock();
         }
         
         return;
@@ -212,11 +231,14 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
 
 void KisDatasource::set_channel(std::string in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, false, "Driver not capable of changing channel");
+            lock.lock();
         }
         return;
     }
@@ -367,12 +389,9 @@ void KisDatasource::trigger_error(std::string in_error) {
 
     // fprintf(stderr, "DEBUG - trigger error %s\n", in_error.c_str());
 
-    std::stringstream ss;
-
     if (!quiet_errors) {
-        ss << "Data source " << get_source_name() << " (" << get_source_interface() << 
-            ") encountered an error: " << in_error;
-        _MSG(ss.str(), MSGFLAG_ERROR);
+        _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
+                get_source_name(), get_source_definition(), get_source_interface(), in_error);
         set_int_source_error(true);
         set_int_source_error_reason(in_error);
     }
@@ -390,6 +409,8 @@ void KisDatasource::trigger_error(std::string in_error) {
 }
 
 void KisDatasource::BufferError(std::string in_error) {
+    BufferAvailable(0);
+
     trigger_error(in_error);
 }
 
@@ -571,7 +592,7 @@ void KisDatasource::cancel_all_commands(std::string in_error) {
         cancel_command(i->first, in_error);
     }
 
-    command_ack_map.empty();
+    command_ack_map.clear();
 }
 
 bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
@@ -660,12 +681,16 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno,
 
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
+
     if (ci != command_ack_map.end()) {
-        lock.unlock();
-        if (ci->second->probe_cb != NULL)
-            ci->second->probe_cb(ci->second->transaction, report.success().success(), msg);
-        lock.lock();
+        auto cb = ci->second->probe_cb;
+        auto transaction = ci->second->transaction;
         command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, report.success().success(), msg);
+        }
     }
 
 }
@@ -861,11 +886,15 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
-        lock.unlock();
-        if (ci->second->open_cb != NULL)
-            ci->second->open_cb(ci->second->transaction, report.success().success(), msg);
-        lock.lock();
+        auto cb = ci->second->open_cb;
+        auto transaction = ci->second->transaction;
         command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, report.success().success(), msg);
+            lock.lock();
+        }
     }
 
     // If we were successful, reset our retry attempts
@@ -899,7 +928,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno,
     local_demand_locker lock(&ext_mutex);
     lock.lock();
 
-    listed_interfaces.empty();
+    listed_interfaces.clear();
 
     KismetDatasource::InterfacesReport report;
 
@@ -940,11 +969,14 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
-        lock.unlock();
-        if (ci->second->list_cb != NULL)
-            ci->second->list_cb(ci->second->transaction, listed_interfaces);
-        lock.lock();
+        auto cb = ci->second->list_cb;
+        auto transaction = ci->second->transaction;
         command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, listed_interfaces);
+        }
     }
 
 }
@@ -1025,12 +1057,15 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std:
     uint32_t seq = report.success().seqno();
     auto ci = command_ack_map.find(seq);
     if (ci != command_ack_map.end()) {
-        lock.unlock();
-        if (ci->second->configure_cb != NULL)
-            ci->second->configure_cb(seq, report.success().success(), msg);
-        lock.lock();
-
+        auto cb = ci->second->configure_cb;
+        auto transaction = ci->second->transaction;
         command_ack_map.erase(ci);
+
+        if (cb != nullptr) {
+            lock.unlock();
+            cb(transaction, report.success().success(), msg);
+            lock.lock();
+        }
     }
 
     if (!report.success().success()) {
@@ -1251,7 +1286,7 @@ unsigned int KisDatasource::send_probe_source(std::string in_definition,
     cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->probe_cb = in_cb;
 
-    command_ack_map.emplace(seqno, cmd);
+    command_ack_map.insert(std::make_pair(seqno, cmd));
 
     return seqno;
 }
@@ -1285,7 +1320,7 @@ unsigned int KisDatasource::send_open_source(std::string in_definition,
     cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->open_cb = in_cb;
 
-    command_ack_map.emplace(seqno, cmd);
+    command_ack_map.insert(std::make_pair(seqno, cmd));
 
     return seqno;
 }
@@ -1322,7 +1357,7 @@ unsigned int KisDatasource::send_configure_channel(std::string in_chan,
     cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->configure_cb = in_cb;
 
-    command_ack_map.emplace(seqno, cmd);
+    command_ack_map.insert(std::make_pair(seqno, cmd));
 
     return seqno;
 }
@@ -1370,7 +1405,7 @@ unsigned int KisDatasource::send_configure_channel_hop(double in_rate,
     cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->configure_cb = in_cb;
 
-    command_ack_map.emplace(seqno, cmd);
+    command_ack_map.insert(std::make_pair(seqno, cmd));
 
     return seqno;
 }
@@ -1402,7 +1437,7 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
     cmd.reset(new tracked_command(in_transaction, seqno, this));
     cmd->list_cb = in_cb;
 
-    command_ack_map.emplace(seqno, cmd);
+    command_ack_map.insert(std::make_pair(seqno, cmd));
 
     return seqno;
 }
@@ -1638,10 +1673,9 @@ bool KisDatasource::launch_ipc() {
 
     // Kill the running process if we have one
     if (ipc_remote != NULL) {
-        ss.str("");
-        ss << "Datasource '" << get_source_name() << "' launching IPC with a running "
-            "process, killing existing process pid " << get_source_ipc_pid();
-        _MSG(ss.str(), MSGFLAG_INFO);
+        _MSG_INFO("Data source '{} / {}' launching while an IPC process is already running; killing "
+                "existing process {}", get_source_name(), get_source_definition(), 
+                get_source_ipc_pid());
 
         ipc_remote->soft_kill();
     }
@@ -1654,6 +1688,9 @@ bool KisDatasource::launch_ipc() {
         set_int_source_ipc_pid(ipc_remote->get_pid());
         return true;
     }
+
+    _MSG_ERROR("Data source '{} / {}' could not launch IPC helper", get_source_name(), 
+            get_source_definition());
 
     return false;
 }

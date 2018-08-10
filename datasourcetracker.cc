@@ -98,11 +98,12 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
         std::string in_reason __attribute__((unused))) {
     local_locker lock(&probe_lock);
 
+    auto v = ipc_probe_map.find(in_transaction);
+
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
         return;
 
-    auto v = ipc_probe_map.find(in_transaction);
     if (v != ipc_probe_map.end()) {
         if (in_success) {
             source_builder = v->second->get_source_builder();
@@ -132,19 +133,23 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
 }
 
 void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb) {
-    // Lock while we generate all of the probes; 
-    local_locker lock(&probe_lock);
+    {
+        local_locker lock(&probe_lock);
 
-    cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
-            [this] (int) -> int {
-                cancel();
-                return 0;
-            });
+        cancel_timer = 
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+                    [this] (int) -> int {
+                    _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
+                    cancel();
+                    return 0;
+                    });
 
-    probe_cb = in_cb;
+        probe_cb = in_cb;
+    }
 
     std::vector<SharedDatasourceBuilder> remote_builders;
+
+    unsigned int ncreated = 0;
 
     for (auto i : *proto_vec) {
         auto b = std::static_pointer_cast<KisDatasourceBuilder>(i);
@@ -157,19 +162,29 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
         // Instantiate a local prober
         SharedDatasource pds = b->build_datasource(b);
 
-        ipc_probe_map[transaction] = pds;
+        {
+            local_locker lock(&probe_lock);
+            ipc_probe_map.insert(std::make_pair(transaction, pds));
+            ncreated++;
+        }
 
-        pds->probe_interface(definition, transaction, 
-            [this] (unsigned int transaction, bool success, std::string reason) {
-                // fprintf(stderr, "debug - dstprobe probe_sources callback complete\n");
-                complete_probe(success, transaction, reason);
-            });
+#if 0
+        auto pt = std::thread([](SharedDatasource pds, std::string definition, 
+                    unsigned int transaction, DST_DatasourceProbe *dst_probe) {
+#endif
+            pds->probe_interface(definition, transaction, 
+                [this](unsigned int transaction, bool success, std::string reason) {
+                    complete_probe(success, transaction, reason);
+                });
+#if 0
+        }, pds, definition, transaction, this);
+        pt.detach();
+#endif
     }
 
     // We've done all we can; if we haven't gotten an answer yet and we
     // have nothing in our transactional map, we've failed
-    if (ipc_probe_map.size() == 0) {
-        // fprintf(stderr, "debug - dstprobe probe map 0\n");
+    if (ncreated == 0) {
         cancel();
         return;
     }
@@ -744,10 +759,11 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
     SharedDSTProbe dst_probe(new DST_DatasourceProbe(in_source, proto_vec));
     unsigned int probeid = ++next_probe_id;
 
-    // Record it
-    probing_map[probeid] = dst_probe;
-
-    // fprintf(stderr, "debug - pushed probe %u raw %p\n", probeid, dst_probe.get());
+    // Record and initiate it
+    {
+        local_locker dl(dst_lock);
+        probing_map[probeid] = dst_probe;
+    }
 
     // Initiate the probe
     dst_probe->probe_sources([this, probeid, in_cb](SharedDatasourceBuilder builder) {

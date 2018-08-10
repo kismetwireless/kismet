@@ -132,12 +132,12 @@ protected:
     SharedDatasourceBuilder source_builder;
 
     // Transaction ID
-    unsigned int transaction_id;
+    std::atomic<unsigned int> transaction_id;
 
     std::string definition;
 
     std::function<void (SharedDatasourceBuilder)> probe_cb;
-    bool cancelled;
+    std::atomic<bool> cancelled;
 
     int cancel_timer;
 };
@@ -462,14 +462,14 @@ protected:
 
     // Sub-workers probing for a source definition
     std::map<unsigned int, SharedDSTProbe> probing_map;
-    unsigned int next_probe_id;
+    std::atomic<unsigned int> next_probe_id;
 
     // Sub-workers slated for being removed
     std::vector<SharedDSTProbe> probing_complete_vec;
 
     // Sub-workers listing interfaces
     std::map<unsigned int, SharedDSTList> listing_map;
-    unsigned int next_list_id;
+    std::atomic<unsigned int> next_list_id;
 
     // Sub-workers slated for being removed
     std::vector<SharedDSTList> listing_complete_vec;
