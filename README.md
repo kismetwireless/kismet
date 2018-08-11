@@ -1082,4 +1082,5 @@ Kismet uses several libraries which are part of the Kismet source code; Without 
 * jsoncpp (http://jsoncpp.sourceforge.net/): JSON parser
 * radiotap (http://radiotap.org): Radiotap header definitions
 * microhttpd (https://www.gnu.org/software/libmicrohttpd/): Webserver
+* nlohmann json (https://github.com/nlohmann/json): JSON sanitization
 

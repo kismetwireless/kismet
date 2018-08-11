@@ -36,7 +36,8 @@ void Pack(std::ostream &stream, SharedTrackerElement e,
         std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr,
         bool prettyprint = false, unsigned int depth = 0);
 
-std::string SanitizeString(std::string in);
+std::string SanitizeString(const std::string& in) noexcept;
+std::size_t StringExtraSpace(const std::string& in) noexcept;
 
 class Serializer : public TrackerElementSerializer {
 public:
