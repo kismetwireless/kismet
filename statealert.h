@@ -35,44 +35,46 @@
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "alertracker.h"
+#include "kis_mutex.h"
 
 class StateAlert {
 public:
-	StateAlert() { fprintf(stderr, "FATAL OOPS:  StateAlert()\n"); exit(1); }
-	StateAlert(GlobalRegistry *in_globalreg) {
-		globalreg = in_globalreg;
-	}
+    StateAlert() { fprintf(stderr, "FATAL OOPS:  StateAlert()\n"); exit(1); }
+    StateAlert(GlobalRegistry *in_globalreg) {
+        globalreg = in_globalreg;
+    }
 
-	virtual ~StateAlert() { }
+    virtual ~StateAlert() { }
 
-	virtual int ProcessPacket(kis_packet *in_pack) = 0;
+    virtual int ProcessPacket(kis_packet *in_pack) = 0;
 
 protected:
-	GlobalRegistry *globalreg;
+    GlobalRegistry *globalreg;
 
+    kis_recursive_timed_mutex mutex;
 };
 
 class BSSTSStateAlert : public StateAlert {
 public:
-	typedef struct {
-		int incident;
-		uint64_t bss_timestamp;
-		struct timeval ts;
-	} bss_rec;
+    typedef struct {
+        int incident;
+        uint64_t bss_timestamp;
+        struct timeval ts;
+    } bss_rec;
 
-	BSSTSStateAlert() { 
-		fprintf(stderr, "FATAL OOPS: BSSTimestampStateAlert()\n");
-		exit(1);
-	}
-	BSSTSStateAlert(GlobalRegistry *in_globalreg);
-	virtual ~BSSTSStateAlert();
+    BSSTSStateAlert() { 
+        fprintf(stderr, "FATAL OOPS: BSSTimestampStateAlert()\n");
+        exit(1);
+    }
+    BSSTSStateAlert(GlobalRegistry *in_globalreg);
+    virtual ~BSSTSStateAlert();
 
-	virtual int ProcessPacket(kis_packet *in_pack);
+    virtual int ProcessPacket(kis_packet *in_pack);
 
 protected:
-	std::map<mac_addr, bss_rec *> state_map;
+    std::map<mac_addr, bss_rec *> state_map;
 
-	int alert_bss_ts_ref;
+    int alert_bss_ts_ref;
 
 };
 

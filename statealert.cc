@@ -29,31 +29,32 @@ int bsstsalert_chain_hook(CHAINCALL_PARMS) {
 BSSTSStateAlert::BSSTSStateAlert(GlobalRegistry *in_globalreg) :
     StateAlert(in_globalreg) {
 
-        if (globalreg->packetchain == NULL) {
-            fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before packetchain\n");
-            exit(1);
-        }
-
-        if (globalreg->alertracker == NULL) {
-            fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before alertracker\n");
-            exit(1);
-        }
-
-        // Register the packet chain element
-        globalreg->packetchain->RegisterHandler(&bsstsalert_chain_hook, this,
-                CHAINPOS_CLASSIFIER, -50);
-
-        // Activate our alert
-        alert_bss_ts_ref = 
-            globalreg->alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
-                    "An access point uses a high-precision timestamp in "
-                    "beacon frames to coordinate time-sensitive events. "
-                    "Vastly out of sequence timestamps for the same BSSID may indicate "
-                    "a spoofing or 'evil twin' style attack, however some APs "
-                    "may reset the timestamp regularly leading to a false positive.");
+    if (globalreg->packetchain == NULL) {
+        fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before packetchain\n");
+        exit(1);
     }
 
+    if (globalreg->alertracker == NULL) {
+        fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before alertracker\n");
+        exit(1);
+    }
+
+    // Register the packet chain element
+    globalreg->packetchain->RegisterHandler(&bsstsalert_chain_hook, this, CHAINPOS_CLASSIFIER, -50);
+
+    // Activate our alert
+    alert_bss_ts_ref = 
+        globalreg->alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
+                "An access point uses a high-precision timestamp in "
+                "beacon frames to coordinate time-sensitive events. "
+                "Vastly out of sequence timestamps for the same BSSID may indicate "
+                "a spoofing or 'evil twin' style attack, however some APs "
+                "may reset the timestamp regularly leading to a false positive.");
+}
+
 BSSTSStateAlert::~BSSTSStateAlert() {
+    local_locker l(mutex);
+
     for (std::map<mac_addr, bss_rec *>::iterator x = state_map.begin(); 
             x != state_map.end(); ++x) {
         delete x->second;
@@ -75,8 +76,9 @@ int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
             packinfo->distrib == distrib_adhoc)
         return 0;
 
-    std::map<mac_addr, bss_rec *>::iterator smi =
-        state_map.find(packinfo->bssid_mac);
+    local_locker l(mutex);
+
+    auto smi = state_map.find(packinfo->bssid_mac);
 
     if (smi == state_map.end()) {
         bss_rec *r = new bss_rec;
