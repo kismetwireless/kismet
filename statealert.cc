@@ -23,112 +23,112 @@
 
 int bsstsalert_chain_hook(CHAINCALL_PARMS) {
 
-	return ((BSSTSStateAlert *) auxdata)->ProcessPacket(in_pack);
+    return ((BSSTSStateAlert *) auxdata)->ProcessPacket(in_pack);
 }
 
 BSSTSStateAlert::BSSTSStateAlert(GlobalRegistry *in_globalreg) :
-	StateAlert(in_globalreg) {
+    StateAlert(in_globalreg) {
 
-	if (globalreg->packetchain == NULL) {
-		fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before packetchain\n");
-		exit(1);
-	}
+        if (globalreg->packetchain == NULL) {
+            fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before packetchain\n");
+            exit(1);
+        }
 
-	if (globalreg->alertracker == NULL) {
-		fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before alertracker\n");
-		exit(1);
-	}
+        if (globalreg->alertracker == NULL) {
+            fprintf(stderr, "FATAL OOPS: BSSTSStateAlert before alertracker\n");
+            exit(1);
+        }
 
-	// Register the packet chain element
-	globalreg->packetchain->RegisterHandler(&bsstsalert_chain_hook, this,
-											CHAINPOS_CLASSIFIER, -50);
+        // Register the packet chain element
+        globalreg->packetchain->RegisterHandler(&bsstsalert_chain_hook, this,
+                CHAINPOS_CLASSIFIER, -50);
 
-	// Activate our alert
-	alert_bss_ts_ref = 
-		globalreg->alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
-                "An access point uses a high-precision timestamp in "
-                "beacon frames to coordinate time-sensitive events. "
-                "Vastly out of sequence timestamps for the same BSSID may indicate "
-                "a spoofing or 'evil twin' style attack, however some APs "
-                "may reset the timestamp regularly leading to a false positive.");
-}
+        // Activate our alert
+        alert_bss_ts_ref = 
+            globalreg->alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
+                    "An access point uses a high-precision timestamp in "
+                    "beacon frames to coordinate time-sensitive events. "
+                    "Vastly out of sequence timestamps for the same BSSID may indicate "
+                    "a spoofing or 'evil twin' style attack, however some APs "
+                    "may reset the timestamp regularly leading to a false positive.");
+    }
 
 BSSTSStateAlert::~BSSTSStateAlert() {
-	for (std::map<mac_addr, bss_rec *>::iterator x = state_map.begin(); 
-		 x != state_map.end(); ++x) {
-		delete x->second;
-	}
+    for (std::map<mac_addr, bss_rec *>::iterator x = state_map.begin(); 
+            x != state_map.end(); ++x) {
+        delete x->second;
+    }
 
-	state_map.clear();
+    state_map.clear();
 }
 
 int BSSTSStateAlert::ProcessPacket(kis_packet *in_pack) {
-	// Get the 802.11 data
-	dot11_packinfo *packinfo =
-		(dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
+    // Get the 802.11 data
+    dot11_packinfo *packinfo =
+        (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
 
-	if (packinfo == NULL)
-		return 0;
+    if (packinfo == NULL)
+        return 0;
 
-	if (packinfo->type != packet_management ||
-		packinfo->subtype != packet_sub_beacon ||
-		packinfo->distrib == distrib_adhoc)
-		return 0;
+    if (packinfo->type != packet_management ||
+            packinfo->subtype != packet_sub_beacon ||
+            packinfo->distrib == distrib_adhoc)
+        return 0;
 
-	std::map<mac_addr, bss_rec *>::iterator smi =
-		state_map.find(packinfo->bssid_mac);
+    std::map<mac_addr, bss_rec *>::iterator smi =
+        state_map.find(packinfo->bssid_mac);
 
-	if (smi == state_map.end()) {
-		bss_rec *r = new bss_rec;
-		r->incident = 0;
-		r->bss_timestamp = packinfo->timestamp;
-		r->ts.tv_sec = in_pack->ts.tv_sec;
-		r->ts.tv_usec = in_pack->ts.tv_usec;
-		state_map[packinfo->bssid_mac] = r;
-		return 0;
-	}
+    if (smi == state_map.end()) {
+        bss_rec *r = new bss_rec;
+        r->incident = 0;
+        r->bss_timestamp = packinfo->timestamp;
+        r->ts.tv_sec = in_pack->ts.tv_sec;
+        r->ts.tv_usec = in_pack->ts.tv_usec;
+        state_map[packinfo->bssid_mac] = r;
+        return 0;
+    }
 
-	bss_rec *br = smi->second;
+    bss_rec *br = smi->second;
 
-	struct timeval ts_diff;
-	SubtractTimeval(&(in_pack->ts), &(br->ts), &ts_diff);
-	if (ts_diff.tv_sec > 1 || (ts_diff.tv_sec < 1 && ts_diff.tv_usec > 5000000)) {
-		br->bss_timestamp = packinfo->timestamp;
-		br->ts.tv_sec = in_pack->ts.tv_sec;
-		br->ts.tv_usec = in_pack->ts.tv_usec;
-		br->incident = 0;
-		return 1;
-	}
+    struct timeval ts_diff;
+    SubtractTimeval(&(in_pack->ts), &(br->ts), &ts_diff);
+    if (ts_diff.tv_sec > 1 || (ts_diff.tv_sec < 1 && ts_diff.tv_usec > 5000000)) {
+        br->bss_timestamp = packinfo->timestamp;
+        br->ts.tv_sec = in_pack->ts.tv_sec;
+        br->ts.tv_usec = in_pack->ts.tv_usec;
+        br->incident = 0;
+        return 1;
+    }
 
-	if (packinfo->timestamp < br->bss_timestamp &&
-		(long int) br->bss_timestamp - (long int) packinfo->timestamp > 5000000) {
-		if (br->incident > 0) {
-			// Raise an alert
-			std::ostringstream oss;
+    if (packinfo->timestamp < br->bss_timestamp &&
+            (long int) br->bss_timestamp - (long int) packinfo->timestamp > 5000000) {
+        if (br->incident > 0) {
+            // Raise an alert
+            std::ostringstream oss;
 
-			oss << "Network BSSID " << packinfo->bssid_mac.Mac2String() << 
-				" BSS timestamp fluctuating, which may indicate a spoofed "
-				"network cloning the MAC address (BSSTS " << 
-				packinfo->timestamp << " vs " << br->bss_timestamp << ")";
-			globalreg->alertracker->RaiseAlert(alert_bss_ts_ref, in_pack,
-											   packinfo->bssid_mac,
-											   packinfo->source_mac,
-											   packinfo->dest_mac,
-											   packinfo->other_mac,
-											   packinfo->channel,
-											   oss.str());
-			br->incident = 0;
-		} else {
-			br->incident += 5;
-		}
-	} else if (br->incident > 0) {
-		br->incident--;
-	}
+            oss << "Network BSSID " << packinfo->bssid_mac.Mac2String() << 
+                " BSS timestamp fluctuating, which may indicate a spoofed "
+                "network cloning the MAC address (BSSTS " << 
+                packinfo->timestamp << " vs " << br->bss_timestamp << ")";
+            globalreg->alertracker->RaiseAlert(alert_bss_ts_ref, in_pack,
+                    packinfo->bssid_mac,
+                    packinfo->source_mac,
+                    packinfo->dest_mac,
+                    packinfo->other_mac,
+                    packinfo->channel,
+                    oss.str());
+            br->incident = 0;
+        } else {
+            br->incident += 5;
+        }
+    } else if (br->incident > 0) {
+        br->incident--;
+    }
 
-	br->bss_timestamp = packinfo->timestamp;
-	br->ts.tv_sec = in_pack->ts.tv_sec;
-	br->ts.tv_usec = in_pack->ts.tv_usec;
+    br->bss_timestamp = packinfo->timestamp;
+    br->ts.tv_sec = in_pack->ts.tv_sec;
+    br->ts.tv_usec = in_pack->ts.tv_usec;
 
-	return 1;
+    return 1;
 }
-	
+
