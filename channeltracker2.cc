@@ -112,7 +112,7 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
     std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/channels/channels") {
-        local_locker locker(&lock);
+        local_shared_locker locker(&lock);
         auto cv2 = Globalreg::FetchMandatoryGlobalAs<Channeltracker_V2>("CHANNEL_TRACKER");
         Httpd_Serialize(path, stream, cv2);
     }
@@ -151,7 +151,7 @@ public:
             if (i != device_count.end()) {
                 i->second++;
             } else {
-                device_count.emplace(device->get_frequency(), 1);
+                device_count.insert(std::make_pair(device->get_frequency(), 1));
             }
         }
 
