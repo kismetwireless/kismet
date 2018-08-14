@@ -464,18 +464,20 @@ void Datasourcetracker::Deferred_Startup() {
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
                     [this](int) -> int {
 
-                        local_locker l(&dst_lock);
+                        {
+                            local_locker l(&dst_lock);
 
-                        if (database_logging) {
-                            _MSG("Attempting to log datasources, but datasources are still "
-                                    "being saved from the last logging attempt.  It's possible "
-                                    "your system is extremely over capacity; try increasing the "
-                                    "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
-                                    MSGFLAG_ERROR);
-                            return 1;
+                            if (database_logging) {
+                                _MSG("Attempting to log datasources, but datasources are still "
+                                        "being saved from the last logging attempt.  It's possible "
+                                        "your system is extremely over capacity; try increasing the "
+                                        "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
+                                        MSGFLAG_ERROR);
+                                return 1;
+                            }
+
+                            database_logging = true;
                         }
-
-                        database_logging = true;
 
                         std::thread t([this] {
                             databaselog_write_datasources();
@@ -629,7 +631,7 @@ bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
 }
 
 SharedDatasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock);
+    local_shared_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
         SharedDatasource kds = std::static_pointer_cast<KisDatasource>(i);
@@ -1202,7 +1204,7 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (u.error)
                     return false;
 
-                local_locker lock(&dst_lock);
+                local_shared_locker lock(&dst_lock);
 
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     return false;
@@ -1252,12 +1254,11 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (u.error)
                     return false;
 
-                local_demand_locker lock(&dst_lock);
-
-                lock.lock();
-                if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
-                    return false;
-                lock.unlock();
+                {
+                    local_shared_locker l(dst_lock);
+                    if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
+                        return false;
+                }
 
                 if (Httpd_StripSuffix(tokenurl[4]) == "source")
                     return true;
@@ -1304,19 +1305,19 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
 
     if (stripped == "/datasource/all_sources") {
-        local_locker lock(&dst_lock);
+        local_shared_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, datasource_vec);
         return; 
     }
 
     if (stripped == "/datasource/types") {
-        local_locker lock(&dst_lock);
+        local_shared_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, proto_vec);
         return;
     }
 
     if (stripped == "/datasource/defaults") {
-        local_locker lock(&dst_lock);
+        local_shared_locker lock(&dst_lock);
         Httpd_Serialize(path, stream, config_defaults);
         return;
     }
@@ -1370,7 +1371,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             SharedDatasource ds;
 
             {
-                local_locker lock(&dst_lock);
+                local_shared_locker lock(&dst_lock);
                 for (auto i : *datasource_vec) {
                     SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(i);
 
@@ -1541,7 +1542,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             SharedDatasource ds;
 
             {
-                local_locker lock(&dst_lock);
+                local_shared_locker lock(&dst_lock);
 
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     throw std::runtime_error("Unknown source");
