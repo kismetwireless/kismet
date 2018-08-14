@@ -144,7 +144,7 @@ public:
 
     void lock_shared() {
         if (std::this_thread::get_id() == owner) {
-            owner_count = owner_count + 1;
+            owner_count++;
         } else {
 #if HAVE_CXX14
             mutex.lock_shared();
@@ -157,14 +157,7 @@ public:
     }
 
     void unlock() {
-        if (std::this_thread::get_id() != owner) 
-            throw std::runtime_error(fmt::format("thread error, mutex unlock called by {} but "
-                        "mutex is owned by {} with a count of {}",
-                        std::this_thread::get_id(), owner, owner_count));
-
-        owner_count = owner_count - 1;
-
-        if (owner_count <= 0) {
+        if (--owner_count <= 0) {
             owner = std::thread::id();
             owner_count = 0;
             mutex.unlock();
@@ -172,14 +165,7 @@ public:
     }
 
     void unlock_shared() {
-        if (std::this_thread::get_id() != owner) 
-            throw std::runtime_error(fmt::format("thread error, mutex unlock_shared called by {} but "
-                        "mutex is owned by {} with a count of {}",
-                        std::this_thread::get_id(), owner, owner_count));
-
-        owner_count = owner_count - 1;
-
-        if (owner_count <= 0) {
+        if (--owner_count <= 0) {
             owner = std::thread::id();
             owner_count = 0;
 
@@ -367,6 +353,31 @@ public:
     ~local_eol_locker() { }
 };
 
+class local_eol_shared_locker {
+public:
+    local_eol_shared_locker(kis_recursive_timed_mutex *in) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        in->lock_shared();
+#else
+        if (!in->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+
+    local_eol_shared_locker(kis_recursive_timed_mutex& in) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        in->lock_shared();
+#else
+        if (!in.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+};
+
 // Act as a scope-based unlocker; assuming a mutex is already locked, unlock
 // when it leaves scope
 class local_unlocker {
@@ -379,6 +390,22 @@ public:
 
 protected:
     kis_recursive_timed_mutex *cpplock;
+};
+
+class local_shared_unlocker {
+public:
+    local_shared_unlocker(kis_recursive_timed_mutex *in) : 
+        cpplock{*in} { }
+
+    local_shared_unlocker(kis_recursive_timed_mutex& in) :
+        cpplock{in} { }
+
+    ~local_shared_unlocker() {
+        cpplock.unlock();
+    }
+
+protected:
+    kis_recursive_timed_mutex& cpplock;
 };
 
 #endif
