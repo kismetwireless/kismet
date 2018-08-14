@@ -32,6 +32,11 @@
 #include <mutex>
 #include <chrono>
 #include <atomic>
+#include <thread>
+
+#ifdef HAVE_CXX14
+#include <shared_mutex>
+#endif
 
 #include <pthread.h>
 
@@ -92,15 +97,118 @@ private:
     pthread_mutex_t mutex;
 };
 
+// C++14 defines a shared_mutex, and a timed shared mutex, but not a recursive, timed,
+// shared mutex; implement our own thread ID 
+class kis_recursive_timed_mutex {
+public:
+    kis_recursive_timed_mutex() :
+        owner_count(-1) { }
+
+    bool try_lock_for(const std::chrono::seconds& d) {
+        if (std::this_thread::get_id() == owner) {
+            owner_count++;
+        } else {
+            mutex.try_lock_for(d);
+            owner = std::this_thread::get_id();
+            owner_count = 1;
+        }
+
+        return true;
+    }
+
+    bool try_lock_shared_for(const std::chrono::seconds& d) {
+        if (std::this_thread::get_id() == owner) {
+            owner_count++;
+        } else {
+#if HAVE_CXX14
+            mutex.try_lock_shared_for(d);
+#else
+            mutex.try_lock_for(d);
+#endif
+            owner = std::this_thread::get_id();
+            owner_count = 1;
+        }
+
+        return true;
+    }
+
+    void lock() {
+        if (std::this_thread::get_id() == owner) {
+            owner_count++;
+        } else {
+            mutex.lock();
+            owner = std::this_thread::get_id();
+            owner_count = 1;
+        }
+    }
+
+    void lock_shared() {
+        if (std::this_thread::get_id() == owner) {
+            owner_count = owner_count + 1;
+        } else {
+#if HAVE_CXX14
+            mutex.lock_shared();
+#else
+            mutex.lock();
+#endif
+            owner = std::this_thread::get_id();
+            owner_count = 1;
+        }
+    }
+
+    void unlock() {
+        if (std::this_thread::get_id() != owner) 
+            throw std::runtime_error(fmt::format("thread error, mutex unlock called by {} but "
+                        "mutex is owned by {} with a count of {}",
+                        std::this_thread::get_id(), owner, owner_count));
+
+        owner_count = owner_count - 1;
+
+        if (owner_count <= 0) {
+            owner = std::thread::id();
+            owner_count = 0;
+            mutex.unlock();
+        }
+    }
+
+    void unlock_shared() {
+        if (std::this_thread::get_id() != owner) 
+            throw std::runtime_error(fmt::format("thread error, mutex unlock_shared called by {} but "
+                        "mutex is owned by {} with a count of {}",
+                        std::this_thread::get_id(), owner, owner_count));
+
+        owner_count = owner_count - 1;
+
+        if (owner_count <= 0) {
+            owner = std::thread::id();
+            owner_count = 0;
+
+#if HAVE_CXX14
+            mutex.unlock_shared();
+#else
+            mutex.unlock();
+#endif
+        }
+    }
+
+
+private:
+    std::thread::id owner;
+    std::atomic<int> owner_count;
+
 // Use std::recursive_timed_mutex components when we can, unless we're forcing pthread mode; base it
 // on the GCC versions to detect broken compilers
 #if ALWAYS_USE_KISMET_MUTEX != 0 || \
     (!defined(__clang__) && defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || \
         (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
-using kis_recursive_timed_mutex = kis_recursive_pthread_timed_mutex;
+    kis_recursive_pthread_timed_mutex mutex;
+#elif HAVE_CXX14
+    std::shared_timed_mutex mutex;
 #else
-using kis_recursive_timed_mutex = std::recursive_timed_mutex;
+    std::mutex mutex;
 #endif
+};
+
 
 // A scoped locker like std::lock_guard that provides RAII scoped locking of a kismet mutex;
 // unless disabled in ./configure use a timed lock mutex and throw an exception if unable
@@ -116,10 +224,8 @@ public:
         cpplock.lock();
 #else
         if (!cpplock.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            auto native_m = cpplock.native_handle();
-            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
-                            "timeout, appears to be locked by {}",
-                            native_m->__data.__owner)));
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 #endif
     }
@@ -131,10 +237,8 @@ public:
         cpplock.lock();
 #else
         if (!cpplock.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            auto native_m = cpplock.native_handle();
-            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
-                            "timeout, appears to be locked by {}",
-                            native_m->__data.__owner)));
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 #endif
     }
@@ -149,6 +253,53 @@ public:
     ~local_locker() {
         if (hold_lock)
             cpplock.unlock();
+    }
+
+protected:
+    kis_recursive_timed_mutex& cpplock;
+    std::atomic<bool> hold_lock;
+};
+
+// A local RAII locker for READ ONLY access, allows us to optimize the read-only mutexes
+// if we're on C++14 and above, acts like a normal mutex locker if we're on older compilers.
+class local_shared_locker {
+public:
+    local_shared_locker(kis_recursive_timed_mutex *in) : 
+        cpplock(*in),
+        hold_lock(true) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock.shared_lock();
+#else
+        if (!cpplock.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+
+    local_shared_locker(kis_recursive_timed_mutex& in) : 
+        cpplock(in),
+        hold_lock(true) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock.lock();
+#else
+        if (!cpplock.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+
+    local_shared_locker() = delete;
+
+    void unlock() {
+        hold_lock = false;
+        cpplock.unlock_shared();
+    }
+
+    ~local_shared_locker() {
+        if (hold_lock)
+            cpplock.unlock_shared();
     }
 
 protected:
@@ -183,10 +334,8 @@ public:
         cpplock->lock();
 #else
         if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            auto native_m = cpplock->native_handle();
-            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
-                            "timeout, appears to be locked by {}",
-                            native_m->__data.__owner)));
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 #endif
     }
@@ -209,10 +358,8 @@ public:
         in->lock();
 #else
         if (!in->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            auto native_m = in->native_handle();
-            throw(std::runtime_error(fmt::format("deadlocked thread: mutex not available within "
-                            "timeout, appears to be locked by {}",
-                            native_m->__data.__owner)));
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 #endif
     }
