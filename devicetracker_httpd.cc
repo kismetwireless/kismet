@@ -128,7 +128,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 }
 
                 { 
-                    local_locker devlock(&devicelist_mutex);
+                    local_shared_locker devlock(&devicelist_mutex);
 
                     if (tracked_mac_multimap.count(mac) > 0)
                         return true;
@@ -219,7 +219,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 }
 
                 {
-                    local_locker listlocker(&devicelist_mutex);
+                    local_shared_locker listlocker(&devicelist_mutex);
                     if (tracked_mac_multimap.count(mac) > 0)
                         return true;
                 }
@@ -373,7 +373,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     std::vector<std::string>::const_iterator last = tokenurl.end();
                     std::vector<std::string> fpath(first, last);
 
-                    local_locker devlocker(&(dev->device_mutex));
+                    local_shared_locker devlocker(&(dev->device_mutex));
 
                     SharedTrackerElement sub = dev->get_child_path(fpath);
 
@@ -399,7 +399,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return MHD_YES;
 
-            local_locker lock(&devicelist_mutex);
+            local_shared_locker lock(&devicelist_mutex);
 
             mac_addr mac = mac_addr(tokenurl[3]);
 
@@ -661,7 +661,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (target == "device") {
                     SharedTrackerElement simple;
 
-                    local_locker devlock(&(dev->device_mutex));
+                    local_shared_locker devlock(&(dev->device_mutex));
 
                     SummarizeTrackerElement(dev, summary_vec, simple, rename_map);
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
@@ -836,7 +836,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     // Make the length and filter elements
                     {
-                        local_locker lock(devicelist_mutex);
+                        local_shared_locker lock(devicelist_mutex);
                         dt_length_elem = 
                             std::make_shared<TrackerElementUInt64>(dt_length_id, tracked_vec.size());
                     }
@@ -1139,7 +1139,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::shared_ptr<kis_tracked_device_base> rd = 
                         std::static_pointer_cast<kis_tracked_device_base>(rei);
 
-                    local_locker lock(&rd->device_mutex);
+                    local_shared_locker lock(&rd->device_mutex);
 
                     SharedTrackerElement simple;
 
@@ -1223,7 +1223,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 for (const auto& rei : *regexdevs) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
 
-                    local_locker lock(&rd->device_mutex);
+                    local_shared_locker lock(&rd->device_mutex);
 
                     SharedTrackerElement simple;
 
