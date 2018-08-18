@@ -1050,27 +1050,40 @@ protected:
 //
 // Device-level data, additional data stored in the client and ssid arrays
 class dot11_tracked_device : public tracker_component {
+    friend class Kis_80211_Phy;
 public:
     dot11_tracked_device() :
         tracker_component() {
+
         last_adv_ie_csum = 0;
+        last_bss_invalid = 0;
+        bss_invalid_count = 0;
+
         register_fields();
         reserve_fields(NULL);
     }
 
     dot11_tracked_device(int in_id) :
         tracker_component(in_id) { 
-            last_adv_ie_csum = 0;
-            register_fields();
-            reserve_fields(NULL);
-        }
+
+        last_adv_ie_csum = 0;
+        last_bss_invalid = 0;
+        bss_invalid_count = 0;
+
+        register_fields();
+        reserve_fields(NULL);
+    }
 
     dot11_tracked_device(int in_id, std::shared_ptr<TrackerElementMap> e) :
         tracker_component(in_id) {
-            last_adv_ie_csum = 0;
-            register_fields();
-            reserve_fields(e);
-        }
+
+        last_adv_ie_csum = 0;
+        last_bss_invalid = 0;
+        bss_invalid_count = 0;
+
+        register_fields();
+        reserve_fields(e);
+    }
 
     virtual uint32_t get_signature() const override {
         return Adler32Checksum("dot11_tracked_device");
@@ -1124,6 +1137,8 @@ public:
 
     __Proxy(last_sequence, uint64_t, uint64_t, uint64_t, last_sequence);
     __Proxy(bss_timestamp, uint64_t, uint64_t, uint64_t, bss_timestamp);
+    time_t last_bss_invalid;
+    unsigned int bss_invalid_count;
 
     __Proxy(num_fragments, uint64_t, uint64_t, uint64_t, num_fragments);
     __ProxyIncDec(num_fragments, uint64_t, uint64_t, num_fragments);
@@ -1601,7 +1616,7 @@ protected:
         alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
-        alert_atheros_rsnloop_ref;
+        alert_atheros_rsnloop_ref, alert_bssts_ref;
 
     int signal_too_loud_threshold;
 

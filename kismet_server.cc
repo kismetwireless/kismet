@@ -96,8 +96,6 @@
 
 #include "ipc_remote2.h"
 
-#include "statealert.h"
-
 #include "manuf.h"
 
 #include "entrytracker.h"
@@ -1024,12 +1022,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the manuf db
     globalregistry->manufdb = new Manuf(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
-
-    // Start stateful alert systems
-    BSSTSStateAlert *bsstsa;
-    bsstsa = new BSSTSStateAlert(globalregistry);
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
 

@@ -490,6 +490,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
                 "can be used to exploit certain Broadcom HardMAC implementations, typically used "
                 "in mobile devices, as described in "
                 "https://bugs.chromium.org/p/project-zero/issues/detail?id=1289");
+    alert_bssts_ref =
+        alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
+                "Access points transmit a high-precision millisecond timestamp to "
+                "coordinate power saving and other time-sensitive events.  Out-of-sequence "
+                "timestamps may indicating spoofing or an 'evil twin' style attack.");
 
     // Threshold
     signal_too_loud_threshold = 
@@ -1198,6 +1203,47 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             if (dot11info->retry) {
                 bssid_dot11->inc_num_retries(1);
                 bssid_dot11->inc_datasize_retry(dot11info->datasize);
+            }
+
+            // Look at the BSS TS
+            if (dot11info->type == packet_management && dot11info->subtype == packet_sub_beacon &&
+                    dot11info->distrib != distrib_adhoc) {
+                auto bsts = bssid_dot11->get_bss_timestamp();
+
+                if (bsts == 0) {
+                    bssid_dot11->set_bss_timestamp(dot11info->timestamp);
+                } else {
+                    uint64_t diff = 0;
+
+                    if (dot11info->timestamp < bsts) {
+                        diff = bsts - dot11info->timestamp;
+                    } else {
+                        diff = dot11info->timestamp - bsts;
+                    }
+
+                    if (bssid_dot11->last_bss_invalid == 0) {
+                        bssid_dot11->last_bss_invalid = time(0);
+                        bssid_dot11->bss_invalid_count = 1;
+                    } else if (bssid_dot11->last_bss_invalid - time(0) > 5) {
+                        bssid_dot11->last_bss_invalid = time(0);
+                        bssid_dot11->bss_invalid_count = 1;
+                    } else {
+                        bssid_dot11->last_bss_invalid = time(0);
+                        bssid_dot11->bss_invalid_count++;
+                    }
+
+                    if (diff > 5000000L && bssid_dot11->bss_invalid_count > 5) {
+                        d11phy->alertracker->RaiseAlert(d11phy->alert_bssts_ref,
+                                in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel,
+                                fmt::format("Network {} BSS timestamp fluctuating.  This may indicate "
+                                    "an 'evil twin' style attack where the BSSID of a legitimate AP "
+                                    "is being spoofed.", bssid_dev->get_macaddr().Mac2String()));
+                    }
+                }
+
             }
 
         }
