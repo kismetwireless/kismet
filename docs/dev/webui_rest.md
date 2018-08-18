@@ -256,11 +256,11 @@ Additionally, a wrapper may be specified, which indicates a transient dictionary
 
 The command dictionary is expected to contain:
 
-| Key     | Value               | Type                      | Desc                                     |
-| ------- | ------------------- | ------------------------- | ---------------------------------------- |
-| fields  | Field specification | field specification array | Optional, simplified field listing.      |
+| Key     | Value               | Type                      | Desc                                                  |
+| ------- | ------------------- | ------------------------- | ----------------------------------------------------- |
+| fields  | Field specification | field specification array | Simplified field listing.                             |
 | regex   | Regex specification | regular expression array  | Optional, array of field path and regular expressions |
-| wrapper | "foo"               | string                    | Optional, wrapper dictionary to surround the data |
+| wrapper | "foo"               | string                    | Optional, wrapper dictionary to surround the data     |
 
 ##### /devices/all_devices.ekjson
 
