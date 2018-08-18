@@ -561,26 +561,77 @@ void Datasourcetracker::Deferred_Startup() {
         return;
     }
 
-    auto source_t = std::thread([](Datasourcetracker *dst, const std::vector<std::string>& src_vec) {
-        for (unsigned int i = 0; i < src_vec.size(); i++) {
-            dst->open_datasource(src_vec[i], 
-                    [src_vec, i](bool success, std::string reason, SharedDatasource) {
+    auto stagger_thresh = 
+        Globalreg::globalreg->kismet_config->FetchOptUInt("source_stagger_threshold", 16);
+    auto simul_open = 
+        Globalreg::globalreg->kismet_config->FetchOptUInt("source_launch_group", 10);
+    auto simul_open_delay = 
+        Globalreg::globalreg->kismet_config->FetchOptUInt("source_launch_delay", 10);
+
+    auto launch_func = [](Datasourcetracker *dst, std::string src) {
+            dst->open_datasource(src, 
+                    [src](bool success, std::string reason, SharedDatasource) {
                 if (success) {
-                    _MSG("Data source '" + src_vec[i] + "' launched successfully.", 
-                            MSGFLAG_INFO);
+                    _MSG_INFO("Data source '{}' launched successfully", src);
                 } else {
                     if (reason.length() != 0) {
-                        _MSG("Data source '" + src_vec[i] + "' failed to launch: " + reason,
-                                MSGFLAG_ERROR);
+                        _MSG_ERROR("Data source '{}' failed to launch: {}", src, reason);
                     } else {
-                        _MSG("Data source '" + src_vec[i] + "' failed to launch, "
-                                "no error given.", MSGFLAG_ERROR);
+                        _MSG_ERROR("Data source '{}' failed to launch, no error provided.", src);
                     }
                 }
             });
+    };
+
+    if (stagger_thresh == 0 || src_vec.size() <= stagger_thresh) {
+        auto source_t = std::thread([launch_func](Datasourcetracker *dst, 
+                    const std::vector<std::string>& src_vec) {
+                for (auto i : src_vec) {
+                    launch_func(dst, i);
+                }
+                }, this, src_vec);
+        source_t.detach();
+    } else {
+        std::vector<std::string> work_vec;
+        unsigned int group_number = 0;
+
+        for (auto i : src_vec) {
+            work_vec.push_back(i);
+
+            if (work_vec.size() > simul_open) {
+                // Pass a copy of the work vec so that we can immediately clear it
+                auto launch_t = std::thread([launch_func, simul_open_delay](Datasourcetracker *dst,
+                            const std::vector<std::string> src_vec, unsigned int gn) {
+
+                    // All the threads launch more or less at once, so each thread sleeps for
+                    // its allocated amount of time before launching the vector
+                    sleep(gn * simul_open_delay);
+                    _MSG_INFO("Launching local source group {}", gn + 1);
+
+                    for (auto i : src_vec) {
+                        launch_func(dst, i);
+                    }
+                }, this, work_vec, group_number);
+                launch_t.detach();
+
+                work_vec.clear();
+                group_number++;
+            }
         }
-    }, this, src_vec);
-    source_t.detach();
+
+        // Launch the last of the group
+        auto launch_t = std::thread([launch_func, simul_open_delay](Datasourcetracker *dst,
+                    const std::vector<std::string> src_vec, unsigned int gn) {
+
+                    sleep(gn * simul_open_delay);
+                    _MSG_INFO("Launching local source group {}", gn);
+
+                    for (auto i : src_vec) {
+                        launch_func(dst, i);
+                    }
+                }, this, work_vec, group_number);
+                launch_t.detach();
+    }
 
     return;
 }

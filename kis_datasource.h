@@ -425,7 +425,7 @@ protected:
             timetracker = in_src->timetracker;
 
             // Generate a timeout for 5 seconds from now
-            timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+            timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15,
                     NULL, 0, [in_src, this](int) -> int {
                     in_src->cancel_command(command_seq, "Command did not complete");
                     return 0;

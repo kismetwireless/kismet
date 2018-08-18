@@ -1064,6 +1064,30 @@ Kismet has several options which control how much memory and processing it uses.
 
    Some older kernels (such as those found on some Debian and Ubuntu versions still in LTS, such as Ubuntu 14.04) do not properly calculate memory used by modern allocation systems and will not count the memory consumed.  On these systems, it may be necessary to use externally-defined `cgroup` controls.
 
+### Extremely large numbers of data sources
+
+Using extremely large numbers of local data sources (in excess of 16 devices) can introduce a new set of instabilities and concerns; depending on the devices used, the kernel version, and if using an out-of-kernel driver such as the RTL8812AU driver set, the driver version.
+
+While *reading* packets from a capture interface is generally very cheap (a bulk transfer operation), configuring an interface or changing the channel may be quite expensive, in terms of work done by the kernel and driver.
+
+Some drivers and kernels seem especially impacted when first setting a very large number of interfaces to monitor mode; this can lead to timeouts or even kernel crashes on some drivers.  Kismet provides a set of tuning knobs in `kismet.conf`:
+
+* `source_stagger_threshold=[number]`
+  This determines when Kismet will start staggering local source bring-up - if you have more than this number of sources defined, Kismet will slow down the startup process.
+* `source_launch_group=[number]`
+  This determines how many sources will be bought up at a time.
+* `source_launch_delay=[seconds]`
+  The number of seconds between launching each group of sources.
+
+While the default values may be sane for your application, adding this many local sources to Kismet implies an advanced configuration - you may find benefit to tuning these options for your specific configuration.
+
+You may also find it necessary to decrease the channel hopping speed to alleviate contention in the kernel.
+
+When running an extremely large number of sources, remember also that Kismet will likely require a significant amount of CPU and RAM for the additional data being gathered.
+
+
+
+
 ## SIEM support
 
 Kismet is natively compatible with the Prelude SIEM event management system (https://www.prelude-siem.org) and can send Kismet alerts to Prelude.
