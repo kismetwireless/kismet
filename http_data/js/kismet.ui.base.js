@@ -126,6 +126,20 @@ kismet_ui.AddDeviceColumn('column_phy', {
     width: "8em",
 });
 
+kismet_ui.AddDeviceColumn('column_crypto', {
+    sTitle: 'Crypto',
+    field: 'kismet.device.base.crypt',
+    description: 'Encryption',
+    width: "8em",
+    renderfunc: function(d, t, r, m) {
+        if (d == "") {
+            return "n/a";
+        }
+
+        return d;
+    },
+});
+
 kismet_ui.AddDeviceColumn('column_signal', {
     sTitle: 'Signal',
     field: 'kismet.device.base.signal/kismet.common.signal.last_signal',

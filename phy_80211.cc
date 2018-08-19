@@ -1585,6 +1585,8 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_first_time(in_pack->ts.tv_sec);
 
+        basedev->set_crypt_string(CryptToSimpleString(dot11info->cryptset));
+
         // TODO handle loading SSID from the stored file
         ssid->set_ssid(dot11info->ssid);
         if (dot11info->ssid_len == 0 || dot11info->ssid_blank) 
@@ -1792,6 +1794,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         }
 
         ssid->set_crypt_set(dot11info->cryptset);
+        basedev->set_crypt_string(CryptToSimpleString(dot11info->cryptset));
     }
 
     if (ssid->get_channel().length() > 0 &&
@@ -2366,6 +2369,52 @@ std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 
 	return ret;
 }
+
+std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
+	std::string ret;
+
+	if (cryptset == crypt_none)
+		return "Open";
+
+	if (cryptset == crypt_unknown)
+		return "Unknown";
+
+	if (cryptset & crypt_peap)
+        return "WPA-PEAP";
+
+	if (cryptset & crypt_leap)
+        return "WPA-LEAP";
+
+	if (cryptset & crypt_ttls)
+        return "WPA-TTLS";
+
+	if (cryptset & crypt_tls)
+        return "WPA-TLS";
+
+	if (cryptset & crypt_wep40)
+        return "WEP40";
+
+	if (cryptset & crypt_wep104)
+        return "WEP104";
+
+	if (cryptset & crypt_tkip)
+        return "WPA-TKIP";
+
+	if (cryptset & crypt_aes_ocb)
+        return "WPA-OCB";
+
+	if (cryptset & crypt_aes_ccm)
+        return "WPA-CCMP";
+
+    if (cryptset & crypt_wpa)
+        return "WPA";
+
+    if (cryptset & crypt_wep)
+        return "WEP";
+
+    return "Other";
+}
+
 
 
 bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {

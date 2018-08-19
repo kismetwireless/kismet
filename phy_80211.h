@@ -1496,6 +1496,7 @@ public:
     void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
     static std::string CryptToString(uint64_t cryptset);
+    static std::string CryptToSimpleString(uint64_t cryptset);
 
     // HTTPD API
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
