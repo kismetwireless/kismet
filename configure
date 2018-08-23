@@ -621,6 +621,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+BUILD_CAPTURE_NRF_MOUSEJACK
 BUILD_CAPTURE_FREAKLABS_ZIGBEE
 BUILD_CAPTURE_SDR_RTL433
 BUILD_CAPTURE_OSX_COREWLAN
@@ -632,6 +633,10 @@ DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
+LIBUSBCFLAGS
+LIBUSBLIBS
+libusb_LIBS
+libusb_CFLAGS
 NLCFLAGS
 NLLIBS
 libnl1_LIBS
@@ -778,6 +783,7 @@ with_python2
 with_protoc
 with_protocc
 with_netlink_tiny
+enable_libusb
 with_suidgroup
 enable_optimization
 enable_asan
@@ -812,7 +818,9 @@ libnlgenl30_LIBS
 libnl20_CFLAGS
 libnl20_LIBS
 libnl1_CFLAGS
-libnl1_LIBS'
+libnl1_LIBS
+libusb_CFLAGS
+libusb_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1443,6 +1451,7 @@ Optional Features:
   --disable-pcre          disable building pcre components
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-pcap          disable libpcap (most sources) capture support
+  --disable-usb           Disable libUSB support
   --disable-optimization        disable -Ox gcc optimization
   --enable-asan           enable ASAN address debugging
   --enable-tsan           enable thread-sanitizer debugging
@@ -1503,6 +1512,9 @@ Some influential environment variables:
   libnl1_CFLAGS
               C compiler flags for libnl1, overriding pkg-config
   libnl1_LIBS linker flags for libnl1, overriding pkg-config
+  libusb_CFLAGS
+              C compiler flags for libusb, overriding pkg-config
+  libusb_LIBS linker flags for libusb, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -12387,6 +12399,129 @@ fi
 
 
 
+want_usb="no"
+have_usb="no"
+# Check whether --enable-libusb was given.
+if test "${enable_libusb+set}" = set; then :
+  enableval=$enable_libusb; want_usb=no
+else
+  want_usb=yes
+fi
+
+if test "x$want_usb" != "xno"; then :
+
+    # We only *require* protobuf for C++
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb" >&5
+$as_echo_n "checking for libusb... " >&6; }
+
+if test -n "$libusb_CFLAGS"; then
+    pkg_cv_libusb_CFLAGS="$libusb_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libusb-1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libusb-1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libusb_CFLAGS=`$PKG_CONFIG --cflags "libusb-1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libusb_LIBS"; then
+    pkg_cv_libusb_LIBS="$libusb_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libusb-1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libusb-1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libusb_LIBS=`$PKG_CONFIG --libs "libusb-1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libusb_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libusb-1.0" 2>&1`
+        else
+	        libusb_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libusb-1.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libusb_PKG_ERRORS" >&5
+
+	as_fn_error $? "Package requirements (libusb-1.0) were not met:
+
+$libusb_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables libusb_CFLAGS
+and libusb_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables libusb_CFLAGS
+and libusb_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
+else
+	libusb_CFLAGS=$pkg_cv_libusb_CFLAGS
+	libusb_LIBS=$pkg_cv_libusb_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	have_libusb_pkg=yes
+fi
+
+    if test x"$have_libusb_pkg" != "xyes"; then
+        as_fn_error $? "missing libusb-1.0" "$LINENO" 5
+    else
+        LIBUSBLIBS=`pkg-config --libs libusb-1.0`
+        LIBUSBCFLAGS=`pkg-config --cflags libusb-1.0`
+
+        have_usb="yes"
+    fi
+
+fi
+
+
+
+BUILD_CAPTURE_NRF_MOUSEJACK=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_NRF_MOUSEJACK=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_MOUSEJACK)"
+fi
+
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
     BUILD_CAPTURE_LINUX_BLUETOOTH=1
@@ -12561,11 +12696,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_freaklabs_zigbee/Makefile python_modules/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile python_modules/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -13269,6 +13405,7 @@ do
     "capture_osx_corewlan_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_osx_corewlan_wifi/Makefile" ;;
     "capture_sdr_rtl433/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtl433/Makefile" ;;
     "capture_freaklabs_zigbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_freaklabs_zigbee/Makefile" ;;
+    "capture_nrf_mousejack/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_mousejack/Makefile" ;;
     "python_modules/Makefile") CONFIG_FILES="$CONFIG_FILES python_modules/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
@@ -13950,6 +14087,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
+fi
+
+printf "         nRF MOuseJack: "
+if test "$BUILD_CAPTURE_NRF_MOUSEJACK" = 1; then
+	echo "yes";
+else
+	echo "no (libusb-1.0 not available)";
 fi
 
 printf "        Python Modules: "

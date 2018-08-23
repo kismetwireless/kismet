@@ -1375,6 +1375,34 @@ fi
 AC_SUBST(NLLIBS)
 AC_SUBST(NLCFLAGS)
 
+want_usb="no"
+have_usb="no"
+AC_ARG_ENABLE(libusb,
+        AS_HELP_STRING([--disable-usb], [Disable libUSB support]),
+        [want_usb=no],
+        [want_usb=yes])
+AS_IF([test "x$want_usb" != "xno"], [
+    # We only *require* protobuf for C++
+    PKG_CHECK_MODULES([libusb], [libusb-1.0], have_libusb_pkg=yes)
+
+    if test x"$have_libusb_pkg" != "xyes"; then
+        AC_MSG_ERROR([missing libusb-1.0])
+    else
+        LIBUSBLIBS=`pkg-config --libs libusb-1.0`
+        LIBUSBCFLAGS=`pkg-config --cflags libusb-1.0`
+
+        have_usb="yes"
+    fi
+])
+AC_SUBST(LIBUSBLIBS)
+AC_SUBST(LIBUSBCFLAGS)
+
+BUILD_CAPTURE_NRF_MOUSEJACK=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_NRF_MOUSEJACK=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_MOUSEJACK)"
+fi
+
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
     BUILD_CAPTURE_LINUX_BLUETOOTH=1
@@ -1482,12 +1510,13 @@ AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
+AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_freaklabs_zigbee/Makefile python_modules/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile python_modules/Makefile])
 AC_OUTPUT
 
 echo
@@ -1583,6 +1612,13 @@ elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
+fi
+
+printf "         nRF MOuseJack: "
+if test "$BUILD_CAPTURE_NRF_MOUSEJACK" = 1; then
+	echo "yes";
+else
+	echo "no (libusb-1.0 not available)";
 fi
 
 printf "        Python Modules: "
