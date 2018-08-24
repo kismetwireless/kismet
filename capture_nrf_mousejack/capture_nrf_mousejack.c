@@ -235,6 +235,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int busno = -1, devno = -1;
 
     libusb_device **libusb_devs = NULL;
+    libusb_device *matched_dev = NULL;
     ssize_t libusb_devices_cnt = 0;
     int r;
 
@@ -290,12 +291,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 if (busno == libusb_get_bus_number(libusb_devs[i]) &&
                         devno == libusb_get_device_address(libusb_devs[i])) {
                     matched_device = 1;
+                    matched_dev = libusb_devs[i];
                     break;
                 }
             } else {
                 matched_device = 1;
                 busno = libusb_get_bus_number(libusb_devs[i]);
                 devno = libusb_get_device_address(libusb_devs[i]);
+                matched_dev = libusb_devs[i];
                 break;
             }
         }
@@ -322,7 +325,52 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nrfmousejack");
 
+    /* Try to open it */
+    r = libusb_open(matched_dev, &localnrf->nrf_handle);
+    if (r < 0) {
+        snprintf(errstr, STATUS_MAX, "Unable to open mousejack USB interface: %s", 
+                libusb_strerror((enum libusb_error) r));
+        return -1;
+    }
+
+    /* Try to claim it */
+    r = libusb_claim_interface(localnrf->nrf_handle, 0);
+    if (r < 0) {
+        if (r == LIBUSB_ERROR_BUSY) {
+            /* Try to detach the kernel driver */
+            r = libusb_detach_kernel_driver(localnrf->nrf_handle, 0);
+            if (r < 0) {
+                snprintf(errstr, STATUS_MAX, "Unable to open mousejack USB interface, and unable "
+                        "to disconnect existing driver: %s", 
+                        libusb_strerror((enum libusb_error) r));
+                return -1;
+            }
+        } else {
+            snprintf(errstr, STATUS_MAX, "Unable to open mousejack USB interface: %s",
+                    libusb_strerror((enum libusb_error) r));
+            return -1;
+        }
+    }
+
+    libusb_set_configuration(localnrf->nrf_handle, 1);
+
+
     return 1;
+}
+
+int send_nrf_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    uint8_t *cmdbuf = NULL;
+
+    if (len > 0) {
+        cmdbuf = (uint8_t *) malloc(len);
+        cmdbuf[0] = request;
+        memcpy(cmdbuf + 1, data, len);
+
+        libusb_wr
+    } else {
+
+    }
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -347,7 +395,7 @@ int main(int argc, char *argv[]) {
         .caph = NULL,
     };
 
-    kis_capture_handler_t *caph = cf_handler_init("linuxbluetooth");
+    kis_capture_handler_t *caph = cf_handler_init("nrfmousejack");
     int r;
 
     if (caph == NULL) {
