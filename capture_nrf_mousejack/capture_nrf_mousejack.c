@@ -40,6 +40,9 @@
 
 #include "../capture_framework.h"
 
+/* USB command timeout */
+#define NRF_USB_TIMEOUT     2500
+
 /* Unique instance data passed around by capframework */
 typedef struct {
     libusb_context *libusb_ctx;
@@ -358,20 +361,66 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
-int send_nrf_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
+int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     uint8_t *cmdbuf = NULL;
+    int actual_length;
+    int r;
 
     if (len > 0) {
         cmdbuf = (uint8_t *) malloc(len);
         cmdbuf[0] = request;
         memcpy(cmdbuf + 1, data, len);
 
-        libusb_wr
-    } else {
+        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
+                cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
 
+        free(cmdbuf);
+    } else {
+        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
+                &request, 1, &actual_length, NRF_USB_TIMEOUT);
     }
+
+    return r;
 }
+
+int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uint8_t *data,
+        size_t len) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    int r;
+    unsigned char rx_buf[64];
+    int actual_length;
+
+    r = nrf_send_command(caph, request, data, len);
+
+    if (r < 0)
+        return r;
+
+    r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
+            rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
+
+    return r;
+}
+
+int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
+    return nrf_send_command_with_resp(caph, MOUSEJACK_SET_CHANNEL, NULL, 0);
+}
+
+int nrf_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t *prefix, size_t prefix_len) {
+    if (prefix_len > 5)
+        return -1;
+
+    unsigned char prefix_buf[6];
+
+    prefix_buf[0] = (uint8_t) prefix_len;
+
+    if (prefix_len > 0) 
+        memcpy(prefix_buf + 1, prefix, prefix_len);
+
+    return nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_PROMISCUOUS_MODE, prefix_buf, 
+            prefix_len + 1);
+}
+
 
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {

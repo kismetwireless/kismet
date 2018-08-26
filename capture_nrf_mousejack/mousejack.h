@@ -50,6 +50,9 @@
 #define MOUSEJACK_RF_RATE_1M                      1
 #define MOUSEJACK_RF_RATE_2M                      2
 
+/* Input endpoint */
+#define MOUSEJACK_USB_ENDPOINT_IN                 0x81
+
 #endif
 
 
