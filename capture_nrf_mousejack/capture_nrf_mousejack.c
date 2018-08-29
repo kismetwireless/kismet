@@ -52,6 +52,87 @@ typedef struct {
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
+/* Most basic of channel definitions */
+typedef struct {
+    unsigned int channel;
+} local_channel_t;
+
+int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    uint8_t *cmdbuf = NULL;
+    int actual_length;
+    int r;
+
+    if (len > 0) {
+        cmdbuf = (uint8_t *) malloc(len);
+        cmdbuf[0] = request;
+        memcpy(cmdbuf + 1, data, len);
+
+        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
+                cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
+
+        free(cmdbuf);
+    } else {
+        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
+                &request, 1, &actual_length, NRF_USB_TIMEOUT);
+    }
+
+    return r;
+}
+
+int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uint8_t *data,
+        size_t len) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    int r;
+    unsigned char rx_buf[64];
+    int actual_length;
+
+    r = nrf_send_command(caph, request, data, len);
+
+    if (r < 0)
+        return r;
+
+    r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
+            rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
+
+    return r;
+}
+
+int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
+    return nrf_send_command_with_resp(caph, MOUSEJACK_SET_CHANNEL, NULL, 0);
+}
+
+int nrf_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t *prefix, size_t prefix_len) {
+    if (prefix_len > 5)
+        return -1;
+
+    unsigned char prefix_buf[6];
+
+    prefix_buf[0] = (uint8_t) prefix_len;
+
+    if (prefix_len > 0) 
+        memcpy(prefix_buf + 1, prefix, prefix_len);
+
+    return nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_PROMISCUOUS_MODE, prefix_buf, 
+            prefix_len + 1);
+}
+
+int nrf_enter_sniffer_mode(kis_capture_handler_t *caph, uint8_t *address, size_t addr_len) {
+    unsigned char *addr_buf = (unsigned char *) malloc(addr_len + 1);
+    int r;
+
+    addr_buf[0] = (uint8_t) addr_len;
+
+    if (addr_len > 0)
+        memcpy(addr_buf + 1, address, addr_len);
+
+    r = nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_SNIFFER_MODE, addr_buf, addr_len + 1);
+
+    free(addr_buf);
+
+    return r;
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
@@ -140,6 +221,17 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
                 strlen("kismet_cap_nrf_mousejack")) & 0xFFFFFFFF,
             busno, devno);
     *uuid = strdup(errstr);
+
+    /* NRF supports 2-83 */
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 82);
+    for (int i = 2; i < 84; i++) {
+        char chstr[3];
+        snprintf(chstr, 2, "%d", i);
+        (*ret_interface)->channels[i - 2] = strdup(chstr);
+    }
+
+    (*ret_interface)->channels_len = 82;
+
     return 1;
 }
 
@@ -328,6 +420,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nrfmousejack");
 
+    /* NRF supports 2-83 */
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 82);
+    for (int i = 2; i < 84; i++) {
+        char chstr[3];
+        snprintf(chstr, 2, "%d", i);
+        (*ret_interface)->channels[i - 2] = strdup(chstr);
+    }
+
+    (*ret_interface)->channels_len = 82;
+
     /* Try to open it */
     r = libusb_open(matched_dev, &localnrf->nrf_handle);
     if (r < 0) {
@@ -357,70 +459,54 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     libusb_set_configuration(localnrf->nrf_handle, 1);
 
+    nrf_enter_promisc_mode(caph, NULL, 0);
 
     return 1;
 }
 
-int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    uint8_t *cmdbuf = NULL;
-    int actual_length;
-    int r;
+void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+    local_channel_t *ret_localchan;
+    unsigned int parsechan;
+    char errstr[STATUS_MAX];
 
-    if (len > 0) {
-        cmdbuf = (uint8_t *) malloc(len);
-        cmdbuf[0] = request;
-        memcpy(cmdbuf + 1, data, len);
-
-        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
-                cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
-
-        free(cmdbuf);
-    } else {
-        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
-                &request, 1, &actual_length, NRF_USB_TIMEOUT);
+    if (sscanf(chanstr, "%u", &parsechan) != 1) {
+        snprintf(errstr, STATUS_MAX, "unable to parse requested channel '%s'; nrf channels "
+                "are from 2 to 83", chanstr);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        return NULL;
     }
 
-    return r;
+    if (parsechan < 2 || parsechan > 83) {
+        snprintf(errstr, STATUS_MAX, "unable to parse requested channel '%u'; nrf channels "
+                "are from 2 to 83", parsechan);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        return NULL;
+    }
+
+    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    ret_localchan->channel = parsechan;
+
+    return ret_localchan;
 }
 
-int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uint8_t *data,
-        size_t len) {
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    int r;
-    unsigned char rx_buf[64];
-    int actual_length;
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
+        char *msg) {
+    local_channel_t *channel = (local_channel_t *) privchan;
 
-    r = nrf_send_command(caph, request, data, len);
+    int r;
+
+    if (privchan == NULL) {
+        return 0;
+    }
+
+
+    r = nrf_set_channel(caph, channel->channel);
 
     if (r < 0)
-        return r;
-
-    r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
-            rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
-
-    return r;
-}
-
-int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    return nrf_send_command_with_resp(caph, MOUSEJACK_SET_CHANNEL, NULL, 0);
-}
-
-int nrf_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t *prefix, size_t prefix_len) {
-    if (prefix_len > 5)
         return -1;
-
-    unsigned char prefix_buf[6];
-
-    prefix_buf[0] = (uint8_t) prefix_len;
-
-    if (prefix_len > 0) 
-        memcpy(prefix_buf + 1, prefix, prefix_len);
-
-    return nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_PROMISCUOUS_MODE, prefix_buf, 
-            prefix_len + 1);
+   
+    return 1;
 }
-
 
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
@@ -431,6 +517,10 @@ void capture_thread(kis_capture_handler_t *caph) {
     while (1) {
         if (caph->spindown) {
             /* close usb */
+            if (localnrf->nrf_handle) {
+                libusb_close(localnrf->nrf_handle);
+                localnrf->nrf_handle = NULL;
+            }
 
             break;
         }
