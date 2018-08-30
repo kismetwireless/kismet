@@ -69,12 +69,12 @@ int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data
         cmdbuf[0] = request;
         memcpy(cmdbuf + 1, data, len);
 
-        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
+        r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
                 cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
 
         free(cmdbuf);
     } else {
-        r = libusb_bulk_transfer(localnrf->nrf_handle, LIBUSB_ENDPOINT_OUT,
+        r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
                 &request, 1, &actual_length, NRF_USB_TIMEOUT);
     }
 
@@ -179,7 +179,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     interface = strndup(placeholder, placeholder_len);
 
     /* Look for the interface type */
-    if (strstr(interface, "mousejack") != 0) {
+    if (strstr(interface, "mousejack") != interface) {
         free(interface);
         return 0;
     }
@@ -361,7 +361,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     interface = strndup(placeholder, placeholder_len);
 
     /* Look for the interface type */
-    if (strstr(interface, "mousejack") != 0) {
+    if (strstr(interface, "mousejack") != interface) {
         snprintf(msg, STATUS_MAX, "Unable to find mousejack interface"); 
         free(interface);
         return -1;
@@ -453,6 +453,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 libusb_strerror((enum libusb_error) r));
         return -1;
     }
+    fprintf(stderr, "opened\n");
 
     /* Try to claim it */
     r = libusb_claim_interface(localnrf->nrf_handle, 0);
@@ -473,9 +474,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    libusb_set_configuration(localnrf->nrf_handle, 1);
+    libusb_set_configuration(localnrf->nrf_handle, 0);
+    fprintf(stderr, "set config\n");
 
     nrf_enter_promisc_mode(caph, NULL, 0);
+    fprintf(stderr, "entered promisc\n");
 
     return 1;
 }
@@ -554,12 +557,21 @@ void capture_thread(kis_capture_handler_t *caph) {
                     "unexpectedly", localnrf->busno, localnrf->devno);
             cf_send_error(caph, 0, errstr);
             cf_handler_spindown(caph);
+            break;
         }
 
         while (1) {
             struct timeval tv;
 
             gettimeofday(&tv, NULL);
+
+            fprintf(stderr, "mousejack saw %d ", buf_rx_len);
+
+            for (int bb = 0; bb < buf_rx_len; bb++) {
+                fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
+            }
+            fprintf(stderr, "\n");
+
 
             if ((r = cf_send_data(caph,
                             NULL, NULL, NULL,

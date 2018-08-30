@@ -52,6 +52,7 @@
 
 /* Input endpoint */
 #define MOUSEJACK_USB_ENDPOINT_IN                 0x81
+#define MOUSEJACK_USB_ENDPOINT_OUT                0x01
 
 #endif
 
