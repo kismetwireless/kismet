@@ -50,6 +50,8 @@ typedef struct {
 
     unsigned int devno, busno;
 
+    pthread_mutex_t usb_mutex;
+
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
@@ -58,25 +60,43 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
+int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     uint8_t *cmdbuf = NULL;
     int actual_length;
     int r;
 
-    if (len > 0) {
-        cmdbuf = (uint8_t *) malloc(len);
-        cmdbuf[0] = request;
+    cmdbuf = (uint8_t *) malloc(len + 1);
+    cmdbuf[0] = request;
+
+    if (len > 0) 
         memcpy(cmdbuf + 1, data, len);
 
-        r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
-                cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
-
-        free(cmdbuf);
-    } else {
-        r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
-                &request, 1, &actual_length, NRF_USB_TIMEOUT);
+    /*
+    printf("TX ");
+    for (size_t i = 0; i < len + 1; i++) {
+        printf("%02X ", cmdbuf[i]);
     }
+    printf("\n");
+    */
+
+    r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
+            cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
+
+    free(cmdbuf);
+
+    return r;
+}
+
+int nrf_send_command(kis_capture_handler_t *caph, uint8_t request, uint8_t *data, size_t len) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    int r;
+
+    pthread_mutex_lock(&(localnrf->usb_mutex));
+
+    r = nrf_send_command_nb(caph, request, data, len);
+
+    pthread_mutex_unlock(&(localnrf->usb_mutex));
 
     return r;
 }
@@ -88,34 +108,47 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
     unsigned char rx_buf[64];
     int actual_length;
 
-    r = nrf_send_command(caph, request, data, len);
+    pthread_mutex_lock(&(localnrf->usb_mutex));
+    r = nrf_send_command_nb(caph, request, data, len);
 
-    if (r < 0)
+    if (r < 0) {
+        printf("command send failed\n");
+        pthread_mutex_unlock(&(localnrf->usb_mutex));
         return r;
+    }
 
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
             rx_buf, 64, &actual_length, NRF_USB_TIMEOUT);
+
+    pthread_mutex_unlock(&(localnrf->usb_mutex));
 
     return r;
 }
 
 int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    return nrf_send_command_with_resp(caph, MOUSEJACK_SET_CHANNEL, NULL, 0);
+    printf("channel %u\n", channel);
+    return nrf_send_command_with_resp(caph, MOUSEJACK_SET_CHANNEL, &channel, 1);
 }
 
 int nrf_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t *prefix, size_t prefix_len) {
+    unsigned char *prefix_buf = NULL;
+    int r;
+
     if (prefix_len > 5)
         return -1;
 
-    unsigned char prefix_buf[6];
+    prefix_buf = (unsigned char *) malloc(prefix_len + 1);
+    prefix_buf[0] = prefix_len;
 
-    prefix_buf[0] = (uint8_t) prefix_len;
-
-    if (prefix_len > 0) 
+    if (prefix_len > 0) {
         memcpy(prefix_buf + 1, prefix, prefix_len);
+    }
 
-    return nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_PROMISCUOUS_MODE, prefix_buf, 
-            prefix_len + 1);
+    r = nrf_send_command_with_resp(caph, MOUSEJACK_ENTER_PROMISCUOUS_MODE, prefix_buf, prefix_len + 1);
+
+    free(prefix_buf);
+
+    return r;
 }
 
 int nrf_enter_sniffer_mode(kis_capture_handler_t *caph, uint8_t *address, size_t addr_len) {
@@ -138,8 +171,16 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     int actual_len, r;
 
+    pthread_mutex_lock(&(localnrf->usb_mutex));
+
+    r = nrf_send_command_nb(caph, MOUSEJACK_RECEIVE_PAYLOAD, NULL, 0);
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
-            rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
+            rx_buf, rx_max, &actual_len, 0);
+
+    pthread_mutex_unlock(&(localnrf->usb_mutex));
+
+    if (r == LIBUSB_ERROR_TIMEOUT)
+        return 0;
 
     if (r < 0)
         return r;
@@ -189,8 +230,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     free(interface);
 
+    printf("probe matched %d\n", x);
+
     /* If we don't have a valid busno/devno or malformed interface name */
-    if (x != 0 && x != 2) {
+    if (x != -1 && x != 2) {
         return 0;
     }
 
@@ -239,8 +282,8 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     /* NRF supports 2-83 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 82);
     for (int i = 2; i < 84; i++) {
-        char chstr[3];
-        snprintf(chstr, 2, "%d", i);
+        char chstr[4];
+        snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 2] = strdup(chstr);
     }
 
@@ -373,7 +416,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     free(interface);
 
     /* If we don't have a valid busno/devno or malformed interface name */
-    if (x != 0 && x != 2) {
+    if (x != -1 && x != 2) {
         snprintf(msg, STATUS_MAX, "Malformed mousejack interface, expected 'mousejack' or "
                 "'mousejack-bus#-dev#'"); 
         return -1;
@@ -439,8 +482,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* NRF supports 2-83 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 82);
     for (int i = 2; i < 84; i++) {
-        char chstr[3];
-        snprintf(chstr, 2, "%d", i);
+        char chstr[4];
+        snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 2] = strdup(chstr);
     }
 
@@ -560,18 +603,21 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        while (1) {
-            struct timeval tv;
-
-            gettimeofday(&tv, NULL);
-
+        if (buf_rx_len > 2) {
             fprintf(stderr, "mousejack saw %d ", buf_rx_len);
 
             for (int bb = 0; bb < buf_rx_len; bb++) {
                 fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
             }
             fprintf(stderr, "\n");
+        }
 
+        continue;
+
+        while (1) {
+            struct timeval tv;
+
+            gettimeofday(&tv, NULL);
 
             if ((r = cf_send_data(caph,
                             NULL, NULL, NULL,
@@ -598,6 +644,8 @@ int main(int argc, char *argv[]) {
         .nrf_handle = NULL,
         .caph = NULL,
     };
+
+    pthread_mutex_init(&(localnrf.usb_mutex), NULL);
 
     kis_capture_handler_t *caph = cf_handler_init("nrfmousejack");
     int r;
