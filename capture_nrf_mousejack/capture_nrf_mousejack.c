@@ -179,9 +179,6 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 
     pthread_mutex_unlock(&(localnrf->usb_mutex));
 
-    if (r == LIBUSB_ERROR_TIMEOUT)
-        return 0;
-
     if (r < 0)
         return r;
 
@@ -603,7 +600,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        if (buf_rx_len > 2) {
+        if (buf_rx_len > 1) {
             fprintf(stderr, "mousejack saw %d ", buf_rx_len);
 
             for (int bb = 0; bb < buf_rx_len; bb++) {
