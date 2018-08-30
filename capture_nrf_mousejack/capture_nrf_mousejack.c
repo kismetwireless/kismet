@@ -46,8 +46,9 @@
 /* Unique instance data passed around by capframework */
 typedef struct {
     libusb_context *libusb_ctx;
-
     libusb_device_handle *nrf_handle;
+
+    unsigned int devno, busno;
 
     kis_capture_handler_t *caph;
 } local_nrf_t;
@@ -131,6 +132,19 @@ int nrf_enter_sniffer_mode(kis_capture_handler_t *caph, uint8_t *address, size_t
     free(addr_buf);
 
     return r;
+}
+
+int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    int actual_len, r;
+
+    r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_IN,
+            rx_buf, rx_max, &actual_len, NRF_USB_TIMEOUT);
+
+    if (r < 0)
+        return r;
+
+    return actual_len;
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -408,6 +422,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     snprintf(cap_if, 32, "mousejack-%u-%u", busno, devno);
 
+    localnrf->devno = devno;
+    localnrf->busno = busno;
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
@@ -514,6 +530,12 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     char errstr[STATUS_MAX];
 
+    /* mousejack should be 6 bytes of response + payload so this should be plenty of 
+     * space */
+    uint8_t usb_buf[64];
+
+    int buf_rx_len, r;
+
     while (1) {
         if (caph->spindown) {
             /* close usb */
@@ -524,7 +546,38 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             break;
         }
+
+        buf_rx_len = nrf_receive_payload(caph, usb_buf, 64);
+
+        if (buf_rx_len < 0) {
+            snprintf(errstr, STATUS_MAX, "mousejack NRF interface 'mousejack-%u-%u' closed "
+                    "unexpectedly", localnrf->busno, localnrf->devno);
+            cf_send_error(caph, 0, errstr);
+            cf_handler_spindown(caph);
+        }
+
+        while (1) {
+            struct timeval tv;
+
+            gettimeofday(&tv, NULL);
+
+            if ((r = cf_send_data(caph,
+                            NULL, NULL, NULL,
+                            tv,
+                            0,
+                            buf_rx_len, usb_buf)) < 0) {
+                cf_send_error(caph, 0, "unable to send DATA frame");
+                cf_handler_spindown(caph);
+            } else if (r == 0) {
+                cf_handler_wait_ringbuffer(caph);
+                continue;
+            } else {
+                break;
+            }
+        }
     }
+
+    cf_handler_spindown(caph);
 }
 
 int main(int argc, char *argv[]) {
@@ -563,6 +616,10 @@ int main(int argc, char *argv[]) {
 
     /* Set the list callback */
     cf_handler_set_listdevices_cb(caph, list_callback);
+
+    /* Channel callbacks */
+    cf_handler_set_chantranslate_cb(caph, chantranslate_callback);
+    cf_handler_set_chancontrol_cb(caph, chancontrol_callback);
 
     /* Set the capture thread */
     cf_handler_set_capture_cb(caph, capture_thread);
