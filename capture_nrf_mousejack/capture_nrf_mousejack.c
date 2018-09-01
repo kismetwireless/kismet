@@ -52,6 +52,10 @@ typedef struct {
 
     pthread_mutex_t usb_mutex;
 
+    /* we don't want to do a channel query every data response, we just want to 
+     * remember the last channel used */
+    unsigned int channel;
+
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
@@ -71,14 +75,6 @@ int nrf_send_command_nb(kis_capture_handler_t *caph, uint8_t request, uint8_t *d
 
     if (len > 0) 
         memcpy(cmdbuf + 1, data, len);
-
-    /*
-    printf("TX ");
-    for (size_t i = 0; i < len + 1; i++) {
-        printf("%02X ", cmdbuf[i]);
-    }
-    printf("\n");
-    */
 
     r = libusb_bulk_transfer(localnrf->nrf_handle, MOUSEJACK_USB_ENDPOINT_OUT,
             cmdbuf, len + 1, &actual_length, NRF_USB_TIMEOUT);
@@ -493,7 +489,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 libusb_strerror((enum libusb_error) r));
         return -1;
     }
-    fprintf(stderr, "opened\n");
 
     /* Try to claim it */
     r = libusb_claim_interface(localnrf->nrf_handle, 0);
@@ -515,10 +510,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     libusb_set_configuration(localnrf->nrf_handle, 0);
-    fprintf(stderr, "set config\n");
 
     nrf_enter_promisc_mode(caph, NULL, 0);
-    fprintf(stderr, "entered promisc\n");
 
     return 1;
 }
@@ -550,6 +543,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
 
     int r;
@@ -558,11 +552,12 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
 
-
     r = nrf_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
+
+    localnrf->channel = channel->channel;
    
     return 1;
 }
@@ -600,6 +595,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
+        /*
         if (buf_rx_len > 1) {
             fprintf(stderr, "mousejack saw %d ", buf_rx_len);
 
@@ -610,6 +606,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
 
         continue;
+        */
 
         while (1) {
             struct timeval tv;
