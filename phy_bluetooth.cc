@@ -62,8 +62,8 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
 
     // Register js module for UI
-    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+    auto httpregistry = 
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_bluetooth", 
             "/js/kismet.ui.bluetooth.js");
 }
@@ -73,7 +73,7 @@ Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {
 }
 
 int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
-    Kis_Bluetooth_Phy *btphy = (Kis_Bluetooth_Phy *) auxdata;
+    auto btphy = static_pointer_cast<Kis_Bluetooth_Phy>(auxdata);
 
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
