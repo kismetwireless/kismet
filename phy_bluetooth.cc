@@ -73,7 +73,7 @@ Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {
 }
 
 int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
-    auto btphy = static_pointer_cast<Kis_Bluetooth_Phy>(auxdata);
+    auto btphy = static_cast<Kis_Bluetooth_Phy *>(auxdata);
 
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
