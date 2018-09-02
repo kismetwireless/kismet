@@ -119,7 +119,7 @@ protected:
 class Kis_Bluetooth_Phy : public Kis_Phy_Handler {
 public:
 	// Stub
-	~Kis_Bluetooth_Phy();
+	virtual ~Kis_Bluetooth_Phy();
 
 	// Inherited functionality
 	Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg) :
