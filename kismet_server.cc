@@ -94,6 +94,7 @@
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
+#include "phy_nrf_mousejack.h"
 
 #include "ipc_remote2.h"
 
@@ -971,6 +972,9 @@ int main(int argc, char *argv[], char *envp[]) {
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
 
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
+
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
+
 
     if (globalregistry->fatal_condition) 
         CatchShutdown(-1);

@@ -141,7 +141,7 @@ PSO	= util.cc.o globalregistry.cc.o \
 	kaitaistream.cc.o \
 	$(DOT11_PARSERS) \
 	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o \
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o \
 	kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
