@@ -192,6 +192,12 @@ $(CAPTURE_SDR_RTL433): FORCE
 $(CAPTURE_HACKRF_SWEEP):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
 
+$(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nrf_mousejack && $(MAKE))
+
+$(CAPTURE_FREAKLABS_ZIGBEE): FORCE
+	(cd capture_freaklabs_zigbee && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -255,6 +261,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEE)"x = "1"x; then \
 		(cd capture_freaklabs_zigbee && $(MAKE) install) \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_MOUSEJACK)"x = "1"x; then \
+		(cd capture_nrf_mousejack && $(MAKE) install) \
 	fi;
 
 	mkdir -p $(LIB)/pkgconfig
