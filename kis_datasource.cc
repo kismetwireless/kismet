@@ -1113,7 +1113,12 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, const std::stri
             packet->ts.tv_usec = report.packet().time_usec();
         }
 
-        datachunk->dlt = report.packet().dlt();
+        // Override the DLT if we have one
+        if (get_source_override_linktype()) {
+            datachunk->dlt = get_source_override_linktype();
+        } else {
+            datachunk->dlt = report.packet().dlt();
+        }
         datachunk->copy_data((const uint8_t *) report.packet().data().data(), 
                 report.packet().data().length());
 
@@ -1531,6 +1536,9 @@ void KisDatasource::register_fields() {
             "User-supplied amplifier type", &source_info_amp_type);
     RegisterField("kismet.datasource.info.amp_gain", 
             "User-supplied amplifier gain in dB", &source_info_amp_gain);
+
+    RegisterField("kismet.datasource.linktype_override",
+            "Overridden linktype, usually used in custom capture types.", &source_override_linktype);
 
 }
 

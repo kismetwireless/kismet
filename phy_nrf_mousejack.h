@@ -104,21 +104,23 @@ public:
         return new Kis_Mousejack_Phy(in_globalreg, in_tracker, in_phyid);
     }
 
+    static int DissectorMousejack(CHAINCALL_PARMS);
     static int CommonClassifierMousejack(CHAINCALL_PARMS);
 
     virtual void LoadPhyStorage(SharedTrackerElement in_storage,
             SharedTrackerElement in_device);
 
-    int mousejack_device_entry_id;
-
-    int dev_comp_common;
-
-    int pack_comp_common;
 
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Devicetracker> devicetracker;
+
+    int mousejack_device_entry_id;
+    int dev_comp_common;
+    int pack_comp_common, pack_comp_linkframe;
+
+    int dlt;
 
 };
 

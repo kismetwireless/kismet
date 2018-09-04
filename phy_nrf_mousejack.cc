@@ -33,6 +33,7 @@
 #include "phy_nrf_mousejack.h"
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
+#include "dlttracker.h"
 
 Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
         int in_phyid) :
@@ -55,20 +56,92 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, Devicetracker
                 "NRF Mousejack device");
 
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
+	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
 
-    packetchain->RegisterHandler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
+    // Extract the dynamic DLT
+    auto dltt = 
+        Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
+    dlt = dltt->register_linktype("NRFMOSUEJACK");
 
+    /*
     auto httpregistry = 
         Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        */
+
+    packetchain->RegisterHandler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
+    packetchain->RegisterHandler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
+
 }
 
 Kis_Mousejack_Phy::~Kis_Mousejack_Phy() {
     packetchain->RemoveHandler(&CommonClassifierMousejack, CHAINPOS_CLASSIFIER);
 }
 
+int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
+    auto mphy = static_cast<Kis_Mousejack_Phy *>(auxdata);
+
+    auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
+
+    // Is it a packet we care about?
+    if (packdata->dlt != mphy->dlt)
+        return 0;
+
+    // Do we have enough data for an OUI?
+    if (packdata->length < 6)
+        return 0;
+
+    // Did something already classify this?
+    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
+
+    if (common != NULL)
+        return 0;
+
+    common = new kis_common_info;
+
+    common->basic_crypt_set = crypt_none;
+    common->type = packet_basic_data;
+    common->source = mac_addr(packdata->data, 6);
+
+    in_pack->insert(mphy->pack_comp_common, common);
+
+    return 1;
+}
+
 int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     auto mphy = static_cast<Kis_Mousejack_Phy *>(auxdata);
 
+    auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
+
+    // Is it a packet we care about?
+    if (packdata->dlt != mphy->dlt)
+        return 0;
+
+    // Did we classify this?
+    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
+
+    if (common == NULL)
+        return 0;
+
+    // Update with all the options in case we can add signal and frequency
+    // in the future
+    auto device = 
+        mphy->devicetracker->UpdateCommonDevice(common,
+                common->source, mphy, in_pack,
+                (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                 UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                 UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                "KB/Mouse");
+
+    auto nrf =
+        device->get_sub_as<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
+
+    if (nrf == NULL) {
+        _MSG_INFO("Detected new nRF cordless input device (mouse, keyboard, etc) {}",
+                common->source.Mac2String());
+        device->insert(nrf);
+    }
+
+    return 1;
 }
 
 void Kis_Mousejack_Phy::LoadPhyStorage(SharedTrackerElement in_storage,

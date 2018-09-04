@@ -128,7 +128,7 @@ PSO	= util.cc.o globalregistry.cc.o \
 	psutils.cc.o battery.cc.o \
 	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
-	datasourcetracker.cc.o kis_datasource.cc.o \
+	dlttracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o \
 	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \

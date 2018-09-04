@@ -378,6 +378,9 @@ public:
     __Proxy(source_info_amp_type, std::string, std::string, std::string, source_info_amp_type);
     __Proxy(source_info_amp_gain, double, double, double, source_info_amp_gain);
 
+    // Overridden linktype
+    __ProxyPrivSplit(source_override_linktype, unsigned int, unsigned int, uint32_t, 
+            source_override_linktype);
 
     
     // Perform a checksum on a packet after it's decapsulated; this is always
@@ -644,6 +647,8 @@ protected:
 
     std::shared_ptr<TrackerElementString> source_info_amp_type;
     std::shared_ptr<TrackerElementDouble> source_info_amp_gain;
+
+    std::shared_ptr<TrackerElementUInt32> source_override_linktype;
     
 
     // Do we clobber the remote timestamp?

@@ -24,6 +24,7 @@
 #define HAVE_NRF_MOUSEJACK_DATASOURCE
 
 #include "kis_datasource.h"
+#include "dlttracker.h"
 
 class KisDatasourceNrfMousejack;
 typedef std::shared_ptr<KisDatasourceNrfMousejack> SharedDatasourceNrfMousejack;
@@ -35,6 +36,12 @@ public:
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_nrf_mousejack");
+
+        // Get and register a DLT
+        auto dltt = 
+            Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
+
+        set_int_source_override_linktype(dltt->register_linktype("NRFMOUSEJACK"));
     }
 
     virtual ~KisDatasourceNrfMousejack() { };
