@@ -1,4 +1,4 @@
-# Kismet 2018-08-BETA1
+# Kismet 2018-08-GIT
 
 https://www.kismetwireless.net
 
@@ -58,6 +58,12 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    $ sudo apt-get install librtlsdr0
    ```
    as well as the rtl_433 tool from https://github.com/merbanan/rtl_433 if it is not otherwise provided by your distribution.
+
+   For Mousejack/nRF support and other USB based tools, you will need `libusb`:
+
+   ```bash
+   $ sudo apt-get install libusb-1.0-0-dev
+   ```
 
 3. Clone Kismet from git.  If you haven't cloned Kismet before:
    ```bash
@@ -742,6 +748,62 @@ The rtl_433 tool can be downloaded from: https://github.com/merbanan/rtl_433 or 
 The Kismet rtl_433 interface uses librtlsdr, rtl_433, and Python; rtl433 sources will show up as normal Kismet sources using the rtl433-X naming.
 
 For more information about the rtl433 support, see the README in the  capture_sdr_rtl433 directory.
+
+### Mousejack / nRF
+
+The NordicRF nRF chip is a common chip used in wireless keyboards, mice, and presentation tools, which are frequently found in non-Bluetooth wireless input devices.
+
+The Mousejack firmware developed by Bastille (https://www.mousejack.com/) runs on a number of commodity USB nRF devices (such as the Sparkfun nRF and the CrazyPA).
+
+#### Datasource - nRF Mousejack
+
+Kismet must be compiled with support for libusb to use Mousejack; you will need libusb-1.0-dev, and you will need to make sure that the `nRF Mousejack` option is enabled in the output from `./configure`.
+
+To use the mousejack capture, you must have a supported nRF USB device; this includes any device listed on the Bastille Mousejack site:
+
+- CrazyRadio PA USB dongle
+- SparkFun nRF24LU1+ breakout board
+- Logitech Unifying dongle (model C-U0007, Nordic Semiconductor based)
+
+You will also need to flash your device with the Bastille Mousejack firmware; the firmware is available from https://github.com/BastilleResearch/mousejack and the instructions are in the README.
+
+##### Mousejack Interfaces
+
+Mousejack interfaces can be referred to as simply `mousejack`:
+
+```bash
+$ kismet -c mousejack
+```
+
+Multiple interfaces can be identified by their location on the USB bus; this can be detected automatically by Kismet as a supported interface, or specified manually.  To find the location on the USB bus, look at the output of `lsusb`:
+
+```bash
+$ lsusb
+Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 003 Device 008: ID 1915:0102 Nordic Semiconductor ASA 
+```
+
+In this instance the device is on `bus 3` and `device 8`; we can specify this specific device in Kismet by using:
+
+```bash
+$ kismet -c mousejack-3-8
+```
+
+##### Channel Hopping
+
+The nRF protocol as used by Mousejack covers 82 channels, each 1MHz wide.
+
+To cover this spectrum rapidly, it is recommended that you increase the hop rate for nRF interfaces:
+
+```bash
+$ kismet -c mousejack-3-8:hop_rate=100/sec
+```
+
+This can be specified in the `kismet.conf` the same way:
+
+```
+source=mousejack:name=nRF,hop_rate=100/sec
+```
 
 ## Remote Packet Capture
 Kismet can capture from a remote source over a TCP connection.
