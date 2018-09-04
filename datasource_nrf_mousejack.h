@@ -77,7 +77,7 @@ public:
     virtual ~DatasourceNrfMousejackBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceLinuxWifi(new KisDatasourceLinuxWifi(in_sh_this));
+        return SharedDatasourceNrfMousejack(new KisDatasourceNrfMousejack(in_sh_this));
     }
 
     virtual void initialize() {

@@ -122,7 +122,7 @@ int nrf_send_command_with_resp(kis_capture_handler_t *caph, uint8_t request, uin
 }
 
 int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    printf("channel %u\n", channel);
+    /* printf("channel %u\n", channel); */
     return nrf_send_command_with_resp(caph, MOUSEJACK_SET_CHANNEL, &channel, 1);
 }
 
