@@ -223,7 +223,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     free(interface);
 
-    printf("probe matched %d\n", x);
+    /* printf("probe matched %d\n", x); */
 
     /* If we don't have a valid busno/devno or malformed interface name */
     if (x != -1 && x != 2) {
@@ -604,8 +604,6 @@ void capture_thread(kis_capture_handler_t *caph) {
             }
             fprintf(stderr, "\n");
         }
-
-        continue;
         */
 
         while (1) {

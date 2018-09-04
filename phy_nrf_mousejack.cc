@@ -61,7 +61,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, Devicetracker
     // Extract the dynamic DLT
     auto dltt = 
         Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
-    dlt = dltt->register_linktype("NRFMOSUEJACK");
+    dlt = dltt->register_linktype("NRFMOUSEJACK");
 
     /*
     auto httpregistry = 
@@ -81,6 +81,9 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
     auto mphy = static_cast<Kis_Mousejack_Phy *>(auxdata);
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
+
+    if (packdata == NULL)
+        return 0;
 
     // Is it a packet we care about?
     if (packdata->dlt != mphy->dlt)
@@ -138,6 +141,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     if (nrf == NULL) {
         _MSG_INFO("Detected new nRF cordless input device (mouse, keyboard, etc) {}",
                 common->source.Mac2String());
+        nrf = std::make_shared<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
         device->insert(nrf);
     }
 
