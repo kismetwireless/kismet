@@ -32,11 +32,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <signal.h>
-#include <sys/signalfd.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <dirent.h>
 
 #include "../capture_framework.h"
 
