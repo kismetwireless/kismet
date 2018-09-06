@@ -357,6 +357,25 @@ public:
     
 };
 
+// Do a simple dump of a tracked object into an endpoint
+class Kis_Net_Httpd_Simple_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+public:
+    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, std::shared_ptr<TrackerElement> in_content);
+
+    // HTTP handlers
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+
+protected:
+    std::string uri;
+    std::shared_ptr<TrackerElement> content;
+};
 
 #define KIS_SESSION_COOKIE      "KISMET"
 #define KIS_HTTPD_POSTBUFFERSZ  (1024 * 32)

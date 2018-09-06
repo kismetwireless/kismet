@@ -45,6 +45,9 @@
 #include "entrytracker.h"
 #include "kis_httpd_websession.h"
 
+#include "structured.h"
+#include "kismet_json.h"
+
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
@@ -1430,5 +1433,157 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
     }
 
     return MHD_NO;
+}
+
+Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
+        std::shared_ptr<TrackerElement> in_element) :
+    Kis_Net_Httpd_Chain_Stream_Handler() {
+
+    uri = in_uri;
+    content = in_element;
+}
+
+bool Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "GET") != 0)
+        return false;
+
+    auto stripped = Httpd_StripSuffix(path);
+
+    if (stripped == uri && Httpd_CanSerialize(path))
+        return true;
+
+    return false;
+}
+
+int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        Kis_Net_Httpd_Connection *connection,
+        const char *path, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    // Allocate our buffer aux
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+
+    BufferHandlerOStringStreambuf *streambuf = 
+        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    std::ostream stream(streambuf);
+
+    // Set our cleanup function
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (content == nullptr) {
+        stream << "Invalid request: No backing content present";
+        connection->httpcode = 400;
+        return MHD_YES;
+    }
+
+    Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, content, nullptr);
+
+    return MHD_YES;
+}
+
+int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (content == nullptr) {
+        stream << "Invalid request: No backing content present";
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    // Common structured API data
+    SharedStructured structdata;
+    std::vector<SharedElementSummary> summary_vec;
+    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+
+    try {
+        if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata =
+                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+        } else {
+            // fprintf(stderr, "debug - missing data\n");
+            throw StructuredDataException("Missing data");
+        }
+    } catch(const StructuredDataException e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    try {
+        if (structdata->hasKey("fields")) {
+            SharedStructured fields = structdata->getStructuredByKey("fields");
+            StructuredData::structured_vec fvec = fields->getStructuredArray();
+
+            for (const auto& i : fvec) {
+                if (i->isString()) {
+                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                    summary_vec.push_back(s);
+                } else if (i->isArray()) {
+                    StructuredData::string_vec mapvec = i->getStringVec();
+
+                    if (mapvec.size() != 2) {
+                        // fprintf(stderr, "debug - malformed rename pair\n");
+                        stream << "Invalid request: Expected field, rename";
+                        concls->httpcode = 400;
+                        return MHD_YES;
+                    }
+
+                    auto s = 
+                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                    summary_vec.push_back(s);
+                }
+            }
+        }
+    } catch(const StructuredDataException e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    if (summary_vec.size()) {
+        SharedTrackerElement simple;
+        SummarizeTrackerElement(content, summary_vec, simple, rename_map);
+
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+                simple, rename_map);
+        return MHD_YES;
+    }
+
+    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, content, nullptr);
+    return MHD_YES;
 }
 
