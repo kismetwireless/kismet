@@ -360,7 +360,11 @@ public:
 // Do a simple dump of a tracked object into an endpoint
 class Kis_Net_Httpd_Simple_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
-    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, std::shared_ptr<TrackerElement> in_content);
+    using gen_func = std::function<std::shared_ptr<TrackerElement> ()>;
+
+    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, 
+            std::shared_ptr<TrackerElement> in_content);
+    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func);
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
@@ -375,6 +379,7 @@ public:
 protected:
     std::string uri;
     std::shared_ptr<TrackerElement> content;
+    gen_func generator;
 };
 
 #define KIS_SESSION_COOKIE      "KISMET"

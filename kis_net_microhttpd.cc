@@ -1443,6 +1443,14 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     content = in_element;
 }
 
+Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
+        Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
+    Kis_Net_Httpd_Chain_Stream_Handler() {
+
+    uri = in_uri;
+    generator = in_func;
+}
+
 bool Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
@@ -1484,13 +1492,20 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
                 }
             });
 
-    if (content == nullptr) {
+    std::shared_ptr<TrackerElement> output_content;
+
+    if (content == nullptr && generator == nullptr) {
         stream << "Invalid request: No backing content present";
         connection->httpcode = 400;
         return MHD_YES;
     }
 
-    Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, content, nullptr);
+    if (generator != nullptr)
+        output_content = generator();
+    else
+        output_content = content;
+
+    Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
 
     return MHD_YES;
 }
@@ -1515,11 +1530,18 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
                 }
             });
 
-    if (content == nullptr) {
+    if (content == nullptr && generator == nullptr) {
         stream << "Invalid request: No backing content present";
         concls->httpcode = 400;
         return MHD_YES;
     }
+
+    std::shared_ptr<TrackerElement> output_content;
+
+    if (generator != nullptr)
+        output_content = generator();
+    else
+        output_content = content;
 
     // Common structured API data
     SharedStructured structdata;
@@ -1576,14 +1598,15 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 
     if (summary_vec.size()) {
         SharedTrackerElement simple;
-        SummarizeTrackerElement(content, summary_vec, simple, rename_map);
+        SummarizeTrackerElement(output_content, summary_vec, simple, rename_map);
 
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
         return MHD_YES;
     }
 
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, content, nullptr);
+    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+            output_content, nullptr);
     return MHD_YES;
 }
 
