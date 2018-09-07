@@ -62,6 +62,7 @@
 #include "kis_dissector_ipdata.h"
 
 #include "dlttracker.h"
+#include "antennatracker.h"
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
 #include "datasource_pcapfile.h"
@@ -936,6 +937,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the DLT tracker
     auto dlttracker = DltTracker::create_dltt();
+
+    // Create antenna mapper
+    auto anttracker = Antennatracker::create_at();
 
     // Add the datasource tracker
     std::shared_ptr<Datasourcetracker> datasourcetracker;
