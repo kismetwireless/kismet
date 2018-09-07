@@ -37,13 +37,11 @@
 #include "json_adapter.h"
 
 Systemmonitor::Systemmonitor() :
-    tracker_component(),
-    Kis_Net_Httpd_CPPStream_Handler() {
+    LifetimeGlobal() {
 
     devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
-    register_fields();
-    reserve_fields(NULL);
+    status = std::make_shared<tracked_system_status>();
 
 #ifdef SYS_LINUX
     // Get the bytes per page
@@ -59,10 +57,10 @@ Systemmonitor::Systemmonitor() :
         timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     // Link the RRD out of the devicetracker
-    insert(devicetracker->get_packets_rrd());
+    status->insert(devicetracker->get_packets_rrd());
 
     // Set the startup time
-    set_timestamp_start_sec(time(0));
+    status->set_timestamp_start_sec(time(0));
 
     // Get the userid
     char *pwbuf;
@@ -85,17 +83,34 @@ Systemmonitor::Systemmonitor() :
 
     delete[] pwbuf;
 
-    set_username(uidstr.str());
+    status->set_username(uidstr.str());
 
-    set_server_uuid(Globalreg::globalreg->server_uuid);
+    status->set_server_uuid(Globalreg::globalreg->server_uuid);
 
-    set_server_name(Globalreg::globalreg->kismet_config->FetchOpt("server_name"));
-    set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));
-    set_server_location(Globalreg::globalreg->kismet_config->FetchOpt("server_location"));
+    status->set_server_name(Globalreg::globalreg->kismet_config->FetchOpt("server_name"));
+    status->set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));
+    status->set_server_location(Globalreg::globalreg->kismet_config->FetchOpt("server_location"));
 
 #if defined(SYS_LINUX) and defined(HAVE_SENSORS_SENSORS_H)
     sensors_init(NULL);
 #endif
+
+    monitor_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/system/status", status);
+    timestamp_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/system/timestamp", 
+            [this](void) -> std::shared_ptr<TrackerElement> {
+                auto tse = std::make_shared<TrackerElementMap>();
+
+                tse->insert(status->get_tracker_timestamp_sec());
+                tse->insert(status->get_tracker_timestamp_usec());
+
+                struct timeval now;
+                gettimeofday(&now, NULL);
+
+                status->set_timestamp_sec(now.tv_sec);
+                status->set_timestamp_usec(now.tv_usec);
+
+                return tse;
+            });
 
 }
 
@@ -109,7 +124,7 @@ Systemmonitor::~Systemmonitor() {
         timetracker->RemoveTimer(timer_id);
 }
 
-void Systemmonitor::register_fields() {
+void tracked_system_status::register_fields() {
     RegisterField("kismet.system.battery.percentage", "remaining battery percentage", &battery_perc);
     RegisterField("kismet.system.battery.charging", "battery charging state", &battery_charging);
     RegisterField("kismet.system.battery.ac", "on AC power", &battery_ac);
@@ -142,8 +157,8 @@ int Systemmonitor::timetracker_event(int eventid) {
     int num_devices = devicetracker->FetchNumDevices();
 
     // Grab the devices
-    set_devices(num_devices);
-    devices_rrd->add_sample(num_devices, time(0));
+    status->set_devices(num_devices);
+    status->get_devices_rrd()->add_sample(num_devices, time(0));
 
 #ifdef SYS_LINUX
     // Grab the memory from /proc
@@ -173,8 +188,8 @@ int Systemmonitor::timetracker_event(int eventid) {
 
                     m /= 1024;
 
-                    set_memory(m);
-                    memory_rrd->add_sample(m, time(0));
+                    status->set_memory(m);
+                    status->get_memory_rrd()->add_sample(m, time(0));
                 }
             }
         }
@@ -183,8 +198,8 @@ int Systemmonitor::timetracker_event(int eventid) {
 #endif
 
 #if defined(SYS_LINUX) and defined(HAVE_SENSORS_SENSORS_H)
-    sensors_fans->clear();
-    sensors_temp->clear();
+    status->get_sensors_fans()->clear();
+    status->get_sensors_temp()->clear();
 
     int sensor_nr = 0;
     while (auto chip = sensors_get_detected_chips(NULL, &sensor_nr)) {
@@ -215,7 +230,7 @@ int Systemmonitor::timetracker_event(int eventid) {
                             MungeToPrintable(label),
                             MungeToPrintable(adapter_name));
 
-                    sensors_temp->insert(synth_name, 
+                    status->get_sensors_temp()->insert(synth_name, 
                             std::make_shared<TrackerElementDouble>(0, val));
 
                     free(label);
@@ -238,7 +253,7 @@ int Systemmonitor::timetracker_event(int eventid) {
                             MungeToPrintable(label),
                             MungeToPrintable(adapter_name));
 
-                    sensors_fans->insert(synth_name, 
+                    status->get_sensors_fans()->insert(synth_name, 
                             std::make_shared<TrackerElementDouble>(0, val));
 
                     free(label);
@@ -264,8 +279,8 @@ int Systemmonitor::timetracker_event(int eventid) {
     return 1;
 }
 
-void Systemmonitor::pre_serialize() {
-    local_locker lock(&monitor_mutex);
+void tracked_system_status::pre_serialize() {
+    local_locker lock(monitor_mutex);
 
     kis_battery_info batinfo;
     Fetch_Battery_Info(&batinfo);
@@ -287,68 +302,5 @@ void Systemmonitor::pre_serialize() {
 
     set_timestamp_sec(now.tv_sec);
     set_timestamp_usec(now.tv_usec);
-}
-
-bool Systemmonitor::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0)
-        return false;
-
-    std::string stripped = Httpd_StripSuffix(path);
-
-    if (!Httpd_CanSerialize(path))
-        return false;
-
-    if (stripped == "/system/status")
-        return true;
-
-    if (stripped == "/system/timestamp")
-        return true;
-
-    return false;
-}
-
-void Systemmonitor::Httpd_CreateStreamResponse(
-        Kis_Net_Httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection __attribute__((unused)),
-        const char *path, const char *method, 
-        const char *upload_data __attribute__((unused)),
-        size_t *upload_data_size __attribute__((unused)), 
-        std::stringstream &stream) {
-
-    local_locker lock(&monitor_mutex);
-
-    if (strcmp(method, "GET") != 0) {
-        return;
-    }
-
-    std::string stripped = Httpd_StripSuffix(path);
-
-    if (!Httpd_CanSerialize(path))
-        return;
-
-    if (stripped == "/system/status") {
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream,
-                Globalreg::FetchMandatoryGlobalAs<Systemmonitor>(), 
-                nullptr);
-
-        return;
-    } else if (stripped == "/system/timestamp") {
-        auto tse = std::make_shared<TrackerElementMap>();
-
-        tse->insert(timestamp_sec);
-        tse->insert(timestamp_usec);
-
-        struct timeval now;
-        gettimeofday(&now, NULL);
-
-        set_timestamp_sec(now.tv_sec);
-        set_timestamp_usec(now.tv_usec);
-
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, tse, NULL);
-
-        return;
-    } else {
-        return;
-    }
 }
 
