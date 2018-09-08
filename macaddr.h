@@ -44,6 +44,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "fmt.h"
+
 // Maximum of 6 octets in a "mac" we handle
 #define MAC_LEN_MAX		6
 
@@ -299,29 +301,15 @@ struct mac_addr {
     }
 
     inline std::string Mac2String() const {
-        std::ostringstream osstr;
-
-		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
-			osstr << std::hex << std::setw(2) << std::setfill('0') << 
-                std::uppercase << index64(longmac, x);
-			if (x != MAC_LEN_MAX - 1)
-				osstr << ':';
-		}
-
-		return osstr.str();
+        return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+                index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
     }
 
     inline std::string MacMask2String() const {
-        std::ostringstream osstr;
-
-		for (unsigned int x = 0; x < MAC_LEN_MAX; x++) {
-			osstr << std::hex << std::setw(2) << std::setfill('0') << 
-                std::uppercase << index64(longmask, x);
-			if (x != MAC_LEN_MAX - 1)
-				osstr << ':';
-		}
-
-		return osstr.str();
+        return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
     }
 
     inline uint64_t GetAsLong() const {
@@ -332,8 +320,10 @@ struct mac_addr {
         return Mac2String() + "/" + MacMask2String();
     }
 
+    friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);
 };
 
+std::ostream& operator<<(std::ostream& os, const mac_addr& m);
 
 // A templated container for storing groups of masked mac addresses.  A stl-map 
 // will work for single macs, but we need this for smart mask matching on 
