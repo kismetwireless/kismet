@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "fmt.h"
 
 // UUID Generation
 // From e2fstools, Theodore Ts'o
@@ -122,13 +123,9 @@ class uuid {
         }
 
         std::string UUID2String() const {
-            char ids[38];
-            snprintf(ids, 38, "%08x-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
-                    (unsigned int) *time_low, *time_mid, *time_hi, *clock_seq,
-                    (unsigned short) node[0], (unsigned short) node[1],
-                    (unsigned short) node[2], (unsigned short) node[3],
-                    (unsigned short) node[4], (unsigned short) node[5]);
-            return std::string(ids);
+            return fmt::format("{:08X}-{:04X}-{:04X}-{:04X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+                    *time_low, *time_mid, *time_hi, *clock_seq,
+                    node[0], node[1], node[2], node[3], node[4], node[5]);
         }
 
         inline bool operator== (const uuid& op) const {
@@ -245,7 +242,11 @@ try_again:
             *in_clock_seq = clock_seq;
             return 0;
         }
+
+    friend std::ostream& operator<<(std::ostream& os, const uuid& u);
 };
+
+std::ostream& operator<<(std::ostream& os, const uuid& u);
 
 #endif
 
