@@ -64,6 +64,9 @@ public:
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, spd);
     __Proxy(heading, double, double, double, heading);
+    __Proxy(error_x, double, double, double, error_x);
+    __Proxy(error_y, double, double, double, error_y);
+    __Proxy(error_v, double, double, double, error_v);
     __Proxy(fix, uint8_t, uint8_t, uint8_t, fix);
     __Proxy(valid, uint8_t, bool, bool, valid);
     __Proxy(time_sec, uint64_t, time_t, time_t, time_sec);
@@ -85,6 +88,9 @@ protected:
     std::shared_ptr<TrackerElementDouble> alt;
     std::shared_ptr<TrackerElementDouble> spd;
     std::shared_ptr<TrackerElementDouble> heading;
+    std::shared_ptr<TrackerElementDouble> error_x;
+    std::shared_ptr<TrackerElementDouble> error_y;
+    std::shared_ptr<TrackerElementDouble> error_v;
     std::shared_ptr<TrackerElementUInt8> fix;
     std::shared_ptr<TrackerElementUInt8> valid;
     std::shared_ptr<TrackerElementUInt64> time_sec;

@@ -180,6 +180,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     bool set_speed;
     bool set_fix;
     bool set_heading;
+    bool set_error;
 
     std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
     tcphandler->PeekFreeReadBufferData(buf);
@@ -245,6 +246,21 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                         }
                     } 
 
+                    if (json.isMember("epx")) {
+                        new_location->error_x = json["epx"].asDouble();
+                        set_error = true;
+                    }
+
+                    if (json.isMember("epy")) {
+                        new_location->error_y = json["epy"].asDouble();
+                        set_error = true;
+                    }
+
+                    if (json.isMember("epv")) {
+                        new_location->error_v = json["epv"].asDouble();
+                        set_error = true;
+                    }
+
                     if (set_fix && new_location->fix >= 2) {
                         // If we have LAT and LON, use them
                         if (json.isMember("lat") && json.isMember("lon")) {
@@ -253,21 +269,6 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
                             set_lat_lon = true;
                         }
-
-#if 0
-                        // If we have HDOP and VDOP, use them
-                        n = JSON_dict_get_number(json, "epx", err);
-                        if (err.length() == 0) {
-                            in_hdop = n;
-
-                            n = JSON_dict_get_number(json, "epy", err);
-                            if (err.length() == 0) {
-                                in_vdop = n;
-
-                                use_dop = 1;
-                            }
-                        }
-#endif
 
                         if (json.isMember("track")) {
                             new_location->heading = json["track"].asDouble();
@@ -634,6 +635,12 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
         if (set_heading) {
             gps_location->heading = new_location->heading;
+        }
+
+        if (set_error) {
+            gps_location->error_x = new_location->error_x;
+            gps_location->error_y = new_location->error_y;
+            gps_location->error_v = new_location->error_v;
         }
 
         gettimeofday(&(gps_location->tv), NULL);

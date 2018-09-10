@@ -44,6 +44,9 @@ public:
 		fix = 0;
         tv.tv_sec = 0;
         tv.tv_usec = 0;
+        error_x = 0;
+        error_y = 0;
+        error_v = 0;
 	}
 
     kis_gps_packinfo(kis_gps_packinfo *src) {
@@ -75,6 +78,9 @@ public:
         r->set_heading(heading);
         r->set_fix(fix);
         r->set_valid(fix >= 2);
+        r->set_error_x(error_x);
+        r->set_error_y(error_y);
+        r->set_error_v(error_v);
         r->set_time_sec(tv.tv_sec);
         r->set_time_usec(tv.tv_usec);
 
@@ -92,6 +98,9 @@ public:
 
     // If we know it, 2d vs 3d fix
     int fix;
+
+    // If we know error values...
+    double error_x, error_y, error_v;
 
     struct timeval tv;
 
