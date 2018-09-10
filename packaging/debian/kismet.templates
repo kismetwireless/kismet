@@ -9,12 +9,6 @@ Description: Should Kismet be installed to run with setuid privs?
  not run with elevated privileges, reducing the risk of bugs leading to
  system-wide harm.
  .
- For more detailed information, please see the "Suidroot & Security" section
- of the Kismet README at:
- http://www.kismetwireless.net/README
- or
- /usr/share/doc/kismet/README
- .
  Enabling this feature allows users in the 'kismet' group to run Kismet (and
  capture packets, change wireless card state, etc).  Do NOT enable setuid 
  Kismet if you have untrusted users on your system.

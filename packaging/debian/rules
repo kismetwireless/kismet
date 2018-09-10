@@ -30,4 +30,4 @@ override_dh_auto_install:
 	DESTDIR=$(CURDIR)/debian/tmp $(MAKE) all-plugins-install
 
 override_dh_auto_configure:
-	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc/kismet
+	dh_auto_configure -- --prefix=/usr --sysconfdir=/etc/kismet --disable-python-tools
