@@ -594,7 +594,7 @@ void TrackerElementSerializer::pre_serialize_path(const SharedElementSummary& in
 
             inter->pre_serialize();
         }
-    } catch (std::runtime_error c) {
+    } catch (std::runtime_error& c) {
         // Do nothing if we hit a map error
         return;
     }
@@ -623,7 +623,7 @@ void TrackerElementSerializer::post_serialize_path(const SharedElementSummary& i
 
             inter->post_serialize();
         }
-    } catch (std::runtime_error c) {
+    } catch (std::runtime_error& c) {
         // Do nothing if we hit a map error
         return;
     }
