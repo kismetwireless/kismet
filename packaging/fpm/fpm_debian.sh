@@ -82,4 +82,14 @@ sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.git.${VERSION} 
     --depends libnm0 \
     --depends libprotobuf-c1 \
     ./capture_linux_bluetooth/kismet_cap_linux_bluetooth=/usr/bin/kismet_cap_linux_bluetooth 
+    
+sudo fpm -t deb -s dir -n kismet-capture-nrf-mousejack -v 2018.git.${VERSION} \
+    --deb-templates ../debian/kismet.templates \
+    --deb-config ../debian/kismet.config \
+    --post-install ../debian/kismet_cap_nrf_mousejack.postinst \
+    --depends libcap2-bin \
+    --depends libcap2 \
+    --depends libprotobuf-c1 \
+    --depends libusb-1.0-0 \
+    ./capture_nrf_mousejack/kismet_cap_nrf_mousejack=/usr/bin/kismet_cap_nrf_mousejack
 
