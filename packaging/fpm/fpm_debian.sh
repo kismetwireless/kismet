@@ -25,6 +25,8 @@ strip kismet_stripped
 sudo fpm -t deb -s dir -n kismet-core -v 2018.git.debug.${VERSION} \
     --deb-recommends kismet-capture-linux-wifi \
     --deb-recommends kismet-capture-linux-bluetooth \
+    --deb-templates ../debian/kismet.templates \
+    --deb-config ../debian/kismet.config \
     --depends libmicrohttpd12 \
     --depends zlib1g \
     --depends libpcap0.8 \
@@ -59,8 +61,11 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     ./http_data=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.git.${VERSION} \
-    --depends libnl-3 \
-    --depends libnl-genl-3 \
+    --deb-templates ../debian/kismet.templates \
+    --deb-config ../debian/kismet.config \
+    --post-install ../debian/kismet_cap_linux_wifi.postinst \
+    --depends libnl-3-200 \
+    --depends libnl-genl-3-200 \
     --depends libcap2-bin \
     --depends libcap2 \
     --depends libpcap0.8 \
@@ -69,6 +74,9 @@ sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.git.${VERSION} \
     ./capture_linux_wifi/kismet_cap_linux_wifi=/usr/bin/kismet_cap_linux_wifi 
 
 sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.git.${VERSION} \
+    --deb-templates ../debian/kismet.templates \
+    --deb-config ../debian/kismet.config \
+    --post-install ../debian/kismet_cap_linux_bluetooth.postinst \
     --depends libcap2-bin \
     --depends libcap2 \
     --depends libnm0 \

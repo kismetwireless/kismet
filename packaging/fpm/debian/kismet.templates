@@ -1,0 +1,35 @@
+
+Template: kismet-common/install-setuid
+Type: boolean
+Default: true
+Description: Should Kismet be installed with suid-root helpers?
+ Kismet uses multiple helper programs to capture the packets.  Installing
+ Kismet can be installed so that members of the "kismet" system group can
+ reconfigure network interfaces and capture packets.
+ .
+ This behavior is more secure, as it allows Kismet to operate without
+ root privileges, except on specific tools.
+ . 
+ Running Kismet as root increases the risk if there is a security error in
+ Kismet.
+ .
+ For more detailed information, please see the Kismet README at:
+ https://www.kismetwireless.net/README-latest.html
+
+Template: kismet-common/addgroup-failed
+Type: error
+Description: Creating the kismet system group failed
+ The kismet group does not exist, and creating it failed, so
+ Kismet cannot be configured to capture traffic as an unprivileged
+ user.
+ .
+ Please create the kismet system group and try configuring
+ kismet-common and any kismet-capture-foo packages again.
+
+Template: wireshark-common/setcap-failed
+Type: error
+Description: Setting capabilities for a Kismet capture tool failed
+ The attempt to use Linux capabilities to grant packet-capturing
+ privileges to the kismet_cap_foo binary failed. Instead, it has had the
+ set-user-id bit set.
+
