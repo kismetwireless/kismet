@@ -1,16 +1,8 @@
 #!/bin/sh
 
-WORKDIR=kismet-fpm-python
-
-if [ ! -e ${WORKDIR} ]; then
-    git clone https://www.kismetwireless.net/git/kismet.git ${WORKDIR}
-fi
-
-cd ${WORKDIR}
-
-rm -vf *.deb
-
 if test "$1"x = "rebuild"x; then
+    make distclean
+
     git pull
 
     # Enable everything
