@@ -30,7 +30,13 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.debug.${VERSION} \
     --depends libprotobuf10 \
     --depends libprotobuf-c1 \
     --depends libsensors4 \
-    ./conf=/etc/kismet \
+    ./conf/kismet.conf=/etc/kismet/kismet.conf \
+    ./conf/kismet_alerts.conf=/etc/kismet/kismet_alerts.conf \
+    ./conf/kismet_httpd.conf=/etc/kismet/kismet_httpd.conf \
+    ./conf/kismet_logging.conf=/etc/kismet/kismet_logging.conf \
+    ./conf/kismet_memory.conf=/etc/kismet/kismet_memory.conf \
+    ./conf/kismet_storage.conf=/etc/kismet/kismet_storage.conf \
+    ./conf/kismet_uav.conf=/etc/kismet/kismet_uav.conf \
     ./kismet=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
@@ -48,7 +54,13 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     --depends libprotobuf10 \
     --depends libprotobuf-c1 \
     --depends libsensors4 \
-    ./conf=/etc/kismet \
+    ./conf/kismet.conf=/etc/kismet/kismet.conf \
+    ./conf/kismet_alerts.conf=/etc/kismet/kismet_alerts.conf \
+    ./conf/kismet_httpd.conf=/etc/kismet/kismet_httpd.conf \
+    ./conf/kismet_logging.conf=/etc/kismet/kismet_logging.conf \
+    ./conf/kismet_memory.conf=/etc/kismet/kismet_memory.conf \
+    ./conf/kismet_storage.conf=/etc/kismet/kismet_storage.conf \
+    ./conf/kismet_uav.conf=/etc/kismet/kismet_uav.conf \
     ./kismet_stripped=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
