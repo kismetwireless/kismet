@@ -10,6 +10,7 @@ setup(name='KismetCaptureRtl433',
       url='https://www.kismetwireless.net/',
       install_requires=['protobuf', 'KismetExternal'],
       packages=['KismetCaptureRtl433'],
+      scripts=['kismet_cap_sdr_rtl433', 'kismet_cap_sdr_rtl433_mqtt'],
      )
 
 
