@@ -40,7 +40,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.debug.${VERSION} \
     ./kismet=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
-    ./http_data=/usr/share/kismet/httpd 
+    ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     --deb-recommends kismet-capture-linux-wifi \
@@ -64,7 +64,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     ./kismet_stripped=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
-    ./http_data=/usr/share/kismet/httpd 
+    ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.git.${VERSION} \
     --deb-templates packaging/fpm/debian/kismet.templates \
