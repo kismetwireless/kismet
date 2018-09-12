@@ -324,7 +324,7 @@ int ConfigFile::FetchOptInt(std::string in_key, int dvalue) {
 
     try {
         r = StringToInt(v);
-    } catch (const std::runtime_error e) {
+    } catch (const std::runtime_error& e) {
         return dvalue;
     }
 
@@ -340,7 +340,7 @@ unsigned int ConfigFile::FetchOptUInt(std::string in_key, unsigned int dvalue) {
 
     try {
         r = StringToUInt(v);
-    } catch (const std::runtime_error e) {
+    } catch (const std::runtime_error& e) {
         return dvalue;
     }
 
