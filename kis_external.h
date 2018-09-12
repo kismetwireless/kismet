@@ -76,6 +76,10 @@ public:
     // Passes error to the the internal source_error function
     virtual void BufferError(std::string in_error);
 
+    // Check to see if an IPC binary is available
+    static bool check_ipc(const std::string& in_binary);
+    
+
     // Launch the external binary and connect the IPC channel to our buffer
     // interface; most tools will use this unless they support network; 
     // datasources are the primary exception

@@ -17,6 +17,7 @@
 */
 
 #include <memory>
+#include <sys/stat.h>
 
 #include "configfile.h"
 
@@ -199,6 +200,30 @@ void KisExternalInterface::BufferError(std::string in_error) {
     BufferAvailable(0);
     
     close_external();
+}
+
+bool KisExternalInterface::check_ipc(const std::string& in_binary) {
+    struct stat fstat;
+
+    std::vector<std::string> bin_paths = 
+        Globalreg::globalreg->kismet_config->FetchOptVec("helper_binary_path");
+
+    if (bin_paths.size() == 0) {
+        bin_paths.push_back("%B");
+    }
+
+    for (auto rp : bin_paths) {
+        if (stat(Globalreg::globalreg->kismet_config->ExpandLogPath(rp, "", "", 0, 1).c_str(), &fstat) != -1) {
+
+            if (S_ISDIR(fstat.st_mode))
+                continue;
+
+            if ((S_IXUSR & fstat.st_mode))
+                return true;
+        }
+    }
+
+    return false;
 }
 
 bool KisExternalInterface::run_ipc() {
