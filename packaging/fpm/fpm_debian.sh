@@ -19,6 +19,8 @@ strip kismet_stripped
 sudo fpm -t deb -s dir -n kismet-core -v 2018.git.debug.${VERSION} \
     --deb-recommends kismet-capture-linux-wifi \
     --deb-recommends kismet-capture-linux-bluetooth \
+    --deb-recommends kismet-capture-nrf-mousejack \
+    --deb-recommends python-kismetcapturertl433 \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --depends libmicrohttpd12 \
@@ -45,6 +47,8 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.debug.${VERSION} \
 sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     --deb-recommends kismet-capture-linux-wifi \
     --deb-recommends kismet-capture-linux-bluetooth \
+    --deb-recommends kismet-capture-nrf-mousejack \
+    --deb-recommends python-kismetcapturertl433 \
     --depends libmicrohttpd12 \
     --depends zlib1g \
     --depends libpcap0.8 \
