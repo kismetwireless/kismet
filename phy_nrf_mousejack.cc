@@ -115,6 +115,9 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
+    if (packdata == nullptr)
+        return 0;
+
     // Is it a packet we care about?
     if (packdata->dlt != mphy->dlt)
         return 0;
