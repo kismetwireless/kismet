@@ -92,7 +92,8 @@ KisDatasource::~KisDatasource() {
 
 void KisDatasource::list_interfaces(unsigned int in_transaction, 
         list_callback_t in_cb) {
-    local_locker lock(&ext_mutex);
+    local_demand_locker lock(&ext_mutex);
+    lock.lock();
 
     mode_listing = true;
 
@@ -100,15 +101,26 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     // and call the cb instantly
     if (!get_source_builder()->get_list_capable()) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, std::vector<SharedInterface>());
         }
 
         return;
     }
 
+    // If we don't have our local binary, die and call cb instantly
+    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, std::vector<SharedInterface>());
+        }
+        return;
+    }
+
     // Launch the IPC
     if (!launch_ipc()) {
         if (in_cb != NULL) {
+            lock.unlock();
             in_cb(in_transaction, std::vector<SharedInterface>());
         }
 
@@ -128,7 +140,7 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
     mode_probing = true;
 
     set_int_source_definition(in_definition);
-    
+
     // If we can't probe interfaces according to our prototype, die
     // and call the cb instantly
     if (!get_source_builder()->get_probe_capable()) {
@@ -137,7 +149,16 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
             in_cb(in_transaction, false, "Driver not capable of probing");
             lock.lock();
         }
+        return;
+    }
 
+    // If we don't have our local binary, die and call cb instantly
+    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "Capture tool not installed");
+            lock.lock();
+        }
         return;
     }
 
@@ -215,6 +236,16 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
             lock.lock();
         }
         
+        return;
+    }
+
+    // If we don't have our local binary, die and call cb instantly
+    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+        if (in_cb != NULL) {
+            lock.unlock();
+            in_cb(in_transaction, false, "Capture tool not installed");
+            lock.lock();
+        }
         return;
     }
 
