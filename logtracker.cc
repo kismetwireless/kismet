@@ -474,7 +474,7 @@ void LogTracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         } else {
             throw std::runtime_error("unknown url");
         }
-    } catch(const std::exception e) {
+    } catch(const std::exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         connection->httpcode = 400;
@@ -499,7 +499,7 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         } else {
             throw StructuredDataException("Missing data");
         }
-    } catch(const StructuredDataException e) {
+    } catch(const StructuredDataException& e) {
         concls->response_stream << "Invalid request: ";
         concls->response_stream << e.what();
         concls->httpcode = 400;
@@ -554,7 +554,7 @@ int LogTracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             }
         }
-    } catch(const std::exception e) {
+    } catch(const std::exception& e) {
         concls->response_stream << "Invalid request: ";
         concls->response_stream << e.what();
         concls->httpcode = 400;
