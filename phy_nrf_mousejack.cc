@@ -153,7 +153,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
 
 void Kis_Mousejack_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
         SharedTrackerElement in_device) {
-    if (in_storage == nullptr | in_device == nullptr)
+    if (in_storage == nullptr || in_device == nullptr)
         return;
 
     auto storage = std::static_pointer_cast<TrackerElementMap>(in_storage);
