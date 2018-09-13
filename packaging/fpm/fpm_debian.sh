@@ -16,7 +16,7 @@ VERSION=$(git rev-parse --short HEAD)
 cp kismet kismet_stripped
 strip kismet_stripped
 
-sudo fpm -t deb -s dir -n kismet-core -v 2018.git.debug.${VERSION} \
+sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.git.${VERSION} \
     --deb-recommends kismet-capture-linux-wifi \
     --deb-recommends kismet-capture-linux-bluetooth \
     --deb-recommends kismet-capture-nrf-mousejack \
