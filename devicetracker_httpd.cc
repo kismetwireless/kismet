@@ -513,7 +513,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
         }
-    } catch(const StructuredDataException e) {
+    } catch(const StructuredDataException& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -561,7 +561,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             else
                 post_ts = rawt;
         }
-    } catch(const StructuredDataException e) {
+    } catch(const StructuredDataException& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
