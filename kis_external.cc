@@ -213,8 +213,11 @@ bool KisExternalInterface::check_ipc(const std::string& in_binary) {
     }
 
     for (auto rp : bin_paths) {
-        if (stat(Globalreg::globalreg->kismet_config->ExpandLogPath(rp, "", "", 0, 1).c_str(), &fstat) != -1) {
+        std::string fp = fmt::format("{}/{}",
+                Globalreg::globalreg->kismet_config->ExpandLogPath(rp, "", "", 0, 1),
+                in_binary);
 
+        if (stat(fp.c_str(), &fstat) != -1) {
             if (S_ISDIR(fstat.st_mode))
                 continue;
 
