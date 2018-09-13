@@ -1356,7 +1356,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                         aux->sync();
                         aux->trigger_error();
                     }
-                } catch (std::exception& e) {
+                } catch (const std::exception& e) {
                     aux->sync();
                     aux->trigger_error();
                 }
@@ -1416,7 +1416,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
                         aux->sync();
                         aux->trigger_error();
                     }
-                } catch (std::exception& e) {
+                } catch (const std::exception& e) {
                     // fprintf(stderr, "debug - exception - triggering error\n");
                     aux->sync();
                     aux->trigger_error();
@@ -1557,7 +1557,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
         }
-    } catch(const StructuredDataException e) {
+    } catch(const StructuredDataException& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -1589,7 +1589,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
                 }
             }
         }
-    } catch(const StructuredDataException e) {
+    } catch(const StructuredDataException& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
