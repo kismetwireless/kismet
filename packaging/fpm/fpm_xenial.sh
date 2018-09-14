@@ -6,6 +6,8 @@ cp kismet kismet_stripped
 strip kismet_stripped
 
 sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.git.${VERSION} \
+    --replaces kismet \
+    --replaces kismet-plugins \
     --deb-recommends kismet-capture-linux-wifi \
     --deb-recommends kismet-capture-linux-bluetooth \
     --deb-recommends kismet-capture-nrf-mousejack \
@@ -34,6 +36,8 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.git.${VERSION} \
     ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
+    --replaces kismet \
+    --replaces kismet-plugins \
     --deb-recommends kismet-capture-linux-wifi \
     --deb-recommends kismet-capture-linux-bluetooth \
     --deb-recommends kismet-capture-nrf-mousejack \
