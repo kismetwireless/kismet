@@ -4,12 +4,18 @@
 # array
 
 import argparse
-from dateutil import parser as dateparser
 import datetime
 import json
 import struct
 import sqlite3
 import sys
+
+try:
+    from dateutil import parser as dateparser
+except Exception as e:
+    print("kismet_log_to_kml requires dateutil; please install it either via your distribution")
+    print("(python-dateutil) or via pip (pip install dateutil)")
+    sys.exit(1)
 
 parser = argparse.ArgumentParser(description="Kismet to Pcap Log Converter")
 parser.add_argument("--in", action="store", dest="infile", help='Input (.kismet) file')
@@ -22,13 +28,13 @@ results = parser.parse_args()
 log_to_single = True
 
 if results.infile is None:
-    print "Expected --in [file]"
+    print("Expected --in [file]")
     sys.exit(1)
 
 try:
     db = sqlite3.connect(results.infile)
 except Exception as e:
-    print "Failed to open kismet logfile: ", e
+    print("Failed to open kismet logfile: ", e)
     sys.exit(1)
 
 replacements = {}
@@ -40,7 +46,7 @@ if results.starttime:
     try:
         st = dateparser.parse(results.starttime, fuzzy = True)
     except ValueError as e:
-        print "Could not extract a date/time from start-time argument:", e
+        print("Could not extract a date/time from start-time argument:", e)
         sys.exit(0)
 
     secs = (st - epoch).total_seconds()
@@ -78,6 +84,6 @@ if results.outfile:
     logf = open(results.outfile, "w")
     logf.write(json.dumps(devs, sort_keys = True, indent = 4, separators=(',', ': ')))
 else:
-    print json.dumps(devs, sort_keys = True, indent = 4, separators=(',', ': '))
+    print(json.dumps(devs, sort_keys = True, indent = 4, separators=(',', ': ')))
 
 

@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
 import argparse
-from dateutil import parser as dateparser
 import datetime
 import sqlite3
 import sys
 import csv
 
+try:
+    from dateutil import parser as dateparser
+except Exception as e:
+    print("kismet_log_to_kml requires dateutil; please install it either via your distribution")
+    print("(python-dateutil) or via pip (pip install dateutil)")
+    sys.exit(1)
 
 parser = argparse.ArgumentParser(description="Kismet to CSV Log Converter")
 parser.add_argument("--in", action="store", dest="infile", help='Input (.kismet) file')
