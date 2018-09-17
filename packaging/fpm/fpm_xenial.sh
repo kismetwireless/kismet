@@ -12,6 +12,7 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.git.${VERSION} \
     --deb-recommends kismet-capture-linux-bluetooth \
     --deb-recommends kismet-capture-nrf-mousejack \
     --deb-recommends python-kismetcapturertl433 \
+    --deb-recommends kismet-logtools \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --depends libmicrohttpd10 \
@@ -42,6 +43,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     --deb-recommends kismet-capture-linux-bluetooth \
     --deb-recommends kismet-capture-nrf-mousejack \
     --deb-recommends python-kismetcapturertl433 \
+    --deb-recommends kismet-logtools \
     --depends libmicrohttpd10 \
     --depends zlib1g \
     --depends libpcap0.8 \
