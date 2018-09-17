@@ -179,9 +179,19 @@ else
 
 fi
 
-AX_CXX_COMPILE_STDCXX(11, , [mandatory])
-AX_CXX_COMPILE_STDCXX(14, ,[optional])
+# Start at the newest C++ and define our way back
 AX_CXX_COMPILE_STDCXX(17, , [optional])
+if test "$HAVE_CXX17" = "1"; then
+    AC_DEFINE(HAVE_CXX14, 1)
+    AC_DEFINE(HAVE_CXX11, 1)
+else
+    AX_CXX_COMPILE_STDCXX(14, ,[optional])
+    if test "$HAVE_CXX14" = "1"; then
+        AC_DEFINE(HAVE_CXX11, 1)
+    else
+        AX_CXX_COMPILE_STDCXX(11, , [mandatory])
+    fi
+fi
 
 AC_SUBST(PLUGINLDFLAGS)
 
