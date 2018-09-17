@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+import os
 import struct
 import sqlite3
 import sys
@@ -61,11 +62,15 @@ if results.infile is None:
 if results.limitpackets is not None and results.outtitle is None:
     print("Expected --outtitle when using --limit-packets")
     sys.exit(1)
-elif results.outfile is None:
+elif results.limitpackets is None and results.outfile is None:
     print("Expected --out [file]")
     sys.exit(1)
 elif results.limitpackets and results.outtitle:
     print("Limiting to {} packets per file in {}-X.pcap".format(results.limitpackets, results.outtitle))
+
+if not os.path.isfile(results.infile):
+    print("Could not find input file '{}'".format(results.infile))
+    sys.exit(1)
 
 try:
     db = sqlite3.connect(results.infile)

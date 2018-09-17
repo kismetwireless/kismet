@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+import os
 import sqlite3
 import sys
 import csv
@@ -25,7 +26,9 @@ if results.infile is None:
     print("Expected --in [file]")
     sys.exit(1)
 
-
+if not os.path.isfile(results.infile):
+    print("Could not find input file '{}'".format(results.infile))
+    sys.exit(1)
 
 table = ""
 if results.srctable is None:
