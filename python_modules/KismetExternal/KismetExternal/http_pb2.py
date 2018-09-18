@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='http.proto',
   package='KismetExternalHttp',
   syntax='proto2',
-  serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x16\n\x14HttpAuthTokenRequest\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"E\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x15\n\rauth_required\x18\x03 \x02(\x08\"1\n\x0fSubHttpPostData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"r\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12\x36\n\tpost_data\x18\x04 \x03(\x0b\x32#.KismetExternalHttp.SubHttpPostData\"#\n\x11HttpRequestCancel\x12\x0e\n\x06req_id\x18\x01 \x02(\r\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
+  serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x16\n\x14HttpAuthTokenRequest\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"E\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x15\n\rauth_required\x18\x03 \x02(\x08\"5\n\x13SubHttpVariableData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"z\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12>\n\rvariable_data\x18\x04 \x03(\x0b\x32\'.KismetExternalHttp.SubHttpVariableData\"#\n\x11HttpRequestCancel\x12\x0e\n\x06req_id\x18\x01 \x02(\r\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -126,22 +126,22 @@ _HTTPREGISTERURI = _descriptor.Descriptor(
 )
 
 
-_SUBHTTPPOSTDATA = _descriptor.Descriptor(
-  name='SubHttpPostData',
-  full_name='KismetExternalHttp.SubHttpPostData',
+_SUBHTTPVARIABLEDATA = _descriptor.Descriptor(
+  name='SubHttpVariableData',
+  full_name='KismetExternalHttp.SubHttpVariableData',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='field', full_name='KismetExternalHttp.SubHttpPostData.field', index=0,
+      name='field', full_name='KismetExternalHttp.SubHttpVariableData.field', index=0,
       number=1, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='content', full_name='KismetExternalHttp.SubHttpPostData.content', index=1,
+      name='content', full_name='KismetExternalHttp.SubHttpVariableData.content', index=1,
       number=2, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -160,7 +160,7 @@ _SUBHTTPPOSTDATA = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=161,
-  serialized_end=210,
+  serialized_end=214,
 )
 
 
@@ -193,7 +193,7 @@ _HTTPREQUEST = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='post_data', full_name='KismetExternalHttp.HttpRequest.post_data', index=3,
+      name='variable_data', full_name='KismetExternalHttp.HttpRequest.variable_data', index=3,
       number=4, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -211,8 +211,8 @@ _HTTPREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=212,
-  serialized_end=326,
+  serialized_start=216,
+  serialized_end=338,
 )
 
 
@@ -242,8 +242,8 @@ _HTTPREQUESTCANCEL = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=328,
-  serialized_end=363,
+  serialized_start=340,
+  serialized_end=375,
 )
 
 
@@ -280,8 +280,8 @@ _SUBHTTPHEADER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=365,
-  serialized_end=413,
+  serialized_start=377,
+  serialized_end=425,
 )
 
 
@@ -339,16 +339,16 @@ _HTTPRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=416,
-  serialized_end=566,
+  serialized_start=428,
+  serialized_end=578,
 )
 
-_HTTPREQUEST.fields_by_name['post_data'].message_type = _SUBHTTPPOSTDATA
+_HTTPREQUEST.fields_by_name['variable_data'].message_type = _SUBHTTPVARIABLEDATA
 _HTTPRESPONSE.fields_by_name['header_content'].message_type = _SUBHTTPHEADER
 DESCRIPTOR.message_types_by_name['HttpAuthTokenRequest'] = _HTTPAUTHTOKENREQUEST
 DESCRIPTOR.message_types_by_name['HttpAuthToken'] = _HTTPAUTHTOKEN
 DESCRIPTOR.message_types_by_name['HttpRegisterUri'] = _HTTPREGISTERURI
-DESCRIPTOR.message_types_by_name['SubHttpPostData'] = _SUBHTTPPOSTDATA
+DESCRIPTOR.message_types_by_name['SubHttpVariableData'] = _SUBHTTPVARIABLEDATA
 DESCRIPTOR.message_types_by_name['HttpRequest'] = _HTTPREQUEST
 DESCRIPTOR.message_types_by_name['HttpRequestCancel'] = _HTTPREQUESTCANCEL
 DESCRIPTOR.message_types_by_name['SubHttpHeader'] = _SUBHTTPHEADER
@@ -375,12 +375,12 @@ HttpRegisterUri = _reflection.GeneratedProtocolMessageType('HttpRegisterUri', (_
   ))
 _sym_db.RegisterMessage(HttpRegisterUri)
 
-SubHttpPostData = _reflection.GeneratedProtocolMessageType('SubHttpPostData', (_message.Message,), dict(
-  DESCRIPTOR = _SUBHTTPPOSTDATA,
+SubHttpVariableData = _reflection.GeneratedProtocolMessageType('SubHttpVariableData', (_message.Message,), dict(
+  DESCRIPTOR = _SUBHTTPVARIABLEDATA,
   __module__ = 'http_pb2'
-  # @@protoc_insertion_point(class_scope:KismetExternalHttp.SubHttpPostData)
+  # @@protoc_insertion_point(class_scope:KismetExternalHttp.SubHttpVariableData)
   ))
-_sym_db.RegisterMessage(SubHttpPostData)
+_sym_db.RegisterMessage(SubHttpVariableData)
 
 HttpRequest = _reflection.GeneratedProtocolMessageType('HttpRequest', (_message.Message,), dict(
   DESCRIPTOR = _HTTPREQUEST,

@@ -30,11 +30,11 @@ message HttpRegisterUri {
     required bool auth_required = 3;
 }
 
-// Sub-block of HTTP post data, per-field
-message SubHttpPostData {
-    // POST field sent to Kismet
+// Sub-block of HTTP data, per-field
+message SubHttpVariableData {
+    // GET or POST field sent to Kismet
     required string field = 1;
-    // Content of POST data, as parsed by microhttpd
+    // Content of GET or POST data, as parsed by microhttpd
     required string content = 2;
 }
 
@@ -47,7 +47,7 @@ message HttpRequest {
     // Method
     required string method = 3;
     // If post, a map of post variables
-    repeated SubHttpPostData post_data = 4;
+    repeated SubHttpVariableData variable_data = 4;
 }
 
 // Cancel an existing request (remote end went away)

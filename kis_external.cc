@@ -607,7 +607,7 @@ void KisExternalHttpInterface::handle_packet_http_auth_request(uint32_t in_seqno
 }
 
 unsigned int KisExternalHttpInterface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
-        std::string in_method, std::map<std::string, std::string> in_postdata) {
+        std::string in_method, std::map<std::string, std::string> in_vardata) {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("HTTPREQUEST");
@@ -617,8 +617,8 @@ unsigned int KisExternalHttpInterface::send_http_request(uint32_t in_http_sequen
     r.set_uri(in_uri);
     r.set_method(in_method);
 
-    for (auto pi : in_postdata) {
-        KismetExternalHttp::SubHttpPostData *pd = r.add_post_data();
+    for (auto pi : in_vardata) {
+        KismetExternalHttp::SubHttpVariableData *pd = r.add_variable_data();
         pd->set_field(pi.first);
         pd->set_field(pi.second);
     }
@@ -685,6 +685,10 @@ int KisExternalHttpInterface::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
+    std::map<std::string, std::string> get_remap;
+    for (auto v : connection->variable_cache) 
+        get_remap[v.first] = v.second->str();
+
     for (auto e : m->second) {
         if (e->uri == std::string(url)) {
             // Make sure we're logged in if we need to be
@@ -705,8 +709,7 @@ int KisExternalHttpInterface::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             http_proxy_session_map[sess_id] = s;
 
             // Send the proxy response
-            send_http_request(sess_id, connection->url, std::string(method),
-                    std::map<std::string, std::string>());
+            send_http_request(sess_id, connection->url, std::string(method), get_remap);
 
             // Unlock the demand locker
             dlock.unlock();
