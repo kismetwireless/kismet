@@ -15,8 +15,8 @@ import threading
 try:
     import KismetExternal
 except ImportError:
-    print "ERROR:  Kismet external Python tools require the KismetExternal python "
-    print "        library; you can find it in python_tools/KismetExternal"
+    print("ERROR:  Kismet external Python tools require the KismetExternal python ")
+    print("        library; you can find it in python_tools/KismetExternal")
     sys.exit(1)
 
 class KismetProxyTest(object):
@@ -32,8 +32,8 @@ class KismetProxyTest(object):
         self.results = self.parser.parse_args()
 
         if self.results.infd is None or self.results.outfd is None:
-            print "ERROR:  Kismet external python tools are (typically) launched by "
-            print "        Kismet itself; running it on its own won't do what you want"
+            print("ERROR:  Kismet external python tools are (typically) launched by ")
+            print("        Kismet itself; running it on its own won't do what you want")
             sys.exit(1)
 
         # Initialize our external interface
@@ -47,6 +47,9 @@ class KismetProxyTest(object):
         # Add a URI handler; it doesn't need a login, and it returns HTML
         self.kei.add_uri_handler("GET", "/proxytest/python.html", False, self.handle_web_python)
 
+        # Add a GET var test
+        self.kei.add_uri_handler("GET", "/proxytest/python_get.html", False, self.handle_web_python_get)
+
         # Add a streaming handler
         self.kei.add_uri_handler("GET", "/proxytest/stream.raw", False, self.handle_web_stream)
 
@@ -57,14 +60,22 @@ class KismetProxyTest(object):
 
     # Callback for when we've gotten back our auth token for the webserver
     def handle_web_auth_token(self):
-        print "ProxyTest got HTTP auth token", self.kei.auth_token
+        print("ProxyTest got HTTP auth token", self.kei.auth_token)
 
     # Callback function for handling a req of our python.html endpoint
     def handle_web_python(self, externalhandler, request):
-        print "PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri)
+        print("PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri))
         # Print a static response
         externalhandler.send_http_response(request.req_id, "<html><body><b>This is from python!</b></body></html>")
 
+    # Callback function for handling a req of our variabls.html endpoint
+    def handle_web_python_get(self, externalhandler, request):
+        print("PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri))
+        print("PYTHON - GET variables ")
+        for i in request.variable_data:
+            print("PYTHON - GET {}:{}".format(i.field, i.content))
+
+        externalhandler.send_http_response(request.req_id, "<html><body><b>This is from python!</b></body></html>")
     # Callback function to demonstrate streaming
     def handle_web_stream(self, externalhandler, request):
         externalhandler.send_http_response(request.req_id, "Stream starting\n", stream = True, finished = False)

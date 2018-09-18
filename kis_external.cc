@@ -620,7 +620,7 @@ unsigned int KisExternalHttpInterface::send_http_request(uint32_t in_http_sequen
     for (auto pi : in_vardata) {
         KismetExternalHttp::SubHttpVariableData *pd = r.add_variable_data();
         pd->set_field(pi.first);
-        pd->set_field(pi.second);
+        pd->set_content(pi.second);
     }
 
     c->set_content(r.SerializeAsString());
