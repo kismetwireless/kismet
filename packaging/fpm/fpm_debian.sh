@@ -1,22 +1,17 @@
 #!/bin/sh -e
 
-if test "$1"x = "rebuild"x; then
-    make distclean
-
-    git pull
-
-    # Enable everything
-    ./configure --prefix=/usr --sysconfdir=/etc/kismet 
-
-    make -j$(nproc)
+if test "$1"x != "x"; then
+    GITV=$1
+else
+    GITV="HEAD"
 fi
 
-VERSION=$(git rev-parse --short HEAD)
+VERSION=$(git rev-parse --short ${GITV})
 
 cp kismet kismet_stripped
 strip kismet_stripped
 
-sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.git.${VERSION} \
+sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}.${VERSION} \
     --replaces kismet \
     --replaces kismet-plugins \
     --deb-recommends kismet-capture-linux-wifi \
@@ -47,7 +42,7 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.git.${VERSION} \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
     ./http_data/=/usr/share/kismet/httpd 
 
-sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
+sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}.${VERSION} \
     --replaces kismet \
     --replaces kismet-plugins \
     --deb-recommends kismet-capture-linux-wifi \
@@ -76,7 +71,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.git.${VERSION} \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
     ./http_data/=/usr/share/kismet/httpd 
 
-sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.git.${VERSION} \
+sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.${GITV}.${VERSION} \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --post-install packaging/fpm/debian/kismet_cap_linux_wifi.postinst \
@@ -89,7 +84,7 @@ sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.git.${VERSION} \
     --depends libprotobuf-c1 \
     ./capture_linux_wifi/kismet_cap_linux_wifi=/usr/bin/kismet_cap_linux_wifi 
 
-sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.git.${VERSION} \
+sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.${GITV}.${VERSION} \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --post-install packaging/fpm/debian/kismet_cap_linux_bluetooth.postinst \
@@ -99,7 +94,7 @@ sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.git.${VERSION} 
     --depends libprotobuf-c1 \
     ./capture_linux_bluetooth/kismet_cap_linux_bluetooth=/usr/bin/kismet_cap_linux_bluetooth 
     
-sudo fpm -t deb -s dir -n kismet-capture-nrf-mousejack -v 2018.git.${VERSION} \
+sudo fpm -t deb -s dir -n kismet-capture-nrf-mousejack -v 2018.${GITV}.${VERSION} \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --post-install packaging/fpm/debian/kismet_cap_nrf_mousejack.postinst \
@@ -108,4 +103,14 @@ sudo fpm -t deb -s dir -n kismet-capture-nrf-mousejack -v 2018.git.${VERSION} \
     --depends libprotobuf-c1 \
     --depends libusb-1.0-0 \
     ./capture_nrf_mousejack/kismet_cap_nrf_mousejack=/usr/bin/kismet_cap_nrf_mousejack
+
+sudo fpm -t deb -s empty -n kismet2018 -v 2018.${GITV}.${VERSION} \
+    --depends kismet-core \
+    --depends kismet-capture-linux-wifi \
+    --depends kismet-capture-linux-wifi \
+    --depends kismet-capture-linux-bluetooth \
+    --depends kismet-capture-nrf-mousejack \
+    --depends python-kismetcapturertl433 \
+    --depends kismet-logtools 
+
 
