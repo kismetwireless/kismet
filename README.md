@@ -30,7 +30,7 @@ At the *very least* you will need to uninstall any old versions of Kismet, and y
 [TOC]
 
 
-## Quick Setup
+## Compiling: Quick Setup
 
 Kismet has many configuration knobs and options; but for the quickest way to get the basics working:
 
@@ -90,9 +90,9 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    $ make
    ```
 
-   You can accelerate the process by adding `-j #`, depending on how many CPUs you have.  For instance on a quad-core system:
+   You can accelerate the process by adding `-j #`, depending on how many CPUs you have.  To automatically compile on all the available cores:
    ```bash
-   $ make -j4
+   $ make -j$(nproc)
    ```
 
    C++ uses quite a bit of RAM to compile, so depending on the RAM available on your system you may need to limit the number of processes you run simultaneously.
@@ -472,7 +472,7 @@ If you are assigning custom UUIDs, you **must ensure** that every UUID is **uniq
 ### Multiple Kismet Datasources
 
 Kismet will attempt to open all the sources defined on the command line (with the `-c` option), or if no sources are defined on the command line, all the sources defined in the Kismet config files.
-    
+​    
 If a source has no functional type and encounters an error on startup, it will be ignored - for instance if a source is defined as:
    ```
    source=wlx4494fcf30eb3
@@ -490,9 +490,9 @@ will continually try to re-open the device.
 #### Wi-Fi Channels
 
 Wi-Fi channels in Kismet define both the basic channel number, and extra channel attributes such as 802.11N 40MHz channels, 802.11AC 80MHz and 160MHz channels, and non-standard half and quarter rate channels at 10MHz and 5MHz.
-    
+​    
 Kismet will auto-detect the supported channels on most Wi-Fi cards.  Monitoring on HT40, VHT80, and VHT160 requires support from your card.
-    
+​    
 Channels can be defined by number or by frequency.
 
 | Definition | Interpretation                                               |
@@ -976,13 +976,13 @@ HTTP configuration options:
 Kismet can integrate with a GPS device to provide geolocation coordinates for devices.
 
 GPS data is included in the log files, in PPI pcap files, and exported over the REST interface.
-    
+​    
 Kismet can not use GPS to determine the absolute location of the device; it can only use it to determine the location of the receiver.  The location estimate of a device can be improved by circling the suspected location.
-    
+​    
 In addition to logging GPS data on a per-packet basis, Kismet maintains a running average of device locations which are exported as the average location in the Kismet UI and in device summaries.  Because the running average can be heavily influenced by the sensors position, this running average may not be very accurate.
 
 Multiple GPS devices can be defined at once, however only the highest priority active device is used.
-    
+​    
 GPS is configured via the `gps=` configuration option.  GPS options are passed on the configuration line:
 ```
 gps=type:option1=val1,option2=val2
