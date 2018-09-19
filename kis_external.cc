@@ -746,6 +746,15 @@ int KisExternalHttpInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *conne
         return MHD_YES;
     }
 
+    // Use a demand locker instead of pure scope locker because we need to let it go
+    // before we go into blocking wait
+    local_demand_locker dlock(&ext_mutex);
+    dlock.lock();
+
+    std::map<std::string, std::string> get_remap;
+    for (auto v : connection->variable_cache) 
+        get_remap[v.first] = v.second->str();
+
     for (auto e : m->second) {
         if (e->uri == std::string(connection->url)) {
             // Make sure we're logged in if we need to be
@@ -754,8 +763,40 @@ int KisExternalHttpInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *conne
                 return MHD_YES;
             }
 
-            // TODO process POST
+            // Make a session
+            std::shared_ptr<KisExternalHttpSession> s(new KisExternalHttpSession());
+            s->connection = connection;
+            // Lock the waitlock
+            s->locker.reset(new conditional_locker<int>());
+            s->locker->lock();
 
+            // Log the session number
+            uint32_t sess_id = http_session_id++;
+            http_proxy_session_map[sess_id] = s;
+
+            // Send the proxy response
+            send_http_request(sess_id, connection->url, std::string{"POST"}, get_remap);
+
+            // Unlock the demand locker
+            dlock.unlock();
+
+            // Block until the external tool sends a connection end; all of the writing
+            // to the stream will be handled inside the handle_http_response handler
+            // and it will unlock us when we've gotten to the end of the stream.
+            s->locker->block_until();
+
+            // Re-acquire the lock
+            dlock.lock();
+
+            // Remove the session from our map
+            auto mi = http_proxy_session_map.find(sess_id);
+            if (mi != http_proxy_session_map.end())
+                http_proxy_session_map.erase(mi);
+
+            // The session code should have been set already here so we don't have anything
+            // else to do except tell the webserver we're done and let our session
+            // de-scope as we exit...
+            return MHD_YES;
         }
     }
 

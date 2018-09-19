@@ -50,6 +50,9 @@ class KismetProxyTest(object):
         # Add a GET var test
         self.kei.add_uri_handler("GET", "/proxytest/python_get.html", False, self.handle_web_python_get)
 
+        # Add a POST var test
+        self.kei.add_uri_handler("POST", "/proxytest/python_post.html", False, self.handle_web_python_post)
+
         # Add a streaming handler
         self.kei.add_uri_handler("GET", "/proxytest/stream.raw", False, self.handle_web_stream)
 
@@ -76,6 +79,16 @@ class KismetProxyTest(object):
             print("PYTHON - GET {}:{}".format(i.field, i.content))
 
         externalhandler.send_http_response(request.req_id, "<html><body><b>This is from python!</b></body></html>")
+
+    # Callback function for handling a req of our variabls.html endpoint
+    def handle_web_python_post(self, externalhandler, request):
+        print("PYTHON - Handle web req {} {} {}".format(request.req_id, request.method, request.uri))
+        print("PYTHON - GET variables ")
+        for i in request.variable_data:
+            print("PYTHON - GET {}:{}".format(i.field, i.content))
+
+        externalhandler.send_http_response(request.req_id, "<html><body><b>This is from python!</b></body></html>")
+
     # Callback function to demonstrate streaming
     def handle_web_stream(self, externalhandler, request):
         externalhandler.send_http_response(request.req_id, "Stream starting\n", stream = True, finished = False)
