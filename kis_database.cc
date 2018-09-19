@@ -244,3 +244,59 @@ bool KisDatabase::Database_SetDBVersion(unsigned int version) {
     return true;
 }
 
+sqlite3_stmt *KisDatabaseBinder::make_query(sqlite3 *db, std::string base) {
+    std::stringstream query;
+
+    const char *pz = nullptr;
+    sqlite3_stmt *stmt = nullptr;
+    int r;
+
+    query << base;
+
+    if (bindings.size() == 0) {
+        query << ";";
+        printf("%s\n", query.str().c_str());
+
+        std::string q_final = query.str();
+
+        r = sqlite3_prepare(db, q_final.c_str(), q_final.length(), &stmt, &pz);
+
+        if (r != SQLITE_OK) 
+            throw std::runtime_error(fmt::format("Unable to prepare database query: {}", sqlite3_errmsg(db)));
+
+        return stmt;
+    }
+
+    bool append = false;
+    query << " WHERE (";
+
+    for (auto i : bindings) {
+        if (append)
+            query << " AND ";
+        append = true;
+
+        query << i->get_query();
+    }
+
+    query << ");";
+
+    std::string q_final = query.str();
+
+    r = sqlite3_prepare(db, q_final.c_str(), q_final.length(), &stmt, &pz);
+
+    if (r != SQLITE_OK) 
+        throw std::runtime_error(fmt::format("Unable to prepare database query: {}", sqlite3_errmsg(db)));
+
+    int fpos = 1;
+    for (auto i : bindings) {
+        r = i->bind_query(stmt, fpos);
+
+        if (r != SQLITE_OK)
+            throw std::runtime_error(fmt::format("Unable to bind field {} to query: {}", fpos, 
+                        sqlite3_errmsg(db)));
+
+        fpos++;
+    }
+
+    return stmt;
+}

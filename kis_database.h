@@ -96,6 +96,75 @@ protected:
     sqlite3 *db;
 };
 
+/* Dynamic database query binder */
+class KisDatabaseBinder {
+public:
+    KisDatabaseBinder() { }
+
+    template<typename T>
+    void bind_field(const std::string& in_query, const T& in_value,
+            std::function<int (sqlite3_stmt *, int, T)> in_binder) {
+        auto binding = std::make_shared<Binding<T>>(in_query, in_value, in_binder);
+        bindings.push_back(binding);
+    }
+
+    sqlite3_stmt *make_query(sqlite3 *db, std::string base); 
+
+    template<typename T>
+    static int bind_numeric(sqlite3_stmt *stmt, int index, const double& value, 
+            std::function<int (sqlite3_stmt *, int, T)> binder) {
+        return binder(stmt, index, value);
+    }
+
+    static int bind_string(sqlite3_stmt *stmt, int index, std::string value) {
+        return sqlite3_bind_text(stmt, index, value.data(), value.length(), 0);
+    }
+
+    static int bind_blob(sqlite3_stmt *stmt, int index, std::string value) {
+        return sqlite3_bind_blob(stmt, index, value.data(), value.length(), 0);
+    }
+
+protected:
+    class BindingInterface {
+    public:
+        virtual ~BindingInterface() { }
+
+        virtual std::string get_query() = 0;
+        virtual int bind_query(sqlite3_stmt *, int) = 0;
+    };
+
+    template<typename T>
+    class Binding : public BindingInterface {
+    public:
+        Binding(const std::string& in_query, const T& in_value,
+                std::function<int (sqlite3_stmt *, int, T)> in_binder) :
+            query {in_query},
+            value {in_value},
+            binder {in_binder} { }
+        virtual ~Binding() { }
+
+        virtual std::string get_query() override {
+            return query;
+        }
+
+        virtual int bind_query(sqlite3_stmt *stmt, int pos) override {
+            if (binder == nullptr)
+                throw std::runtime_error("no sqlite binding function provided");
+
+            if (stmt == nullptr)
+                throw std::runtime_error("null sqlite prepared statement provided");
+
+            return binder(stmt, pos, value);
+        }
+        
+        std::string query;
+        const T value;
+        std::function<int (sqlite3_stmt *, int, T)> binder;
+    };
+
+    std::vector<std::shared_ptr<BindingInterface>> bindings;
+
+};
 
 #endif
 
