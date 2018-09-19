@@ -179,7 +179,7 @@ If the Kismet Databaselog is enabled, Kismet will expose an API for extracting h
 
 The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
 
-The `filter` options in the command dictionary are treated as logical `AND` statements:  To match a packet, the packet must match *all* of the filter options passed in the command dictionary.
+The `filter` options in the command dictionary are treated as logical `AND` statements:  To match a packet, the packet must match *all* of the filter options passed in the command dictionary.  In other words, a filter by time, datasource, and type, would *only* return packets within that time range, from that datasource, and of that type.
 
 Filter options:
 
@@ -262,10 +262,10 @@ Filter options:
 
    Limit matching by packet size.  Size windows can define minimum and maximum or only minimum or maximum ranges.
 
-   | Key      | Type | Description                   |
-   | -------- | ---- | ----------------------------- |
-   | size_min | int  | Minimum packet size, in bytes |
-   | size_max | int  | Maximum packet size, in bytes |
+| Key      | Type | Description                   |
+| -------- | ---- | ----------------------------- |
+| size_min | int  | Minimum packet size, in bytes |
+| size_max | int  | Maximum packet size, in bytes |
 
 
 The pcap endpoint takes a standard JSON command dictionary, including the keys:
