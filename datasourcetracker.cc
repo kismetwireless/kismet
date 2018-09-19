@@ -1509,7 +1509,7 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
 int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (!Httpd_CanSerialize(concls->url)) {
-        concls->response_stream << "Invalid request";
+        concls->response_stream << "Invalid request, cannot serialize URL";
         concls->httpcode = 400;
         return MHD_YES;
     }
@@ -1527,7 +1527,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
         } else {
-            throw std::runtime_error("unable to find data");
+            throw std::runtime_error("unable to find POST data");
         }
 
         if (stripped == "/datasource/add_source") {
@@ -1538,7 +1538,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             std::string error_reason;
 
             if (!structdata->hasKey("definition")) {
-                throw std::runtime_error("Missing source definition");
+                throw std::runtime_error("POST data missing source definition");
             }
 
             cl->lock();
@@ -1596,7 +1596,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 local_shared_locker lock(&dst_lock);
 
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
-                    throw std::runtime_error("Unknown source");
+                    throw std::runtime_error("Could not find a source with that UUID");
 
                 for (auto i : *datasource_vec) {
                     SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(i);
@@ -1608,7 +1608,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 if (ds == NULL) {
-                    throw std::runtime_error("Unknown source");
+                    throw std::runtime_error("Could not find a source with that UUID");
                 }
             }
 
@@ -1618,7 +1618,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::string ch = structdata->getKeyAsString("channel", "");
 
                     if (ch.length() == 0) {
-                        throw std::runtime_error("could not parse channel");
+                        throw std::runtime_error("Invalid channel, could not parse as string");
                     }
 
                     _MSG_INFO("Setting data source '{}' channel '{}'",
@@ -1656,8 +1656,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // hopping mode
                     if (!structdata->hasKey("channels") &&
                             !structdata->hasKey("rate")) {
-                        throw std::runtime_error("expected channel, channels, "
-                                "or rate");
+                        throw std::runtime_error("invalid hop command, expected channel, channels, or rate");
                     }
 
                     // Get the channels as a vector, default to the source 
@@ -1753,7 +1752,7 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         }
 
         // Otherwise no URL path we liked
-        concls->response_stream << "Invalid request";
+        concls->response_stream << "Invalid request, invalid URL";
         concls->httpcode = 400;
         return MHD_YES;
     

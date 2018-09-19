@@ -438,7 +438,6 @@ class ExternalInterface(object):
 
         if request.uri not in self.uri_handlers[request.method]:
             raise RuntimeError("No URI handler registered for request {} {}".format(request.method, request.uri))
-
         self.uri_handlers[request.method][request.uri](self, request)
 
     def send_http_response(self, req_id, data="", resultcode=200, stream=False, finished=True):

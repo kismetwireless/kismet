@@ -1,11 +1,18 @@
 #!/usr/bin/env python
 
 import argparse
-from dateutil import parser as dateparser
 import datetime
+import os
 import struct
 import sqlite3
 import sys
+
+try:
+    from dateutil import parser as dateparser
+except Exception as e:
+    print("kismet_log_to_kml requires dateutil; please install it either via your distribution")
+    print("(python-dateutil) or via pip (pip install dateutil)")
+    sys.exit(1)
 
 # Write a raw pcap file header
 def write_pcap_header(f, dlt):
@@ -49,22 +56,26 @@ results = parser.parse_args()
 log_to_single = True
 
 if results.infile is None:
-    print "Expected --in [file]"
+    print("Expected --in [file]")
     sys.exit(1)
 
 if results.limitpackets is not None and results.outtitle is None:
-    print "Expected --outtitle when using --limit-packets"
+    print("Expected --outtitle when using --limit-packets")
     sys.exit(1)
-elif results.outfile is None:
-    print "Expected --out [file]"
+elif results.limitpackets is None and results.outfile is None:
+    print("Expected --out [file]")
     sys.exit(1)
 elif results.limitpackets and results.outtitle:
-    print "Limiting to {} packets per file in {}-X.pcap".format(results.limitpackets, results.outtitle)
+    print("Limiting to {} packets per file in {}-X.pcap".format(results.limitpackets, results.outtitle))
+
+if not os.path.isfile(results.infile):
+    print("Could not find input file '{}'".format(results.infile))
+    sys.exit(1)
 
 try:
     db = sqlite3.connect(results.infile)
 except Exception as e:
-    print "Failed to open kismet logfile: ", e
+    print("Failed to open kismet logfile: ", e)
     sys.exit(1)
 
 replacements = {}
@@ -95,7 +106,7 @@ if results.starttime:
     try:
         st = dateparser.parse(results.starttime, fuzzy = True)
     except ValueError as e:
-        print "Could not extract a date/time from start-time argument:", e
+        print("Could not extract a date/time from start-time argument:", e)
         sys.exit(0)
 
     secs = (st - epoch).total_seconds()
@@ -111,7 +122,7 @@ if results.endtime:
     try:
         st = dateparser.parse(results.endtime, fuzzy = True)
     except ValueError as e:
-        print "Could not extract a date/time from end-time argument:", e
+        print("Could not extract a date/time from end-time argument:", e)
         sys.exit(0)
 
     secs = (st - epoch).total_seconds()
@@ -145,16 +156,16 @@ npackets = 0
 for row in c.execute(sql, replacements):
     if logf == None:
         if results.silent == None:
-            print "Assuming dlt {} for all packets".format(row[2])
+            print("Assuming dlt {} for all packets".format(row[2]))
 
         if log_to_single:
             if results.silent == None:
-                print "Logging to {}".format(results.outfile)
+                print("Logging to {}".format(results.outfile))
             logf = open(results.outfile, 'wb')
             write_pcap_header(logf, row[2])
         else:
             if results.silent == None:
-                print "Logging to {}-{}.pcap".format(results.outtitle, lognum)
+                print("Logging to {}-{}.pcap".format(results.outtitle, lognum))
             logf = open("{}-{}.pcap".format(results.outtitle, lognum), 'wb')
             lognum = lognum + 1
             write_pcap_header(logf, row[2])
@@ -168,8 +179,8 @@ for row in c.execute(sql, replacements):
             logf = None
     elif results.silent == None:
         if npackets % 1000 == 0:
-            print "Converted {} packets...".format(npackets)
+            print("Converted {} packets...".format(npackets))
 
 if results.silent == None:
-    print "Done! Converted {} packets.".format(npackets)
+    print("Done! Converted {} packets.".format(npackets))
 
