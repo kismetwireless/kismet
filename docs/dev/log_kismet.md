@@ -173,13 +173,11 @@ The `snapshots` section holds arbitrary time-based snapshots of data; this funct
 
 If the Kismet Databaselog is enabled, Kismet will expose an API for extracting historic data.  If the databaselog is not enabled, these APIs will not be available.
 
-### Packet Captures
+### Filtering
 
-##### `POST` /logging/kismetlog/pcap/[title].pcapng
+The `filter` options in are treated as logical `AND` statements:  To match a packet, the packet must match *all* of the filter options passed in the command dictionary.  In other words, a filter by time, datasource, and type, would *only* return packets within that time range, from that datasource, and of that type.
 
-The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
-
-The `filter` options in the command dictionary are treated as logical `AND` statements:  To match a packet, the packet must match *all* of the filter options passed in the command dictionary.  In other words, a filter by time, datasource, and type, would *only* return packets within that time range, from that datasource, and of that type.
+Filter options should be sent as GET parameters URL-encoded, when using the GET REST endpoint, and in a command dictionary under the `filter` key when using the POST endpoint.
 
 Filter options:
 
@@ -268,9 +266,21 @@ Filter options:
 | size_max | int  | Maximum packet size, in bytes |
 
 
+
+### Packet Captures
+
+##### `POST` /logging/kismetlog/pcap/[title].pcapng
+
+The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
+
 The pcap endpoint takes a standard JSON command dictionary, including the keys:
 
-| Key    | Type       | Description                                    |
-| ------ | ---------- | ---------------------------------------------- |
-| filter | dictionary | Dictionary of filter options, documented above |
+| Key    | Type       | Description                                     |
+| ------ | ---------- | ----------------------------------------------- |
+| filter | dictionary | Dictionary of filter options, documented above. |
 
+##### `GET` /logging/kismetlog/pcap/[title].pcapng*[?opt1=val&opt2=val&...]*
+
+The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
+
+The `GET` endpoint takes the filter options above as URL-encoded GET variables in the URI.
