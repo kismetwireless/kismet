@@ -27,6 +27,9 @@
 
 #include "kis_databaselogfile.h"
 
+#include "structured.h"
+#include "kismet_json.h"
+
 KisDatabaseLogfile::KisDatabaseLogfile():
     KisLogfile(SharedLogBuilder(NULL)), 
     KisDatabase(Globalreg::globalreg, "kismetlog") {
@@ -989,8 +992,91 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::string suffix = Httpd_GetSuffix(concls->url);
 
-    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
+    SharedStructured structdata;
+    SharedStructured filterdata;
 
+    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
+        try {
+            if (concls->variable_cache.find("json") != 
+                    concls->variable_cache.end()) {
+                structdata =
+                    std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+
+                if (structdata != nullptr) {
+                    if (structdata->hasKey("filter")) {
+                        filterdata = structdata->getStructuredByKey("filter");
+
+                        if (!filterdata->isDictionary()) 
+                            throw StructuredDataException("expected filter to be a dictionary");
+                    }
+                }
+            }
+        } catch(const StructuredDataException& e) {
+            stream << "Invalid request: ";
+            stream << e.what();
+            concls->httpcode = 400;
+            return MHD_YES;
+        }
+    }
+
+    // Build a placeholder query stream
+    KisDatabaseBinder query_binder;
+
+    if (filterdata != nullptr) {
+        try {
+            if (filterdata->hasKey("timestamp_start")) 
+                query_binder.bind_field<int64_t>("ts_sec > ?", 
+                        filterdata->getKeyAsNumber("timestamp_start"), sqlite3_bind_int64);
+
+            if (filterdata->hasKey("timestamp_end")) 
+                query_binder.bind_field<int64_t>("ts_sec < ?", 
+                        filterdata->getKeyAsNumber("timestamp_end"), sqlite3_bind_int64);
+
+            if (filterdata->hasKey("datasource")) 
+                query_binder.bind_field<std::string>("datasource LIKE ?", 
+                        filterdata->getKeyAsString("datasource"), KisDatabaseBinder::bind_string);
+
+            if (filterdata->hasKey("device_id")) 
+                query_binder.bind_field<std::string>("devkey LIKE ?", 
+                        filterdata->getKeyAsString("device_id"), KisDatabaseBinder::bind_string);
+
+            if (filterdata->hasKey("dlt")) 
+                query_binder.bind_field<int>("dlt = ?", 
+                        filterdata->getKeyAsNumber("dlt"), sqlite3_bind_int);
+
+            if (filterdata->hasKey("frequency")) 
+                query_binder.bind_field<double>("frequency = ?", 
+                        filterdata->getKeyAsNumber("frequency"), sqlite3_bind_double);
+
+            if (filterdata->hasKey("channel")) 
+                query_binder.bind_field<std::string>("channel LIKE ?", 
+                        filterdata->getKeyAsString("channel"), KisDatabaseBinder::bind_string);
+
+        } catch (const StructuredDataException& e) {
+            stream << "Invalid request: ";
+            stream << e.what();
+            concls->httpcode = 400;
+            return MHD_YES;
+        }
     }
 
     return 0;
