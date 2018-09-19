@@ -347,7 +347,7 @@ public:
     static std::shared_ptr<Datasourcetracker> create_dst() {
         auto mon = std::make_shared<Datasourcetracker>();
         Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("DATASOURCETRACKER", mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         Globalreg::globalreg->RegisterDeferredGlobal(mon);
 
         auto pollabletracker =
@@ -363,6 +363,8 @@ public:
 
 public:
     virtual ~Datasourcetracker();
+
+    static std::string global_name() { return "DATASOURCETRACKER"; }
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
