@@ -21,6 +21,7 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}.${VERSION} \
     --deb-recommends kismet-logtools \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
+    --deb-systemd ./packaging/systemd/kismet.service \
     --depends libmicrohttpd10 \
     --depends zlib1g \
     --depends libpcap0.8 \
@@ -50,6 +51,9 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}.${VERSION} \
     --deb-recommends kismet-capture-nrf-mousejack \
     --deb-recommends python-kismetcapturertl433 \
     --deb-recommends kismet-logtools \
+    --deb-templates ./packaging/fpm/debian/kismet.templates \
+    --deb-config ./packaging/fpm/debian/kismet.config \
+    --deb-systemd ./packaging/systemd/kismet.service \
     --depends libmicrohttpd10 \
     --depends zlib1g \
     --depends libpcap0.8 \

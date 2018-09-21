@@ -946,7 +946,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker = Datasourcetracker::create_dst();
 
     // Create the alert tracker
-    Alertracker::create_alertracker(globalregistry);
+    auto alertracker = Alertracker::create_alertracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         CatchShutdown(-1);
@@ -1053,6 +1053,22 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // We can't call this as a deferred because we don't want to mix
     devicetracker->load_devices();
+
+    // Complain about running as root
+    if (getuid() == 0) {
+        alertracker->DefineAlert("ROOTUSER", sat_second, 1, sat_second, 1);
+        auto userref = alertracker->ActivateConfiguredAlert("ROOTUSER",
+                "Kismet is running as root; this is less secure than running Kismet "
+                "as an unprivileged user and installing it as suidroot.  Please consult "
+                "the Kismet README for more information about securely installing Kismet. "
+                "If you're starting Kismet on boot via systemd, be sure to use "
+                "'systemctl edit kismet.service' to configure the user.");
+        alertracker->RaiseAlert(userref, NULL, mac_addr(), mac_addr(), mac_addr(), mac_addr(), "",
+                "Kismet is running as root; this is less secure.  If you are running "
+                "Kismet at boot via systemd, make sure to use `systemctl edit kismet.service` to "
+                "change the user.  For more information, see the Kismet README for setting up "
+                "Kismet with minimal privileges.");
+    }
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER")->StartHttpd();
