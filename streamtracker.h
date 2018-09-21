@@ -195,10 +195,12 @@ protected:
 
 class StreamTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
 public:
+    static std::string global_name() { return "STREAMTRACKER"; }
+
     static std::shared_ptr<StreamTracker> create_streamtracker(GlobalRegistry *in_globalreg) {
         std::shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("STREAMTRACKER", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 
