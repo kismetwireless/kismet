@@ -21,7 +21,6 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}.${VERSION} \
     --deb-recommends kismet-logtools \
     --deb-templates ./packaging/fpm/debian/kismet.templates \
     --deb-config ./packaging/fpm/debian/kismet.config \
-    --deb-systemd ./packaging/systemd/kismet.service \
     --depends libmicrohttpd12 \
     --depends zlib1g \
     --depends libpcap0.8 \
@@ -41,6 +40,7 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}.${VERSION} \
     ./kismet=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
+    ./packaging/systemd/kismet.service=/lib/systemd/system/kismet.service \
     ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}.${VERSION} \
@@ -53,7 +53,6 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}.${VERSION} \
     --deb-recommends kismet-logtools \
     --deb-templates ./packaging/fpm/debian/kismet.templates \
     --deb-config ./packaging/fpm/debian/kismet.config \
-    --deb-systemd ./packaging/systemd/kismet.service \
     --depends libmicrohttpd12 \
     --depends zlib1g \
     --depends libpcap0.8 \
@@ -73,6 +72,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}.${VERSION} \
     ./kismet_stripped=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
     ./packaging/kismet.pc=/usr/share/pkgconfig/kismet.pc \
+    ./packaging/systemd/kismet.service=/lib/systemd/system/kismet.service \
     ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.${GITV}.${VERSION} \
