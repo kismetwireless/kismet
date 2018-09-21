@@ -985,17 +985,10 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {
 
-    return 0;
-}
+    std::string stripped = Httpd_StripSuffix(connection->url);
+    std::string suffix = Httpd_GetSuffix(connection->url);
 
-int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
-    std::string suffix = Httpd_GetSuffix(concls->url);
-
-    SharedStructured structdata;
-    SharedStructured filterdata;
-
-    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
     std::ostream stream(streambuf);
@@ -1015,6 +1008,22 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             });
 
     if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
+        // Build a placeholder query stream
+        KisDatabaseBinder query_binder;
+
+    }
+
+    return MHD_YES;
+}
+
+int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string suffix = Httpd_GetSuffix(concls->url);
+
+    SharedStructured structdata;
+    SharedStructured filterdata;
+
+    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
         try {
             if (concls->variable_cache.find("json") != 
                     concls->variable_cache.end()) {
@@ -1031,6 +1040,25 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
             }
         } catch(const StructuredDataException& e) {
+            auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+            auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+            std::ostream stream(streambuf);
+
+            saux->set_aux(streambuf, 
+                    [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    });
+
+            // Set our sync function which is called by the webserver side before we
+            // clean up...
+            saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    if (aux->aux != NULL) {
+                    ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                    }
+                    });
+
             stream << "Invalid request: ";
             stream << e.what();
             concls->httpcode = 400;
@@ -1044,11 +1072,11 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (filterdata != nullptr) {
         try {
             if (filterdata->hasKey("timestamp_start")) 
-                query_binder.bind_field<int64_t>("ts_sec > ?", 
+                query_binder.bind_field<int64_t>("ts_sec >= ?", 
                         filterdata->getKeyAsNumber("timestamp_start"), sqlite3_bind_int64);
 
             if (filterdata->hasKey("timestamp_end")) 
-                query_binder.bind_field<int64_t>("ts_sec < ?", 
+                query_binder.bind_field<int64_t>("ts_sec <= ?", 
                         filterdata->getKeyAsNumber("timestamp_end"), sqlite3_bind_int64);
 
             if (filterdata->hasKey("datasource")) 
@@ -1067,11 +1095,81 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 query_binder.bind_field<double>("frequency = ?", 
                         filterdata->getKeyAsNumber("frequency"), sqlite3_bind_double);
 
+            if (filterdata->hasKey("frequency_min")) 
+                query_binder.bind_field<double>("frequency_min >= ?", 
+                        filterdata->getKeyAsNumber("frequency_min"), sqlite3_bind_double);
+
+            if (filterdata->hasKey("frequency_max")) 
+                query_binder.bind_field<double>("frequency_max <= ?", 
+                        filterdata->getKeyAsNumber("frequency_max"), sqlite3_bind_double);
+
             if (filterdata->hasKey("channel")) 
                 query_binder.bind_field<std::string>("channel LIKE ?", 
                         filterdata->getKeyAsString("channel"), KisDatabaseBinder::bind_string);
 
+            if (filterdata->hasKey("signal_min"))
+                query_binder.bind_field<int>("signal >= ?",
+                        filterdata->getKeyAsNumber("signal_min"), sqlite3_bind_int);
+
+            if (filterdata->hasKey("signal_max"))
+                query_binder.bind_field<int>("signal >= ?",
+                        filterdata->getKeyAsNumber("signal_max"), sqlite3_bind_int);
+
+            if (filterdata->hasKey("address_source")) 
+                query_binder.bind_field<std::string>("sourcemac LIKE ?", 
+                        filterdata->getKeyAsString("address_source"), KisDatabaseBinder::bind_string);
+
+            if (filterdata->hasKey("address_dest")) 
+                query_binder.bind_field<std::string>("destmac LIKE ?", 
+                        filterdata->getKeyAsString("address_dest"), KisDatabaseBinder::bind_string);
+
+            if (filterdata->hasKey("address_trans")) 
+                query_binder.bind_field<std::string>("transmac LIKE ?", 
+                        filterdata->getKeyAsString("address_trans"), KisDatabaseBinder::bind_string);
+
+            if (filterdata->hasKey("location_lat_min"))
+                query_binder.bind_field<int>("lat >= ?",
+                        filterdata->getKeyAsNumber("location_lat_min") * 100000, sqlite3_bind_int);
+
+            if (filterdata->hasKey("location_lon_min"))
+                query_binder.bind_field<int>("lon >= ?",
+                        filterdata->getKeyAsNumber("location_lon_min") * 100000, sqlite3_bind_int);
+
+            if (filterdata->hasKey("location_lat_max"))
+                query_binder.bind_field<int>("lat <= ?",
+                        filterdata->getKeyAsNumber("location_lat_max") * 100000, sqlite3_bind_int);
+
+            if (filterdata->hasKey("location_lon_max"))
+                query_binder.bind_field<int>("lon <= ?",
+                        filterdata->getKeyAsNumber("location_lon_max") * 100000, sqlite3_bind_int);
+
+            if (filterdata->hasKey("size_min"))
+                query_binder.bind_field<int>("packet_len >= ?",
+                        filterdata->getKeyAsNumber("size_min") * 100000, sqlite3_bind_int);
+
+            if (filterdata->hasKey("size_max"))
+                query_binder.bind_field<int>("packet_len <= ?",
+                        filterdata->getKeyAsNumber("size_max") * 100000, sqlite3_bind_int);
+
         } catch (const StructuredDataException& e) {
+            auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+            auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+            std::ostream stream(streambuf);
+
+            saux->set_aux(streambuf, 
+                    [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    });
+
+            // Set our sync function which is called by the webserver side before we
+            // clean up...
+            saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    if (aux->aux != NULL) {
+                    ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                    }
+                    });
             stream << "Invalid request: ";
             stream << e.what();
             concls->httpcode = 400;
@@ -1079,21 +1177,39 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         }
     }
 
-    return 0;
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
+
+    auto *sql_query = query_binder.make_query(db, 
+            "SELECT (ts_sec, ts_usec, packet_len, dlt, packet) FROM packets");
+    auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler(), db, sql_query);
+
+    saux->set_aux(dbrb,
+            [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                streamtracker->remove_streamer(dbrb->get_stream_id());
+                if (aux->aux != NULL) {
+                    delete (Pcap_Stream_Database *) (aux->aux);
+                }
+            });
+
+    streamtracker->register_streamer(dbrb, "kismetdb.pcapng",
+            "pcapng", "httpd", "filtered pcapng from kismetdb");
+
+    return MHD_NO;
 }
 
 Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler,
-        std::string sql_filter) :
+        sqlite3 *in_database, sqlite3_stmt *in_query) :
     Pcap_Stream_Ringbuf(in_globalreg, in_handler, NULL, NULL) {
 
+    handler->ProtocolError();
 }
 
 Pcap_Stream_Database::~Pcap_Stream_Database() {
-
 }
 
 void Pcap_Stream_Database::stop_stream(std::string in_reason) {
-
+    handler->ProtocolError();
 }
 

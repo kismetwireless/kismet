@@ -171,7 +171,7 @@ The `snapshots` section holds arbitrary time-based snapshots of data; this funct
 
 ## REST API
 
-If the Kismet Databaselog is enabled, Kismet will expose an API for extracting historic data.  If the databaselog is not enabled, these APIs will not be available.
+If the Kismet Databaselog is enabled, Kismet will expose an API for extracting historic data.  If the databaselog is not enabled, these APIs will not be available and will return an error.
 
 ### Filtering
 
@@ -219,6 +219,8 @@ Filter options:
    | Key       | Type   | Description      |
    | --------- | ------ | ---------------- |
    | frequency | double | Frequency in KHz |
+   | frequency_min | double | Minimum frequency in KHz |
+   | frequency_max | double | Maximum frequency in KHz |
 
 6. Channel
 
@@ -238,7 +240,7 @@ Filter options:
    | signal_max | int  | Maximum signsl (in dBm) |
 
 8. Device addresses
-   Limit matching by decoded device address, if available.  Not all capture phys report device addresses the same, however on Wi-Fi this would be equivalent to the MAC addresses of each packet.
+   Limit matching by decoded device address, if available.  Not all capture phys report device addresses as MAC addresses, however the majority do.
 
    | Key            | Type     | Description                                    |
    | -------------- | -------- | ---------------------------------------------- |
@@ -247,7 +249,7 @@ Filter options:
    | address_trans  | text MAC | Transmitter MAC address (such as the AP BSSID) |
 
 9. Location window
-   Limit matching by location.  Location windows should always be bounded rectangles of minimum and maximum coordinates.
+   Limit matching by location.  Location windows should always be bounded rectangles of minimum and maximum coordinates.  Coordinates are in decimal floating-point format (LL.LLLLL) and will be converted to the normalized non-floating internal values automatically.
 
    | Key              | Type   | Description              |
    | ---------------- | ------ | ------------------------ |
@@ -260,12 +262,10 @@ Filter options:
 
    Limit matching by packet size.  Size windows can define minimum and maximum or only minimum or maximum ranges.
 
-| Key      | Type | Description                   |
-| -------- | ---- | ----------------------------- |
-| size_min | int  | Minimum packet size, in bytes |
-| size_max | int  | Maximum packet size, in bytes |
-
-
+   | Key      | Type | Description                   |
+   | -------- | ---- | ----------------------------- |
+   | size_min | int  | Minimum packet size, in bytes |
+   | size_max | int  | Maximum packet size, in bytes |
 
 ### Packet Captures
 

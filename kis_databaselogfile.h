@@ -213,7 +213,7 @@ class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
 public:
     Pcap_Stream_Database(GlobalRegistry *in_globalreg, 
             std::shared_ptr<BufferHandlerGeneric> in_handler,
-            std::string sql_filter);
+            sqlite3 *in_database, sqlite3_stmt *in_query);
 
     virtual ~Pcap_Stream_Database();
 
