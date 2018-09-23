@@ -32,6 +32,11 @@ Manuf::Manuf(GlobalRegistry *in_globalreg) {
         exit(1);
     }
 
+    if (globalreg->kismet_config->FetchOptBoolean("manuf_lookup", true) == false) {
+        _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
+        return;
+    }
+
     std::vector<std::string> fname = globalreg->kismet_config->FetchOptVec("ouifile");
     if (fname.size() == 0) {
         _MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
