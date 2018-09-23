@@ -39,14 +39,15 @@ Manuf::Manuf(GlobalRegistry *in_globalreg) {
         return;
     }
 
-    for (unsigned int x = 0; x < fname.size(); x++) {
-        if ((mfile = fopen(fname[x].c_str(), "r")) != NULL) {
-            _MSG("Opened OUI file '" + fname[x], MSGFLAG_INFO);
+    for (auto f : fname) {
+        auto expanded = Globalreg::globalreg->kismet_config->ExpandLogPath(f, "", "", 0, 1);
+
+        if ((mfile = fopen(expanded.c_str(), "r")) != NULL) {
+            _MSG("Opened OUI file '" + expanded, MSGFLAG_INFO);
             break;
         }
 
-        _MSG("Could not open OUI file '" + fname[x] + "': " +
-                std::string(strerror(errno)), MSGFLAG_INFO);
+        _MSG("Could not open OUI file '" + expanded + "': " + std::string(strerror(errno)), MSGFLAG_INFO);
     }
 
     if (mfile == NULL) {
@@ -122,7 +123,6 @@ std::string Manuf::LookupOUI(mac_addr in_mac) {
     int matched = -1;
     char buf[1024];
     short int m[3];
-    char manuf[16];
 
     if (mfile == NULL)
         return "Unknown";
@@ -161,8 +161,17 @@ std::string Manuf::LookupOUI(mac_addr in_mac) {
         if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
             break;
 
-        if (sscanf(buf, "%hx:%hx:%hx\t%10s",
-                   &(m[0]), &(m[1]), &(m[2]), manuf) == 4) {
+        if (strlen(buf) < 10)
+            continue;
+
+        // Trim \n
+        auto mlen = strlen(buf + 9) - 1;
+
+        if (mlen == 0)
+            continue;
+
+
+        if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
 
             // Log a position at the previous pos - which is the line before
             // this one, so we're inclusive
@@ -171,7 +180,8 @@ std::string Manuf::LookupOUI(mac_addr in_mac) {
             if (toui == soui) {
                 manuf_data md;
                 md.oui = soui;
-                md.manuf = MungeToPrintable(std::string(manuf));
+
+                md.manuf = MungeToPrintable(std::string(buf + 9, mlen));
                 oui_map[soui] = md;
                 return md.manuf;
             }

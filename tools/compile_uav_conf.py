@@ -6,6 +6,7 @@ import sys
 
 if len(sys.argv) < 1:
     print "Expected source yaml"
+    sys.exit(1)
 
 print sys.argv[1]
 

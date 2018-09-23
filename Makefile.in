@@ -7,7 +7,8 @@ CONFIGFILES = \
 	kismet_memory.conf \
 	kismet_storage.conf \
 	kismet_logging.conf \
-	kismet_uav.conf
+	kismet_uav.conf \
+	kismet_manuf.txt
 
 # Dot11 parsers (modeled on former Kaitai model)
 DOT11_PARSERS = \
@@ -308,6 +309,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@$(MAKE) install_conf_kismet_storage.conf
 	@$(MAKE) install_conf_kismet_logging.conf
 	@$(MAKE) install_conf_kismet_uav.conf
+	@$(MAKE) install_conf_kismet_manuf.txt
 
 	@echo
 	@echo
@@ -341,6 +343,7 @@ install: $(INSTBINS)
 	@$(MAKE) install_conf_kismet_storage.conf
 	@$(MAKE) install_conf_kismet_logging.conf
 	@$(MAKE) install_conf_kismet_uav.conf
+	@$(MAKE) install_conf_kismet_manuf.txt
 
 	@echo
 	@echo
@@ -373,10 +376,15 @@ forceconfigs:
 	@$(MAKE) install_force_conf_kismet_storage.conf
 	@$(MAKE) install_force_conf_kismet_logging.conf
 	@$(MAKE) install_force_conf_kismet_uav.conf
+	@$(MAKE) install_force_conf_kismet_manuf.txt
 
 uavconfig:
 	@echo "Generating kismet_uav.conf"
 	@python tools/compile_uav_conf.py conf/kismet_uav.conf.yaml > conf/kismet_uav.conf
+
+manuf:
+	@echo "Generating kismet_manuf.txt"
+	@python tools/create_oui_db.py > conf/kismet_manuf.txt
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
