@@ -6,21 +6,21 @@ else
     GITV="HEAD"
 fi
 
-VERSION=$(git rev-parse --short ${GITV})
+VERSION="$(date '+%Y%m%d').git-$(git rev-parse --short ${GITV})"
 
-sudo fpm -t deb -s python -v 2018.${GITV}.${VERSION} \
+sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
     --python-setup-py-arguments '--prefix=/usr' \
     ./python_modules/KismetRest
 
-sudo fpm -t deb -s python -v 2018.${GITV}.${VERSION} \
+sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
     --python-setup-py-arguments '--prefix=/usr' \
     ./python_modules/KismetExternal
 
-sudo fpm -t deb -s python -v 2018.${GITV}.${VERSION} \
+sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
     --python-setup-py-arguments '--prefix=/usr' \
     ./python_modules/KismetLog
 
-sudo fpm -t deb -s python -v 2018.${GITV}.${VERSION} \
+sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
     --depends python-usb \
     --depends python-paho-mqtt \
     --depends librtlsdr0 \
