@@ -261,6 +261,10 @@ class KismetRtl433(object):
     def datasource_listinterfaces(self, seqno):
         interfaces = []
 
+        if not self.check_rtl_bin():
+            self.kismet.send_datasource_interfaces_report(seqno, interfaces)
+            return
+
         if self.rtllib != None:
             for i in range(0, self.rtl_get_device_count()):
                 intf = KismetExternal.datasource_pb2.SubInterface()
@@ -314,6 +318,9 @@ class KismetRtl433(object):
                 return None
 
             if self.mqtt_mode:
+                return None
+
+            if not self.check_rtl_bin():
                 return None
 
             try:
