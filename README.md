@@ -104,11 +104,11 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    $ sudo make suidinstall
    ```
 
-7.  Put yourself in the Kismet group.
+7.  Add your user to the `kismet` group.
    ```bash
-   $ sudo usermod -a -G kismet foouser
+   $ sudo usermod -aG kismet $USER
    ```
-   This will add `foouser` to the Kismet group.
+   This will add your current logged in user to the `kismet` group.
 
 8.  Log out and back in.  Linux does not update groups until you log in; if you have just added yourself to the Kismet group you will have to re-log in.
 9.  Check that you are in the Kismet group with:
