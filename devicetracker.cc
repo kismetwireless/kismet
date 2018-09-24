@@ -623,8 +623,9 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->set_type_string(in_basic_type);
 
-        if (globalreg->manufdb != NULL)
+        if (globalreg->manufdb != NULL) {
             device->set_manuf(globalreg->manufdb->LookupOUI(in_mac));
+        }
 
         load_stored_username(device);
         load_stored_tags(device);

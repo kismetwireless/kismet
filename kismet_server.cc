@@ -882,6 +882,11 @@ int main(int argc, char *argv[], char *envp[]) {
     std::shared_ptr<EntryTracker> entrytracker =
         EntryTracker::create_entrytracker(Globalreg::globalreg);
 
+    // Create the manuf db
+    globalregistry->manufdb = new Manuf();
+    if (globalregistry->fatal_condition)
+        CatchShutdown(-1);
+
     // Base serializers
     entrytracker->RegisterSerializer("json", std::make_shared<JsonAdapter::Serializer>());
     entrytracker->RegisterSerializer("ekjson", std::make_shared<EkJsonAdapter::Serializer>());
@@ -1033,11 +1038,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the GPS components
     GpsTracker::create_gpsmanager();
-
-    // Create the manuf db
-    globalregistry->manufdb = new Manuf(globalregistry);
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
 
     // Add system monitor 
     Systemmonitor::create_systemmonitor();

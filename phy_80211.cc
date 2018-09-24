@@ -1871,7 +1871,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
     // Do we not know the basedev manuf?
-    if (basedev->get_manuf() == "" && dot11info->wps_manuf != "")
+    if (Globalreg::globalreg->manufdb->IsUnknownManuf(basedev->get_manuf()) && dot11info->wps_manuf != "")
         basedev->set_manuf(dot11info->wps_manuf);
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 

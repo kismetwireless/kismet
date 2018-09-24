@@ -25,6 +25,7 @@
 #include "endian_magic.h"
 #include "macaddr.h"
 #include "kis_httpd_registry.h"
+#include "manuf.h"
 
 Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         Devicetracker *in_tracker, int in_phyid) :
@@ -73,6 +74,9 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
         Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.switch",
                 TrackerElementFactory<rtl433_tracked_switch>(),
                 "RTL433 power switch");
+
+    // Make the manuf string
+    rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTL433");
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
@@ -198,7 +202,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
         dn = MungeToPrintable(json["model"].asString());
     }
 
-    basedev->set_manuf("RTL433");
+    basedev->set_manuf(rtl_manuf);
 
     basedev->set_type_string("RTL433 Sensor");
     basedev->set_devicename(dn);

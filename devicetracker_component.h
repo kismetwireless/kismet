@@ -399,6 +399,7 @@ public:
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
+    __ProxyTrackable(manuf, TrackerElementString, manuf);
     __Proxy(manuf, std::string, std::string, std::string, manuf);
 
     __Proxy(num_alerts, uint32_t, unsigned int, unsigned int, alert);

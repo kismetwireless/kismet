@@ -24,6 +24,7 @@
 #include "kismet_json.h"
 #include "endian_magic.h"
 #include "macaddr.h"
+#include "manuf.h"
 #include "messagebus.h"
 #include "kis_httpd_registry.h"
 
@@ -45,6 +46,8 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tra
         Globalreg::globalreg->entrytracker->RegisterField("zwave.device",
                 TrackerElementFactory<zwave_tracked_device>(),
                 "Z-Wave device");
+
+    zwave_manuf = Globalreg::globalreg->manufdb->MakeManuf("Z-Wave");
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
@@ -160,7 +163,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     // Get rid of our pseudopacket
     delete(pack);
 
-    basedev->set_manuf("Z-Wave");
+    basedev->set_manuf(zwave_manuf);
     basedev->set_type_string("Z-Wave Node");
 
     std::string devname;

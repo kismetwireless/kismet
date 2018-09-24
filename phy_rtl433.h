@@ -484,6 +484,8 @@ protected:
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
+    std::shared_ptr<TrackerElementString> rtl_manuf;
+
 };
 
 #endif

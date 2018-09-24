@@ -35,33 +35,40 @@
 #include "util.h"
 #include "globalregistry.h"
 
+#include "trackedelement.h"
+
 class Manuf {
-public:
-	Manuf() { fprintf(stderr, "FATAL OOPS: Manuf()\n"); exit(1); }
-	Manuf(GlobalRegistry *in_globalreg);
+    public:
+        Manuf();
 
-	void IndexOUI();
+        void IndexOUI();
 
-	std::string LookupOUI(mac_addr in_mac);
+        std::shared_ptr<TrackerElementString> LookupOUI(mac_addr in_mac);
 
-	struct index_pos {
-		uint32_t oui;
-		fpos_t pos;
-	};
+        std::shared_ptr<TrackerElementString> MakeManuf(const std::string& in_manuf);
 
-	struct manuf_data {
-		uint32_t oui;
-		std::string manuf;
-	}; 
+        struct index_pos {
+            uint32_t oui;
+            fpos_t pos;
+        };
 
-protected:
-	GlobalRegistry *globalreg;
+        struct manuf_data {
+            uint32_t oui;
+            std::shared_ptr<TrackerElementString> manuf;
+        }; 
 
-	std::vector<index_pos> index_vec;
+        bool IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf);
 
-	std::map<uint32_t, manuf_data> oui_map;
+    protected:
+        std::vector<index_pos> index_vec;
 
-	FILE *mfile;
+        std::map<uint32_t, manuf_data> oui_map;
+
+        FILE *mfile;
+
+        // IDs for manufacturer objects
+        int manuf_id;
+        std::shared_ptr<TrackerElementString> unknown_manuf;
 };
 
 #endif

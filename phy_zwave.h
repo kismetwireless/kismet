@@ -132,6 +132,8 @@ protected:
     // if we can't do anything with it
     bool json_to_record(Json::Value in_json);
 
+    std::shared_ptr<TrackerElementString> zwave_manuf;
+
 };
 
 #endif
