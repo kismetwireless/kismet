@@ -744,6 +744,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
+    /* With the latest nexmon drivers they respond to normal ioctls, we'll try defering
+     * the probe and only failing come 'open', if we can't talk to them w/ either mechanism.
+     */
+    /*
     if (strcmp(driver, "brcmfmac") == 0 ||
             strcmp(driver, "brcmfmac_sdio") == 0) {
         struct nexmon_t *nexmon;
@@ -755,14 +759,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         }
 
         free(nexmon);
-    } else if (strcmp(driver, "iwlwifi") == 0) {
+    } else */
+    
+    if (strcmp(driver, "iwlwifi") == 0) {
         local_wifi->use_ht_channels = 0;
         local_wifi->use_vht_channels = 0;
     }
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
-    if ((placeholder_len = 
-                cf_find_flag(&placeholder, "ht_channels", definition)) > 0) {
+    if ((placeholder_len = cf_find_flag(&placeholder, "ht_channels", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
             local_wifi->use_ht_channels = 0;
         } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
@@ -770,8 +775,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         }
     }
 
-    if ((placeholder_len =
-                cf_find_flag(&placeholder, "vht_channels", definition)) > 0) {
+    if ((placeholder_len = cf_find_flag(&placeholder, "vht_channels", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
             local_wifi->use_vht_channels = 0;
         } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
@@ -969,18 +973,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "this will ONLY work with the nexmon patches",
                 local_wifi->interface);
         cf_send_warning(caph, errstr);
-
-        local_wifi->use_mac80211_vif = 0;
-
-        local_wifi->nexmon = init_nexmon(local_wifi->interface);
-
-        if (local_wifi->nexmon == NULL) {
-            snprintf(msg, STATUS_MAX, "Interface '%s' looks like a Broadcom "
-                    "embedded device but could not be initialized:  You MUST install "
-                    "the nexmon patched drivers to use this device with Kismet",
-                    local_wifi->interface);
-            return -1;
-        }
     } else if (strcmp(driver, "iwlwifi") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is an Intel "
                 "iwlwifi device; These have shown significant problems tuning to HT and VHT "
@@ -1219,37 +1211,74 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
-            /* Try to switch the mode of this interface to monitor; maybe we're a
-             * wlext device after all.  It has to be down, first */
-
-            if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-                snprintf(msg, STATUS_MAX, "Could not bring down interface "
-                        "'%s' to set monitor mode: %s", local_wifi->interface, errstr);
-                free(flags);
-                return -1;
+            /* Forget the cap_iface and set it to the standard iface for the rest of our
+             * attempts */
+            if (local_wifi->cap_interface != NULL) {
+                free(local_wifi->cap_interface);
+                local_wifi->cap_interface = strdup(local_wifi->interface);
             }
 
-            if (iwconfig_set_mode(local_wifi->interface, errstr, 
-                        LINUX_WLEXT_MONITOR) < 0) {
-                snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
-                        "mode: %s", local_wifi->interface, errstr);
-                cf_send_message(caph, errstr2, MSGFLAG_ERROR);
-
-                /* We've failed at everything */
-                snprintf(msg, STATUS_MAX, "Failed to create a monitor vif and could "
-                        "not set mode of existing interface, unable to put "
-                        "'%s' into monitor mode.", local_wifi->interface);
-
-                free(flags);
-
-                return -1;
-            } else {
-                snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
-                        "interface instead of using a monitor vif; will continue using "
-                        "this interface as the capture source.", local_wifi->interface);
-                cf_send_message(caph, errstr2, MSGFLAG_INFO);
-
+            /* Try to switch the mode of this interface to monitor; maybe we're a
+             * wlext or nexmon device after all.  Do we look like nexmon? */
+            if (strcmp(driver, "brcmfmac") == 0 || strcmp(driver, "brcmfmac_sdio") == 0) {
                 local_wifi->use_mac80211_vif = 0;
+
+                local_wifi->nexmon = init_nexmon(local_wifi->interface);
+
+                if (local_wifi->nexmon == NULL) {
+                    snprintf(msg, STATUS_MAX, "Interface '%s' looks like a Broadcom "
+                            "embedded device but could not be initialized:  You MUST install "
+                            "the nexmon patched drivers to use this device with Kismet",
+                            local_wifi->interface);
+                    return -1;
+                }
+
+                /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
+                if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+                    snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
+                            "check 'dmesg' for possible errors while loading firmware: %s",
+                            local_wifi->cap_interface, errstr);
+                    return -1;
+                }
+
+                if (nexmon_monitor(local_wifi->nexmon) < 0) {
+                    snprintf(msg, STATUS_MAX, "Could not place interface '%s' into monitor mode "
+                            "via nexmon drivers; you MUST install the patched nexmon drivers to "
+                            "use embedded broadcom interfaces with Kismet", local_wifi->interface);
+                    return -1;
+                }
+
+            } else {
+                /* Otherwise do we look like wext? */
+                if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                    snprintf(msg, STATUS_MAX, "Could not bring down interface "
+                            "'%s' to set monitor mode: %s", local_wifi->interface, errstr);
+                    free(flags);
+                    return -1;
+                }
+
+                if (iwconfig_set_mode(local_wifi->interface, errstr, 
+                            LINUX_WLEXT_MONITOR) < 0) {
+                    snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
+                            "mode: %s", local_wifi->interface, errstr);
+                    cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+                    /* We've failed at everything */
+                    snprintf(msg, STATUS_MAX, "Failed to create a monitor vif and could "
+                            "not set mode of existing interface, unable to put "
+                            "'%s' into monitor mode.", local_wifi->interface);
+
+                    free(flags);
+
+                    return -1;
+                } else {
+                    snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
+                            "interface instead of using a monitor vif; will continue using "
+                            "this interface as the capture source.", local_wifi->interface);
+                    cf_send_message(caph, errstr2, MSGFLAG_INFO);
+
+                    local_wifi->use_mac80211_vif = 0;
+                }
             }
         } else {
             snprintf(errstr2, STATUS_MAX, "Successfully created monitor interface "
@@ -1268,7 +1297,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
 
-        if (local_wifi->nexmon != NULL) {
+        if (strcmp(driver, "brcmfmac") == 0 || strcmp(driver, "brcmfmac_sdio") == 0) {
+            /* Do we look like a nexmon brcm that is too old to handle vifs? */
+            local_wifi->use_mac80211_vif = 0;
+
+            local_wifi->nexmon = init_nexmon(local_wifi->interface);
+
+            if (local_wifi->nexmon == NULL) {
+                snprintf(msg, STATUS_MAX, "Interface '%s' looks like a Broadcom "
+                        "embedded device but could not be initialized:  You MUST install "
+                        "the nexmon patched drivers to use this device with Kismet",
+                        local_wifi->interface);
+                return -1;
+            }
+
             /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
             if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
                 snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
@@ -1284,6 +1326,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 return -1;
             }
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
+            /* Otherwise we're some sort of non-vif wext? */
             snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
                     "mode: %s", local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
