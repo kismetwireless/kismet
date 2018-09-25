@@ -199,9 +199,6 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
         // Consume the data from the ringbuffer
         tcphandler->ConsumeReadBufferData(inptok[it].length() + 1);
 
-        // Trip the garbage out of it
-        inptok[it] = StrPrintable(inptok[it]);
-
         // We don't know what we're going to get from GPSD.  If it starts with 
         // { then it probably is json, try to parse it
         if (inptok[it][0] == '{') {

@@ -29,6 +29,53 @@
 #include "kis_dissector_ipdata.h"
 #include "phy_80211_packetsignatures.h"
 
+int GetLengthTagOffsets(unsigned int init_offset, 
+						kis_datachunk *in_chunk,
+						std::map<int, std::vector<int> > *tag_cache_map) {
+    int cur_tag = 0;
+    // Initial offset is 36, that's the first tag
+    unsigned int cur_offset = (unsigned int) init_offset;
+    uint8_t len;
+
+    // Bail on invalid incoming offsets
+    if (init_offset >= in_chunk->length) {
+        return -1;
+	}
+    
+    // If we haven't parsed the tags for this frame before, parse them all now.
+    // Return an error code if one of them is malformed.
+    if (tag_cache_map->size() == 0) {
+        while (1) {
+            // Are we over the packet length?
+            if (cur_offset + 2 >= in_chunk->length) {
+                break;
+            }
+
+            // Read the tag we're on and bail out if we're done
+            cur_tag = (int) in_chunk->data[cur_offset];
+
+            // Move ahead one byte and read the length.
+            len = (in_chunk->data[cur_offset+1] & 0xFF);
+
+            // If this is longer than we have...
+            if ((cur_offset + len + 2) > in_chunk->length) {
+                return -1;
+            }
+
+            // (*tag_cache_map)[cur_tag] = cur_offset + 1;
+			
+            (*tag_cache_map)[cur_tag].push_back(cur_offset + 1);
+
+            // Jump the length+length byte, this should put us at the next tag
+            // number.
+            cur_offset += len+2;
+        }
+    }
+    
+    return 0;
+}
+
+
 int ipdata_packethook(CHAINCALL_PARMS) {
 	return ((Kis_Dissector_IPdata *) auxdata)->HandlePacket(in_pack);
 }

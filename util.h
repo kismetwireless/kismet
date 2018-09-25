@@ -55,19 +55,19 @@
 
 #include <pthread.h> 
 
+#include "multi_constexpr.h"
+
 // Munge a string to characters safe for calling in a shell
 std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
-std::string MungeToPrintable(std::string in_str);
+std::string MungeToPrintable(const std::string& in_str);
 
-std::string StrLower(std::string in_str);
-std::string StrUpper(std::string in_str);
-std::string StrStrip(std::string in_str);
-std::string StrPrintable(std::string in_str);
-std::string AlignString(std::string in_txt, char in_spacer, int in_align, int in_width);
+std::string StrLower(const std::string& in_str);
+std::string StrUpper(const std::string& in_str);
+std::string StrStrip(const std::string& in_str);
 
-std::string MultiReplaceAll(std::string in, std::string match, std::string repl);
+std::string MultiReplaceAll(const std::string& in, const std::string& match, const std::string& repl);
 
-int HexStrToUint8(std::string in_str, uint8_t *in_buf, int in_buflen);
+int HexStrToUint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
 std::string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 
 template<class t> class NtoString {
@@ -99,7 +99,7 @@ public:
 #define FloatToString(F)		NtoString<float>((F)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
-					 struct timeval *out_tv);
+        struct timeval *out_tv);
 
 // Generic options pair
 struct opt_pair {
@@ -109,35 +109,38 @@ struct opt_pair {
 };
 
 // Generic option handlers
-std::string FetchOpt(std::string in_key, std::vector<opt_pair> *in_vec);
-int FetchOptBoolean(std::string in_key, std::vector<opt_pair> *in_vec, int dvalue);
-std::vector<std::string> FetchOptVec(std::string in_key, std::vector<opt_pair> *in_vec);
+std::string FetchOpt(const std::string& in_key, std::vector<opt_pair> *in_vec, 
+        const std::string& d_value = "");
+
+int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue);
+std::vector<std::string> FetchOptVec(const std::string& in_key, std::vector<opt_pair> *in_vec);
 
 // Quick fetch of strings from a map of options
-std::string FetchOpt(std::string in_key, std::map<std::string, std::string> in_map, 
+std::string FetchOpt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         std::string dvalue = "");
-int FetchOptBoolean(std::string in_key, std::map<std::string, std::string> in_map, int dvalue = 0);
+int FetchOptBoolean(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
+        int dvalue = 0);
 
-int StringToOpts(std::string in_line, std::string in_sep, std::vector<opt_pair> *in_vec);
-void AddOptToOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec);
-void ReplaceAllOpts(std::string opt, std::string val, std::vector<opt_pair> *in_vec);
+int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec);
+void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
+void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
 // String compare, 1 true 0 false -1 unknown, or default value as provided
-int StringToBool(std::string s, int dvalue = -1);
+int StringToBool(const std::string& s, int dvalue = -1);
 
 // String to integer.  Throws exception if not an integer!
-int StringToInt(std::string s);
-unsigned int StringToUInt(std::string s);
+int StringToInt(const std::string& s);
+unsigned int StringToUInt(const std::string& s);
 
 // Append to a string, with a delimiter if applicable
-std::string StringAppend(std::string s, std::string a, std::string d = " ");
+std::string StringAppend(const std::string& s, const std::string& a, const std::string& d = " ");
 
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
-std::vector<std::string> StrTokenize(std::string in_str, std::string in_split, 
+std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, 
         int return_partial = 1);
-std::string StrJoin(std::vector<std::string> in_content, std::string in_delim, 
+std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, 
         bool in_first = false);
 
 // 'smart' tokenizeing with start/end positions
@@ -154,28 +157,18 @@ struct smart_word_token {
     }
 };
 
-std::vector<smart_word_token> BaseStrTokenize(std::string in_str, 
-        std::string in_split, std::string in_quote);
-std::vector<smart_word_token> NetStrTokenize(std::string in_str, std::string in_split, 
-        int return_partial = 1);
+std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str, 
+        const std::string& in_split, const std::string& in_quote);
 
 // Simplified quoted string tokenizer, expects " ' to start at the beginning
 // of the token, no abc"def ghi"
-std::vector<std::string> QuoteStrTokenize(std::string in_str, std::string in_split);
+std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::string& in_split);
 
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 
-std::string InLineWrap(std::string in_txt, unsigned int in_hdr_len,
-        unsigned int in_max_len);
-std::vector<std::string> LineWrap(std::string in_txt, unsigned int in_hdr_len, 
-        unsigned int in_maxlen);
-std::vector<int> Str2IntVec(std::string in_text);
-
-int IsBlank(const char *s);
-
-// Clean up XML and CSV data for output
-std::string SanitizeXML(std::string);
-std::string SanitizeCSV(std::string);
+std::string InLineWrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
+std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
+std::vector<int> Str2IntVec(const std::string& in_text);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
@@ -246,11 +239,6 @@ u_int32_t double_to_fixed6_4(double in);
  */
 double    ns_to_double(u_int32_t in);
 u_int32_t double_to_ns(double in);
-
-class kis_datachunk;
-int GetLengthTagOffsets(unsigned int init_offset, 
-        kis_datachunk *in_chunk,
-        std::map<int, std::vector<int> > *tag_cache_map);
 
 // Utility class for doing conditional thread locking; allows one thread to wait
 // indefinitely and another thread to easily unlock it
