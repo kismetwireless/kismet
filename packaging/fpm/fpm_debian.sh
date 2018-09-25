@@ -12,6 +12,7 @@ cp kismet kismet_stripped
 strip kismet_stripped
 
 sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}+${VERSION} \
+    --description "Kismet 2018 core, full debug symbols" \
     --replaces kismet \
     --replaces kismet-plugins \
     --deb-recommends kismet-capture-linux-wifi \
@@ -45,6 +46,7 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}+${VERSION} \
     ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}+${VERSION} \
+    --description "Kismet 2018 core" \
     --replaces kismet \
     --replaces kismet-plugins \
     --deb-recommends kismet-capture-linux-wifi \
@@ -78,6 +80,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}+${VERSION} \
     ./http_data/=/usr/share/kismet/httpd 
 
 sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.${GITV}+${VERSION} \
+    --description "Kismet 2018 Linux Wi-Fi capture helper" \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --post-install packaging/fpm/debian/kismet_cap_linux_wifi.postinst \
@@ -91,6 +94,7 @@ sudo fpm -t deb -s dir -n kismet-capture-linux-wifi -v 2018.${GITV}+${VERSION} \
     ./capture_linux_wifi/kismet_cap_linux_wifi=/usr/bin/kismet_cap_linux_wifi 
 
 sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.${GITV}+${VERSION} \
+    --description "Kismet 2018 Linux Bluetooth capture helper" \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --post-install packaging/fpm/debian/kismet_cap_linux_bluetooth.postinst \
@@ -101,6 +105,7 @@ sudo fpm -t deb -s dir -n kismet-capture-linux-bluetooth -v 2018.${GITV}+${VERSI
     ./capture_linux_bluetooth/kismet_cap_linux_bluetooth=/usr/bin/kismet_cap_linux_bluetooth 
     
 sudo fpm -t deb -s dir -n kismet-capture-nrf-mousejack -v 2018.${GITV}+${VERSION} \
+    --description "Kismet 2018 nRF MouseJack capture helper" \
     --deb-templates packaging/fpm/debian/kismet.templates \
     --deb-config packaging/fpm/debian/kismet.config \
     --post-install packaging/fpm/debian/kismet_cap_nrf_mousejack.postinst \
@@ -111,6 +116,7 @@ sudo fpm -t deb -s dir -n kismet-capture-nrf-mousejack -v 2018.${GITV}+${VERSION
     ./capture_nrf_mousejack/kismet_cap_nrf_mousejack=/usr/bin/kismet_cap_nrf_mousejack
 
 sudo fpm -t deb -s empty -n kismet2018 -v 2018.${GITV}+${VERSION} \
+    --description "Kismet 2018 metapackage" \
     --depends kismet-core \
     --depends kismet-capture-linux-wifi \
     --depends kismet-capture-linux-wifi \
