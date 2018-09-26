@@ -44,6 +44,35 @@
 class StructuredData;
 typedef std::shared_ptr<StructuredData> SharedStructured;
 
+// Top-level exception
+struct StructuredDataException : public std::runtime_error {
+    StructuredDataException(std::string const& message) : 
+        std::runtime_error(message) {}
+};
+
+// Can't parse the initial data given (json/msgpack error)
+struct StructuredDataUnparseable : public StructuredDataException {
+    StructuredDataUnparseable(std::string const& message) : 
+        StructuredDataException(message) {}
+};
+
+// No data available
+struct StructuredDataNull : public StructuredDataException {
+    StructuredDataNull(std::string const& message) : 
+        StructuredDataException(message) {}
+};
+
+// Can't extract the type asked for
+struct StructuredDataUnsuitable : public StructuredDataException {
+    StructuredDataUnsuitable(std::string const& message) : 
+        StructuredDataException(message) {}
+};
+
+struct StructuredDataNoSuchKey : public StructuredDataException {
+    StructuredDataNoSuchKey(std::string const& message) : 
+        StructuredDataException(message) {}
+};
+
 class StructuredData {
 public:
     typedef std::vector<SharedStructured> structured_vec;
@@ -98,35 +127,38 @@ public:
     virtual structured_num_map getStructuredNumMap() = 0;
     virtual structured_str_map getStructuredStrMap() = 0;
 
-};
+    // Convert a structured array of paired arrays, or a structured dictinary of k:v pairs, to
+    // a std::pair<string, string> structure useful in other functions.  May throw its own exceptions
+    // OR other structured exceptions.
+    std::vector<std::pair<std::string, std::string>> getAsPairVector() {
+        auto ret = std::vector<std::pair<std::string, std::string>>();
 
-// Top-level exception
-struct StructuredDataException : public std::runtime_error {
-    StructuredDataException(std::string const& message) : 
-        std::runtime_error(message) {}
-};
+        if (isArray()) {
+            for (auto i : getStructuredArray()) {
+                if (!i->isArray()) 
+                    throw StructuredDataUnsuitable("Cannot parse object as vector of pairs for converstion to "
+                            "pair list");
 
-// Can't parse the initial data given (json/msgpack error)
-struct StructuredDataUnparseable : public StructuredDataException {
-    StructuredDataUnparseable(std::string const& message) : 
-        StructuredDataException(message) {}
-};
+                auto sub = i->getStructuredArray();
 
-// No data available
-struct StructuredDataNull : public StructuredDataException {
-    StructuredDataNull(std::string const& message) : 
-        StructuredDataException(message) {}
-};
+                if (sub.size() != 2) 
+                    throw StructuredDataUnsuitable("Cannot parse object as vector of pairs, expected 2"
+                            "elements in nested list, cannot convert to pair list");
 
-// Can't extract the type asked for
-struct StructuredDataUnsuitable : public StructuredDataException {
-    StructuredDataUnsuitable(std::string const& message) : 
-        StructuredDataException(message) {}
-};
+                ret.push_back(std::make_pair(sub[0]->getString(), sub[1]->getString()));
+            }
+        } else if (isDictionary()) {
+            for (auto i : getStructuredStrMap()) {
+                ret.push_back(std::make_pair(i.first, i.second->getString()));
+            }
+        } else {
+            throw StructuredDataUnsuitable("Cannot parse object as vector or dictionary for conversion "
+                    "to pair list");
+        }
 
-struct StructuredDataNoSuchKey : public StructuredDataException {
-    StructuredDataNoSuchKey(std::string const& message) : 
-        StructuredDataException(message) {}
+        return ret;
+    }
+
 };
 
 #endif
