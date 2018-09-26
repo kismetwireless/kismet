@@ -1273,7 +1273,7 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
-        const std::vector<int>& in_order_path,
+        const std::vector<int>& in_order_path, bool in_order_direction,
         const std::vector<std::pair<std::string, std::string>>& in_regex) {
 
     // Make a copy under lock of the device list
@@ -1281,8 +1281,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
     l.lock();
     auto devs_copy = std::make_shared<TrackerElementVector>(in_devs);
     l.unlock();
-
-    auto ret_devices = std::make_shared<TrackerElementVector>();
 
     std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
 
@@ -1313,6 +1311,41 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
         work_devices = worker->GetMatchedDevices();
     }
 
-    return ret_devices;
+    // Sort, if any
+    if (in_order_path.size() != 0) {
+        kismet__stable_sort(work_devices->begin(), work_devices->end(), 
+                [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
+                SharedTrackerElement fa;
+                SharedTrackerElement fb;
+
+                fa = GetTrackerElementPath(in_order_path, a);
+                fb = GetTrackerElementPath(in_order_path, b);
+
+                if (fa == nullptr) 
+                    return !in_order_direction;
+
+                if (fb == nullptr) 
+                    return in_order_direction;
+
+
+                if (in_order_direction == false)
+                    return FastSortTrackerElementLess(fa, fb);
+
+                return FastSortTrackerElementLess(fb, fa);
+            });
+    }
+
+    if (in_start > work_devices->size())
+        throw std::runtime_error(fmt::format("refined device view requested a start of {} but only has {}",
+                    in_start, work_devices->size()));
+
+
+    if (in_count + in_start > work_devices->size())
+        in_count = work_devices->size() - in_start;
+
+    auto slice_first = work_devices->begin() + in_start;
+    auto slice_end = work_devices->begin() + in_start + in_count;
+
+    return std::make_shared<TrackerElementVector>(slice_first, slice_end);
 }
 

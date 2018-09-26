@@ -449,7 +449,7 @@ protected:
             int64_t in_min_ts, int64_t in_max_ts,
             unsigned int in_start, unsigned int in_count,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
-            const std::vector<int>& in_order_path,
+            const std::vector<int>& in_order_path, bool in_order_direction,
             const std::vector<std::pair<std::string, std::string>>& in_regex);
 
 };
