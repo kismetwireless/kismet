@@ -180,9 +180,15 @@ public:
     void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
-    // list of ALL devices
-    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+    // list of ALL devices.  The source vector is duplicated under mutex and then processed.
+    void MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+
+    // Perform a device filter as above, but provide a stl vector instead of the list of
+    // ALL devices in the system; the source vector is duplicated under mutex and then processed.
+    void MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker> worker,
+            const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
+            bool batch = true);
 
     using device_map_t = std::map<device_key, std::shared_ptr<kis_tracked_device_base>>;
     using device_itr = device_map_t::iterator;
@@ -367,21 +373,9 @@ protected:
 	int next_phy_id;
     std::map<int, Kis_Phy_Handler *> phy_handler_map;
 
-    // Insert a device directly into the records
-    void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
-
     kis_recursive_timed_mutex devicelist_mutex;
 
     std::shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
-
-    // Load a specific device
-    virtual std::shared_ptr<kis_tracked_device_base> load_device(Kis_Phy_Handler *phy, 
-            mac_addr mac);
-
-    // Common device interpretation layer
-    virtual std::shared_ptr<kis_tracked_device_base> 
-        convert_stored_device(mac_addr macaddr, 
-                const unsigned char *raw_stored_data, unsigned long stored_len);
 
     // Timestamp of the last time we wrote the device list, if we're storing state
     std::atomic<time_t> last_devicelist_saved;
@@ -406,12 +400,6 @@ protected:
     // Do we use persistent compression when storing
     bool persistent_compression;
 
-    // Load stored username
-    void load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev);
-
-    // Load stored tags
-    void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
-
     // If we log devices to the kismet database...
     int databaselog_timer;
     time_t last_database_logged;
@@ -420,6 +408,35 @@ protected:
 
     // Do we constrain memory by not tracking RRD data?
     bool ram_no_rrd;
+
+protected:
+    // Insert a device directly into the records
+    void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
+
+    // Load a specific device
+    virtual std::shared_ptr<kis_tracked_device_base> load_device(Kis_Phy_Handler *phy, 
+            mac_addr mac);
+
+    // Common device interpretation layer
+    virtual std::shared_ptr<kis_tracked_device_base> 
+        convert_stored_device(mac_addr macaddr, 
+                const unsigned char *raw_stored_data, unsigned long stored_len);
+
+    // Load stored username
+    void load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev);
+
+    // Load stored tags
+    void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
+
+    // Refine a device view from an existing vector bucket, returning a tracked
+    // vector of results w/in the window requested
+    std::shared_ptr<TrackerElementVector> refine_device_view(
+            const std::vector<std::shared_ptr<kis_tracked_device_base>>& in_devs,
+            unsigned int in_start, unsigned int in_count,
+            const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
+            const std::vector<int>& in_order_path,
+            const std::vector<std::string>& in_regex);
+
 };
 
 class kis_tracked_phy : public tracker_component {

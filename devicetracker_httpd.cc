@@ -593,6 +593,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 mac_addr mac = mac_addr(tokenurl[3]);
 
+                
                 if (mac.error) {
                     stream << "Invalid request";
                     concls->httpcode = 400;
@@ -748,6 +749,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // Fields we search
                 std::vector<std::vector<int> > dt_order_fields;
 
+                
+                
+                
+                
+                
+                
                 if (structdata->getKeyAsBool("datatable", false)) {
                     // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
                     if (concls->variable_cache.find("start") != 
@@ -794,6 +801,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             concls->variable_cache.end()) {
                         std::string ord = concls->variable_cache["order[0][dir]"]->str();
 
+                        
                         if (ord == "asc")
                             dt_order_dir = 1;
 
@@ -845,6 +853,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     dt_filter_elem =
                         std::make_shared<TrackerElementUInt64>(dt_filter_id);
+                    
                     dt_filter_elem->set_local_name("recordsFiltered");
                     wrapper->insert(dt_filter_elem);
                 }
@@ -897,6 +906,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                     }
                                 }
 
+
                                 if (dt_order_dir == 0)
                                     return FastSortTrackerElementLess(fa, fb);
 
@@ -947,6 +957,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                                 const auto& ofi = dt_order_fields[0];
 
                                 fa = GetTrackerElementPath(ofi, a);
+                                
                                 fb = GetTrackerElementPath(ofi, b);
 
                                 if (fa == nullptr) {
@@ -998,6 +1009,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 } else {
                     // Only lock while copying the vector
                     local_demand_locker listlock(&devicelist_mutex);
+                    
                     listlock.lock();
                     auto tracked_vec_copy = tracked_vec;
                     listlock.unlock();
@@ -1049,6 +1061,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }
 
                     std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator vi;
+                    
                     std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator ei;
 
                     // Set the iterator endpoint for our length
@@ -1100,6 +1113,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 // If it's negative, subtract from the current ts
                 if (lastts < 0) {
+                    
                     time_t now = time(0);
                     lastts = now + lastts;
                 }
@@ -1126,7 +1140,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevices(worker, timedevs);
+                    MatchOnDevicesCopy(worker, timedevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;
@@ -1151,7 +1165,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                         outdevs, rename_map);
                 return MHD_YES;
+            
             } else if (tokenurl[2] == "by-phy") {
+            
+                
+                
+                
                 // We don't lock the device list since we use workers
                 if (tokenurl.size() < 5) {
                     stream << "Invalid request";
@@ -1201,7 +1220,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // time-match then phy-match then pass to regex
                     MatchOnDevices(tw);
                     timedevs = tw->GetMatchedDevices();
-                    MatchOnDevices(pw, timedevs);
+                    MatchOnDevicesCopy(pw, timedevs);
                     phydevs = pw->GetMatchedDevices();
                 }  else {
                     // Phy match only
@@ -1211,7 +1230,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevices(worker, phydevs);
+                    MatchOnDevicesCopy(worker, phydevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = phydevs;
@@ -1247,5 +1266,28 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     stream << "OK";
 
     return MHD_YES;
+}
+
+std::shared_ptr<TrackerElementVector> Devicetracker::refine_device_view(
+        const std::vector<std::shared_ptr<kis_tracked_device_base>>& in_devs,
+        unsigned int in_start, unsigned int in_count,
+        const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
+        const std::vector<int>& in_order_path,
+        const std::vector<std::string>& in_regex) {
+
+    auto ret_devices = std::make_shared<TrackerElementVector>();
+
+    std::shared_ptr<TrackerElementVector> work_devices;
+
+    if (in_regex.size() != 0) {
+        /*
+        auto worker = std::make_shared<devicetracker_pcre_worker>(in_regex);
+        MatchOnDevices(worker);
+
+        work_devices = worker->GetMatchedDevices();
+        */
+    }
+
+    return ret_devices;
 }
 
