@@ -1589,6 +1589,11 @@ public:
         vector = v->vector;
     }
 
+    TrackerElementVector(const_iterator a, const_iterator b) :
+        TrackerElementCoreVector(TrackerType::TrackerVector) { 
+        vector = vector_t(a, b);
+    }
+
     static TrackerType static_type() {
         return TrackerType::TrackerVector;
     }
@@ -1613,6 +1618,16 @@ public:
 
     TrackerElementVectorDouble(int id) :
         TrackerElementCoreVector<double>(TrackerType::TrackerVectorDouble, id) { }
+
+    TrackerElementVectorDouble(std::shared_ptr<TrackerElementVectorDouble> v) :
+        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
+        vector = v->vector;
+    }
+
+    TrackerElementVectorDouble(const_iterator a, const_iterator b) :
+        TrackerElementCoreVector(TrackerType::TrackerVector) { 
+        vector = vector_t(a, b);
+    }
 
     static TrackerType static_type() {
         return TrackerType::TrackerVectorDouble;
