@@ -161,22 +161,50 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(SharedStructured raw_pcre_v
 
         const char *compile_error, *study_error;
         int erroroffset;
-        std::ostringstream errordesc;
 
         filter->re =
             pcre_compile(regex.c_str(), 0, &compile_error, &erroroffset, NULL);
 
         if (filter->re == NULL) {
-            errordesc << "Could not parse PCRE expression: " << compile_error <<
-                " at character " << erroroffset;
-            throw std::runtime_error(errordesc.str());
+            throw std::runtime_error(fmt::format("Could not parse pcre expression: {} at {}",
+                        compile_error, erroroffset));
         }
 
         filter->study = pcre_study(filter->re, 0, &study_error);
         if (study_error != NULL) {
-            errordesc << "Could not parse PCRE expression, study/optimization "
-                "failure: " << study_error;
-            throw std::runtime_error(errordesc.str());
+            throw std::runtime_error(fmt::format("Could not parse PCRE expression, optimization failure {}",
+                        study_error));
+        }
+
+        filter_vec.push_back(filter);
+    }
+}
+
+devicetracker_pcre_worker::devicetracker_pcre_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
+    error = false;
+
+    // Process a structuredarray of sub-arrays of [target, filter]; throw any 
+    // exceptions we encounter
+
+    for (auto i : str_pcre_vec) {
+        std::shared_ptr<pcre_filter> filter(new pcre_filter());
+        filter->target = i.first;
+
+        const char *compile_error, *study_error;
+        int erroroffset;
+
+        filter->re =
+            pcre_compile(i.second.c_str(), 0, &compile_error, &erroroffset, NULL);
+
+        if (filter->re == NULL) {
+            throw std::runtime_error(fmt::format("Could not parse pcre expression: {} at {}",
+                        compile_error, erroroffset));
+        }
+
+        filter->study = pcre_study(filter->re, 0, &study_error);
+        if (study_error != NULL) {
+            throw std::runtime_error(fmt::format("Could not parse PCRE expression, optimization failure {}",
+                        study_error));
         }
 
         filter_vec.push_back(filter);

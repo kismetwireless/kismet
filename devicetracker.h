@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 
 #include <stdexcept>
+#include <utility>
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
@@ -435,7 +436,7 @@ protected:
             unsigned int in_start, unsigned int in_count,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
             const std::vector<int>& in_order_path,
-            const std::vector<std::string>& in_regex);
+            const std::vector<std::pair<std::string, std::string>>& in_regex);
 
 };
 
@@ -607,6 +608,11 @@ public:
     // Results are filled into in_devvec_object which is expected to be a vector object
     // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
     devicetracker_pcre_worker(SharedStructured raw_pcre_vec);
+
+    // Shortcut function for building a PCRE from an incoming vector of filters
+    // as a string.
+    // THIS MAY THROW EXCEPTIONS from PCRE parsing failures
+    devicetracker_pcre_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
 
     // Shortcut function for building a PCRE worker from an incoming list of
     // filters, targeting a single field (such as a SSID match):

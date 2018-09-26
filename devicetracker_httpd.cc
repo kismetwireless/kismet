@@ -1273,7 +1273,7 @@ std::shared_ptr<TrackerElementVector> Devicetracker::refine_device_view(
         unsigned int in_start, unsigned int in_count,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         const std::vector<int>& in_order_path,
-        const std::vector<std::string>& in_regex) {
+        const std::vector<std::pair<std::string, std::string>>& in_regex) {
 
     auto ret_devices = std::make_shared<TrackerElementVector>();
 
