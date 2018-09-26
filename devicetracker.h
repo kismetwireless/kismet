@@ -182,12 +182,25 @@ public:
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is duplicated under mutex and then processed.
-    void MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+
+    // Perform a device filter as above, but provide a source vec rather than the
+    // list of ALL devices.  The source vector is NOT duplicated, caller must ensure this is
+    // a safe operation (the vector must not be modified during execution of the worker)
+    void MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is duplicated under mutex and then processed.
-    void MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker> worker,
+    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+            const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
+            bool batch = true);
+
+    // Perform a device filter as above, but provide a stl vector instead of the list of
+    // ALL devices in the system; the source vector is not duplicated, the caller must ensure
+    // this is a safe operation (the vector must not be modified during execution of the worker)
+    void MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
@@ -431,8 +444,9 @@ protected:
 
     // Refine a device view from an existing vector bucket, returning a tracked
     // vector of results w/in the window requested
-    std::shared_ptr<TrackerElementVector> refine_device_view(
-            const std::vector<std::shared_ptr<kis_tracked_device_base>>& in_devs,
+    std::shared_ptr<TrackerElementVector> RefineDeviceView(
+            std::shared_ptr<TrackerElementVector> in_devs,
+            int64_t in_min_ts, int64_t in_max_ts,
             unsigned int in_start, unsigned int in_count,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
             const std::vector<int>& in_order_path,

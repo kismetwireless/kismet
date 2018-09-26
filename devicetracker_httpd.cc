@@ -1140,7 +1140,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevicesCopy(worker, timedevs);
+                    MatchOnDevices(worker, timedevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;
@@ -1220,7 +1220,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // time-match then phy-match then pass to regex
                     MatchOnDevices(tw);
                     timedevs = tw->GetMatchedDevices();
-                    MatchOnDevicesCopy(pw, timedevs);
+                    MatchOnDevices(pw, timedevs);
                     phydevs = pw->GetMatchedDevices();
                 }  else {
                     // Phy match only
@@ -1230,7 +1230,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevicesCopy(worker, phydevs);
+                    MatchOnDevices(worker, phydevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = phydevs;
@@ -1268,24 +1268,49 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
-std::shared_ptr<TrackerElementVector> Devicetracker::refine_device_view(
-        const std::vector<std::shared_ptr<kis_tracked_device_base>>& in_devs,
+std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
+        std::shared_ptr<TrackerElementVector> in_devs,
+        int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         const std::vector<int>& in_order_path,
         const std::vector<std::pair<std::string, std::string>>& in_regex) {
 
+    // Make a copy under lock of the device list
+    local_demand_locker l(&devicelist_mutex);
+    l.lock();
+    auto devs_copy = std::make_shared<TrackerElementVector>(in_devs);
+    l.unlock();
+
     auto ret_devices = std::make_shared<TrackerElementVector>();
 
-    std::shared_ptr<TrackerElementVector> work_devices;
+    std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
 
-    if (in_regex.size() != 0) {
-        /*
-        auto worker = std::make_shared<devicetracker_pcre_worker>(in_regex);
-        MatchOnDevices(worker);
+    // Time filter is the cheapest operation so run that first
+    if (in_min_ts != 0 || in_max_ts != 0) {
+        auto worker = 
+            std::make_shared<devicetracker_function_worker>(
+            [in_min_ts, in_max_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                auto dts = d->get_last_time();
 
+                if (in_min_ts != 0 && dts <= in_min_ts)
+                    return false;
+
+                if (in_max_ts != 0 && dts > in_max_ts)
+                    return false;
+
+                return true;
+            }, nullptr);
+
+        MatchOnDevices(worker, work_devices);
         work_devices = worker->GetMatchedDevices();
-        */
+    }
+
+    // Filter regex once we've reduced the devices by time
+    if (in_regex.size() != 0) {
+        auto worker = std::make_shared<devicetracker_pcre_worker>(in_regex);
+        MatchOnDevices(worker, work_devices);
+        work_devices = worker->GetMatchedDevices();
     }
 
     return ret_devices;

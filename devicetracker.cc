@@ -798,7 +798,7 @@ bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-void Devicetracker::MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
         std::shared_ptr<TrackerElementVector> vec, bool batch) {
 
     // Make a copy of the vector
@@ -806,6 +806,13 @@ void Devicetracker::MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker
     locker.lock();
     auto immutable_copy = std::make_shared<TrackerElementVector>(vec);
     locker.unlock();
+
+    MatchOnDevicesRaw(worker, immutable_copy, batch);
+
+}
+
+void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+        std::shared_ptr<TrackerElementVector> vec, bool batch) {
 
     kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
            if (val == nullptr)
@@ -829,7 +836,7 @@ void Devicetracker::MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker
     worker->Finalize(this);
 }
 
-void Devicetracker::MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker> worker,
+void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
     local_demand_locker devlocker(&devicelist_mutex);
@@ -837,7 +844,13 @@ void Devicetracker::MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker
     std::vector<std::shared_ptr<kis_tracked_device_base>> copy_vec = vec;
     devlocker.unlock();
 
-    kismet__for_each(copy_vec.begin(), copy_vec.end(), [&](SharedTrackerElement val) {
+    MatchOnDevicesRaw(worker, copy_vec, batch);
+}
+
+void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
+
+    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
             if (val == nullptr)
                 return;
 
@@ -858,7 +871,7 @@ void Devicetracker::MatchOnDevicesCopy(std::shared_ptr<DevicetrackerFilterWorker
 }
 
 void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
-    MatchOnDevicesCopy(worker, immutable_tracked_vec, batch);
+    MatchOnDevices(worker, immutable_tracked_vec, batch);
 }
 
 // Simple std::sort comparison function to order by the least frequently
@@ -1860,7 +1873,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
 
     // Perform the write as a single transaction
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    devicetracker->MatchOnDevicesCopy(fw, devices);
+    devicetracker->MatchOnDevices(fw, devices);
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 
     sqlite3_finalize(stmt);
