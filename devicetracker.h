@@ -443,14 +443,31 @@ protected:
     void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
 
     // Refine a device view from an existing vector bucket, returning a tracked
-    // vector of results w/in the window requested
-    std::shared_ptr<TrackerElementVector> RefineDeviceView(
+    // vector of results w/in the window requested.  The incoming device list is 
+    // copied under mutex to prevent vector reordering.
+    std::shared_ptr<TrackerElementVector> RefineDeviceViewSimple(
+            std::shared_ptr<TrackerElementVector> in_devs,
+            int64_t in_min_ts, int64_t in_max_ts,
+            unsigned int in_start, unsigned int in_count,
+            const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
+            const std::vector<int>& in_order_path, bool in_order_direction);
+
+    std::shared_ptr<TrackerElementVector> RefineDeviceViewRegex(
             std::shared_ptr<TrackerElementVector> in_devs,
             int64_t in_min_ts, int64_t in_max_ts,
             unsigned int in_start, unsigned int in_count,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
             const std::vector<int>& in_order_path, bool in_order_direction,
             const std::vector<std::pair<std::string, std::string>>& in_regex);
+
+    std::shared_ptr<TrackerElementVector> RefineDeviceViewStringMatch(
+            std::shared_ptr<TrackerElementVector> in_devs,
+            int64_t in_min_ts, int64_t in_max_ts,
+            unsigned int in_start, unsigned int in_count,
+            const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
+            const std::vector<int>& in_order_path, bool in_order_direction,
+            const std::vector<std::vector<int>>& in_search_fields,
+            const std::string& in_search_string);
 
 };
 

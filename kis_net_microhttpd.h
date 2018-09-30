@@ -363,7 +363,8 @@ public:
     using gen_func = std::function<std::shared_ptr<TrackerElement> ()>;
 
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, 
-            std::shared_ptr<TrackerElement> in_content);
+            std::shared_ptr<TrackerElement> in_content, 
+            kis_recursive_timed_mutex *in_mutex);
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func);
 
     // HTTP handlers
@@ -380,6 +381,7 @@ protected:
     std::string uri;
     std::shared_ptr<TrackerElement> content;
     gen_func generator;
+    kis_recursive_timed_mutex *mutex;
 };
 
 #define KIS_SESSION_COOKIE      "KISMET"

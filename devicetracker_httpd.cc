@@ -1167,10 +1167,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             
             } else if (tokenurl[2] == "by-phy") {
-            
-                
-                
-                
                 // We don't lock the device list since we use workers
                 if (tokenurl.size() < 5) {
                     stream << "Invalid request";
@@ -1268,7 +1264,79 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
-std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
+std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
+        std::shared_ptr<TrackerElementVector> in_devs,
+        int64_t in_min_ts, int64_t in_max_ts,
+        unsigned int in_start, unsigned int in_count,
+        const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
+        const std::vector<int>& in_order_path, bool in_order_direction) {
+
+    // Make a copy under lock of the device list
+    local_demand_locker l(&devicelist_mutex);
+    l.lock();
+    auto devs_copy = std::make_shared<TrackerElementVector>(in_devs);
+    l.unlock();
+
+    std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
+
+    // Time filter is the cheapest operation so run that first
+    if (in_min_ts != 0 || in_max_ts != 0) {
+        auto worker = 
+            std::make_shared<devicetracker_function_worker>(
+            [in_min_ts, in_max_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                auto dts = d->get_last_time();
+
+                if (in_min_ts != 0 && dts <= in_min_ts)
+                    return false;
+
+                if (in_max_ts != 0 && dts > in_max_ts)
+                    return false;
+
+                return true;
+            }, nullptr);
+
+        MatchOnDevices(worker, work_devices);
+        work_devices = worker->GetMatchedDevices();
+    }
+
+    // Sort, if any
+    if (in_order_path.size() != 0) {
+        kismet__stable_sort(work_devices->begin(), work_devices->end(), 
+                [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
+                SharedTrackerElement fa;
+                SharedTrackerElement fb;
+
+                fa = GetTrackerElementPath(in_order_path, a);
+                fb = GetTrackerElementPath(in_order_path, b);
+
+                if (fa == nullptr) 
+                    return !in_order_direction;
+
+                if (fb == nullptr) 
+                    return in_order_direction;
+
+
+                if (in_order_direction == false)
+                    return FastSortTrackerElementLess(fa, fb);
+
+                return FastSortTrackerElementLess(fb, fa);
+            });
+    }
+
+    // Return no results if we're outside the list
+    if (in_start > work_devices->size()) 
+        return std::make_shared<TrackerElementVector>();
+
+    if (in_count + in_start > work_devices->size())
+        in_count = work_devices->size() - in_start;
+
+    auto slice_first = work_devices->begin() + in_start;
+    auto slice_end = work_devices->begin() + in_start + in_count;
+
+    return std::make_shared<TrackerElementVector>(slice_first, slice_end);
+}
+
+std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
         std::shared_ptr<TrackerElementVector> in_devs,
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
@@ -1335,10 +1403,9 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
             });
     }
 
-    if (in_start > work_devices->size())
-        throw std::runtime_error(fmt::format("refined device view requested a start of {} but only has {}",
-                    in_start, work_devices->size()));
-
+    // Return no results if we're outside the list
+    if (in_start > work_devices->size()) 
+        return std::make_shared<TrackerElementVector>();
 
     if (in_count + in_start > work_devices->size())
         in_count = work_devices->size() - in_start;
@@ -1349,3 +1416,84 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceView(
     return std::make_shared<TrackerElementVector>(slice_first, slice_end);
 }
 
+std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch(
+        std::shared_ptr<TrackerElementVector> in_devs,
+        int64_t in_min_ts, int64_t in_max_ts,
+        unsigned int in_start, unsigned int in_count,
+        const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
+        const std::vector<int>& in_order_path, bool in_order_direction,
+        const std::vector<std::vector<int>>& in_search_fields,
+        const std::string& in_search_string) {
+
+    // Make a copy under lock of the device list
+    local_demand_locker l(&devicelist_mutex);
+    l.lock();
+    auto devs_copy = std::make_shared<TrackerElementVector>(in_devs);
+    l.unlock();
+
+    std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
+
+    // Time filter is the cheapest operation so run that first
+    if (in_min_ts != 0 || in_max_ts != 0) {
+        auto worker = 
+            std::make_shared<devicetracker_function_worker>(
+            [in_min_ts, in_max_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                auto dts = d->get_last_time();
+
+                if (in_min_ts != 0 && dts <= in_min_ts)
+                    return false;
+
+                if (in_max_ts != 0 && dts > in_max_ts)
+                    return false;
+
+                return true;
+            }, nullptr);
+
+        MatchOnDevices(worker, work_devices);
+        work_devices = worker->GetMatchedDevices();
+    }
+
+    // Filter by string matches
+    if (in_search_fields.size() != 0 && in_search_string.length() != 0) {
+        auto worker = 
+            std::make_shared<devicetracker_stringmatch_worker>(in_search_string, in_search_fields);
+        MatchOnDevices(worker, work_devices);
+        work_devices = worker->GetMatchedDevices();
+    }
+
+    // Sort, if any
+    if (in_order_path.size() != 0) {
+        kismet__stable_sort(work_devices->begin(), work_devices->end(), 
+                [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
+                SharedTrackerElement fa;
+                SharedTrackerElement fb;
+
+                fa = GetTrackerElementPath(in_order_path, a);
+                fb = GetTrackerElementPath(in_order_path, b);
+
+                if (fa == nullptr) 
+                    return !in_order_direction;
+
+                if (fb == nullptr) 
+                    return in_order_direction;
+
+
+                if (in_order_direction == false)
+                    return FastSortTrackerElementLess(fa, fb);
+
+                return FastSortTrackerElementLess(fb, fa);
+            });
+    }
+
+    // Return no results if we're outside the list
+    if (in_start > work_devices->size()) 
+        return std::make_shared<TrackerElementVector>();
+
+    if (in_count + in_start > work_devices->size())
+        in_count = work_devices->size() - in_start;
+
+    auto slice_first = work_devices->begin() + in_start;
+    auto slice_end = work_devices->begin() + in_start + in_count;
+
+    return std::make_shared<TrackerElementVector>(slice_first, slice_end);
+}

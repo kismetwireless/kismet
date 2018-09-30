@@ -1436,16 +1436,16 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
 }
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
-        std::shared_ptr<TrackerElement> in_element) :
-    Kis_Net_Httpd_Chain_Stream_Handler() {
-
-    uri = in_uri;
-    content = in_element;
-}
+        std::shared_ptr<TrackerElement> in_element, kis_recursive_timed_mutex *in_mutex) :
+    Kis_Net_Httpd_Chain_Stream_Handler(),
+    uri {in_uri},
+    content {in_element},
+    mutex {in_mutex} { }
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
-    Kis_Net_Httpd_Chain_Stream_Handler() {
+    Kis_Net_Httpd_Chain_Stream_Handler(),
+    mutex {nullptr} {
 
     uri = in_uri;
     generator = in_func;
@@ -1468,6 +1468,11 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
 
     // Allocate our buffer aux
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
@@ -1513,6 +1518,11 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
 int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
 
     std::ostream stream(streambuf);
 
