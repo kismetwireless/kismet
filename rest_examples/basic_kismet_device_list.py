@@ -30,5 +30,10 @@ if results.uri != None:
 
 kr = KismetRest.KismetConnector(uri)
 
-kr.smart_device_list(callback = per_device)
+fields = [
+    # macaddr
+    'kismet.device.base.macaddr',
+]
+
+kr.smart_device_list(callback = per_device, fields = fields)
 

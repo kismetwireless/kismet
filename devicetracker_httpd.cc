@@ -1061,7 +1061,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }
 
                     std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator vi;
-                    
                     std::vector<std::shared_ptr<kis_tracked_device_base> >::iterator ei;
 
                     // Set the iterator endpoint for our length
@@ -1113,7 +1112,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 // If it's negative, subtract from the current ts
                 if (lastts < 0) {
-                    
                     time_t now = time(0);
                     lastts = now + lastts;
                 }
@@ -1150,13 +1148,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 auto outdevs = std::make_shared<TrackerElementVector>();
 
                 for (const auto& rei : *regexdevs) {
-                    std::shared_ptr<kis_tracked_device_base> rd = 
-                        std::static_pointer_cast<kis_tracked_device_base>(rei);
+                    auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
 
                     local_shared_locker lock(&rd->device_mutex);
 
                     SharedTrackerElement simple;
-
                     SummarizeTrackerElement(rd, summary_vec, simple, rename_map);
 
                     outdevs->push_back(simple);
@@ -1268,7 +1264,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
         std::shared_ptr<TrackerElementVector> in_devs,
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
-        const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         const std::vector<int>& in_order_path, bool in_order_direction) {
 
     // Make a copy under lock of the device list
@@ -1340,7 +1335,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
         std::shared_ptr<TrackerElementVector> in_devs,
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
-        const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         const std::vector<int>& in_order_path, bool in_order_direction,
         const std::vector<std::pair<std::string, std::string>>& in_regex) {
 
@@ -1420,7 +1414,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
         std::shared_ptr<TrackerElementVector> in_devs,
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
-        const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         const std::vector<int>& in_order_path, bool in_order_direction,
         const std::vector<std::vector<int>>& in_search_fields,
         const std::string& in_search_string) {
