@@ -1022,15 +1022,18 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
 
 void SummarizeTrackerElement(SharedTrackerElement in, 
         const std::vector<SharedElementSummary>& in_summarization, 
-        SharedTrackerElement &ret_elem, 
+        SharedTrackerElement& ret_elem, 
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
 
     // Poke the pre-serialization function to update anything that needs updating before
     // we create the new meta-object
     in->pre_serialize();
 
-    if (in_summarization.size() == 0)
+    if (in_summarization.size() == 0) {
         ret_elem = in;
+        in->post_serialize();
+        return;
+    }
 
     unsigned int fn = 0;
     ret_elem = std::make_shared<TrackerElementMap>();
