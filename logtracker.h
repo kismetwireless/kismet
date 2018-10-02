@@ -46,6 +46,7 @@ public:
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
+        set_local_name("kismet.log.type_driver");
         initialize();
     }
 
@@ -143,6 +144,9 @@ public:
         register_fields();
         reserve_fields(NULL);
         builder = in_builder;
+
+        if (builder != nullptr)
+            insert(builder);
 
         uuid luuid;
         luuid.GenerateRandomTimeUUID();

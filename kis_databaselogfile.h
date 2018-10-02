@@ -72,6 +72,9 @@ public:
 
     void SetDatabaseBuilder(SharedLogBuilder in_builder) {
         builder = in_builder;
+
+        if (builder != nullptr)
+            insert(builder);
     }
 
     virtual bool Log_Open(std::string in_path) override;
