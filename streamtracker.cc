@@ -36,6 +36,8 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
         std::make_shared<TrackerElementDoubleMap>();
 
     next_stream_id = 1;
+    
+    Bind_Httpd_Server();
 }
 
 StreamTracker::~StreamTracker() {

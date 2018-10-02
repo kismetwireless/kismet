@@ -28,8 +28,8 @@
 #include "messagebus.h"
 #include "kis_httpd_registry.h"
 
-Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
+Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
+    Kis_Phy_Handler(in_globalreg, in_phyid),
     Kis_Net_Httpd_CPPStream_Handler() {
 
     SetPhyName("Z-Wave");

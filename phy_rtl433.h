@@ -443,14 +443,11 @@ public:
         Kis_Phy_Handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-											  Devicetracker *in_tracker,
-											  int in_phyid) {
-		return new Kis_RTL433_Phy(in_globalreg, in_tracker, in_phyid);
+	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
+		return new Kis_RTL433_Phy(in_globalreg, in_phyid);
 	}
 
-    Kis_RTL433_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid);
+    Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 

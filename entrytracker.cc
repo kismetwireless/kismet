@@ -29,6 +29,8 @@ EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
     globalreg = in_globalreg;
 
     next_field_num = 1;
+
+    Bind_Httpd_Server();
 }
 
 EntryTracker::~EntryTracker() {

@@ -94,14 +94,12 @@ public:
     Kis_Mousejack_Phy(GlobalRegistry *in_globalreg) :
         Kis_Phy_Handler(in_globalreg) { }
 
-    Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid);
+    Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid);
 
     virtual ~Kis_Mousejack_Phy();
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-            Devicetracker *in_tracker, int in_phyid) {
-        return new Kis_Mousejack_Phy(in_globalreg, in_tracker, in_phyid);
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+        return new Kis_Mousejack_Phy(in_globalreg, in_phyid);
     }
 
     static int DissectorMousejack(CHAINCALL_PARMS);

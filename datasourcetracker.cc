@@ -328,7 +328,7 @@ Datasourcetracker::Datasourcetracker() :
         Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
                 TrackerElementFactory<TrackerElementVector>(), "Configured sources");
 
-
+    Bind_Httpd_Server();
 }
 
 Datasourcetracker::~Datasourcetracker() {

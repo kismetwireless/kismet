@@ -513,9 +513,8 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     {
         local_locker conclock(&(kishttpd->controller_mutex));
         /* Find a handler that can handle this path & method */
-        for (unsigned int i = 0; i < kishttpd->handler_vec.size(); i++) {
-            Kis_Net_Httpd_Handler *h = kishttpd->handler_vec[i];
 
+        for (auto h : kishttpd->handler_vec) {
             if (h->Httpd_VerifyPath(url, method)) {
                 handler = h;
                 break;
@@ -616,8 +615,8 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
                     return MHD_YES;
                 }, concls);
-        
-        ret = handler->Httpd_HandleGetRequest(kishttpd, concls, url, method, 
+       
+        ret = (concls->httpdhandler)->Httpd_HandleGetRequest(kishttpd, concls, url, method, 
                 upload_data, upload_data_size);
     }
 
@@ -892,9 +891,9 @@ int Kis_Net_Httpd::SendStandardHttpResponse(Kis_Net_Httpd *httpd,
 }
 
 Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler() {
-    httpd = NULL;
+    httpd = Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>();
 
-    Bind_Httpd_Server(Globalreg::globalreg);
+    // Bind_Httpd_Server(Globalreg::globalreg);
 }
 
 Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
@@ -905,11 +904,8 @@ Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
         httpd->RemoveHandler(this);
 }
 
-void Kis_Net_Httpd_Handler::Bind_Httpd_Server(GlobalRegistry *in_globalreg) {
-    httpd = Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
-
-    if (httpd != NULL)
-        httpd->RegisterHandler(this);
+void Kis_Net_Httpd_Handler::Bind_Httpd_Server() {
+    httpd->RegisterHandler(this);
 }
 
 bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
@@ -1440,7 +1436,9 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     Kis_Net_Httpd_Chain_Stream_Handler(),
     uri {in_uri},
     content {in_element},
-    mutex {in_mutex} { }
+    mutex {in_mutex} { 
+        Bind_Httpd_Server();
+    }
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
@@ -1449,6 +1447,8 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
 
     uri = in_uri;
     generator = in_func;
+
+    Bind_Httpd_Server();
 }
 
 bool Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {

@@ -201,10 +201,11 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 	return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
-Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, 
-		Devicetracker *in_tracker, int in_phyid) : 
-	Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid),
+Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) : 
+	Kis_Phy_Handler(in_globalreg, in_phyid),
     Kis_Net_Httpd_CPPStream_Handler() {
+
+    fprintf(stderr, "debug - phy 80211 this %p\n", this);
 
     alertracker =
         Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
@@ -224,6 +225,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
         Globalreg::globalreg->entrytracker->RegisterField("dot11.device",
                 TrackerElementFactory<dot11_tracked_device>(),
                 "IEEE802.11 device");
+
+    fprintf(stderr, "debug - %p registered dot11 device entry as %d\n", this, dot11_device_entry_id);
 
 	// Packet classifier - makes basic records plus dot11 data
 	packetchain->RegisterHandler(&CommonClassifierDot11, this,
@@ -661,9 +664,9 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg,
         }
 
         ssid_regex_vec->push_back(ssida);
-
     }
 
+    Bind_Httpd_Server();
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
@@ -2447,7 +2450,7 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
             return false;
 
         // Does it exist?
-        if (devicetracker->FetchDevice(key) != NULL)
+        if (devicetracker->FetchDevice(key) != nullptr)
             return true;
     }
 
@@ -2494,11 +2497,11 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
     pcaplogger = pcap_open_dead(KDLT_IEEE802_11, 2000);
     dumper = pcap_dump_fopen(pcaplogger, pcapw);
 
-    if (dev != NULL) {
+    if (dev != nullptr) {
         auto dot11dev =
             dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
-        if (dot11dev != NULL) {
+        if (dot11dev != nullptr) {
             // Make a filename
             std::string dmac = dev->get_macaddr().Mac2String();
             std::replace(dmac.begin(), dmac.end(), ':', '-');

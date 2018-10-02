@@ -112,6 +112,8 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
 		RegisterAlert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
     log_alerts = globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
+
+    Bind_Httpd_Server();
 }
 
 Alertracker::~Alertracker() {

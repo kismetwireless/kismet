@@ -96,17 +96,17 @@ public:
     virtual ~Kis_Zwave_Phy();
 
     Kis_Zwave_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { };
+        Kis_Phy_Handler(in_globalreg),
+        Kis_Net_Httpd_CPPStream_Handler() { 
+            Bind_Httpd_Server();
+        };
 
 	// Build a strong version of ourselves
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-											  Devicetracker *in_tracker,
-											  int in_phyid) {
-		return new Kis_Zwave_Phy(in_globalreg, in_tracker, in_phyid);
+	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+		return new Kis_Zwave_Phy(in_globalreg, in_phyid);
 	}
 
-    Kis_Zwave_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid);
+    Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid);
 
     // HTTPD API
     virtual bool Httpd_VerifyPath(const char *path, const char *method);

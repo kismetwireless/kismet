@@ -53,7 +53,7 @@ public:
     virtual ~Kis_Net_Httpd_Handler();
 
     // Bind a http server if we need to do that later in the instantiation
-    void Bind_Httpd_Server(GlobalRegistry *in_globalreg);
+    void Bind_Httpd_Server();
 
     // Handle a GET request; must allocate the response mechanism via
     // MHD_create_response_from_... and will typically call some other
@@ -142,7 +142,8 @@ protected:
 // Take a C++ stream and use it as a response
 class Kis_Net_Httpd_CPPStream_Handler : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_CPPStream_Handler() { }
+    Kis_Net_Httpd_CPPStream_Handler() : 
+        Kis_Net_Httpd_Handler() { }
     virtual ~Kis_Net_Httpd_CPPStream_Handler() { };
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;

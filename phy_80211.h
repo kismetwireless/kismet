@@ -1443,15 +1443,12 @@ public:
         Kis_Phy_Handler(in_globalreg) { };
 
     // Build a strong version of ourselves
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-            Devicetracker *in_tracker,
-            int in_phyid) {
-        return new Kis_80211_Phy(in_globalreg, in_tracker, in_phyid);
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
+        return new Kis_80211_Phy(in_globalreg, in_phyid);
     }
 
     // Strong constructor
-    Kis_80211_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid);
+    Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid);
 
     int WPACipherConv(uint8_t cipher_index);
     int WPAKeyMgtConv(uint8_t mgt_index);
@@ -1499,21 +1496,21 @@ public:
     static std::string CryptToSimpleString(uint64_t cryptset);
 
     // HTTPD API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
     // Timetracker event handler
-    virtual int timetracker_event(int eventid);
+    virtual int timetracker_event(int eventid) override;
 
     // Restore stored dot11 records
     virtual void LoadPhyStorage(SharedTrackerElement in_storage,
-            SharedTrackerElement in_device);
+            SharedTrackerElement in_device) override;
 
     // Convert a frequency in KHz to an IEEE 80211 channel name; MAY THROW AN EXCEPTION
     // if this cannot be converted or is an invalid frequency

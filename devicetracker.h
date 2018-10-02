@@ -50,7 +50,6 @@
 #include "filtercore.h"
 #include "uuid.h"
 #include "configfile.h"
-#include "phyhandler.h"
 #include "kis_datasource.h"
 #include "packinfo_signal.h"
 #include "devicetracker_component.h"
@@ -63,6 +62,8 @@
 
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
+
+class Kis_Phy_Handler;
 
 // Filter-handler class.  Subclassed by a filter supplicant to be passed to the
 // device filter functions.
@@ -124,6 +125,7 @@ public:
 protected:
     Devicetracker *devicetracker;
 };
+
 
 class Devicetracker : public Kis_Net_Httpd_Chain_Stream_Handler,
     public TimetrackerEvent, public LifetimeGlobal, public KisDatabase {

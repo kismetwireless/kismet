@@ -38,6 +38,8 @@ LogTracker::LogTracker() :
 
     register_fields();
     reserve_fields(NULL);
+    
+    Bind_Httpd_Server();
 }
 
 LogTracker::~LogTracker() {

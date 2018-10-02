@@ -84,6 +84,8 @@ GpsTracker::GpsTracker() :
     for (auto g : gpsvec) {
         create_gps(g);
     }
+    
+    Bind_Httpd_Server();
 }
 
 GpsTracker::~GpsTracker() {

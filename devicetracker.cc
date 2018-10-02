@@ -389,6 +389,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     // Open and upgrade the DB, default path
     Database_Open("");
     Database_UpgradeDB();
+
+    Bind_Httpd_Server();
 }
 
 Devicetracker::~Devicetracker() {
@@ -478,8 +480,7 @@ int Devicetracker::FetchNumPackets() {
 int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	int num = next_phy_id++;
 
-	Kis_Phy_Handler *strongphy =
-		in_weak_handler->CreatePhyHandler(globalreg, this, num);
+	Kis_Phy_Handler *strongphy = in_weak_handler->CreatePhyHandler(globalreg, num);
 
 	phy_handler_map[num] = strongphy;
 

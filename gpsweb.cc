@@ -39,10 +39,9 @@ bool GPSWeb::open_gps(std::string in_opts) {
         return false;
     }
 
-    // Call the http stream handler init to bind to the webserver
-    Bind_Httpd_Server(Globalreg::globalreg);
-
     set_int_gps_description("web-based GPS using location from browser");
+
+    Bind_Httpd_Server();
 
     return true;
 }

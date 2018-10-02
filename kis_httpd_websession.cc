@@ -32,6 +32,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
 
     activated = false;
 
+    Bind_Httpd_Server();
 }
 
 void Kis_Httpd_Websession::Deferred_Startup() {

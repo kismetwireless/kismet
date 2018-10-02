@@ -27,9 +27,8 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 
-Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg,
-        Devicetracker *in_tracker, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_tracker, in_phyid) {
+Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
+    Kis_Phy_Handler(in_globalreg, in_phyid) {
 
     SetPhyName("RTL433");
 

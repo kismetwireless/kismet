@@ -452,6 +452,8 @@ KisExternalHttpInterface::KisExternalHttpInterface() :
     Kis_Net_Httpd_Chain_Stream_Handler() {
 
     http_session_id = 0;
+
+    Bind_Httpd_Server();
 }
 
 KisExternalHttpInterface::~KisExternalHttpInterface() {

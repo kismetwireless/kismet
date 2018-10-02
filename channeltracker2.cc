@@ -54,6 +54,8 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
         Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+
+    Bind_Httpd_Server();
 }
 
 Channeltracker_V2::~Channeltracker_V2() {

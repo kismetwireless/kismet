@@ -367,15 +367,16 @@ public:
     virtual ~Kis_UAV_Phy();
 
     Kis_UAV_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { }
+        Kis_Phy_Handler(in_globalreg),
+        Kis_Net_Httpd_CPPStream_Handler() {
+            Bind_Httpd_Server();
+        }
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-            Devicetracker *in_tracker, int in_phyid) {
-        return new Kis_UAV_Phy(in_globalreg, in_tracker, in_phyid);
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+        return new Kis_UAV_Phy(in_globalreg, in_phyid);
     }
 
-    Kis_UAV_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid);
+    Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid);
 
     // Common classifier to make new UAV records
     static int CommonClassifier(CHAINCALL_PARMS);

@@ -28,6 +28,7 @@ Kis_Httpd_Registry::Kis_Httpd_Registry(GlobalRegistry *in_globalreg) :
 
     globalreg = in_globalreg;
 
+    Bind_Httpd_Server();
 }
 
 Kis_Httpd_Registry::~Kis_Httpd_Registry() {

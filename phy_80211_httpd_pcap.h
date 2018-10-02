@@ -27,7 +27,9 @@
 
 class Phy_80211_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
-    Phy_80211_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
+    Phy_80211_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { 
+        Bind_Httpd_Server();
+    }
 
     virtual ~Phy_80211_Httpd_Pcap() { };
 

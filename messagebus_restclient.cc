@@ -45,6 +45,8 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
                 "Kismet message");
 
     Globalreg::globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
+
+    Bind_Httpd_Server();
 }
 
 RestMessageClient::~RestMessageClient() {

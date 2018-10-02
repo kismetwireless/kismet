@@ -25,6 +25,7 @@
 
 #include "globalregistry.h"
 #include "trackedelement.h"
+#include "devicetracker.h"
 
 class Devicetracker;
 
@@ -35,19 +36,18 @@ public:
 	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
     Kis_Phy_Handler(GlobalRegistry *in_globalreg) {
         globalreg = in_globalreg;
-        devicetracker = NULL;
         phyid = -1;
         phyname = "NONE";
+        devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
     }
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-            Devicetracker *in_tracker, int in_phyid) = 0;
+    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) = 0;
 
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid) {
+    Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) {
         globalreg = in_globalreg;
         phyid = in_phyid;
-        devicetracker = in_tracker;
+        phyname = "NONE";
+        devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 	}
 
 	virtual ~Kis_Phy_Handler() { }
@@ -70,7 +70,8 @@ protected:
     }
 
 	GlobalRegistry *globalreg;
-	Devicetracker *devicetracker;
+
+    std::shared_ptr<Devicetracker> devicetracker;
 
     std::string phyname;
     uint32_t phyname_hash;

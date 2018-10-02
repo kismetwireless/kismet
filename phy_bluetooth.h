@@ -127,14 +127,12 @@ public:
 
 	// Build a strong version of ourselves
 	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg,
-											  Devicetracker *in_tracker,
 											  int in_phyid) {
-		return new Kis_Bluetooth_Phy(in_globalreg, in_tracker, in_phyid);
+		return new Kis_Bluetooth_Phy(in_globalreg, in_phyid);
 	}
 
 	// Strong constructor
-	Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, Devicetracker *in_tracker,
-            int in_phyid);
+	Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid);
 
 	// Bluetooth device record classifier to common for the devicetracker layer
 	static int CommonClassifierBluetooth(CHAINCALL_PARMS);
@@ -150,7 +148,6 @@ protected:
     std::shared_ptr<Alertracker> alertracker;
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
 
     int bluetooth_device_entry_id;
 

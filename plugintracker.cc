@@ -82,6 +82,8 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     }
 
     plugins_active = 1;
+
+    Bind_Httpd_Server();
 }
 
 Plugintracker::~Plugintracker() {
