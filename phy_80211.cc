@@ -2459,60 +2459,35 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
 
 void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
         Kis_Net_Httpd_Connection *connection, std::stringstream &stream) {
-    // We need to make a temp file and then use that to make the pcap log
-    int pcapfd, readfd;
-    FILE *pcapw;
 
-    pcap_t *pcaplogger;
-    pcap_dumper_t *dumper;
+    // Hardcode the pcap header
+    struct pcap_header {
+        uint32_t magic = 0xa1b2c3d4;
+        uint16_t vmajor = 2;
+        uint16_t vminor = 2;
+        int32_t offset = 0;
+        uint32_t sigfigs = 0;
+        uint32_t len = 8192;
+        uint32_t dlt = KDLT_IEEE802_11;
+    } hdr;
 
-    // Packet header
-    struct pcap_pkthdr hdr;
+    // Hardcode the pcap packet header
+    struct pcap_packet_header {
+        uint32_t timeval_s;
+        uint32_t timeval_us;
+        uint32_t len;
+        uint32_t caplen;
+    } pkt_hdr;
 
-    // Temp file name
-    char tmpfname[PATH_MAX];
-
-    snprintf(tmpfname, PATH_MAX, "/tmp/kismet_wpa_handshake_XXXXXX");
-
-    // Can't do anything if we fail to make a pipe
-    if ((pcapfd = mkstemp(tmpfname)) < 0) {
-        _MSG("Failed to create a temporary handshake pcap file: " +
-                kis_strerror_r(errno), MSGFLAG_ERROR);
-        return;
-    }
-
-    // Open the tmp file
-    readfd = open(tmpfname, O_RDONLY);
-    // Immediately unlink it
-    unlink(tmpfname);
-
-    if ((pcapw = fdopen(pcapfd, "wb")) == NULL) {
-        _MSG("Failed to open temp file for handshake pcap file: " +
-                kis_strerror_r(errno), MSGFLAG_ERROR);
-        close(readfd);
-        return;
-    }
-
-    // We always open as 802.11 DLT because that's how we save the handshakes
-    pcaplogger = pcap_open_dead(KDLT_IEEE802_11, 2000);
-    dumper = pcap_dump_fopen(pcaplogger, pcapw);
+    stream.write((const char *) &hdr, sizeof(hdr));
 
     if (dev != nullptr) {
+        local_locker dlock(dev->device_mutex);
+
         auto dot11dev =
             dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
         if (dot11dev != nullptr) {
-            // Make a filename
-            std::string dmac = dev->get_macaddr().Mac2String();
-            std::replace(dmac.begin(), dmac.end(), ':', '-');
-
-            std::string ssid = "";
-
-            if (dot11dev->get_last_beaconed_ssid().length() != 0) 
-                ssid = " " + dot11dev->get_last_beaconed_ssid();
-
-            connection->optional_filename = "handshake " + dmac + ssid + ".pcap";
-
             for (auto i : *(dot11dev->get_wpa_key_vec())) {
                 auto eapol =
                     std::static_pointer_cast<dot11_tracked_eapol>(i);
@@ -2520,41 +2495,17 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
                 auto packet = eapol->get_eapol_packet();
 
                 // Make a pcap header
-                hdr.ts.tv_sec = packet->get_ts_sec();
-                hdr.ts.tv_usec = packet->get_ts_usec();
+                pkt_hdr.timeval_s = packet->get_ts_sec();
+                pkt_hdr.timeval_us = packet->get_ts_usec();
                 
-                hdr.len = packet->get_data()->length();
-                hdr.caplen = hdr.len;
+                pkt_hdr.len = packet->get_data()->length();
+                pkt_hdr.caplen = pkt_hdr.len;
 
-                // Dump the raw data
-                pcap_dump((u_char *) dumper, &hdr, (const u_char *) packet->get_data()->get().data());
+                stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+                stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
             }
         }
     }
-
-    // Close the dumper
-    pcap_dump_flush(dumper);
-    pcap_dump_close(dumper);
-
-    // Read our buffered stuff out into the stream
-    char buf[128];
-    ssize_t len;
-    int total = 0;
-
-    while ((len = read(readfd, buf, 128)) >= 0) {
-        if (len == 0) {
-            if (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK)
-                continue;
-            break;
-        }
-
-        total += len;
-
-        stream.write(buf, len);
-    }
-
-    // Pcapw and write pipe is already closed so just close read descriptor
-    close(readfd);
 }
 
 void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
@@ -2599,16 +2550,13 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     // Does it exist?
     auto dev = devicetracker->FetchDevice(key);
 
-    if (dev == NULL) {
+    if (dev == nullptr) {
         stream << "unknown device";
         return;
     }
 
     // Validate the session and return a basic auth prompt
     if (httpd->HasValidSession(connection, true)) {
-        // It should exist and we'll handle if it doesn't in the stream
-        // handler
-        local_locker devlocker(&(dev->device_mutex));
         GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
     } else {
         stream << "Login required";
