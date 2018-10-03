@@ -60,14 +60,6 @@
 #include <pcre.h>
 #endif
 
-extern "C" {
-#ifndef HAVE_PCAPPCAP_H
-#include <pcap.h>
-#else
-#include <pcap/pcap.h>
-#endif
-}
-
 // static std::atomic<int> packetnum {0};
 
 // Convert the beacon interval to # of packets per second
