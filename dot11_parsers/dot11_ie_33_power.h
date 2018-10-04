@@ -19,12 +19,9 @@
 #ifndef __DOT11_IE_7_COUNTRY_H__
 #define __DOT11_IE_7_COUNTRY_H__
 
-/* dot11 ie 7 country
+/* dot11 ie 33 power
  *
- * 80211d is deprecated.
- *
- * Some APs seem to return bogus country strings which don't include a valid
- * set of triplets.
+ * Min/max tx power of clients
  *
  */
 
