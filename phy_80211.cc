@@ -986,6 +986,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
+                    dot11info->subtype == packet_sub_association_req ||
                     dot11info->subtype == packet_sub_reassociation_req) {
                 d11phy->HandleProbedSSID(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
             }
@@ -1031,16 +1032,12 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // Now we've instantiated and mapped all the possible devices and dot11 devices; now
             // populate the per-client records for any which have mgmt communication
             
-            // Don't map blind req's as being a client
-            if (source_dev != NULL && 
-                    (dot11info->subtype != packet_sub_probe_req &&
-                     dot11info->subtype != packet_sub_association_req &&
-                     dot11info->subtype != packet_sub_reassociation_req))
+            if (source_dev != NULL)
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             // Don't map probe respsonses as clients
-            if (dest_dev != NULL && dot11info->subtype != packet_sub_probe_resp)
+            if (dest_dev != NULL)
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
@@ -1909,7 +1906,7 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
 
     auto probemap(dot11dev->get_probed_ssid_map());
 
-    std::shared_ptr<dot11_probed_ssid> probessid = NULL;
+    std::shared_ptr<dot11_probed_ssid> probessid;
 
     // Always re-parse the IEs on a probe
     if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
@@ -1917,11 +1914,12 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
     }
 
     if (dot11info->subtype == packet_sub_probe_req ||
+            dot11info->subtype == packet_sub_association_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
 
         auto ssid_itr = probemap->find(dot11info->ssid_csum);
 
-        if (ssid_itr == probemap->end() || ssid_itr->second == NULL) {
+        if (ssid_itr == probemap->end() || ssid_itr->second == nullptr) {
             probessid = dot11dev->new_probed_ssid();
 
             probessid->set_ssid(dot11info->ssid);
@@ -1937,13 +1935,12 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
             probessid->set_last_time(in_pack->ts.tv_sec);
 
         // Add the location data, if any
-        if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
+        if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
             probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                     pack_gpsinfo->alt, pack_gpsinfo->fix);
-
         }
 
-        if (dot11info->dot11r_mobility != NULL) {
+        if (dot11info->dot11r_mobility != nullptr) {
             probessid->set_dot11r_mobility(true);
             probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
         }
@@ -1964,6 +1961,8 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
         kis_gps_packinfo *pack_gpsinfo,
         kis_data_packinfo *pack_datainfo) {
 
+    // We can't make a bssid device to broadcast, multicast, etc; if we didn't find out, we 
+    // can't process a client, so don't.
     if (bssiddev == nullptr)
         return;
 
@@ -1997,9 +1996,25 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
 
         clientdot11->set_last_bssid(bssiddev->get_macaddr());
 
-        // Handle the data records for this client association, we're not just a 
-        // management link
-        if (dot11info->type == packet_data) {
+        if (dot11info->type == packet_management) {
+            // Client-level assoc req advertisements
+            
+            if (dot11info->subtype == packet_sub_association_req) {
+                if (dot11info->tx_power != nullptr) {
+                    clientdot11->set_min_tx_power(dot11info->tx_power->min_power());
+                    clientdot11->set_max_tx_power(dot11info->tx_power->max_power());
+                }
+
+                if (dot11info->supported_channels != nullptr) {
+                    clientdot11->get_supported_channels()->clear();
+
+                    for (auto c : dot11info->supported_channels->supported_channels()) 
+                        clientdot11->get_supported_channels()->push_back(c);
+                }
+            }
+        } else if (dot11info->type == packet_data) {
+            // Handle the data records for this client association, we're not just a management link
+
             if (dot11info->fragmented)
                 client_record->inc_num_fragments(1);
 

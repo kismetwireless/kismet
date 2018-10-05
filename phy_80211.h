@@ -49,6 +49,8 @@
 #include "kaitai/kaitaistream.h"
 #include "dot11_parsers/dot11_wpa_eap.h"
 #include "dot11_parsers/dot11_ie_11_qbss.h"
+#include "dot11_parsers/dot11_ie_33_power.h"
+#include "dot11_parsers/dot11_ie_36_supported_channels.h"
 #include "dot11_parsers/dot11_ie_54_mobility.h"
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
@@ -247,6 +249,8 @@ class dot11_packinfo : public packet_component {
 
         // Direct kaitai structs pulled from the beacon
         std::shared_ptr<dot11_ie_11_qbss> qbss;
+        std::shared_ptr<dot11_ie_33_power> tx_power;
+        std::shared_ptr<dot11_ie_36_supported_channels> supported_channels;
         std::shared_ptr<dot11_ie_54_mobility> dot11r_mobility;
         std::shared_ptr<dot11_ie_61_ht_op> dot11ht;
         std::shared_ptr<dot11_ie_192_vht_op> dot11vht;
@@ -984,6 +988,7 @@ protected:
 
         location_id =
             RegisterDynamicField("dot11.client.location", "location", &location);
+
     }
 
     std::shared_ptr<TrackerElementMacAddr> bssid;
@@ -1201,6 +1206,10 @@ public:
         set_num_associated_clients(associated_client_map->size());
     }
 
+    __Proxy(min_tx_power, uint8_t, unsigned int, unsigned int, min_tx_power);
+    __Proxy(max_tx_power, uint8_t, unsigned int, unsigned int, max_tx_power);
+    __ProxyTrackable(supported_channels, TrackerElementVectorDouble, supported_channels);
+
 protected:
 
     virtual void register_fields() override {
@@ -1298,6 +1307,12 @@ protected:
             RegisterField("dot11.device.wpa_nonce",
                     TrackerElementFactory<dot11_tracked_nonce>(),
                     "WPA nonce exchange");
+
+        RegisterField("dot11.client.min_tx_power", "Minimum advertised TX power", &min_tx_power);
+        RegisterField("dot11.client.max_tx_power", "Maximum advertised TX power", &max_tx_power);
+
+        RegisterField("dot11.client.supported_channels", "Advertised supported channels", 
+                &supported_channels);
     }
 
     virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
@@ -1409,6 +1424,11 @@ protected:
     // Un-exposed internal tracking options
     uint32_t last_adv_ie_csum;
     std::shared_ptr<dot11_advertised_ssid> last_adv_ssid;
+
+    std::shared_ptr<TrackerElementUInt8> min_tx_power;
+    std::shared_ptr<TrackerElementUInt8> max_tx_power;
+
+    std::shared_ptr<TrackerElementVectorDouble> supported_channels;
 };
 
 class dot11_ssid_alert {

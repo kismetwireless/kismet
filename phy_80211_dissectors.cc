@@ -43,6 +43,8 @@
 #include "dot11_parsers/dot11_ie.h"
 #include "dot11_parsers/dot11_ie_7_country.h"
 #include "dot11_parsers/dot11_ie_11_qbss.h"
+#include "dot11_parsers/dot11_ie_33_power.h"
+#include "dot11_parsers/dot11_ie_36_supported_channels.h"
 #include "dot11_parsers/dot11_ie_45_ht_cap.h"
 #include "dot11_parsers/dot11_ie_48_rsn.h"
 #include "dot11_parsers/dot11_ie_52_rmm_neighbor.h"
@@ -1518,6 +1520,18 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             }
 
             continue;
+        }
+
+        // IE 33 advertised txpower in probe req
+        if (ie_tag->tag_num() == 33) {
+            packinfo->tx_power = std::make_shared<dot11_ie_33_power>();
+            packinfo->tx_power->parse(ie_tag->tag_data_stream());
+        }
+
+        // IE 36, advertised supported channels in probe req
+        if (ie_tag->tag_num() == 36) {
+            packinfo->supported_channels = std::make_shared<dot11_ie_36_supported_channels>();
+            packinfo->supported_channels->parse(ie_tag->tag_data_stream());
         }
 
         if (ie_tag->tag_num() == 45) {
