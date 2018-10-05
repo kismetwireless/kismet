@@ -1308,10 +1308,10 @@ protected:
                     TrackerElementFactory<dot11_tracked_nonce>(),
                     "WPA nonce exchange");
 
-        RegisterField("dot11.client.min_tx_power", "Minimum advertised TX power", &min_tx_power);
-        RegisterField("dot11.client.max_tx_power", "Maximum advertised TX power", &max_tx_power);
+        RegisterField("dot11.device.min_tx_power", "Minimum advertised TX power", &min_tx_power);
+        RegisterField("dot11.device.max_tx_power", "Maximum advertised TX power", &max_tx_power);
 
-        RegisterField("dot11.client.supported_channels", "Advertised supported channels", 
+        RegisterField("dot11.device.supported_channels", "Advertised supported channels", 
                 &supported_channels);
     }
 
