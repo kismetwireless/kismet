@@ -314,6 +314,51 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 }
                 ],
             },
+
+            {
+                field: "dot11_extras",
+                id: "dot11_extras",
+                help: "Some devices advertise additional information about capabilities via additional tag fields when joining a network.",
+                filter: function(opts) {
+                    if (opts['data']['dot11.device']['dot11.device.min_tx_power'] != 0)
+                        return true;
+
+                    if (opts['data']['dot11.device']['dot11.device.max_tx_power'] != 0)
+                        return true;
+
+                    if (opts['data']['dot11.device']['dot11.device.supported_channels'].length > 0)
+                        return true;
+
+                    return false;
+                },
+                groupTitle: "Additional Capabilities",
+                fields: [
+                {
+                    field: "dot11.device/dot11.device.min_tx_power",
+                    title: "Minimum TX",
+                    help: "Some devices advertise their minimum transmit power in association requests.  This data is in the IE 33 field.  This data could be manipulated by hostile devices, but can be informational for normal devices.",
+                    filterOnZero: true
+                },
+                {
+                    field: "dot11.device/dot11.device.max_tx_power",
+                    title: "Maximum TX",
+                    help: "Some devices advertise their maximum transmit power in association requests.  This data is in the IE 33 field.  This data could be manipulated by hostile devices, but can be informational for normal devices.",
+                    filterOnZero: true
+                },
+                {
+                    field: "ot11.device/dot11.device.supported_channels",
+                    title: "Supported Channels",
+                    help: "Some devices advertise the channels they support while joining a network.  This data is in the IE 36 field.  This data can be manipulated by hostile devices, but can be informational for normal deices.",
+                    filter: function(opts) {
+                        return (opts['data']['dot11.device']['dot11.device.supported_channels'].length);
+                    },
+                    render: function(opts) {
+                        return opts['data']['dot11.device']['dot11.device.supported_channels'].join(',');
+                    }
+                },
+                ],
+            },
+
             {
                 field: "dot11.device/dot11.device.wpa_handshake_list",
                 id: "wpa_handshake",
