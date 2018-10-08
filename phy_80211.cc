@@ -1689,9 +1689,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_dot11e_qbss_channel_load(chperc);
         }
 
-        // Do we have HT or VHT data?  I don't think we can have one
-        // without the other
-        if (dot11info->dot11vht != NULL && dot11info->dot11ht != NULL) {
+        // Set the HT and VHT info.  If we have VHT, we assume we must have HT; I've never
+        // seen VHT without HT.  We handle HT only later on.
+        if (dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
             // Grab the primary channel from the HT data
             ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
 
@@ -1720,7 +1720,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 ssid->set_ht_center_2(0);
 
             } 
-        } else if (dot11info->dot11ht != NULL) {
+        } else if (dot11info->dot11ht != nullptr) {
             // Only HT info no VHT
             if (dot11info->dot11ht->ht_info_chan_offset_none()) {
                 ssid->set_ht_mode("HT20");
@@ -1772,12 +1772,10 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         } else if (ssid->get_crypt_set() != dot11info->cryptset &&
                 alertracker->PotentialAlert(alert_cryptchange_ref)) {
 
-            std::string al = "IEEE80211 Access Point BSSID " +
-                basedev->get_macaddr().Mac2String() + " SSID \"" +
-                ssid->get_ssid() + "\" changed advertised encryption from " +
-                CryptToString(ssid->get_crypt_set()) + " to " + 
-                CryptToString(dot11info->cryptset) + " which may indicate "
-                "AP spoofing/impersonation";
+            auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+                    "encryption from {} to {} which may indicate AP spoofing/impersonation",
+                    basedev->get_macaddr(), CryptToString(ssid->get_crypt_set()),
+                    CryptToString(dot11info->cryptset));
 
             alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
@@ -1904,11 +1902,20 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
+    if (dot11info == nullptr)
+        throw std::runtime_error("HandleProbedSSID with null dot11dev");
+
+    if (basedev == nullptr) 
+        throw std::runtime_error("HandleProbedSSID with null basedev");
+
+    if (dot11dev == nullptr)
+        throw std::runtime_error("HandleProbedSSID with null dot11dev");
+
     auto probemap(dot11dev->get_probed_ssid_map());
 
     std::shared_ptr<dot11_probed_ssid> probessid;
 
-    // Always re-parse the IEs on a probe
+    // Parse IE tags on probe req, assoc, reassoc
     if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
         return;
     }
@@ -1947,6 +1954,9 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
 
         dot11dev->set_last_probed_ssid(probessid->get_ssid());
         dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
+
+        // Update the crypt set if any
+        probessid->set_crypt_set(dot11info->cryptset);
     }
 
 }

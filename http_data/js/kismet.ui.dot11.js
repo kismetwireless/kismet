@@ -346,9 +346,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filterOnZero: true
                 },
                 {
-                    field: "ot11.device/dot11.device.supported_channels",
+                    field: "dot11.device/dot11.device.supported_channels",
                     title: "Supported Channels",
-                    help: "Some devices advertise the channels they support while joining a network.  This data is in the IE 36 field.  This data can be manipulated by hostile devices, but can be informational for normal deices.",
+                    help: "Some devices advertise the 5GHz channels they support while joining a network.  Supported 2.4GHz channels are not included in this list.  This data is in the IE 36 field.  This data can be manipulated by hostile devices, but can be informational for normal deices.",
                     filter: function(opts) {
                         return (opts['data']['dot11.device']['dot11.device.supported_channels'].length);
                     },

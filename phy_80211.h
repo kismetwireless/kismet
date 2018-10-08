@@ -588,6 +588,8 @@ public:
     __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, 
             dot11r_mobility_domain_id);
 
+    __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
+
 protected:
     virtual void register_fields() override {
         RegisterField("dot11.probedssid.ssid", "probed ssid string (sanitized)", &ssid);
@@ -604,6 +606,8 @@ protected:
                 "advertised dot11r mobility support", &dot11r_mobility);
         RegisterField("dot11.probedssid.dot11r_mobility_domain_id", 
                 "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
+
+        RegisterField("dot11.probessid.crypt_set", "Requested encryption set", &crypt_set);
     }
 
     std::shared_ptr<TrackerElementString> ssid;
@@ -617,6 +621,8 @@ protected:
 
     std::shared_ptr<kis_tracked_location> location;
     int location_id;
+
+    std::shared_ptr<TrackerElementUInt64> crypt_set;
 };
 
 /* Advertised SSID
