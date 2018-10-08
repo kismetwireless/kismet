@@ -39,47 +39,47 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    std::string bssid() {
+    std::string bssid() const {
         return m_bssid;
     }
 
-    uint32_t bssid_info() {
+    constexpr uint32_t bssid_info() const {
         return m_bssid_info;
     }
 
-    uint8_t operating_class() {
+    constexpr uint8_t operating_class() const {
         return m_operating_class;
     }
 
-    uint8_t channel_number() {
+    constexpr uint8_t channel_number() const {
         return m_channel_number;
     }
 
-    uint8_t phy_type() {
+    constexpr uint8_t phy_type() const {
         return m_phy_type;
     }
 
-    unsigned int bssid_reachability() {
+    constexpr unsigned int bssid_reachability() const {
         return bssid_info() & 0x03;
     }
 
-    unsigned int bssid_security() {
+    constexpr unsigned int bssid_security() const {
         return bssid_info() & 0x04;
     }
 
-    unsigned int bssid_keyscope() {
+    constexpr unsigned int bssid_keyscope() const {
         return bssid_info() & 0x08;
     }
 
-    unsigned int bssid_capability() {
+    constexpr unsigned int bssid_capability() const {
         return (bssid_info() & 0x3F0) >> 4;
     }
 
-    unsigned int bssid_mobility_domain() {
+    constexpr unsigned int bssid_mobility_domain() const {
         return bssid_info() & 0x400;
     }
 
-    unsigned int bssid_ht() {
+    constexpr unsigned int bssid_ht() const {
         return bssid_info() & 0x800;
     }
 

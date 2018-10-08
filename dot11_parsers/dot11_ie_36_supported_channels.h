@@ -37,7 +37,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    std::vector<unsigned int> supported_channels() {
+    std::vector<unsigned int> supported_channels() const {
         return m_supported_channels;
     }
 

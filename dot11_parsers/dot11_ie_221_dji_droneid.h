@@ -45,6 +45,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_221_dji_droneid {
 public:
@@ -61,43 +62,43 @@ public:
     dot11_ie_221_dji_droneid() { }
     ~dot11_ie_221_dji_droneid() { }
 
-    static unsigned int vendor_oui() {
+    constexpr static unsigned int vendor_oui() {
         return 0x263712;
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint8_t vendor_type() {
+    constexpr uint8_t vendor_type() const {
         return m_vendor_type;
     }
 
-    uint8_t unk1() {
+    constexpr uint8_t unk1() const {
         return m_unk1;
     }
 
-    uint8_t unk2() {
+    constexpr uint8_t unk2() const {
         return m_unk2;
     }
 
-    e_dji_subcommand_type subcommand() {
+    constexpr e_dji_subcommand_type subcommand() const {
         return (e_dji_subcommand_type) m_subcommand;
     }
 
-    std::string raw_record_data() {
+    std::string raw_record_data() const {
         return m_raw_record_data;
     }
 
-    std::shared_ptr<dji_subcommand_common> record() {
+    std::shared_ptr<dji_subcommand_common> record() const {
         return m_record;
     }
 
-    std::shared_ptr<dji_subcommand_flight_reg> flight_reg_record() {
+    std::shared_ptr<dji_subcommand_flight_reg> flight_reg_record() const {
         if (subcommand() == subcommand_flightreg)
             return std::static_pointer_cast<dji_subcommand_flight_reg>(m_record);
         return NULL;
     }
 
-    std::shared_ptr<dji_subcommand_flight_purpose> flight_purpose_record() {
+    std::shared_ptr<dji_subcommand_flight_purpose> flight_purpose_record() const {
         if (subcommand() == subcommand_flightpurpose)
             return std::static_pointer_cast<dji_subcommand_flight_purpose>(m_record);
         return NULL;

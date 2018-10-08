@@ -32,6 +32,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie {
 public:
@@ -48,7 +49,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    std::shared_ptr<shared_ie_tag_vector> tags() {
+    std::shared_ptr<shared_ie_tag_vector> tags() const {
         return m_tags;
     }
 
@@ -63,19 +64,19 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        uint8_t tag_num() {
+        constexpr uint8_t tag_num() const {
             return m_tag_num;
         }
 
-        uint8_t tag_len() {
+        constexpr uint8_t tag_len() const {
             return m_tag_len;
         }
 
-        std::string tag_data() {
+        std::string tag_data() const {
             return m_tag_data;
         }
 
-        std::shared_ptr<kaitai::kstream> tag_data_stream() {
+        std::shared_ptr<kaitai::kstream> tag_data_stream() const {
             return m_tag_data_stream;
         }
 

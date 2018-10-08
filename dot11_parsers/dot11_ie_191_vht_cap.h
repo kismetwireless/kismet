@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_191_vht_cap {
 public:
@@ -37,85 +38,99 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint32_t vht_capabilities() {
+    constexpr uint32_t vht_capabilities() const {
         return m_vht_capabilities;
     }
 
-    uint16_t rx_mcs_map() {
+    constexpr uint16_t rx_mcs_map() const {
         return m_rx_mcs_map;
     }
 
-    uint16_t rx_mcs_set() {
+    constexpr uint16_t rx_mcs_set() const {
         return m_rx_mcs_set;
     }
 
-    uint16_t tx_mcs_map() {
+    constexpr uint16_t tx_mcs_map() const {
         return m_tx_mcs_map;
     }
     
-    uint16_t tx_mcs_set() {
+    constexpr uint16_t tx_mcs_set() const {
         return m_tx_mcs_set;
     }
 
-    unsigned int vht_cap_160mhz() {
+    constexpr unsigned int vht_cap_160mhz() const {
         return vht_capabilities() & 0xC;
     }
 
-    unsigned int vht_cap_80mhz_shortgi() {
+    constexpr unsigned int vht_cap_80mhz_shortgi() const {
         return vht_capabilities() & 0x20;
     }
 
-    unsigned int vht_cap_160mhz_shortgi() {
+    constexpr unsigned int vht_cap_160mhz_shortgi() const {
         return vht_capabilities() & 0x40;
     }
 
-    unsigned int rx_mcs_s1() {
+    constexpr unsigned int rx_mcs_s1() const {
         return (rx_mcs_map() & 0x3);
     }
-    unsigned int rx_mcs_s2() {
+
+    constexpr unsigned int rx_mcs_s2() const {
         return (rx_mcs_map() & 0xC) >> 2;
     }
-    unsigned int rx_mcs_s3() {
+
+    constexpr unsigned int rx_mcs_s3() const {
         return (rx_mcs_map() & 0x30) >> 4;
     }
-    unsigned int rx_mcs_s4() {
+
+    constexpr unsigned int rx_mcs_s4() const {
         return (rx_mcs_map() & 0xC0) >> 6;
     }
-    unsigned int rx_mcs_s5() {
+
+    constexpr unsigned int rx_mcs_s5() const {
         return (rx_mcs_map() & 0x300) >> 8;
     }
-    unsigned int rx_mcs_s6() {
+
+    constexpr unsigned int rx_mcs_s6() const {
         return (rx_mcs_map() & 0xC00) >> 10;
     }
-    unsigned int rx_mcs_s7() {
+
+    constexpr unsigned int rx_mcs_s7() const {
         return (rx_mcs_map() & 0x3000) >> 12;
     }
-    unsigned int rx_mcs_s8() {
+    
+    constexpr unsigned int rx_mcs_s8() const {
         return (rx_mcs_map() & 0xC000) >> 14;
     }
 
-    unsigned int tx_mcs_s1() {
+    constexpr unsigned int tx_mcs_s1() const {
         return (tx_mcs_map() & 0x3);
     }
-    unsigned int tx_mcs_s2() {
+
+    constexpr unsigned int tx_mcs_s2() const {
         return (tx_mcs_map() & 0xC) >> 2;
     }
-    unsigned int tx_mcs_s3() {
+
+    constexpr unsigned int tx_mcs_s3() const {
         return (tx_mcs_map() & 0x30) >> 4;
     }
-    unsigned int tx_mcs_s4() {
+
+    constexpr unsigned int tx_mcs_s4() const {
         return (tx_mcs_map() & 0xC0) >> 6;
     }
-    unsigned int tx_mcs_s5() {
+
+    constexpr unsigned int tx_mcs_s5() const {
         return (tx_mcs_map() & 0x300) >> 8;
     }
-    unsigned int tx_mcs_s6() {
+
+    constexpr unsigned int tx_mcs_s6() const {
         return (tx_mcs_map() & 0xC00) >> 10;
     }
-    unsigned int tx_mcs_s7() {
+
+    constexpr unsigned int tx_mcs_s7() const {
         return (tx_mcs_map() & 0x3000) >> 12;
     }
-    unsigned int tx_mcs_s8() {
+
+    constexpr unsigned int tx_mcs_s8() const {
         return (tx_mcs_map() & 0xC000) >> 14;
     }
 

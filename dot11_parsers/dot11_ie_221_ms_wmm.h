@@ -30,6 +30,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_221_ms_wmm {
 public:
@@ -38,7 +39,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint8_t wme_subtype() {
+    constexpr uint8_t wme_subtype() const {
         return m_wme_subtype;
     }
 

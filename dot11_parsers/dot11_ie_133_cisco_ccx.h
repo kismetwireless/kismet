@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_133_cisco_ccx {
 public:
@@ -37,19 +38,19 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    std::string ccx_unk1() {
+    std::string ccx_unk1() const {
         return m_ccx_unk1;
     }
 
-    std::string ap_name() {
+    std::string ap_name() const {
         return m_ap_name;
     }
 
-    uint8_t station_count() {
+    constexpr uint8_t station_count() const {
         return m_station_count;
     }
 
-    std::string ccx_unk2() {
+    std::string ccx_unk2() const {
         return m_ccx_unk2;
     }
 

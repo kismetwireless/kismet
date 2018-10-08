@@ -41,23 +41,23 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    std::shared_ptr<sub_mic_control> mic_control() {
+    std::shared_ptr<sub_mic_control> mic_control() const {
         return m_mic_control;
     }
 
-    std::string mic() {
+    std::string mic() const {
         return m_mic;
     }
 
-    std::string anonce() {
+    std::string anonce() const {
         return m_anonce;
     }
 
-    std::string snonce() {
+    std::string snonce() const {
         return m_snonce;
     }
 
-    std::shared_ptr<shared_sub_element_vector> subelements() {
+    std::shared_ptr<shared_sub_element_vector> subelements() const {
         return m_subelements;
     }
 
@@ -76,7 +76,7 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        uint8_t element_count() {
+        constexpr uint8_t element_count() const {
             return m_element_count;
         }
 
@@ -105,37 +105,37 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        sub_type sub_id() {
+        constexpr sub_type sub_id() const {
             return (sub_type) m_sub_id;
         }
 
-        uint8_t sub_len() {
+        constexpr uint8_t sub_len() const {
             return m_sub_len;
         }
 
-        std::shared_ptr<sub_element_data> sub_data() {
+        std::shared_ptr<sub_element_data> sub_data() const {
             return m_sub_data;
         }
 
-        std::shared_ptr<sub_element_data_pmk_r1_keyholder> sub_data_pmk_r1_keyholder() {
+        std::shared_ptr<sub_element_data_pmk_r1_keyholder> sub_data_pmk_r1_keyholder() const {
             if (sub_id() == sub_pmk_r1_keyholder)
                 return std::static_pointer_cast<sub_element_data_pmk_r1_keyholder>(sub_data());
             return NULL;
         }
 
-        std::shared_ptr<sub_element_data_gtk> sub_data_pmk_gtk() {
+        std::shared_ptr<sub_element_data_gtk> sub_data_pmk_gtk() const {
             if (sub_id() == sub_pmk_gtk)
                 return std::static_pointer_cast<sub_element_data_gtk>(sub_data());
             return NULL;
         }
 
-        std::shared_ptr<sub_element_data_pmk_r0_kh_id> sub_data_pmk_r0_kh_id() {
+        std::shared_ptr<sub_element_data_pmk_r0_kh_id> sub_data_pmk_r0_kh_id() const {
             if (sub_id() == sub_pmk_r0_kh_id)
                 return std::static_pointer_cast<sub_element_data_pmk_r0_kh_id>(sub_data());
             return NULL;
         }
 
-        std::shared_ptr<sub_element_data_generic> sub_data_generic() {
+        std::shared_ptr<sub_element_data_generic> sub_data_generic() const {
             return std::static_pointer_cast<sub_element_data_generic>(sub_data());
         }
 
@@ -162,7 +162,7 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            std::string keyholder_id() {
+            std::string keyholder_id() const {
                 return m_keyholder_id;
             }
 
@@ -177,7 +177,7 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            std::string keyholder_id() {
+            std::string keyholder_id() const {
                 return m_keyholder_id;
             }
 
@@ -208,11 +208,11 @@ public:
 
                 void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                uint16_t keyinfo() {
+                constexpr uint16_t keyinfo() const {
                     return m_keyinfo;
                 }
 
-                unsigned int keyid() {
+                constexpr unsigned int keyid() const {
                     return keyinfo() & 0x04;
                 }
             protected:
@@ -227,7 +227,7 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            std::string data() {
+            std::string data() const {
                 return m_data;
             }
 

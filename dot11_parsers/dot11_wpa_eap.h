@@ -46,37 +46,37 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint8_t dot1x_version() {
+    constexpr uint8_t dot1x_version() const {
         return m_dot1x_version;
     }
 
-    dot1x_type_e dot1x_type() {
+    constexpr dot1x_type_e dot1x_type() const {
         return (dot1x_type_e) m_dot1x_type;
     }
 
-    uint16_t dot1x_len() {
+    constexpr uint16_t dot1x_len() const {
         return m_dot1x_len;
     }
 
-    std::string dot1x_data() {
+    std::string dot1x_data() const {
         return m_dot1x_data;
     }
 
-    std::shared_ptr<kaitai::kstream> dot1x_data_stream() {
+    std::shared_ptr<kaitai::kstream> dot1x_data_stream() const {
         return m_dot1x_data_stream;
     }
 
-    std::shared_ptr<dot1x_common> dot1x_content() {
+    std::shared_ptr<dot1x_common> dot1x_content() const {
         return m_dot1x_content;
     }
 
-    std::shared_ptr<dot1x_eap_packet> dot1x_content_eap_packet() {
+    std::shared_ptr<dot1x_eap_packet> dot1x_content_eap_packet() const {
         if (dot1x_type() == dot1x_type_eap_packet) 
             return std::static_pointer_cast<dot1x_eap_packet>(dot1x_content());
         return NULL;
     }
 
-    std::shared_ptr<dot1x_key> dot1x_content_key() {
+    std::shared_ptr<dot1x_key> dot1x_content_key() const {
         if (dot1x_type() == dot1x_type_eap_key)
             return std::static_pointer_cast<dot1x_key>(dot1x_content());
         return NULL;
@@ -111,23 +111,23 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        dot1x_key_type_e key_descriptor_type() {
+        constexpr dot1x_key_type_e key_descriptor_type() const {
             return (dot1x_key_type_e) m_key_descriptor_type;
         }
 
-        std::string key_content_data() {
+        std::string key_content_data() const {
             return m_key_content_data;
         }
 
-        std::shared_ptr<kaitai::kstream> key_content_data_stream() {
+        std::shared_ptr<kaitai::kstream> key_content_data_stream() const {
             return m_key_content_data_stream;
         }
 
-        std::shared_ptr<dot1x_key_common> key_content() {
+        std::shared_ptr<dot1x_key_common> key_content() const {
             return m_key_content;
         }
 
-        std::shared_ptr<eapol_key_rsn> key_content_eapolrsn() {
+        std::shared_ptr<eapol_key_rsn> key_content_eapolrsn() const {
             if (key_descriptor_type() == dot1x_key_type_eapol_rsn)
                 return std::static_pointer_cast<eapol_key_rsn>(key_content());
             return NULL;
@@ -153,82 +153,83 @@ public:
 
             void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            uint16_t key_info() {
+            constexpr uint16_t key_info() const {
                 return m_key_info;
             }
 
-            uint16_t key_len() {
+            constexpr uint16_t key_len() const {
                 return m_key_len;
             }
 
-            uint64_t replay_counter() {
+            constexpr uint64_t replay_counter() const {
                 return m_replay_counter;
             }
 
-            std::string wpa_key_nonce() {
+            std::string wpa_key_nonce() const {
                 return m_wpa_key_nonce;
             } 
 
-            std::string wpa_key_iv() {
+            std::string wpa_key_iv() const {
                 return m_wpa_key_iv;
             }
 
-            std::string wpa_key_rsc() {
+            std::string wpa_key_rsc() const {
                 return m_wpa_key_rsc;
             }
-            std::string wpa_key_id() {
+
+            std::string wpa_key_id() const {
                 return m_wpa_key_id;
             }
 
-            std::string wpa_key_mic() {
+            std::string wpa_key_mic() const {
                 return m_wpa_key_mic;
             }
 
-            uint16_t wpa_key_data_len() {
+            constexpr uint16_t wpa_key_data_len() const {
                 return m_wpa_key_data_len;
             }
 
-            std::string wpa_key_data() {
+            std::string wpa_key_data() const {
                 return m_wpa_key_data;
             }
 
-            unsigned int key_info_descriptor_version() {
+            constexpr unsigned int key_info_descriptor_version() const {
                 return key_info() & 0x7;
             }
 
-            unsigned int key_info_pairwise_key() {
+            constexpr unsigned int key_info_pairwise_key() const {
                 return key_info() & 0x8;
             }
 
-            unsigned int key_info_key_index() {
+            constexpr unsigned int key_info_key_index() const {
                 return key_info() & 0x30;
             }
 
-            unsigned int key_info_install() {
+            constexpr unsigned int key_info_install() const {
                 return key_info() & 0x40;
             }
 
-            unsigned int key_info_key_ack() {
+            constexpr unsigned int key_info_key_ack() const {
                 return key_info() & 0x80;
             }
 
-            unsigned int key_info_key_mic() {
+            constexpr unsigned int key_info_key_mic() const {
                 return key_info() & 0x100;
             }
 
-            unsigned int key_info_secure() {
+            constexpr unsigned int key_info_secure() const {
                 return key_info() & 0x200;
             }
 
-            unsigned int key_info_error() {
+            constexpr unsigned int key_info_error() const {
                 return key_info() & 0x400;
             }
 
-            unsigned int key_info_request() {
+            constexpr unsigned int key_info_request() const {
                 return key_info() & 0x800;
             }
 
-            unsigned int key_info_encrypted_key_data() {
+            constexpr unsigned int key_info_encrypted_key_data() const {
                 return key_info() & 0x1000;
             }
 
@@ -266,35 +267,35 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        eapol_type_e eapol_type() {
+        constexpr eapol_type_e eapol_type() const {
             return (eapol_type_e) m_eapol_type;
         }
 
-        uint8_t eapol_id() {
+        constexpr uint8_t eapol_id() const {
             return m_eapol_id;
         }
 
-        uint16_t eapol_len() {
+        constexpr uint16_t eapol_len() const {
             return m_eapol_len;
         }
 
-        eapol_expanded_type_e eapol_expanded_type() { 
+        constexpr eapol_expanded_type_e eapol_expanded_type() const {
             return (eapol_expanded_type_e) m_eapol_expanded_type;
         }
 
-        std::string eapol_content_data() {
+        std::string eapol_content_data() const {
             return m_eapol_content_data;
         }
 
-        std::shared_ptr<kaitai::kstream> p_io() {
+        std::shared_ptr<kaitai::kstream> p_io() const {
             return m_eapol_content_data_stream;
         }
 
-        std::shared_ptr<eapol_content_common> eapol_content() {
+        std::shared_ptr<eapol_content_common> eapol_content() const {
             return m_eapol_content;
         }
 
-        std::shared_ptr<eapol_extended_wpa_wps> eapol_content_wpa_wps() {
+        std::shared_ptr<eapol_extended_wpa_wps> eapol_content_wpa_wps() const {
             if (eapol_expanded_type() == eapol_expanded_wfa_wps) 
                 return std::static_pointer_cast<eapol_extended_wpa_wps>(eapol_content());
             return NULL;
@@ -334,23 +335,23 @@ public:
 
             void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            std::string vendor_id() {
+            std::string vendor_id() const {
                 return m_vendor_id;
             }
 
-            eapol_wpa_field_vendortype_e vendor_type() {
+            constexpr eapol_wpa_field_vendortype_e vendor_type() const {
                 return (eapol_wpa_field_vendortype_e) m_vendor_type;
             }
 
-            eapol_wpa_field_opcode_e opcode() {
+            constexpr eapol_wpa_field_opcode_e opcode() const {
                 return (eapol_wpa_field_opcode_e) m_opcode;
             }
 
-            uint8_t flags() {
+            constexpr uint8_t flags() const {
                 return m_flags;
             }
 
-            std::shared_ptr<shared_eapol_wpa_field_vector> fields() {
+            std::shared_ptr<shared_eapol_wpa_field_vector> fields() const {
                 return m_fields;
             }
 
@@ -400,63 +401,63 @@ public:
 
                 void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                eapol_wpa_field_type_e type() {
+                constexpr eapol_wpa_field_type_e type() const {
                     return (eapol_wpa_field_type_e) m_type;
                 }
 
-                uint16_t len() {
+                constexpr uint16_t len() const {
                     return m_len;
                 }
 
-                std::string content_data() {
+                std::string content_data() const {
                     return m_content_data;
                 }
 
-                std::shared_ptr<kaitai::kstream> content_data_stream() {
+                std::shared_ptr<kaitai::kstream> content_data_stream() const {
                     return m_content_data_stream;
                 }
 
-                std::shared_ptr<eapol_field_common> content() {
+                std::shared_ptr<eapol_field_common> content() const {
                     return m_content;
                 }
 
-                std::shared_ptr<eapol_field_version> content_version() {
+                std::shared_ptr<eapol_field_version> content_version() const {
                     if (type() == wpa_field_type_version)
                         return std::static_pointer_cast<eapol_field_version>(content());
                     return NULL;
                 }
 
-                std::shared_ptr<eapol_field_message_type> content_message_type() {
+                std::shared_ptr<eapol_field_message_type> content_message_type() const {
                     if (type() == wpa_field_type_wpa_message_type)
                         return std::static_pointer_cast<eapol_field_message_type>(content());
                     return NULL;
                 }
 
-                std::shared_ptr<eapol_field_uuid> content_uuid() {
+                std::shared_ptr<eapol_field_uuid> content_uuid() const {
                     if (type() == wpa_field_type_wpa_uuid) 
                         return std::static_pointer_cast<eapol_field_uuid>(content());
                     return NULL;
                 }
 
-                std::shared_ptr<eapol_field_auth_type_flags> content_auth_type_flags() {
+                std::shared_ptr<eapol_field_auth_type_flags> content_auth_type_flags() const {
                     if (type() == wpa_field_type_auth_flags) 
                         return std::static_pointer_cast<eapol_field_auth_type_flags>(content());
                     return NULL;
                 }
 
-                std::shared_ptr<eapol_field_encryption_type_flags> content_encryption_type_flags() {
+                std::shared_ptr<eapol_field_encryption_type_flags> content_encryption_type_flags() const {
                     if (type() == wpa_field_type_encryption_flags)
                         return std::static_pointer_cast<eapol_field_encryption_type_flags>(content());
                     return NULL;
                 }
 
-                std::shared_ptr<eapol_field_connection_type_flags> content_connection_type_flags() {
+                std::shared_ptr<eapol_field_connection_type_flags> content_connection_type_flags() const {
                     if (type() == wpa_field_type_connection_flags)
                         return std::static_pointer_cast<eapol_field_connection_type_flags>(content());
                     return NULL;
                 }
 
-                std::shared_ptr<eapol_field_config_methods> content_config_methods() {
+                std::shared_ptr<eapol_field_config_methods> content_config_methods() const {
                     if (type() == wpa_field_type_connection_flags)
                         return std::static_pointer_cast<eapol_field_config_methods>(content());
                     return NULL;
@@ -507,7 +508,7 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    messagetype_e messagetype() {
+                    constexpr messagetype_e messagetype() const {
                         return (messagetype_e) m_messagetype;
                     }
 
@@ -522,7 +523,7 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    std::string uuid() {
+                    std::string uuid() const {
                         return m_uuid;
                     }
 
@@ -537,23 +538,23 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    uint16_t flags() {
+                    constexpr uint16_t flags() const {
                         return m_flags;
                     }
 
-                    unsigned int flag_open() {
+                    constexpr unsigned int flag_open() const {
                         return flags() & 0x01;
                     }
 
-                    unsigned int flag_wep() {
+                    constexpr unsigned int flag_wep() const {
                         return flags() & 0x02;
                     }
 
-                    unsigned int flag_tkip() {
+                    constexpr unsigned int flag_tkip() const {
                         return flags() & 0x04;
                     }
 
-                    unsigned int flag_aes() {
+                    constexpr unsigned int flag_aes() const {
                         return flags() & 0x08;
                     }
 
@@ -568,23 +569,23 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    uint16_t flags() {
+                    constexpr uint16_t flags() const {
                         return m_flags;
                     }
 
-                    unsigned int flag_open() {
+                    constexpr unsigned int flag_open() const {
                         return flags() & 0x01;
                     }
 
-                    unsigned int flag_wep() {
+                    constexpr unsigned int flag_wep() const {
                         return flags() & 0x02;
                     }
 
-                    unsigned int flag_tkip() {
+                    constexpr unsigned int flag_tkip() const {
                         return flags() & 0x04;
                     }
 
-                    unsigned int flag_aes() {
+                    constexpr unsigned int flag_aes() const {
                         return flags() & 0x08;
                     }
 
@@ -599,15 +600,15 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    uint8_t flags() {
+                    constexpr uint8_t flags() const {
                         return m_flags;
                     }
 
-                    unsigned int flag_ess() {
+                    constexpr unsigned int flag_ess() const {
                         return flags() & 0x01;
                     }
 
-                    unsigned int flag_ibss() {
+                    constexpr unsigned int flag_ibss() const {
                         return flags() & 0x02;
                     }
 
@@ -622,59 +623,59 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    uint16_t flags() {
+                    constexpr uint16_t flags() const {
                         return m_flags;
                     }
 
-                    unsigned int flag_usb() {
+                    constexpr unsigned int flag_usb() const {
                         return flags() & 0x01;
                     }
 
-                    unsigned int flag_ethernet() {
+                    constexpr unsigned int flag_ethernet() const {
                         return flags() & 0x02;
                     }
 
-                    unsigned int flag_label() {
+                    constexpr unsigned int flag_label() const {
                         return flags() & 0x04;
                     }
 
-                    unsigned int flag_display() {
+                    constexpr unsigned int flag_display() const {
                         return flags() & 0x08;
                     }
 
-                    unsigned int flag_external_nfc() {
+                    constexpr unsigned int flag_external_nfc() const {
                         return flags() & 0x10;
                     }
 
-                    unsigned int flag_internal_nfc() {
+                    constexpr unsigned int flag_internal_nfc() const {
                         return flags() & 0x20;
                     }
 
-                    unsigned int flag_nfc_interface() {
+                    constexpr unsigned int flag_nfc_interface() const {
                         return flags() & 0x40;
                     }
 
-                    unsigned int flag_push_button() {
+                    constexpr unsigned int flag_push_button() const {
                         return flags() & 0x80;
                     }
 
-                    unsigned int flag_keypad() {
+                    constexpr unsigned int flag_keypad() const {
                         return flags() & 0x100;
                     } 
 
-                    unsigned int flag_virtual_button() {
+                    constexpr unsigned int flag_virtual_button() const {
                         return flags() & 0x200;
                     }
 
-                    unsigned int flag_physical_button() {
+                    constexpr unsigned int flag_physical_button() const {
                         return flags() & 0x400;
                     }
 
-                    unsigned int flag_virtual_display() {
+                    constexpr unsigned int flag_virtual_display() const {
                         return flags() & 0x1000;
                     }
 
-                    unsigned int flag_physical_display() {
+                    constexpr unsigned int flag_physical_display() const {
                         return flags() & 0x2000;
                     }
 

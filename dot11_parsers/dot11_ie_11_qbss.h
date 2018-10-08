@@ -38,15 +38,15 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint16_t station_count() {
+    constexpr uint16_t station_count() const {
         return m_station_count;
     }
 
-    uint8_t channel_utilization() {
+    constexpr uint8_t channel_utilization() const {
         return m_channel_utilization;
     }
 
-    uint16_t available_admissions() {
+    constexpr uint16_t available_admissions() const {
         return m_available_admissions;
     }
 

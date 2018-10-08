@@ -99,11 +99,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        std::string cipher_suite_oui() {
+        std::string cipher_suite_oui() const {
             return m_cipher_suite_oui;
         }
 
-        rsn_cipher_type cipher_type() {
+        constexpr rsn_cipher_type cipher_type() const {
             return (rsn_cipher_type) m_cipher_type;
         }
 
@@ -131,11 +131,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        std::string management_suite_oui() {
+        std::string management_suite_oui() const {
             return m_management_suite_oui;
         }
 
-        rsn_management management_type() {
+        constexpr rsn_management management_type() const {
             return (rsn_management) m_management_type;
         }
 
@@ -153,15 +153,15 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint16_t rsn_version() {
+    constexpr uint16_t rsn_version() const {
         return m_rsn_version;
     }
 
-    std::string group_cipher() {
+    std::string group_cipher() const {
         return m_group_cipher;
     }
 
-    uint16_t pairwise_count() {
+    constexpr uint16_t pairwise_count() const {
         return m_pairwise_count;
     }
 
