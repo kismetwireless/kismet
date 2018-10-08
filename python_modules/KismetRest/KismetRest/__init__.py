@@ -103,7 +103,7 @@ class KismetConnector:
     """
     Kismet rest API
     """
-    def __init__(self, host_uri='http://127.0.0.1:2501'):
+    def __init__(self, host_uri='http://127.0.0.1:2501', sessioncache_path='~/.pykismet_session'):
         """
         KismetRest(hosturi) -> KismetRest
 
@@ -124,7 +124,7 @@ class KismetConnector:
 
         # Set the default path for storing sessions
         self.sessioncache_path = None
-        self.set_session_cache("~/.pykismet_session")
+        self.set_session_cache(sessioncache_path)
 
     def set_debug(self, debug):
         """
