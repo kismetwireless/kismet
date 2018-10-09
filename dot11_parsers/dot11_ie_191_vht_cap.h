@@ -33,7 +33,13 @@
 
 class dot11_ie_191_vht_cap {
 public:
-    dot11_ie_191_vht_cap() { } 
+    dot11_ie_191_vht_cap() { 
+        m_vht_capabilities = 0;
+        m_rx_mcs_map = 0;
+        m_rx_mcs_set = 0;
+        m_tx_mcs_map = 0;
+        m_tx_mcs_set = 0;
+    } 
     ~dot11_ie_191_vht_cap() { }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
@@ -58,20 +64,85 @@ public:
         return m_tx_mcs_set;
     }
 
+    constexpr17 unsigned int max_mpdu_len() const {
+        switch (m_vht_capabilities & 0x03) {
+            case 0:
+                return 3895;
+            case 1:
+                return 7991;
+            case 2:
+                return 11454;
+            default:
+                return 0;
+        }
+    }
+
     constexpr17 unsigned int vht_cap_160mhz() const {
-        return vht_capabilities() & 0xC;
+        return (m_vht_capabilities & 0x0C) >> 2;
     }
 
-    constexpr17 unsigned int vht_cap_80mhz_shortgi() const {
-        return vht_capabilities() & 0x20;
+    constexpr17 bool vht_support_160mhz() const {
+        return vht_cap_160mhz();
     }
 
-    constexpr17 unsigned int vht_cap_160mhz_shortgi() const {
-        return vht_capabilities() & 0x40;
+    constexpr17 bool vht_support_80_80mhz() const {
+        return vht_cap_160mhz() == 2;
+    }
+
+    constexpr17 bool rx_ldpc() const {
+        return m_vht_capabilities & 0x10;
+    }
+
+    constexpr17 bool vht_cap_80mhz_shortgi() const {
+        return m_vht_capabilities & 0x20;
+    }
+
+    constexpr17 bool vht_cap_160mhz_shortgi() const {
+        return m_vht_capabilities & 0x40;
+    }
+
+    constexpr17 bool tx_stbc() const {
+        return m_vht_capabilities & 0x80;
+    }
+
+    constexpr17 unsigned int rx_stbc_streams() const {
+        return (m_vht_capabilities & 0x700) >> 8;
+    }
+
+    constexpr17 bool su_beamformer() const {
+        return m_vht_capabilities & 0x800;
+    }
+
+    constexpr17 bool su_beamformee() const {
+        return m_vht_capabilities & 0x1000;
+    }
+
+    constexpr17 unsigned int beamformee_sts_streams() const {
+        return ((m_vht_capabilities & 0xE000) >> 13) + 1;
+    }
+
+    constexpr17 unsigned int sounding_dimensions() const { 
+        return ((m_vht_capabilities & 0x70000) >> 16) + 1;
+    }
+    
+    constexpr17 bool mu_beamformer() const {
+        return m_vht_capabilities & 0x80000;
+    }
+
+    constexpr17 bool mu_beamformee() const {
+        return m_vht_capabilities & 0x100000;
+    }
+
+    constexpr17 bool txop_ps() const {
+        return m_vht_capabilities & 0x200000;
+    }
+
+    constexpr17 bool htc_vht() const {
+        return m_vht_capabilities & 0x400000;
     }
 
     constexpr17 unsigned int rx_mcs_s1() const {
-        return (rx_mcs_map() & 0x3);
+        return (rx_mcs_map() & 0x4);
     }
 
     constexpr17 unsigned int rx_mcs_s2() const {
