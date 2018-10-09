@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_33_power {
 public:
@@ -40,11 +41,11 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr uint8_t min_power() const {
+    constexpr14 uint8_t min_power() const {
         return m_min_power;
     }
 
-    constexpr uint8_t max_power() const {
+    constexpr14 uint8_t max_power() const {
         return m_max_power;
     }
 

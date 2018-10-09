@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_192_vht_op {
 public:
@@ -44,47 +45,47 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr ch_channel_width channel_width() const {
+    constexpr14 ch_channel_width channel_width() const {
         return (ch_channel_width) m_channel_width;
     }
 
-    constexpr uint8_t center1() const {
+    constexpr14 uint8_t center1() const {
         return m_center1;
     }
 
-    constexpr uint8_t center2() const {
+    constexpr14 uint8_t center2() const {
         return m_center2;
     }
 
-    constexpr uint16_t basic_mcs_map() const {
+    constexpr14 uint16_t basic_mcs_map() const {
         return m_basic_mcs_map;
     }
 
-    constexpr unsigned int basic_mcs_1() const {
+    constexpr14 unsigned int basic_mcs_1() const {
         return basic_mcs_map() & 0x3;
     }
 
-    constexpr unsigned int basic_mcs_2() const {
+    constexpr14 unsigned int basic_mcs_2() const {
         return basic_mcs_map() & 0xC;
     }
 
-    constexpr unsigned int basic_mcs_3() const {
+    constexpr14 unsigned int basic_mcs_3() const {
         return basic_mcs_map() & 0x30;
     }
 
-    constexpr unsigned int basic_mcs_4() const {
+    constexpr14 unsigned int basic_mcs_4() const {
         return basic_mcs_map() & 0xC0;
     }
 
-    constexpr unsigned int basic_mcs_5() const {
+    constexpr14 unsigned int basic_mcs_5() const {
         return basic_mcs_map() & 0x300;
     }
 
-    constexpr unsigned int basic_mcs_6() const {
+    constexpr14 unsigned int basic_mcs_6() const {
         return basic_mcs_map() & 0xC00;
     }
 
-    constexpr unsigned int basic_mcs_7() const {
+    constexpr14 unsigned int basic_mcs_7() const {
         return basic_mcs_map() & 0x3000;
     }
 

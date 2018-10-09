@@ -32,6 +32,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_action {
 public:
@@ -70,7 +71,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr category_code_type_e category_code() const {
+    constexpr14 category_code_type_e category_code() const {
         return (category_code_type_e) m_category_code;
     }
 
@@ -121,11 +122,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr rmm_action_type_e rmm_action_code() const {
+        constexpr14 rmm_action_type_e rmm_action_code() const {
             return (rmm_action_type_e) m_rmm_action_code;
         }
 
-        constexpr uint8_t dialog_token() const {
+        constexpr14 uint8_t dialog_token() const {
             return m_dialog_token;
         }
 

@@ -30,6 +30,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_52_rmm {
 public:
@@ -43,43 +44,43 @@ public:
         return m_bssid;
     }
 
-    constexpr uint32_t bssid_info() const {
+    constexpr14 uint32_t bssid_info() const {
         return m_bssid_info;
     }
 
-    constexpr uint8_t operating_class() const {
+    constexpr14 uint8_t operating_class() const {
         return m_operating_class;
     }
 
-    constexpr uint8_t channel_number() const {
+    constexpr14 uint8_t channel_number() const {
         return m_channel_number;
     }
 
-    constexpr uint8_t phy_type() const {
+    constexpr14 uint8_t phy_type() const {
         return m_phy_type;
     }
 
-    constexpr unsigned int bssid_reachability() const {
+    constexpr14 unsigned int bssid_reachability() const {
         return bssid_info() & 0x03;
     }
 
-    constexpr unsigned int bssid_security() const {
+    constexpr14 unsigned int bssid_security() const {
         return bssid_info() & 0x04;
     }
 
-    constexpr unsigned int bssid_keyscope() const {
+    constexpr14 unsigned int bssid_keyscope() const {
         return bssid_info() & 0x08;
     }
 
-    constexpr unsigned int bssid_capability() const {
+    constexpr14 unsigned int bssid_capability() const {
         return (bssid_info() & 0x3F0) >> 4;
     }
 
-    constexpr unsigned int bssid_mobility_domain() const {
+    constexpr14 unsigned int bssid_mobility_domain() const {
         return bssid_info() & 0x400;
     }
 
-    constexpr unsigned int bssid_ht() const {
+    constexpr14 unsigned int bssid_ht() const {
         return bssid_info() & 0x800;
     }
 

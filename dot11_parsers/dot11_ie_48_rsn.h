@@ -32,6 +32,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_48_rsn {
 public:
@@ -46,27 +47,27 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    uint16_t rsn_version() {
+    constexpr14 uint16_t rsn_version() const {
         return m_rsn_version;
     }
 
-    std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> group_cipher() {
+    std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> group_cipher() const {
         return m_group_cipher;
     }
 
-    uint16_t pairwise_count() {
+    constexpr14 uint16_t pairwise_count() const {
         return m_pairwise_count;
     }
 
-    std::shared_ptr<shared_rsn_cipher_vector> pairwise_ciphers() {
+    std::shared_ptr<shared_rsn_cipher_vector> pairwise_ciphers() const {
         return m_pairwise_ciphers;
     }
 
-    uint16_t akm_count() {
+    constexpr14 uint16_t akm_count() const {
         return m_akm_count;
     }
 
-    std::shared_ptr<shared_rsn_management_vector> akm_ciphers() {
+    std::shared_ptr<shared_rsn_management_vector> akm_ciphers() const {
         return m_akm_ciphers;
     }
 
@@ -103,7 +104,7 @@ public:
             return m_cipher_suite_oui;
         }
 
-        constexpr rsn_cipher_type cipher_type() const {
+        constexpr14 rsn_cipher_type cipher_type() const {
             return (rsn_cipher_type) m_cipher_type;
         }
 
@@ -135,7 +136,7 @@ public:
             return m_management_suite_oui;
         }
 
-        constexpr rsn_management management_type() const {
+        constexpr14 rsn_management management_type() const {
             return (rsn_management) m_management_type;
         }
 
@@ -153,7 +154,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr uint16_t rsn_version() const {
+    constexpr14 uint16_t rsn_version() const {
         return m_rsn_version;
     }
 
@@ -161,7 +162,7 @@ public:
         return m_group_cipher;
     }
 
-    constexpr uint16_t pairwise_count() const {
+    constexpr14 uint16_t pairwise_count() const {
         return m_pairwise_count;
     }
 

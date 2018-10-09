@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_wpa_eap {
 public:
@@ -46,15 +47,15 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr uint8_t dot1x_version() const {
+    constexpr14 uint8_t dot1x_version() const {
         return m_dot1x_version;
     }
 
-    constexpr dot1x_type_e dot1x_type() const {
+    constexpr14 dot1x_type_e dot1x_type() const {
         return (dot1x_type_e) m_dot1x_type;
     }
 
-    constexpr uint16_t dot1x_len() const {
+    constexpr14 uint16_t dot1x_len() const {
         return m_dot1x_len;
     }
 
@@ -111,7 +112,7 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr dot1x_key_type_e key_descriptor_type() const {
+        constexpr14 dot1x_key_type_e key_descriptor_type() const {
             return (dot1x_key_type_e) m_key_descriptor_type;
         }
 
@@ -153,15 +154,15 @@ public:
 
             void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            constexpr uint16_t key_info() const {
+            constexpr14 uint16_t key_info() const {
                 return m_key_info;
             }
 
-            constexpr uint16_t key_len() const {
+            constexpr14 uint16_t key_len() const {
                 return m_key_len;
             }
 
-            constexpr uint64_t replay_counter() const {
+            constexpr14 uint64_t replay_counter() const {
                 return m_replay_counter;
             }
 
@@ -185,7 +186,7 @@ public:
                 return m_wpa_key_mic;
             }
 
-            constexpr uint16_t wpa_key_data_len() const {
+            constexpr14 uint16_t wpa_key_data_len() const {
                 return m_wpa_key_data_len;
             }
 
@@ -193,43 +194,43 @@ public:
                 return m_wpa_key_data;
             }
 
-            constexpr unsigned int key_info_descriptor_version() const {
+            constexpr14 unsigned int key_info_descriptor_version() const {
                 return key_info() & 0x7;
             }
 
-            constexpr unsigned int key_info_pairwise_key() const {
+            constexpr14 unsigned int key_info_pairwise_key() const {
                 return key_info() & 0x8;
             }
 
-            constexpr unsigned int key_info_key_index() const {
+            constexpr14 unsigned int key_info_key_index() const {
                 return key_info() & 0x30;
             }
 
-            constexpr unsigned int key_info_install() const {
+            constexpr14 unsigned int key_info_install() const {
                 return key_info() & 0x40;
             }
 
-            constexpr unsigned int key_info_key_ack() const {
+            constexpr14 unsigned int key_info_key_ack() const {
                 return key_info() & 0x80;
             }
 
-            constexpr unsigned int key_info_key_mic() const {
+            constexpr14 unsigned int key_info_key_mic() const {
                 return key_info() & 0x100;
             }
 
-            constexpr unsigned int key_info_secure() const {
+            constexpr14 unsigned int key_info_secure() const {
                 return key_info() & 0x200;
             }
 
-            constexpr unsigned int key_info_error() const {
+            constexpr14 unsigned int key_info_error() const {
                 return key_info() & 0x400;
             }
 
-            constexpr unsigned int key_info_request() const {
+            constexpr14 unsigned int key_info_request() const {
                 return key_info() & 0x800;
             }
 
-            constexpr unsigned int key_info_encrypted_key_data() const {
+            constexpr14 unsigned int key_info_encrypted_key_data() const {
                 return key_info() & 0x1000;
             }
 
@@ -267,19 +268,19 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr eapol_type_e eapol_type() const {
+        constexpr14 eapol_type_e eapol_type() const {
             return (eapol_type_e) m_eapol_type;
         }
 
-        constexpr uint8_t eapol_id() const {
+        constexpr14 uint8_t eapol_id() const {
             return m_eapol_id;
         }
 
-        constexpr uint16_t eapol_len() const {
+        constexpr14 uint16_t eapol_len() const {
             return m_eapol_len;
         }
 
-        constexpr eapol_expanded_type_e eapol_expanded_type() const {
+        constexpr14 eapol_expanded_type_e eapol_expanded_type() const {
             return (eapol_expanded_type_e) m_eapol_expanded_type;
         }
 
@@ -339,15 +340,15 @@ public:
                 return m_vendor_id;
             }
 
-            constexpr eapol_wpa_field_vendortype_e vendor_type() const {
+            constexpr14 eapol_wpa_field_vendortype_e vendor_type() const {
                 return (eapol_wpa_field_vendortype_e) m_vendor_type;
             }
 
-            constexpr eapol_wpa_field_opcode_e opcode() const {
+            constexpr14 eapol_wpa_field_opcode_e opcode() const {
                 return (eapol_wpa_field_opcode_e) m_opcode;
             }
 
-            constexpr uint8_t flags() const {
+            constexpr14 uint8_t flags() const {
                 return m_flags;
             }
 
@@ -401,11 +402,11 @@ public:
 
                 void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                constexpr eapol_wpa_field_type_e type() const {
+                constexpr14 eapol_wpa_field_type_e type() const {
                     return (eapol_wpa_field_type_e) m_type;
                 }
 
-                constexpr uint16_t len() const {
+                constexpr14 uint16_t len() const {
                     return m_len;
                 }
 
@@ -508,7 +509,7 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    constexpr messagetype_e messagetype() const {
+                    constexpr14 messagetype_e messagetype() const {
                         return (messagetype_e) m_messagetype;
                     }
 
@@ -538,23 +539,23 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    constexpr uint16_t flags() const {
+                    constexpr14 uint16_t flags() const {
                         return m_flags;
                     }
 
-                    constexpr unsigned int flag_open() const {
+                    constexpr14 unsigned int flag_open() const {
                         return flags() & 0x01;
                     }
 
-                    constexpr unsigned int flag_wep() const {
+                    constexpr14 unsigned int flag_wep() const {
                         return flags() & 0x02;
                     }
 
-                    constexpr unsigned int flag_tkip() const {
+                    constexpr14 unsigned int flag_tkip() const {
                         return flags() & 0x04;
                     }
 
-                    constexpr unsigned int flag_aes() const {
+                    constexpr14 unsigned int flag_aes() const {
                         return flags() & 0x08;
                     }
 
@@ -569,23 +570,23 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    constexpr uint16_t flags() const {
+                    constexpr14 uint16_t flags() const {
                         return m_flags;
                     }
 
-                    constexpr unsigned int flag_open() const {
+                    constexpr14 unsigned int flag_open() const {
                         return flags() & 0x01;
                     }
 
-                    constexpr unsigned int flag_wep() const {
+                    constexpr14 unsigned int flag_wep() const {
                         return flags() & 0x02;
                     }
 
-                    constexpr unsigned int flag_tkip() const {
+                    constexpr14 unsigned int flag_tkip() const {
                         return flags() & 0x04;
                     }
 
-                    constexpr unsigned int flag_aes() const {
+                    constexpr14 unsigned int flag_aes() const {
                         return flags() & 0x08;
                     }
 
@@ -600,15 +601,15 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    constexpr uint8_t flags() const {
+                    constexpr14 uint8_t flags() const {
                         return m_flags;
                     }
 
-                    constexpr unsigned int flag_ess() const {
+                    constexpr14 unsigned int flag_ess() const {
                         return flags() & 0x01;
                     }
 
-                    constexpr unsigned int flag_ibss() const {
+                    constexpr14 unsigned int flag_ibss() const {
                         return flags() & 0x02;
                     }
 
@@ -623,59 +624,59 @@ public:
 
                     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                    constexpr uint16_t flags() const {
+                    constexpr14 uint16_t flags() const {
                         return m_flags;
                     }
 
-                    constexpr unsigned int flag_usb() const {
+                    constexpr14 unsigned int flag_usb() const {
                         return flags() & 0x01;
                     }
 
-                    constexpr unsigned int flag_ethernet() const {
+                    constexpr14 unsigned int flag_ethernet() const {
                         return flags() & 0x02;
                     }
 
-                    constexpr unsigned int flag_label() const {
+                    constexpr14 unsigned int flag_label() const {
                         return flags() & 0x04;
                     }
 
-                    constexpr unsigned int flag_display() const {
+                    constexpr14 unsigned int flag_display() const {
                         return flags() & 0x08;
                     }
 
-                    constexpr unsigned int flag_external_nfc() const {
+                    constexpr14 unsigned int flag_external_nfc() const {
                         return flags() & 0x10;
                     }
 
-                    constexpr unsigned int flag_internal_nfc() const {
+                    constexpr14 unsigned int flag_internal_nfc() const {
                         return flags() & 0x20;
                     }
 
-                    constexpr unsigned int flag_nfc_interface() const {
+                    constexpr14 unsigned int flag_nfc_interface() const {
                         return flags() & 0x40;
                     }
 
-                    constexpr unsigned int flag_push_button() const {
+                    constexpr14 unsigned int flag_push_button() const {
                         return flags() & 0x80;
                     }
 
-                    constexpr unsigned int flag_keypad() const {
+                    constexpr14 unsigned int flag_keypad() const {
                         return flags() & 0x100;
                     } 
 
-                    constexpr unsigned int flag_virtual_button() const {
+                    constexpr14 unsigned int flag_virtual_button() const {
                         return flags() & 0x200;
                     }
 
-                    constexpr unsigned int flag_physical_button() const {
+                    constexpr14 unsigned int flag_physical_button() const {
                         return flags() & 0x400;
                     }
 
-                    constexpr unsigned int flag_virtual_display() const {
+                    constexpr14 unsigned int flag_virtual_display() const {
                         return flags() & 0x1000;
                     }
 
-                    constexpr unsigned int flag_physical_display() const {
+                    constexpr14 unsigned int flag_physical_display() const {
                         return flags() & 0x2000;
                     }
 

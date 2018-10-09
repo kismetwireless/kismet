@@ -46,7 +46,7 @@ public:
         return m_ap_name;
     }
 
-    constexpr uint8_t station_count() const {
+    constexpr14 uint8_t station_count() const {
         return m_station_count;
     }
 

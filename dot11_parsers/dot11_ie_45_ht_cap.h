@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_45_ht_cap {
 public:
@@ -39,11 +40,11 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr uint16_t ht_capabilities() const {
+    constexpr14 uint16_t ht_capabilities() const {
         return m_ht_capabilities;
     }
 
-    constexpr uint8_t ampdu() const {
+    constexpr14 uint8_t ampdu() const {
         return m_ampdu;
     }
 
@@ -51,47 +52,47 @@ public:
         return m_mcs;
     }
 
-    constexpr uint16_t ht_extended_caps() const {
+    constexpr14 uint16_t ht_extended_caps() const {
         return m_ht_extended_caps;
     }
 
-    constexpr uint32_t txbf_caps() const {
+    constexpr14 uint32_t txbf_caps() const {
         return m_txbf_caps;
     }
 
-    constexpr uint8_t asel_caps() const {
+    constexpr14 uint8_t asel_caps() const {
         return m_asel_caps;
     }
 
-    constexpr unsigned int ht_cap_ldpc() const {
+    constexpr14 unsigned int ht_cap_ldpc() const {
         return ht_capabilities() & 0x01;
     }
 
-    constexpr unsigned int ht_cap_40mhz_channel() const {
+    constexpr14 unsigned int ht_cap_40mhz_channel() const {
         return ht_capabilities() & 0x02;
     }
 
-    constexpr unsigned int ht_cap_sm_powersave() const {
+    constexpr14 unsigned int ht_cap_sm_powersave() const {
         return ht_capabilities() & 0x0C;
     }
 
-    constexpr unsigned int ht_cap_greenfield() const {
+    constexpr14 unsigned int ht_cap_greenfield() const {
         return ht_capabilities() & 0x10;
     }
 
-    constexpr unsigned int ht_cap_20mhz_shortgi() const {
+    constexpr14 unsigned int ht_cap_20mhz_shortgi() const {
         return ht_capabilities() & 0x20;
     }
 
-    constexpr unsigned int ht_cap_40mhz_shortgi() const {
+    constexpr14 unsigned int ht_cap_40mhz_shortgi() const {
         return ht_capabilities() & 0x40;
     }
 
-    constexpr unsigned int ht_cap_tx_stbc() const {
+    constexpr14 unsigned int ht_cap_tx_stbc() const {
         return ht_capabilities() & 0x80;
     }
 
-    constexpr unsigned int ht_cap_rx_stbc() const {
+    constexpr14 unsigned int ht_cap_rx_stbc() const {
         return ht_capabilities() & 0x300;
     }
 
@@ -99,23 +100,23 @@ public:
         return ht_capabilities() & 0x400;
     }
 
-    constexpr unsigned int ht_cap_max_amsdu_len() const {
+    constexpr14 unsigned int ht_cap_max_amsdu_len() const {
         return ht_capabilities() & 0x800;
     }
 
-    constexpr unsigned int ht_cap_dss_40mhz() const {
+    constexpr14 unsigned int ht_cap_dss_40mhz() const {
         return ht_capabilities() & 0x1000;
     }
 
-    constexpr unsigned int ht_cap_psmp_intolerant() const {
+    constexpr14 unsigned int ht_cap_psmp_intolerant() const {
         return ht_capabilities() & 0x2000;
     }
 
-    constexpr unsigned int ht_cap_40mhz_intolerant() const {
+    constexpr14 unsigned int ht_cap_40mhz_intolerant() const {
         return ht_capabilities() & 0x4000;
     }
 
-    constexpr unsigned int ht_cap_lsig_txop() const {
+    constexpr14 unsigned int ht_cap_lsig_txop() const {
         return ht_capabilities() & 0x8000;
     }
 
@@ -144,11 +145,11 @@ public:
             return m_rx_mcs;
         }
 
-        constexpr uint16_t supported_data_rate() const {
+        constexpr14 uint16_t supported_data_rate() const {
             return m_supported_data_rate;
         }
 
-        constexpr uint32_t txflags() const {
+        constexpr14 uint32_t txflags() const {
             return m_txflags;
         }
 

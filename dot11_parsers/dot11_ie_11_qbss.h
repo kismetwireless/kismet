@@ -30,6 +30,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_11_qbss {
 public:
@@ -38,15 +39,15 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr uint16_t station_count() const {
+    constexpr14 uint16_t station_count() const {
         return m_station_count;
     }
 
-    constexpr uint8_t channel_utilization() const {
+    constexpr14 uint8_t channel_utilization() const {
         return m_channel_utilization;
     }
 
-    constexpr uint16_t available_admissions() const {
+    constexpr14 uint16_t available_admissions() const {
         return m_available_admissions;
     }
 

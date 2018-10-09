@@ -32,6 +32,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_7_country {
 public:
@@ -57,7 +58,7 @@ public:
         return m_country_code;
     }
 
-    constexpr uint8_t environment() const {
+    constexpr14 uint8_t environment() const {
         return m_environment;
     }
 
@@ -80,15 +81,15 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr uint8_t first_channel() const {
+        constexpr14 uint8_t first_channel() const {
             return m_first_channel;
         }
 
-        constexpr uint8_t num_channels() const {
+        constexpr14 uint8_t num_channels() const {
             return m_num_channels;
         }
 
-        constexpr uint8_t max_power() const {
+        constexpr14 uint8_t max_power() const {
             return m_max_power;
         }
 

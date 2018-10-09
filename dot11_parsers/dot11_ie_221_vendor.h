@@ -30,6 +30,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_221_vendor {
 public:
@@ -38,27 +39,27 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    std::string vendor_oui() {
+    std::string vendor_oui() const {
         return m_vendor_oui;
     }
 
-    std::string vendor_tag() {
+    std::string vendor_tag() const {
         return m_vendor_tag;
     }
 
-    std::shared_ptr<kaitai::kstream> vendor_tag_stream() {
+    std::shared_ptr<kaitai::kstream> vendor_tag_stream() const {
         return m_vendor_tag_stream;
     }
 
     // Process the vendor tag 
-    uint32_t vendor_oui_int() {
+    uint32_t vendor_oui_int() const {
         return (uint32_t) (
                 ((vendor_oui()[0] & 0xFF) << 16) + 
                 ((vendor_oui()[1] & 0xFF) << 8) +
                 ((vendor_oui()[2] & 0xFF)));
     }
 
-    uint8_t vendor_oui_type() {
+    constexpr14 uint8_t vendor_oui_type() const {
         return m_vendor_oui_type;
     }
 

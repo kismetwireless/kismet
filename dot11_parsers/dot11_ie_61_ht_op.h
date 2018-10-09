@@ -29,6 +29,7 @@
 #include <memory>
 #include <vector>
 #include <kaitai/kaitaistream.h>
+#include "multi_constexpr.h"
 
 class dot11_ie_61_ht_op {
 public:
@@ -37,55 +38,55 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr uint8_t primary_channel() const {
+    constexpr14 uint8_t primary_channel() const {
         return m_primary_channel;
     }
 
-    constexpr uint8_t info_subset_1() const {
+    constexpr14 uint8_t info_subset_1() const {
         return m_info_subset_1;
     }
 
-    constexpr uint16_t info_subset_2() const {
+    constexpr14 uint16_t info_subset_2() const {
         return m_info_subset_2;
     }
 
-    constexpr uint16_t info_subset_3() const {
+    constexpr14 uint16_t info_subset_3() const {
         return m_info_subset_3;
     }
 
-    constexpr uint16_t rx_coding_scheme() const {
+    constexpr14 uint16_t rx_coding_scheme() const {
         return m_rx_coding_scheme;
     }
 
-    constexpr unsigned int ht_info_chan_offset() const {
+    constexpr14 unsigned int ht_info_chan_offset() const {
         return info_subset_1() & 0x03;
     }
 
-    constexpr unsigned int ht_info_chan_offset_none() const {
+    constexpr14 unsigned int ht_info_chan_offset_none() const {
         return ht_info_chan_offset() == 0x00;
     }
 
-    constexpr unsigned int ht_info_chan_offset_above() const {
+    constexpr14 unsigned int ht_info_chan_offset_above() const {
         return ht_info_chan_offset() == 0x01;
     }
 
-    constexpr unsigned int ht_info_chan_offset_below() const {
+    constexpr14 unsigned int ht_info_chan_offset_below() const {
         return ht_info_chan_offset() == 0x03;
     }
 
-    constexpr unsigned int ht_info_chanwidth() const {
+    constexpr14 unsigned int ht_info_chanwidth() const {
         return info_subset_1() & 0x04;
     }
 
-    constexpr unsigned int ht_info_rifs() const {
+    constexpr14 unsigned int ht_info_rifs() const {
         return info_subset_1() & 0x08;
     }
 
-    constexpr unsigned int ht_info_psmp_station() const {
+    constexpr14 unsigned int ht_info_psmp_station() const {
         return info_subset_1() & 0x10;
     }
 
-    constexpr unsigned int ht_info_shortest_psmp() const {
+    constexpr14 unsigned int ht_info_shortest_psmp() const {
         return (info_subset_1() & 0xe0) >> 5;
     }
 
