@@ -23,9 +23,11 @@ DOT11_PARSERS = \
 	dot11_parsers/dot11_ie_54_mobility.cc.o \
 	dot11_parsers/dot11_ie_55_fastbss.cc.o \
 	dot11_parsers/dot11_ie_61_ht_op.cc.o \
+	dot11_parsers/dot11_ie_70_rm_capabilities.cc.o \
 	dot11_parsers/dot11_ie_133_cisco_ccx.cc.o \
  	dot11_parsers/dot11_ie_191_vht_cap.cc.o \
  	dot11_parsers/dot11_ie_192_vht_op.cc.o \
+	dot11_parsers/dot11_ie_127_extended_capabilities.cc.o \
  	dot11_parsers/dot11_ie_221_vendor.cc.o \
  	dot11_parsers/dot11_ie_221_ms_wps.cc.o \
  	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
