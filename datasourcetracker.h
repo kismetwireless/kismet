@@ -511,7 +511,9 @@ protected:
  */
 class Datasourcetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
-    Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { }
+    Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { 
+        Bind_Httpd_Server();
+    }
 
     virtual ~Datasourcetracker_Httpd_Pcap() { };
 
