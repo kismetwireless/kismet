@@ -39,7 +39,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint8_t wme_subtype() const {
+    constexpr17 uint8_t wme_subtype() const {
         return m_wme_subtype;
     }
 

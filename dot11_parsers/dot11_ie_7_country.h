@@ -58,7 +58,7 @@ public:
         return m_country_code;
     }
 
-    constexpr14 uint8_t environment() const {
+    constexpr17 uint8_t environment() const {
         return m_environment;
     }
 
@@ -81,15 +81,15 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr14 uint8_t first_channel() const {
+        constexpr17 uint8_t first_channel() const {
             return m_first_channel;
         }
 
-        constexpr14 uint8_t num_channels() const {
+        constexpr17 uint8_t num_channels() const {
             return m_num_channels;
         }
 
-        constexpr14 uint8_t max_power() const {
+        constexpr17 uint8_t max_power() const {
             return m_max_power;
         }
 

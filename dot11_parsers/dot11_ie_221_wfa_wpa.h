@@ -39,21 +39,21 @@ public:
     dot11_ie_221_wfa_wpa() { }
     ~dot11_ie_221_wfa_wpa() { }
 
-    constexpr14 static uint32_t ms_wps_oui() {
+    constexpr17 static uint32_t ms_wps_oui() {
         return 0x0050f2;
     }
 
-    constexpr14 static uint8_t wfa_wpa_subtype() {
+    constexpr17 static uint8_t wfa_wpa_subtype() {
         return 0x01;
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint8_t vendor_subtype() const {
+    constexpr17 uint8_t vendor_subtype() const {
         return m_vendor_subtype;
     }
 
-    constexpr14 uint16_t wpa_version() const {
+    constexpr17 uint16_t wpa_version() const {
         return m_wpa_version;
     }
 
@@ -61,7 +61,7 @@ public:
         return m_multicast_cipher;
     }
 
-    constexpr14 uint16_t unicast_count() const {
+    constexpr17 uint16_t unicast_count() const {
         return m_unicast_count;
     }
 
@@ -69,7 +69,7 @@ public:
         return m_unicast_ciphers;
     }
 
-    constexpr14 uint16_t akm_count() const {
+    constexpr17 uint16_t akm_count() const {
         return m_akm_count;
     }
 
@@ -120,7 +120,7 @@ public:
             return m_oui;
         }
 
-        constexpr14 uint8_t cipher_type() const {
+        constexpr17 uint8_t cipher_type() const {
             return m_cipher_type;
         }
 

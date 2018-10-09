@@ -41,11 +41,11 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint8_t min_power() const {
+    constexpr17 uint8_t min_power() const {
         return m_min_power;
     }
 
-    constexpr14 uint8_t max_power() const {
+    constexpr17 uint8_t max_power() const {
         return m_max_power;
     }
 

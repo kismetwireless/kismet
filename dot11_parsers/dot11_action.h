@@ -71,7 +71,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 category_code_type_e category_code() const {
+    constexpr17 category_code_type_e category_code() const {
         return (category_code_type_e) m_category_code;
     }
 
@@ -122,11 +122,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr14 rmm_action_type_e rmm_action_code() const {
+        constexpr17 rmm_action_type_e rmm_action_code() const {
             return (rmm_action_type_e) m_rmm_action_code;
         }
 
-        constexpr14 uint8_t dialog_token() const {
+        constexpr17 uint8_t dialog_token() const {
             return m_dialog_token;
         }
 

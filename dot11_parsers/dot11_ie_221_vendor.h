@@ -59,7 +59,7 @@ public:
                 ((vendor_oui()[2] & 0xFF)));
     }
 
-    constexpr14 uint8_t vendor_oui_type() const {
+    constexpr17 uint8_t vendor_oui_type() const {
         return m_vendor_oui_type;
     }
 

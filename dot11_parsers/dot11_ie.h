@@ -64,11 +64,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr14 uint8_t tag_num() const {
+        constexpr17 uint8_t tag_num() const {
             return m_tag_num;
         }
 
-        constexpr14 uint8_t tag_len() const {
+        constexpr17 uint8_t tag_len() const {
             return m_tag_len;
         }
 

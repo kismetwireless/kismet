@@ -44,43 +44,43 @@ public:
         return m_bssid;
     }
 
-    constexpr14 uint32_t bssid_info() const {
+    constexpr17 uint32_t bssid_info() const {
         return m_bssid_info;
     }
 
-    constexpr14 uint8_t operating_class() const {
+    constexpr17 uint8_t operating_class() const {
         return m_operating_class;
     }
 
-    constexpr14 uint8_t channel_number() const {
+    constexpr17 uint8_t channel_number() const {
         return m_channel_number;
     }
 
-    constexpr14 uint8_t phy_type() const {
+    constexpr17 uint8_t phy_type() const {
         return m_phy_type;
     }
 
-    constexpr14 unsigned int bssid_reachability() const {
+    constexpr17 unsigned int bssid_reachability() const {
         return bssid_info() & 0x03;
     }
 
-    constexpr14 unsigned int bssid_security() const {
+    constexpr17 unsigned int bssid_security() const {
         return bssid_info() & 0x04;
     }
 
-    constexpr14 unsigned int bssid_keyscope() const {
+    constexpr17 unsigned int bssid_keyscope() const {
         return bssid_info() & 0x08;
     }
 
-    constexpr14 unsigned int bssid_capability() const {
+    constexpr17 unsigned int bssid_capability() const {
         return (bssid_info() & 0x3F0) >> 4;
     }
 
-    constexpr14 unsigned int bssid_mobility_domain() const {
+    constexpr17 unsigned int bssid_mobility_domain() const {
         return bssid_info() & 0x400;
     }
 
-    constexpr14 unsigned int bssid_ht() const {
+    constexpr17 unsigned int bssid_ht() const {
         return bssid_info() & 0x800;
     }
 

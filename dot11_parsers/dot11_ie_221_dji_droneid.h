@@ -62,25 +62,25 @@ public:
     dot11_ie_221_dji_droneid() { }
     ~dot11_ie_221_dji_droneid() { }
 
-    constexpr14 static unsigned int vendor_oui() {
+    constexpr17 static unsigned int vendor_oui() {
         return 0x263712;
     }
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint8_t vendor_type() const {
+    constexpr17 uint8_t vendor_type() const {
         return m_vendor_type;
     }
 
-    constexpr14 uint8_t unk1() const {
+    constexpr17 uint8_t unk1() const {
         return m_unk1;
     }
 
-    constexpr14 uint8_t unk2() const {
+    constexpr17 uint8_t unk2() const {
         return m_unk2;
     }
 
-    constexpr14 e_dji_subcommand_type subcommand() const {
+    constexpr17 e_dji_subcommand_type subcommand() const {
         return (e_dji_subcommand_type) m_subcommand;
     }
 

@@ -42,7 +42,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint8_t vendor_subtype() const {
+    constexpr17 uint8_t vendor_subtype() const {
         return m_vendor_subtype;
     }
 
@@ -50,11 +50,11 @@ public:
         return m_wps_elements;
     }
 
-    constexpr14 static uint32_t ms_wps_oui() {
+    constexpr17 static uint32_t ms_wps_oui() {
         return 0x0050f2;
     }
 
-    constexpr14 static uint8_t ms_wps_subtype() {
+    constexpr17 static uint8_t ms_wps_subtype() {
         return 0x04;
     }
 
@@ -97,11 +97,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr14 wps_de_type_e wps_de_type() const {
+        constexpr17 wps_de_type_e wps_de_type() const {
             return (wps_de_type_e) m_wps_de_type;
         }
 
-        constexpr14 uint16_t wps_de_len() const {
+        constexpr17 uint16_t wps_de_len() const {
             return m_wps_de_len;
         }
 
@@ -201,15 +201,15 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            constexpr14 uint8_t rfband() const {
+            constexpr17 uint8_t rfband() const {
                 return m_rfband;
             }
 
-            constexpr14 unsigned int rfband_2p4ghz() const {
+            constexpr17 unsigned int rfband_2p4ghz() const {
                 return rfband() & 0x1;
             }
 
-            constexpr14 unsigned int rfband_5ghz() const {
+            constexpr17 unsigned int rfband_5ghz() const {
                 return rfband() & 0x2;
             }
 
@@ -224,11 +224,11 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            constexpr14 uint8_t state() const {
+            constexpr17 uint8_t state() const {
                 return m_state;
             }
 
-            constexpr14 unsigned int wps_state_configured() const {
+            constexpr17 unsigned int wps_state_configured() const {
                 return state() & 0x2;
             }
 
@@ -258,15 +258,15 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            constexpr14 uint16_t category() const {
+            constexpr17 uint16_t category() const {
                 return m_category;
             }
 
-            constexpr14 uint32_t typedata() const {
+            constexpr17 uint32_t typedata() const {
                 return m_typedata;
             }
 
-            constexpr14 uint16_t subcategory() const {
+            constexpr17 uint16_t subcategory() const {
                 return m_subcategory;
             }
 
@@ -287,11 +287,11 @@ public:
                 return m_vendor_id;
             }
 
-            constexpr14 uint8_t wfa_sub_id() const {
+            constexpr17 uint8_t wfa_sub_id() const {
                 return m_wfa_sub_id;
             }
 
-            constexpr14 uint8_t wfa_sub_len() const {
+            constexpr17 uint8_t wfa_sub_len() const {
                 return m_wfa_sub_len;
             }
 
@@ -313,7 +313,7 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            constexpr14 uint8_t version() const {
+            constexpr17 uint8_t version() const {
                 return m_version;
             }
 
@@ -328,7 +328,7 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            constexpr14 uint8_t ap_setup_locked() const {
+            constexpr17 uint8_t ap_setup_locked() const {
                 return m_ap_setup_locked;
             }
 

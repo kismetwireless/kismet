@@ -37,19 +37,19 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint16_t mobility_domain() const {
+    constexpr17 uint16_t mobility_domain() const {
         return m_mobility_domain;
     }
 
-    constexpr14 uint8_t mobility_policy() const {
+    constexpr17 uint8_t mobility_policy() const {
         return m_mobility_policy;
     }
 
-    constexpr14 unsigned int policy_fastbss_over_ds() const {
+    constexpr17 unsigned int policy_fastbss_over_ds() const {
         return mobility_policy() & 0x01;
     }
 
-    constexpr14 unsigned int policy_resource_request_capability() const {
+    constexpr17 unsigned int policy_resource_request_capability() const {
         return mobility_policy() & 0x02;
     }
 

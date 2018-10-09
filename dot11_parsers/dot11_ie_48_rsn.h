@@ -47,7 +47,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint16_t rsn_version() const {
+    constexpr17 uint16_t rsn_version() const {
         return m_rsn_version;
     }
 
@@ -55,7 +55,7 @@ public:
         return m_group_cipher;
     }
 
-    constexpr14 uint16_t pairwise_count() const {
+    constexpr17 uint16_t pairwise_count() const {
         return m_pairwise_count;
     }
 
@@ -63,7 +63,7 @@ public:
         return m_pairwise_ciphers;
     }
 
-    constexpr14 uint16_t akm_count() const {
+    constexpr17 uint16_t akm_count() const {
         return m_akm_count;
     }
 
@@ -104,7 +104,7 @@ public:
             return m_cipher_suite_oui;
         }
 
-        constexpr14 rsn_cipher_type cipher_type() const {
+        constexpr17 rsn_cipher_type cipher_type() const {
             return (rsn_cipher_type) m_cipher_type;
         }
 
@@ -136,7 +136,7 @@ public:
             return m_management_suite_oui;
         }
 
-        constexpr14 rsn_management management_type() const {
+        constexpr17 rsn_management management_type() const {
             return (rsn_management) m_management_type;
         }
 
@@ -154,7 +154,7 @@ public:
 
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-    constexpr14 uint16_t rsn_version() const {
+    constexpr17 uint16_t rsn_version() const {
         return m_rsn_version;
     }
 
@@ -162,7 +162,7 @@ public:
         return m_group_cipher;
     }
 
-    constexpr14 uint16_t pairwise_count() const {
+    constexpr17 uint16_t pairwise_count() const {
         return m_pairwise_count;
     }
 

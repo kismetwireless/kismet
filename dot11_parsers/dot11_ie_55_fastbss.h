@@ -77,7 +77,7 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr14 uint8_t element_count() const {
+        constexpr17 uint8_t element_count() const {
             return m_element_count;
         }
 
@@ -106,11 +106,11 @@ public:
 
         void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-        constexpr14 sub_type sub_id() const {
+        constexpr17 sub_type sub_id() const {
             return (sub_type) m_sub_id;
         }
 
-        constexpr14 uint8_t sub_len() const {
+        constexpr17 uint8_t sub_len() const {
             return m_sub_len;
         }
 
@@ -209,11 +209,11 @@ public:
 
                 void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-                constexpr14 uint16_t keyinfo() const {
+                constexpr17 uint16_t keyinfo() const {
                     return m_keyinfo;
                 }
 
-                constexpr14 unsigned int keyid() const {
+                constexpr17 unsigned int keyid() const {
                     return keyinfo() & 0x04;
                 }
             protected:
