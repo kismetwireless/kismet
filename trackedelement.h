@@ -162,6 +162,9 @@ enum class TrackerType {
 
     // Map of double:double, not object, values
     TrackerDoubleMapDouble = 23,
+
+    // Vector of strings
+    TrackerVectorString = 24,
 };
 
 class TrackerElement {
@@ -1631,6 +1634,41 @@ public:
 
     static TrackerType static_type() {
         return TrackerType::TrackerVectorDouble;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+};
+
+class TrackerElementVectorString : public TrackerElementCoreVector<std::string> {
+public:
+    TrackerElementVectorString() :
+        TrackerElementCoreVector<std::string>(TrackerType::TrackerVectorString) { }
+
+    TrackerElementVectorString(int id) :
+        TrackerElementCoreVector<std::string>(TrackerType::TrackerVectorString, id) { }
+
+    TrackerElementVectorString(std::shared_ptr<TrackerElementVectorString> v) :
+        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
+        vector = v->vector;
+    }
+
+    TrackerElementVectorString(const_iterator a, const_iterator b) :
+        TrackerElementCoreVector(TrackerType::TrackerVector) { 
+        vector = vector_t(a, b);
+    }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerVectorString;
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
