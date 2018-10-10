@@ -286,6 +286,25 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             }
             stream << indent << "]";
             break;
+        case TrackerType::TrackerVectorString:
+            stream << ppendl << indent << "[" << ppendl;
+
+            prepend_comma = false;
+
+            for (auto i : *(std::static_pointer_cast<TrackerElementVectorString>(e))) {
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
+                if (prettyprint)
+                    stream << indent;
+
+                stream << i;
+
+                stream << ppendl;
+            }
+            stream << indent << "]";
+            break;
         case TrackerType::TrackerMap:
             stream << ppendl << indent << "{" << ppendl;
 
@@ -592,6 +611,20 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             prepend_comma = false;
 
             for (auto i : *(std::static_pointer_cast<TrackerElementVectorDouble>(e))) {
+                if (prepend_comma)
+                    stream << ",";
+                prepend_comma = true;
+
+                stream << i;
+            }
+            stream << "]";
+            break;
+        case TrackerType::TrackerVectorString:
+            stream << "[";
+
+            prepend_comma = false;
+
+            for (auto i : *(std::static_pointer_cast<TrackerElementVectorString>(e))) {
                 if (prepend_comma)
                     stream << ",";
                 prepend_comma = true;
