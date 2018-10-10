@@ -1216,6 +1216,10 @@ public:
     __Proxy(max_tx_power, uint8_t, unsigned int, unsigned int, max_tx_power);
     __ProxyTrackable(supported_channels, TrackerElementVectorDouble, supported_channels);
 
+    __Proxy(link_measurement_capable, uint8_t, bool, bool, link_measurement_capable);
+    __Proxy(neighbor_report_capable, uint8_t, bool, bool, neighbor_report_capable);
+    __ProxyTrackable(extended_capabilities_list, TrackerElementVectorString, extended_capabilities_list);
+
 protected:
 
     virtual void register_fields() override {
@@ -1319,6 +1323,14 @@ protected:
 
         RegisterField("dot11.device.supported_channels", "Advertised supported channels", 
                 &supported_channels);
+
+        RegisterField("dot11.device.link_measurement_capable", 
+                "Advertised link measurement client capability", &link_measurement_capable);
+        RegisterField("dot11.device.neighbor_report_capable",
+                "Advertised neighbor report capability", &neighbor_report_capable);
+        RegisterField("dot11.device.extended_capabilities", 
+                "Advertised extended capabilities list", &extended_capabilities_list);
+
     }
 
     virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
@@ -1431,10 +1443,16 @@ protected:
     uint32_t last_adv_ie_csum;
     std::shared_ptr<dot11_advertised_ssid> last_adv_ssid;
 
+    // Advertised in association requests but device-centric
     std::shared_ptr<TrackerElementUInt8> min_tx_power;
     std::shared_ptr<TrackerElementUInt8> max_tx_power;
 
     std::shared_ptr<TrackerElementVectorDouble> supported_channels;
+
+    std::shared_ptr<TrackerElementUInt8> link_measurement_capable;
+    std::shared_ptr<TrackerElementUInt8> neighbor_report_capable;
+
+    std::shared_ptr<TrackerElementVectorString> extended_capabilities_list;
 };
 
 class dot11_ssid_alert {
