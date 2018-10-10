@@ -1654,6 +1654,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
+    auto taglist = PacketDot11IElist(in_pack, dot11info);
+    ssid->get_ie_tag_list()->set(taglist.cbegin(), taglist.cend());
+
     // Update the base device records
     dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
     dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);

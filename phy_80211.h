@@ -731,6 +731,8 @@ public:
     __Proxy(dot11e_qbss_stations, uint16_t, uint16_t, uint16_t, dot11e_qbss_stations);
     __Proxy(dot11e_qbss_channel_load, double, double, double, dot11e_qbss_channel_load);
 
+    __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
+
 protected:
 
     virtual void register_fields() override {
@@ -803,6 +805,9 @@ protected:
         RegisterField("dot11.advertisedssid.dot11e_channel_utilization_perc", 
                 "802.11e QBSS reported channel utilization, as percentage", 
                 &dot11e_qbss_channel_load);
+
+        RegisterField("dot11.advertisedssid.ie_tag_list",
+                "802.11 IE tag list in beacon", &ie_tag_list);
 
     }
 
@@ -883,6 +888,9 @@ protected:
     std::shared_ptr<TrackerElementUInt8> dot11e_qbss;
     std::shared_ptr<TrackerElementUInt16> dot11e_qbss_stations;
     std::shared_ptr<TrackerElementDouble> dot11e_qbss_channel_load;
+
+    // IE tags present, and order
+    std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;
 };
 
 /* dot11 client
@@ -1504,6 +1512,8 @@ public:
     // Expects an existing dot11 packet with the basic type intact, interprets
     // IE tags to the best of our ability
     int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
+    // Generate a list of IE tag numbers
+    std::vector<double> PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *in_dot11info);
 
     // Special decoders, not called as part of a chain
 
