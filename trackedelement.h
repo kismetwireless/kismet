@@ -1514,6 +1514,10 @@ public:
         throw(std::runtime_error("Cannot coercive_set a scalar vector from an element"));
     }
 
+    virtual void set(const_iterator a, const_iterator b) {
+        vector = vector_t(a, b);
+    }
+
     vector_t& get() {
         return vector;
     }
