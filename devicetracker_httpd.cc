@@ -511,7 +511,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data");
+            throw StructuredDataException("Missing data; expected command dictionary in json= field");
         }
     } catch(const StructuredDataException& e) {
         stream << "Invalid request: ";
@@ -562,7 +562,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 post_ts = rawt;
         }
     } catch(const StructuredDataException& e) {
-        stream << "Invalid request: ";
+        stream << "Invalid request: Malformed command dictionary, ";
         stream << e.what();
         concls->httpcode = 400;
         return MHD_YES;
@@ -572,13 +572,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         if (tokenurl[1] == "devices") {
             if (tokenurl[2] == "by-mac") {
                 if (tokenurl.size() < 5) {
-                    stream << "Invalid request";
-                    concls->httpcode = 400;
-                    return MHD_YES;
-                }
-
-                if (!Httpd_CanSerialize(tokenurl[4])) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: Invalid URI\n";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
@@ -586,7 +580,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 local_demand_locker lock(&devicelist_mutex);
 
                 if (!Httpd_CanSerialize(tokenurl[4])) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: Cannot find serializer for file type\n";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
@@ -595,14 +589,14 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 
                 if (mac.error) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: Invalid MAC address\n";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
 
                 lock.lock();
                 if (tracked_mac_multimap.count(mac) == 0) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: Could not find device by MAC\n";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
@@ -636,13 +630,13 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 return MHD_YES;
             } else if (tokenurl[2] == "by-key") {
                 if (tokenurl.size() < 5) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: Invalid URI";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
 
                 if (!Httpd_CanSerialize(tokenurl[4])) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: Cannot serialize fiel type";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
@@ -652,7 +646,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 auto dev = FetchDevice(key);
 
                 if (dev == NULL) {
-                    stream << "Invalid request";
+                    stream << "Invalid request: No device with that key";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
@@ -726,8 +720,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 std::shared_ptr<TrackerElement> transmit;
 
                 // DT fields
-                SharedTrackerElement dt_length_elem = NULL;
-                SharedTrackerElement dt_filter_elem = NULL;
+                SharedTrackerElement dt_length_elem;
+                SharedTrackerElement dt_filter_elem;
 
                 auto outdevs = std::make_shared<TrackerElementVector>(device_list_base_id);
 
@@ -749,12 +743,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // Fields we search
                 std::vector<std::vector<int> > dt_order_fields;
 
-                
-                
-                
-                
-                
-                
+                // Key off 'datatable=true' in command dictionary 
                 if (structdata->getKeyAsBool("datatable", false)) {
                     // fprintf(stderr, "debug - we think we're doing a server-side datatable\n");
                     if (concls->variable_cache.find("start") != 
@@ -1265,6 +1254,7 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
         const std::vector<int>& in_order_path, bool in_order_direction) {
 
     // Make a copy under lock of the device list
@@ -1329,7 +1319,16 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
     auto slice_first = work_devices->begin() + in_start;
     auto slice_end = work_devices->begin() + in_start + in_count;
 
-    return std::make_shared<TrackerElementVector>(slice_first, slice_end);
+    auto ret = std::make_shared<TrackerElementVector>();
+
+    for (auto i = slice_first; i != slice_end; ++i) {
+        SharedTrackerElement simple;
+        SummarizeTrackerElement(*i, in_summary, simple, rename_map);
+        ret->push_back(simple);
+
+    }
+
+    return ret;
 }
 
 std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
@@ -1337,6 +1336,7 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
         const std::vector<int>& in_order_path, bool in_order_direction,
         const std::vector<std::pair<std::string, std::string>>& in_regex) {
 
@@ -1409,7 +1409,15 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
     auto slice_first = work_devices->begin() + in_start;
     auto slice_end = work_devices->begin() + in_start + in_count;
 
-    return std::make_shared<TrackerElementVector>(slice_first, slice_end);
+    auto ret = std::make_shared<TrackerElementVector>();
+
+    for (auto i = slice_first; i != slice_end; ++i) {
+        SharedTrackerElement simple;
+        SummarizeTrackerElement(*i, in_summary, simple, rename_map);
+        ret->push_back(simple);
+    }
+
+    return ret;
 }
 
 std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch(
@@ -1417,6 +1425,7 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
         int64_t in_min_ts, int64_t in_max_ts,
         unsigned int in_start, unsigned int in_count,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
         const std::vector<int>& in_order_path, bool in_order_direction,
         const std::vector<std::vector<int>>& in_search_fields,
         const std::string& in_search_string) {
@@ -1491,5 +1500,13 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
     auto slice_first = work_devices->begin() + in_start;
     auto slice_end = work_devices->begin() + in_start + in_count;
 
-    return std::make_shared<TrackerElementVector>(slice_first, slice_end);
+    auto ret = std::make_shared<TrackerElementVector>();
+
+    for (auto i = slice_first; i != slice_end; ++i) {
+        SharedTrackerElement simple;
+        SummarizeTrackerElement(*i, in_summary, simple, rename_map);
+        ret->push_back(simple);
+    }
+
+    return ret;
 }
