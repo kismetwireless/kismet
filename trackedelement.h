@@ -29,7 +29,6 @@
 
 #include <vector>
 #include <map>
-
 #include <memory>
 
 #include "fmt.h"
@@ -165,6 +164,9 @@ enum class TrackerType {
 
     // Vector of strings
     TrackerVectorString = 24,
+
+    // Hash-keyed map, using size_t as the keying element
+    TrackerHashkeyMap = 25,
 };
 
 class TrackerElement {
@@ -1223,7 +1225,7 @@ public:
     }
 
 protected:
-    std::map<K, V> map;
+    map_t map;
 };
 
 // Dictionary / map-by-id
@@ -1336,6 +1338,33 @@ public:
 
     TrackerElementIntMap(int id) :
         TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerIntMap, id) { }
+
+    static TrackerType static_type() {
+        return TrackerType::TrackerIntMap;
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+};
+
+// Hash key compatible map
+class TrackerElementHashkeyMap : public TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>> {
+public:
+    TrackerElementHashkeyMap() :
+        TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>>(TrackerType::TrackerHashkeyMap) { }
+
+    TrackerElementHashkeyMap(int id) :
+        TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>>(TrackerType::TrackerHashkeyMap, id) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerIntMap;

@@ -264,6 +264,8 @@ std::string TrackerElement::type_to_string(TrackerType t) {
             return "map[double,double]";
         case TrackerType::TrackerVectorString:
             return "vector[string]";
+        case TrackerType::TrackerHashkeyMap:
+            return "vector[size_t]";
     }
 
     return "unknown";
@@ -321,6 +323,8 @@ std::string TrackerElement::type_to_typestring(TrackerType t) {
             return "TrackerDoubleMapDouble";
         case TrackerType::TrackerVectorString:
             return "TrackerVectorString";
+        case TrackerType::TrackerHashkeyMap:
+            return "TrackerHashkeyMap";
     }
 
     return "TrackerUnknown";
@@ -375,8 +379,10 @@ TrackerType TrackerElement::typestring_to_type(const std::string& s) {
         return TrackerType::TrackerVectorDouble;
     if (s == "TrackerDoubleMapDouble")
         return TrackerType::TrackerDoubleMapDouble;
-    if (s == "TrackerVectorStrig")
+    if (s == "TrackerVectorString")
         return TrackerType::TrackerVectorString;
+    if (s == "TrackerHashkeyMap")
+        return TrackerType::TrackerHashkeyMap;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1138,6 +1144,7 @@ bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs,
         case TrackerType::TrackerVectorDouble:
         case TrackerType::TrackerDoubleMapDouble:
         case TrackerType::TrackerVectorString:
+        case TrackerType::TrackerHashkeyMap:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1188,6 +1195,7 @@ bool FastSortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs,
         case TrackerType::TrackerVectorDouble:
         case TrackerType::TrackerDoubleMapDouble:
         case TrackerType::TrackerVectorString:
+        case TrackerType::TrackerHashkeyMap:
             return false;
     }
 
