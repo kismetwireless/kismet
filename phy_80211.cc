@@ -1960,6 +1960,9 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
+
+        auto taglist = PacketDot11IElist(in_pack, dot11info);
+        probessid->get_ie_tag_list()->set(taglist.cbegin(), taglist.cend());
     }
 
 }

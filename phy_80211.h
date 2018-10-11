@@ -590,6 +590,8 @@ public:
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
 
+    __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
+
 protected:
     virtual void register_fields() override {
         RegisterField("dot11.probedssid.ssid", "probed ssid string (sanitized)", &ssid);
@@ -608,6 +610,9 @@ protected:
                 "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
 
         RegisterField("dot11.probessid.crypt_set", "Requested encryption set", &crypt_set);
+
+        RegisterField("dot11.probessid.ie_tag_list",
+                "802.11 IE tag list in beacon", &ie_tag_list);
     }
 
     std::shared_ptr<TrackerElementString> ssid;
@@ -623,6 +628,8 @@ protected:
     int location_id;
 
     std::shared_ptr<TrackerElementUInt64> crypt_set;
+
+    std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;
 };
 
 /* Advertised SSID
