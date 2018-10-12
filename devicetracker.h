@@ -450,16 +450,16 @@ protected:
     // The rename_map field is modified during summarization.
     std::shared_ptr<TrackerElementVector> RefineDeviceViewSimple(
             std::shared_ptr<TrackerElementVector> in_devs,
-            int64_t in_min_ts, int64_t in_max_ts,
-            unsigned int in_start, unsigned int in_count,
+            std::pair<int64_t, int64_t> ts_range,
+            std::pair<unsigned int, unsigned int> view_range,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
             std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
             const std::vector<int>& in_order_path, bool in_order_direction);
 
     std::shared_ptr<TrackerElementVector> RefineDeviceViewRegex(
             std::shared_ptr<TrackerElementVector> in_devs,
-            int64_t in_min_ts, int64_t in_max_ts,
-            unsigned int in_start, unsigned int in_count,
+            std::pair<int64_t, int64_t> ts_range,
+            std::pair<unsigned int, unsigned int> view_range,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
             std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
             const std::vector<int>& in_order_path, bool in_order_direction,
@@ -467,8 +467,8 @@ protected:
 
     std::shared_ptr<TrackerElementVector> RefineDeviceViewStringMatch(
             std::shared_ptr<TrackerElementVector> in_devs,
-            int64_t in_min_ts, int64_t in_max_ts,
-            unsigned int in_start, unsigned int in_count,
+            std::pair<int64_t, int64_t> ts_range,
+            std::pair<unsigned int, unsigned int> view_range,
             const std::vector<std::shared_ptr<TrackerElementSummary>>& in_summary,
             std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
             const std::vector<int>& in_order_path, bool in_order_direction,

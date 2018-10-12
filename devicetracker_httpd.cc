@@ -1256,8 +1256,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
 std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
         std::shared_ptr<TrackerElementVector> in_devs,
-        int64_t in_min_ts, int64_t in_max_ts,
-        unsigned int in_start, unsigned int in_count,
+        std::pair<int64_t, int64_t> ts_range,
+        std::pair<unsigned int, unsigned int> view_range,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
         const std::vector<int>& in_order_path, bool in_order_direction) {
@@ -1271,16 +1271,16 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
     std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
 
     // Time filter is the cheapest operation so run that first
-    if (in_min_ts != 0 || in_max_ts != 0) {
+    if (ts_range.first != 0 || ts_range.second != 0) {
         auto worker = 
             std::make_shared<devicetracker_function_worker>(
-            [in_min_ts, in_max_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+            [ts_range](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 auto dts = d->get_last_time();
 
-                if (in_min_ts != 0 && dts <= in_min_ts)
+                if (ts_range.first != 0 && dts <= ts_range.first)
                     return false;
 
-                if (in_max_ts != 0 && dts > in_max_ts)
+                if (ts_range.second != 0 && dts > ts_range.second)
                     return false;
 
                 return true;
@@ -1291,14 +1291,14 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
     }
 
     // Return no results if we're outside the list
-    if (in_start > work_devices->size()) 
+    if (view_range.first > work_devices->size()) 
         return std::make_shared<TrackerElementVector>();
 
-    if (in_count + in_start > work_devices->size())
-        in_count = work_devices->size() - in_start;
+    if (view_range.first + view_range.second > work_devices->size())
+        view_range.second = work_devices->size() - view_range.first;
 
-    auto slice_first = work_devices->begin() + in_start;
-    auto slice_end = work_devices->begin() + in_start + in_count;
+    auto slice_first = work_devices->begin() + view_range.first;
+    auto slice_end = work_devices->begin() + view_range.first + view_range.second;
 
     auto ret = std::make_shared<TrackerElementVector>();
 
@@ -1306,11 +1306,8 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
     if (in_order_path.size() != 0) {
         kismet__partial_sort(slice_first, slice_end, work_devices->end(), 
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
-                SharedTrackerElement fa;
-                SharedTrackerElement fb;
-
-                fa = GetTrackerElementPath(in_order_path, a);
-                fb = GetTrackerElementPath(in_order_path, b);
+                auto fa = GetTrackerElementPath(in_order_path, a);
+                auto fb = GetTrackerElementPath(in_order_path, b);
 
                 if (fa == nullptr) 
                     return !in_order_direction;
@@ -1338,8 +1335,8 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
 
 std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
         std::shared_ptr<TrackerElementVector> in_devs,
-        int64_t in_min_ts, int64_t in_max_ts,
-        unsigned int in_start, unsigned int in_count,
+        std::pair<int64_t, int64_t> ts_range,
+        std::pair<unsigned int, unsigned int> view_range,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
         const std::vector<int>& in_order_path, bool in_order_direction,
@@ -1354,16 +1351,16 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
     std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
 
     // Time filter is the cheapest operation so run that first
-    if (in_min_ts != 0 || in_max_ts != 0) {
+    if (ts_range.first != 0 || ts_range.second != 0) {
         auto worker = 
             std::make_shared<devicetracker_function_worker>(
-            [in_min_ts, in_max_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+            [ts_range](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 auto dts = d->get_last_time();
 
-                if (in_min_ts != 0 && dts <= in_min_ts)
+                if (ts_range.first != 0 && dts <= ts_range.first)
                     return false;
 
-                if (in_max_ts != 0 && dts > in_max_ts)
+                if (ts_range.second != 0 && dts > ts_range.second)
                     return false;
 
                 return true;
@@ -1381,24 +1378,21 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
     }
 
     // Return no results if we're outside the list
-    if (in_start > work_devices->size()) 
+    if (view_range.first > work_devices->size()) 
         return std::make_shared<TrackerElementVector>();
 
-    if (in_count + in_start > work_devices->size())
-        in_count = work_devices->size() - in_start;
+    if (view_range.first + view_range.second > work_devices->size())
+        view_range.second = work_devices->size() - view_range.first;
 
-    auto slice_first = work_devices->begin() + in_start;
-    auto slice_end = work_devices->begin() + in_start + in_count;
+    auto slice_first = work_devices->begin() + view_range.first;
+    auto slice_end = work_devices->begin() + view_range.first + view_range.second;
 
     // Sort, if any
     if (in_order_path.size() != 0) {
         kismet__partial_sort(slice_first, slice_end, work_devices->end(), 
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
-                SharedTrackerElement fa;
-                SharedTrackerElement fb;
-
-                fa = GetTrackerElementPath(in_order_path, a);
-                fb = GetTrackerElementPath(in_order_path, b);
+                auto fa = GetTrackerElementPath(in_order_path, a);
+                auto fb = GetTrackerElementPath(in_order_path, b);
 
                 if (fa == nullptr) 
                     return !in_order_direction;
@@ -1427,8 +1421,8 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
 
 std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch(
         std::shared_ptr<TrackerElementVector> in_devs,
-        int64_t in_min_ts, int64_t in_max_ts,
-        unsigned int in_start, unsigned int in_count,
+        std::pair<int64_t, int64_t> ts_range,
+        std::pair<unsigned int, unsigned int> view_range,
         const std::vector<std::shared_ptr<TrackerElementSummary>> &in_summary,
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map,
         const std::vector<int>& in_order_path, bool in_order_direction,
@@ -1444,16 +1438,16 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
     std::shared_ptr<TrackerElementVector> work_devices = devs_copy;
 
     // Time filter is the cheapest operation so run that first
-    if (in_min_ts != 0 || in_max_ts != 0) {
+    if (ts_range.first != 0 || ts_range.second != 0) {
         auto worker = 
             std::make_shared<devicetracker_function_worker>(
-            [in_min_ts, in_max_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+            [ts_range](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 auto dts = d->get_last_time();
 
-                if (in_min_ts != 0 && dts <= in_min_ts)
+                if (ts_range.first != 0 && dts <= ts_range.first)
                     return false;
 
-                if (in_max_ts != 0 && dts > in_max_ts)
+                if (ts_range.second != 0 && dts > ts_range.second)
                     return false;
 
                 return true;
@@ -1472,24 +1466,21 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
     }
 
     // Return no results if we're outside the list
-    if (in_start > work_devices->size()) 
+    if (view_range.first > work_devices->size()) 
         return std::make_shared<TrackerElementVector>();
 
-    if (in_count + in_start > work_devices->size())
-        in_count = work_devices->size() - in_start;
+    if (view_range.first + view_range.second > work_devices->size())
+        view_range.second = work_devices->size() - view_range.first;
 
-    auto slice_first = work_devices->begin() + in_start;
-    auto slice_end = work_devices->begin() + in_start + in_count;
+    auto slice_first = work_devices->begin() + view_range.first;
+    auto slice_end = work_devices->begin() + view_range.first + view_range.second;
 
     // Sort, if any
     if (in_order_path.size() != 0) {
         kismet__partial_sort(slice_first, slice_end, work_devices->end(), 
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
-                SharedTrackerElement fa;
-                SharedTrackerElement fb;
-
-                fa = GetTrackerElementPath(in_order_path, a);
-                fb = GetTrackerElementPath(in_order_path, b);
+                auto fa = GetTrackerElementPath(in_order_path, a);
+                auto fb = GetTrackerElementPath(in_order_path, b);
 
                 if (fa == nullptr) 
                     return !in_order_direction;
@@ -1515,3 +1506,4 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
 
     return ret;
 }
+
