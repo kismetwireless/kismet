@@ -34,12 +34,14 @@
 #define kismet__sort __gnu_parallel::sort
 #define kismet__stable_sort __gnu_parallel::stable_sort
 #define kismet__for_each __gnu_parallel::for_each
+#define kismet__partial_sort __gnu_parallel::partial_sort
 
 #else 
 
 #define kismet__sort std::sort
 #define kismet__stable_sort std::stable_sort
 #define kismet__for_each std::for_each
+#define kismet__partial_sort std::partial_sort
 
 #endif
 
