@@ -1290,9 +1290,21 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
         work_devices = worker->GetMatchedDevices();
     }
 
+    // Return no results if we're outside the list
+    if (in_start > work_devices->size()) 
+        return std::make_shared<TrackerElementVector>();
+
+    if (in_count + in_start > work_devices->size())
+        in_count = work_devices->size() - in_start;
+
+    auto slice_first = work_devices->begin() + in_start;
+    auto slice_end = work_devices->begin() + in_start + in_count;
+
+    auto ret = std::make_shared<TrackerElementVector>();
+
     // Sort, if any
     if (in_order_path.size() != 0) {
-        kismet__stable_sort(work_devices->begin(), work_devices->end(), 
+        kismet__partial_sort(slice_first, slice_end, work_devices->end(), 
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
                 SharedTrackerElement fa;
                 SharedTrackerElement fb;
@@ -1313,18 +1325,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewSimple(
                 return FastSortTrackerElementLess(fb, fa);
             });
     }
-
-    // Return no results if we're outside the list
-    if (in_start > work_devices->size()) 
-        return std::make_shared<TrackerElementVector>();
-
-    if (in_count + in_start > work_devices->size())
-        in_count = work_devices->size() - in_start;
-
-    auto slice_first = work_devices->begin() + in_start;
-    auto slice_end = work_devices->begin() + in_start + in_count;
-
-    auto ret = std::make_shared<TrackerElementVector>();
 
     for (auto i = slice_first; i != slice_end; ++i) {
         SharedTrackerElement simple;
@@ -1380,9 +1380,19 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
         work_devices = worker->GetMatchedDevices();
     }
 
+    // Return no results if we're outside the list
+    if (in_start > work_devices->size()) 
+        return std::make_shared<TrackerElementVector>();
+
+    if (in_count + in_start > work_devices->size())
+        in_count = work_devices->size() - in_start;
+
+    auto slice_first = work_devices->begin() + in_start;
+    auto slice_end = work_devices->begin() + in_start + in_count;
+
     // Sort, if any
     if (in_order_path.size() != 0) {
-        kismet__stable_sort(work_devices->begin(), work_devices->end(), 
+        kismet__partial_sort(slice_first, slice_end, work_devices->end(), 
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
                 SharedTrackerElement fa;
                 SharedTrackerElement fb;
@@ -1403,16 +1413,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewRegex(
                 return FastSortTrackerElementLess(fb, fa);
             });
     }
-
-    // Return no results if we're outside the list
-    if (in_start > work_devices->size()) 
-        return std::make_shared<TrackerElementVector>();
-
-    if (in_count + in_start > work_devices->size())
-        in_count = work_devices->size() - in_start;
-
-    auto slice_first = work_devices->begin() + in_start;
-    auto slice_end = work_devices->begin() + in_start + in_count;
 
     auto ret = std::make_shared<TrackerElementVector>();
 
@@ -1471,9 +1471,19 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
         work_devices = worker->GetMatchedDevices();
     }
 
+    // Return no results if we're outside the list
+    if (in_start > work_devices->size()) 
+        return std::make_shared<TrackerElementVector>();
+
+    if (in_count + in_start > work_devices->size())
+        in_count = work_devices->size() - in_start;
+
+    auto slice_first = work_devices->begin() + in_start;
+    auto slice_end = work_devices->begin() + in_start + in_count;
+
     // Sort, if any
     if (in_order_path.size() != 0) {
-        kismet__stable_sort(work_devices->begin(), work_devices->end(), 
+        kismet__partial_sort(slice_first, slice_end, work_devices->end(), 
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
                 SharedTrackerElement fa;
                 SharedTrackerElement fb;
@@ -1494,16 +1504,6 @@ std::shared_ptr<TrackerElementVector> Devicetracker::RefineDeviceViewStringMatch
                 return FastSortTrackerElementLess(fb, fa);
             });
     }
-
-    // Return no results if we're outside the list
-    if (in_start > work_devices->size()) 
-        return std::make_shared<TrackerElementVector>();
-
-    if (in_count + in_start > work_devices->size())
-        in_count = work_devices->size() - in_start;
-
-    auto slice_first = work_devices->begin() + in_start;
-    auto slice_end = work_devices->begin() + in_start + in_count;
 
     auto ret = std::make_shared<TrackerElementVector>();
 
