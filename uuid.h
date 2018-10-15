@@ -129,30 +129,19 @@ class uuid {
         }
 
         inline bool operator== (const uuid& op) const {
-            if (memcmp(uuid_block, op.uuid_block, 16) == 0)
-                return 1; 
-            return 0;
+            return memcmp(uuid_block, op.uuid_block, 16) == 0;
         }
 
         inline bool operator!= (const uuid& op) const {
-            if (memcmp(uuid_block, op.uuid_block, 16) != 0)
-                return 1;
-
-            return 0;
+            return memcmp(uuid_block, op.uuid_block, 16) != 0;
         }
 
         inline bool operator<= (const uuid& op) const {
-            int ret = memcmp(uuid_block, op.uuid_block, 16);
-            if (ret <= 0)
-                return 1;
-            return 0;
+            return memcmp(uuid_block, op.uuid_block, 16) <= 0;
         }
 
         inline bool operator< (const uuid& op) const {
-            int ret = memcmp(uuid_block, op.uuid_block, 16);
-            if (ret < 0)
-                return 1;
-            return 0;
+            return memcmp(uuid_block, op.uuid_block, 16) < 0;
         }
 
         uuid& operator= (const uuid& op) {
