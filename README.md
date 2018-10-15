@@ -65,6 +65,12 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    $ sudo apt-get install libusb-1.0-0-dev
    ```
 
+   *Fedora (and related)*
+
+   ```bash
+   $ sudo dnf install make automake gcc gcc-c++ kernel-devel git libmicrohttpd-devel pkg-config zlib-devel libnl3-devel libcap-devel libpcap-devel ncurses-devel NetworkManager-libnm-devel libdwarf libdwarf-devel elfutils-devel libsqlite3x-devel protobuf-devel protobuf-c-devel protobuf-compiler protobuf-c-compiler lm_sensors-devel libusb-devel fftw-devel
+   ```
+
 3. Clone Kismet from git.  If you haven't cloned Kismet before:
    ```bash
     $ git clone https://www.kismetwireless.net/git/kismet.git
