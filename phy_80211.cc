@@ -56,6 +56,8 @@
 
 #include "kis_httpd_registry.h"
 
+#include "boost_like.h"
+
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
 #endif
@@ -1562,6 +1564,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         return;
     }
 
+
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
     }
@@ -1656,6 +1659,47 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
     auto taglist = PacketDot11IElist(in_pack, dot11info);
     ssid->get_ie_tag_list()->set(taglist.cbegin(), taglist.cend());
+
+    std::list<uint8_t> fingerprint_list {
+        0, // SSID
+        1, // Supported rates
+        3, // Channel
+        45, // HT caps
+        48, // RSN
+        50, // Extended supported rates
+        61, // HT information
+        74, // BSS scan caps
+        127, // Extended caps
+    };
+
+    std::stringstream fp_stream;
+
+    size_t taglist_hash = 0;
+
+    for (auto i : taglist)
+        boost_like::hash_combine(taglist_hash, i);
+
+    auto fflags = fp_stream.flags();
+    fp_stream << "tags=" << std::uppercase << std::hex << taglist_hash;
+    fp_stream.flags(fflags);
+
+    for (auto i : fingerprint_list) {
+        size_t tag_hash = 0;
+
+        // Combine the hashes of duplicate tags
+        auto t = dot11info->ietag_hash_map.equal_range(i);
+        for (auto ti = t.first; ti != t.second; ++ti) 
+            boost_like::hash_combine(tag_hash, ti->second);
+
+        if (tag_hash == 0)
+            continue;
+
+        auto fflags = fp_stream.flags();
+        fp_stream << ",tag" << (unsigned int) i << "=" << std::uppercase << std::hex << tag_hash;
+        fp_stream.flags(fflags);
+    }
+
+    dot11dev->set_device_fingerprint(fp_stream.str());
 
     // Update the base device records
     dot11dev->set_last_beaconed_ssid(ssid->get_ssid());

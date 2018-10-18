@@ -232,6 +232,8 @@ class dot11_packinfo : public packet_component {
         uint32_t ssid_csum;
         uint32_t ietag_csum;
 
+        std::multimap<uint8_t, size_t> ietag_hash_map;
+
         std::string dot11d_country;
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 
@@ -1235,6 +1237,8 @@ public:
     __Proxy(neighbor_report_capable, uint8_t, bool, bool, neighbor_report_capable);
     __ProxyTrackable(extended_capabilities_list, TrackerElementVectorString, extended_capabilities_list);
 
+    __Proxy(device_fingerprint, std::string, std::string, std::string, device_fingerprint);
+
 protected:
 
     virtual void register_fields() override {
@@ -1346,6 +1350,7 @@ protected:
         RegisterField("dot11.device.extended_capabilities", 
                 "Advertised extended capabilities list", &extended_capabilities_list);
 
+        RegisterField("dot11.device.fingerprint", "Device fingerprint", &device_fingerprint);
     }
 
     virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
@@ -1468,6 +1473,8 @@ protected:
     std::shared_ptr<TrackerElementUInt8> neighbor_report_capable;
 
     std::shared_ptr<TrackerElementVectorString> extended_capabilities_list;
+
+    std::shared_ptr<TrackerElementString> device_fingerprint;
 };
 
 class dot11_ssid_alert {

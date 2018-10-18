@@ -30,6 +30,8 @@
 #include <sstream>
 #include <iostream>
 
+#include <functional>
+
 #include "endian_magic.h"
 #include "phy_80211.h"
 #include "phy_80211_packetsignatures.h"
@@ -1302,6 +1304,10 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     unsigned int wmmtspec_responses = 0;
 
     for (auto ie_tag : *(ietags->tags())) {
+        auto hash = std::hash<std::string>{};
+
+        packinfo->ietag_hash_map.insert(std::make_pair(ie_tag->tag_num(), hash(ie_tag->tag_data())));
+
         // IE 0 SSID
         if (ie_tag->tag_num() == 0) {
             if (seen_ssid) {
