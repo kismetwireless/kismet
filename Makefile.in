@@ -8,6 +8,7 @@ CONFIGFILES = \
 	kismet_storage.conf \
 	kismet_logging.conf \
 	kismet_uav.conf \
+	kismet_80211.conf \
 	kismet_manuf.txt
 
 # Dot11 parsers (modeled on former Kaitai model)
@@ -313,6 +314,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@$(MAKE) install_conf_kismet_storage.conf
 	@$(MAKE) install_conf_kismet_logging.conf
 	@$(MAKE) install_conf_kismet_uav.conf
+	@$(MAKE) install_conf_kismet_80211.conf
 	@$(MAKE) install_conf_kismet_manuf.txt
 
 	@echo
@@ -347,6 +349,7 @@ install: $(INSTBINS)
 	@$(MAKE) install_conf_kismet_storage.conf
 	@$(MAKE) install_conf_kismet_logging.conf
 	@$(MAKE) install_conf_kismet_uav.conf
+	@$(MAKE) install_conf_kismet_80211.conf
 	@$(MAKE) install_conf_kismet_manuf.txt
 
 	@echo
@@ -379,6 +382,7 @@ forceconfigs:
 	@$(MAKE) install_force_conf_kismet_alerts.conf
 	@$(MAKE) install_force_conf_kismet_storage.conf
 	@$(MAKE) install_force_conf_kismet_logging.conf
+	@$(MAKE) install_force_conf_kismet_uav.conf
 	@$(MAKE) install_force_conf_kismet_uav.conf
 	@$(MAKE) install_force_conf_kismet_manuf.txt
 
