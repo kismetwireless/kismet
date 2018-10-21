@@ -38,6 +38,7 @@ sudo fpm -t deb -s dir -n kismet-core-debug -v 2018.${GITV}+${VERSION} \
     ./conf/kismet_memory.conf=/etc/kismet/kismet_memory.conf \
     ./conf/kismet_storage.conf=/etc/kismet/kismet_storage.conf \
     ./conf/kismet_uav.conf=/etc/kismet/kismet_uav.conf \
+    ./conf/kismet_80211.conf=/etc/kismet/kismet_80211.conf \
     ./conf/kismet_manuf.txt=/etc/kismet/kismet_manuf.txt \
     ./kismet=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
@@ -72,6 +73,7 @@ sudo fpm -t deb -s dir -n kismet-core -v 2018.${GITV}+${VERSION} \
     ./conf/kismet_memory.conf=/etc/kismet/kismet_memory.conf \
     ./conf/kismet_storage.conf=/etc/kismet/kismet_storage.conf \
     ./conf/kismet_uav.conf=/etc/kismet/kismet_uav.conf \
+    ./conf/kismet_80211.conf=/etc/kismet/kismet_80211.conf \
     ./conf/kismet_manuf.txt=/etc/kismet/kismet_manuf.txt \
     ./kismet_stripped=/usr/bin/kismet \
     ./kismet_cap_pcapfile=/usr/bin/kismet_cap_pcapfile \
