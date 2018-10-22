@@ -1713,6 +1713,9 @@ protected:
 
     // Do we process control and phy frames?
     bool process_ctl_phy;
-    };
+
+    // IE fingerprinting list
+    std::vector<std::tuple<uint8_t, uint32_t, uint8_t>> beacon_ie_fingerprint_list;
+};
 
 #endif

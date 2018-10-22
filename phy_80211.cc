@@ -587,11 +587,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     httpd_pcap.reset(new Phy_80211_Httpd_Pcap());
 
-    // Register js module for UI
-    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_dot11", "/js/kismet.ui.dot11.js");
-
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
         globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 2048);
@@ -659,6 +654,37 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
         ssid_regex_vec->push_back(ssida);
     }
+
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_fingerprint_devices", true)) {
+        auto fingerprint_s = 
+            Globalreg::globalreg->kismet_config->FetchOptDfl("dot11_beacon_ie_fingerprint",
+                    "0,1,3,45,48,50,61,74,127,221-00156D-00,221-0050F2-2,221-001018-2");
+        auto fingerprint_v = QuoteStrTokenize(fingerprint_s, ",");
+
+        unsigned int t1, t2, t3;
+
+        for (auto i : fingerprint_v) {
+            if (sscanf(i.c_str(), "%u-%x-%u", &t1, &t2, &t3) == 3) {
+                auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, t2, t3};
+                beacon_ie_fingerprint_list.push_back(tp);
+            } else {
+                if (sscanf(i.c_str(), "%u", &t1) == 1) {
+                    auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, 0, 0};
+                    beacon_ie_fingerprint_list.push_back(tp);
+                } else {
+                    _MSG_ERROR("Invalid IE tag entry in dot11_fingerprint_devices config, skipping.  This "
+                            "may cause errors in device fingerpriting.");
+                    continue;
+                }
+            }
+        }
+    }
+
+    // Register js module for UI
+    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
+        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+    httpregistry->register_js_module("kismet_ui_dot11", "/js/kismet.ui.dot11.js");
+
 
     Bind_Httpd_Server();
 }
