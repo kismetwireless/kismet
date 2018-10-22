@@ -949,9 +949,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
+    } else if (strcmp(driver, "rtl88xxau") == 0) {
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the rtl88xxau driver, "
+                "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 channel controls.",
+                local_wifi->interface);
+        cf_send_warning(caph, errstr);
+        local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "rtl8814au") == 0) {
         snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the rtl8814au driver, "
-                "these drivers have been very unreliably and typically will not properly "
+                "these drivers have been very unreliable and typically will not properly "
                 "configure monitor mode.  We'll continue to try, but expect an error "
                 "when configuring monitor mode in the next step.  You may have better "
                 "luck with the drivers from https://github.com/aircrack-ng/rtl8812au",
