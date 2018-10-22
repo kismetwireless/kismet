@@ -1207,8 +1207,9 @@ eap_end:
     return 1;
 }
 
-std::vector<double> Kis_80211_Phy::PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *packinfo) {
-    std::vector<double> ret;
+std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_packet *in_pack, 
+        dot11_packinfo *packinfo) {
+    auto ret = std::vector<ie_tag_tuple>{};
 
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
@@ -1247,8 +1248,20 @@ std::vector<double> Kis_80211_Phy::PacketDot11IElist(kis_packet *in_pack, dot11_
         return ret;
     }
 
-    for (auto ie_tag : *(ietags->tags())) 
-        ret.push_back(ie_tag->tag_num());
+    for (auto ie_tag : *(ietags->tags())) {
+        if (ie_tag->tag_num() == 221) {
+            try {
+                std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
+                vendor->parse(ie_tag->tag_data_stream());
+
+                ret.push_back(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
+            } catch (const std::exception &e) {
+                return ret;
+            }
+        } else {
+            ret.push_back(ie_tag_tuple{ie_tag->tag_num(), 0, 0});
+        }
+    }
 
     return ret;
 }
@@ -1306,7 +1319,20 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     for (auto ie_tag : *(ietags->tags())) {
         auto hash = std::hash<std::string>{};
 
-        packinfo->ietag_hash_map.insert(std::make_pair(ie_tag->tag_num(), hash(ie_tag->tag_data())));
+        auto vendor = std::make_shared<dot11_ie_221_vendor>();
+
+        if (ie_tag->tag_num() == 221) {
+            try {
+                vendor->parse(ie_tag->tag_data_stream());
+
+                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
+            } catch (const std::exception& e) {
+                packinfo->corrupt = 1;
+                return -1;
+            }
+        } else {
+            packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{ie_tag->tag_num(), 0, 0}, hash(ie_tag->tag_data())));
+        }
 
         // IE 0 SSID
         if (ie_tag->tag_num() == 0) {
@@ -1867,10 +1893,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
         if (ie_tag->tag_num() == 221) {
+            // We already parsed 221 up above into the vendor variable for hashing
             try {
-                std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
-                vendor->parse(ie_tag->tag_data_stream());
-
                 // Match mis-sized WMM
                 if (packinfo->subtype == packet_sub_beacon &&
                         vendor->vendor_oui_int() == 0x0050f2 &&

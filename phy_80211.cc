@@ -1684,32 +1684,22 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
     auto taglist = PacketDot11IElist(in_pack, dot11info);
-    ssid->get_ie_tag_list()->set(taglist.cbegin(), taglist.cend());
+    ssid->get_ie_tag_list()->clear();
+    for (auto ti : taglist) 
+        ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
-    std::list<uint8_t> fingerprint_list {
-        0, // SSID
-        1, // Supported rates
-        3, // Channel
-        45, // HT caps
-        48, // RSN
-        50, // Extended supported rates
-        61, // HT information
-        74, // BSS scan caps
-        127, // Extended caps
-    };
-
+    // Hash the tags and subtags
     std::stringstream fp_stream;
-
     size_t taglist_hash = 0;
 
     for (auto i : taglist)
-        boost_like::hash_combine(taglist_hash, i);
+        boost_like::hash_combine(taglist_hash, std::get<0>(i), std::get<1>(i), std::get<2>(i));
 
     auto fflags = fp_stream.flags();
     fp_stream << "tags=" << std::uppercase << std::hex << taglist_hash;
     fp_stream.flags(fflags);
 
-    for (auto i : fingerprint_list) {
+    for (auto i : beacon_ie_fingerprint_list) {
         size_t tag_hash = 0;
 
         // Combine the hashes of duplicate tags
@@ -1721,7 +1711,18 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             continue;
 
         auto fflags = fp_stream.flags();
-        fp_stream << ",tag" << (unsigned int) i << "=" << std::uppercase << std::hex << tag_hash;
+        fp_stream << ",tag";
+        
+        if (std::get<0>(i) == 221)
+            fp_stream << 
+                (unsigned int) std::get<0>(i) << "-" <<
+                std::hex << std::uppercase << (unsigned int) std::get<1>(i) << std::dec << std::nouppercase << "-" <<
+                (unsigned int) std::get<2>(i);
+        else
+            fp_stream <<
+                (unsigned int) std::get<0>(i);
+        
+        fp_stream << "=" << std::uppercase << std::hex << tag_hash;
         fp_stream.flags(fflags);
     }
 
@@ -2032,7 +2033,9 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
         probessid->set_crypt_set(dot11info->cryptset);
 
         auto taglist = PacketDot11IElist(in_pack, dot11info);
-        probessid->get_ie_tag_list()->set(taglist.cbegin(), taglist.cend());
+        probessid->get_ie_tag_list()->clear();
+        for (auto ti : taglist) 
+            probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
     }
 
 }

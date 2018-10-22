@@ -232,7 +232,7 @@ class dot11_packinfo : public packet_component {
         uint32_t ssid_csum;
         uint32_t ietag_csum;
 
-        std::multimap<uint8_t, size_t> ietag_hash_map;
+        std::multimap<std::tuple<uint8_t, uint32_t, uint8_t>, size_t> ietag_hash_map;
 
         std::string dot11d_country;
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
@@ -1501,6 +1501,8 @@ class Kis_80211_Phy : public Kis_Phy_Handler,
     public Kis_Net_Httpd_CPPStream_Handler, public TimetrackerEvent {
 
 public:
+    using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
+
     // Stub
     ~Kis_80211_Phy();
 
@@ -1527,7 +1529,7 @@ public:
     // IE tags to the best of our ability
     int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
     // Generate a list of IE tag numbers
-    std::vector<double> PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *in_dot11info);
+    std::vector<ie_tag_tuple> PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *in_dot11info);
 
     // Special decoders, not called as part of a chain
 
@@ -1715,7 +1717,7 @@ protected:
     bool process_ctl_phy;
 
     // IE fingerprinting list
-    std::vector<std::tuple<uint8_t, uint32_t, uint8_t>> beacon_ie_fingerprint_list;
+    std::vector<ie_tag_tuple> beacon_ie_fingerprint_list;
 };
 
 #endif
