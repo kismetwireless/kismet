@@ -56,7 +56,7 @@
 
 #include "kis_httpd_registry.h"
 
-#include "boost_like.h"
+#include "boost_like_hash.h"
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
@@ -1690,25 +1690,26 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
     // Hash the tags and subtags
     std::stringstream fp_stream;
-    size_t taglist_hash = 0;
+    auto taglist_hash = XXHash32{0};
 
     for (auto i : taglist)
         boost_like::hash_combine(taglist_hash, std::get<0>(i), std::get<1>(i), std::get<2>(i));
 
     auto fflags = fp_stream.flags();
-    fp_stream << "tags=" << std::uppercase << std::hex << taglist_hash;
+    fp_stream << "tags=" << std::uppercase << std::hex << taglist_hash.hash();
     fp_stream.flags(fflags);
 
     for (auto i : beacon_ie_fingerprint_list) {
-        size_t tag_hash = 0;
+        auto tag_hash = XXHash32{0};
 
         // Combine the hashes of duplicate tags
         auto t = dot11info->ietag_hash_map.equal_range(i);
+
+        if (t.first == dot11info->ietag_hash_map.end())
+            continue;
+
         for (auto ti = t.first; ti != t.second; ++ti) 
             boost_like::hash_combine(tag_hash, ti->second);
-
-        if (tag_hash == 0)
-            continue;
 
         auto fflags = fp_stream.flags();
         fp_stream << ",tag";
@@ -1716,13 +1717,13 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         if (std::get<0>(i) == 221)
             fp_stream << 
                 (unsigned int) std::get<0>(i) << "-" <<
-                std::hex << std::uppercase << (unsigned int) std::get<1>(i) << std::dec << std::nouppercase << "-" <<
-                (unsigned int) std::get<2>(i);
+                std::hex << std::uppercase << (unsigned int) std::get<1>(i) << std::dec << std::nouppercase << 
+                "-" << (unsigned int) std::get<2>(i);
         else
             fp_stream <<
                 (unsigned int) std::get<0>(i);
         
-        fp_stream << "=" << std::uppercase << std::hex << tag_hash;
+        fp_stream << "=" << std::uppercase << std::hex << tag_hash.hash();
         fp_stream.flags(fflags);
     }
 
