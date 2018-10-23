@@ -1702,11 +1702,13 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     for (auto i : beacon_ie_fingerprint_list) {
         auto tag_hash = XXHash32{0};
 
+        auto te = dot11info->ietag_hash_map.find(i);
+
+        if (te == dot11info->ietag_hash_map.end())
+            continue;
+
         // Combine the hashes of duplicate tags
         auto t = dot11info->ietag_hash_map.equal_range(i);
-
-        if (t.first == dot11info->ietag_hash_map.end())
-            continue;
 
         for (auto ti = t.first; ti != t.second; ++ti) 
             boost_like::hash_combine(tag_hash, ti->second);
