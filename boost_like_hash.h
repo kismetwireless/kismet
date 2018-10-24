@@ -16,16 +16,18 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-// Boost-like functionality without bringing in all of boost; we use the boost
-// hash_combine function for instance
-
-
-#include <string>
-
-#include "xxhash32.h"
+// Boost-like functionality without bringing in all of boost; we emulate the boost
+// hash_combine function for instance but plumb it into a consistent xxhash32 engine
 
 #ifndef __BOOST_LIKE_H__
 #define __BOOST_LIKE_H__
+
+#include "config.h"
+
+#include <string>
+#include <stdint.h>
+
+#include "xxhash32.h"
 
 namespace boost_like {
 
