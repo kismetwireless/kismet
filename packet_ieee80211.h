@@ -267,12 +267,12 @@ typedef struct {
     unsigned short more_fragments : 1;
     unsigned short from_ds : 1;
     unsigned short to_ds : 1;
-} frame_control __attribute__ ((packed));
+} __attribute__ ((packed)) frame_control;
 
 typedef struct {
     unsigned short frag : 12;
     unsigned short sequence : 4;
-} wireless_fragseq __attribute__ ((packed));
+} __attribute__ ((packed)) wireless_fragseq;
 
 typedef struct {
     uint8_t timestamp[8];
@@ -292,7 +292,7 @@ typedef struct {
 
     unsigned int coordinator : 8;
 
-} fixed_parameters __attribute__ ((packed));
+} __attribute__ ((packed)) fixed_parameters;
 
 #else
 // And 802.11 packet frame header
