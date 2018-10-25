@@ -672,7 +672,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, 0, 0};
                     beacon_ie_fingerprint_list.push_back(tp);
                 } else {
-                    _MSG_ERROR("Invalid IE tag entry in dot11_beacon_fingerprint_devices config, skipping.  This "
+                    _MSG_ERROR("Invalid IE tag entry in dot11_beacon_ie_fingerprint, skipping.  This "
                             "may cause errors in device fingerpriting.");
                     continue;
                 }
@@ -693,7 +693,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, 0, 0};
                     probe_ie_fingerprint_list.push_back(tp);
                 } else {
-                    _MSG_ERROR("Invalid IE tag entry in dot11_probe_fingerprint_devices config, skipping.  This "
+                    _MSG_ERROR("Invalid IE tag entry in dot11_probe_ie_fingerprint config, skipping.  This "
                             "may cause errors in device fingerpriting.");
                     continue;
                 }
