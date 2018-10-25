@@ -169,7 +169,7 @@ int floatchan_to_int(float in_chan);
  *  0   Success
  */
 int iwconfig_get_chanlist(const char *interface, char *errstr, 
-        unsigned int **chan_list, unsigned int *chan_list_len);
+        unsigned int **chan_list, size_t *chan_list_len);
 
 #endif
 

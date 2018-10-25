@@ -24,6 +24,8 @@
 /* Use local copy of nl80211.h */
 #include "../nl80211.h"
 
+#include <stddef.h>
+
 /* Create a monitor vif using mac80211, based on existing interface *interface
  * and named *newinterface.
  *
@@ -139,7 +141,7 @@ char *mac80211_find_parent(const char *interface);
  *
  */
 int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
-        char ***ret_chanlist, unsigned int *ret_chanlist_len);
+        char ***ret_chanlist, size_t *ret_chanlist_len);
 
 #endif
 

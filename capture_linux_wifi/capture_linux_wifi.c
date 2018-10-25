@@ -547,7 +547,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
     unsigned int *iw_chanlist;
-    unsigned int chan_sz;
+    size_t chan_sz;
     unsigned int ci;
     char conv_chan[16];
     unsigned int extended_flags = 0;
@@ -558,8 +558,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         extended_flags += MAC80211_GET_VHT;
 
     /* Prefer mac80211 channel fetch */
-    ret = mac80211_get_chanlist(interface, extended_flags, msg, chanlist, 
-            (unsigned int *) chanlist_sz);
+    ret = mac80211_get_chanlist(interface, extended_flags, msg, chanlist, chanlist_sz);
 
     if (ret < 0) {
         ret = iwconfig_get_chanlist(interface, msg, &iw_chanlist, &chan_sz);

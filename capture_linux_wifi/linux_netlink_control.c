@@ -591,7 +591,7 @@ static int nl80211_ack_cb(struct nl_msg *msg, void *arg) {
 #endif
 
 int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
-        char ***ret_chan_list, unsigned int *ret_num_chans) {
+        char ***ret_chan_list, size_t *ret_num_chans) {
     struct nl80211_channel_block cblock = {
         .phyname = NULL,
         .nfreqs = 0,

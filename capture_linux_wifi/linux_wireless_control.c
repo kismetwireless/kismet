@@ -564,7 +564,7 @@ union iw_range_raw {
 
 /* Get hw supported channels; rewritten from wireless-tools by Jean Tourilhes */
 int iwconfig_get_chanlist(const char *interface, char *errstr, 
-        unsigned int **chan_list, unsigned int *chan_list_len) {
+        unsigned int **chan_list, size_t *chan_list_len) {
 	struct iwreq wrq;
 	int skfd;
 	char buffer[sizeof(struct iw_range) * 2];
