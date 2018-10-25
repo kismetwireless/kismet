@@ -232,6 +232,7 @@ class dot11_packinfo : public packet_component {
         uint32_t ssid_csum;
         uint32_t ietag_csum;
 
+        // Tupled hash map
         std::multimap<std::tuple<uint8_t, uint32_t, uint8_t>, size_t> ietag_hash_map;
 
         std::string dot11d_country;
@@ -1716,8 +1717,9 @@ protected:
     // Do we process control and phy frames?
     bool process_ctl_phy;
 
-    // IE fingerprinting list
+    // IE fingerprinting lists
     std::vector<ie_tag_tuple> beacon_ie_fingerprint_list;
+    std::vector<ie_tag_tuple> probe_ie_fingerprint_list;
 };
 
 #endif

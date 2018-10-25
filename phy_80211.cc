@@ -672,7 +672,28 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, 0, 0};
                     beacon_ie_fingerprint_list.push_back(tp);
                 } else {
-                    _MSG_ERROR("Invalid IE tag entry in dot11_fingerprint_devices config, skipping.  This "
+                    _MSG_ERROR("Invalid IE tag entry in dot11_beacon_fingerprint_devices config, skipping.  This "
+                            "may cause errors in device fingerpriting.");
+                    continue;
+                }
+            }
+        }
+
+        auto pfingerprint_s = 
+            Globalreg::globalreg->kismet_config->FetchOptDfl("dot11_probe_ie_fingerprint",
+                    "1,50,59,107,127,221-001018-2,221-00904c-51");
+        auto pfingerprint_v = QuoteStrTokenize(pfingerprint_s, ",");
+
+        for (auto i : pfingerprint_v) {
+            if (sscanf(i.c_str(), "%u-%x-%u", &t1, &t2, &t3) == 3) {
+                auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, t2, t3};
+                probe_ie_fingerprint_list.push_back(tp);
+            } else {
+                if (sscanf(i.c_str(), "%u", &t1) == 1) {
+                    auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, 0, 0};
+                    probe_ie_fingerprint_list.push_back(tp);
+                } else {
+                    _MSG_ERROR("Invalid IE tag entry in dot11_probe_fingerprint_devices config, skipping.  This "
                             "may cause errors in device fingerpriting.");
                     continue;
                 }
@@ -2035,10 +2056,53 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
 
+        // Update the IE listing at the device level
         auto taglist = PacketDot11IElist(in_pack, dot11info);
         probessid->get_ie_tag_list()->clear();
         for (auto ti : taglist) 
             probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
+
+        // Update the probe tag fingerprinting
+        std::stringstream fp_stream;
+
+        bool first = true;
+
+        for (auto i : probe_ie_fingerprint_list) {
+            auto tag_hash = XXHash32{0};
+
+            auto te = dot11info->ietag_hash_map.find(i);
+
+            if (te == dot11info->ietag_hash_map.end())
+                continue;
+
+            // Combine the hashes of duplicate tags
+            auto t = dot11info->ietag_hash_map.equal_range(i);
+
+            for (auto ti = t.first; ti != t.second; ++ti) 
+                boost_like::hash_combine(tag_hash, ti->second);
+
+            auto fflags = fp_stream.flags();
+
+            if (!first)
+                fp_stream << ",";
+            first = false;
+
+            fp_stream << "tag";
+
+            if (std::get<0>(i) == 221)
+                fp_stream << 
+                    (unsigned int) std::get<0>(i) << "-" <<
+                    std::hex << std::uppercase << (unsigned int) std::get<1>(i) << std::dec << std::nouppercase << 
+                    "-" << (unsigned int) std::get<2>(i);
+            else
+                fp_stream <<
+                    (unsigned int) std::get<0>(i);
+
+            fp_stream << "=" << std::uppercase << std::hex << tag_hash.hash();
+            fp_stream.flags(fflags);
+        }
+
+        dot11dev->set_device_fingerprint(fp_stream.str());
     }
 
 }
