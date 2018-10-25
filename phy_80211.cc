@@ -1732,7 +1732,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         auto t = dot11info->ietag_hash_map.equal_range(i);
 
         for (auto ti = t.first; ti != t.second; ++ti) 
-            boost_like::hash_combine(tag_hash, ti->second);
+            boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
 
         auto fflags = fp_stream.flags();
         fp_stream << ",tag";
@@ -2079,7 +2079,7 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
             auto t = dot11info->ietag_hash_map.equal_range(i);
 
             for (auto ti = t.first; ti != t.second; ++ti) 
-                boost_like::hash_combine(tag_hash, ti->second);
+                boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
 
             auto fflags = fp_stream.flags();
 
