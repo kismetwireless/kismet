@@ -62,7 +62,3 @@ template<> void boost_like::hash_combine(XXHash32& hash, const double& val) {
     hash.add(&val, sizeof(double));
 }
 
-template<> void boost_like::hash_combine(XXHash32& hash, const unsigned long long& val) {
-    hash.add(&val, sizeof(unsigned long long));
-}
-

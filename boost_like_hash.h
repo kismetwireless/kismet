@@ -44,7 +44,6 @@ namespace boost_like {
     template<> void hash_combine(XXHash32& hash, const int64_t& val);
     template<> void hash_combine(XXHash32& hash, const float& val);
     template<> void hash_combine(XXHash32& hash, const double& val);
-    template<> void hash_combine(XXHash32& hash, const unsigned long long& val);
 
     template<typename T, typename... Ts>
         XXHash32 hash_combine(XXHash32& hash, const T& arg1, const Ts&... args) {
