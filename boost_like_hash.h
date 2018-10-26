@@ -19,38 +19,35 @@
 // Boost-like functionality without bringing in all of boost; we emulate the boost
 // hash_combine function for instance but plumb it into a consistent xxhash32 engine
 
-#ifndef __BOOST_LIKE_H__
-#define __BOOST_LIKE_H__
+#ifndef __BOOST_LIKE_HASH_H__
+#define __BOOST_LIKE_HASH_H__
 
 #include "config.h"
 
 #include <string>
 #include <stdint.h>
 
-#include "xxhash32.h"
+#include "xxhash_cpp.h"
 
 namespace boost_like {
 
-    template<typename T> void hash_combine(XXHash32& hash, const T& val);
+template<typename T> void hash_combine(xxHashCPP& hash, const T& val);
 
-    template<> void hash_combine(XXHash32& hash, const std::string& val);
-    template<> void hash_combine(XXHash32& hash, const uint8_t& val);
-    template<> void hash_combine(XXHash32& hash, const int8_t& val);
-    template<> void hash_combine(XXHash32& hash, const uint16_t& val);
-    template<> void hash_combine(XXHash32& hash, const int16_t& val);
-    template<> void hash_combine(XXHash32& hash, const uint32_t& val);
-    template<> void hash_combine(XXHash32& hash, const int32_t& val);
-    template<> void hash_combine(XXHash32& hash, const uint64_t& val);
-    template<> void hash_combine(XXHash32& hash, const int64_t& val);
-    template<> void hash_combine(XXHash32& hash, const float& val);
-    template<> void hash_combine(XXHash32& hash, const double& val);
+template<> void hash_combine(xxHashCPP& hash, const std::string& val);
+template<> void hash_combine(xxHashCPP& hash, const uint8_t& val);
+template<> void hash_combine(xxHashCPP& hash, const int8_t& val);
+template<> void hash_combine(xxHashCPP& hash, const uint16_t& val);
+template<> void hash_combine(xxHashCPP& hash, const int16_t& val);
+template<> void hash_combine(xxHashCPP& hash, const uint32_t& val);
+template<> void hash_combine(xxHashCPP& hash, const int32_t& val);
+template<> void hash_combine(xxHashCPP& hash, const uint64_t& val);
+template<> void hash_combine(xxHashCPP& hash, const int64_t& val);
 
-    template<typename T, typename... Ts>
-        XXHash32 hash_combine(XXHash32& hash, const T& arg1, const Ts&... args) {
-            hash_combine(hash, arg1);
-            hash_combine(hash, args...);
-            return hash;
-        } 
+template<typename T, typename... Ts>
+void hash_combine(xxHashCPP& hash, const T& arg1, const Ts&... args) {
+    hash_combine(hash, arg1);
+    hash_combine(hash, args...);
+} 
 
 }
 
