@@ -166,22 +166,22 @@ Field specification objects take the format of a vector/array containing multipl
 where a field may be a single element string, defining a field name or a field path, such as:
 
 * `'kismet.device.base.channel'`
-* `'kismet.device.base.signal/kismet.common.signal.last_signal_dbm'`
+* `'kismet.device.base.signal/kismet.common.signal.last_signal'`
 
 *or* a field may be a two-element array, consisting of a field name or path, and a target name the field will be aliased as, for example:
 
-* `[kismet.device.base.channel', 'base.channel']`
-* `[kismet.device.base.signal/kismet.common.signal.last_signal_dbm', 'base.last.signal']`
+* `['kismet.device.base.channel', 'base.channel']`
+* `['kismet.device.base.signal/kismet.common.signal.last_signal', 'base.last.signal']`
 
 Fields will be returned in the device as their final path name:  that is, from the above example, the device would contain:
 
-`['kismet.device.base.channel', 'kismet.common.signal.last_signal_dbm']`
+`['kismet.device.base.channel', 'kismet.common.signal.last_signal']`
 
 And from the second example, it would contain:
 
 `['base.channel', 'base.last.signal']`
 
-When requesting multiple fields from different paths with the same name - for instance, multiple signal paths provide the `kismet.common.signal.last_signal_dbm` - it is important to provide an alias.  Fields which resolve to the same name will only be present in the results once, and the order is undefined.
+When requesting multiple fields from different paths with the same name - for instance, multiple signal paths provide the `kismet.common.signal.last_signal` - it is important to provide an alias.  Fields which resolve to the same name will only be present in the results once, and the order is undefined.
 
 ### Filter Specifications
 
