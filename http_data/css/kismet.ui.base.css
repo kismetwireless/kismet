@@ -1,4 +1,6 @@
 table.kismet_devicedata {
+    table-layout: fixed;
+    width: 100%;
     border: 0;
 }
 
@@ -17,6 +19,8 @@ td.kismet_devicedata_td_title:first-child {
 
 td.kismet_devicedata_td_content {
     width: 100%;
+    max-width: 100%;
+    word-wrap: break-word;
 }
 
 .k_dd_td_help {

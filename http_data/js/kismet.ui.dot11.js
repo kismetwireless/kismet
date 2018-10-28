@@ -227,6 +227,21 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
             },
+
+            {
+                field: "dot11_fingerprint_group",
+                groupTitle: "Fingerprints",
+                id: "dot11_fingerprint_group",
+                fields: [
+                {
+                    field: "dot11.device/dot11.device.fingerprint",
+                    title: "Fingerprint",
+                    empty: "<i>None</i>",
+                    help: "Kismet uses attributes included in beacons and probe requests to build a fingerprint of a device.  This fingerprint is used to identify spoofed devices, whitelist devices, and to attempt to provide attestation about devices.  The full fingerprint is only available when a beacon is seen from an access point or when a client device probes for a network.",
+                }
+                ],
+            },
+
             {
                 field: "dot11_packet_group",
                 groupTitle: "Packets",
