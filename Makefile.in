@@ -383,7 +383,7 @@ forceconfigs:
 	@$(MAKE) install_force_conf_kismet_storage.conf
 	@$(MAKE) install_force_conf_kismet_logging.conf
 	@$(MAKE) install_force_conf_kismet_uav.conf
-	@$(MAKE) install_force_conf_kismet_uav.conf
+	@$(MAKE) install_force_conf_kismet_80211.conf
 	@$(MAKE) install_force_conf_kismet_manuf.txt
 
 uavconfig:
