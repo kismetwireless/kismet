@@ -45,6 +45,7 @@
 #include <iomanip>
 
 #include "fmt.h"
+#include "multi_constexpr.h"
 
 // Maximum of 6 octets in a "mac" we handle
 #define MAC_LEN_MAX		6
@@ -60,58 +61,56 @@ struct mac_addr {
     int error;
 
     // Convert a string mac address to the long-int storage format, with 
-	// mask conversion if present.
+    // mask conversion if present.
     void string2long(const char *in) {
         error = 0;
-
         longmac = 0;
-
         longmask = (uint64_t) -1;
 
-		short unsigned int byte;
+        short unsigned int byte;
 
-		int nbyte = 0;
-		int mode = 0;
+        int nbyte = 0;
+        int mode = 0;
 
-		while (*in) {
-			if (in[0] == ':') {
-				in++;
-				continue;
-			}
-
-			if (in[0] == '/' || in[0] == '*') {
-                longmask = 0L;
-				mode = 1;
-				nbyte = 0;
-				in++;
-				continue;
-			}
-
-			if (sscanf(in, "%2hX", &byte) != 1) {
-                // printf("couldn't read byte in pos %d '%s' %x\n", nbyte, in, in[0]);
-				error = 1;
-				break;
-			}
-
-			if (strlen(in) >= 2)
-				in += 2;
-			else
-				in++;
-
-			if (nbyte >= MAC_LEN_MAX) {
-                // printf("pos > max len\n");
-				error = 1;
-				break;
-			}
-
-			if (mode == 0) {
-				longmac |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
-			} else if (mode == 1) {
-				longmask |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+        while (*in) {
+            if (in[0] == ':') {
+                in++;
+                continue;
             }
 
-			nbyte++;
-		}
+            if (in[0] == '/' || in[0] == '*') {
+                longmask = 0L;
+                mode = 1;
+                nbyte = 0;
+                in++;
+                continue;
+            }
+
+            if (sscanf(in, "%2hX", &byte) != 1) {
+                // printf("couldn't read byte in pos %d '%s' %x\n", nbyte, in, in[0]);
+                error = 1;
+                break;
+            }
+
+            if (strlen(in) >= 2)
+                in += 2;
+            else
+                in++;
+
+            if (nbyte >= MAC_LEN_MAX) {
+                // printf("pos > max len\n");
+                error = 1;
+                break;
+            }
+
+            if (mode == 0) {
+                longmac |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+            } else if (mode == 1) {
+                longmask |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+            }
+
+            nbyte++;
+        }
     }
 
     constexpr mac_addr() :
@@ -119,20 +118,25 @@ struct mac_addr {
         longmask((uint64_t) -1),
         error(0) { }
 
-    inline mac_addr(const char *in) {
+    constexpr mac_addr(const mac_addr& in) :
+        longmac {in.longmac},
+        longmask {in.longmask},
+        error {in.error} { }
+
+    mac_addr(const char *in) {
         string2long(in);
     }
 
-	inline mac_addr(const std::string in) {
-		string2long(in.c_str());
-	}
+    mac_addr(const std::string in) {
+        string2long(in.c_str());
+    }
 
     constexpr mac_addr(int in __attribute__((unused)))  :
-        longmac(0),
-        longmask((uint64_t) -1),
-        error(0) { }
+        longmac{0},
+        longmask{(uint64_t) -1},
+        error{0} { }
 
-    inline mac_addr(uint8_t *in, unsigned int len) {
+    mac_addr(uint8_t *in, unsigned int len) {
         error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
@@ -143,7 +147,8 @@ struct mac_addr {
         }
     }
 
-    inline mac_addr(uint8_t *in, unsigned int len, unsigned int mask) {
+    // slash-style byte count mask
+    mac_addr(uint8_t *in, unsigned int len, unsigned int mask) {
         error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
@@ -157,11 +162,9 @@ struct mac_addr {
 
     // Convert a string to a positional search fragment, places fragent
     // in ret_term and length of fragment in ret_len
-    inline static bool PrepareSearchTerm(std::string s, uint64_t &ret_term, 
-            unsigned int &ret_len) {
-
-		short unsigned int byte;
-		int nbyte = 0;
+    inline static bool PrepareSearchTerm(std::string s, uint64_t &ret_term, unsigned int &ret_len) {
+        short unsigned int byte;
+        int nbyte = 0;
         const char *in = s.c_str();
 
         uint64_t temp_long = 0LL;
@@ -170,31 +173,31 @@ struct mac_addr {
 
         // Parse the same way as we parse a string into a mac, count the number 
         // of bytes we found
-		while (*in) {
-			if (in[0] == ':') {
-				in++;
-				continue;
-			}
+        while (*in) {
+            if (in[0] == ':') {
+                in++;
+                continue;
+            }
 
-			if (sscanf(in, "%2hX", &byte) != 1) {
+            if (sscanf(in, "%2hX", &byte) != 1) {
                 ret_len = 0;
                 return false;
-			}
+            }
 
-			if (strlen(in) >= 2)
-				in += 2;
-			else
-				in++;
+            if (strlen(in) >= 2)
+                in += 2;
+            else
+                in++;
 
-			if (nbyte >= MAC_LEN_MAX) {
+            if (nbyte >= MAC_LEN_MAX) {
                 ret_len = 0;
                 return false;
-			}
+            }
 
             temp_long |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
 
-			nbyte++;
-		}
+            nbyte++;
+        }
 
         ret_len = nbyte;
         ret_term = temp_long >> ((MAC_LEN_MAX - nbyte) * 8);
@@ -203,50 +206,45 @@ struct mac_addr {
     }
 
     // Match against a partial MAC address, prepared with PrepareSearchTerm
-    inline bool PartialSearch(uint64_t in_term, unsigned int in_len) {
+    bool PartialSearch(uint64_t in_term, unsigned int in_len) {
         unsigned char *rt = (uint8_t *) &in_term;
         unsigned char *rlm = (uint8_t *) &longmac;
 
-        for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) {
-            if (memcmp(rt, rlm + p, in_len) == 0)
-                return true;
-        }
-
+        for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) 
+            return memcmp(rt, rlm + p, in_len) == 0;
         return false;
     }
 
     // bitwise-and
-    inline bool bitwise_and(const mac_addr& op) const {
+    constexpr17 bool bitwise_and(const mac_addr& op) const {
         return (longmac & op.longmac);
     }
 
     // Masked MAC compare
-    inline bool operator== (const mac_addr& op) const {
+    constexpr17 bool operator== (const mac_addr& op) const {
         if (longmask < op.longmask)
             return ((longmac & longmask) == (op.longmac & longmask));
-
         return ((longmac & op.longmask) == (op.longmac & op.longmask));
     }
 
-	inline bool operator== (const unsigned long int op) const {
-		return longmac == op;
+    constexpr17 bool operator== (const uint64_t op) const {
+        return longmac == op;
 	}
 
     // MAC compare
-    inline bool operator!= (const mac_addr& op) const {
+    constexpr17 bool operator!= (const mac_addr& op) const {
         if (longmask < op.longmask)
             return ((longmac & longmask) != (op.longmac & longmask));
-
         return ((longmac & op.longmask) != (op.longmac & op.longmask));
     }
 
     // mac less-than-eq
-    inline bool operator<=(const mac_addr& op) const {
-        return (longmac & op.longmask) == (op.longmac & op.longmask);
+    constexpr17 bool operator<=(const mac_addr& op) const {
+        return (longmac & longmask) == (op.longmac & longmask);
     }
 
     // MAC less-than for STL sorts...
-    inline bool operator< (const mac_addr& op) const {
+    constexpr17 bool operator< (const mac_addr& op) const {
         return ((longmac & longmask) < (op.longmac & longmask));
     }
 
@@ -259,7 +257,6 @@ struct mac_addr {
 
     mac_addr& operator= (const char *in) {
         string2long(in);
-
         return *this;
     }
 
@@ -274,29 +271,32 @@ struct mac_addr {
         return tmp;
     }
 
-    inline unsigned int index64(uint64_t val, int index) const {
+    constexpr17 unsigned int index64(uint64_t val, int index) const {
         // Bitshift kung-foo
         return (uint8_t) (val >> ((MAC_LEN_MAX - index - 1) * 8));
     }
 
-    inline unsigned int operator[] (int index) const {
+    constexpr17 unsigned int operator[] (int index) const {
         int mdex = index;
         if (index < 0 || index >= MAC_LEN_MAX)
             mdex = 0;
-
         return index64(longmac, mdex);
     }
 
 	// Return the top 3 of the mac. 
-	inline uint32_t OUI() const {
+	constexpr17 uint32_t OUI() const {
 		return (longmac >> (3 * 8)) & 0x00FFFFFF;
 	}
 
-    static inline uint32_t OUI(uint8_t *val) {
+    constexpr17 static uint32_t OUI(uint8_t *val) {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
-    static inline uint32_t OUI(short int *val) {
+    constexpr17 static uint32_t OUI(unsigned int *val) {
+        return (val[0] << 16) | (val[1] << 8) | val[2];
+    }
+
+    constexpr17 static uint32_t OUI(short *val) {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
@@ -312,7 +312,7 @@ struct mac_addr {
                 index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
     }
 
-    inline uint64_t GetAsLong() const {
+    constexpr17 uint64_t GetAsLong() const {
         return longmac;
     }
 
@@ -324,295 +324,6 @@ struct mac_addr {
 };
 
 std::ostream& operator<<(std::ostream& os, const mac_addr& m);
-
-// A templated container for storing groups of masked mac addresses.  A stl-map 
-// will work for single macs, but we need this for smart mask matching on 
-// more complex sets.  Iterators in this class only work as incremental, 
-// because thats all I need right now.  This whole thing is really an ugly, 
-// ugly kluge, and if I really had any need for it to be more extendible I'd 
-// rewrite it to use std::iterator and other good stuff.  But, I don't,
-// it works, and I need to move on to other areas.
-template<class T>
-class macmap {
-protected:
-    struct mask_vec_content {
-        mac_addr mac;
-        T value;
-    };
-
-    struct mask_vec_offsets {
-        unsigned int first;
-        unsigned int last;
-    };
-
-    class SortMaskVec {
-    public:
-        inline bool operator() (const macmap::mask_vec_content x, 
-								const macmap::mask_vec_content y) const {
-            return (x.mac < y.mac);
-        }
-    };
-
-public:
-    // This isn't quite like STL iterators, because I'm too damned lazy to deal 
-	// with all the nasty STL hoop-jumping.  This does provide a somewhat-stl-ish 
-	// interface to iterating through the singleton and masked maps
-    class iterator {
-        friend class macmap;
-
-    public:
-        inline iterator(macmap<T> *in_owner) {
-            owner = in_owner;
-
-            if (owner->singleton_map.size() > 0) {
-                singleton_itr = owner->singleton_map.begin();
-                vector_itr = -1;
-                first = singleton_itr->first;
-                second = &(singleton_itr->second);
-            } else if (owner->mask_vec.size() > 0) {
-                singleton_itr = owner->singleton_map.end();
-                vector_itr = 0;
-                first = owner->mask_vec[0].mac;
-                second = &(owner->mask_vec[0].value);
-            } else {
-                singleton_itr = owner->singleton_map.end();
-                vector_itr = owner->mask_vec.size();
-				second = NULL;
-            }
-        }
-
-        // Prefix
-        inline iterator& operator++() {
-            if (singleton_itr == owner->singleton_map.end()) {
-                if ((++vector_itr) < (int) owner->mask_vec.size()) {
-                    first = owner->mask_vec[vector_itr].mac;
-                    second = &(owner->mask_vec[vector_itr].value);
-                }
-            } else if (++singleton_itr == owner->singleton_map.end()) {
-                if ((++vector_itr) < (int) owner->mask_vec.size()) {
-                    first = owner->mask_vec[vector_itr].mac;
-                    second = &(owner->mask_vec[vector_itr].value);
-                }
-            } else {
-                first = singleton_itr->first;
-                second = &(singleton_itr->second);
-            }
-
-            return *this;
-        }
-
-        // Postfix
-        inline iterator operator++(int) {
-            iterator tmp = *this;
-            ++*this;
-            return tmp;
-        }
-
-        // equal
-        inline bool operator==(const iterator& op) {
-            return (singleton_itr == op.singleton_itr) && 
-				(vector_itr == op.vector_itr);
-        }
-
-        // not
-        inline bool operator!=(const iterator& op) {
-            return (singleton_itr != op.singleton_itr) || 
-				(vector_itr != op.vector_itr);
-        }
-
-        // pointer fake
-        inline iterator *operator->() {
-            return this;
-        }
-
-        mac_addr first;
-        T *second;
-
-    protected:
-        inline void assign(typename std::map<mac_addr, T>::iterator in_itr) {
-            singleton_itr = in_itr;
-            vector_itr = -1;
-
-            if (in_itr != owner->singleton_map.end()) {
-                first = singleton_itr->first;
-                second = &(singleton_itr->second);
-            }
-        }
-
-        inline void assign(int in_itr) {
-            singleton_itr = owner->singleton_map.end();
-            vector_itr = in_itr;
-
-            if (in_itr < (int) owner->mask_vec.size()) {
-                first = owner->mask_vec[vector_itr].mac;
-                second = &(owner->mask_vec[vector_itr].value);
-            }
-        }
-
-        typename std::map<mac_addr, T>::iterator singleton_itr;
-        int vector_itr;
-        macmap<T> *owner;
-    };
-
-    friend class macmap<T>::iterator;
-
-    inline iterator begin() {
-        iterator ret(this);
-
-        return ret;
-    }
-
-    inline iterator end() {
-        iterator ret(this);
-        ret.singleton_itr = singleton_map.end();
-        ret.vector_itr = mask_vec.size();
-
-        return ret;
-    }
-
-    // The caller will rebuild the index before using us...
-    inline void fast_insert(mac_addr in_mac, T in_data) {
-        // Single macs go into the singleton map
-        if (in_mac.longmask == (uint64_t) -1) {
-            singleton_map[in_mac] = in_data;
-            return;
-        }
-
-        // Put them into the vector
-        mask_vec_content content;
-        content.mac = in_mac;
-        content.value = in_data;
-        mask_vec.push_back(content);
-    }
-    
-    // This is a very expensive insert but it builds a system that allows
-    // for fast searching, which is where we REALLY need the speed.
-    inline void insert(mac_addr in_mac, T in_data) {
-        // Single macs go into the singleton map
-        if (in_mac.longmask == (uint64_t) -1) {
-            singleton_map[in_mac] = in_data;
-            return;
-        }
-
-        // Put them into the vector
-        mask_vec_content content;
-        content.mac = in_mac;
-        content.value = in_data;
-        mask_vec.push_back(content);
-
-        reindex();
-    }
-
-    // Do a relatively fast find...
-    inline iterator find(mac_addr in_mac) {
-        iterator ret(this);
-
-        if (in_mac.longmask == (uint64_t) -1) {
-            // Look in the singleton map... This is very fast.
-            typename std::map<mac_addr, T>::iterator sitr = singleton_map.find(in_mac);
-            if (sitr != singleton_map.end()) {
-                ret.assign(sitr);
-                return ret;
-            }
-        }
-
-        if (vec_offset_map.find(in_mac) != vec_offset_map.end()) {
-            // We matched a large key in the vector map.  The vector is sorted
-            // in decreasing granularity, so the first one we match we can count
-            // as good and get out of here
-            mask_vec_offsets oft = vec_offset_map[in_mac];
-            for (unsigned int x = oft.last; x >= oft.first; x--) {
-                if (in_mac <= mask_vec[x].mac) {
-                    ret.assign(x);
-                    return ret;
-                }
-            }
-        }
-
-        return end();
-    }
-
-    inline void erase(mac_addr in_mac) {
-        iterator itr = find(in_mac);
-
-        if (itr == end())
-            return;
-
-        if (itr.singleton_itr != singleton_map.end()) {
-            singleton_map.erase(itr.singleton_itr);
-            reindex();
-            return;
-        }
-
-        if (itr.vector_itr >= 0 && itr.vector_itr < (int) mask_vec.size()) {
-            mask_vec.erase(mask_vec.begin() + itr.vector_itr);
-            reindex();
-            return;
-        }
-
-    }
-
-    inline T& operator[](mac_addr& index) {
-        iterator foo = find(index);
-
-        // This isn't very clean but its better than heap corruption 
-        // and other horrible stuff
-        if (foo == end()) {
-            fprintf(stderr, "Something tried to use macmap[] to reference an "
-                    "element that doesn't exist.  Fix me.\n");
-            exit(1);
-        }
-
-        return *(foo->second);
-    }
-
-    int size() {
-        return singleton_map.size() + mask_vec.size();
-    }
-
-	inline void clear(void) {
-		vec_offset_map.clear();
-		singleton_map.clear();
-		mask_vec.clear();
-	}
-
-    inline void reindex(void) {
-        // Order it
-        if (mask_vec.size() == 0)
-            return;
-
-        stable_sort(mask_vec.begin(), mask_vec.end(), SortMaskVec());
-
-        // Clear our old map of content
-        vec_offset_map.clear();
-
-        // Split it into offset groups
-        mask_vec_offsets ofst;
-        ofst.last = mask_vec.size() - 1;
-        ofst.first = mask_vec.size() - 1;
-        mac_addr owner = mask_vec[ofst.last].mac;
-        for (unsigned int x = 0; x < mask_vec.size(); x++) {
-            // Masked compare... is it still a subset of us?
-            if (owner != mask_vec[x].mac) {
-                vec_offset_map[owner] = ofst;
-                ofst.first = x;
-                ofst.last = x;
-                owner = mask_vec[x].mac;
-            } else {
-                ofst.last = x;
-            }
-        }
-        // Clean up the last stuff
-        vec_offset_map[owner] = ofst;
-        vec_offset_map[owner] = ofst;
-    }
-
-protected:
-    std::map<mac_addr, T> singleton_map;
-    std::vector<mask_vec_content> mask_vec;
-    std::map<mac_addr, mask_vec_offsets> vec_offset_map;
-};
-
 
 #endif
 

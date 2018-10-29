@@ -248,28 +248,6 @@ public:
     std::string homepath;
 
     std::string logname;
-
-    // Filter maps for the various filter types
-    int filter_tracker;
-    macmap<int> filter_tracker_bssid;
-    macmap<int> filter_tracker_source;
-    macmap<int> filter_tracker_dest;
-    int filter_tracker_bssid_invert, filter_tracker_source_invert,
-        filter_tracker_dest_invert;
-
-    int filter_dump;
-    macmap<int> filter_dump_bssid;
-    macmap<int> filter_dump_source;
-    macmap<int> filter_dump_dest;
-    int filter_dump_bssid_invert, filter_dump_source_invert,
-        filter_dump_dest_invert;
-
-    int filter_export;
-    macmap<int> filter_export_bssid;
-    macmap<int> filter_export_source;
-    macmap<int> filter_export_dest;
-    int filter_export_bssid_invert, filter_export_source_invert,
-        filter_export_dest_invert;
    
     mac_addr broadcast_mac, empty_mac, multicast_mac;
 

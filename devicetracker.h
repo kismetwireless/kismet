@@ -47,7 +47,6 @@
 #include "packet.h"
 #include "packetchain.h"
 #include "timetracker.h"
-#include "filtercore.h"
 #include "uuid.h"
 #include "configfile.h"
 #include "kis_datasource.h"
@@ -381,9 +380,6 @@ protected:
     // which are removed are set to 'null'.  Each position corresponds to the
     // device ID.
     std::shared_ptr<TrackerElementVector> immutable_tracked_vec;
-
-	// Filtering
-	FilterCore *track_filter;
 
 	// Registered PHY types
 	int next_phy_id;

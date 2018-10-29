@@ -2295,19 +2295,18 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
         return 0;
 
     // Bail if we can't find a key match
-    macmap<dot11_wep_key *>::iterator bwmitr = wepkeys.find(packinfo->bssid_mac);
+    auto bwmitr = wepkeys.find(packinfo->bssid_mac);
     if (bwmitr == wepkeys.end())
         return 0;
 
-    manglechunk = DecryptWEP(packinfo, chunk, (*bwmitr->second)->key,
-                             (*bwmitr->second)->len, wep_identity);
+    manglechunk = DecryptWEP(packinfo, chunk, (bwmitr->second)->key, (bwmitr->second)->len, wep_identity);
 
     if (manglechunk == NULL) {
-        (*bwmitr->second)->failed++;
+        (bwmitr->second)->failed++;
         return 0;
     }
 
-    (*bwmitr->second)->decrypted++;
+    (bwmitr->second)->decrypted++;
     // printf("debug - flagging packet as decrypted\n");
     packinfo->decrypted = 1;
 

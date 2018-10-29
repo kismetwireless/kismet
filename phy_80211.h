@@ -1495,7 +1495,7 @@ class dot11_ssid_alert {
 #endif
         std::string ssid;
 
-        macmap<int> allow_mac_map;
+        std::map<mac_addr, int> allow_mac_map;
 };
 
 class Kis_80211_Phy : public Kis_Phy_Handler, 
@@ -1657,9 +1657,6 @@ protected:
     // Do we pull strings?
     int dissect_strings, dissect_all_strings;
 
-    FilterCore *string_filter;
-    macmap<int> string_nets;
-
     // SSID regex filter
     std::shared_ptr<TrackerElementVector> ssid_regex_vec;
     int ssid_regex_vec_element_id;
@@ -1674,7 +1671,7 @@ protected:
     // Are we allowed to send wepkeys to the client (server config)
     int client_wepkey_allowed;
     // Map of wepkeys to BSSID (or bssid masks)
-    macmap<dot11_wep_key *> wepkeys;
+    std::map<mac_addr, dot11_wep_key *> wepkeys;
 
     // Generated WEP identity / base
     unsigned char wep_identity[256];
@@ -1691,11 +1688,6 @@ protected:
 
     // Command refs
     int addfiltercmd_ref, addnetclifiltercmd_ref;
-
-    // Filter core for tracker
-    FilterCore *track_filter;
-    // Filter core for network client
-    FilterCore *netcli_filter;
 
     int proto_ref_ssid, proto_ref_device, proto_ref_client;
 

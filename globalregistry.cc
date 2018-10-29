@@ -49,21 +49,6 @@ GlobalRegistry::GlobalRegistry() {
 
 	start_time = 0;
 
-	filter_tracker = 0;
-	filter_tracker_bssid_invert = -1;
-	filter_tracker_source_invert = -1;
-	filter_tracker_dest_invert = -1;
-
-	filter_dump = 0;
-	filter_dump_bssid_invert = -1;
-	filter_dump_source_invert = -1;
-	filter_dump_dest_invert = -1;
-
-	filter_export = 0;
-	filter_export_bssid_invert = -1;
-	filter_export_source_invert = -1;
-	filter_export_dest_invert = -1;
-
 	broadcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
     multicast_mac = mac_addr("01:00:00:00:00:00");
 	empty_mac = mac_addr(0);

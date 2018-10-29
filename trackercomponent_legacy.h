@@ -38,7 +38,6 @@
 #include "packet.h"
 #include "packetchain.h"
 #include "timetracker.h"
-#include "filtercore.h"
 #include "uuid.h"
 #include "configfile.h"
 #include "devicetracker.h"

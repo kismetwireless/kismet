@@ -38,7 +38,6 @@
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
-#include "filtercore.h"
 #include "gpstracker.h"
 #include "packet.h"
 #include "uuid.h"
@@ -543,18 +542,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 	for (unsigned int wi = 0; wi < 256; wi++)
 		wep_identity[wi] = wi;
 
-	string_filter = new FilterCore(globalreg);
-	std::vector<std::string> filterlines = 
-		globalreg->kismet_config->FetchOptVec("filter_string");
-	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
-		if (string_filter->AddFilterLine(filterlines[fl]) < 0) {
-			_MSG("Failed to add filter_string config line from the Kismet config "
-				 "file.", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-	}
-
     // Set up the device timeout
     device_idle_expiration =
         globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
@@ -790,10 +777,9 @@ int Kis_80211_Phy::LoadWepkeys() {
         keyinfo->len = len;
         memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
 
-        wepkeys.insert(bssid_mac, keyinfo);
+        wepkeys.insert(std::make_pair(bssid_mac, keyinfo));
 
-		_MSG("Using key '" + rawkey + "' for BSSID " + bssid_mac.Mac2String(),
-			 MSGFLAG_INFO);
+        _MSG_INFO("Using key '{}' for BSSID '{}'", rawkey, bssid_mac);
     }
 
 	return 1;
@@ -1565,7 +1551,7 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
 		return;
 	}
 
-	wepkeys.insert(winfo->bssid, winfo);
+	wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
 void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
