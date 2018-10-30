@@ -8,7 +8,13 @@ import requests
 
 manufs = []
 
-with requests.get("http://standards-oui.ieee.org/oui.txt", stream=True) as r:
+# Original IEEE URI
+# OUIURI = "http://standards-oui.ieee.org/oui.txt"
+
+# Sanitized and cleaned up maintained version
+OUIURI = "http://linuxnet.ca/ieee/oui.txt"
+
+with requests.get(OUIURI) as r:
     for l in r.iter_lines():
         p = re.compile("([0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}) +\(hex\)\t+(.*)")
         m = p.match(l)
