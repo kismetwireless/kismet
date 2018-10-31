@@ -1267,7 +1267,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                                 dot11info->channel,
                                 fmt::format("Network {} BSS timestamp fluctuating.  This may indicate "
                                     "an 'evil twin' style attack where the BSSID of a legitimate AP "
-                                    "is being spoofed.", bssid_dev->get_macaddr().Mac2String()));
+                                    "is being spoofed.", bssid_dev->get_macaddr()));
                     }
                 }
 
@@ -1857,7 +1857,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                     "encryption from {} to {} which may indicate AP spoofing/impersonation",
-                    basedev->get_macaddr(), CryptToString(ssid->get_crypt_set()),
+                    basedev->get_macaddr(), ssid->get_ssid(), CryptToString(ssid->get_crypt_set()),
                     CryptToString(dot11info->cryptset));
 
             alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
