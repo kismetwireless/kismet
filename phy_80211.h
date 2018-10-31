@@ -1238,9 +1238,9 @@ public:
     __Proxy(neighbor_report_capable, uint8_t, bool, bool, neighbor_report_capable);
     __ProxyTrackable(extended_capabilities_list, TrackerElementVectorString, extended_capabilities_list);
 
-    __Proxy(beacon_fingerprint, std::string, std::string, std::string, beacon_fingerprint);
-    __Proxy(probe_fingerprint, std::string, std::string, std::string, probe_fingerprint);
-    __Proxy(response_fingerprint, std::string, std::string, std::string, response_fingerprint);
+    __Proxy(beacon_fingerprint, uint32_t, uint32_t, uint32_t, beacon_fingerprint);
+    __Proxy(probe_fingerprint, uint32_t, uint32_t, uint32_t, probe_fingerprint);
+    __Proxy(response_fingerprint, uint32_t, uint32_t, uint32_t, response_fingerprint);
 
 protected:
 
@@ -1480,9 +1480,9 @@ protected:
 
     std::shared_ptr<TrackerElementVectorString> extended_capabilities_list;
 
-    std::shared_ptr<TrackerElementString> beacon_fingerprint;
-    std::shared_ptr<TrackerElementString> probe_fingerprint;
-    std::shared_ptr<TrackerElementString> response_fingerprint;
+    std::shared_ptr<TrackerElementUInt32> beacon_fingerprint;
+    std::shared_ptr<TrackerElementUInt32> probe_fingerprint;
+    std::shared_ptr<TrackerElementUInt32> response_fingerprint;
 };
 
 class dot11_ssid_alert {

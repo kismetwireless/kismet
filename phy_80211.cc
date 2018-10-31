@@ -1695,17 +1695,6 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     for (auto ti : taglist) 
         ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
-    // Hash the tags and subtags
-    std::stringstream fp_stream;
-    auto taglist_hash = xxHashCPP{};
-
-    for (auto i : taglist)
-        boost_like::hash_combine(taglist_hash, std::get<0>(i), std::get<1>(i), std::get<2>(i));
-
-    auto fflags = fp_stream.flags();
-    fp_stream << "bcns=" << std::uppercase << std::hex << taglist_hash.canonical();
-    fp_stream.flags(fflags);
-
     // Update the base device records
     dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
     dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
@@ -1715,8 +1704,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
 
     if (dot11info->subtype == packet_sub_beacon) {
+        auto tag_hash = xxHashCPP{};
+
         for (auto i : beacon_ie_fingerprint_list) {
-            auto tag_hash = xxHashCPP{};
 
             auto te = dot11info->ietag_hash_map.find(i);
 
@@ -1729,22 +1719,10 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             for (auto ti = t.first; ti != t.second; ++ti) 
                 boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
 
-            auto fflags = fp_stream.flags();
-            fp_stream << ",bcn";
-
-            if (std::get<0>(i) == 221)
-                fp_stream << 
-                    (unsigned int) std::get<0>(i) << "-" <<
-                    std::hex << std::uppercase << (unsigned int) std::get<1>(i) << 
-                    std::dec << std::nouppercase << "-" << (unsigned int) std::get<2>(i);
-            else
-                fp_stream << (unsigned int) std::get<0>(i);
-
-            fp_stream << "=" << std::uppercase << std::hex << tag_hash.canonical();
-            fp_stream.flags(fflags);
         }
 
-        dot11dev->set_beacon_fingerprint(fp_stream.str());
+        // xxhash32 says hashes are canoically represented as little-endian
+        dot11dev->set_beacon_fingerprint(htole32(tag_hash.hash()));
 
         ssid->inc_beacons_sec();
 
@@ -2047,14 +2025,9 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
         for (auto ti : taglist) 
             probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
-        // Update the probe tag fingerprinting
-        std::stringstream fp_stream;
-
-        bool first = true;
+        auto tag_hash = xxHashCPP{};
 
         for (auto i : probe_ie_fingerprint_list) {
-            auto tag_hash = xxHashCPP{};
-
             auto te = dot11info->ietag_hash_map.find(i);
 
             if (te == dot11info->ietag_hash_map.end())
@@ -2065,29 +2038,10 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
 
             for (auto ti = t.first; ti != t.second; ++ti) 
                 boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
-
-            auto fflags = fp_stream.flags();
-
-            if (!first)
-                fp_stream << ",";
-            first = false;
-
-            fp_stream << "prb";
-
-            if (std::get<0>(i) == 221)
-                fp_stream << 
-                    (unsigned int) std::get<0>(i) << "-" <<
-                    std::hex << std::uppercase << (unsigned int) std::get<1>(i) << std::dec << std::nouppercase << 
-                    "-" << (unsigned int) std::get<2>(i);
-            else
-                fp_stream <<
-                    (unsigned int) std::get<0>(i);
-
-            fp_stream << "=" << std::uppercase << std::hex << tag_hash.canonical();
-            fp_stream.flags(fflags);
         }
 
-        dot11dev->set_probe_fingerprint(fp_stream.str());
+        // XXHash32 says the canonical representation of the hash is little-endian
+        dot11dev->set_probe_fingerprint(htole32(tag_hash.hash()));
     }
 
 }
