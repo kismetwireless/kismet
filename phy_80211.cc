@@ -1703,7 +1703,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         boost_like::hash_combine(taglist_hash, std::get<0>(i), std::get<1>(i), std::get<2>(i));
 
     auto fflags = fp_stream.flags();
-    fp_stream << "tags=" << std::uppercase << std::hex << taglist_hash.canonical();
+    fp_stream << "bcns=" << std::uppercase << std::hex << taglist_hash.canonical();
     fp_stream.flags(fflags);
 
     // Update the base device records
@@ -1730,7 +1730,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
 
             auto fflags = fp_stream.flags();
-            fp_stream << ",tag";
+            fp_stream << ",bcn";
 
             if (std::get<0>(i) == 221)
                 fp_stream << 
@@ -2072,7 +2072,7 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
                 fp_stream << ",";
             first = false;
 
-            fp_stream << "tag";
+            fp_stream << "prb";
 
             if (std::get<0>(i) == 221)
                 fp_stream << 
