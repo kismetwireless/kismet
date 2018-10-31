@@ -1238,7 +1238,9 @@ public:
     __Proxy(neighbor_report_capable, uint8_t, bool, bool, neighbor_report_capable);
     __ProxyTrackable(extended_capabilities_list, TrackerElementVectorString, extended_capabilities_list);
 
-    __Proxy(device_fingerprint, std::string, std::string, std::string, device_fingerprint);
+    __Proxy(beacon_fingerprint, std::string, std::string, std::string, beacon_fingerprint);
+    __Proxy(probe_fingerprint, std::string, std::string, std::string, probe_fingerprint);
+    __Proxy(response_fingerprint, std::string, std::string, std::string, response_fingerprint);
 
 protected:
 
@@ -1351,7 +1353,10 @@ protected:
         RegisterField("dot11.device.extended_capabilities", 
                 "Advertised extended capabilities list", &extended_capabilities_list);
 
-        RegisterField("dot11.device.fingerprint", "Device fingerprint", &device_fingerprint);
+        RegisterField("dot11.device.beacon_fingerprint", "Beacon fingerprint", &beacon_fingerprint);
+        RegisterField("dot11.device.probe_fingerprint", "Probe (Client->AP) fingerprint", &probe_fingerprint);
+        RegisterField("dot11.device.response_fingerprint", "Respose (AP->Client) fingerprint", 
+                &response_fingerprint);
     }
 
     virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
@@ -1475,7 +1480,9 @@ protected:
 
     std::shared_ptr<TrackerElementVectorString> extended_capabilities_list;
 
-    std::shared_ptr<TrackerElementString> device_fingerprint;
+    std::shared_ptr<TrackerElementString> beacon_fingerprint;
+    std::shared_ptr<TrackerElementString> probe_fingerprint;
+    std::shared_ptr<TrackerElementString> response_fingerprint;
 };
 
 class dot11_ssid_alert {

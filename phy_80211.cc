@@ -1706,38 +1706,6 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     fp_stream << "tags=" << std::uppercase << std::hex << taglist_hash.canonical();
     fp_stream.flags(fflags);
 
-    for (auto i : beacon_ie_fingerprint_list) {
-        auto tag_hash = xxHashCPP{};
-
-        auto te = dot11info->ietag_hash_map.find(i);
-
-        if (te == dot11info->ietag_hash_map.end())
-            continue;
-
-        // Combine the hashes of duplicate tags
-        auto t = dot11info->ietag_hash_map.equal_range(i);
-
-        for (auto ti = t.first; ti != t.second; ++ti) 
-            boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
-
-        auto fflags = fp_stream.flags();
-        fp_stream << ",tag";
-        
-        if (std::get<0>(i) == 221)
-            fp_stream << 
-                (unsigned int) std::get<0>(i) << "-" <<
-                std::hex << std::uppercase << (unsigned int) std::get<1>(i) << std::dec << std::nouppercase << 
-                "-" << (unsigned int) std::get<2>(i);
-        else
-            fp_stream <<
-                (unsigned int) std::get<0>(i);
-        
-        fp_stream << "=" << std::uppercase << std::hex << tag_hash.canonical();
-        fp_stream.flags(fflags);
-    }
-
-    dot11dev->set_device_fingerprint(fp_stream.str());
-
     // Update the base device records
     dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
     dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
@@ -1747,6 +1715,37 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
 
     if (dot11info->subtype == packet_sub_beacon) {
+        for (auto i : beacon_ie_fingerprint_list) {
+            auto tag_hash = xxHashCPP{};
+
+            auto te = dot11info->ietag_hash_map.find(i);
+
+            if (te == dot11info->ietag_hash_map.end())
+                continue;
+
+            // Combine the hashes of duplicate tags
+            auto t = dot11info->ietag_hash_map.equal_range(i);
+
+            for (auto ti = t.first; ti != t.second; ++ti) 
+                boost_like::hash_combine(tag_hash, (uint32_t) ti->second);
+
+            auto fflags = fp_stream.flags();
+            fp_stream << ",tag";
+
+            if (std::get<0>(i) == 221)
+                fp_stream << 
+                    (unsigned int) std::get<0>(i) << "-" <<
+                    std::hex << std::uppercase << (unsigned int) std::get<1>(i) << 
+                    std::dec << std::nouppercase << "-" << (unsigned int) std::get<2>(i);
+            else
+                fp_stream << (unsigned int) std::get<0>(i);
+
+            fp_stream << "=" << std::uppercase << std::hex << tag_hash.canonical();
+            fp_stream.flags(fflags);
+        }
+
+        dot11dev->set_beacon_fingerprint(fp_stream.str());
+
         ssid->inc_beacons_sec();
 
         // Set the type
@@ -2088,7 +2087,7 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
             fp_stream.flags(fflags);
         }
 
-        dot11dev->set_device_fingerprint(fp_stream.str());
+        dot11dev->set_probe_fingerprint(fp_stream.str());
     }
 
 }
