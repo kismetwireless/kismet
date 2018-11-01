@@ -49,7 +49,7 @@ class ExternalInterface(object):
         self.cmdnum = 0
         self.iothread = None
 
-        if self.infd >= 0 and self.outfd >= 0:
+        if self.infd is not None and self.infd >= 0 and self.outfd is not None and self.outfd >= 0:
             fl = fcntl.fcntl(infd, fcntl.F_GETFL)
             fcntl.fcntl(infd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
