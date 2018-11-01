@@ -668,7 +668,7 @@ protobuf_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
-PYTHON2
+PYTHON3
 airpcaplib
 pcap
 pcaplnk
@@ -779,7 +779,7 @@ enable_pcre
 enable_prelude
 with_libprelude_prefix
 enable_pcap
-with_python2
+with_python3
 with_protoc
 with_protocc
 with_netlink_tiny
@@ -1463,7 +1463,7 @@ Optional Packages:
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
-  --with-python2=PATH     Custom location of python2 interpreter
+  --with-python3=PATH     Custom location of python3 interpreter
   --with-protoc=PATH     Custom location of the protoc protobuf compiler
   --with-protocc=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
@@ -11301,15 +11301,15 @@ fi
 
 
 
-# Check whether --with-python2 was given.
-if test "${with_python2+set}" = set; then :
-  withval=$with_python2;
+# Check whether --with-python3 was given.
+if test "${with_python3+set}" = set; then :
+  withval=$with_python3;
 fi
 
-if test x"$with_python2" != "x"; then
-    PYTHON2=$with_python2
+if test x"$with_python3" != "x"; then
+    PYTHON3=$with_python3
 else
-    PYTHON2=python2
+    PYTHON3=python3
 fi
 
 

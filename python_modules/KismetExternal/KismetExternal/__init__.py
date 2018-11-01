@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 # Python implementation of the simple API for communicating with Kismet
 # via the Kismet External API
 #
@@ -24,10 +22,7 @@ import struct
 import threading
 import time
 
-import kismet_pb2
-import http_pb2
-import datasource_pb2
-
+from KismetExternal.protobuf import kismet_pb2, http_pb2, datasource_pb2
 
 class ExternalInterface(object):
     """ 

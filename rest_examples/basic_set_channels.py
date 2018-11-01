@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Basic use of the smart_device_list API in the KismetRest python library.

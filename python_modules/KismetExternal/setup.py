@@ -1,6 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='KismetExternal',
       version='2018.0.0',
@@ -9,7 +9,7 @@ setup(name='KismetExternal',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
       install_requires=['protobuf'],
-      packages=['KismetExternal'],
+      packages=find_packages(),
      )
 
 

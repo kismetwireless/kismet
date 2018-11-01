@@ -47,7 +47,7 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    On some older versions, `libprotobuf-c-dev` may be called `libprotobuf-c0-dev`.For the Python add-ons, you will also need:
 
    ```bash
-   $ sudo apt-get install python python-setuptools python-protobuf python-sqlite python-requests
+   $ sudo apt-get install python3 python3-setuptools python3-protobuf python3-requests
    ```
 
    You can also use the `pip` equivalents of the python libraries, so long as they're installed in a location your normal Python interpreter can find them.
@@ -70,6 +70,8 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    ```bash
    $ sudo dnf install make automake gcc gcc-c++ kernel-devel git libmicrohttpd-devel pkg-config zlib-devel libnl3-devel libcap-devel libpcap-devel ncurses-devel NetworkManager-libnm-devel libdwarf libdwarf-devel elfutils-devel libsqlite3x-devel protobuf-devel protobuf-c-devel protobuf-compiler protobuf-c-compiler lm_sensors-devel libusb-devel fftw-devel
    ```
+
+   You will also need te related python3 packages.
 
 3. Clone Kismet from git.  If you haven't cloned Kismet before:
    ```bash

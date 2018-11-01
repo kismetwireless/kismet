@@ -1,7 +1,8 @@
-#!/usr/bin/env python2
-
 """
 rtl_433 Kismet data source
+
+(c) 2018 Mike Kershaw / Dragorn
+Licensed under GPL2 or above
 
 Supports both local usb rtlsdr devices via the rtl_433 binary, remote capture
 from a usb rtlsdr, and remote capture from a mqtt stream, if paho mqtt is

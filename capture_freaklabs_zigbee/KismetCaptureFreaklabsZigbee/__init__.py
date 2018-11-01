@@ -1,7 +1,8 @@
-#!/usr/bin/env python2
-
 """
 freaklabs zigbee sniffer source
+
+(c) 2018 Mike Kershaw / Dragorn
+Licensed under GPL2 or above
 
 accepts standard source hop options
 accepts additional options:

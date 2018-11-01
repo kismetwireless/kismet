@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Basic use of the Kismet Python library to list datasources on a Kismet server

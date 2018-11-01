@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+# Kismetdb log processing utility module
+#
+# (c) 2018 Mike Kershaw / Dragorn
+# Licensed under GPL2 or above
 
 import datetime
 import json

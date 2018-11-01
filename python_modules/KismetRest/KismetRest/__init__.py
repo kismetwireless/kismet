@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+# Kismet REST interface module
+#
+# (c) 2018 Mike Kershaw / Dragorn
+# Licensed under GPL2 or above
 
 import json
 import requests

@@ -1118,16 +1118,16 @@ if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 fi
 AC_SUBST(airpcaplib)
 
-AC_ARG_WITH(python2,
-        [  --with-python2[=PATH]     Custom location of python2 interpreter],
+AC_ARG_WITH(python3,
+        [  --with-python3[=PATH]     Custom location of python3 interpreter],
         [ ])
-if test x"$with_python2" != "x"; then
-    PYTHON2=$with_python2
+if test x"$with_python3" != "x"; then
+    PYTHON3=$with_python3
 else
-    PYTHON2=python2
+    PYTHON3=python3
 fi
 
-AC_SUBST(PYTHON2)
+AC_SUBST(PYTHON3)
 
 PKG_PROG_PKG_CONFIG
 

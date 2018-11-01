@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 More advanced use of the smart_device_list API which uses field simplification,

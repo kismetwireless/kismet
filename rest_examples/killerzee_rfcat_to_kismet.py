@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Directly derived from Killerzee, https://github.com/joswr1ght/killerzee
 
