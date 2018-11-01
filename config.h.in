@@ -21,9 +21,6 @@
 /* system binary directory */
 #undef BIN_LOC
 
-/* Able to build hackrf sweep source */
-#undef BUILD_CAPTURE_HACKRF_SWEEP
-
 /* system data directory */
 #undef DATA_LOC
 
@@ -78,9 +75,6 @@
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
 
-/* Define to 1 if you have the <fftw3.h> header file. */
-#undef HAVE_FFTW3_H
-
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
 
@@ -110,9 +104,6 @@
 
 /* Curses terminal lib */
 #undef HAVE_LIBCURSES
-
-/* Define to 1 if you have the <libhackrf/hackrf.h> header file. */
-#undef HAVE_LIBHACKRF_HACKRF_H
 
 /* Define to 1 if you have the `ncurses' library (-lncurses). */
 #undef HAVE_LIBNCURSES

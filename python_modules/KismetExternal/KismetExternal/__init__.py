@@ -22,7 +22,9 @@ import struct
 import threading
 import time
 
-from KismetExternal.protobuf import kismet_pb2, http_pb2, datasource_pb2
+import KismetExternal.kismet_pb2
+import KismetExternal.http_pb2
+import KismetExternal.datasource_pb2
 
 class ExternalInterface(object):
     """ 

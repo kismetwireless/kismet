@@ -10,6 +10,7 @@ setup(name='KismetCaptureFreaklabsZigbee',
       url='https://www.kismetwireless.net/',
       install_requires=['protobuf', 'KismetExternal', 'pyserial'],
       packages=['KismetCaptureFreaklabsZigbee'],
+      scripts=['kismet_cap_freaklabs_zigbee'],
      )
 
 
