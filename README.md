@@ -55,7 +55,7 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    For rtlsdr rtl_433 support, you will also need:
 
    ```bash
-   $ sudo apt-get install librtlsdr0
+   $ sudo apt-get install librtlsdr0 python3-usb python3-paho-mqtt
    ```
    as well as the rtl_433 tool from https://github.com/merbanan/rtl_433 if it is not otherwise provided by your distribution.
 
