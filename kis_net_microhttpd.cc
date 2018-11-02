@@ -1620,3 +1620,94 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
     return MHD_YES;
 }
 
+Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
+        Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    uri {in_uri},
+    generator {in_func}, 
+    mutex {nullptr} {
+
+    Bind_Httpd_Server();
+}
+
+Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
+        Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func, 
+        kis_recursive_timed_mutex *in_mutex) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    uri {in_uri},
+    generator {in_func},
+    mutex {in_mutex} {
+
+    Bind_Httpd_Server();
+}
+
+bool Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
+    if (strcmp(method, "POST") != 0)
+        return false;
+
+    auto stripped = Httpd_StripSuffix(path);
+
+    if (stripped == uri && Httpd_CanSerialize(path))
+        return true;
+
+    return false;
+}
+
+int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        Kis_Net_Httpd_Connection *connection,
+        const char *path, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    // Do nothing, we only handle POST
+    return MHD_YES;
+}
+
+int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    try {
+        SharedStructured structdata;
+
+        if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata =
+                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+        }
+
+        auto r = generator(stream, structdata);
+
+        concls->httpcode = r;
+        return MHD_YES;
+    } catch(const std::exception& e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    return MHD_YES;
+}
+

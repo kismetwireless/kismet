@@ -39,6 +39,7 @@
 #include "ringbuf2.h"
 #include "chainbuf.h"
 #include "buffer_handler.h"
+#include "structured.h"
 
 class Kis_Net_Httpd;
 class Kis_Net_Httpd_Session;
@@ -382,6 +383,32 @@ protected:
     std::string uri;
     std::shared_ptr<TrackerElement> content;
     gen_func generator;
+    kis_recursive_timed_mutex *mutex;
+};
+
+// Extremely simple callback-based POST responder
+class Kis_Net_Httpd_Simple_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+public:
+    using handler_func = 
+        std::function<unsigned int (std::ostream& stream, SharedStructured post_structured)>;
+
+    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func,
+            kis_recursive_timed_mutex *in_mutex);
+    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func);
+
+    // HTTP handlers
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+
+protected:
+    std::string uri;
+    handler_func generator;
     kis_recursive_timed_mutex *mutex;
 };
 
