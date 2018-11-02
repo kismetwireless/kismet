@@ -1432,8 +1432,9 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
 }
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
-        std::shared_ptr<TrackerElement> in_element, kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler(),
+        bool in_auth, std::shared_ptr<TrackerElement> in_element, kis_recursive_timed_mutex *in_mutex) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
     uri {in_uri},
     content {in_element},
     mutex {in_mutex} { 
@@ -1441,12 +1442,12 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     }
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
-        Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
-    Kis_Net_Httpd_Chain_Stream_Handler(),
+        bool in_auth, Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
+    uri {in_uri}, 
+    content { nullptr },
     mutex {nullptr} {
-
-    uri = in_uri;
-    generator = in_func;
 
     Bind_Httpd_Server();
 }
@@ -1497,6 +1498,13 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
                 }
             });
 
+    if (auth_req) {
+        if (!httpd->HasValidSession(connection)) 
+            stream << "Login required\n";
+        connection->httpcode = 401;
+        return MHD_YES;
+    }
+
     std::shared_ptr<TrackerElement> output_content;
 
     if (content == nullptr && generator == nullptr) {
@@ -1539,6 +1547,13 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
                 ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
                 }
             });
+
+    if (auth_req) {
+        if (!httpd->HasValidSession(concls)) 
+            stream << "Login required\n";
+        concls->httpcode = 401;
+        return MHD_YES;
+    }
 
     if (content == nullptr && generator == nullptr) {
         stream << "Invalid request: No backing content present";
@@ -1621,8 +1636,9 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 }
 
 Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
-        Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func) :
+        bool in_auth, Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func) :
     Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
     uri {in_uri},
     generator {in_func}, 
     mutex {nullptr} {
@@ -1631,9 +1647,10 @@ Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std
 }
 
 Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
-        Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func, 
+        bool in_auth, Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func, 
         kis_recursive_timed_mutex *in_mutex) :
     Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
     uri {in_uri},
     generator {in_func},
     mutex {in_mutex} {
@@ -1687,6 +1704,13 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
                 ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
                 }
             });
+
+    if (auth_req) {
+        if (!httpd->HasValidSession(concls)) 
+            stream << "Login required\n";
+        concls->httpcode = 401;
+        return MHD_YES;
+    }
 
     try {
         SharedStructured structdata;

@@ -23,7 +23,7 @@ Antennatracker::Antennatracker() {
     antenna_id_map = 
         std::make_shared<TrackerElementIntMap>();
     antenna_enp = 
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/antenna/antennas", 
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/antenna/antennas", false,
                 antenna_id_map, &mutex);
     next_ant_id = 0;
 }

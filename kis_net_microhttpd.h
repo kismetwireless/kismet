@@ -364,10 +364,10 @@ class Kis_Net_Httpd_Simple_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_
 public:
     using gen_func = std::function<std::shared_ptr<TrackerElement> ()>;
 
-    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, 
+    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, bool in_auth,
             std::shared_ptr<TrackerElement> in_content, 
             kis_recursive_timed_mutex *in_mutex);
-    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func);
+    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, bool in_auth, gen_func in_func);
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
@@ -380,6 +380,7 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
+    bool auth_req;
     std::string uri;
     std::shared_ptr<TrackerElement> content;
     gen_func generator;
@@ -392,9 +393,9 @@ public:
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, SharedStructured post_structured)>;
 
-    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func,
+    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, bool in_auth, handler_func in_func,
             kis_recursive_timed_mutex *in_mutex);
-    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func);
+    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, bool in_auth, handler_func in_func);
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
@@ -407,6 +408,7 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
+    bool auth_req;
     std::string uri;
     handler_func generator;
     kis_recursive_timed_mutex *mutex;
