@@ -15,7 +15,7 @@
 
 #include "config.h"
 
-#ifndef SYS_DARWIN
+#ifndef __APPLE__
 #include <endian.h>
 #else
 
