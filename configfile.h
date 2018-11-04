@@ -43,7 +43,14 @@ public:
     ~ConfigFile();
 
     int ParseConfig(const char *in_fname);
+    int ParseConfig(const std::string& in_fname) {
+        return ParseConfig(in_fname.c_str());
+    }
+
 	int SaveConfig(const char *in_fname);
+    int SaveConfig(const std::string& in_fname) {
+        return SaveConfig(in_fname.c_str());
+    }
 
     std::string FetchOpt(std::string in_key);
     std::string FetchOptDfl(std::string in_key, std::string in_dfl);
@@ -65,8 +72,14 @@ public:
 	void SetOpt(std::string in_key, std::string in_val, int in_dirty);
 	void SetOptVec(std::string in_key, std::vector<std::string> in_val, int in_dirty);
 
+    // Expand complete log templates for logfile filenames
     std::string ExpandLogPath(std::string path, std::string logname, std::string type, 
             int start, int overwrite = 0);
+
+    // Expand placeholders but not full log type/number/etc, for included config references, etc
+    std::string ExpandLogPath(std::string path) {
+        return ExpandLogPath(path, "", "", 0, 0);
+    }
 
 	// Fetches the load-time checksum of the config values.
 	uint32_t FetchFileChecksum();
