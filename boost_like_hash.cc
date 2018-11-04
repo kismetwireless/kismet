@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <functional>
 
-#include <endian.h>
+#include <kis_endian.h>
 
 #include "xxhash_cpp.h"
 
