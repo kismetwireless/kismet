@@ -38,6 +38,7 @@
 
 class ConfigFile {
 public:
+    ConfigFile();
 	ConfigFile(GlobalRegistry *in_globalreg);
     ~ConfigFile();
 
@@ -71,8 +72,6 @@ public:
 	uint32_t FetchFileChecksum();
 
 protected:
-	GlobalRegistry *globalreg;
-
     class config_entity {
     public:
         config_entity(std::string v, std::string sf) {

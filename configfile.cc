@@ -43,8 +43,11 @@
 #define GLOB_TILDE 0
 #endif
 
+ConfigFile::ConfigFile() {
+    checksum = 0;
+}
+
 ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
-    globalreg = in_globalreg;
     checksum = 0;
 }
 
@@ -426,7 +429,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             struct tm *now;
 
             // tnow = time(0);
-            tnow = globalreg->start_time;
+            tnow = Globalreg::globalreg->start_time;
             now = localtime(&tnow);
 
             char datestr[24];
@@ -439,7 +442,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             struct tm *now;
 
             // tnow = time(0);
-            tnow = globalreg->start_time;
+            tnow = Globalreg::globalreg->start_time;
             now = localtime(&tnow);
 
             char datestr[24];
@@ -451,7 +454,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             struct tm *now;
 
             // tnow = time(0);
-            tnow = globalreg->start_time;
+            tnow = Globalreg::globalreg->start_time;
             now = localtime(&tnow);
 
             char timestr[12];
@@ -463,7 +466,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             struct tm *now;
 
             // tnow = time(0);
-            tnow = globalreg->start_time;
+            tnow = Globalreg::globalreg->start_time;
             now = localtime(&tnow);
 
             char timestr[12];
@@ -478,7 +481,7 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
             inc = nl;
             incpad = 1;
         } else if (op == 'h') { 
-            if (globalreg->homepath == "") {
+            if (Globalreg::globalreg->homepath == "") {
                 char *pwbuf;
                 ssize_t pwbuf_sz;
                 struct passwd pw, *pw_result = NULL;
@@ -500,10 +503,10 @@ std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std
 
                 delete[] pwbuf;
             } else {
-                logtemplate.insert(nl, globalreg->homepath);
+                logtemplate.insert(nl, Globalreg::globalreg->homepath);
             }
         } else if (op == 'p') {
-            std::string pfx = globalreg->log_prefix;
+            std::string pfx = Globalreg::globalreg->log_prefix;
 
             if (pfx == "") 
                 pfx = FetchOptDfl("log_prefix", "./");
