@@ -369,6 +369,8 @@ public:
             kis_recursive_timed_mutex *in_mutex);
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, bool in_auth, gen_func in_func);
 
+    virtual ~Kis_Net_Httpd_Simple_Tracked_Endpoint() { }
+
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
@@ -387,7 +389,37 @@ protected:
     kis_recursive_timed_mutex *mutex;
 };
 
-// Extremely simple callback-based POST responder
+// A similar simplified endpoint dump but with a callback function for the path processing
+// and for the endpoint generation; for more rest-like paths
+class Kis_Net_Httpd_Path_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+public:
+    using gen_func = std::function<std::shared_ptr<TrackerElement> (const std::vector<std::string>&)>;
+    using path_func = std::function<bool (const std::vector<std::string>&)>;
+
+    Kis_Net_Httpd_Path_Tracked_Endpoint(path_func in_path, bool in_auth, gen_func in_gen);
+    Kis_Net_Httpd_Path_Tracked_Endpoint(path_func in_path, bool in_auth, gen_func in_gen,
+            kis_recursive_timed_mutex *in_mutex);
+    virtual ~Kis_Net_Httpd_Path_Tracked_Endpoint() { }
+
+    // HTTP handlers
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+
+protected:
+    path_func path;
+    bool auth_req;
+    gen_func generator;
+    kis_recursive_timed_mutex *mutex;
+};
+
+
+// Extremely simple callback-based POST responder linked to a chainbuf buffer
 class Kis_Net_Httpd_Simple_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     using handler_func = 
@@ -396,6 +428,8 @@ public:
     Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, bool in_auth, handler_func in_func,
             kis_recursive_timed_mutex *in_mutex);
     Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, bool in_auth, handler_func in_func);
+
+    virtual ~Kis_Net_Httpd_Simple_Post_Endpoint() { }
 
     // HTTP handlers
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
@@ -410,6 +444,37 @@ public:
 protected:
     bool auth_req;
     std::string uri;
+    handler_func generator;
+    kis_recursive_timed_mutex *mutex;
+};
+
+// Path-based basic post responder linked to a chainbuf buffer
+class Kis_Net_Httpd_Path_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+public:
+    using path_func = std::function<bool (const std::vector<std::string>&)>;
+    using handler_func = 
+        std::function<unsigned int (std::ostream& stream, 
+                const std::vector<std::string>& path, SharedStructured post_structured)>;
+
+    Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, bool in_auth, handler_func in_func);
+    Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, bool in_auth, handler_func in_func,
+            kis_recursive_timed_mutex *in_mutex);
+
+    virtual ~Kis_Net_Httpd_Path_Post_Endpoint() { }
+
+    // HTTP handlers
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+
+    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+
+protected:
+    bool auth_req;
+    path_func path;
     handler_func generator;
     kis_recursive_timed_mutex *mutex;
 };

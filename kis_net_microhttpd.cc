@@ -1635,6 +1635,206 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
     return MHD_YES;
 }
 
+Kis_Net_Httpd_Path_Tracked_Endpoint::Kis_Net_Httpd_Path_Tracked_Endpoint(
+        Kis_Net_Httpd_Path_Tracked_Endpoint::path_func in_path,
+        bool in_auth, 
+        Kis_Net_Httpd_Path_Tracked_Endpoint::gen_func in_gen) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    path { in_path },
+    auth_req {in_auth},
+    generator {in_gen},
+    mutex {nullptr} { 
+        Bind_Httpd_Server();
+}
+
+Kis_Net_Httpd_Path_Tracked_Endpoint::Kis_Net_Httpd_Path_Tracked_Endpoint(
+        Kis_Net_Httpd_Path_Tracked_Endpoint::path_func in_path,
+        bool in_auth, 
+        Kis_Net_Httpd_Path_Tracked_Endpoint::gen_func in_gen,
+        kis_recursive_timed_mutex *in_mutex) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    path { in_path },
+    auth_req {in_auth},
+    generator {in_gen},
+    mutex {in_mutex} { 
+        Bind_Httpd_Server();
+}
+
+
+bool Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_VerifyPath(const char *in_path, const char *in_method) {
+    if (strcmp(in_method, "GET") != 0)
+        return false;
+
+    if (!Httpd_CanSerialize(in_path))
+        return false;
+
+    auto stripped = Httpd_StripSuffix(in_path);
+    auto tokenurl = StrTokenize(stripped, "/");
+
+    return path(tokenurl);
+
+    return false;
+}
+
+int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        Kis_Net_Httpd_Connection *connection,
+        const char *in_path, const char *in_method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    // Allocate our buffer aux
+    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
+        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+
+    BufferHandlerOStringStreambuf *streambuf = 
+        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    std::ostream stream(streambuf);
+
+    // Set our cleanup function
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (auth_req) {
+        if (!httpd->HasValidSession(connection)) 
+            stream << "Login required\n";
+        connection->httpcode = 401;
+        return MHD_YES;
+    }
+
+    std::shared_ptr<TrackerElement> output_content;
+
+    auto stripped = Httpd_StripSuffix(in_path);
+    auto tokenurl = StrTokenize(stripped, "/");
+
+    output_content = generator(tokenurl);
+
+    Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+
+    return MHD_YES;
+}
+
+int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (auth_req) {
+        if (!httpd->HasValidSession(concls)) 
+            stream << "Login required\n";
+        concls->httpcode = 401;
+        return MHD_YES;
+    }
+
+    auto stripped = Httpd_StripSuffix(concls->url);
+    auto tokenurl = StrTokenize(stripped, "/");
+
+    std::shared_ptr<TrackerElement> output_content;
+
+    output_content = generator(tokenurl);
+
+    // Common structured API data
+    SharedStructured structdata;
+    std::vector<SharedElementSummary> summary_vec;
+    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+
+    try {
+        if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata =
+                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+        } else {
+            // fprintf(stderr, "debug - missing data\n");
+            throw StructuredDataException("Missing data");
+        }
+    } catch(const StructuredDataException& e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    try {
+        if (structdata->hasKey("fields")) {
+            SharedStructured fields = structdata->getStructuredByKey("fields");
+            StructuredData::structured_vec fvec = fields->getStructuredArray();
+
+            for (const auto& i : fvec) {
+                if (i->isString()) {
+                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                    summary_vec.push_back(s);
+                } else if (i->isArray()) {
+                    StructuredData::string_vec mapvec = i->getStringVec();
+
+                    if (mapvec.size() != 2) {
+                        // fprintf(stderr, "debug - malformed rename pair\n");
+                        stream << "Invalid request: Expected field, rename";
+                        concls->httpcode = 400;
+                        return MHD_YES;
+                    }
+
+                    auto s = 
+                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                    summary_vec.push_back(s);
+                }
+            }
+        }
+    } catch(const StructuredDataException& e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    if (summary_vec.size()) {
+        SharedTrackerElement simple;
+        SummarizeTrackerElement(output_content, summary_vec, simple, rename_map);
+
+        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+                simple, rename_map);
+        return MHD_YES;
+    }
+
+    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+            output_content, nullptr);
+    return MHD_YES;
+}
+
 Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
         bool in_auth, Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func) :
     Kis_Net_Httpd_Chain_Stream_Handler {},
@@ -1722,6 +1922,112 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
         }
 
         auto r = generator(stream, structdata);
+
+        concls->httpcode = r;
+        return MHD_YES;
+    } catch(const std::exception& e) {
+        stream << "Invalid request: ";
+        stream << e.what();
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    return MHD_YES;
+}
+
+Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
+        Kis_Net_Httpd_Path_Post_Endpoint::path_func in_path,
+        bool in_auth, Kis_Net_Httpd_Path_Post_Endpoint::handler_func in_func) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
+    path {in_path},
+    generator {in_func}, 
+    mutex {nullptr} {
+    Bind_Httpd_Server();
+}
+
+Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
+        Kis_Net_Httpd_Path_Post_Endpoint::path_func in_path,
+        bool in_auth, 
+        Kis_Net_Httpd_Path_Post_Endpoint::handler_func in_func, 
+        kis_recursive_timed_mutex *in_mutex) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
+    path {in_path},
+    generator {in_func},
+    mutex {in_mutex} {
+
+    Bind_Httpd_Server();
+}
+
+bool Kis_Net_Httpd_Path_Post_Endpoint::Httpd_VerifyPath(const char *in_path, const char *in_method) {
+    if (strcmp(in_method, "POST") != 0)
+        return false;
+
+    if (!Httpd_CanSerialize(in_path))
+        return false;
+
+    auto stripped = Httpd_StripSuffix(in_path);
+    auto tokenurl = StrTokenize(stripped, "/");
+
+    return path(tokenurl);
+}
+
+int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_CreateStreamResponse(
+        Kis_Net_Httpd *httpd __attribute__((unused)),
+        Kis_Net_Httpd_Connection *connection,
+        const char *in_path, const char *in_method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    // Do nothing, we only handle POST
+    return MHD_YES;
+}
+
+int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                if (aux->aux != NULL)
+                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            if (aux->aux != NULL) {
+                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (auth_req) {
+        if (!httpd->HasValidSession(concls)) 
+            stream << "Login required\n";
+        concls->httpcode = 401;
+        return MHD_YES;
+    }
+
+    auto stripped = Httpd_StripSuffix(concls->url);
+    auto tokenurl = StrTokenize(stripped, "/");
+
+    try {
+        SharedStructured structdata;
+
+        if (concls->variable_cache.find("json") != 
+                concls->variable_cache.end()) {
+            structdata =
+                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+        }
+
+        auto r = generator(stream, tokenurl, structdata);
 
         concls->httpcode = r;
         return MHD_YES;
