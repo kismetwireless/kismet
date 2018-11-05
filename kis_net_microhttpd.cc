@@ -1671,9 +1671,11 @@ bool Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_VerifyPath(const char *in_path, 
     auto stripped = Httpd_StripSuffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
 
-    return path(tokenurl);
+    local_demand_locker l(mutex);
+    if (mutex != nullptr)
+        l.lock();
 
-    return false;
+    return path(tokenurl);
 }
 
 int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
@@ -1969,6 +1971,10 @@ bool Kis_Net_Httpd_Path_Post_Endpoint::Httpd_VerifyPath(const char *in_path, con
 
     auto stripped = Httpd_StripSuffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
+
+    local_demand_locker l(mutex);
+    if (mutex != nullptr)
+        l.lock();
 
     return path(tokenurl);
 }
