@@ -1921,6 +1921,9 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
                 concls->variable_cache.end()) {
             structdata =
                 std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+        } else {
+            structdata =
+                std::make_shared<StructuredJson>(std::string{"{}"});
         }
 
         auto r = generator(stream, structdata);
@@ -2027,10 +2030,12 @@ int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connectio
     try {
         SharedStructured structdata;
 
-        if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
                 std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+        } else {
+            structdata = 
+                std::make_shared<StructuredJson>(std::string{"{}"});
         }
 
         auto r = generator(stream, tokenurl, structdata);
