@@ -776,7 +776,7 @@ Insert a new fingerprint.  The fingerprint must not exist.  Expects a command di
 
 | Key | Value | Type | Description |
 | --- | ----- | ---- | ----------- |
-| macaddr | Target device MAC | MAC address as string | Device to add fingerprint to |
+| macaddr | Target device MAC | MAC address as string | MAC address of fingerprint device |
 | beacon_hash | xxhash32 beacon hash | integer | (optional) Kismet hash for static beacon IE fields, as found in the `dot11.device/dot11.device.beacon_fingerprint` field |
 | probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
 | response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
@@ -813,7 +813,7 @@ Inserts multiple fingerprints.  The fingerprints must not exist already.  Expect
 A fingerprint dictionary must include:
 | Key | Value | Type | Description |
 | --- | ----- | ---- | ----------- |
-| macaddr | Target device MAC | MAC address as string | Device to add fingerprint to |
+| macaddr | Target device MAC | MAC address as string | MAC address of fingerprint device |
 | beacon_hash | xxhash32 beacon hash | integer | (optional) Kismet hash for static beacon IE fields, as found in the `dot11.device/dot11.device.beacon_fingerprint` field |
 | probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
 | response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
@@ -822,7 +822,9 @@ A fingerprint dictionary must include:
 
 *LOGIN REQUIRED*
 
-Removes multiple fingerprints.  The fingerprints must exist.  Expects a command dictionary including:
+Removes multiple fingerprints.  If a fingerprint does not exist, it is ignored and the remainder of the listed fingerprints are removed.
+
+Expects a command dictionary including:
 | Key | Value | Type | Description |
 | --- | ----- | ---- | ----------- |
 | fingerprints | list of MAC addresses | array/list | List of MAC addresses (as strings) to be deleted |

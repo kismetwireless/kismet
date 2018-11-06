@@ -18,6 +18,7 @@
 
 #include "dot11_fingerprint.h"
 #include "configfile.h"
+#include "fmt.h"
 
 Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
     const std::string& in_config) {
@@ -148,11 +149,13 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
         if (structured->hasKey("probe_hash"))
             fp->set_probe_hash(structured->getKeyAsNumber("probe_hash"));
 
+        stream << "Fingerprint updated\n";
+        return 200;
+
     } catch (const StructuredDataException& e) {
         stream << "Malformed update: " << e.what() << "\n";
         return 500;
     }
-    
 
     stream << "Unhandled command\n";
     return 500;
@@ -174,6 +177,16 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
             throw StructuredDataException("Fingerprint MAC address already exists, delete or edit "
                     "it instead.");
 
+        auto fp = std::make_shared<tracked_dot11_fingerprint>();
+
+        fp->set_probe_hash(structured->getKeyAsNumber("beacon_hash", 0));
+        fp->set_response_hash(structured->getKeyAsNumber("response_hash", 0));
+        fp->set_probe_hash(structured->getKeyAsNumber("probe_hash", 0));
+
+        fingerprint_map->insert(std::make_pair(mac, fp));
+
+        stream << "Fingerprint added\n";
+        return 200;
 
     } catch (const StructuredDataException& e) {
         stream << "Malformed insert: " << e.what() << "\n";
@@ -184,4 +197,100 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
     return 500;
 }
 
+unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, mac_addr mac,
+        SharedStructured structured) {
+
+    auto fpi = fingerprint_map->find(mac);
+
+    if (fpi == fingerprint_map->end()) {
+        stream << "Could not find target MAC to delete\n";
+        return 500;
+    }
+
+    fingerprint_map->erase(fpi);
+
+    stream << "Fingerprint deleted\n";
+    return 200;
+}
+
+unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stream, 
+        SharedStructured structured) {
+
+    try {
+        auto fpv = structured->getStructuredByKey("fingerprints");
+        auto fingerprints = fpv->getStringVec();
+
+        int num_erased = 0;
+
+        for (auto fpi : fingerprints) {
+            mac_addr mac { fpi };
+
+            if (mac.error)
+                throw StructuredDataException("Invalid MAC address");
+
+            auto fmi = fingerprint_map->find(mac);
+
+            if (fmi == fingerprint_map->end())
+                continue;
+
+            fingerprint_map->erase(fmi);
+
+            num_erased++;
+        }
+
+        stream << "Erased " << num_erased << " fingerprints\n";
+        return 200;
+    } catch (const StructuredDataException& e) {
+        stream << "Erasing fingerprints failed: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled command\n";
+    return 500;
+}
+
+unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stream,
+        SharedStructured structured) {
+
+    try {
+        auto fpv = structured->getStructuredByKey("fingerprints");
+        auto fingerprints = fpv->getStructuredArray();
+
+        int num_added = 0;
+
+        for (auto fpi : fingerprints) {
+            // Get the sub-dictionarys from the vector
+            if (!fpi->hasKey("macaddr"))
+                throw StructuredDataException("Fingerprint dictionary missing 'macaddr'");
+
+            auto mac = mac_addr { fpi->getKeyAsString("macaddr") };
+            if (mac.error)
+                throw StructuredDataException("Invalid MAC address in 'macaddr'");
+
+            // Make sure it doesn't exist
+            auto fmi = fingerprint_map->find(mac);
+            if (fmi != fingerprint_map->end())
+                throw StructuredDataException(fmt::format("MAC address {} already present in "
+                            "fingerprint list", mac));
+
+            auto fp = std::make_shared<tracked_dot11_fingerprint>();
+
+            fp->set_probe_hash(fpi->getKeyAsNumber("beacon_hash", 0));
+            fp->set_response_hash(fpi->getKeyAsNumber("response_hash", 0));
+            fp->set_probe_hash(fpi->getKeyAsNumber("probe_hash", 0));
+
+            fingerprint_map->insert(std::make_pair(mac, fp));
+            num_added++;
+        }
+
+        stream << "Inserted " << num_added << " fingerprints\n";
+        return 200;
+    } catch (const StructuredDataException& e) {
+        stream << "Error: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled command\n";
+    return 500;
+}
 

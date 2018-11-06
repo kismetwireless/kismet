@@ -103,7 +103,8 @@ public:
     unsigned int mod_dispatch(std::ostream& stream, const std::vector<std::string>& path, 
             SharedStructured structured);
 
-    // Fingerprint manipulation
+    // Fingerprint manipulation; all of these are called w/in the mutex lock held by 
+    // the simple tracked and simple post endpoints
     unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
     unsigned int insert_fingerprint(std::ostream& stream, SharedStructured structured);
     unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
