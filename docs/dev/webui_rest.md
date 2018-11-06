@@ -50,7 +50,11 @@ $ curl -d 'json={"name": "JSONALERT", "description": "Dynamic alert added at run
 
 which passes the parameters in the `json=` variable, and the login and password in the URI (kismet:kismet in this example).
 
+### What do all the fields mean?
+
 More information about each field can be found in the `/system/tracked_fields.html` URI by visiting `http://localhost:2501/system/tracked_fields.html` in your browser.  This will show the field names, descriptions, and data types, for every known entity.
+
+### Additional pretty-printed output
 
 For even more information, almost every REST endpoint can be requested using the `{foo}.prettyjson` format; this JSON output is styled for ease of readability and includes additional metadata to help understand the format; for example:
 
@@ -754,6 +758,75 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
+### Phy-Specific: phy80211 Fingerprinting
+
+The Kismet phy80211 fingerprinting system is used for device whitelisting, device modification alerts, and other device tracking.
+
+The fingerprint API can be found under multiple paths, but all will follow this API.  (Documentation to be improved as final paths are chosen).
+
+##### .../all_fingerprints `.../all_fingerprints.json`
+
+Returns a list of all fingerprints in this category.
+
+##### POST .../new/insert `.../new/insert.cmd`
+
+*LOGIN REQUIRED*
+
+Insert a new fingerprint.  The fingerprint must not exist.  Expects a command dictionary including:
+
+| Key | Value | Type | Description |
+| --- | ----- | ---- | ----------- |
+| macaddr | Target device MAC | MAC address as string | Device to add fingerprint to |
+| beacon_hash | xxhash32 beacon hash | integer | (optional) Kismet hash for static beacon IE fields, as found in the `dot11.device/dot11.device.beacon_fingerprint` field |
+| probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
+| response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
+
+##### POST .../by-mac/[mac]/update `.../by-mac/[mac]/update.cmd`
+
+*LOGIN REQUIRED*
+
+Update the fingerprint in `[mac]`.  The fingerprint must exist.  Expects a command dictionary including:
+
+| Key | Value | Type | Description |
+| --- | ----- | ---- | ----------- |
+| beacon_hash | xxhash32 beacon hash | integer | (optional) Kismet hash for static beacon IE fields, as found in the `dot11.device/dot11.device.beacon_fingerprint` field |
+| probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
+| response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
+
+##### POST .../by-mac/[mac]/delete `.../by-mac/[mac]/delete.cmd`
+
+*LOGIN REQUIRED*
+
+Removes the fingerprint in `[mac]`.
+
+##### POST .../bulk/insert `.../bulk/insert.cmd`
+
+*LOGIN REQUIRED*
+
+Inserts multiple fingerprints.  The fingerprints must not exist already.  Expects a command dictionary including:
+
+
+| Key | Value | Type | Description |
+| --- | ----- | ---- | ----------- |
+| fingerprints | list of fingerprints | array/list | List of fingerprint dictionaries to be inserted |
+
+A fingerprint dictionary must include:
+| Key | Value | Type | Description |
+| --- | ----- | ---- | ----------- |
+| macaddr | Target device MAC | MAC address as string | Device to add fingerprint to |
+| beacon_hash | xxhash32 beacon hash | integer | (optional) Kismet hash for static beacon IE fields, as found in the `dot11.device/dot11.device.beacon_fingerprint` field |
+| probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
+| response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
+
+##### POST .../bulk/delete `.../bulk/delete.cmd`
+
+*LOGIN REQUIRED*
+
+Removes multiple fingerprints.  The fingerprints must exist.  Expects a command dictionary including:
+| Key | Value | Type | Description |
+| --- | ----- | ---- | ----------- |
+| fingerprints | list of MAC addresses | array/list | List of MAC addresses (as strings) to be deleted |
+
 ### Phy-Specific: phyuav (UAV / Drones)
 
 The UAV/Drone phy defines extra endpoints for matching UAVs based on manufacturer and SSID:
@@ -761,3 +834,4 @@ The UAV/Drone phy defines extra endpoints for matching UAVs based on manufacture
 ##### /phy/phyuav/manuf_matchers `/phy/phyuav/manuf_matchers.json` 
 
 Returns a vector of the manufacturer matches for UAVs and drones; these matches allow the UAV phy to flag devices based on OUI and SSID.
+

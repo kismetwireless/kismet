@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -17,14 +17,171 @@
 */
 
 #include "dot11_fingerprint.h"
+#include "configfile.h"
 
-Dot11FingerprintTracker::Dot11FingerprintTracker() : 
-    LifetimeGlobal{} {
+Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
+    const std::string& in_config) {
 
+    base_uri = StrTokenize(in_uri, "/");
+
+    fingerprint_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", false, 
+                fingerprint_map, &mutex);
+
+    update_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
+                }, true, 
+                [this](std::ostream& stream, const std::vector<std::string>& path, 
+                    SharedStructured structured) -> unsigned int {
+                    return mod_dispatch(stream, path, structured); 
+                }, &mutex);
+
+    configfile = std::make_shared<ConfigFile>();
+    configpath = configfile->ExpandLogPath(in_config);
+    configfile->ParseConfig(in_config);
 }
 
 Dot11FingerprintTracker::~Dot11FingerprintTracker() {
+    configfile->SaveConfig(configpath);
+}
 
+std::tuple<Dot11FingerprintTracker::uri_endpoint, mac_addr>
+Dot11FingerprintTracker::post_path(const std::vector<std::string>& path) {
+    // Match against the base URI path
+    if (path.size() <= base_uri.size())
+        return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+
+    if (!std::equal(base_uri.begin(), base_uri.end(), path.begin()))
+        return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+
+    // Compare against the sub-paths
+    unsigned int path_offt = base_uri.size();
+
+    // .../new/insert.cmd
+    // .../bulk/insert.cmd
+    // .../bulk/delete.cmd
+
+    if (path.size() < path_offt + 2)
+        return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+
+    if (path[path_offt] == "new") 
+        if (path[path_offt + 1] == "insert") 
+            return std::make_tuple(uri_endpoint::endp_insert, mac_addr {0});
+
+    if (path[path_offt] == "bulk") {
+        if (path[path_offt + 1] == "insert")
+            return std::make_tuple(uri_endpoint::endp_bulk_insert, mac_addr {0});
+
+        if (path[path_offt + 1] == "delete")
+            return std::make_tuple(uri_endpoint::endp_bulk_delete, mac_addr {0});
+    }
+
+    // .../by-mac/[mac]/update.cmd
+    // .../by-mac/[mac]/delete.cmd
+
+    if (path.size() < path_offt + 3)
+        return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+
+    if (path[path_offt] == "by-mac") {
+        mac_addr m {path[path_offt + 1]};
+
+        if (m.error)
+            return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+
+        if (fingerprint_map->find(m) == fingerprint_map->end())
+            return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+
+        if (path[path_offt + 2] == "update")
+            return std::make_tuple(uri_endpoint::endp_update, mac_addr {0});
+
+        if (path[path_offt + 2] == "delete")
+            return std::make_tuple(uri_endpoint::endp_delete, mac_addr {0});
+    }
+
+    return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
+}
+
+unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
+        const std::vector<std::string>& path, SharedStructured structured) {
+
+    auto path_extract = post_path(path);
+
+    switch (std::get<0>(path_extract)) {
+        case uri_endpoint::endp_unknown:
+            stream << "Unhandled endpoint\n";
+            return 401;
+        case uri_endpoint::endp_update:
+            return update_fingerprint(stream, std::get<1>(path_extract), structured);
+        case uri_endpoint::endp_insert:
+            return insert_fingerprint(stream, structured);
+        case uri_endpoint::endp_delete:
+            return delete_fingerprint(stream, std::get<1>(path_extract), structured);
+        case uri_endpoint::endp_bulk_insert:
+            return bulk_insert_fingerprint(stream, structured);
+        case uri_endpoint::endp_bulk_delete:
+            return bulk_delete_fingerprint(stream, structured);
+    }
+
+}
+
+unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
+        mac_addr mac, SharedStructured structured) {
+
+    auto fpi = fingerprint_map->find(mac);
+
+    if (fpi == fingerprint_map->end()) {
+        stream << "Could not find fingerprint to update\n";
+        return 500;
+    }
+
+    auto fp = std::static_pointer_cast<tracked_dot11_fingerprint>(fpi->second);
+
+    try {
+        if (structured->hasKey("beacon_hash"))
+            fp->set_beacon_hash(structured->getKeyAsNumber("beacon_hash"));
+
+        if (structured->hasKey("response_hash"))
+            fp->set_response_hash(structured->getKeyAsNumber("response_hash"));
+
+        if (structured->hasKey("probe_hash"))
+            fp->set_probe_hash(structured->getKeyAsNumber("probe_hash"));
+
+    } catch (const StructuredDataException& e) {
+        stream << "Malformed update: " << e.what() << "\n";
+        return 500;
+    }
+    
+
+    stream << "Unhandled command\n";
+    return 500;
+}
+
+unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream, 
+        SharedStructured structured) {
+    try {
+        if (!structured->hasKey("macaddr"))
+            throw StructuredDataException("Missing 'macaddr' field in insert command");
+
+        auto mac = mac_addr { structured->getKeyAsString("macaddr") };
+        if (mac.error)
+            throw StructuredDataException("Invalid 'macaddr' field in insert command");
+
+        auto fpi = fingerprint_map->find(mac);
+
+        if (fpi != fingerprint_map->end())
+            throw StructuredDataException("Fingerprint MAC address already exists, delete or edit "
+                    "it instead.");
+
+
+    } catch (const StructuredDataException& e) {
+        stream << "Malformed insert: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled command\n";
+    return 500;
 }
 
 

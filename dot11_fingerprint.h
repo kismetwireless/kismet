@@ -60,7 +60,6 @@ public:
 
     virtual ~tracked_dot11_fingerprint() { }
 
-    __Proxy(device_addr, mac_addr, mac_addr, mac_addr, device_addr);
     __Proxy(beacon_hash, uint32_t, uint32_t, uint32_t, beacon_hash);
     __Proxy(response_hash, uint32_t, uint32_t, uint32_t, response_hash);
     __Proxy(probe_hash, uint32_t, uint32_t, uint32_t, probe_hash);
@@ -69,39 +68,60 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.dot11.fingerprint.macaddr", "Fingerprint target", &device_addr);
         RegisterField("kismet.dot11.fingerprint.beacon_hash", "Beacon hash", &beacon_hash);
         RegisterField("kismet.dot11.fingerprint.response_hash", "Response hash", &response_hash);
         RegisterField("ksimet.dot11.fingerprint.probe_hash", "Probe hash", &probe_hash);
     }
 
-    std::shared_ptr<TrackerElementMacAddr> device_addr;
     std::shared_ptr<TrackerElementUInt32> beacon_hash;
     std::shared_ptr<TrackerElementUInt32> response_hash;
     std::shared_ptr<TrackerElementUInt32> probe_hash;
 };
 
-class Dot11FingerprintTracker : public LifetimeGlobal {
+
+// Generate a dot11 fingerprint tracker on a provided endpoint and with a provided backing file for
+// storage.  This allows multiple fingerprint instances to be generated eg for alerts, whitelisting,
+// and other types.
+// The URI directory should be a non-slash-terminated full path, such as:
+// /phy/phy80211/whitelist
+class Dot11FingerprintTracker {
 public:
-    static std::string global_name() { return "DOT11FINGERPRINTTRACKER"; }
+    // Simple list of endpoints the post_path can return
+    enum class uri_endpoint {
+        endp_unknown,
+        endp_update, endp_insert, endp_delete, endp_bulk_insert, endp_bulk_delete
+    };
 
-    static std::shared_ptr<Dot11FingerprintTracker> create_dot11fingerprinttracker() {
-        std::shared_ptr<Dot11FingerprintTracker> mon(new Dot11FingerprintTracker());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
-        return mon;
-    }
-
-private:
-    Dot11FingerprintTracker();
-
-public:
+    Dot11FingerprintTracker(const std::string& uri_dir, const std::string& config_file);
     virtual ~Dot11FingerprintTracker();
 
+    // Process the post path and return the type and target, or a tuple of uri_endpoint::endp_unknown
+    // if it doesn't exist
+    std::tuple<uri_endpoint, mac_addr> post_path(const std::vector<std::string>& path);
+  
+    // Dispatch function based on URI
+    unsigned int mod_dispatch(std::ostream& stream, const std::vector<std::string>& path, 
+            SharedStructured structured);
+
+    // Fingerprint manipulation
+    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
+    unsigned int insert_fingerprint(std::ostream& stream, SharedStructured structured);
+    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
+    unsigned int bulk_delete_fingerprint(std::ostream& stream, SharedStructured structured);
+    unsigned int bulk_insert_fingerprint(std::ostream& stream, SharedStructured structured);
+
 protected:
+    kis_recursive_timed_mutex mutex;
+
+    std::string configpath;
+    std::shared_ptr<ConfigFile> configfile;
+
+    std::vector<std::string> base_uri;
+
     std::shared_ptr<TrackerElementMacMap> fingerprint_map;
+
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> fingerprint_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> edit_endp;
+    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> update_endp;
 
 };
 
