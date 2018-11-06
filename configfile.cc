@@ -318,52 +318,19 @@ int ConfigFile::FetchOptBoolean(std::string in_key, int dvalue) {
     return r;
 }
 
-int ConfigFile::FetchOptInt(std::string in_key, int dvalue) {
-    // Don't lock, we're locked in fetchopt
-    // local_locker lock(&config_locker);
-
-    std::string v = StrLower(FetchOpt(in_key));
-    int r;
-
-    try {
-        r = StringToInt(v);
-    } catch (const std::runtime_error& e) {
-        return dvalue;
-    }
-
-    return r;
+int ConfigFile::FetchOptInt(const std::string& in_key, int dvalue) {
+    return fetchOptAs<int>(in_key, dvalue);
 }
 
-unsigned int ConfigFile::FetchOptUInt(std::string in_key, unsigned int dvalue) {
-    // Don't lock, we're locked in fetchopt
-    // local_locker lock(&config_locker);
-
-    std::string v = FetchOpt(in_key);
-    unsigned int r;
-
-    try {
-        r = StringToUInt(v);
-    } catch (const std::runtime_error& e) {
-        return dvalue;
-    }
-
-    return r;
+unsigned int ConfigFile::FetchOptUInt(const std::string& in_key, unsigned int dvalue) {
+    return fetchOptAs<unsigned int>(in_key, dvalue);
 }
 
-unsigned long ConfigFile::FetchOptULong(std::string in_key, unsigned long dvalue) {
-    std::string v = FetchOpt(in_key);
-    std::stringstream ss(v);
-    unsigned long r;
-
-    ss >> r;
-
-    if (ss.fail())
-        return dvalue;
-
-    return r;
+unsigned long ConfigFile::FetchOptULong(const std::string& in_key, unsigned long dvalue) {
+    return fetchOptAs<unsigned long>(in_key, dvalue);
 }
 
-int ConfigFile::FetchOptDirty(std::string in_key) {
+int ConfigFile::FetchOptDirty(const std::string& in_key) {
     local_locker lock(&config_locker);
     if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
         return 0;
@@ -371,12 +338,12 @@ int ConfigFile::FetchOptDirty(std::string in_key) {
     return config_map_dirty[StrLower(in_key)];
 }
 
-void ConfigFile::SetOptDirty(std::string in_key, int in_dirty) {
+void ConfigFile::SetOptDirty(const std::string& in_key, int in_dirty) {
     local_locker lock(&config_locker);
     config_map_dirty[StrLower(in_key)] = in_dirty;
 }
 
-void ConfigFile::SetOpt(std::string in_key, std::string in_val, int in_dirty) {
+void ConfigFile::SetOpt(const std::string& in_key, const std::string& in_val, int in_dirty) {
     local_locker lock(&config_locker);
 
     std::vector<config_entity> v;
@@ -386,8 +353,8 @@ void ConfigFile::SetOpt(std::string in_key, std::string in_val, int in_dirty) {
     SetOptDirty(in_key, in_dirty);
 }
 
-void ConfigFile::SetOptVec(std::string in_key, 
-        std::vector<std::string> in_val, int in_dirty) {
+void ConfigFile::SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, 
+        int in_dirty) {
     local_locker lock(&config_locker);
 
     std::vector<config_entity> cev;
@@ -654,5 +621,118 @@ void ConfigFile::CalculateChecksum() {
     }
 
     checksum = Adler32Checksum(cks.c_str(), cks.length());
+}
+
+HeaderValueConfig::HeaderValueConfig(const std::string& in_confline) {
+    parseLine(in_confline);
+}
+
+HeaderValueConfig::HeaderValueConfig() {
+}
+
+void HeaderValueConfig::parseLine(const std::string& in_confline) {
+    local_locker l(mutex);
+
+    auto cpos = in_confline.find(":");
+
+    content_map.clear();
+
+    if (cpos == std::string::npos) {
+        header = in_confline;
+    } else {
+        header = in_confline.substr(0, cpos);
+        std::vector<opt_pair> opt_vec;
+        StringToOpts(in_confline.substr(cpos + 1, in_confline.size() - cpos), ",", &opt_vec);
+
+        for (auto oi : opt_vec)
+            content_map[oi.opt] = oi.val;
+    }
+}
+
+std::string HeaderValueConfig::getHeader() {
+    local_locker l(mutex);
+    return header;
+}
+
+void HeaderValueConfig::setHeader(const std::string& in_str) {
+    local_locker l(mutex);
+    header = in_str;
+}
+
+bool HeaderValueConfig::hasKey(const std::string& in_str) {
+    local_locker l(mutex);
+    return (content_map.find(in_str) != content_map.end());
+}
+
+std::string HeaderValueConfig::getValue(const std::string& in_str) {
+    local_locker l(mutex);
+    
+    auto vi = content_map.find(in_str);
+
+    if (vi == content_map.end())
+        throw std::runtime_error(fmt::format("no such key in content map: {}", in_str));
+
+    return vi->second;
+}
+
+std::string HeaderValueConfig::getValue(const std::string& in_str, const std::string& in_defl) {
+    local_locker l(mutex);
+
+    auto vi = content_map.find(in_str);
+
+    if (vi == content_map.end())
+        return in_defl;
+
+    return vi->second;
+}
+
+void HeaderValueConfig::eraseKey(const std::string& in_key) {
+    local_locker l(mutex);
+
+    auto vi = content_map.find(in_key);
+
+    if (vi == content_map.end())
+        return;
+
+    content_map.erase(vi);
+}
+
+std::string HeaderValueConfig::toString() {
+    std::stringstream ss;
+
+    ss << header << ":";
+
+    bool add_comma = false;
+    for (auto kv : content_map) {
+        if (add_comma)
+            ss << ",";
+        add_comma = true;
+
+        ss << kv.first << "=\"" << kv.second << "\"";
+    }
+
+    return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& h) {
+    os << h.header << ":";
+
+    bool add_comma = false;
+    for (auto kv : h.content_map) {
+        if (add_comma)
+            os << ",";
+        add_comma = true;
+
+        os << kv.first << "=\"" << kv.second << "\"";
+    }
+
+    return os;
+}
+
+std::istream& operator>>(std::istream& is, HeaderValueConfig& h) {
+    std::string sline;
+    std::getline(is, sline);
+    h.parseLine(sline);
+    return is;
 }
 
