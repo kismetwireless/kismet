@@ -300,6 +300,10 @@ struct mac_addr {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
+    inline std::string asString() const {
+        return Mac2String();
+    }
+
     inline std::string Mac2String() const {
         return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
                 index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),

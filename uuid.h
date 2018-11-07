@@ -126,6 +126,10 @@ class uuid {
             error = 0;
         }
 
+        std::string asString() const {
+            return UUID2String();
+        }
+
         std::string UUID2String() const {
             return fmt::format("{:08X}-{:04X}-{:04X}-{:04X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
                     *time_low, *time_mid, *time_hi, *clock_seq,
