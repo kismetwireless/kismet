@@ -324,6 +324,15 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
     return 500;
 }
 
+std::shared_ptr<tracked_dot11_fingerprint> Dot11FingerprintTracker::get_fingerprint(const mac_addr& mac) {
+    auto fmi = fingerprint_map->find(mac);
+
+    if (fmi == fingerprint_map->end())
+        return nullptr;
+
+    return std::static_pointer_cast<tracked_dot11_fingerprint>(fmi->second);
+}
+
 void Dot11FingerprintTracker::rebuild_config() {
     local_locker l(mutex);
 

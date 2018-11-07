@@ -75,6 +75,23 @@ public:
         return hc;
     };
 
+    // Quick compare; a 0-hash indicates a do-not-compare op
+    bool match(uint32_t beacon, uint32_t response, uint32_t probe) const {
+        if (beacon != 0)
+            if (get_beacon_hash() != beacon)
+                return false;
+
+        if (response != 0)
+            if (get_response_hash() != response)
+                return false;
+
+        if (probe != 0)
+            if (get_probe_hash() != probe)
+                return false;
+
+        return true;
+    }
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -123,6 +140,9 @@ public:
     unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
     unsigned int bulk_delete_fingerprint(std::ostream& stream, SharedStructured structured);
     unsigned int bulk_insert_fingerprint(std::ostream& stream, SharedStructured structured);
+
+    // Fetch a fingerprint, return nullptr if fingerprint not found
+    std::shared_ptr<tracked_dot11_fingerprint> get_fingerprint(const mac_addr& mac);
 
 protected:
     void rebuild_config();
