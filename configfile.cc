@@ -373,8 +373,8 @@ void ConfigFile::SetOptVec(const std::string& in_key, const std::vector<std::str
 // Logfile name to use
 // Logfile type to use
 // Starting number or desired number
-std::string ConfigFile::ExpandLogPath(std::string path, std::string logname, std::string type,
-        int start, int overwrite) {
+std::string ConfigFile::ExpandLogPath(const std::string& path, const std::string& logname, 
+        const std::string& type, int start, int overwrite) {
     local_locker lock(&config_locker);
 
     std::string logtemplate;
