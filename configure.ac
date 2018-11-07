@@ -299,7 +299,7 @@ if test "$want_python"x == "no"x; then
 else
     AC_PYTHON_MODULE(setuptools)
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        AC_MSG_ERROR([Missing python-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python-setuptools])
+        AC_MSG_ERROR([Missing python3-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python3-setuptools])
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi

@@ -8134,7 +8134,7 @@ $as_echo "no" >&6; }
 	fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        as_fn_error $? "Missing python-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python-setuptools" "$LINENO" 5
+        as_fn_error $? "Missing python3-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python3-setuptools" "$LINENO" 5
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
