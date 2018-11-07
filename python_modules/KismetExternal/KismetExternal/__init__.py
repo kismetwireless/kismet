@@ -245,7 +245,7 @@ class ExternalInterface(object):
         if cmd.command in self.handlers:
             self.handlers[cmd.command](cmd.seqno, cmd.content)
         else:
-            print("Unhandled", cmd.command)
+            print("Unhandled", cmd.command.decode('utf-8'))
 
         self.rbuffer = self.rbuffer[12 + sz:]
 

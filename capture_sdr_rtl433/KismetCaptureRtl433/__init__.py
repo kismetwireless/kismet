@@ -125,7 +125,7 @@ class KismetRtl433(object):
             if not self.proberet["success"]:
                 print("Could not configure local source {}, check your source options and config.")
                 if "message" in self.proberet:
-                    print(self.proberet["message"])
+                    print(self.proberet["message"].decode('utf-8'))
                 sys.exit(0)
 
             print("Connecting to remote server {}".format(self.config.connect))
