@@ -56,7 +56,15 @@ class uuid {
             error = 1;
         }
 
-        uuid(const std::string in) {
+        uuid(const std::string& in) {
+            FromString(in);
+        }
+
+        uuid(uint8_t *in_node) {
+            GenerateTimeUUID(in_node);
+        }
+
+        void FromString(const std::string& in) {
             memset(uuid_block, 0, 16);
             time_low = (uint32_t *) &(uuid_block[0]);
             time_mid = (uint16_t *) &(uuid_block[4]);
@@ -82,10 +90,6 @@ class uuid {
             for (unsigned int x = 0; x < 6; x++) {
                 node[x] = ln[x];
             }
-        }
-
-        uuid(uint8_t *in_node) {
-            GenerateTimeUUID(in_node);
         }
 
         void GenerateRandomTimeUUID() {
@@ -233,9 +237,11 @@ try_again:
         }
 
     friend std::ostream& operator<<(std::ostream& os, const uuid& u);
+    friend std::istream& operator>>(std::istream &is, uuid& u);
 };
 
 std::ostream& operator<<(std::ostream& os, const uuid& u);
+std::istream& operator>>(std::istream &is, uuid& u);
 
 #endif
 

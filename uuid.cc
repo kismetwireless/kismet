@@ -23,3 +23,10 @@ std::ostream& operator<<(std::ostream& os, const uuid& u) {
     return os;
 }
 
+std::istream& operator>>(std::istream& is, uuid& u) {
+    std::string sline;
+    std::getline(is, sline);
+    u.FromString(sline);
+    return is;
+}
+
