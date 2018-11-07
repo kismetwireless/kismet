@@ -95,7 +95,7 @@ public:
 
     // Set a value, converting the arbitrary input into a string
     template<typename T>
-    void SetOpt(const std::string& in_key, const T& in_value, int in_dirty) {
+    void SetOpt(const std::string& in_key, const T in_value, int in_dirty) {
         local_locker l(config_locker); 
         std::vector<config_entity> v;
         config_entity e(fmt::format("{}", in_value), "::dynamic::");
@@ -166,6 +166,11 @@ protected:
 // confvalue=header:key1="value1,1a,1b",key2=value2,...
 class HeaderValueConfig {
 public:
+    HeaderValueConfig(const HeaderValueConfig& hc) {
+        header = hc.header;
+        content_map = std::map<std::string, std::string> {hc.content_map};
+    }
+
     HeaderValueConfig(const std::string& in_confline);
     HeaderValueConfig();
 
@@ -207,7 +212,7 @@ public:
 
     // Set a value, converting the arbitrary input into a string
     template<typename T>
-    void setValue(const std::string& in_key, const T& in_value) {
+    void setValue(const std::string& in_key, T in_value) {
         local_locker l(mutex); 
         content_map[in_key] = fmt::format("{}", in_value);
     }
