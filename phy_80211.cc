@@ -198,8 +198,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 	Kis_Phy_Handler(in_globalreg, in_phyid),
     Kis_Net_Httpd_CPPStream_Handler() {
 
-    fprintf(stderr, "debug - phy 80211 this %p\n", this);
-
     alertracker =
         Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
 
@@ -218,8 +216,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         Globalreg::globalreg->entrytracker->RegisterField("dot11.device",
                 TrackerElementFactory<dot11_tracked_device>(),
                 "IEEE802.11 device");
-
-    fprintf(stderr, "debug - %p registered dot11 device entry as %d\n", this, dot11_device_entry_id);
 
 	// Packet classifier - makes basic records plus dot11 data
 	packetchain->RegisterHandler(&CommonClassifierDot11, this,
