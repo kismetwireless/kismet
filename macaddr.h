@@ -321,9 +321,11 @@ struct mac_addr {
     }
 
     friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);
+    friend std::istream& operator>>(std::istream& is, mac_addr& m);
 };
 
 std::ostream& operator<<(std::ostream& os, const mac_addr& m);
+std::istream& operator>>(std::istream& is, mac_addr& m);
 
 #endif
 

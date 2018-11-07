@@ -22,3 +22,11 @@ std::ostream& operator<<(std::ostream& os, const mac_addr& m) {
     os << m.Mac2String();
     return os;
 }
+
+std::istream& operator>>(std::istream& is, mac_addr& m) {
+    std::string sline;
+    std::getline(is, sline);
+    m.string2long(sline.c_str());
+    return is;
+}
+
