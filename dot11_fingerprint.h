@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include "configfile.h"
 #include "kis_mutex.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
@@ -64,6 +65,16 @@ public:
     __Proxy(response_hash, uint32_t, uint32_t, uint32_t, response_hash);
     __Proxy(probe_hash, uint32_t, uint32_t, uint32_t, probe_hash);
 
+    // Turn it into a complex config line
+    HeaderValueConfig asConfigComplex(mac_addr m) {
+        HeaderValueConfig hc;
+        hc.setHeader(m.asString());
+        hc.setValue("beacon_hash", get_beacon_hash());
+        hc.setValue("response_hash", get_response_hash());
+
+        return hc;
+    };
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -92,7 +103,9 @@ public:
         endp_update, endp_insert, endp_delete, endp_bulk_insert, endp_bulk_delete
     };
 
-    Dot11FingerprintTracker(const std::string& uri_dir, const std::string& config_file);
+    Dot11FingerprintTracker(const std::string& uri_dir);
+    Dot11FingerprintTracker(const std::string& uri_dir, const std::string& config_file, 
+            const std::string& config_value);
     virtual ~Dot11FingerprintTracker();
 
     // Process the post path and return the type and target, or a tuple of uri_endpoint::endp_unknown
@@ -112,9 +125,12 @@ public:
     unsigned int bulk_insert_fingerprint(std::ostream& stream, SharedStructured structured);
 
 protected:
+    void rebuild_config();
+
     kis_recursive_timed_mutex mutex;
 
     std::string configpath;
+    std::string configvalue;
     std::shared_ptr<ConfigFile> configfile;
 
     std::vector<std::string> base_uri;

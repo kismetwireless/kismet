@@ -20,8 +20,26 @@
 #include "configfile.h"
 #include "fmt.h"
 
+Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
+    base_uri = StrTokenize(in_uri, "/");
+
+    fingerprint_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", false, 
+                fingerprint_map, &mutex);
+
+    update_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
+                }, true, 
+                [this](std::ostream& stream, const std::vector<std::string>& path, 
+                    SharedStructured structured) -> unsigned int {
+                    return mod_dispatch(stream, path, structured); 
+                }, &mutex);
+}
+
 Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
-    const std::string& in_config) {
+    const std::string& in_config, const std::string& in_confvalue) {
 
     base_uri = StrTokenize(in_uri, "/");
 
@@ -41,11 +59,13 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
 
     configfile = std::make_shared<ConfigFile>();
     configpath = configfile->ExpandLogPath(in_config);
+    configvalue = in_confvalue;
     configfile->ParseConfig(in_config);
 }
 
 Dot11FingerprintTracker::~Dot11FingerprintTracker() {
-    configfile->SaveConfig(configpath);
+    if (configfile != nullptr)
+        configfile->SaveConfig(configpath);
 }
 
 std::tuple<Dot11FingerprintTracker::uri_endpoint, mac_addr>
@@ -149,6 +169,8 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
         if (structured->hasKey("probe_hash"))
             fp->set_probe_hash(structured->getKeyAsNumber("probe_hash"));
 
+        rebuild_config();
+
         stream << "Fingerprint updated\n";
         return 200;
 
@@ -185,6 +207,8 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
 
         fingerprint_map->insert(std::make_pair(mac, fp));
 
+        rebuild_config();
+
         stream << "Fingerprint added\n";
         return 200;
 
@@ -208,6 +232,8 @@ unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, m
     }
 
     fingerprint_map->erase(fpi);
+
+    rebuild_config();
 
     stream << "Fingerprint deleted\n";
     return 200;
@@ -237,6 +263,8 @@ unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stre
 
             num_erased++;
         }
+
+        rebuild_config();
 
         stream << "Erased " << num_erased << " fingerprints\n";
         return 200;
@@ -283,6 +311,8 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
             num_added++;
         }
 
+        rebuild_config();
+
         stream << "Inserted " << num_added << " fingerprints\n";
         return 200;
     } catch (const StructuredDataException& e) {
@@ -293,4 +323,22 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
     stream << "Unhandled command\n";
     return 500;
 }
+
+void Dot11FingerprintTracker::rebuild_config() {
+    local_locker l(mutex);
+
+    if (configfile == nullptr)
+        return;
+
+    auto v = std::vector<std::string>{};
+
+    for (auto fpi : *fingerprint_map) {
+        auto fp = std::static_pointer_cast<tracked_dot11_fingerprint>(fpi.second);
+        v.push_back(fp->asConfigComplex(fpi.first).toString());
+    }
+
+    configfile->SetOptVec(configvalue, v, true);
+    configfile->SaveConfig(configpath);
+}
+
 
