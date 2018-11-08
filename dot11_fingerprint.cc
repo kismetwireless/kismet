@@ -21,6 +21,8 @@
 #include "fmt.h"
 
 Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
+    using namespace std::placeholders;
+
     base_uri = StrTokenize(in_uri, "/");
 
     fingerprint_endp =
@@ -32,14 +34,13 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
                 [this](const std::vector<std::string>& path) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, true, 
-                [this](std::ostream& stream, const std::vector<std::string>& path, 
-                    SharedStructured structured) -> unsigned int {
-                    return mod_dispatch(stream, path, structured); 
-                }, &mutex);
+                std::bind(&Dot11FingerprintTracker::mod_dispatch, this, _1, _2, _3),
+                &mutex);
 }
 
 Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
     const std::string& in_config, const std::string& in_confvalue) {
+    using namespace std::placeholders;
 
     base_uri = StrTokenize(in_uri, "/");
 
@@ -52,10 +53,8 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
                 [this](const std::vector<std::string>& path) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, true, 
-                [this](std::ostream& stream, const std::vector<std::string>& path, 
-                    SharedStructured structured) -> unsigned int {
-                    return mod_dispatch(stream, path, structured); 
-                }, &mutex);
+                std::bind(&Dot11FingerprintTracker::mod_dispatch, this, _1, _2, _3),
+                &mutex);
 
     configfile = std::make_shared<ConfigFile>();
     configpath = configfile->ExpandLogPath(in_config);
