@@ -74,6 +74,22 @@ class tracker_component : public TrackerElementMap {
         SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
+// Ugly macro for standard proxy access but with an additional mutex; this should
+// be a kis_recursive_timed_mutex and is used with local_locker(...)
+#define __ProxyM(name, ptype, itype, rtype, cvar, mvar) \
+    virtual SharedTrackerElement get_tracker_##name() const { \
+        return (std::shared_ptr<TrackerElement>) cvar; \
+    } \
+    virtual rtype get_##name() { \
+        local_locker l(mvar); \
+        auto r = GetTrackerValue<ptype>(cvar); \
+        return (rtype) r; \
+    } \
+    virtual void set_##name(const itype& in) { \
+        local_locker l(mvar); \
+        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+    }
+
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a TrackerElement of type <ptype>, returning type 
 // <rtype>, referencing class variable <cvar>
