@@ -57,6 +57,7 @@
 #include "kis_net_microhttpd.h"
 #include "structured.h"
 #include "devicetracker_httpd_pcap.h"
+#include "devicetracker_view.h"
 #include "kis_database.h"
 
 #define KIS_PHY_ANY	-1
