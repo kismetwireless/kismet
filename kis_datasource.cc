@@ -117,6 +117,9 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
         return;
     }
 
+    // Quiet errors during launch since it's not a well-formed interface yet
+    quiet_errors = 1;
+
     // Launch the IPC
     if (!launch_ipc()) {
         if (in_cb != NULL) {
@@ -172,6 +175,9 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
 
         return;
     }
+
+    // Squelch errors from probe because they're not useful
+    quiet_errors = true;
 
     // Launch the IPC
     if (launch_ipc()) {
