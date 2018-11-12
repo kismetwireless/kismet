@@ -34,15 +34,24 @@ bool DevicetrackerViewFunctionWorker::matchDevice(std::shared_ptr<kis_tracked_de
     return filter(device);
 }
 
-void DevicetrackerView::setNewDeviceCallback(new_device_cb cb) {
-    local_locker l(mutex);
-    new_cb = cb;
-    list_sz->set(device_list->size());
-}
+DevicetrackerView::DevicetrackerView(const std::string& in_id, new_device_cb in_new_cb,
+        updated_device_cb in_update_cb) :
+    tracker_component{},
+    new_cb {in_new_cb},
+    update_cb {in_update_cb} {
 
-void DevicetrackerView::setUpdatedDeviceCallback(updated_device_cb cb) {
-    local_locker l(mutex);
-    update_cb = cb;
+    using namespace std::placeholders;
+
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_view_id(in_id);
+
+    auto uri = fmt::format("/devices/view/{}/devices", in_id);
+
+    device_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
+                std::bind(&DevicetrackerView::device_endpoint_handler, this, _1, _2), &mutex);
 }
 
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
@@ -134,6 +143,12 @@ void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> de
             }
         }
     }
+}
+
+unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream, 
+        SharedStructured structured) {
+
+    return 500;
 }
 
 

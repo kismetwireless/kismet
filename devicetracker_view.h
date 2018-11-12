@@ -37,6 +37,12 @@
 // Views are best suited to long-term alternate representations of data, such as 'all access points',
 // 'all devices of a given phy type', and so on.  The vector-backed system is not well optimized
 // for frequent eviction of devices from the view.
+//
+// Views live under the devices tree in:
+// /devices/view/[view id]/...
+//
+// Main device sorting/filtering/datatables view lives under:
+// /devices/view/[view id]/devices.json
 
 class kis_tracked_device;
 class DevicetrackerView;
@@ -74,18 +80,27 @@ protected:
 
 class DevicetrackerView : public tracker_component {
 public:
-    DevicetrackerView() :
-        tracker_component{} {
-        register_fields();
-        reserve_fields(nullptr);
-    }
+    // The new device callback is called whenever a new device is created by the devicetracker;
+    // it's also called for every device when a new view is created, to perform the initial 
+    // population
+
+    // The updated device callback is called whenever a change event occurs.  Change events
+    // are triggered by specific code, make sure you've integrated a change trigger for
+    // the filtering you're performing.
+    // Returning 'false' removes the device from the list.  This is expensive, so 
+    // removing devices from filtering should be a relatively rare event
+    
+    using new_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
+    using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
+
+    DevicetrackerView(const std::string& in_id, new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     virtual ~DevicetrackerView() {
         local_locker l(mutex);
     }
 
     // Protect proxies w/ mutex
-    __ProxyM(view_uuid, uuid, uuid, uuid, view_uuid, mutex);
+    __ProxyM(view_id, std::string, std::string, std::string, view_id, mutex);
     __ProxyM(view_description, std::string, std::string, std::string, view_description, mutex);
 
     virtual void pre_serialize() override {
@@ -95,20 +110,6 @@ public:
     virtual void post_serialize() override {
         local_shared_unlocker lock(mutex);
     }
-
-    using new_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
-    using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
-
-    // The new device callback is called whenever a new device is created by the devicetracker;
-    // it's also called for every device when a new view is created, to perform the initial 
-    // population
-    virtual void setNewDeviceCallback(new_device_cb cb); 
-
-    // The updated device callback is called whenever a change event occurs.  Change events
-    // are triggered by specific code, make sure you've integrated a change trigger for
-    // the filtering you're performing.
-    // Returning 'false' removes the device from the list.
-    virtual void setUpdatedDeviceCallback(updated_device_cb cb);
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
     // before perforing work
@@ -128,7 +129,7 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.devices.view.uuid", "List identifier", &view_uuid);
+        RegisterField("kismet.devices.view.id", "View ID/Endpoint", &view_id);
         RegisterField("kismet.devices.view.description", "List description", &view_description);
         RegisterField("kismet.devices.view.size", "Number of device in list", &list_sz);
 
@@ -148,8 +149,14 @@ protected:
 
     // Main vector of devices
     std::shared_ptr<TrackerElementVector> device_list;
-    // Map of device presence in our list for fast referece during pdates
+    // Map of device presence in our list for fast referece during updates
     std::map<device_key, bool> device_presence_map;
+
+    // Device view endpoint
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
+
+    // Endpoint handler
+    unsigned int device_endpoint_handler(std::ostream& stream, SharedStructured structured);
 
     // Devicetracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those
