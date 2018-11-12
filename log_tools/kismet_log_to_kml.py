@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 # Simple dumper to extract kismet records and export them as a json
 # array

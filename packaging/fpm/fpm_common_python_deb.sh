@@ -9,31 +9,31 @@ fi
 VERSION="$(date '+%Y%m%d').git-$(git rev-parse --short ${GITV})"
 
 sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
-    --depends python3 \
-    --depends python3-protobuf \
-    --depends python3-requests \
+    --depends python \
+    --depends python-protobuf \
+    --depends python-requests \
     --python-setup-py-arguments '--prefix=/usr' \
     ./python_modules/KismetRest
 
 sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
-    --depends python3 \
-    --depends python3-protobuf \
+    --depends python \
+    --depends python-protobuf \
     --python-setup-py-arguments '--prefix=/usr' \
     ./python_modules/KismetExternal
 
 sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
-    --depends python3 \
-    --depends python3-protobuf \
-    --depends python3-requests \
+    --depends python \
+    --depends python-protobuf \
+    --depends python-requests \
     --python-setup-py-arguments '--prefix=/usr' \
     ./python_modules/KismetLog
 
 sudo fpm -t deb -s python -v 2018.${GITV}+${VERSION} \
     --depends python-kismetexternal \
-    --depends python3 \
-    --depends python3-protobuf \
-    --depends python3-usb \
-    --depends python3-paho-mqtt \
+    --depends python \
+    --depends python-protobuf \
+    --depends python-usb \
+    --depends python-paho-mqtt \
     --depends librtlsdr0 \
     --python-setup-py-arguments '--prefix=/usr' \
     ./capture_sdr_rtl433

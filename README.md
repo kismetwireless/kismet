@@ -44,10 +44,12 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    $ sudo apt-get install build-essential git libmicrohttpd-dev pkg-config zlib1g-dev libnl-3-dev libnl-genl-3-dev libcap-dev libpcap-dev libncurses5-dev libnm-dev libdw-dev libsqlite3-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libsensors4-dev
    ```
 
-   On some older versions, `libprotobuf-c-dev` may be called `libprotobuf-c0-dev`.For the Python add-ons, you will also need:
+   On some older versions, `libprotobuf-c-dev` may be called `libprotobuf-c0-dev`.
+   
+   For the Python add-ons, you will also need the following Python2 libraries.  The `protobuf` tool currently does not appear to agree with the changes in python3, so python2 is required:
 
    ```bash
-   $ sudo apt-get install python3 python3-setuptools python3-protobuf python3-requests
+   $ sudo apt-get install python2 python-setuptools python-protobuf python-requests
    ```
 
    You can also use the `pip` equivalents of the python libraries, so long as they're installed in a location your normal Python interpreter can find them.
@@ -55,7 +57,7 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    For rtlsdr rtl_433 support, you will also need:
 
    ```bash
-   $ sudo apt-get install librtlsdr0 python3-usb python3-paho-mqtt
+   $ sudo apt-get install librtlsdr0 python-usb python-paho-mqtt
    ```
    as well as the rtl_433 tool from https://github.com/merbanan/rtl_433 if it is not otherwise provided by your distribution.
 
@@ -71,7 +73,7 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    $ sudo dnf install make automake gcc gcc-c++ kernel-devel git libmicrohttpd-devel pkg-config zlib-devel libnl3-devel libcap-devel libpcap-devel ncurses-devel NetworkManager-libnm-devel libdwarf libdwarf-devel elfutils-devel libsqlite3x-devel protobuf-devel protobuf-c-devel protobuf-compiler protobuf-c-compiler lm_sensors-devel libusb-devel fftw-devel
    ```
 
-   You will also need te related python3 packages.
+   You will also need the related python2 packages.
 
 3. Clone Kismet from git.  If you haven't cloned Kismet before:
    ```bash

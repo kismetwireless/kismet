@@ -48,7 +48,7 @@ SUIDGROUP 	= @suidgroup@
 
 DATASOURCE_LIBS	+= $(CAPLIBS) @PTHREAD_LIBS@ @PROTOCLIBS@ -lm
 
-PYTHON3		?= @PYTHON3@
+PYTHON2		?= @PYTHON2@
 
 
 prefix 		= @prefix@

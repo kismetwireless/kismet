@@ -3,12 +3,12 @@ include ../Makefile.inc
 MONITOR_BIN = kismet_cap_freaklabs_zigbee
 
 all: 
-	$(PYTHON3) ./setup.py build
+	$(PYTHON2) ./setup.py build
 
 install:
-	$(PYTHON3) ./setup.py install
+	$(PYTHON2) ./setup.py install
 	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
 
 clean:
-	@-$(PYTHON3) ./setup.py clean
+	@-$(PYTHON2) ./setup.py clean
 

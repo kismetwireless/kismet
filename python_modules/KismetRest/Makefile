@@ -1,11 +1,11 @@
 include ../../Makefile.inc
 
 all:	
-	$(PYTHON3) ./setup.py build
+	$(PYTHON2) ./setup.py build
 	
 install:
-	$(PYTHON3) ./setup.py install
+	$(PYTHON2) ./setup.py install
 
 clean:
-	@-$(PYTHON3) ./setup.py clean
+	@-$(PYTHON2) ./setup.py clean
 

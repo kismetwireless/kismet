@@ -1,6 +1,6 @@
 AC_DEFUN([AC_PYTHON_MODULE],[
 	AC_MSG_CHECKING(python module: $1)
-	python3 -c "import $1" 2>/dev/null
+	python2 -c "import $1" 2>/dev/null
 	if test $? -eq 0;
 	then
 		AC_MSG_RESULT(yes)

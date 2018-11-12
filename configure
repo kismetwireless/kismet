@@ -668,7 +668,7 @@ protobuf_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
-PYTHON3
+PYTHON2
 airpcaplib
 pcap
 pcaplnk
@@ -779,7 +779,7 @@ enable_pcre
 enable_prelude
 with_libprelude_prefix
 enable_pcap
-with_python3
+with_python2
 with_protoc
 with_protocc
 with_netlink_tiny
@@ -1463,7 +1463,7 @@ Optional Packages:
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
-  --with-python3=PATH     Custom location of python3 interpreter
+  --with-python2=PATH     Custom location of python2 interpreter
   --with-protoc=PATH     Custom location of the protoc protobuf compiler
   --with-protocc=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
@@ -8115,7 +8115,7 @@ else
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python module: setuptools" >&5
 $as_echo_n "checking python module: setuptools... " >&6; }
-	python3 -c "import setuptools" 2>/dev/null
+	python2 -c "import setuptools" 2>/dev/null
 	if test $? -eq 0;
 	then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
@@ -8134,7 +8134,7 @@ $as_echo "no" >&6; }
 	fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        as_fn_error $? "Missing python3-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python3-setuptools" "$LINENO" 5
+        as_fn_error $? "Missing python2-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python2-setuptools" "$LINENO" 5
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
@@ -11177,15 +11177,15 @@ fi
 
 
 
-# Check whether --with-python3 was given.
-if test "${with_python3+set}" = set; then :
-  withval=$with_python3;
+# Check whether --with-python2 was given.
+if test "${with_python2+set}" = set; then :
+  withval=$with_python2;
 fi
 
-if test x"$with_python3" != "x"; then
-    PYTHON3=$with_python3
+if test x"$with_python2" != "x"; then
+    PYTHON2=$with_python2
 else
-    PYTHON3=python3
+    PYTHON2=python2
 fi
 
 
