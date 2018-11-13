@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DEVICE_VIEW_WORKER_H__
-#define __DEVICE_VIEW_WORKER_H__
+#ifndef __DEVICE_VIEW_WORKERS_H__
+#define __DEVICE_VIEW_WORKERS_H__
 
 #include "config.h"
 
@@ -64,5 +64,38 @@ protected:
     filter_cb filter;
 };
 
+class DevicetrackerViewRegexWorker : public DevicetrackerViewWorker {
+public:
+    struct pcre_filter {
+#ifdef HAVE_LIBPCRE
+        pcre_filter(const std::string& target, const std::string& in_regex);
+        ~pcre_filter();
+
+        std::string target;
+        pcre *re;
+        pcre_extra *study;
+#endif
+    };
+
+    // Filter baed on a prepared vector
+    DevicetrackerViewRegexWorker(const std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>>& filter_vec);
+
+    // Build a PCRE from a standard regex description on a POST.
+    // The SharedStructured objeect is expected to be a vector of [field, regex] pairs.
+    // std::runtime_error may be thrown if there is a parsing failure
+    DevicetrackerViewRegexWorker(SharedStructured shared_pcre_vec);
+
+    // Build a PCRE from a vector of field:pcre pairs
+    // std::runtime_error may be thrown if there is a parsing failure
+    DevicetrackerViewRegexWorker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
+
+    virtual ~DevicetrackerViewRegexWorker() { }
+
+    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+
+protected:
+    std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>> filter_vec;
+
+};
 
 #endif

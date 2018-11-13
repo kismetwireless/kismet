@@ -28,7 +28,7 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 #include "devicetracker_component.h"
-#include "devicetracker_view_worker.h"
+#include "devicetracker_view_workers.h"
 
 // Common view holder mechanism which handles view endpoints, view filtering, and so on.
 //
