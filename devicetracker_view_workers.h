@@ -64,6 +64,7 @@ protected:
     filter_cb filter;
 };
 
+// Field:Regex matcher
 class DevicetrackerViewRegexWorker : public DevicetrackerViewWorker {
 public:
     struct pcre_filter {
@@ -96,6 +97,26 @@ public:
 protected:
     std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>> filter_vec;
 
+};
+
+// Generic string search for any string-like value (and a few more complex values, like MAC addresses).
+// Searches multiple fields for a given string
+class DevicetrackerViewStringmatchWorker : public DevicetrackerViewWorker {
+public:
+    // Match a given string against a list of resovled field paths
+    DevicetrackerViewStringmatchWorker(const std::string& in_query,
+            const std::vector<std::vector<int>>& in_paths);
+
+    virtual ~DevicetrackerViewStringmatchWorker() { }
+
+    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+
+protected:
+    std::string query;
+    std::vector<std::vector<int>> fieldpaths;
+
+    uint64_t mac_query_term;
+    unsigned int mac_query_term_len;
 };
 
 #endif
