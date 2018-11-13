@@ -126,7 +126,8 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
 
     // Endpoint handler
-    unsigned int device_endpoint_handler(std::ostream& stream, SharedStructured structured);
+    unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, SharedStructured structured,
+            std::map<std::string, std::shared_ptr<std::stringstream>>& postvars);
 
     // Devicetracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those

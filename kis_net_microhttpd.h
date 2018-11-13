@@ -47,6 +47,11 @@ class Kis_Net_Httpd_Connection;
 
 class EntryTracker;
 
+namespace Kismet_Httpd {
+    std::string GetSuffix(const std::string& path);
+    std::string StripSuffix(const std::string& path);
+};
+
 // Basic request handler from MHD
 class Kis_Net_Httpd_Handler {
 public:
@@ -423,7 +428,7 @@ protected:
 class Kis_Net_Httpd_Simple_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     using handler_func = 
-        std::function<unsigned int (std::ostream& stream, SharedStructured post_structured,
+        std::function<unsigned int (std::ostream& stream, const std::string& uri, SharedStructured post_structured,
                 std::map<std::string, std::shared_ptr<std::stringstream>>& variable_cache)>;
 
     Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, bool in_auth, handler_func in_func,

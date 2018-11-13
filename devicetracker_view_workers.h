@@ -35,6 +35,7 @@
 
 class DevicetrackerViewWorker {
 public:
+    DevicetrackerViewWorker() { }
     virtual ~DevicetrackerViewWorker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) = 0;
@@ -56,6 +57,11 @@ public:
     using filter_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
     DevicetrackerViewFunctionWorker(filter_cb cb);
+    DevicetrackerViewFunctionWorker(const DevicetrackerViewFunctionWorker& w) {
+        filter = w.filter;
+        matched = w.matched;
+    }
+
     virtual ~DevicetrackerViewFunctionWorker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
@@ -90,6 +96,11 @@ public:
     // std::runtime_error may be thrown if there is a parsing failure
     DevicetrackerViewRegexWorker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
 
+    DevicetrackerViewRegexWorker(const DevicetrackerViewRegexWorker& w) {
+        filter_vec = w.filter_vec;
+        matched = w.matched;
+    }
+
     virtual ~DevicetrackerViewRegexWorker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
@@ -106,6 +117,13 @@ public:
     // Match a given string against a list of resovled field paths
     DevicetrackerViewStringmatchWorker(const std::string& in_query,
             const std::vector<std::vector<int>>& in_paths);
+    DevicetrackerViewStringmatchWorker(const DevicetrackerViewStringmatchWorker& w) {
+        query = w.query;
+        fieldpaths = w.fieldpaths;
+        mac_query_term = w.mac_query_term;
+        mac_query_term_len = w.mac_query_term_len;
+        matched = w.matched;
+    }
 
     virtual ~DevicetrackerViewStringmatchWorker() { }
 

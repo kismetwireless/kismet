@@ -48,6 +48,25 @@
 #include "structured.h"
 #include "kismet_json.h"
 
+std::string Kismet_Httpd::GetSuffix(const std::string& url) {
+    size_t lastdot = url.find_last_of(".");
+
+    if (lastdot != std::string::npos)
+        return url.substr(lastdot + 1, url.length() - lastdot);
+
+    return "";
+}
+
+std::string Kismet_Httpd::StripSuffix(const std::string& url) {
+    size_t lastdot = url.find_last_of(".");
+
+    if (lastdot == std::string::npos)
+        lastdot = url.length();
+
+    return url.substr(0, lastdot);
+}
+
+
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
@@ -1926,7 +1945,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
                 std::make_shared<StructuredJson>(std::string{"{}"});
         }
 
-        auto r = generator(stream, structdata, concls->variable_cache);
+        auto r = generator(stream, concls->url, structdata, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;

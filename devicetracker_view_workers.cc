@@ -30,6 +30,9 @@ void DevicetrackerViewWorker::setMatchedDevices(std::shared_ptr<TrackerElementVe
     matched = devs;
 }
 
+DevicetrackerViewFunctionWorker::DevicetrackerViewFunctionWorker(filter_cb cb) :
+    filter {cb} { }
+
 bool DevicetrackerViewFunctionWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     return filter(device);
 }

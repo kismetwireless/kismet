@@ -808,7 +808,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     if (in_dt_length <= 0 || in_dt_length > 500) {
                         fprintf(stderr, "debug - in datatables server-side length was out of "
                                 "bounds, asked for %d\n", in_dt_length);
-                        dt_length = 300;
+                        dt_length = 500;
                     } else {
                         dt_length = in_dt_length;
                     }
