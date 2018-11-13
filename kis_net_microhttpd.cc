@@ -1926,7 +1926,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
                 std::make_shared<StructuredJson>(std::string{"{}"});
         }
 
-        auto r = generator(stream, structdata);
+        auto r = generator(stream, structdata, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;
@@ -2038,7 +2038,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connectio
                 std::make_shared<StructuredJson>(std::string{"{}"});
         }
 
-        auto r = generator(stream, tokenurl, structdata);
+        auto r = generator(stream, tokenurl, structdata, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;

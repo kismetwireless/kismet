@@ -423,7 +423,8 @@ protected:
 class Kis_Net_Httpd_Simple_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
     using handler_func = 
-        std::function<unsigned int (std::ostream& stream, SharedStructured post_structured)>;
+        std::function<unsigned int (std::ostream& stream, SharedStructured post_structured,
+                const std::map<std::string, std::shared_ptr<std::stringstream>>& variable_cache)>;
 
     Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, bool in_auth, handler_func in_func,
             kis_recursive_timed_mutex *in_mutex);
@@ -454,7 +455,8 @@ public:
     using path_func = std::function<bool (const std::vector<std::string>&)>;
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, 
-                const std::vector<std::string>& path, SharedStructured post_structured)>;
+                const std::vector<std::string>& path, SharedStructured post_structured,
+                const std::map<std::string, std::shared_ptr<std::stringstream>>& variable_cache)>;
 
     Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, bool in_auth, handler_func in_func);
     Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, bool in_auth, handler_func in_func,
