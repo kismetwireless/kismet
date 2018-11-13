@@ -30,10 +30,6 @@
 #include "devicetracker_component.h"
 #include "devicetracker_view_worker.h"
 
-#ifdef HAVE_LIBPCRE
-#include <pcre.h>
-#endif
-
 // Common view holder mechanism which handles view endpoints, view filtering, and so on.
 //
 // Views are optimized for maintinaing independent, sorted lists of devices.  For a view to work,
