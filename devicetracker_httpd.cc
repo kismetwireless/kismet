@@ -636,7 +636,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 if (!Httpd_CanSerialize(tokenurl[4])) {
-                    stream << "Invalid request: Cannot serialize fiel type";
+                    stream << "Invalid request: Cannot serialize field type";
                     concls->httpcode = 400;
                     return MHD_YES;
                 }
