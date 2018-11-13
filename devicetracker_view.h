@@ -28,6 +28,11 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 #include "devicetracker_component.h"
+#include "devicetracker_view_worker.h"
+
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
 
 // Common view holder mechanism which handles view endpoints, view filtering, and so on.
 //
@@ -46,37 +51,6 @@
 
 class kis_tracked_device;
 class DevicetrackerView;
-
-class DevicetrackerViewWorker {
-public:
-    virtual ~DevicetrackerViewWorker() { }
-
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) = 0;
-    virtual std::shared_ptr<TrackerElementVector> getMatchedDevices() {
-        return matched;
-    }
-
-protected:
-    friend class DevicetrackerView;
-
-    virtual void setMatchedDevices(std::shared_ptr<TrackerElementVector> devices);
-
-    kis_recursive_timed_mutex mutex;
-    std::shared_ptr<TrackerElementVector> matched;
-};
-
-class DevicetrackerViewFunctionWorker : public DevicetrackerViewWorker {
-public:
-    using filter_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
-
-    DevicetrackerViewFunctionWorker(filter_cb cb);
-    virtual ~DevicetrackerViewFunctionWorker() { }
-
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
-
-protected:
-    filter_cb filter;
-};
 
 class DevicetrackerView : public tracker_component {
 public:

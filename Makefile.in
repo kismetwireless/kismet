@@ -141,7 +141,8 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o globalre
 	gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
 	packetchain.cc.o \
 	trackedelement.cc.o trackedcomponent.cc.o entrytracker.cc.o \
-	tracked_location.cc.o devicetracker_component.cc.o devicetracker_view.cc.o \
+	tracked_location.cc.o devicetracker_component.cc.o \
+	devicetracker_view.cc.o devicetracker_view_worker.cc.o \
 	jsoncpp.cc.o json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_workers.cc.o devicetracker_httpd.cc.o \
