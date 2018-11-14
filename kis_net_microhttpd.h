@@ -50,6 +50,7 @@ class EntryTracker;
 namespace Kismet_Httpd {
     std::string GetSuffix(const std::string& path);
     std::string StripSuffix(const std::string& path);
+    std::string EscapeHtml(const std::string& path);
 };
 
 // Basic request handler from MHD

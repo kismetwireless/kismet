@@ -66,6 +66,34 @@ std::string Kismet_Httpd::StripSuffix(const std::string& url) {
     return url.substr(0, lastdot);
 }
 
+std::string Kismet_Httpd::EscapeHtml(const std::string& in) {
+    std::stringstream ss;
+
+    for (unsigned int c = 0; c < in.length(); c++) {
+        switch (in[c]) {
+            case '&':
+                ss << "&amp;";
+                break;
+            case '<':
+                ss << "&lt;";
+                break;
+            case '>':
+                ss << "&gt;";
+                break;
+            case '"':
+                ss << "&quot;";
+                break;
+            case '/':
+                ss << "&#x2F;";
+                break;
+            default:
+                ss << in[c];
+        }
+    }
+
+    return ss.str();
+}
+
 
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
@@ -555,28 +583,32 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         concls->url = std::string(url);
         concls->connection = connection;
 
-        /* Set up a POST handler */
-        if (strcmp(method, "POST") == 0) {
-            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_POST;
+        // Normally we'd build the post processor and read in the post data; if we don't have a handler,
+        // we don't do that
+        if (handler != NULL) {
+            /* Set up a POST handler */
+            if (strcmp(method, "POST") == 0) {
+                concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_POST;
 
-            concls->postprocessor =
-                MHD_create_post_processor(connection, KIS_HTTPD_POSTBUFFERSZ,
-                        kishttpd->http_post_handler, (void *) concls);
+                concls->postprocessor =
+                    MHD_create_post_processor(connection, KIS_HTTPD_POSTBUFFERSZ,
+                            kishttpd->http_post_handler, (void *) concls);
 
-            if (concls->postprocessor == NULL) {
-                // fprintf(stderr, "debug - failed to make postprocessor\n");
-                // This might get cleaned up elsewhere? The examples don't 
-                // free it.
-                // delete(concls);
-                return MHD_NO;
+                if (concls->postprocessor == NULL) {
+                    // fprintf(stderr, "debug - failed to make postprocessor\n");
+                    // This might get cleaned up elsewhere? The examples don't 
+                    // free it.
+                    // delete(concls);
+                    return MHD_NO;
+                }
+            } else {
+                // Otherwise default to the get handler
+                concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_GET;
             }
-        } else {
-            // Otherwise default to the get handler
-            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_GET;
-        }
 
-        // We're done
-        return MHD_YES;
+            // We're done
+            return MHD_YES;
+        }
     } else {
         concls = (Kis_Net_Httpd_Connection *) *ptr;
     }
@@ -584,9 +616,10 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     if (handler == NULL) {
         // Try to check a static url
         if (handle_static_file(cls, concls, url, method) < 0) {
-            // fprintf(stderr, "   404 no handler for request\n");
+            // fprintf(stderr, "   404 no handler for request %s\n", url);
 
-            std::string fourohfour = "404";
+            auto fourohfour = fmt::format("<h1>404</h1>Unable to find resource {}\n", 
+                    Kismet_Httpd::EscapeHtml(url));
 
             struct MHD_Response *response = 
                 MHD_create_response_from_buffer(fourohfour.length(), 
@@ -787,6 +820,7 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
                 return -1;
             }
 
+            /*
             if (connection->session != NULL) {
                 std::stringstream cookiestr;
                 std::stringstream cookie;
@@ -798,6 +832,7 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
                 MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
                         cookiestr.str().c_str());
             }
+            */
 
             char lastmod[31];
             struct tm tmstruct;
