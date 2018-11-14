@@ -283,6 +283,7 @@ public:
 
     virtual void new_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
     virtual void update_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
+    virtual void remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
 
 protected:
 	GlobalRegistry *globalreg;

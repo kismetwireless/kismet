@@ -63,18 +63,20 @@ public:
     using new_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
     using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
-    DevicetrackerView(const std::string& in_id, new_device_cb in_new_cb, updated_device_cb in_upd_cb);
+    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+            new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     virtual ~DevicetrackerView() {
         local_locker l(mutex);
     }
 
     // Protect proxies w/ mutex
-    __ProxyM(view_id, std::string, std::string, std::string, view_id, mutex);
-    __ProxyM(view_description, std::string, std::string, std::string, view_description, mutex);
+    __ProxyGet(view_id, std::string, std::string, view_id);
+    __ProxyGet(view_description, std::string, std::string, view_description);
 
     virtual void pre_serialize() override {
         local_eol_shared_locker lock(mutex);
+        list_sz->set(device_list->size());
     }
 
     virtual void post_serialize() override {

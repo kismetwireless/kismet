@@ -794,6 +794,8 @@ std::shared_ptr<kis_tracked_device_base>
 
         auto mm_pair = std::make_pair(in_mac, device);
         tracked_mac_multimap.insert(mm_pair);
+
+        new_view_device(device);
     }
 
     return device;
@@ -919,6 +921,9 @@ int Devicetracker::timetracker_event(int eventid) {
                                 break;
                             }
                         }
+
+                        // Forget it from any views
+                        remove_view_device(d);
 
                         // Forget it from the immutable vec, but keep its 
                         // position; we need to have vecpos = devid
@@ -1158,6 +1163,15 @@ void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);
         vi->updateDevice(in_device);
+    }
+}
+
+void Devicetracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
+    local_locker l(view_mutex);
+
+    for (auto i : *view_vec) {
+        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        vi->removeDevice(in_device);
     }
 }
 

@@ -25,8 +25,8 @@
 #include "kis_mutex.h"
 #include "kismet_algorithm.h"
 
-DevicetrackerView::DevicetrackerView(const std::string& in_id, new_device_cb in_new_cb,
-        updated_device_cb in_update_cb) :
+DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string& in_description, 
+        new_device_cb in_new_cb, updated_device_cb in_update_cb) :
     tracker_component{},
     new_cb {in_new_cb},
     update_cb {in_update_cb} {
@@ -36,10 +36,12 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, new_device_cb in_
     register_fields();
     reserve_fields(nullptr);
 
-    set_view_id(in_id);
+    view_id->set(in_id);
+    view_description->set(in_description);
+
+    device_list = std::make_shared<TrackerElementVector>();
 
     auto uri = fmt::format("/devices/view/{}/devices", in_id);
-
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
                 std::bind(&DevicetrackerView::device_endpoint_handler, this, _1, _2, _3, _4), &mutex);
