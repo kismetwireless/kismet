@@ -126,6 +126,28 @@ int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vec
 void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
+template<typename T>
+T StringTo(const std::string& s) {
+    std::stringstream ss(s);
+    T t;
+
+    ss >> t;
+
+    if (ss.fail())
+        throw std::runtime_error("unable to parse string value");
+
+    return t;
+}
+
+template<typename T>
+T StringTo(const std::string& s, T dvalue) {
+    try {
+        return StringTo<T>(s);
+    } catch (const std::exception& e) {
+        return dvalue;
+    }
+}
+
 // String compare, 1 true 0 false -1 unknown, or default value as provided
 int StringToBool(const std::string& s, int dvalue = -1);
 
