@@ -277,6 +277,13 @@ public:
     // Iterate over all phys and load from the database
     virtual int load_devices();
 
+    // View API
+    virtual bool add_view(std::shared_ptr<DevicetrackerView> in_view);
+    virtual void remove_view(const std::string& in_view_id);
+
+    virtual void new_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
+    virtual void update_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
+
 protected:
 	GlobalRegistry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
@@ -346,6 +353,11 @@ protected:
     // which are removed are set to 'null'.  Each position corresponds to the
     // device ID.
     std::shared_ptr<TrackerElementVector> immutable_tracked_vec;
+
+    // List of views
+    kis_recursive_timed_mutex view_mutex;
+    std::shared_ptr<TrackerElementVector> view_vec;
+    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> view_endp;
 
 	// Registered PHY types
 	int next_phy_id;

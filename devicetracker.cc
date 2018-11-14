@@ -387,6 +387,11 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "keep_datasource_signal_history=true", MSGFLAG_INFO);
     }
 
+    // Initialize the view system
+    view_vec = std::make_shared<TrackerElementVector>();
+    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/views/all_views", false, 
+            view_vec, &view_mutex);
+
     // Open and upgrade the DB, default path
     Database_Open("");
     Database_UpgradeDB();
@@ -1105,6 +1110,55 @@ void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
 
     auto mm_pair = std::make_pair(device->get_macaddr(), device);
     tracked_mac_multimap.emplace(mm_pair);
+}
+
+bool Devicetracker::add_view(std::shared_ptr<DevicetrackerView> in_view) {
+    local_locker l(view_mutex);
+
+    for (auto i : *view_vec) {
+        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        if (vi->get_view_id() == in_view->get_view_id()) 
+            return false;
+    }
+
+    view_vec->push_back(in_view);
+
+    for (auto i : *immutable_tracked_vec) {
+        auto di = std::static_pointer_cast<kis_tracked_device_base>(i);
+        in_view->newDevice(di);
+    }
+
+    return true;
+}
+
+void Devicetracker::remove_view(const std::string& in_id) {
+    local_locker l(view_mutex);
+        
+    for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
+        auto vi = std::static_pointer_cast<DevicetrackerView>(*i);
+        if (vi->get_view_id() == in_id) {
+            view_vec->erase(i);
+            return;
+        }
+    }
+}
+
+void Devicetracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
+    local_locker l(view_mutex);
+
+    for (auto i : *view_vec) {
+        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        vi->newDevice(in_device);
+    }
+}
+
+void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
+    local_locker l(view_mutex);
+
+    for (auto i : *view_vec) {
+        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        vi->updateDevice(in_device);
+    }
 }
 
 int Devicetracker::store_devices() {
