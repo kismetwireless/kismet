@@ -25,6 +25,10 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
 
     base_uri = StrTokenize(in_uri, "/");
 
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (base_uri.size())
+        base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
+
     fingerprint_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", false, 
                 fingerprint_map, &mutex);
@@ -43,6 +47,10 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
     using namespace std::placeholders;
 
     base_uri = StrTokenize(in_uri, "/");
+
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (base_uri.size())
+        base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", false, 

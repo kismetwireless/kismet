@@ -389,7 +389,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     // Initialize the view system
     view_vec = std::make_shared<TrackerElementVector>();
-    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/views/all_views", false, 
+    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/devices/views/all_views", false, 
             view_vec, &view_mutex);
 
     // Open and upgrade the DB, default path

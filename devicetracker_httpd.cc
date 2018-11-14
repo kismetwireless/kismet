@@ -611,13 +611,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     auto mmp = tracked_mac_multimap.equal_range(mac);
                     lock.unlock();
 
-                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
-                        SharedTrackerElement simple;
-
-                        SummarizeTrackerElement(mmpi->second, summary_vec, simple, rename_map);
-
-                        devvec->push_back(simple);
-                    }
+                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
+                        devvec->push_back(SummarizeSingleTrackerElement(mmpi->second, summary_vec, rename_map));
 
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                             devvec, rename_map);
@@ -654,11 +649,11 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 std::string target = Httpd_StripSuffix(tokenurl[4]);
 
                 if (target == "device") {
-                    SharedTrackerElement simple;
-
                     local_shared_locker devlock(&(dev->device_mutex));
 
-                    SummarizeTrackerElement(dev, summary_vec, simple, rename_map);
+                    auto simple = 
+                        SummarizeSingleTrackerElement(dev, summary_vec, rename_map);
+
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
                             stream, simple, rename_map);
 
@@ -914,13 +909,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                         });
                     }
 
-                    for (auto i = vi; i != ei; ++i) {
-                        SharedTrackerElement simple;
-
-                        SummarizeTrackerElement((*i), summary_vec, simple, rename_map);
-
-                        outdevs->push_back(simple);
-                    }
+                    for (auto i = vi; i != ei; ++i) 
+                        outdevs->push_back(SummarizeSingleTrackerElement(*i, summary_vec, rename_map));
 
                 } else if (dt_search_paths.size() != 0) {
                     // Otherwise, we're doing a search inside a datatables query,
@@ -991,13 +981,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     if (dt_filter_elem != NULL)
                         SetTrackerValue<uint64_t>(dt_filter_elem, matchvec->size());
 
-                    for (auto i = vi; i != ei; ++i) {
-                        SharedTrackerElement simple;
+                    for (auto i = vi; i != ei; ++i) 
+                        outdevs->push_back(SummarizeSingleTrackerElement(*i, summary_vec, rename_map));
 
-                        SummarizeTrackerElement((*i), summary_vec, simple, rename_map);
-
-                        outdevs->push_back(simple);
-                    }
                 } else {
                     // Only lock while copying the vector
                     local_demand_locker listlock(&devicelist_mutex);
@@ -1063,13 +1049,8 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                             });
                     }
 
-                    for (auto i = vi; i != ei; ++i) {
-                        SharedTrackerElement simple;
-
-                        SummarizeTrackerElement((*i), summary_vec, simple, rename_map);
-
-                        outdevs->push_back(simple);
-                    }
+                    for (auto i = vi; i != ei; ++i) 
+                        outdevs->push_back(SummarizeSingleTrackerElement(*i, summary_vec, rename_map));
                 }
 
                 // Apply wrapper if we haven't applied it already
@@ -1143,13 +1124,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 for (const auto& rei : *regexdevs) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
-
                     local_shared_locker lock(&rd->device_mutex);
 
-                    SharedTrackerElement simple;
-                    SummarizeTrackerElement(rd, summary_vec, simple, rename_map);
-
-                    outdevs->push_back(simple);
+                    outdevs->push_back(SummarizeSingleTrackerElement(rd, summary_vec, rename_map));
                 }
 
                 Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
@@ -1227,14 +1204,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 for (const auto& rei : *regexdevs) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
-
                     local_shared_locker lock(&rd->device_mutex);
 
-                    SharedTrackerElement simple;
-
-                    SummarizeTrackerElement(rd, summary_vec, simple, rename_map);
-
-                    outdevs->push_back(simple);
+                    outdevs->push_back(SummarizeSingleTrackerElement(rd, summary_vec, rename_map));
                 }
 
                 Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 

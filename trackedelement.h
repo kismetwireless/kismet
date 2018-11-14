@@ -1828,11 +1828,17 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
         SharedTrackerElement elem);
 
 // Summarize a complex record using a collection of summary elements.  The summarized
-// element is returned in ret_elem, and the rename mapping for serialization is
-// completed in rename.
-void SummarizeTrackerElement(SharedTrackerElement in, 
+// element is returned, and the rename mapping for serialization is updated in rename.
+// When passed a vector, returns a vector of simplified objects.
+std::shared_ptr<TrackerElement> SummarizeTrackerElement(SharedTrackerElement in, 
         const std::vector<SharedElementSummary>& in_summarization, 
-        SharedTrackerElement &ret_elem, 
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map);
+
+// Summarize a complex record using a collection of summary elements.  The summarized
+// element is returned, and the rename mapping for serialization is updated in rename.
+// DOES NOT descend into vectors, only performs summarization on the object provided.
+std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerElement in, 
+        const std::vector<SharedElementSummary>& in_summarization, 
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map);
 
 // Handle comparing fields

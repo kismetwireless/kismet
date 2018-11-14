@@ -45,6 +45,11 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
                 std::bind(&DevicetrackerView::device_endpoint_handler, this, _1, _2, _3, _4), &mutex);
+
+    time_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                std::bind(&DevicetrackerView::device_time_endpoint_path, this, _1), false,
+                std::bind(&DevicetrackerView::device_time_endpoint, this, _1), &mutex);
 }
 
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
@@ -136,6 +141,56 @@ void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> de
             }
         }
     }
+}
+
+bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>& path) {
+    // /devices/views/[id]/by-time/[time]/devices
+
+    if (path.size() < 6)
+        return false;
+
+    if (path[0] != "devices" || path[1] != "views" || path[3] != "by-time" || path[5] != "devices")
+        return false;
+
+    if (path[2] != get_view_id())
+        return false;
+
+    try {
+       StringTo<int64_t>(path[4]);
+    } catch (const std::exception& e) {
+        return false;
+    }
+
+    return true;
+}
+
+std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const std::vector<std::string>& path) {
+    auto ret = std::make_shared<TrackerElementVector>();
+
+    if (path.size() < 6)
+        return ret;
+
+    auto tv = StringTo<int64_t>(path[4], 0);
+    time_t ts;
+
+    // Don't allow 'all' devices b/c it's really expensive
+    if (tv == 0)
+        return ret;
+
+    if (tv < 0)
+        ts = time(0) - tv;
+    else
+        ts = tv;
+
+    auto worker = 
+        DevicetrackerViewFunctionWorker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                if (dev->get_last_time() < ts)
+                    return false;
+
+                return true;
+                });
+
+    return doDeviceWork(worker);
 }
 
 unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream, 
@@ -408,8 +463,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Summarize into the output element
     for (auto i = si; i != ei; ++i) {
         auto simple = SharedTrackerElement{};
-        SummarizeTrackerElement(*i, summary_vec, simple, rename_map);
-        output_devices_elem->push_back(simple);
+        output_devices_elem->push_back(SummarizeSingleTrackerElement(*i, summary_vec, rename_map));
     }
 
     // If the transmit wasn't assigned to a wrapper...

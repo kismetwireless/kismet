@@ -1032,19 +1032,36 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
     return ret;
 }
 
-void SummarizeTrackerElement(SharedTrackerElement in, 
+std::shared_ptr<TrackerElement> SummarizeTrackerElement(SharedTrackerElement in, 
         const std::vector<SharedElementSummary>& in_summarization, 
-        SharedTrackerElement& ret_elem, 
         std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
+
+    if (in->get_type() == TrackerType::TrackerVector) {
+        auto ret = std::make_shared<TrackerElementVector>();
+        auto inv = std::static_pointer_cast<TrackerElementVector>(in);
+
+        for (auto i : *inv) 
+            ret->push_back(SummarizeSingleTrackerElement(i, in_summarization, rename_map));
+
+        return ret;
+    }
+
+    return SummarizeSingleTrackerElement(in, in_summarization, rename_map);
+}
+
+std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerElement in, 
+        const std::vector<SharedElementSummary>& in_summarization, 
+        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
+
+    auto ret_elem = std::make_shared<TrackerElementMap>();
 
     // Poke the pre-serialization function to update anything that needs updating before
     // we create the new meta-object
     in->pre_serialize();
 
     if (in_summarization.size() == 0) {
-        ret_elem = in;
         in->post_serialize();
-        return;
+        return in;
     }
 
     unsigned int fn = 0;
@@ -1094,6 +1111,8 @@ void SummarizeTrackerElement(SharedTrackerElement in,
     }
 
     in->post_serialize();
+
+    return ret_elem;
 }
 
 bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 

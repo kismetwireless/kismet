@@ -124,12 +124,19 @@ protected:
     // Map of device presence in our list for fast referece during updates
     std::map<device_key, bool> device_presence_map;
 
-    // Device view endpoint
+    // Complex endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
 
-    // Endpoint handler
+    // Simpler time-based endpoints
+    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
+
+    // Complex post endp handler
     unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, SharedStructured structured,
             std::map<std::string, std::shared_ptr<std::stringstream>>& postvars);
+
+    // Time endp handler
+    bool device_time_endpoint_path(const std::vector<std::string>& path);
+    std::shared_ptr<TrackerElement> device_time_endpoint(const std::vector<std::string>& path);
 
     // Devicetracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those

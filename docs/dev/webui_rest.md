@@ -345,11 +345,32 @@ The command dictionary is expected to contain:
 | regex     | Regex specification             | Array   | Optional, regex specification array listing fields and regex values |
 | last_time | Timestamp or relative timestamp | Integer | Optional, timestamp.  If negative, treated as a relative timestamp (N seconds prior to now), if positive, treated as an absolute unix timestamp.  For example, `'last_time': -60` would return all devices in the past minute. |
 
+### Device Views
+
+Device views provide optimized subsets of the global device list.  Device views can be defined by phy handlers, plugins, or even user input.
+
+##### /devices/views/all_views `/devices/views/all_views.json`
+
+Returns a list of all views and the number of devices in each sub-view.
+
+##### /devices/views/[view-id]/by-time/[time]/devices `/devices/views/[view-id]/by-time/[time]/devices.json`
+
+Returns a list of all devices in view `[view-id]` which have been active since timestamp `[time]`.  If `[time]` is negative, Kismet will return devices which have been active since the server timestamp minus `[time]`; a client could therefor request all devices active in the past 10 seconds by passing a `[time]` of `-10`.
+
+##### POST /devices/views/[view-id]/by-time/[time]/devices `/devices/views/[view-id]/by-time/[time]/devices.json`
+
+Returns a list of all devices in view `[view-id]` which have been active since timestamp `[time]`.  If `[time]` is negative, Kismet will return devices which have been active since the server timestamp minus `[time]`; a client could therefor request all devices active in the past 10 seconds by passing a `[time]` of `-10`.
+
+Optionally, a field simplification may be performed if the command dictionary contains:
+| Key | Value | Type | Desc |
+| --- | ----- | ---- | ---- |
+| fields | Field specification | Array | Field specification array listing fields and mappings |
+
 ### Device Editing
 
 Some device attributes (such as the device name and notes fields) can be set from the REST API.
 
-##### /devices/by-key/[key]/set_name `/device/by-key/[key]/set_name.cmd`  
+##### /devices/by-key/[key]/set_name `/devices/by-key/[key]/set_name.cmd`  
 
 *REQUIRES LOGIN*
 

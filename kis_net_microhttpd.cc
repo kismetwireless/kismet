@@ -1472,9 +1472,6 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
 }
 
 bool Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0)
-        return false;
-
     auto stripped = Httpd_StripSuffix(path);
 
     if (stripped == uri && Httpd_CanSerialize(path))
@@ -1641,8 +1638,8 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
     }
 
     if (summary_vec.size()) {
-        SharedTrackerElement simple;
-        SummarizeTrackerElement(output_content, summary_vec, simple, rename_map);
+        auto simple = 
+            SummarizeTrackerElement(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
@@ -1681,14 +1678,15 @@ Kis_Net_Httpd_Path_Tracked_Endpoint::Kis_Net_Httpd_Path_Tracked_Endpoint(
 
 
 bool Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_VerifyPath(const char *in_path, const char *in_method) {
-    if (strcmp(in_method, "GET") != 0)
-        return false;
-
     if (!Httpd_CanSerialize(in_path))
         return false;
 
     auto stripped = Httpd_StripSuffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
+
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
 
     local_demand_locker l(mutex);
     if (mutex != nullptr)
@@ -1743,6 +1741,10 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
     auto stripped = Httpd_StripSuffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
 
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
     output_content = generator(tokenurl);
 
     Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
@@ -1785,6 +1787,10 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
     auto stripped = Httpd_StripSuffix(concls->url);
     auto tokenurl = StrTokenize(stripped, "/");
 
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
     std::shared_ptr<TrackerElement> output_content;
 
     output_content = generator(tokenurl);
@@ -1795,17 +1801,15 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
     auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
 
     try {
-        if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
                 std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
         } else {
-            // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data");
+            structdata =
+                std::make_shared<StructuredJson>(std::string{"{}"});
         }
     } catch(const StructuredDataException& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
+        stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
     }
@@ -1843,8 +1847,8 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
     }
 
     if (summary_vec.size()) {
-        SharedTrackerElement simple;
-        SummarizeTrackerElement(output_content, summary_vec, simple, rename_map);
+        auto simple = 
+            SummarizeTrackerElement(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
@@ -1994,6 +1998,10 @@ bool Kis_Net_Httpd_Path_Post_Endpoint::Httpd_VerifyPath(const char *in_path, con
     auto stripped = Httpd_StripSuffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
 
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
     local_demand_locker l(mutex);
     if (mutex != nullptr)
         l.lock();
@@ -2046,6 +2054,10 @@ int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connectio
     auto stripped = Httpd_StripSuffix(concls->url);
     auto tokenurl = StrTokenize(stripped, "/");
 
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
     try {
         SharedStructured structdata;
 
@@ -2062,8 +2074,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connectio
         concls->httpcode = r;
         return MHD_YES;
     } catch(const std::exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
+        stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
     }
