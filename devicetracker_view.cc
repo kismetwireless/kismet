@@ -41,7 +41,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
 
     device_list = std::make_shared<TrackerElementVector>();
 
-    auto uri = fmt::format("/devices/view/{}/devices", in_id);
+    auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
                 std::bind(&DevicetrackerView::device_endpoint_handler, this, _1, _2, _3, _4), &mutex);
