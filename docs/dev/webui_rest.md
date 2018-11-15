@@ -256,14 +256,12 @@ A POST endpoint which returns a summary of all devices.  This endpoint expects a
 
 Optionally, a regex dictionary may be provided to filter the devices returned.
 
-Additionally, a wrapper may be specified, which indicates a transient dictionary object which should contain these values; This is used by dataTables to wrap the initial query in an `aaData` object required for that API.
-
 The command dictionary is expected to contain:
 
-| Key     | Value               | Type                      | Desc                                                  |
-| ------- | ------------------- | ------------------------- | ----------------------------------------------------- |
-| fields  | Field specification | field specification array | Simplified field listing.                             |
-| regex   | Regex specification | regular expression array  | Optional, array of field path and regular expressions |
+| Key     | Type                      | Desc                                                  |
+| ------- | ------------------------- | ----------------------------------------------------- |
+| fields  | field specification array | Simplified field listing.                             |
+| regex   | regular expression array  | Optional, array of field path and regular expressions |
 | colmap | Column map | Optional, inserted by the Kismet Datatable UI for mapping column information for proper ordering and sorting. |
 | datatable | bolean | Optional, inserted by the Kismet Datatable UI to enable datatable mode. |
 
