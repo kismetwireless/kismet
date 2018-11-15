@@ -684,35 +684,39 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         }
     }
 
-    // Create a view
-    auto ap_view = 
-        std::make_shared<DevicetrackerView>("phydot11_accesspoints", 
-                "IEEE802.11 Access Points",
-                [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                auto dot11 =
-                    dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+    // access-point view
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_view_accesspoints", true)) {
+        auto ap_view = 
+            std::make_shared<DevicetrackerView>("phydot11_accesspoints", 
+                    "IEEE802.11 Access Points",
+                    [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                    auto dot11 =
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
-                if (dot11 == nullptr)
+                    if (dot11 == nullptr)
+                        return false;
+
+                    if (dot11->get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
+                                DOT11_DEVICE_TYPE_ADHOC))
+                        return true;
+
                     return false;
+                    },
+                    [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                    auto dot11 =
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
-                if (dot11->get_type_set() & DOT11_DEVICE_TYPE_BEACON_AP)
-                    return true;
+                    if (dot11 == nullptr)
+                        return false;
 
-                return false;
-                },
-                [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                auto dot11 =
-                    dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                    if (dot11->get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
+                                DOT11_DEVICE_TYPE_ADHOC))
+                        return true;
 
-                if (dot11 == nullptr)
                     return false;
-
-                if (dot11->get_type_set() & DOT11_DEVICE_TYPE_BEACON_AP)
-                    return true;
-
-                return false;
-                });
-    devicetracker->add_view(ap_view);
+                    });
+        devicetracker->add_view(ap_view);
+    }
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
@@ -981,20 +985,18 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             } else {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
                 bssid_dev->set_type_string("Wi-Fi AP");
-                bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
             }
 
             // Do some maintenance on the bssid device if we're a beacon or other ssid-carrying
             // packet...
 
             if (dot11info->subtype == packet_sub_beacon) {
+                d11phy->HandleSSID(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
                 bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
-            }
-
-            if (dot11info->subtype == packet_sub_beacon ||
-                    dot11info->subtype == packet_sub_probe_resp) {
+            } else if (dot11info->subtype == packet_sub_probe_resp) {
                 d11phy->HandleSSID(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
+                bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_PROBE_AP);
             }
 
             d11phy->devicetracker->update_view_device(bssid_dev);

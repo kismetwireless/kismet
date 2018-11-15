@@ -1056,24 +1056,26 @@ protected:
 };
 
 // Bitset of top-level device types for easy sorting/browsing
-#define DOT11_DEVICE_TYPE_UNKNOWN       0
+#define DOT11_DEVICE_TYPE_UNKNOWN           0
 // This device has beaconed
-#define DOT11_DEVICE_TYPE_BEACON_AP     1
+#define DOT11_DEVICE_TYPE_BEACON_AP         (1 << 0)
 // This device has acted like an adhoc device
-#define DOT11_DEVICE_TYPE_ADHOC         (1 << 1)
+#define DOT11_DEVICE_TYPE_ADHOC             (1 << 1)
 // This device has acted like a client
-#define DOT11_DEVICE_TYPE_CLIENT        (1 << 2)
+#define DOT11_DEVICE_TYPE_CLIENT            (1 << 2)
 // This device appears to be a wired device bridged to wifi
-#define DOT11_DEVICE_TYPE_WIRED         (1 << 3)
+#define DOT11_DEVICE_TYPE_WIRED             (1 << 3)
 // WDS distribution network
-#define DOT11_DEVICE_TYPE_WDS           (1 << 4)
+#define DOT11_DEVICE_TYPE_WDS               (1 << 4)
 // Old-school turbocell
-#define DOT11_DEVICE_TYPE_TURBOCELL     (1 << 5)
+#define DOT11_DEVICE_TYPE_TURBOCELL         (1 << 5)
 // We haven't seen this device directly but we're guessing it's there
 // because something has talked to it over wireless (ie, cts or ack to it)
 #define DOT11_DEVICE_TYPE_INFERRED_WIRELESS (1 << 6)
 // We haven't seen this device directly but we've seen something talking to it
 #define DOT11_DEVICE_TYPE_INFERRED_WIRED    (1 << 7)
+// Device has responded to probes, looking like an AP
+#define DOT11_DEVICE_TYPE_PROBE_AP          (1 << 8)
 
 // Dot11 device
 //
