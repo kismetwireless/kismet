@@ -1491,6 +1491,7 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     auth_req {in_auth},
     uri {in_uri},
     content {in_element},
+    generator {nullptr},
     mutex {in_mutex} { 
         Bind_Httpd_Server();
     }
@@ -1501,6 +1502,7 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     auth_req {in_auth},
     uri {in_uri}, 
     content { nullptr },
+    generator {in_func},
     mutex {nullptr} {
 
     Bind_Httpd_Server();
