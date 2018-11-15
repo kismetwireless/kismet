@@ -275,8 +275,8 @@ Additionally, when in datatables mode, the following HTTP POST variables are use
 | length | integer | Datatable window end |
 | draw | integer | Datatable draw value |
 | search[value] | string | Datatable search term, applied to all fields in the summary vector |
-| order[0][column] | integer | Internal column number for sorting, indexed with colmap data |
-| order[0][dir] | string | Order direction |
+| order\[0\]\[column\] | integer | Internal column number for sorting, indexed with colmap data |
+| order\[0\]\[dir\] | string | Order direction |
 
 ##### /devices/all_devices.ekjson
 
@@ -374,6 +374,7 @@ Returns a list of all devices in view `[view-id]` which have been active since t
 Returns a list of all devices in view `[view-id]` which have been active since timestamp `[time]`.  If `[time]` is negative, Kismet will return devices which have been active since the server timestamp minus `[time]`; a client could therefor request all devices active in the past 10 seconds by passing a `[time]` of `-10`.
 
 Optionally, a field simplification may be performed if the command dictionary contains:
+
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
 | fields | Field specification | Array | Field specification array listing fields and mappings |
