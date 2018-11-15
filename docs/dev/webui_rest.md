@@ -264,7 +264,18 @@ The command dictionary is expected to contain:
 | ------- | ------------------- | ------------------------- | ----------------------------------------------------- |
 | fields  | Field specification | field specification array | Simplified field listing.                             |
 | regex   | Regex specification | regular expression array  | Optional, array of field path and regular expressions |
-| wrapper | "foo"               | string                    | Optional, wrapper dictionary to surround the data     |
+| colmap | Column map | Optional, inserted by the Kismet Datatable UI for mapping column information for proper ordering and sorting. |
+| datatable | bolean | Optional, inserted by the Kismet Datatable UI to enable datatable mode. |
+
+Additionally, when in datatables mode, the following HTTP POST variables are used:
+| Key | Type | Desc |
+| --- | ---- | ---- |
+| start | integer | Datatable window start |
+| length | integer | Datatable window end |
+| draw | integer | Datatable draw value |
+| search[value] | string | Datatable search term, applied to all fields in the summary vector |
+| order[0][column] | integer | Internal column number for sorting, indexed with colmap data |
+| order[0][dir] | string | Order direction |
 
 ##### /devices/all_devices.ekjson
 
@@ -365,6 +376,30 @@ Optionally, a field simplification may be performed if the command dictionary co
 | Key | Value | Type | Desc |
 | --- | ----- | ---- | ---- |
 | fields | Field specification | Array | Field specification array listing fields and mappings |
+
+##### POST /devicex/views/[view-id]/devices `/devices/views/[view-id]/devices.json`
+
+Returns a list of devices contained within a view, with significant customization and filtering options.
+
+The command dictionary is expected to contain:
+
+| Key     | Type                      | Desc                                                  |
+| ------- | ------------------------- | ----------------------------------------------------- |
+| fields  | field specification array | Simplified field listing.                             |
+| regex   | regular expression array  | Optional, array of field path and regular expressions |
+| last_time | integer | Optional, devices must have been active since `last_time`.  If `last_time` is negative, Kismet will return devices active within `last_time` seconds, calculated from the server time. |
+| colmap | Column map | Optional, inserted by the Kismet Datatable UI for mapping column information for proper ordering and sorting. |
+| datatable | bolean | Optional, inserted by the Kismet Datatable UI to enable datatable mode. |
+
+Additionally, when in datatables mode, the following HTTP POST variables are used:
+| Key | Type | Desc |
+| --- | ---- | ---- |
+| start | integer | Datatable window start |
+| length | integer | Datatable window end |
+| draw | integer | Datatable draw value |
+| search[value] | string | Datatable search term, applied to all fields in the summary vector |
+| order[0][column] | integer | Internal column number for sorting, indexed with colmap data |
+| order[0][dir] | string | Order direction |
 
 ### Device Editing
 
