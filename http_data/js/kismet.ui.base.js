@@ -11,6 +11,15 @@ var exports = {};
 // Flag we're still loading
 exports.load_complete = 0;
 
+/* Fetch the system user */
+$.get("/system/status.json")
+.done(function(data) {
+    exports.system_user = data['kismet.system.user'];
+})
+.fail(function() {
+    exports.system_user = "unknown";
+});
+
 // Load our css
 $('<link>')
     .appendTo('head')
@@ -1301,7 +1310,7 @@ kismet_ui_settings.AddSettingsPane({
                 )
                 .append(
                     $('<p>')
-                    .html('By default, the first time Kismet runs it generates a random password, which is stored in the file <code>~/.kismet/kismet_httpd.conf</code> in the home directory of the user running Kismet.  You will need this password to configure data sources, download pcap and other logs, or change server-side settings.')
+                    .html('By default, the first time Kismet runs it generates a random password, which is stored in the file <code>~/.kismet/kismet_httpd.conf</code> in the home directory of the user running Kismet.  You will need this password to configure data sources, download pcap and other logs, or change server-side settings.<br>This server is running as <code>' + exports.system_user + '</code>, so the password can be found in <code>~' + exports.system_user + '/.kismet/kismet_httpd.conf</code>')
                 )
                 .append(
                     $('<p>')
@@ -1804,7 +1813,7 @@ exports.FirstLoginCheck = function() {
             )
             .append(
                 $('<p>')
-                .html('The kismet login is randomly generated the first time Kismet is launched, and is stored in <code>~/.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>; If you are a guest on this server, you can continue to view much of the information without logging in but you will not be able to change configurations')
+                .html('The kismet login is randomly generated the first time Kismet is launched, and is stored in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + exports.system_user + ', and the password can be found in <code>~' + exports.system_user + '/.kismet/kismet_httpd.conf</code>. If you are a guest on this server, you can continue to view much of the information without logging in but you will not be able to change configurations')
             )
             .append(
                 $('<form>', {
@@ -1887,9 +1896,7 @@ exports.FirstLoginCheck = function() {
                 return true;
             }
         });
-
     }
-
 }
 
 exports.FirstTimeCheck = function() {
