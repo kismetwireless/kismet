@@ -121,6 +121,18 @@ std::ostream& operator<<(std::ostream& os, const device_key& k) {
     return os;
 }
 
+std::istream& operator>>(std::istream& is, device_key& k) {
+    std::string sline;
+    std::getline(is, sline);
+
+    k = device_key(sline);
+
+    if (k.error)
+        is.setstate(std::ios::failbit);
+
+    return is;
+}
+
 // New
 
 void TrackerElementString::coercive_set(const std::string& in_str) {

@@ -61,6 +61,7 @@ public:
     friend bool operator <(const device_key& x, const device_key& y);
     friend bool operator ==(const device_key& x, const device_key& y);
     friend std::ostream& operator<<(std::ostream& os, const device_key& k);
+    friend std::istream& operator>>(std::istream& is, device_key& k);
 
     device_key();
 
@@ -100,6 +101,7 @@ protected:
 bool operator <(const device_key& x, const device_key& y);
 bool operator ==(const device_key& x, const device_key& y);
 std::ostream& operator<<(std::ostream& os, const device_key& k);
+std::istream& operator>>(std::istream& is, device_key& k);
 
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
