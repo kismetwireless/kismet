@@ -723,6 +723,68 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_dot11", "/js/kismet.ui.dot11.js");
 
+    clients_of_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                // /phy/phy80211/clients-of/[key]/clients
+                
+                if (path.size() < 5)
+                    return false;
+
+                if (path[0] != "phy" || path[1] != "phy80211" || path[2] != "clients-of" || 
+                        path[4] != "clients")
+                    return false;
+
+                try {
+                    auto key = StringTo<device_key>(path[3]);
+                    auto dev = devicetracker->FetchDevice(key);
+
+                    if (dev == nullptr)
+                        return false;
+
+                    auto dot11 =
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                    if (dot11 == nullptr)
+                        return false;
+
+                } catch (const std::exception& e) {
+                    return false;
+                }
+
+                return true;
+                },
+                false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                auto cl = std::make_shared<TrackerElementVector>();
+
+                try {
+                    auto key = StringTo<device_key>(path[3]);
+                    auto dev = devicetracker->FetchDevice(key);
+
+                    if (dev == nullptr)
+                        return cl;
+
+                    auto dot11 =
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                    if (dot11 == nullptr)
+                        return cl;
+
+                    for (auto ci : *dot11->get_associated_client_map()) {
+                        auto dk = std::static_pointer_cast<TrackerElementDeviceKey>(ci.second);
+                        auto d = devicetracker->FetchDevice(dk->get());
+                        if (d != nullptr)
+                            cl->push_back(d);
+                    }
+
+                } catch (const std::exception& e) {
+                    return cl;
+                }
+
+                return cl;
+                });
+                
 
     Bind_Httpd_Server();
 }

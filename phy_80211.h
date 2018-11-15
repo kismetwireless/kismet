@@ -1721,6 +1721,9 @@ protected:
     // IE fingerprinting lists
     std::vector<ie_tag_tuple> beacon_ie_fingerprint_list;
     std::vector<ie_tag_tuple> probe_ie_fingerprint_list;
+
+    // New endpoints as we migrate to the simplified API
+    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> clients_of_endp;
 };
 
 #endif

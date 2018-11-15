@@ -814,6 +814,22 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
+##### /phy/phy80211/clients-of/[key]/clients `/phy/phy80211/clients-of/[key]/clients.json`
+
+Returns a list of full device records of clients of an 802.11 access point.  Typically this would be used to fetch detailed information about multiple clients in one request.  Generally, the POST variant should be used, instead, to simplify the results.
+
+##### POST /phy/phy80211/clients-of/[key]/clients `/phy/phy80211/clients-of/[key]/clients.json`
+
+Returns a list of full device records of clients of an 802.11 access point.  Typically this would be used to fetch detailed information about mutliple clients of an AP in one request.
+
+This API works with the field simplification system for reducing fields before transmit.
+
+The command dictionary is expected to contain:
+
+| Key     | Type                      | Desc                                                  |
+| ------- | ------------------------- | ----------------------------------------------------- |
+| fields  | field specification array | Simplified field listing.                             |
+
 ### Phy-Specific: phy80211 Fingerprinting
 
 The Kismet phy80211 fingerprinting system is used for device whitelisting, device modification alerts, and other device tracking.
