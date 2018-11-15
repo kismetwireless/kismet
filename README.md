@@ -121,6 +121,7 @@ Kismet has many configuration knobs and options; but for the quickest way to get
    This will add your current logged in user to the `kismet` group.
 
 8.  Log out and back in.  Linux does not update groups until you log in; if you have just added yourself to the Kismet group you will have to re-log in.
+
 9.  Check that you are in the Kismet group with:
    ```bash
    $ groups
@@ -143,17 +144,17 @@ Kismet has many configuration knobs and options; but for the quickest way to get
 
    *THE FIRST TIME YOU RUN KISMET*, it will generate a new, random password for your web interface.
 
-   This password can be found in the config file: ~/.kismet/kismet_httpd.conf which is in the *home directory of the user* starting Kismet.
+   This password can be found in the config file: `~/.kismet/kismet_httpd.conf` which is in the *home directory of the user* starting Kismet.
 
-   If you start Kismet as or via sudo (or via a system startup script where it runs as root), this will be in *roots* home directory.
+   If you start Kismet as or via sudo (or via a system startup script where it runs as root), this will be in *roots* home directory: `/root/.kismet/kismet_httpd.conf`
 
   You will need this password to control Kismet from the web page - without it you can still view information about devices, view channel allocations, and most other actions, but you CAN NOT control Kismet data sources, view pcaps, or perform other actions.
 
-10.  Point your browser at http://localhost:2501
+11.  Point your browser at http://localhost:2501
 
    You will be prompted to do basic configuration - Kismet has many options in the web UI which can be tweaked.
 
-   To use all the features of the Kismet web UI, put in the password found in `~/.kismet/kismet_httpd.conf`
+   To use all the features of the Kismet web UI, put in the password found in the `kismet_httpd.conf` config file above.
 
 ## Debugging Kismet
 
