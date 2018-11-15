@@ -268,6 +268,7 @@ The command dictionary is expected to contain:
 | datatable | bolean | Optional, inserted by the Kismet Datatable UI to enable datatable mode. |
 
 Additionally, when in datatables mode, the following HTTP POST variables are used:
+
 | Key | Type | Desc |
 | --- | ---- | ---- |
 | start | integer | Datatable window start |
