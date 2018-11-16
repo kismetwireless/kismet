@@ -187,7 +187,7 @@ struct mac_addr {
             if (strlen(in) >= 2)
                 in += 2;
             else
-                in++;
+                break;
 
             if (nbyte >= MAC_LEN_MAX) {
                 ret_len = 0;
@@ -211,7 +211,8 @@ struct mac_addr {
         unsigned char *rlm = (uint8_t *) &longmac;
 
         for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) 
-            return memcmp(rt, rlm + p, in_len) == 0;
+            if (memcmp(rt, rlm + p, in_len) == 0)
+                return true;
         return false;
     }
 
