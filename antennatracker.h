@@ -126,7 +126,7 @@ protected:
     
     std::shared_ptr<TrackerElementIntMap> antenna_id_map;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> antenna_enp;
+    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> antenna_endp;
 
 };
 
