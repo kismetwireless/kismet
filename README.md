@@ -1247,11 +1247,12 @@ $ ./configure --enable-prelude
 
 Kismet uses several libraries which are part of the Kismet source code; Without the open source community this wouldn't be possible.
 
+* boost::geometry (https://www.boost.org):  Boost header-only geometry library
 * fmtlib (https://github.com/fmtlib/fmt): C++ string formatting for faster message generation with fewer temporary variables.
-* kaitai (https://kaitai.io): Binary parser generator and stream library
 * jsoncpp (http://jsoncpp.sourceforge.net/): JSON parser
-* radiotap (http://radiotap.org): Radiotap header definitions
+* kaitai (https://kaitai.io): Binary parser generator and stream library
 * microhttpd (https://www.gnu.org/software/libmicrohttpd/): Webserver
 * nlohmann json (https://github.com/nlohmann/json): JSON sanitization
+* radiotap (http://radiotap.org): Radiotap header definitions
 * xxhash32 (https://github.com/Cyan4973/xxHash): Fast 32bit hashing algorithm
 
