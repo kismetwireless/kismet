@@ -39,45 +39,6 @@
 
 class kis_gps_packinfo;
 
-// Single 2d point used by geometry
-class kis_tracked_point : public tracker_component {
-public:
-    kis_tracked_point();
-    kis_tracked_point(int in_id);
-    kis_tracked_point(int in_id, std::shared_ptr<TrackerElementMap> e);
-    kis_tracked_point(int in_id, double lat, double lon);
-    kis_tracked_point(int in_id, std::tuple<double, double> coord);
-    kis_tracked_point(std::tuple<double, double> coord);
-
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
-
-    template <typename T>
-    void set_tuple(T t) {
-        set_lat(std::get<0>(t));
-        set_lon(std::get<1>(t));
-    }
-
-protected:
-    virtual void register_fields() override;
-
-    std::shared_ptr<TrackerElementDouble> lat;
-    std::shared_ptr<TrackerElementDouble> lon;
-};
-
-
 // Component-tracker common GPS element
 class kis_tracked_location_triplet : public tracker_component {
 public:
