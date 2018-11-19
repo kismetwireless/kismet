@@ -24,6 +24,55 @@
 #include "tracked_location.h"
 #include "gpstracker.h"
 
+kis_tracked_point::kis_tracked_point() : 
+    tracker_component {0} {
+    register_fields();
+    reserve_fields(nullptr);
+}
+
+kis_tracked_point::kis_tracked_point(int id) :
+    tracker_component {id} {
+    register_fields();
+    reserve_fields(nullptr);
+}
+
+kis_tracked_point::kis_tracked_point(int id, std::shared_ptr<TrackerElementMap> e) :
+    tracker_component {id, e} {
+    register_fields();
+    reserve_fields(nullptr);
+}
+
+kis_tracked_point::kis_tracked_point(int id, double lat, double lon) :
+    tracker_component {id} {
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_lat(lat);
+    set_lon(lon);
+}
+
+kis_tracked_point::kis_tracked_point(int id, std::tuple<double, double> coord) :
+    tracker_component {id} {
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_tuple(coord);
+}
+
+kis_tracked_point::kis_tracked_point(std::tuple<double, double> coord) :
+    tracker_component {0} {
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_tuple(coord);
+}
+
+void kis_tracked_point::register_fields() {
+    tracker_component::register_fields();
+    RegisterField("kismet.common.point.lat", "latitude", &lat);
+    RegisterField("kismet.common.point.lon", "longitude", &lon);
+}
+
 kis_tracked_location_triplet::kis_tracked_location_triplet() :
     tracker_component(0) { 
 
