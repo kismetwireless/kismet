@@ -94,6 +94,37 @@ std::string Kismet_Httpd::EscapeHtml(const std::string& in) {
     return ss.str();
 }
 
+std::shared_ptr<TrackerElement> Kismet_Httpd::SummarizeWithStructured(std::shared_ptr<TrackerElement> in_data,
+        SharedStructured structured, std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
+
+    auto summary_vec = std::vector<SharedElementSummary>{};
+
+    if (structured->hasKey("fields")) {
+        auto fields = structured->getStructuredByKey("fields");
+        auto fvec = fields->getStructuredArray();
+
+        for (const auto& i : fvec) {
+            if (i->isString()) {
+                auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                summary_vec.push_back(s);
+            } else if (i->isArray()) {
+                auto mapvec = i->getStringVec();
+
+                if (mapvec.size() != 2)
+                    throw StructuredDataException("Invalid field mapping, expected "
+                            "[field, rename]");
+
+                auto s = std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                summary_vec.push_back(s);
+            } else {
+                throw StructuredDataException("Invalid field mapping, expected "
+                        "field or [field,rename]");
+            }
+        }
+    }
+
+    return SummarizeTrackerElement(in_data, summary_vec, rename_map);
+}
 
 Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
