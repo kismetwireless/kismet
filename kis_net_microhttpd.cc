@@ -48,7 +48,7 @@
 #include "structured.h"
 #include "kismet_json.h"
 
-std::string Kismet_Httpd::GetSuffix(const std::string& url) {
+std::string kishttpd::GetSuffix(const std::string& url) {
     size_t lastdot = url.find_last_of(".");
 
     if (lastdot != std::string::npos)
@@ -57,7 +57,7 @@ std::string Kismet_Httpd::GetSuffix(const std::string& url) {
     return "";
 }
 
-std::string Kismet_Httpd::StripSuffix(const std::string& url) {
+std::string kishttpd::StripSuffix(const std::string& url) {
     size_t lastdot = url.find_last_of(".");
 
     if (lastdot == std::string::npos)
@@ -66,7 +66,7 @@ std::string Kismet_Httpd::StripSuffix(const std::string& url) {
     return url.substr(0, lastdot);
 }
 
-std::string Kismet_Httpd::EscapeHtml(const std::string& in) {
+std::string kishttpd::EscapeHtml(const std::string& in) {
     std::stringstream ss;
 
     for (unsigned int c = 0; c < in.length(); c++) {
@@ -94,7 +94,7 @@ std::string Kismet_Httpd::EscapeHtml(const std::string& in) {
     return ss.str();
 }
 
-std::shared_ptr<TrackerElement> Kismet_Httpd::SummarizeWithStructured(std::shared_ptr<TrackerElement> in_data,
+std::shared_ptr<TrackerElement> kishttpd::SummarizeWithStructured(std::shared_ptr<TrackerElement> in_data,
         SharedStructured structured, std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
@@ -650,7 +650,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             // fprintf(stderr, "   404 no handler for request %s\n", url);
 
             auto fourohfour = fmt::format("<h1>404</h1>Unable to find resource {}\n", 
-                    Kismet_Httpd::EscapeHtml(url));
+                    kishttpd::EscapeHtml(url));
 
             struct MHD_Response *response = 
                 MHD_create_response_from_buffer(fourohfour.length(), 

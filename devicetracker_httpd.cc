@@ -1243,7 +1243,7 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
 
             if (ma.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                            Kismet_Httpd::EscapeHtml(m->getString())));
+                            kishttpd::EscapeHtml(m->getString())));
 
             macs.push_back(ma);
         }
@@ -1267,9 +1267,9 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
         auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
 
         auto output = 
-            Kismet_Httpd::SummarizeWithStructured(ret_devices, structured, rename_map);
+            kishttpd::SummarizeWithStructured(ret_devices, structured, rename_map);
 
-        Globalreg::globalreg->entrytracker->Serialize(Kismet_Httpd::GetSuffix(uri), stream, output, rename_map);
+        Globalreg::globalreg->entrytracker->Serialize(kishttpd::GetSuffix(uri), stream, output, rename_map);
 
         return 200;
 

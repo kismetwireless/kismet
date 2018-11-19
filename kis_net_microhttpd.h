@@ -48,7 +48,7 @@ class Kis_Net_Httpd_Handler;
 
 class EntryTracker;
 
-namespace Kismet_Httpd {
+namespace kishttpd {
     std::string GetSuffix(const std::string& path);
     std::string StripSuffix(const std::string& path);
     std::string EscapeHtml(const std::string& path);
