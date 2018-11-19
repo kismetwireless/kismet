@@ -82,7 +82,55 @@ kis_tracked_geom_point::kis_tracked_geom_point(kisgeometry::gps_point coord) :
 
 void kis_tracked_geom_point::register_fields() {
     tracker_component::register_fields();
-    RegisterField("kismet.common.point.lat", "latitude", &lat);
-    RegisterField("kismet.common.point.lon", "longitude", &lon);
+    RegisterField("kismet.geometry.point.lat", "latitude", &lat);
+    RegisterField("kismet.geometry.point.lon", "longitude", &lon);
+}
+
+kis_tracked_geom_polygon::kis_tracked_geom_polygon() :
+    tracker_component {0} {
+    register_fields();
+    reserve_fields(nullptr);
+}
+
+kis_tracked_geom_polygon::kis_tracked_geom_polygon(int in_id) :
+    tracker_component {in_id} {
+    register_fields();
+    reserve_fields(nullptr);
+}
+
+kis_tracked_geom_polygon::kis_tracked_geom_polygon(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracker_component {in_id} {
+    register_fields();
+    reserve_fields(e);
+}
+
+kis_tracked_geom_polygon::kis_tracked_geom_polygon(int in_id, const kisgeometry::gps_poly& poly) :
+    tracker_component {in_id} {
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_geom_poly(poly);
+}
+
+kis_tracked_geom_polygon::kis_tracked_geom_polygon(const kisgeometry::gps_poly& poly) :
+    tracker_component {0} {
+    register_fields();
+    reserve_fields(nullptr);
+
+    set_geom_poly(poly);
+}
+
+void kis_tracked_geom_polygon::set_geom_poly(const kisgeometry::gps_poly& poly) {
+    poly_points->clear();
+
+    for (const auto& p : poly.outer()) {
+        auto vecp = std::make_shared<TrackerElementVectorDouble>(std::vector<double>{p.get<0>(), p.get<1>()});
+        poly_points->push_back(vecp);
+    }
+}
+
+void kis_tracked_geom_polygon::register_fields() {
+    tracker_component::register_fields();
+    RegisterField("kismet.geometry.polygon.points", "Polygon outer (enclosing) points", &poly_points);
 }
 

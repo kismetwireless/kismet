@@ -34,6 +34,8 @@
 #include "boost/geometry/geometries/adapted/boost_tuple.hpp"
 #include "boost/geometry/algorithms/centroid.hpp"
 
+BOOST_GEOMETRY_REGISTER_BOOST_TUPLE_CS(cs::cartesian)
+
 namespace kisgeometry {
     using gps_point = boost::tuple<double, double>;
     using gps_poly = boost::geometry::model::polygon<gps_point>;
@@ -83,6 +85,37 @@ protected:
 
     std::shared_ptr<TrackerElementDouble> lat;
     std::shared_ptr<TrackerElementDouble> lon;
+};
+
+class kis_tracked_geom_polygon : public tracker_component {
+public:
+    kis_tracked_geom_polygon();
+    kis_tracked_geom_polygon(int in_id);
+    kis_tracked_geom_polygon(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_geom_polygon(int in_id, const kisgeometry::gps_poly& poly);
+    kis_tracked_geom_polygon(const kisgeometry::gps_poly& poly);
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    __ProxyTrackable(poly_points, TrackerElementVector, poly_points);
+
+    void set_geom_poly(const kisgeometry::gps_poly& poly);
+
+protected:
+    virtual void register_fields() override;
+
+    // Polygon is stored as a vector of points; each point is, itself, a doublevector
+    std::shared_ptr<TrackerElementVector> poly_points;
 };
 
 #endif
