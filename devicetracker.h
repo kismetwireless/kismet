@@ -355,10 +355,16 @@ protected:
     // device ID.
     std::shared_ptr<TrackerElementVector> immutable_tracked_vec;
 
-    // List of views
+    // List of views using new API as we transition the rest to the new API
     kis_recursive_timed_mutex view_mutex;
     std::shared_ptr<TrackerElementVector> view_vec;
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> view_endp;
+
+    // Multimac endpoint using new API
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> multimac_endp;
+    unsigned int multimac_endp_handler(std::ostream& stream, const std::string& uri,
+            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache);
+            
 
 	// Registered PHY types
 	int next_phy_id;

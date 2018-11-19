@@ -784,7 +784,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
                 return cl;
                 });
-                
 
     Bind_Httpd_Server();
 }

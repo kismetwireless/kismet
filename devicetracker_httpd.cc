@@ -1226,3 +1226,59 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
+unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
+        SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+
+    try {
+        auto ret_devices = std::make_shared<TrackerElementVector>();
+        auto macs = std::vector<mac_addr>{};
+
+        if (!structured->hasKey("devices"))
+            throw std::runtime_error("Missing 'devices' key in command dictionary");
+        
+        auto maclist = structured->getStructuredByKey("devices")->getStructuredArray();
+
+        for (auto m : maclist) {
+            mac_addr ma{m->getString()};
+
+            if (ma.error) 
+                throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
+                            Kismet_Httpd::EscapeHtml(m->getString())));
+
+            macs.push_back(ma);
+        }
+
+        // Duplicate the mac index so that we're 'immune' to things changing it under us; because we
+        // may have quite a number of devices in our query list, this is safest.
+        local_demand_locker l(&devicelist_mutex);
+        l.lock();
+        auto immutable_copy = 
+            std::multimap<mac_addr, std::shared_ptr<kis_tracked_device_base>>{tracked_mac_multimap};
+        l.unlock();
+
+        // Pull all the devices out of the list
+        for (auto m : macs) {
+            const auto& mi = immutable_copy.equal_range(m);
+            for (auto msi = mi.first; msi != mi.second; ++msi)
+                ret_devices->push_back(msi->second);
+        }
+
+        // Summarize it all at once
+        auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+
+        auto output = 
+            Kismet_Httpd::SummarizeWithStructured(ret_devices, structured, rename_map);
+
+        Globalreg::globalreg->entrytracker->Serialize(Kismet_Httpd::GetSuffix(uri), stream, output, rename_map);
+
+        return 200;
+
+    } catch (const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled request\n";
+    return 500;
+}
+

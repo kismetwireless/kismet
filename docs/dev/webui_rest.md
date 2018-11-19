@@ -321,9 +321,9 @@ Dictionary object of device, simplified by the `fields` argument in accordance t
 
 The command dictionary is expected to contain:
 
-| Key    | Value               | Type                      | Desc                                |
-| ------ | ------------------- | ------------------------- | ----------------------------------- |
-| fields | Field specification | Field specification array | Optional, array of fields to return |
+| Key    | Type                      | Desc                                |
+| ------ | ------------------------- | ----------------------------------- |
+| fields | Field specification array | Optional, array of fields to return |
 
 ##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey]  `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
@@ -339,9 +339,20 @@ Dictionary object of device, simplified by the `fields` argument in accordance t
 
 The command dictionary is expected to contain:
 
-| Key    | Value               | Type                      | Desc                                |
-| ------ | ------------------- | ------------------------- | ----------------------------------- |
-| fields | Field specification | Field specification array | Optional, array of fields to return |
+| Key    | Type                      | Desc                                |
+| ------ | ------------------------- | ----------------------------------- |
+| fields | Field specification array | Optional, array of fields to return |
+
+##### POST /devices/multimac/devices  `/devices/multimac/devices.json`
+
+Array/list of all devices matching the MAC addresses provided in the `devices` key, across all PHY types.  It is possible (though not usually likely) that there may be a MAC address collision between different PHY types, especially types which synthesize false MAC addresses when no official address is available.
+
+The command dictionary is expected to contain:
+
+| Key    | Type                      | Desc                                |
+| ------ | ------------------------- | ----------------------------------- |
+| devices | MAC address array | Required, array of MAC addresses to look for.  Mac addresses may be complete MACs or masked specifications ("AA:BB:CC:00:00:00/FF:FF:FF:00:00:00" for instance to match by OUI) |
+| fields | Field specification array | Optional, array of fields to return |
 
 ##### POST /devices/by-phy/[PHYNAME]/devices  `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
 
