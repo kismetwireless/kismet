@@ -1667,6 +1667,11 @@ public:
         vector = vector_t(a, b);
     }
 
+    TrackerElementVectorDouble(const vector_t& v) :
+        TrackerElementCoreVector(TrackerType::TrackerVector) {
+        vector = vector_t(v);
+    }
+
     static TrackerType static_type() {
         return TrackerType::TrackerVectorDouble;
     }
