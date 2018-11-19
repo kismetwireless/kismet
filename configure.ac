@@ -1389,7 +1389,7 @@ AC_SUBST(NLCFLAGS)
 want_usb="no"
 have_usb="no"
 AC_ARG_ENABLE(libusb,
-        AS_HELP_STRING([--disable-usb], [Disable libUSB support]),
+        AS_HELP_STRING([--disable-libusb], [Disable libUSB support]),
         [want_usb=no],
         [want_usb=yes])
 AS_IF([test "x$want_usb" != "xno"], [
