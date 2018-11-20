@@ -1248,6 +1248,7 @@ $ ./configure --enable-prelude
 Kismet uses several libraries which are part of the Kismet source code; Without the open source community this wouldn't be possible.
 
 * boost::geometry (https://www.boost.org):  Boost header-only geometry library
+* boost::mpl (https://www.boost.org): Boost header-only MPL metaprogramming library
 * fmtlib (https://github.com/fmtlib/fmt): C++ string formatting for faster message generation with fewer temporary variables.
 * jsoncpp (http://jsoncpp.sourceforge.net/): JSON parser
 * kaitai (https://kaitai.io): Binary parser generator and stream library
