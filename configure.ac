@@ -267,14 +267,6 @@ AC_SUBST(BASE_DIR)
 # Check for endian
 AC_C_BIGENDIAN
 
-# Checks for header files.
-AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h netdb.h],
-	AC_DEFINE(HAVE_SYSHEADERS, 1, System headers are there),
-	AC_MSG_ERROR(Missing required system header))
-
-AC_CHECK_HEADERS([getopt.h])
-AC_CHECK_HEADERS([glob.h])
-
 # Configure for a remote-capture-only build
 caponly=0
 AC_ARG_ENABLE(capture-tools-only,
@@ -408,46 +400,6 @@ if test "$BACKTRACE_OK" = 1; then
         BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
         AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
     fi
-fi
-
-# Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-AC_HEADER_TIME
-AC_STRUCT_TM
-
-# Checks for library functions.
-AC_HEADER_STDC
-AC_TYPE_SIGNAL
-AC_FUNC_STAT
-AC_CHECK_FUNCS([gettimeofday memset select socket strcasecmp strftime strstr])
-
-# Do we have getopt_long natively?
-AC_MSG_CHECKING([for system-level getopt_long()])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-		#include <stdio.h>
-		#include <unistd.h>
-		#ifdef HAVE_GETOPT_H
-		#include <getopt.h>
-		#endif
-		]], [[
-		static struct option long_options[] = {   /* options table */
-			   { "null-arg", required_argument, 0, 'n' },
-			   { 0, 0, 0, 0 }
-		};
-
-		int s;
-		int option_index;
-		int argc;
-		char **argv;
-
-		s = getopt_long(argc, argv, "n:", long_options, &option_index);
-
-		]])],[sys_getopt=yes],[sys_getopt=no])
-if test "$sys_getopt" = "yes"; then
-	AC_MSG_RESULT([yes])
-	AC_DEFINE(HAVE_GETOPT_LONG, 1, system defines getopt_long)
-else
-	AC_MSG_RESULT([no])
 fi
 
 # Look for something to define standard int types
@@ -658,7 +610,6 @@ termcontrol="none";
     
 # We need microhttpd and curses if we're building kismet_server
 if test "$caponly" == 0; then
-
     HAVE_LIBMICROHTTPD=0
     AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
                  KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
@@ -731,7 +682,6 @@ if test "$caponly" == 0; then
     fi
     
     KSLIBS="$KSLIBS $curseaux"
-
 fi # caponly
 
 
