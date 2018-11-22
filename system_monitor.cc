@@ -283,7 +283,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 }
 
 void tracked_system_status::pre_serialize() {
-    local_locker lock(monitor_mutex);
+    local_locker lock(&monitor_mutex);
 
     kis_battery_info batinfo;
     Fetch_Battery_Info(&batinfo);

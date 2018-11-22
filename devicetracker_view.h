@@ -67,7 +67,7 @@ public:
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     virtual ~DevicetrackerView() {
-        local_locker l(mutex);
+        local_locker l(&mutex);
     }
 
     // Protect proxies w/ mutex
@@ -75,12 +75,12 @@ public:
     __ProxyGet(view_description, std::string, std::string, view_description);
 
     virtual void pre_serialize() override {
-        local_eol_shared_locker lock(mutex);
+        local_eol_shared_locker lock(&mutex);
         list_sz->set(device_list->size());
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker lock(mutex);
+        local_shared_unlocker lock(&mutex);
     }
 
     // Do work on the base list of all devices in this view; this makes an immutable copy

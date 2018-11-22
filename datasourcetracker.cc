@@ -816,7 +816,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
 
     // Record and initiate it
     {
-        local_locker dl(dst_lock);
+        local_locker dl(&dst_lock);
         probing_map[probeid] = dst_probe;
     }
 
@@ -1306,7 +1306,7 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
 
                 {
-                    local_shared_locker l(dst_lock);
+                    local_shared_locker l(&dst_lock);
                     if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                         return false;
                 }

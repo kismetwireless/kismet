@@ -2679,7 +2679,7 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
     stream.write((const char *) &hdr, sizeof(hdr));
 
     if (dev != nullptr) {
-        local_locker dlock(dev->device_mutex);
+        local_locker dlock(&dev->device_mutex);
 
         auto dot11dev =
             dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);

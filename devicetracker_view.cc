@@ -76,7 +76,7 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
 
             bool m;
             {
-                local_locker devlocker(dev->device_mutex);
+                local_locker devlocker(&dev->device_mutex);
                 m = worker.matchDevice(dev);
             }
 
@@ -90,7 +90,7 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
 }
 
 void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     if (new_cb != nullptr)
         if (new_cb(device))
@@ -98,7 +98,7 @@ void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> devic
 }
 
 void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     if (update_cb == nullptr)
         return;
@@ -127,7 +127,7 @@ void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> de
 }
 
 void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -376,7 +376,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
     // size of the original vector for windowed ops.
     {
-        local_locker l(mutex);
+        local_locker l(&mutex);
         next_work_vec->set(device_list->begin(), device_list->end());
         total_sz_elem->set(next_work_vec->size());
     }

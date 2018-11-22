@@ -33,7 +33,7 @@ Antennatracker::~Antennatracker() {
 }
 
 int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     for (auto ai : *antenna_id_map) {
         auto a = std::static_pointer_cast<tracked_antenna>(ai.second);
@@ -61,7 +61,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
 }
 
 int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, uuid in_ant_uuid) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     for (auto ai : *antenna_id_map) {
         auto a = std::static_pointer_cast<tracked_antenna>(ai.second);
@@ -85,7 +85,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, u
 }
 
 int Antennatracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     auto ai = antenna_id_map->find(in_antnum);
 
@@ -99,7 +99,7 @@ int Antennatracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
 }
 
 std::shared_ptr<tracked_antenna> Antennatracker::get_antenna(int in_antnum) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     auto ai = antenna_id_map->find(in_antnum);
 

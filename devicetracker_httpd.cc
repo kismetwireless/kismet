@@ -828,7 +828,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     // Make the length and filter elements
                     {
-                        local_shared_locker lock(devicelist_mutex);
+                        local_shared_locker lock(&devicelist_mutex);
                         dt_length_elem = 
                             std::make_shared<TrackerElementUInt64>(dt_length_id, tracked_vec.size());
                     }

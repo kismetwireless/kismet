@@ -28,7 +28,7 @@ DltTracker::DltTracker() {
 }
 
 DltTracker::~DltTracker() {
-    local_locker lock(mutex);
+    local_locker lock(&mutex);
 
 }
 
@@ -38,7 +38,7 @@ uint32_t DltTracker::register_linktype(const std::string& in_linktype) {
     if (csum < 4096)
         csum += 4096;
 
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     dlt_to_name_map[csum] = StrLower(in_linktype);
 
@@ -46,7 +46,7 @@ uint32_t DltTracker::register_linktype(const std::string& in_linktype) {
 }
 
 std::string DltTracker::get_linktype_name(uint32_t in_dlt) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     auto i = dlt_to_name_map.find(in_dlt);
 

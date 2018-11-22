@@ -73,7 +73,7 @@ public:
     // default value is used.
     template<typename T>
     T fetchOptAs(const std::string& in_key, const T& dvalue) {
-        local_locker l(config_locker);
+        local_locker l(&config_locker);
 
         auto ki = config_map.find(StrLower(in_key));
 
@@ -96,7 +96,7 @@ public:
     // Set a value, converting the arbitrary input into a string
     template<typename T>
     void SetOpt(const std::string& in_key, const T in_value, int in_dirty) {
-        local_locker l(config_locker); 
+        local_locker l(&config_locker); 
         std::vector<config_entity> v;
         config_entity e(fmt::format("{}", in_value), "::dynamic::");
         v.push_back(e);
@@ -193,7 +193,7 @@ public:
     // If the key is not present, return the defautl value
     template<typename T>
     T getValueAs(const std::string& in_key, const T& dvalue) {
-        local_locker l(mutex);
+        local_locker l(&mutex);
 
         auto ki = content_map.find(StrLower(in_key));
 
@@ -213,7 +213,7 @@ public:
     // Set a value, converting the arbitrary input into a string
     template<typename T>
     void setValue(const std::string& in_key, T in_value) {
-        local_locker l(mutex); 
+        local_locker l(&mutex); 
         content_map[in_key] = fmt::format("{}", in_value);
     }
 

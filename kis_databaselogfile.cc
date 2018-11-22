@@ -80,7 +80,7 @@ KisDatabaseLogfile::~KisDatabaseLogfile() {
 }
 
 bool KisDatabaseLogfile::Log_Open(std::string in_path) {
-    local_locker dbl(ds_mutex);
+    local_locker dbl(&ds_mutex);
 
     bool dbr = Database_Open(in_path);
 

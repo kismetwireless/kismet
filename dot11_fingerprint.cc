@@ -341,7 +341,7 @@ std::shared_ptr<tracked_dot11_fingerprint> Dot11FingerprintTracker::get_fingerpr
 }
 
 void Dot11FingerprintTracker::rebuild_config() {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     if (configfile == nullptr)
         return;

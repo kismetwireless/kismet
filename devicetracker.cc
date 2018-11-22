@@ -876,7 +876,7 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
             bool m;
 
             {
-                local_locker devlocker(v->device_mutex);
+                local_locker devlocker(&v->device_mutex);
                 m = worker->MatchDevice(this, v);
             }
 
@@ -1126,7 +1126,7 @@ void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
 }
 
 bool Devicetracker::add_view(std::shared_ptr<DevicetrackerView> in_view) {
-    local_locker l(view_mutex);
+    local_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);
@@ -1145,7 +1145,7 @@ bool Devicetracker::add_view(std::shared_ptr<DevicetrackerView> in_view) {
 }
 
 void Devicetracker::remove_view(const std::string& in_id) {
-    local_locker l(view_mutex);
+    local_locker l(&view_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(*i);
@@ -1157,7 +1157,7 @@ void Devicetracker::remove_view(const std::string& in_id) {
 }
 
 void Devicetracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_locker l(view_mutex);
+    local_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);
@@ -1166,7 +1166,7 @@ void Devicetracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_
 }
 
 void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_locker l(view_mutex);
+    local_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);
@@ -1175,7 +1175,7 @@ void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> 
 }
 
 void Devicetracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_locker l(view_mutex);
+    local_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);

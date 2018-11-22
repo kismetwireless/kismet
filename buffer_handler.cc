@@ -542,7 +542,7 @@ BufferHandlerOStringStreambuf::~BufferHandlerOStringStreambuf() {
 }
 
 std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::streamsize n) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     std::streamsize sz = std::stringbuf::xsputn(s, n);
 
@@ -555,7 +555,7 @@ std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::s
 }
 
 BufferHandlerOStringStreambuf::int_type BufferHandlerOStringStreambuf::overflow(int_type ch) {
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     BufferHandlerOStringStreambuf::int_type it = std::stringbuf::overflow(ch);
 
@@ -572,7 +572,7 @@ int BufferHandlerOStringStreambuf::sync() {
         return -1;
     }
 
-    local_locker l(mutex);
+    local_locker l(&mutex);
 
     size_t sz = str().length();
 
