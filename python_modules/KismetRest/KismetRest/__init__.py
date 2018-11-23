@@ -531,6 +531,30 @@ class KismetConnector:
         # Always return a vector
         return v
 
+    def device_list_by_mac(self, maclist, fields=None, callback=None, cbargs=None):
+        """
+        device_list_by_mac([maclist, fields, callback, cbargs]) -> device list
+
+        List devices matching MAC addresses in maclist.  MAC addresses may be complete
+        MACs or masked MAC groups ("AA:BB:CC:00:00:00/FF:FF:FF:00:00:00").
+
+        Returned devices can be summarized/simplified by the fields list.
+
+        If a callback is given, it will be called for each device in the result.
+        If no callback is provided, the results will be returned as a vector.
+        """
+
+        cmd = {}
+
+        if fields is not None:
+            cmd["fields"] = fields
+
+        cmd["devices"] = maclist
+
+        (r, v) = self.__post_json_url("devices/multimac/devices.ekjson", cmd, callback, cbargs, stream=True)
+
+        return v
+
     def device(self, key, field=None, fields=None):
         """
         device(key) -> device object
