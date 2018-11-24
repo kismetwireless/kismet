@@ -388,7 +388,7 @@ Optionally, a field simplification may be performed if the command dictionary co
 | --- | ----- | ---- | ---- |
 | fields | Field specification | Array | Field specification array listing fields and mappings |
 
-##### POST /devicex/views/[view-id]/devices `/devices/views/[view-id]/devices.json`
+##### POST /devices/views/[view-id]/devices `/devices/views/[view-id]/devices.json`
 
 Returns a list of devices contained within a view, with significant customization and filtering options.
 
@@ -840,6 +840,10 @@ The command dictionary is expected to contain:
 | Key     | Type                      | Desc                                                  |
 | ------- | ------------------------- | ----------------------------------------------------- |
 | fields  | field specification array | Simplified field listing.                             |
+
+##### /devices/views/phydot11_accesspoints/... `/devices/views/phydot11_accesspoints/devices.json` `/devices/views/phydot11_accesspoints/by-time/[time]/devices.json`
+
+A sub-view of devices showing 802.11 access-points only; This view confirms to the VIEW api documented in the `DEVICES` section.
 
 ### Phy-Specific: phy80211 Fingerprinting
 
