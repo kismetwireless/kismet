@@ -555,6 +555,61 @@ class KismetConnector:
 
         return v
 
+    def dot11_clients_of(self, apkey, fields=None, callback=None, cbargs=None):
+        """
+        dot11_clients_of([apkey, fields, callback, cbargs]) -> device list
+
+        List devices which are clients of a given 802.11 access point, using the
+        /phy/phy80211/clients-of endpoint.
+
+        Returned devices can be summarized/simplified by the fields list.
+
+        If a callback is given, it will be called for each device in the result.
+        If no callback is provided, the results will be returned as a vector.
+        """
+
+        cmd = {}
+
+        if fields is not None:
+            cmd["fields"] = fields
+
+        (r, v) = self.__post_json_url("phy/phy80211/clients-of/{}/clients.ekjson".format(apkey), cmd, callback, cbargs, stream=True)
+
+        return v
+
+    def dot11_access_points(self, ts=None, regex=None, fields=None, callback=None, cbargs=None):
+        """
+        dot11_access_points([ts, regex, fields, callback, cbargs]) -> device list
+
+        List devices which are considered to be 802.11 access points, using the
+        /devices/views/phydot11_accesspoints/ view
+
+        Returned devices can be summarized/simplified by the fields list.
+
+        If a timestamp is given, only devices modified more recently than the timestamp (and matching any 
+        other conditions) will be returned.
+
+        If a regex is given, only devices matching the regex (and any other conditions) will be returned.
+
+        If a callback is given, it will be called for each device in the result.
+        If no callback is provided, the results will be returned as a vector.
+        """
+
+        cmd = {}
+
+        if ts is not None:
+            cmd["last_time"] = ts
+
+        if regex is not None:
+            cmd["regex"] = regex
+
+        if fields is not None:
+            cmd["fields"] = fields
+
+        (r, v) = self.__post_json_url("devices/views/phydot11_accesspoints/devices.ekjson", cmd, callback, cbargs, stream=True)
+
+        return v
+
     def device(self, key, field=None, fields=None):
         """
         device(key) -> device object
@@ -736,41 +791,6 @@ class KismetConnector:
         (r, v) = self.__post_string_url("datasource/add_source.cmd", cmd)
 
         return r == 200
-
-    def device_filtered_dot11_summary(self, pcre, fields=None, callback=None, cbargs=None, ts=0):
-        """
-        device_filtered_dot11_summary(pcre, [fields, ts, callback, cbargs]) -> device list,
-        filtered by dot11 ssid
-
-        Deprecated API, this can now be handled by smart_device_list, which
-        this function uses.
-
-        """
-
-        regex = []
-
-        # Split the incoming PCRE into SSID matches
-        for p in pcre:
-            regex.append(['dot11.device/dot11.device.advertised_ssid_map/dot11.advertisedssid.ssid', p])
-
-        return self.smart_device_list(callback=callback, cbargs=cbargs, regex=regex, fields=fields, ts=ts)
-
-    def device_filtered_dot11_probe_summary(self, pcre, fields=None, callback=None, cbargs=None, ts=0):
-        """
-        device_filtered_dot11_probe_summary(pcre, [fields, ts, callback, cbargs]) -> device summary list,
-        filtered by dot11 ssid
-
-        Deprecated API, this can now be handled by smart_device_list, which
-        this function uses
-        """
-
-        regex = []
-
-        # Split the incoming PCRE into SSID matches
-        for p in pcre:
-            regex.append(['dot11.device/dot11.device.probed_ssid_map/dot11.probedssid.ssid', p])
-
-        return self.smart_device_list(callback=callback, cbargs=cbargs, regex=regex, fields=fields, ts=ts)
 
     def define_alert(self, name, description, rate="10/min", burst="1/sec", phyname=None):
         """
