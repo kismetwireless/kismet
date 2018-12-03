@@ -2074,7 +2074,7 @@ bool Kis_Net_Httpd_Path_Post_Endpoint::Httpd_VerifyPath(const char *in_path, con
     if (mutex != nullptr)
         l.lock();
 
-    return path(tokenurl);
+    return path(tokenurl, in_path);
 }
 
 int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_CreateStreamResponse(
@@ -2137,7 +2137,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connectio
                 std::make_shared<StructuredJson>(std::string{"{}"});
         }
 
-        auto r = generator(stream, tokenurl, structdata, concls->variable_cache);
+        auto r = generator(stream, tokenurl, concls->url, structdata, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;

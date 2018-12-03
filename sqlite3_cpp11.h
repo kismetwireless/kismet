@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -270,8 +270,23 @@ namespace kissqlite3 {
             tail_clause {tail_clause} { }
 
         void append_where(const _AND& join_and, const std::list<query_element>& additional_clauses) {
-            where_clause.push_back(AND);
+            if (where_clause.size() > 0)
+                where_clause.push_back(AND);
             where_clause.insert(where_clause.end(), additional_clauses.begin(), additional_clauses.end());
+        }
+
+        void append_where(const _OR& join_r, const std::list<query_element>& additional_clauses) {
+            if (where_clause.size() > 0)
+                where_clause.push_back(OR);
+            where_clause.insert(where_clause.end(), additional_clauses.begin(), additional_clauses.end());
+        }
+
+        void append_clause(const _LIMIT& limit_r, int limit) {
+            tail_clause.push_back(query_element{LIMIT, limit});
+        }
+
+        void append_clause(const _ORDERBY& order_r, const std::string& field) {
+            tail_clause.push_back(query_element{ORDERBY, field});
         }
 
         void bind_stmt() {
@@ -391,6 +406,51 @@ namespace kissqlite3 {
 
         friend std::ostream& operator<<(std::ostream& os, const query& q);
     };
+
+    template<typename OP, typename... Args>
+    void _WHERE(std::list<query_element>& vec) { }
+
+    // X <op> VALUE
+    template<typename OP, typename VL, typename... Args>
+    void _WHERE(std::list<query_element>& vec, const std::string& field, 
+            const OP& op, const VL value) {
+        vec.push_back(query_element{field, op, value});
+    }
+
+    // JOINER X <op> VALUE {...}
+    template<typename JN, typename OP, typename VL, typename... Args>
+    void _WHERE(std::list<query_element>& vec, const OP& join,
+            const std::string& field, const JN& op, const VL value) {
+        vec.push_back(query_element{join});
+        _WHERE(vec, field, op, value);
+    }
+
+    template<typename JN, typename OP, typename VL, typename... Args>
+    void _WHERE(std::list<query_element>& vec, const JN& join, const std::string& field, const OP& op, 
+            const VL value, const Args& ... args) {
+        _WHERE(vec, join, field, op, value);
+        _WHERE(vec, args...);
+    }
+
+    template<typename OP, typename VL, typename... Args>
+    std::list<query_element> _WHERE(const std::string& field, const OP& op, const VL value) {
+        auto ret = std::list<query_element>{};
+
+        _WHERE(ret, field, op, value);
+
+        return ret;
+    }
+
+    template<typename OP, typename VL, typename... Args>
+    std::list<query_element> _WHERE(const std::string& field, const OP& op, const VL value,
+            const Args& ... args) {
+        auto ret = std::list<query_element>{};
+
+        _WHERE(ret, field, op, value);
+        _WHERE(ret, args...);
+
+        return ret;
+    }
     
     std::ostream& operator<<(std::ostream& os, const query& q);
 

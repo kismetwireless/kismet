@@ -556,10 +556,11 @@ protected:
 // Path-based basic post responder linked to a chainbuf buffer
 class Kis_Net_Httpd_Path_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
-    using path_func = std::function<bool (const std::vector<std::string>&)>;
+    using path_func = std::function<bool (const std::vector<std::string>& path, const std::string& uri)>;
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, 
-                const std::vector<std::string>& path, SharedStructured post_structured,
+                const std::vector<std::string>& path, const std::string& uri, 
+                SharedStructured post_structured,
                 Kis_Net_Httpd_Connection::variable_cache_map& variable_cache)>;
 
     Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, bool in_auth, handler_func in_func);

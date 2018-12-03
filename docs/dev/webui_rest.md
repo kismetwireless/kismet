@@ -805,6 +805,122 @@ Expects a command dictionary including:
 
 Stop, and close, the logfile specified by `[uuid]`.  The log file must be open.
 
+### KismetDB Packet Log API
+
+If the Kismet Databaselog is enabled, Kismet will expose an API for extracting historic data.  If the databaselog is not enabled, these APIs will not be available and will return an error.
+
+#### Packet Filtering
+
+The `filter` options in are treated as logical `AND` statements:  To match a packet, the packet must match *all* of the filter options passed in the command dictionary.  In other words, a filter by time, datasource, and type, would *only* return packets within that time range, from that datasource, and of that type.
+
+Filter options should be sent as GET parameters URL-encoded, when using the GET REST endpoint, and in a command dictionary under the `filter` key when using the POST endpoint.
+
+Filter options:
+
+1. Time window
+   Packets can be selected by a time window which may either be closed (both start and end times specified) or open (only start or end time specified).
+
+   | Key             | Type   | Description                                                  |
+   | --------------- | ------ | ------------------------------------------------------------ |
+   | timestamp_start | double | Posix timestamp as double-precision value (seconds.microseconds) |
+   | timestamp_end   | double | Posix timestamp as double-precision value (seconds.microseconds) |
+
+2. Datasource
+
+   Packets may be limited to a single data source, specified by UUID
+
+   | Key        | Type      | Description                       |
+   | ---------- | --------- | --------------------------------- |
+   | datasource | text UUID | UUID string of capture datasource |
+
+3. Kismet device
+
+   Packets may be limited to the specific Kismet device ID they belong to
+
+   | Key       | Type    | Description      |
+   | --------- | ------- | ---------------- |
+   | device_id | text ID | Kismet device ID |
+
+4. Data type
+   Limit matching to a specific data type / DLT (Data Link Type).  This numeric DLT matches the libpcap link types and describes the physical frame type of the packet.
+
+   | Key  | Type    | Description |
+   | ---- | ------- | ----------- |
+   | dlt  | integer | PCAP DLT    |
+
+5. Frequency
+
+   Match only packets on the given frequency, if frequency information is available from the data source.  Data sources which cannot report frequency will report as `0`.
+
+   | Key       | Type   | Description      |
+   | --------- | ------ | ---------------- |
+   | frequency | double | Frequency in KHz |
+   | frequency_min | double | Minimum frequency in KHz |
+   | frequency_max | double | Maximum frequency in KHz |
+
+6. Channel
+
+   Match only packets on a given channel, if available from the data source.  Data sources which cannot report channel will report `"0"` or `""`.
+
+   | Key     | Type   | Description            |
+   | ------- | ------ | ---------------------- |
+   | channel | string | Complex channel string |
+
+7. Signal window
+
+   Limit matching to a range of signal levels, which may be open (only min/max signal provided) or closed (min and max specified).  Packets which have no signal data (such as packets captured by source types which do not support signal records) will have a reported signal of `0`.
+
+   | Key        | Type | Description             |
+   | ---------- | ---- | ----------------------- |
+   | signal_min | int  | Minimum signal (in dBm) |
+   | signal_max | int  | Maximum signsl (in dBm) |
+
+8. Device addresses
+   Limit matching by decoded device address, if available.  Not all capture phys report device addresses as MAC addresses, however the majority do.
+
+   | Key            | Type     | Description                                    |
+   | -------------- | -------- | ---------------------------------------------- |
+   | address_source | text MAC | Source MAC address                             |
+   | address_dest   | text MAC | Destination MAC address                        |
+   | address_trans  | text MAC | Transmitter MAC address (such as the AP BSSID) |
+
+9. Location window
+   Limit matching by location.  Location windows should always be bounded rectangles of minimum and maximum coordinates.  Coordinates are in decimal floating-point format (LL.LLLLL) and will be converted to the normalized non-floating internal values automatically.
+
+   | Key              | Type   | Description              |
+   | ---------------- | ------ | ------------------------ |
+   | location_lat_min | double | Minimum corner latitude  |
+   | location_lon_min | double | Minimum corner longitude |
+   | location_lat_max | double | Maximum corner latitude  |
+   | location_lon_max | double | Maximum corner longitude |
+
+10. Packet size window
+
+   Limit matching by packet size.  Size windows can define minimum and maximum or only minimum or maximum ranges.
+
+   | Key      | Type | Description                   |
+   | -------- | ---- | ----------------------------- |
+   | size_min | int  | Minimum packet size, in bytes |
+   | size_max | int  | Maximum packet size, in bytes |
+
+11. Result limiting
+
+   Limit total packets returned.
+
+   | Key      | Type | Description                   |
+   | -------- | ---- | ----------------------------- |
+   | limit    | int  | Maximum results to return     |
+
+##### `POST` /logging/kismetdb/pcap/[title].pcapng
+
+The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
+
+The pcap endpoint takes a standard JSON command dictionary, including the keys:
+
+| Key    | Type       | Description                                     |
+| ------ | ---------- | ----------------------------------------------- |
+| filter | dictionary | Dictionary of filter options, documented above. |
+
 ### Phy-Specific:  phy80211 (Wi-Fi)
 
 The 802.11 Wi-Fi phy defines extra endpoints for extracting packets from dot11-specific devices:

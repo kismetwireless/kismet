@@ -30,6 +30,8 @@
 #include "structured.h"
 #include "kismet_json.h"
 
+#include "sqlite3_cpp11.h"
+
 KisDatabaseLogfile::KisDatabaseLogfile():
     KisLogfile(SharedLogBuilder(NULL)), 
     KisDatabase(Globalreg::globalreg, "kismetlog") {
@@ -73,6 +75,7 @@ KisDatabaseLogfile::KisDatabaseLogfile():
 
     db_enabled = false;
 
+    Bind_Httpd_Server();
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
@@ -974,7 +977,7 @@ bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) 
     std::string stripped = Httpd_StripSuffix(path);
     std::string suffix = Httpd_GetSuffix(path);
 
-    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng")
+    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng")
         return true;
 
     return false;
@@ -1007,7 +1010,7 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 }
             });
 
-    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
+    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
         // Build a placeholder query stream
         KisDatabaseBinder query_binder;
 
@@ -1023,7 +1026,7 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     SharedStructured structdata;
     SharedStructured filterdata;
 
-    if (stripped.find("/logging/kismetlog/pcap/") == 0 && suffix == "pcapng") {
+    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
         try {
             if (concls->variable_cache.find("json") != 
                     concls->variable_cache.end()) {
@@ -1066,90 +1069,76 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         }
     }
 
+    using namespace kissqlite3;
+    auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "dlt", "packet"});
+
     // Build a placeholder query stream
     KisDatabaseBinder query_binder;
 
     if (filterdata != nullptr) {
         try {
             if (filterdata->hasKey("timestamp_start")) 
-                query_binder.bind_field<int64_t>("ts_sec >= ?", 
-                        filterdata->getKeyAsNumber("timestamp_start"), sqlite3_bind_int64);
+                query.append_where(AND, _WHERE("ts_sec", GE, filterdata->getKeyAsNumber("timestamp_start")));
 
             if (filterdata->hasKey("timestamp_end")) 
-                query_binder.bind_field<int64_t>("ts_sec <= ?", 
-                        filterdata->getKeyAsNumber("timestamp_end"), sqlite3_bind_int64);
+                query.append_where(AND, _WHERE("ts_sec", LE, filterdata->getKeyAsNumber("timestamp_end")));
 
             if (filterdata->hasKey("datasource")) 
-                query_binder.bind_field<std::string>("datasource LIKE ?", 
-                        filterdata->getKeyAsString("datasource"), KisDatabaseBinder::bind_string);
+                query.append_where(AND, _WHERE("datasource", LIKE, filterdata->getKeyAsString("datasource")));
 
             if (filterdata->hasKey("device_id")) 
-                query_binder.bind_field<std::string>("devkey LIKE ?", 
-                        filterdata->getKeyAsString("device_id"), KisDatabaseBinder::bind_string);
+                query.append_where(AND, _WHERE("devkey", LIKE, filterdata->getKeyAsString("device_id")));
 
             if (filterdata->hasKey("dlt")) 
-                query_binder.bind_field<int>("dlt = ?", 
-                        filterdata->getKeyAsNumber("dlt"), sqlite3_bind_int);
+                query.append_where(AND, _WHERE("dlt", EQ, filterdata->getKeyAsNumber("dlt")));
 
             if (filterdata->hasKey("frequency")) 
-                query_binder.bind_field<double>("frequency = ?", 
-                        filterdata->getKeyAsNumber("frequency"), sqlite3_bind_double);
+                query.append_where(AND, _WHERE("frequency", EQ, filterdata->getKeyAsNumber("frequency")));
 
             if (filterdata->hasKey("frequency_min")) 
-                query_binder.bind_field<double>("frequency_min >= ?", 
-                        filterdata->getKeyAsNumber("frequency_min"), sqlite3_bind_double);
+                query.append_where(AND, _WHERE("frequency", GE, filterdata->getKeyAsNumber("frequency_min")));
 
             if (filterdata->hasKey("frequency_max")) 
-                query_binder.bind_field<double>("frequency_max <= ?", 
-                        filterdata->getKeyAsNumber("frequency_max"), sqlite3_bind_double);
+                query.append_where(AND, _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
 
             if (filterdata->hasKey("channel")) 
-                query_binder.bind_field<std::string>("channel LIKE ?", 
-                        filterdata->getKeyAsString("channel"), KisDatabaseBinder::bind_string);
+                query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->getKeyAsNumber("channel")));
 
             if (filterdata->hasKey("signal_min"))
-                query_binder.bind_field<int>("signal >= ?",
-                        filterdata->getKeyAsNumber("signal_min"), sqlite3_bind_int);
+                query.append_where(AND, _WHERE("signal", GE, filterdata->getKeyAsNumber("signal_min")));
 
             if (filterdata->hasKey("signal_max"))
-                query_binder.bind_field<int>("signal >= ?",
-                        filterdata->getKeyAsNumber("signal_max"), sqlite3_bind_int);
+                query.append_where(AND, _WHERE("signal", LE, filterdata->getKeyAsNumber("signal_max")));
 
             if (filterdata->hasKey("address_source")) 
-                query_binder.bind_field<std::string>("sourcemac LIKE ?", 
-                        filterdata->getKeyAsString("address_source"), KisDatabaseBinder::bind_string);
+                query.append_where(AND, _WHERE("sourcemac", LIKE, filterdata->getKeyAsString("address_source")));
 
             if (filterdata->hasKey("address_dest")) 
-                query_binder.bind_field<std::string>("destmac LIKE ?", 
-                        filterdata->getKeyAsString("address_dest"), KisDatabaseBinder::bind_string);
+                query.append_where(AND, _WHERE("destmac", LIKE, filterdata->getKeyAsString("address_dest")));
 
             if (filterdata->hasKey("address_trans")) 
-                query_binder.bind_field<std::string>("transmac LIKE ?", 
-                        filterdata->getKeyAsString("address_trans"), KisDatabaseBinder::bind_string);
+                query.append_where(AND, _WHERE("transmac", LIKE, filterdata->getKeyAsString("address_trans")));
 
             if (filterdata->hasKey("location_lat_min"))
-                query_binder.bind_field<int>("lat >= ?",
-                        filterdata->getKeyAsNumber("location_lat_min") * 100000, sqlite3_bind_int);
+                query.append_where(AND, _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min") * 100000));
 
             if (filterdata->hasKey("location_lon_min"))
-                query_binder.bind_field<int>("lon >= ?",
-                        filterdata->getKeyAsNumber("location_lon_min") * 100000, sqlite3_bind_int);
+                query.append_where(AND, _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min") * 100000));
 
             if (filterdata->hasKey("location_lat_max"))
-                query_binder.bind_field<int>("lat <= ?",
-                        filterdata->getKeyAsNumber("location_lat_max") * 100000, sqlite3_bind_int);
+                query.append_where(AND, _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max") * 100000));
 
             if (filterdata->hasKey("location_lon_max"))
-                query_binder.bind_field<int>("lon <= ?",
-                        filterdata->getKeyAsNumber("location_lon_max") * 100000, sqlite3_bind_int);
+                query.append_where(AND, _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max") * 100000));
 
             if (filterdata->hasKey("size_min"))
-                query_binder.bind_field<int>("packet_len >= ?",
-                        filterdata->getKeyAsNumber("size_min") * 100000, sqlite3_bind_int);
+                query.append_where(AND, _WHERE("size", GE, filterdata->getKeyAsNumber("size_min")));
 
             if (filterdata->hasKey("size_max"))
-                query_binder.bind_field<int>("packet_len <= ?",
-                        filterdata->getKeyAsNumber("size_max") * 100000, sqlite3_bind_int);
+                query.append_where(AND, _WHERE("size_max", LE, filterdata->getKeyAsNumber("size_max")));
+
+            if (filterdata->hasKey("limit"))
+                query.append_clause(LIMIT, filterdata->getKeyAsNumber("limit"));
 
         } catch (const StructuredDataException& e) {
             auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
@@ -1177,6 +1166,9 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         }
     }
 
+    std::cout << query << std::endl;
+
+    /*
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
 
@@ -1195,7 +1187,11 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     streamtracker->register_streamer(dbrb, "kismetdb.pcapng",
             "pcapng", "httpd", "filtered pcapng from kismetdb");
 
+
     return MHD_NO;
+            */
+
+    return MHD_YES;
 }
 
 Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,

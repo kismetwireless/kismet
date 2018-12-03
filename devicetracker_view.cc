@@ -44,12 +44,19 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
-                std::bind(&DevicetrackerView::device_endpoint_handler, this, _1, _2, _3, _4), &mutex);
+                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return device_endpoint_handler(stream, uri, post_structured, variable_cache);
+                }, &mutex);
 
     time_endp =
         std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
-                std::bind(&DevicetrackerView::device_time_endpoint_path, this, _1), false,
-                std::bind(&DevicetrackerView::device_time_endpoint, this, _1), &mutex);
+                [this](const std::vector<std::string>& path) -> bool {
+                    return device_time_endpoint_path(path);
+                }, false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                    return device_time_endpoint(path);
+                }, &mutex);
 }
 
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {

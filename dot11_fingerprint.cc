@@ -35,11 +35,14 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
 
     update_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
-                [this](const std::vector<std::string>& path) -> bool {
+                [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, true, 
-                std::bind(&Dot11FingerprintTracker::mod_dispatch, this, _1, _2, _3),
-                &mutex);
+                [this](std::ostream& stream, const std::vector<std::string>& path,
+                    const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return mod_dispatch(stream, path, post_structured);
+                }, &mutex);
 }
 
 Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
@@ -58,11 +61,14 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
 
     update_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
-                [this](const std::vector<std::string>& path) -> bool {
+                [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, true, 
-                std::bind(&Dot11FingerprintTracker::mod_dispatch, this, _1, _2, _3),
-                &mutex);
+                [this](std::ostream& stream, const std::vector<std::string>& path,
+                    const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return mod_dispatch(stream, path, post_structured);
+                }, &mutex);
 
     configfile = std::make_shared<ConfigFile>();
     configpath = configfile->ExpandLogPath(in_config);
