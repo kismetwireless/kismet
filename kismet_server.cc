@@ -228,8 +228,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     signal(SIGCHLD, SIG_DFL);
 
     // Shut down the webserver first
-    std::shared_ptr<Kis_Net_Httpd> httpd = 
-        Globalreg::FetchGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER");
+    auto httpd = Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
     if (httpd != NULL)
         httpd->StopHttpd();
 
@@ -242,57 +241,58 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
 
     // Shutdown everything
     globalregistry->Shutdown_Deferred();
-
     globalregistry->spindown = 1;
 
     // Start a short shutdown cycle for 2 seconds
     if (daemonize == 0)
         fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
-    time_t shutdown_target = time(0) + 2;
-    int max_fd = 0;
-    fd_set rset, wset;
-    struct timeval tm;
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);
     sigemptyset(&oldmask);
     sigaddset(&mask, SIGCHLD);
 
-    while (1) {
-        FD_ZERO(&rset);
-        FD_ZERO(&wset);
+    if (pollabletracker != nullptr) {
+        time_t shutdown_target = time(0) + 2;
+        int max_fd = 0;
+        fd_set rset, wset;
+        struct timeval tm;
 
-        if (globalregistry->fatal_condition) {
-            break;
-        }
+        while (1) {
+            FD_ZERO(&rset);
+            FD_ZERO(&wset);
 
-        if (time(0) >= shutdown_target) {
-            break;
-        }
+            if (globalregistry->fatal_condition) {
+                break;
+            }
 
-        // Collect all the pollable descriptors
-        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
+            if (time(0) >= shutdown_target) {
+                break;
+            }
 
-        tm.tv_sec = 0;
-        tm.tv_usec = 100000;
+            // Collect all the pollable descriptors
+            max_fd = pollabletracker->MergePollableFds(&rset, &wset);
 
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+            tm.tv_sec = 0;
+            tm.tv_usec = 100000;
+
+            if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    break;
+                }
+            }
+
+            // Block signals while doing io loops */
+            sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
+            pollabletracker->ProcessPollableSelect(rset, wset);
+
+            sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
+
+            if (globalregistry->fatal_condition) {
                 break;
             }
         }
-
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-        pollabletracker->ProcessPollableSelect(rset, wset);
-
-        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-
-        if (globalregistry->fatal_condition) {
-            break;
-        }
-
     }
 
     // Be noisy
@@ -821,9 +821,9 @@ int main(int argc, char *argv[], char *envp[]) {
     if (conf->FetchOpt("configdir") != "") {
         configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
     } else {
-        globalregistry->messagebus->InjectMessage("No 'configdir' option in the config file",
-                MSGFLAG_FATAL);
-        CatchShutdown(-1);
+        globalregistry->messagebus->InjectMessage("No 'configdir' option in the config file; make sure that the "
+                "Kismet config files are installed and up to date.", MSGFLAG_FATAL);
+        SpindownKismet(pollabletracker);
     }
 
     if (stat(configdir.c_str(), &fstat) == -1) {
@@ -834,13 +834,13 @@ int main(int argc, char *argv[], char *envp[]) {
             snprintf(errstr, STATUS_MAX, "Could not create config and cache directory: %s",
                     strerror(errno));
             globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            CatchShutdown(-1);
+            SpindownKismet(pollabletracker);
         }
     } else if (! S_ISDIR(fstat.st_mode)) {
         snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' exists but is not a directory",
                 configdir.c_str());
         globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-        CatchShutdown(-1);
+        SpindownKismet(pollabletracker);
     }
 
     Load_Kismet_UUID(globalregistry);
@@ -874,8 +874,8 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the HTTPD server, it needs to exist before most things
     Kis_Net_Httpd::create_httpd(globalregistry);
 
-    if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
+    if (globalregistry->fatal_condition) 
+        SpindownKismet(pollabletracker);
 
     // Allocate some other critical stuff like the entry tracker and the
     // serializers
@@ -885,7 +885,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the manuf db
     globalregistry->manufdb = new Manuf();
     if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
+        SpindownKismet(pollabletracker);
 
     // Base serializers
     entrytracker->RegisterSerializer("json", std::make_shared<JsonAdapter::Serializer>());
@@ -954,10 +954,10 @@ int main(int argc, char *argv[], char *envp[]) {
     auto alertracker = Alertracker::create_alertracker(globalregistry);
 
     if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
+        SpindownKismet(pollabletracker);
 
     if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
+        SpindownKismet(pollabletracker);
 
     // Create the device tracker
     std::shared_ptr<Devicetracker> devicetracker = 
@@ -967,7 +967,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Channeltracker_V2::create_channeltracker(globalregistry);
 
     if (globalregistry->fatal_condition)
-        CatchShutdown(-1);
+        SpindownKismet(pollabletracker);
 
     // Register the DLT handlers
     new Kis_DLT_PPI(globalregistry);
@@ -976,21 +976,15 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Dissector_IPdata(globalregistry);
 
     // Register the base PHYs
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
-
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
-
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
-
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
-
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
-
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER")->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
-
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
-        CatchShutdown(-1);
+        SpindownKismet(pollabletracker);
 
     // Add the datasources
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder()));
@@ -1007,10 +1001,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     LogTracker::create_logtracker();
 
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>("LOGTRACKER")->register_log(SharedLogBuilder(new KisPPILogfileBuilder()));
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>("LOGTRACKER")->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder()));
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>("LOGTRACKER")->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
-
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>()->register_log(SharedLogBuilder(new KisPPILogfileBuilder()));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>()->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder()));
+    Globalreg::FetchMandatoryGlobalAs<LogTracker>()->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
 
     std::shared_ptr<Plugintracker> plugintracker;
 
@@ -1032,7 +1025,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (globalregistry->fatal_condition) {
             globalregistry->messagebus->InjectMessage(
                         "Failure during activating plugins", MSGFLAG_FATAL);
-            CatchShutdown(-1);
+            SpindownKismet(pollabletracker);
         }
     }
 
@@ -1071,7 +1064,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
-    Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>(globalregistry, "HTTPD_SERVER")->StartHttpd();
+    Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>()->StartHttpd();
 
     sigset_t mask, oldmask;
     sigemptyset(&mask);
