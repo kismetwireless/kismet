@@ -782,8 +782,10 @@ enable_pcap
 with_python2
 with_protoc
 with_protocc
+enable_libnm
 with_netlink_tiny
 enable_libusb
+enable_lmsensors
 with_suidgroup
 enable_optimization
 enable_asan
@@ -1451,7 +1453,9 @@ Optional Features:
   --disable-pcre          disable building pcre components
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-pcap          disable libpcap (most sources) capture support
+  --disable-libnm         Disable libnm support
   --disable-libusb        Disable libUSB support
+  --disable-lmsensors     Disable lmsensors support
   --disable-optimization        disable -Ox gcc optimization
   --enable-asan           enable ASAN address debugging
   --enable-tsan           enable thread-sanitizer debugging
@@ -11202,6 +11206,19 @@ if test "$linux" = "yes"; then
 NMLIBS=""
 NMCFLAGS=""
 
+want_libnm="no"
+# Check whether --enable-libnm was given.
+if test "${enable_libnm+set}" = set; then :
+  enableval=$enable_libnm; want_libnm=no
+else
+  want_libnm=yes
+fi
+
+
+if test "x$want_libnm" != "xno"; then :
+
+
+# Do we want to check it
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnm" >&5
@@ -11273,12 +11290,20 @@ else
 $as_echo "yes" >&6; }
 	havelibnm=yes
 fi
-if test $havelibnm = yes; then
+if test "x$havelibnm" = "xyes"; then :
+
     NMLIBS=`pkg-config --libs libnm`
     NMCFLAGS=`pkg-config --cflags libnm`
+
+else
+
+    LIBNM_MISSING_REASON="libnm package not found"
+
 fi
 
-if test "$havelibnm" = "yes"; then
+# Did it pass pkg check?
+if test "x$havelibnm" = "xyes"; then :
+
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NMLIBS"
 	OCPPFL="$CPPFLAGS"
@@ -11313,19 +11338,37 @@ rm -f core conftest.err conftest.$ac_objext \
 
 	LIBS="$OLIBS"
     CPPFLAGS="$OCPPFL"
-else
+
+fi
+
+# Did it fail compile test?
+if test "x$havelibnm" != "xyes"; then :
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Libnm missing device_set_managed function may be a very old version" >&5
 $as_echo "$as_me: WARNING: Libnm missing device_set_managed function may be a very old version" >&2;}
 	havelibnm=no
     NMLIBS=""
     NMCFLAGS=""
+    LIBNM_MISSING_REASON="libnm missing required functions, may be very out of date"
+
 fi
 
-if test $havelibnm = yes; then
+# We're good
+if test "x$havelibnm" = "xyes"; then :
+
 
 $as_echo "#define HAVE_LIBNM 1" >>confdefs.h
 
+
 fi
+
+
+else
+
+    LIBNM_MISSING_REASON="libnm disabled"
+
+fi
+
 
 
 
@@ -11910,7 +11953,18 @@ else
 fi
 
 
-if test "$linux" = "yes"; then
+if test "$linux" = "yes"; then :
+
+want_lmsensors="no"
+# Check whether --enable-lmsensors was given.
+if test "${enable_lmsensors+set}" = set; then :
+  enableval=$enable_lmsensors; want_lmsensors=no
+else
+  want_lmsensors=yes
+fi
+
+if test "x$want_lmsensors" != "xno"; then :
+
     for ac_header in sensors/sensors.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "sensors/sensors.h" "ac_cv_header_sensors_sensors_h" "$ac_includes_default"
@@ -11977,8 +12031,14 @@ fi
     else
         LMSENSORS_MISSING_REASON="Missing sensors/sensors.h"
     fi
+
+else
+
+    LMSENSORS_MISSING_REASON="lmsensors disabled"
+
 fi
 
+fi
 
 
 # Check whether --with-suidgroup was given.
@@ -13450,7 +13510,7 @@ if test "$havelibnm" = "yes"; then
 elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
-	echo "no (will not be able to control NetworkManager)";
+    echo "no (will not be able to control NetworkManager, $LIBNM_MISSING_REASON)"
 fi
 
 printf "       Linux Bluetooth: "

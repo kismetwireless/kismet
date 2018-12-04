@@ -1185,13 +1185,25 @@ if test "$linux" = "yes"; then
 NMLIBS=""
 NMCFLAGS=""
 
+want_libnm="no"
+AC_ARG_ENABLE(libnm,
+        AS_HELP_STRING([--disable-libnm], [Disable libnm support]),
+        [want_libnm=no],
+        [want_libnm=yes])
+
+AS_IF([test "x$want_libnm" != "xno"], [
+
+# Do we want to check it
 PKG_CHECK_MODULES([libnm], [libnm], havelibnm=yes, havelibnm=no)
-if test $havelibnm = yes; then
+AS_IF([test "x$havelibnm" = "xyes"], [
     NMLIBS=`pkg-config --libs libnm`
     NMCFLAGS=`pkg-config --cflags libnm`
-fi
+], [
+    LIBNM_MISSING_REASON="libnm package not found"
+])
 
-if test "$havelibnm" = "yes"; then
+# Did it pass pkg check?
+AS_IF([test "x$havelibnm" = "xyes"], [
 	OLIBS="$LIBS"
 	LIBS="$LIBS $NMLIBS"
 	OCPPFL="$CPPFLAGS"
@@ -1208,16 +1220,27 @@ if test "$havelibnm" = "yes"; then
 
 	LIBS="$OLIBS"
     CPPFLAGS="$OCPPFL"
-else
+])
+
+# Did it fail compile test?
+AS_IF([test "x$havelibnm" != "xyes"], [
 	AC_MSG_WARN(Libnm missing device_set_managed function may be a very old version)
 	havelibnm=no
     NMLIBS=""
     NMCFLAGS=""
-fi
+    LIBNM_MISSING_REASON="libnm missing required functions, may be very out of date"
+])
 
-if test $havelibnm = yes; then
+# We're good
+AS_IF([test "x$havelibnm" = "xyes"], [
     AC_DEFINE(HAVE_LIBNM, 1, NetworkManager interface library)
-fi
+])
+
+],
+[
+    LIBNM_MISSING_REASON="libnm disabled"
+])
+
 
 AC_SUBST(NMLIBS)
 AC_SUBST(NMCFLAGS)
@@ -1379,7 +1402,13 @@ else
 fi
 
 
-if test "$linux" = "yes"; then
+AS_IF([test "$linux" = "yes"], [
+want_lmsensors="no"
+AC_ARG_ENABLE(lmsensors,
+        AS_HELP_STRING([--disable-lmsensors], [Disable lmsensors support]),
+        [want_lmsensors=no],
+        [want_lmsensors=yes])
+AS_IF([test "x$want_lmsensors" != "xno"], [
     AC_CHECK_HEADERS([sensors/sensors.h],
         HAVE_LMSENSORS_H=1,
         AC_MSG_WARN("libsensors lm-sensors missing"))
@@ -1394,8 +1423,11 @@ if test "$linux" = "yes"; then
     else
         LMSENSORS_MISSING_REASON="Missing sensors/sensors.h"
     fi
-fi
-
+],
+[
+    LMSENSORS_MISSING_REASON="lmsensors disabled"
+])
+])
 
 AC_ARG_WITH(suidgroup,
 	[  --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process ],
@@ -1563,7 +1595,7 @@ if test "$havelibnm" = "yes"; then
 elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
-	echo "no (will not be able to control NetworkManager)";
+    echo "no (will not be able to control NetworkManager, $LIBNM_MISSING_REASON)"
 fi
 
 printf "       Linux Bluetooth: "
