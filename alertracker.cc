@@ -32,50 +32,11 @@
 #include "base64.h"
 #include "kis_databaselogfile.h"
 
-Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
+Alertracker::Alertracker() :
     Kis_Net_Httpd_CPPStream_Handler() {
-	globalreg = in_globalreg;
-	next_alert_id = 0;
 
-	if (globalreg->kismet_config == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
-		exit(1);
-	}
-
-#ifdef PRELUDE
-    // Start client Prelude
-    int ret;
-    ret = prelude_init(0, NULL);
-    if (ret < 0) {
-        _MSG("Alertracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return;
-    }
-
-    PreludeInitClient(PRELUDE_ANALYZER_MODEL);
-#endif
-
-    packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
-    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
-
-	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
-		int scantmp;
-		if (sscanf(globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
-				   "%d", &scantmp) != 1 || scantmp < 0) {
-			globalreg->messagebus->InjectMessage("Illegal value for 'alertbacklog' "
-												 "in config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-		num_backlog = scantmp;
-	}
-
-	// Parse config file vector of all alerts
-	if (ParseAlertConfig(globalreg->kismet_config) < 0) {
-		_MSG("Failed to parse alert values from Kismet config file", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return;
-	}
+    packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
     alert_vec_id =
         entrytracker->RegisterField("kismet.alert.list",
@@ -104,23 +65,63 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) :
                 "Kismet alert definition");
 
 	// Register the alert component
-	_PCM(PACK_COMP_ALERT) =
+    pack_comp_alert =
 		packetchain->RegisterPacketComponent("alert");
 
 	// Register a KISMET alert type with no rate restrictions
-	_ARM(ALERT_REF_KISMET) =
+    alert_ref_kismet =
 		RegisterAlert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
-    log_alerts = globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
 
     Bind_Httpd_Server();
+
+	next_alert_id = 0;
+
+	if (Globalreg::globalreg->kismet_config == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
+		exit(1);
+	}
+
+#ifdef PRELUDE
+    // Start client Prelude
+    int ret;
+    ret = prelude_init(0, NULL);
+    if (ret < 0) {
+        _MSG("Alertracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return;
+    }
+
+    PreludeInitClient(PRELUDE_ANALYZER_MODEL);
+#endif
+
+	if (Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
+		int scantmp;
+		if (sscanf(Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
+				   "%d", &scantmp) != 1 || scantmp < 0) {
+            _MSG("Illegal value for 'alertbacklog' in kismet.conf, expected number greater than zero.",
+                    MSGFLAG_FATAL);
+			Globalreg::globalreg->fatal_condition = 1;
+			return;
+		}
+		num_backlog = scantmp;
+	}
+
+	// Parse config file vector of all alerts
+	if (ParseAlertConfig(Globalreg::globalreg->kismet_config) < 0) {
+		_MSG("Failed to parse alert values from Kismet config file", MSGFLAG_FATAL);
+        Globalreg::globalreg->fatal_condition = 1;
+		return;
+	}
+
+    log_alerts = Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
 }
 
 Alertracker::~Alertracker() {
     local_locker lock(&alert_mutex);
 
-    globalreg->RemoveGlobal("ALERTTRACKER");
-    globalreg->alertracker = NULL;
+    Globalreg::globalreg->RemoveGlobal("ALERTTRACKER");
+    Globalreg::globalreg->alertracker = NULL;
 
 #ifdef PRELUDE
     prelude_deinit();
@@ -303,13 +304,12 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 	// Try to get the existing alert info
 	if (in_pack != NULL)  {
-		kis_alert_component *acomp = 
-			(kis_alert_component *) in_pack->fetch(_PCM(PACK_COMP_ALERT));
+        auto acomp = in_pack->fetch<kis_alert_component>(pack_comp_alert);
 
 		// if we don't have an alert container, make one on this packet
 		if (acomp == NULL) {
 			acomp = new kis_alert_component;
-			in_pack->insert(_PCM(PACK_COMP_ALERT), acomp);
+			in_pack->insert(pack_comp_alert, acomp);
 		}
 
 		// Attach it to the packet
@@ -326,8 +326,8 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
 
     if (log_alerts) {
-        std::shared_ptr<KisDatabaseLogfile> dbf =
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+        auto dbf = 
+            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
@@ -373,8 +373,8 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
 
     if (log_alerts) {
-        std::shared_ptr<KisDatabaseLogfile> dbf =
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+        auto dbf =
+            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
@@ -464,12 +464,11 @@ int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name,
         alert_time_unit *ret_limit_unit, int *ret_limit_rate,
         alert_time_unit *ret_limit_burst, 
         int *ret_burst_rate) {
-	char err[1024];
+
 	std::vector<std::string> tokens = StrTokenize(alert_str, ",");
 
 	if (tokens.size() != 3) {
-		snprintf(err, 1024, "Malformed limits for alert '%s'", alert_str.c_str());
-		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
+        _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
 		return -1;
 	}
 
@@ -477,8 +476,7 @@ int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name,
 
 	if (ParseRateUnit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
 		ParseRateUnit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
-		snprintf(err, 1024, "Malformed limits for alert '%s'", alert_str.c_str());
-		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
+        _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
 		return -1;
 	}
 
@@ -520,24 +518,24 @@ int Alertracker::ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit,
 }
 
 int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
-	std::vector<std::string> clines = in_conf->FetchOptVec("alert");
+    std::vector<std::string> clines = in_conf->FetchOptVec("alert");
 
-	for (unsigned int x = 0; x < clines.size(); x++) {
-		alert_conf_rec *rec = new alert_conf_rec;
+    for (unsigned int x = 0; x < clines.size(); x++) {
+        alert_conf_rec *rec = new alert_conf_rec;
 
-		if (ParseAlertStr(clines[x], &(rec->header), &(rec->limit_unit), 
-						  &(rec->limit_rate), &(rec->burst_unit), 
-						  &(rec->limit_burst)) < 0) {
-			_MSG("Invalid alert line in config file: " + clines[x], MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+        if (ParseAlertStr(clines[x], &(rec->header), &(rec->limit_unit), 
+                    &(rec->limit_rate), &(rec->burst_unit), 
+                    &(rec->limit_burst)) < 0) {
+            _MSG_FATAL("Invalid 'alert' config option {}; expected HEADER,rate,burstrate", clines[x]);
+            Globalreg::globalreg->fatal_condition = 1;
             delete rec;
             return -1;
         }
 
-		alert_conf_map[StrLower(rec->header)] = rec;
-	}
+        alert_conf_map[StrLower(rec->header)] = rec;
+    }
 
-	return 1;
+    return 1;
 }
 
 int Alertracker::DefineAlert(std::string name, alert_time_unit limit_unit, int limit_rate,
@@ -761,8 +759,8 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             std::string phyname = structdata->getKeyAsString("phyname", "");
 
             if (phyname != "any" && phyname != "") {
-                std::shared_ptr<Devicetracker> devicetracker = 
-                    Globalreg::FetchMandatoryGlobalAs<Devicetracker>(globalreg, "DEVICETRACKER");
+                auto devicetracker = 
+                    Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
                 Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
 
                 if (phyh == NULL)

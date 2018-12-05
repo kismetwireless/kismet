@@ -321,16 +321,16 @@ public:
 
     static std::string global_name() { return "ALERTTRACKER"; }
 
-    static std::shared_ptr<Alertracker> create_alertracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Alertracker> mon(new Alertracker(in_globalreg));
-        in_globalreg->alertracker = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<Alertracker> create_alertracker() {
+        std::shared_ptr<Alertracker> mon(new Alertracker());
+        Globalreg::globalreg->alertracker = mon.get();
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 
 private:
-    Alertracker(GlobalRegistry *in_globalreg);
+    Alertracker();
 
     // Raise an Prelude alert (requires prelude support compiled in)
     int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
@@ -404,7 +404,8 @@ protected:
 	// Parse a foo/bar rate/unit option
 	int ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
-    GlobalRegistry *globalreg;
+    int pack_comp_alert;
+    int alert_ref_kismet;
 
     int next_alert_id;
 

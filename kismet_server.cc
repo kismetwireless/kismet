@@ -925,43 +925,65 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the IPC handler
     IPCRemoteV2Tracker::create_ipcremote(globalregistry);
 
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
+
     // Create the stream tracking
     StreamTracker::create_streamtracker(globalregistry);
+
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
 
     // Add the messagebus REST interface
     RestMessageClient::create_messageclient(globalregistry);
 
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
+
     // Add login session
     Kis_Httpd_Websession::create_websession(globalregistry);
+
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
 
     // Add module registry
     Kis_Httpd_Registry::create_http_registry(globalregistry);
 
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
+
     // Create the packet chain
     Packetchain::create_packetchain(globalregistry);
+
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
 
     // Create the DLT tracker
     auto dlttracker = DltTracker::create_dltt();
 
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
+
     // Create antenna mapper
     auto anttracker = Antennatracker::create_at();
 
-    // Add the datasource tracker
-    std::shared_ptr<Datasourcetracker> datasourcetracker;
-    datasourcetracker = Datasourcetracker::create_dst();
+    if (globalregistry->fatal_condition)
+        SpindownKismet(pollabletracker);
 
-    // Create the alert tracker
-    auto alertracker = Alertracker::create_alertracker(globalregistry);
+    // Add the datasource tracker
+    auto datasourcetracker = Datasourcetracker::create_dst();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
+
+    // Create the alert tracker
+    auto alertracker = Alertracker::create_alertracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
 
     // Create the device tracker
-    std::shared_ptr<Devicetracker> devicetracker = 
-        Devicetracker::create_devicetracker(globalregistry);
+    auto devicetracker = Devicetracker::create_devicetracker(globalregistry);
 
     // Add channel tracking
     Channeltracker_V2::create_channeltracker(globalregistry);
