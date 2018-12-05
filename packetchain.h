@@ -92,11 +92,13 @@ class kis_packet;
 
 class Packetchain : public LifetimeGlobal {
 public:
+    static std::string global_name() { return "PACKETCHAIN"; }
+
     static std::shared_ptr<Packetchain> create_packetchain(GlobalRegistry *in_globalreg) {
         std::shared_ptr<Packetchain> mon(new Packetchain(in_globalreg));
         in_globalreg->packetchain = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("PACKETCHAIN", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 
