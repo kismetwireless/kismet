@@ -296,7 +296,7 @@ namespace kissqlite3 {
             // Generate the placeholdered WHERE string
             std::stringstream os;
 
-            os << "SELECT (";
+            os << "SELECT ";
 
             bool comma = false;
             for (auto f : fields) {
@@ -306,7 +306,7 @@ namespace kissqlite3 {
 
                 os << f;
             }
-            os << ") FROM " << table;
+            os << " FROM " << table;
 
             if (where_clause.size() > 0) {
                 os << " WHERE (";
@@ -375,12 +375,17 @@ namespace kissqlite3 {
                         break;
                 };
             }
+
+            r = sqlite3_reset(stmt);
+            if (r != SQLITE_OK)
+                throw std::runtime_error("Failed to prepare statement to execute: " + os.str() + " " +
+                        std::string(sqlite3_errmsg(db)));
         }
 
         // Get the begin and 'end' iterators; the begin iterator executes the first step of
         // the statement after binding it.
         sqlite3_stmt_iterator begin() {
-            if (db == nullptr || stmt == nullptr)
+            if (db == nullptr)
                 return sqlite3_stmt_iterator();
 
             bind_stmt();
