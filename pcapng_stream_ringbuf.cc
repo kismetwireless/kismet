@@ -23,20 +23,32 @@
 Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
-        std::function<kis_datachunk * (kis_packet *)> data_selector) : streaming_agent() {
-
-    globalreg = in_globalreg;
-    
-    handler = in_handler;
-
-    accept_cb = accept_filter;
-    selector_cb = data_selector;
+        std::function<kis_datachunk * (kis_packet *)> data_selector,
+        bool block_for_buffer) : 
+    streaming_agent(),
+    globalreg {in_globalreg},
+    handler {in_handler},
+    accept_cb {accept_filter},
+    selector_cb {data_selector},
+    block_for_buffer {block_for_buffer},
+    locker_required_bytes {0} {
 
     packetchain = 
         std::static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+
+    // Set the buffer locker
+    if (block_for_buffer) {
+        handler->SetReadBufferDrainCb([this](size_t) {
+            local_locker l(&required_bytes_mutex);
+            if (locker_required_bytes != 0 && handler->GetWriteBufferAvailable() > locker_required_bytes) {
+                buffer_available_locker.unlock(1);
+                locker_required_bytes = 0;
+            }
+        });
+    }
 
     // Write the initial headers
     if (pcapng_make_shb("", "", "Kismet") < 0)
@@ -48,7 +60,37 @@ Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
     handler->ProtocolError();
 }
 
+int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
+    // Got the space already?  We're fine.
+    if (handler->GetWriteBufferAvailable() >= req_bytes) {
+        return 1;
+    }
+
+    // Don't block and don't have the space?  error.
+    if (!block_for_buffer) {
+        return -1;
+    }
+
+    // Update the required amount and lock the conditional
+    {
+        local_locker l(&required_bytes_mutex);
+        locker_required_bytes = req_bytes;
+        buffer_available_locker.lock();
+    }
+
+    // Wait for it to unlock; if it gets unlocked because the stream is stopped, it will return a negative
+    // in the conditional future
+    if (buffer_available_locker.block_until() < 0) 
+        return -1;
+
+    return 1;
+}
+
 void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
+    // Unlock the conditional with an error
+    buffer_available_locker.unlock(-1);
+
+    // Trigger an error in the handler
     handler->ProtocolError();
 }
 
@@ -85,7 +127,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     if (in_app.length() > 0) 
         buf_sz += sizeof(pcapng_option) + PAD_TO_32BIT(in_app.length());
 
-    if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
+    if (lock_until_writeable((ssize_t) buf_sz + 4) < 0) {
         return -1;
     }
 
@@ -191,7 +233,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     // position in the list of IDBs is the size of the map because we never
     // remove from the number map
     unsigned int logid = datasource_id_map.size();
-    datasource_id_map.emplace(in_sourcenumber, logid);
+    datasource_id_map[in_sourcenumber] = logid;
 
     uint8_t *retbuf;
 
@@ -218,7 +260,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
         buf_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(in_desc.length());
     }
 
-    if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
+    if (lock_until_writeable((ssize_t) buf_sz + 4) < 0) {
         return -1;
     }
 
@@ -296,7 +338,6 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     int ng_interface_id = in_sourcenumber;
 
     pcapng_epb *epb;
-
     pcapng_option *opt;
 
     // Buffer contains just the header
@@ -322,9 +363,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     // Allocate an end-of-options entry
     data_sz += sizeof(pcapng_option);
 
-    // Drop packet if we can't put it in the buffer
-    if (handler->GetWriteBufferAvailable() < (ssize_t) buf_sz + 4) {
-        // fprintf(stderr, "WARNING - pcapng ringbuf stream dropping packets\n");
+    if (lock_until_writeable((ssize_t) data_sz + 4) < 0) {
         return 0;
     }
 
@@ -512,7 +551,7 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector) :
-    Pcap_Stream_Ringbuf(in_globalreg, in_handler, accept_filter, data_selector) {
+    Pcap_Stream_Ringbuf(in_globalreg, in_handler, accept_filter, data_selector, false) {
 
     packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
             handle_packet(packet);
@@ -527,6 +566,6 @@ Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
 
 void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
-    handler->ProtocolError();
+    Pcap_Stream_Ringbuf::stop_stream(in_reason);
 }
 

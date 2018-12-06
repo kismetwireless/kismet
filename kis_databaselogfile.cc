@@ -34,7 +34,9 @@
 
 KisDatabaseLogfile::KisDatabaseLogfile():
     KisLogfile(SharedLogBuilder(NULL)), 
-    KisDatabase(Globalreg::globalreg, "kismetlog") {
+    KisDatabase(Globalreg::globalreg, "kismetlog"),
+    LifetimeGlobal(),
+    Kis_Net_Httpd_Ringbuf_Stream_Handler() {
 
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
@@ -1070,7 +1072,7 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     using namespace kissqlite3;
-    auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "dlt", "packet"});
+    auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
     // Build a placeholder query stream
     KisDatabaseBinder query_binder;
@@ -1159,6 +1161,7 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
                     }
                     });
+
             stream << "Invalid request: ";
             stream << e.what();
             concls->httpcode = 400;
@@ -1166,15 +1169,12 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         }
     }
 
-    std::cout << query << std::endl;
+    // std::cout << query << std::endl;
 
-    /*
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
 
-    auto *sql_query = query_binder.make_query(db, 
-            "SELECT (ts_sec, ts_usec, packet_len, dlt, packet) FROM packets");
-    auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler(), db, sql_query);
+    auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
 
     saux->set_aux(dbrb,
             [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
@@ -1187,19 +1187,39 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     streamtracker->register_streamer(dbrb, "kismetdb.pcapng",
             "pcapng", "httpd", "filtered pcapng from kismetdb");
 
+    // Get the list of all the interfaces we know about in the database and push them into the
+    // pcapng handler
+    auto datasource_query = _SELECT(db, "datasources", {"uuid", "name", "interface"});
 
-    return MHD_NO;
-            */
+    for (auto ds : datasource_query)  {
+        dbrb->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
+                sqlite3_column_as<std::string>(ds, 1),
+                sqlite3_column_as<std::string>(ds, 2));
+    }
+
+    // Database handler registers itself as timing out so this should be OK to just blitz through
+    // now, we'll block as necessary
+    for (auto p : query) {
+        if (dbrb->pcapng_write_database_packet(
+                    sqlite3_column_as<std::uint64_t>(p, 0),
+                    sqlite3_column_as<std::uint64_t>(p, 1),
+                    sqlite3_column_as<std::string>(p, 2),
+                    sqlite3_column_as<unsigned int>(p, 3),
+                    sqlite3_column_as<std::string>(p, 4)) < 0) {
+            return MHD_YES;
+        }
+    }
 
     return MHD_YES;
 }
 
 Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
-        std::shared_ptr<BufferHandlerGeneric> in_handler,
-        sqlite3 *in_database, sqlite3_stmt *in_query) :
-    Pcap_Stream_Ringbuf(in_globalreg, in_handler, NULL, NULL) {
+        std::shared_ptr<BufferHandlerGeneric> in_handler) :
+        Pcap_Stream_Ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
+        next_pcap_intf_id {0} {
 
-    handler->ProtocolError();
+    // Populate a junk interface
+    add_database_interface("0", "lo", "Placeholder for missing interface");
 }
 
 Pcap_Stream_Database::~Pcap_Stream_Database() {
@@ -1207,5 +1227,58 @@ Pcap_Stream_Database::~Pcap_Stream_Database() {
 
 void Pcap_Stream_Database::stop_stream(std::string in_reason) {
     handler->ProtocolError();
+}
+
+void Pcap_Stream_Database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
+        const std::string& in_name) {
+    
+    if (db_uuid_intf_map.find(in_uuid) != db_uuid_intf_map.end())
+        return;
+
+    auto intf = std::make_shared<db_interface>(in_uuid, in_interface, in_name);
+    intf->pcapnum = next_pcap_intf_id;
+    next_pcap_intf_id++;
+
+    db_uuid_intf_map[in_uuid] = intf;
+}
+
+int Pcap_Stream_Database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
+        const std::string& interface_uuid, unsigned int dlt, const std::string& data) {
+
+    auto pcap_intf_i = db_uuid_intf_map.find(interface_uuid);
+
+    // Shim the junk interface if we can't find it
+    if (pcap_intf_i == db_uuid_intf_map.end())
+        pcap_intf_i = db_uuid_intf_map.find("0");
+
+    auto pcap_intf = pcap_intf_i->second;
+    int ng_interface_id;
+
+    if (pcap_intf->dlt != dlt) 
+        pcap_intf->dlt = dlt;
+
+    auto ds_id_rec = 
+        datasource_id_map.find(pcap_intf->pcapnum);
+
+    if (ds_id_rec == datasource_id_map.end()) {
+        ng_interface_id = pcapng_make_idb(pcap_intf->pcapnum, pcap_intf->interface,
+                fmt::format("kismetdb stored interface {} {}", pcap_intf->interface, 
+                    pcap_intf->uuid), pcap_intf->dlt);
+
+        if (ng_interface_id < 0)
+            return -1;
+
+    } else {
+        ng_interface_id = ds_id_rec->second;
+    }
+
+    auto blocks = std::vector<data_block>{};
+    blocks.push_back(data_block((uint8_t *) data.data(), data.length()));
+
+    struct timeval ts;
+    ts.tv_sec = time_s;
+    ts.tv_usec = time_us;
+
+    return pcapng_write_packet(ng_interface_id, &ts, blocks);
 }
 

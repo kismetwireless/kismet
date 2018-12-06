@@ -49,13 +49,14 @@
 #include "logtracker.h"
 #include "packetchain.h"
 #include "pcapng_stream_ringbuf.h"
+#include "sqlite3_cpp11.h"
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
 class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
-    public Kis_Net_Httpd_Chain_Stream_Handler {
+    public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
@@ -215,17 +216,46 @@ public:
 class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
 public:
     Pcap_Stream_Database(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler,
-            sqlite3 *in_database, sqlite3_stmt *in_query);
+            std::shared_ptr<BufferHandlerGeneric> in_handler);
 
     virtual ~Pcap_Stream_Database();
 
     virtual void stop_stream(std::string in_reason);
 
-protected:
-    int packethandler_id;
+    // Write packet using database metadata, doing a lookup on the interface UUID.  This is more expensive
+    // than the numerical lookup but we need to search by UUID regardless and for many single-source feeds
+    // the lookup will be a single compare
+    virtual int pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
+            const std::string& interface_uuid, unsigned int dlt, const std::string& data);
 
-    conditional_locker<int> buffer_available_locker;
+    // Populate the interface list with all the interfaces from the database, we'll
+    // assign pcapng IDs to them as they get used so only included interfaces will show up
+    // in the pcapng idb list
+    virtual void add_database_interface(const std::string& in_uuid, const std::string& in_interface,
+            const std::string& in_namet);
+
+protected:
+    // Record of all interfaces from the database, assign them pcapng idb indexes and DLT types from the
+    // first packet we see from them.
+    struct db_interface {
+    public:
+        db_interface(const std::string& uuid, const std::string& interface, const std::string& name) :
+            uuid {uuid},
+            interface {interface},
+            name {name},
+            dlt {0},
+            pcapnum {-1} { }
+
+        std::string uuid;
+        std::string interface;
+        std::string name;
+        unsigned int dlt;
+        int pcapnum;
+    };
+
+    std::map<std::string, std::shared_ptr<db_interface>> db_uuid_intf_map;
+    int next_pcap_intf_id;
+
 };
 
 

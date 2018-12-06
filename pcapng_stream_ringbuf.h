@@ -130,9 +130,13 @@ public:
     Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
             std::shared_ptr<BufferHandlerGeneric> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
-            std::function<kis_datachunk * (kis_packet *)> data_selector);
-
+            std::function<kis_datachunk * (kis_packet *)> data_selector,
+            bool block_for_buffer);
     virtual ~Pcap_Stream_Ringbuf();
+
+    virtual void set_blocking(bool in_block) {
+        block_for_buffer = in_block;
+    }
 
     virtual void stop_stream(std::string in_reason);
 
@@ -149,6 +153,8 @@ public:
     ssize_t buffer_available();
 
 protected:
+    virtual int lock_until_writeable(ssize_t req_bytes);
+
     virtual int pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app);
 
     // Create a new interface record from an existing datasource
@@ -188,7 +194,12 @@ protected:
     std::map<unsigned int, unsigned int> datasource_id_map;
 
     kis_recursive_timed_mutex packet_mutex;
-    
+
+    // Optional blocking operations until the required space is available in the buffer
+    bool block_for_buffer;
+    conditional_locker<int> buffer_available_locker;
+    ssize_t locker_required_bytes;
+    kis_recursive_timed_mutex required_bytes_mutex;
 };
 
 class Pcap_Stream_Packetchain : public Pcap_Stream_Ringbuf {
@@ -200,7 +211,7 @@ public:
 
     virtual ~Pcap_Stream_Packetchain();
 
-    virtual void stop_stream(std::string in_reason);
+    virtual void stop_stream(std::string in_reason) override;
 
 protected:
     int packethandler_id;
