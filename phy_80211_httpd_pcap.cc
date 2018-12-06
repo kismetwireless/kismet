@@ -130,6 +130,11 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if ((dev = devicetracker->FetchDevice(targetkey)) == NULL)
         return MHD_YES;
 
+    if (!httpd->HasValidSession(connection, true)) {
+        connection->httpcode = 503;
+        return MHD_YES;
+    }
+
     auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
     auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
     int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");

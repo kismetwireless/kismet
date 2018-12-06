@@ -1028,6 +1028,11 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     SharedStructured structdata;
     SharedStructured filterdata;
 
+    if (!httpd->HasValidSession(concls, true)) {
+        concls->httpcode = 503;
+        return MHD_YES;
+    }
+
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
         try {
             if (concls->variable_cache.find("json") != 

@@ -913,6 +913,8 @@ Filter options:
 
 ##### `POST` /logging/kismetdb/pcap/[title].pcapng
 
+*LOGIN REQUIRED*
+
 The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
 
 The pcap endpoint takes a standard JSON command dictionary, including the keys:
