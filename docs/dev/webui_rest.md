@@ -858,14 +858,6 @@ Filter options:
    | frequency_min | double | Minimum frequency in KHz |
    | frequency_max | double | Maximum frequency in KHz |
 
-6. Channel
-
-   Match only packets on a given channel, if available from the data source.  Data sources which cannot report channel will report `"0"` or `""`.
-
-   | Key     | Type   | Description            |
-   | ------- | ------ | ---------------------- |
-   | channel | string | Complex channel string |
-
 7. Signal window
 
    Limit matching to a range of signal levels, which may be open (only min/max signal provided) or closed (min and max specified).  Packets which have no signal data (such as packets captured by source types which do not support signal records) will have a reported signal of `0`.

@@ -1037,9 +1037,13 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 query.append_where(AND, _WHERE("frequency", LE,
                             connection->variable_cache_as<unsigned long int>("frequency_max")));
 
-            if (connection->has_cached_variable("channel"))
+            /*
+            if (connection->has_cached_variable("channel")) {
+                fprintf(stderr, "debug - channel %s\n", connection->variable_cache_as<std::string>("chnnel").c_str());
                 query.append_where(AND, _WHERE("channel", LIKE,
                             connection->variable_cache_as<std::string>("channel")));
+            }
+            */
 
             if (connection->has_cached_variable("signal_min"))
                 query.append_where(AND, _WHERE("signal", GE,
@@ -1220,8 +1224,10 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (filterdata->hasKey("frequency_max")) 
                 query.append_where(AND, _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
 
+            /*
             if (filterdata->hasKey("channel")) 
                 query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->getKeyAsNumber("channel")));
+                */
 
             if (filterdata->hasKey("signal_min"))
                 query.append_where(AND, _WHERE("signal", GE, filterdata->getKeyAsNumber("signal_min")));
