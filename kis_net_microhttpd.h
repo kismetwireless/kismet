@@ -93,6 +93,27 @@ public:
     // Cache of variables in session
     variable_cache_map variable_cache;
 
+    bool has_cached_variable(const std::string& key) {
+        return (variable_cache.find(key) != variable_cache.end());
+    }
+
+    template <typename T>
+    T variable_cache_as(const std::string& key) {
+        T t;
+
+        auto v = variable_cache.find(key);
+
+        if (v == variable_cache.end())
+            throw std::runtime_error(fmt::format("variable '{}' not found", kishttpd::EscapeHtml(key)));
+
+        *v->second >> t;
+
+        if (v->second->fail())
+            throw std::runtime_error(fmt::format("unable to convert value of '{}'", kishttpd::EscapeHtml(key)));
+
+        return t;
+    }
+
     // Optional alternate filename to pass to the browser for downloading
     std::string optional_filename;
 
