@@ -354,10 +354,10 @@ namespace kissqlite3 {
 
                 switch (c.bind_type) {
                     case BindType::sql_blob:
-                        sqlite3_bind_blob(stmt, bind_pos++, c.value.data(), c.value.length(), 0);
+                        sqlite3_bind_blob(stmt, bind_pos++, c.value.data(), c.value.length(), SQLITE_TRANSIENT);
                         break;
                     case BindType::sql_text:
-                        sqlite3_bind_text(stmt, bind_pos++, c.value.data(), c.value.length(), 0);
+                        sqlite3_bind_text(stmt, bind_pos++, c.value.data(), c.value.length(), SQLITE_TRANSIENT);
                         break;
                     case BindType::sql_int:
                         sqlite3_bind_int(stmt, bind_pos++, c.num_value);
