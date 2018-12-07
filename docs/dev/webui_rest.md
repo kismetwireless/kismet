@@ -917,11 +917,23 @@ Filter options:
 
 The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
 
+If the `kismet` log type is not enabled, this endpoint will return a 404 not found error.
+
 The pcap endpoint takes a standard JSON command dictionary, including the keys:
 
 | Key    | Type       | Description                                     |
 | ------ | ---------- | ----------------------------------------------- |
 | filter | dictionary | Dictionary of filter options, documented above. |
+
+##### /logging/kismetdb/pcap/[title].pcapng?option1=...&option2=...
+
+*LOGIN REQUIRED*
+
+The packet capture endpoint allows basic filtering and time-slicing of the packets recorded by Kismet.
+
+The `GET` variant of this endpoint takes the above filter options as HTTP GET variables instead of POST.
+
+If the `kismet` log type is not enabled, this endpoint will return a 404 not found error.
 
 ### Phy-Specific:  phy80211 (Wi-Fi)
 

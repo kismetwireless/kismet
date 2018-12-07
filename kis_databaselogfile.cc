@@ -979,7 +979,7 @@ bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) 
     std::string stripped = Httpd_StripSuffix(path);
     std::string suffix = Httpd_GetSuffix(path);
 
-    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng")
+    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng" && db_enabled)
         return true;
 
     return false;
@@ -990,32 +990,147 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {
 
+    using namespace kissqlite3;
+
     std::string stripped = Httpd_StripSuffix(connection->url);
     std::string suffix = Httpd_GetSuffix(connection->url);
 
-    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
-
-    std::ostream stream(streambuf);
-
-    saux->set_aux(streambuf, 
-            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
-                if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
-            });
-
-    // Set our sync function which is called by the webserver side before we
-    // clean up...
-    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
-            if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
-                }
-            });
+    if (!httpd->HasValidSession(connection, true)) {
+        connection->httpcode = 503;
+        return MHD_YES;
+    }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        // Build a placeholder query stream
-        KisDatabaseBinder query_binder;
+        using namespace kissqlite3;
+        auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
+        try {
+            if (connection->has_cached_variable("timestamp_start"))
+                query.append_where(AND, _WHERE("ts_sec", GE, 
+                            connection->variable_cache_as<uint64_t>("timestamp_start")));
+
+            if (connection->has_cached_variable("timestamp_end"))
+                query.append_where(AND, _WHERE("ts_sec", LE,
+                            connection->variable_cache_as<uint64_t>("timestamp_end")));
+
+            if (connection->has_cached_variable("datasource"))
+                query.append_where(AND, _WHERE("datasource", LIKE,
+                            connection->variable_cache_as<std::string>("datasource")));
+
+            if (connection->has_cached_variable("device_id"))
+                query.append_where(AND, _WHERE("devkey", LIKE,
+                            connection->variable_cache_as<std::string>("device_id")));
+
+            if (connection->has_cached_variable("dlt"))
+                query.append_where(AND, _WHERE("dlt", EQ,
+                            connection->variable_cache_as<unsigned int>("dlt")));
+
+            if (connection->has_cached_variable("frequency"))
+                query.append_where(AND, _WHERE("frequency", EQ,
+                            connection->variable_cache_as<unsigned long int>("frequency")));
+
+            if (connection->has_cached_variable("frequency_min"))
+                query.append_where(AND, _WHERE("frequency", GE,
+                            connection->variable_cache_as<unsigned long int>("frequency_min")));
+
+            if (connection->has_cached_variable("frequency_max"))
+                query.append_where(AND, _WHERE("frequency", LE,
+                            connection->variable_cache_as<unsigned long int>("frequency_max")));
+
+            if (connection->has_cached_variable("channel"))
+                query.append_where(AND, _WHERE("channel", LIKE,
+                            connection->variable_cache_as<std::string>("channel")));
+
+            if (connection->has_cached_variable("signal_min"))
+                query.append_where(AND, _WHERE("signal", GE,
+                            connection->variable_cache_as<unsigned int>("signal_min")));
+
+            if (connection->has_cached_variable("signal_max"))
+                query.append_where(AND, _WHERE("signal", LE, 
+                            connection->variable_cache_as<unsigned int>("signal_max")));
+
+            if (connection->has_cached_variable("address_source")) 
+                query.append_where(AND, _WHERE("sourcemac", LIKE, 
+                            connection->variable_cache_as<std::string>("address_source")));
+
+            if (connection->has_cached_variable("address_dest")) 
+                query.append_where(AND, _WHERE("destmac", LIKE, 
+                            connection->variable_cache_as<std::string>("address_dest")));
+
+            if (connection->has_cached_variable("address_trans")) 
+                query.append_where(AND, _WHERE("transmac", LIKE, 
+                            connection->variable_cache_as<std::string>("address_trans")));
+
+            if (connection->has_cached_variable("location_lat_min"))
+                query.append_where(AND, _WHERE("lat", GE, 
+                            connection->variable_cache_as<long int>("location_lat_min") * 100000));
+
+            if (connection->has_cached_variable("location_lon_min"))
+                query.append_where(AND, _WHERE("lon", GE, 
+                            connection->variable_cache_as<long int>("location_lon_min") * 100000));
+
+            if (connection->has_cached_variable("location_lat_max"))
+                query.append_where(AND, _WHERE("lat", LE, 
+                            connection->variable_cache_as<long int>("location_lat_max") * 100000));
+
+            if (connection->has_cached_variable("location_lon_max"))
+                query.append_where(AND, _WHERE("lon", LE, 
+                            connection->variable_cache_as<long int>("location_lon_max") * 100000));
+
+            if (connection->has_cached_variable("size_min"))
+                query.append_where(AND, _WHERE("size", GE, 
+                            connection->variable_cache_as<long int>("size_min")));
+
+            if (connection->has_cached_variable("size_max"))
+                query.append_where(AND, _WHERE("size_max", LE, 
+                            connection->variable_cache_as<long int>("size_max")));
+
+            if (connection->has_cached_variable("limit"))
+                query.append_clause(LIMIT, connection->variable_cache_as<unsigned long>("limit"));
+
+        } catch (const std::exception& e) {
+            connection->httpcode = 500;
+            return MHD_YES;
+        }
+
+        Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+        auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
+
+        auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
+
+        saux->set_aux(dbrb,
+                [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                streamtracker->remove_streamer(dbrb->get_stream_id());
+                if (aux->aux != NULL) {
+                delete (Pcap_Stream_Database *) (aux->aux);
+                }
+                });
+
+        streamtracker->register_streamer(dbrb, "kismetdb.pcapng",
+                "pcapng", "httpd", "filtered pcapng from kismetdb");
+
+        // Get the list of all the interfaces we know about in the database and push them into the
+        // pcapng handler
+        auto datasource_query = _SELECT(db, "datasources", {"uuid", "name", "interface"});
+
+        for (auto ds : datasource_query)  {
+            dbrb->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
+                    sqlite3_column_as<std::string>(ds, 1),
+                    sqlite3_column_as<std::string>(ds, 2));
+        }
+
+        // Database handler registers itself as timing out so this should be OK to just blitz through
+        // now, we'll block as necessary
+        for (auto p : query) {
+            if (dbrb->pcapng_write_database_packet(
+                        sqlite3_column_as<std::uint64_t>(p, 0),
+                        sqlite3_column_as<std::uint64_t>(p, 1),
+                        sqlite3_column_as<std::string>(p, 2),
+                        sqlite3_column_as<unsigned int>(p, 3),
+                        sqlite3_column_as<std::string>(p, 4)) < 0) {
+                return MHD_YES;
+            }
+        }
     }
 
     return MHD_YES;
@@ -1078,9 +1193,6 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     using namespace kissqlite3;
     auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
-
-    // Build a placeholder query stream
-    KisDatabaseBinder query_binder;
 
     if (filterdata != nullptr) {
         try {
