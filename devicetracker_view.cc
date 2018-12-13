@@ -151,12 +151,12 @@ void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> de
 }
 
 bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>& path) {
-    // /devices/views/[id]/by-time/[time]/devices
+    // /devices/views/[id]/last-time/[time]/devices
 
     if (path.size() < 6)
         return false;
 
-    if (path[0] != "devices" || path[1] != "views" || path[3] != "by-time" || path[5] != "devices")
+    if (path[0] != "devices" || path[1] != "views" || path[3] != "last-time" || path[5] != "devices")
         return false;
 
     if (path[2] != get_view_id())
