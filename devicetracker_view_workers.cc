@@ -88,7 +88,7 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(SharedStructured shar
             throw std::runtime_error("expected [field, regex] pair from incoming filter");
 
         auto field = rpair[0]->getString();
-        auto regex = rpair[0]->getString();
+        auto regex = rpair[1]->getString();
 
         auto worker_filter = std::make_shared<DevicetrackerViewRegexWorker::pcre_filter>(field, regex);
 
