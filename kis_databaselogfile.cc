@@ -1006,6 +1006,11 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
+        if (db == nullptr || db_enabled) {
+            connection->httpcode = 500;
+            return MHD_YES;
+        }
+
         using namespace kissqlite3;
         auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
@@ -1158,6 +1163,11 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
+        if (db == nullptr || db_enabled) {
+            concls->httpcode = 500;
+            return MHD_YES;
+        }
+
         try {
             if (concls->variable_cache.find("json") != 
                     concls->variable_cache.end()) {
@@ -1206,13 +1216,16 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (filterdata != nullptr) {
         try {
             if (filterdata->hasKey("timestamp_start")) 
-                query.append_where(AND, _WHERE("ts_sec", GE, filterdata->getKeyAsNumber("timestamp_start")));
+                query.append_where(AND, 
+                        _WHERE("ts_sec", GE, filterdata->getKeyAsNumber("timestamp_start")));
 
             if (filterdata->hasKey("timestamp_end")) 
-                query.append_where(AND, _WHERE("ts_sec", LE, filterdata->getKeyAsNumber("timestamp_end")));
+                query.append_where(AND, 
+                        _WHERE("ts_sec", LE, filterdata->getKeyAsNumber("timestamp_end")));
 
             if (filterdata->hasKey("datasource")) 
-                query.append_where(AND, _WHERE("datasource", LIKE, filterdata->getKeyAsString("datasource")));
+                query.append_where(AND, 
+                        _WHERE("datasource", LIKE, filterdata->getKeyAsString("datasource")));
 
             if (filterdata->hasKey("device_id")) 
                 query.append_where(AND, _WHERE("devkey", LIKE, filterdata->getKeyAsString("device_id")));
@@ -1221,13 +1234,16 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 query.append_where(AND, _WHERE("dlt", EQ, filterdata->getKeyAsNumber("dlt")));
 
             if (filterdata->hasKey("frequency")) 
-                query.append_where(AND, _WHERE("frequency", EQ, filterdata->getKeyAsNumber("frequency")));
+                query.append_where(AND, 
+                        _WHERE("frequency", EQ, filterdata->getKeyAsNumber("frequency")));
 
             if (filterdata->hasKey("frequency_min")) 
-                query.append_where(AND, _WHERE("frequency", GE, filterdata->getKeyAsNumber("frequency_min")));
+                query.append_where(AND, 
+                        _WHERE("frequency", GE, filterdata->getKeyAsNumber("frequency_min")));
 
             if (filterdata->hasKey("frequency_max")) 
-                query.append_where(AND, _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
+                query.append_where(AND, 
+                        _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
 
             /*
             if (filterdata->hasKey("channel")) 
@@ -1241,25 +1257,32 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 query.append_where(AND, _WHERE("signal", LE, filterdata->getKeyAsNumber("signal_max")));
 
             if (filterdata->hasKey("address_source")) 
-                query.append_where(AND, _WHERE("sourcemac", LIKE, filterdata->getKeyAsString("address_source")));
+                query.append_where(AND, 
+                        _WHERE("sourcemac", LIKE, filterdata->getKeyAsString("address_source")));
 
             if (filterdata->hasKey("address_dest")) 
-                query.append_where(AND, _WHERE("destmac", LIKE, filterdata->getKeyAsString("address_dest")));
+                query.append_where(AND, 
+                        _WHERE("destmac", LIKE, filterdata->getKeyAsString("address_dest")));
 
             if (filterdata->hasKey("address_trans")) 
-                query.append_where(AND, _WHERE("transmac", LIKE, filterdata->getKeyAsString("address_trans")));
+                query.append_where(AND, 
+                        _WHERE("transmac", LIKE, filterdata->getKeyAsString("address_trans")));
 
             if (filterdata->hasKey("location_lat_min"))
-                query.append_where(AND, _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min") * 100000));
+                query.append_where(AND, 
+                        _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min") * 100000));
 
             if (filterdata->hasKey("location_lon_min"))
-                query.append_where(AND, _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min") * 100000));
+                query.append_where(AND, 
+                        _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min") * 100000));
 
             if (filterdata->hasKey("location_lat_max"))
-                query.append_where(AND, _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max") * 100000));
+                query.append_where(AND, 
+                        _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max") * 100000));
 
             if (filterdata->hasKey("location_lon_max"))
-                query.append_where(AND, _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max") * 100000));
+                query.append_where(AND, 
+                        _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max") * 100000));
 
             if (filterdata->hasKey("size_min"))
                 query.append_where(AND, _WHERE("size", GE, filterdata->getKeyAsNumber("size_min")));
