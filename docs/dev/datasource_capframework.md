@@ -1,3 +1,9 @@
+---
+title: "Datasource capframework library"
+permalink: /docs/devel/datasources_capframework/
+toc: true
+---
+
 # Under Development
 
 These docs represent an API that is still heavily under development - until the first internal implementations are done, it would be unwise to start an independent implementation as I may need to change the protocol.

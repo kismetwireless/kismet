@@ -1,3 +1,9 @@
+---
+title: "Creating Kismet datasources"
+permalink: /docs/devel/datasource/
+toc: true
+---
+
 # Extending Kismet
 
 Kismet is designed to be extendable via modular coding.  Extensions to Kismet can add new IDS functionality, new hardware interaction, new radio types, and new ways to interact with the UI.

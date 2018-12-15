@@ -1,3 +1,9 @@
+---
+title: "Creating Kismet datasources"
+permalink: /docs/devel/datasources/
+toc: true
+---
+
 # Under Development
 
 These docs represent a protocol that is still heavily under development - until the first internal implementations are done, it would be unwise to start an independent implementation as I may change the protocol at any point until it's feature complete.

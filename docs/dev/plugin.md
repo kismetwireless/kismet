@@ -1,3 +1,9 @@
+---
+title: "Creating Kismet plugins"
+permalink: /docs/devel/plugins/
+toc: true
+---
+
 # Extending Kismet - Creating Plugins
 
 Kismet can load additional code dynamically at runtime in the form of a plugin.

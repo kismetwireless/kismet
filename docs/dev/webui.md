@@ -1,3 +1,9 @@
+---
+title: "Extending the WebUI"
+permalink: /docs/devel/webui_basics/
+toc: true
+---
+
 # Extending Kismet: The Web UI
 
 Kismet self-serves its web UI via the built-in webserver.  The web UI can interact with any exposed REST endpoint on the server.  Kismet does not currently support (direct) execution of CGI-style code (PHP, etc), active server-side code should be implemented via a Kismet plugin providing a new endpoint.
@@ -272,19 +278,19 @@ Sidebar items are automatically styled and wrapped in a div element which suppor
 
 New menu items are added via `kismet_ui_sidebar.AddSidebarItem(options)`.  The `options` parameter is a dictionary object with the following values:
 
-#### id - string (required)
+### id - string (required)
 
 This is the ID assigned to the `<div>` element created in the sidebar.
 
-#### listTitle - string (required)
+### listTitle - string (required)
 
 This is the title of the menu item.  This can included embedded HTML, and for consistency, it is recommended that an icon is selected from the included font-awesome icon font.
 
-#### clickCallback - string (required)
+### clickCallback - string (required)
 
 The function in which is called which this item is clicked.  This function is responsible for launching whatever activity corresponds to the menu item.  The menu will be closed automatically when the item is clicked.
 
-#### priority - integer (optional)
+### priority - integer (optional)
 
 Where in the list to insert the new item.  Smaller numbers indicate higher priority.  In general, plugins should use a neutral priority (0) but in some cases it makes logical sense to place an option higher or lower in the list.
 
@@ -335,6 +341,7 @@ Kismet provides a common settings panel, which plugins are strongly encouraged t
 
 A plugin can register multiple categories of settings.
 
+### Settings windows
 Settings windows are registered via `kismet_ui_settings.AddSettingsPane(options)`, where options is a dictionary containing:
 
 #### id - string (required)
@@ -473,6 +480,8 @@ Kismet provides two main views:  The primary display (where the device list live
 
 Plugins may create their own tabs by calling `kismet_ui_tabpane.AddTab(...)` and passing an object dictionary containing:
 
+### Tab pane parameters
+
 #### id - string (required)
 
 The ID of the div to be created
@@ -558,6 +567,8 @@ When using conversion functions, always return the unmodified frequency if no co
 Kismet displays widgets in the upper right in the 'icon bar'; This is where simple single-icon alert-style elements can be added, and where by default, the login status, alert icon, and battery status are displayed.
 
 Plugins may create their own tabs by calling `kismet_ui_iconbar.AddIconbarItem(...)` and passing an object dictionary containing:
+
+### Icon bar parameters
 
 #### id - string (required)
 

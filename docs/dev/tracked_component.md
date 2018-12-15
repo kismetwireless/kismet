@@ -1,3 +1,9 @@
+---
+title: "Creating tracked components"
+permalink: /docs/devel/tracked_components/
+toc: true
+---
+
 # Extending Kismet: Creating Tracked Components
 
 Kismet manages complex objects with arbitrary serialization and logging by implementing "tracked elements"; Tracked elements are introspectable in C++ and can be dynamically exported to other formats via the serialization API, such as JSON which is used heavily in the web interface.
@@ -24,18 +30,14 @@ Via subclassing and templates, `TrackerElement` implements basic scalar data typ
 
 and can be found in tracked_element.h
 
+### Vectors and maps
 
+`TrackerElement` represents complex data types in two main formats:
 
-> #### Vectors and maps
->
-> `TrackerElement` represents complex data types in two main formats:
->
-> 1. A `std::vector` or `std::map` of `TrackerElement` records.  This allows constructing complex dictionary-like or list-like records of arbitrary fields, `tracked_component` complex records, MAC addresses, and so on.
-> 2. Optimized `TrackedElementVectorDouble` and `TrackedElementDoubleMapDouble` which contain, respectively, raw `double` values and raw `double:double` key:value pairs.
->
-> If your plugin stores purely numerical data, such as a vector of signal values, it is *significantly* more efficient to use the `TrackedElementVectorDouble` (or equivalent DoubleMapDouble) objects, and will consume less than half the RAM using a traditional `TrackerElementVector` would use.
+1. A `std::vector` or `std::map` of `TrackerElement` records.  This allows constructing complex dictionary-like or list-like records of arbitrary fields, `tracked_component` complex records, MAC addresses, and so on.
+2. Optimized `TrackedElementVectorDouble` and `TrackedElementDoubleMapDouble` which contain, respectively, raw `double` values and raw `double:double` key:value pairs.
 
-
+If your plugin stores purely numerical data, such as a vector of signal values, it is *significantly* more efficient to use the `TrackedElementVectorDouble` (or equivalent DoubleMapDouble) objects, and will consume less than half the RAM using a traditional `TrackerElementVector` would use.
 
 Each `TrackerElement` derivative also contains:
 

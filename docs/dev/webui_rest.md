@@ -1,3 +1,9 @@
+---
+title: "REST endpoints"
+permalink: /docs/devel/webui_rest/
+toc: true
+---
+
 # Extending Kismet - REST Web Server Endpoints
 
 Kismet uses a REST-like interface on the embedded web server for providing data and accepting commands.  Generally, data is fetched via HTTP GET and commands are sent via HTTP POST.  Whenever possible, parameters are sent via the GET URI, but for more complex features, command arguments are sent via POST.
@@ -230,15 +236,15 @@ regex = [
 
 ### System Status
 
-##### /system/status `/system/status.json`
+#### /system/status `/system/status.json`
 
 Dictionary of system status, including uptime, battery, and memory use.
 
-##### /system/timestamp  `/system/timestamp.json`
+#### /system/timestamp  `/system/timestamp.json`
 
 Dictionary of system timestamp as second, microsecond; can be used to synchronize timestamps.
 
-##### /system/tracked_fields `/system/tracked_fields.html`
+#### /system/tracked_fields `/system/tracked_fields.html`
 Human-readable table of all registered field names, types, and descriptions.  While it cannot represent the nested features of some data structures, it will describe every allocated field.  This endpoint returns a HTML document for ease of use.
 
 
@@ -250,7 +256,7 @@ All devices will have a basic set of records (held in the `kismet.base.foo` grou
 
 The preferred method of retrieving device lists is to use the POST URI `/devices/summary/` or `/devices/last-time` with a list of fields provided.  Whenever possible, limiting the fields requested and the time range requested will reduce the load on the Kismet server *and* the client consuming the data.
 
-##### POST /devices/summary/devices  `/devices/summary/devices.json`
+#### POST /devices/summary/devices  `/devices/summary/devices.json`
 
 A POST endpoint which returns a summary of all devices.  This endpoint expects a variable containing a dictionary which defines the fields to include in the results; only these fields will be sent.
 
@@ -276,13 +282,13 @@ Additionally, when in datatables mode, the following HTTP POST variables are use
 | order\[0\]\[column\] | integer | Internal column number for sorting, indexed with colmap data |
 | order\[0\]\[dir\] | string | Order direction |
 
-##### /devices/all_devices.ekjson
+#### /devices/all_devices.ekjson
 
 Special endpoint generating EK (elastic-search) style JSON.  On this endpoint, each device is returned as a JSON object, one JSON record per line.
 
 This can be useful for incrementally parsing the results or feeding the results to another tool like elasticsearch.
 
-##### POST /devices/last-time/[TS]/devices `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
+#### POST /devices/last-time/[TS]/devices `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
 List containing the list of all devices which are new or have been modified since the server timestamp `[TS]`.
 
@@ -301,7 +307,7 @@ The command dictionary is expected to contain:
 | fields | Field specification | Field specification array | Optional, field listing                  |
 | regex  | Regex specification | Regular expression array  | Optional, array of field paths and regular expressions |
 
-##### /devices/last-time/[TS]/devices  `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
+#### /devices/last-time/[TS]/devices  `devices/last-time/[TS]/devices.json`, `devices/last-time/[TS]/devices.ekjson`
 
 List containing the list of all devices which are new or have been modified since the server timestamp `[TS]`.
 
@@ -311,11 +317,11 @@ This endpoint is most useful for clients and scripts which need to monitor the s
 
 The device list may be further refined by using the `POST` equivalent of this URI.
 
-##### /devices/by-key/[DEVICEKEY]/device  `/devices/by-key/[DEVICEKY]/device.json`
+#### /devices/by-key/[DEVICEKEY]/device  `/devices/by-key/[DEVICEKY]/device.json`
 
 Complete dictionary object containing all information about the device referenced by [DEVICEKEY].
 
-##### POST /devices/by-key/[DEVICEKEY]/device  `/devices/by-key/[DEVICEKY]/device.json`
+#### POST /devices/by-key/[DEVICEKEY]/device  `/devices/by-key/[DEVICEKY]/device.json`
 
 Dictionary object of device, simplified by the `fields` argument in accordance to the field simplification rules described above.
 
@@ -325,15 +331,15 @@ The command dictionary is expected to contain:
 | ------ | ------------------------- | ----------------------------------- |
 | fields | Field specification array | Optional, array of fields to return |
 
-##### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey]  `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
+#### /devices/by-key/[DEVICEKEY]/device[/path/to/subkey]  `/devices/by-key/[DEVICEKEY]/device.json[/path/to/subkey]`
 
 Dictionary containing all the device data referenced by `[DEVICEKEY]`, in the sub-tree `[path/to/subkey]`.  Allows fetching single fields or objects from the device tree without fetching the entire device record.
 
-##### /devices/by-mac/[DEVICEMAC]/devices  `/devices/by-mac/[DEVICEMAC]/devices.json`
+#### /devices/by-mac/[DEVICEMAC]/devices  `/devices/by-mac/[DEVICEMAC]/devices.json`
 
 Array/list of all devices matching `[DEVICEMAC]` across all PHY types.  It is possible (though not likely) that there can be a MAC address collision between different PHY types, especially types which synthesize false MAC addresses when no official address is available.
 
-##### POST /devices/by-mac/[DEVICEMAC]/devices  `/devices/by-mac/[DEVICEMAC]/devices.json`
+#### POST /devices/by-mac/[DEVICEMAC]/devices  `/devices/by-mac/[DEVICEMAC]/devices.json`
 
 Dictionary object of device, simplified by the `fields` argument in accordance to the field simplification rules described above.
 
@@ -343,7 +349,7 @@ The command dictionary is expected to contain:
 | ------ | ------------------------- | ----------------------------------- |
 | fields | Field specification array | Optional, array of fields to return |
 
-##### POST /devices/multimac/devices  `/devices/multimac/devices.json`
+#### POST /devices/multimac/devices  `/devices/multimac/devices.json`
 
 Array/list of all devices matching the MAC addresses provided in the `devices` key, across all PHY types.  It is possible (though not usually likely) that there may be a MAC address collision between different PHY types, especially types which synthesize false MAC addresses when no official address is available.
 
@@ -354,7 +360,7 @@ The command dictionary is expected to contain:
 | devices | MAC address array | Required, array of MAC addresses to look for.  Mac addresses may be complete MACs or masked specifications ("AA:BB:CC:00:00:00/FF:FF:FF:00:00:00" for instance to match by OUI) |
 | fields | Field specification array | Optional, array of fields to return |
 
-##### POST /devices/by-phy/[PHYNAME]/devices  `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
+#### POST /devices/by-phy/[PHYNAME]/devices  `/devices/by-phy/[PHYNAME]/devices.json`, `/devices/by-phy/[PHYNAME]/devices.ekjson`
 
 List of devices, belonging to the phy `PHYNAME`.  The request can be filtered by regex and time, and simplified by the field simplification system.
 
@@ -370,15 +376,15 @@ The command dictionary is expected to contain:
 
 Device views provide optimized subsets of the global device list.  Device views can be defined by phy handlers, plugins, or even user input.
 
-##### /devices/views/all_views `/devices/views/all_views.json`
+#### /devices/views/all_views `/devices/views/all_views.json`
 
 Returns a list of all views and the number of devices in each sub-view.
 
-##### /devices/views/[view-id]/by-time/[time]/devices `/devices/views/[view-id]/by-time/[time]/devices.json`
+#### /devices/views/[view-id]/by-time/[time]/devices `/devices/views/[view-id]/by-time/[time]/devices.json`
 
 Returns a list of all devices in view `[view-id]` which have been active since timestamp `[time]`.  If `[time]` is negative, Kismet will return devices which have been active since the server timestamp minus `[time]`; a client could therefor request all devices active in the past 10 seconds by passing a `[time]` of `-10`.
 
-##### POST /devices/views/[view-id]/by-time/[time]/devices `/devices/views/[view-id]/by-time/[time]/devices.json`
+#### POST /devices/views/[view-id]/by-time/[time]/devices `/devices/views/[view-id]/by-time/[time]/devices.json`
 
 Returns a list of all devices in view `[view-id]` which have been active since timestamp `[time]`.  If `[time]` is negative, Kismet will return devices which have been active since the server timestamp minus `[time]`; a client could therefor request all devices active in the past 10 seconds by passing a `[time]` of `-10`.
 
@@ -388,7 +394,7 @@ Optionally, a field simplification may be performed if the command dictionary co
 | --- | ----- | ---- | ---- |
 | fields | Field specification | Array | Field specification array listing fields and mappings |
 
-##### POST /devices/views/[view-id]/devices `/devices/views/[view-id]/devices.json`
+#### POST /devices/views/[view-id]/devices `/devices/views/[view-id]/devices.json`
 
 Returns a list of devices contained within a view, with significant customization and filtering options.
 
@@ -416,7 +422,7 @@ Additionally, when in datatables mode, the following HTTP POST variables are use
 
 Some device attributes (such as the device name and notes fields) can be set from the REST API.
 
-##### /devices/by-key/[key]/set_name `/devices/by-key/[key]/set_name.cmd`  
+#### /devices/by-key/[key]/set_name `/devices/by-key/[key]/set_name.cmd`  
 
 *REQUIRES LOGIN*
 
@@ -428,7 +434,7 @@ Expects a command dictionary including:
 | -------- | -------- | ------ | ------------------- |
 | username | New name | String | New name for device |
 
-##### /devices/by-key/[key]/set_tag `/dev/by-key/[key]/set_tag.cmd`
+#### /devices/by-key/[key]/set_tag `/dev/by-key/[key]/set_tag.cmd`
 
 *REQUIRES LOGIN*
 
@@ -445,19 +451,19 @@ Expects a command dictionary including:
 
 A PHY handler processes a specific type of radio physical layer - 802.11, Bluetooth, and so on.  A PHY is often, but not always, linked to specific types of hardware and specific packet link types.
 
-##### /phy/all_phys  `/phy/all_phys.json`
+#### /phy/all_phys  `/phy/all_phys.json`
 
 Array of all PHY types and statistics
 
 ### Sessions and Logins
 
-##### /session/check_session
+#### /session/check_session
 
 Check if a login/session cookie is valid.  Login will only be consulted if the session cookie is not present or is invalid.
 
 Returns 200 OK if session is valid, basic auth prompt if invalid.
 
-##### /session/check_login
+#### /session/check_login
 
 Check if a login is valid.  Login will always be checked, any session cookies will be ignored.
 
@@ -467,11 +473,11 @@ Returns 200 OK if login is valid, 403 Unauthorized if login is invalid.
 
 Kismet uses the `messagebus` as in internal system for displaying message to the user.  The messagebus is used to pass error and state messages, as well as notifications about detected devices, etc.
 
-##### /messagebus/all_messages  `/messagebus/all_messages.json`
+#### /messagebus/all_messages  `/messagebus/all_messages.json`
 
 Vector of the last 50 messages stored in Kismet
 
-##### /messagebus/last-time/[TS]/messages  `/messagebus/last-time/[TS]/messages.json`
+#### /messagebus/last-time/[TS]/messages  `/messagebus/last-time/[TS]/messages.json`
 
 Dictionary containing a list of all messages since server timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new messages since the last time messages were fetched.
 
@@ -479,21 +485,21 @@ Dictionary containing a list of all messages since server timestamp `[TS]`, and 
 
 Kismet provides alerts via the `/alert/` REST collection.  Alerts are generated as messages and as alert records with machine-processable details.  Alerts can be generated for critical system states, or by the WIDS system.
 
-##### /alerts/definitions  `/alerts/definitions.json`
+#### /alerts/definitions  `/alerts/definitions.json`
 
 All defined alerts, including descriptions, time and burst limits, and current alert counts and states for each type.
 
-##### /alerts/all_alerts  `/alerts/all_alerts.json`
+#### /alerts/all_alerts  `/alerts/all_alerts.json`
 
 List of the alert backlog.  The size of the backlog is configurable via the `alertbacklog` option in kismet.conf
 
-##### /alerts/last-time[TS]/alerts  `/alerts/last-time/[TS]/alerts.json`
+#### /alerts/last-time[TS]/alerts  `/alerts/last-time/[TS]/alerts.json`
 
 Dictionary containing a list of alerts since Kismet double-precision timestamp `[TS]`, and a timestamp record indicating the time of this report.  This can be used to fetch only new alerts since the last time alerts were requested.
 
 Double-precision timestamps include the microseconds in the decimal value.  A pure second-precision timestamp may be provided, but could cause some alerts to be missed if they occurred in the fraction of the second after the request.
 
-##### `POST` /alerts/definitions/define_alert `/alerts/definitions/defice_alert.json`
+#### `POST` /alerts/definitions/define_alert `/alerts/definitions/defice_alert.json`
 
 *LOGIN REQUIRED*
 
@@ -509,7 +515,7 @@ Expects a command dictionary including:
 | throttle    | Alert throttle rate | String | Maximum number of alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day', for example '10/min' |
 | burst       | Alert burst rate    | String | Maximum number of sequential alerts per time period, as defined in kismet.conf.  Time period may be 'sec', 'min', 'hour', or 'day'.  Alerts will be throttled to this burst rate even when the overall limit has not been hit.  For example, '1/sec' |
 
-##### `POST` /alerts/raise_alert.cmd
+#### `POST` /alerts/raise_alert.cmd
 
 *LOGIN REQUIRED*
 
@@ -529,7 +535,7 @@ Expects a command dictionary including:
 
 ### Channels
 
-##### /channels/channels `/channels/channels.json`
+#### /channels/channels `/channels/channels.json`
 
 Channel usage and monitoring data.
 
@@ -539,29 +545,29 @@ Kismet uses data sources to capture information - typically packets, but sometim
 
 #### Querying data sources
 
-##### /datasource/all_sources `/datasource/all_sources.json`
+#### /datasource/all_sources `/datasource/all_sources.json`
 
 List containing all data sources and the current information about them
 
-##### /datasource/types `datasource/types.json`
+#### /datasource/types `datasource/types.json`
 
 List containing all defined datasource types & basic information about them
 
-##### /datasource/defaults `/datasource/defaults.json`
+#### /datasource/defaults `/datasource/defaults.json`
 
 Default settings for new data sources
 
-##### /datasource/list_interfaces `/datasource/list_interfaces.json`, `/datasource/list_interfaces.cmd`
+#### /datasource/list_interfaces `/datasource/list_interfaces.json`, `/datasource/list_interfaces.cmd`
 
 Query all possible data source drivers and return a list of auto-detected interfaces that could be used to capture.
 
-##### /datasource/by-uuid/[uuid]/source `/datasource/by-uuid/[uuid]/source.json`
+#### /datasource/by-uuid/[uuid]/source `/datasource/by-uuid/[uuid]/source.json`
 
 Return information about a specific data source, specified by the source UUID `[uuid]`
 
 #### Controlling data sources
 
-##### /datasource/add_source `/datasource/add_source.json`, `/datasource/add_source.cmd`
+#### /datasource/add_source `/datasource/add_source.json`, `/datasource/add_source.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -573,7 +579,7 @@ Expects a string variable named 'definition'.  This value is identical to the `s
 
 `add_source.cmd` will block until the source add is completed; this may be up to several seconds but typically will be nearly instant.
 
-##### `POST` /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.json`, `/datasource/by-uuid/[uuid]/set_channel.cmd`
+#### `POST` /datasource/by-uuid/[uuid]/set_channel `/datasource/by-uuid/[uuid]/set_channel.json`, `/datasource/by-uuid/[uuid]/set_channel.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -604,7 +610,7 @@ Examples:
 * `{'channels': ["1", "2", "3", "4", "5"], 'hoprate': 1}` will change the channel hopping rate to once per second over the given list
 * `{'hoprate': 5}` will set the hop rate to 5 channels per second, using the existing channels list in the datasource
 
-##### `POST` /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.json`, `/datasource/by-uuid/[uuid]/set_channel.json`
+#### `POST` /datasource/by-uuid/[uuid]/set_hop `/datasource/by-uuid/[uuid]/set_hop.json`, `/datasource/by-uuid/[uuid]/set_channel.json`
 
 *LOGIN REQUIRED*
 
@@ -612,7 +618,7 @@ Set hopping on the source indicated by `[uuid]`, using the sources existing info
 
 This can be teamed with `/datasource/by-uuid/[uuid]/set_channel` for simple locking/hopping behavior.
 
-##### /datasource/by-uuid/[uuid]/close_source `/datasource/by-uuid/[uuid]/close_source.cmd`
+#### /datasource/by-uuid/[uuid]/close_source `/datasource/by-uuid/[uuid]/close_source.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -622,31 +628,31 @@ The source will remain in the sources list once closed.
 
 Closed sources will not attempt to re-open.
 
-##### /datasource/by-uuid/[uuid]/open_source `/datasource/by-uuid/[uuid]/open_source.cmd`
+#### /datasource/by-uuid/[uuid]/open_source `/datasource/by-uuid/[uuid]/open_source.cmd`
 
 *LOGIN REQUIRED*.
 
 Re-open a closed source; this uses the same definition as the existing closed source.
 
-##### /datasource/by-uuid/[uuid]/disable_source `/datasource/by-uuid/[uuid]/disable_source.cmd`
+#### /datasource/by-uuid/[uuid]/disable_source `/datasource/by-uuid/[uuid]/disable_source.cmd`
 
 *LOGIN REQUIRED*.
 
 Alias for `close_source`, stops a source (if running) and cancels reconnect attempts.
 
-##### /datasource/by-uuid/[uuid]/enable_source `/datasource/by-uuid/[uuid]/enable_source.cmd`
+#### /datasource/by-uuid/[uuid]/enable_source `/datasource/by-uuid/[uuid]/enable_source.cmd`
 
 *LOGIN REQUIRED*.
 
 Alias for `open_source`, re-opens a defined source.
 
-##### /datasource/by-uuid/[uuid]/pause_source `/datasource/by-uuid/[uuid]/pause_source.cmd`
+#### /datasource/by-uuid/[uuid]/pause_source `/datasource/by-uuid/[uuid]/pause_source.cmd`
 
 *LOGIN REQUIRED*.
 
 Pauses a source - the source will remain open, but no packets will be processed.  Any packets received from the source while it is paused will be lost.
 
-##### /datasource/by-uuid/[uuid]/pause_source `/datasource/by-uuid/[uuid]/resume_source.cmd`
+#### /datasource/by-uuid/[uuid]/pause_source `/datasource/by-uuid/[uuid]/resume_source.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -656,19 +662,19 @@ Resumes (un-pauses) the specified source.  Packet processing will be resumed, bu
 
 Kismet now supports multiple simultaneous GPS devices, and can select the 'best' quality device based on priority and GPS signal.
 
-##### /gps/drivers `/gps/drivers.json`
+#### /gps/drivers `/gps/drivers.json`
 
 Returns a list of all supported GPS driver types
 
-##### /gps/all_gps `/gps/all_gps.json`
+#### /gps/all_gps `/gps/all_gps.json`
 
 Returns a list of all GPS devices
 
-##### /gps/location `/gps/location.json` 
+#### /gps/location `/gps/location.json` 
 
 Returns the current optimum location (as determined by the priority of connected GPS devices)
 
-##### `/gps/web/update.cmd`
+#### `/gps/web/update.cmd`
 
 *LOGIN REQUIRED*.
 
@@ -689,7 +695,7 @@ Expects a command dictionary including:
 
 Kismet can export packets in the pcap-ng format; this is a standard, extended version of the traditional pcap format.  Tools such as Wireshark (and tshark) can process complete pcapng frames, while tcpdump and other libpcap based tools (currently including Kismet) can process the simpler version of pcapng.
 
-##### /pcap/all_packets.pcapng 
+#### /pcap/all_packets.pcapng 
 
 *LOGIN REQUIRED*
 
@@ -703,7 +709,7 @@ For compatibility with all libpcap tools, it may be necessary to post-process th
 
 This URI will stream indefinitely as packets are received.
 
-##### /datasource/pcap/all_sources.pcapng
+#### /datasource/pcap/all_sources.pcapng
 
 *LOGIN REQUIRED*
 
@@ -717,7 +723,7 @@ For compatibility with all libpcap tools, it may be necessary to post-process th
 
 This URI will stream indefinitely as packets are received.
 
-##### /datasource/pcap/by-uuid/[uuid]/[uuid].pcapng
+#### /datasource/pcap/by-uuid/[uuid]/[uuid].pcapng
 
 *LOGIN REQUIRED*
 
@@ -731,7 +737,7 @@ To capture *all* packets from *all* interfaces, use the `/datasource/pcap/all_so
 
 This URI will stream stream indefinitely as packets are received.
 
-##### /devices/by-key/[key]/pcap/[key].pcapng
+#### /devices/by-key/[key]/pcap/[key].pcapng
 
 *LOGIN REQUIRED*
 
@@ -745,7 +751,7 @@ This URI will stream indefinitely as packets are received.
 
 Kismet plugins may be active C++ code (loaded as a plugin.so shared object file) or they may be web content only which is loaded into the UI without requiring additional back-end code.
 
-##### /plugins/all_plugins  `/plugins/all_plugins.json`
+#### /plugins/all_plugins  `/plugins/all_plugins.json`
 
 Returns a vector of all activated Kismet plugins.
 
@@ -755,15 +761,15 @@ A Kismet stream is linked to an export of indeterminate length - for instance, p
 
 Streams can be monitored and managed via the streaming API; for instance a privileged user can close an ongoing stream via the close_stream API
 
-##### /streams/all_streams  `/streams/all_streams.json`
+#### /streams/all_streams  `/streams/all_streams.json`
 
 Returns a vector of all active Kismet streams.
 
-##### /streams/by-id/[id]/stream_info  `/streams/by-id/[id]/stream_info.json`
+#### /streams/by-id/[id]/stream_info  `/streams/by-id/[id]/stream_info.json`
 
 Returns information about a specific stream, indicated by `[id]`
 
-##### /streams/by-id/[id]/close_stream.cmd
+#### /streams/by-id/[id]/close_stream.cmd
 
 *LOGIN REQUIRED*
 
@@ -773,21 +779,21 @@ Closes the stream (ending the log) specified by `[id]`
 
 Kismet has a centralized logging architecture which can report what logs are enabled, and what logs are possible.
 
-##### /logging/drivers `/logging/drivers.json`
+#### /logging/drivers `/logging/drivers.json`
 
 Return a vector of all possible log drivers.  This provides the logging class/type, description, and other attributes of potential log outputs.
 
-##### /logging/active `/logging/active.json`
+#### /logging/active `/logging/active.json`
 
 Return a vector of all active log files.
 
-##### /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
+#### /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
 
 *LOGIN REQUIRED*
 
 Start a new log file of type `[class]`.  If successful, returns the log object denoting the UUID, path, and other information about the new log.
 
-##### `POST` /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
+#### `POST` /logging/by-class/[class]/start `/logging/by-class/[class]/start.json`, `/logging/by-class/[class]/start.cmd` 
 
 *LOGIN REQUIRED*
 
@@ -799,7 +805,7 @@ Expects a command dictionary including:
 | ----- | --------- | ------ | ---------------------------------------- |
 | title | log title | string | Alternate log title; This is substituted into the logging path in place of the `log_title=` in the Kismet config |
 
-##### /logging/by-uuid/[uuid]/stop `/logging/by-uuid/[uuid]/stop.json`, `/logging/by-uuid/[uuid]/stop.cmd`
+#### /logging/by-uuid/[uuid]/stop `/logging/by-uuid/[uuid]/stop.json`, `/logging/by-uuid/[uuid]/stop.cmd`
 
 *LOGIN REQUIRED*
 
@@ -903,7 +909,7 @@ Filter options:
    | -------- | ---- | ----------------------------- |
    | limit    | int  | Maximum results to return     |
 
-##### `POST` /logging/kismetdb/pcap/[title].pcapng
+#### `POST` /logging/kismetdb/pcap/[title].pcapng
 
 *LOGIN REQUIRED*
 
@@ -917,7 +923,7 @@ The pcap endpoint takes a standard JSON command dictionary, including the keys:
 | ------ | ---------- | ----------------------------------------------- |
 | filter | dictionary | Dictionary of filter options, documented above. |
 
-##### /logging/kismetdb/pcap/[title].pcapng?option1=...&option2=...
+#### /logging/kismetdb/pcap/[title].pcapng?option1=...&option2=...
 
 *LOGIN REQUIRED*
 
@@ -931,7 +937,7 @@ If the `kismet` log type is not enabled, this endpoint will return a 404 not fou
 
 The 802.11 Wi-Fi phy defines extra endpoints for extracting packets from dot11-specific devices:
 
-##### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap
+#### /phy/phy80211/by-key/[key]/pcap/[key]-handshake.pcap
 
 *LOGIN REQUIRED*
 
@@ -939,7 +945,7 @@ Retrieve a pcap file of WPA EAPOL key packets seen by the 802.11 access point sp
 
 This pcap file is not streamed, it is a single pcap of the handshake packets only.
 
-##### /phy/phy80211/by-bssid/[MAC]/pcap/[MAC].pcapng
+#### /phy/phy80211/by-bssid/[MAC]/pcap/[MAC].pcapng
 
 *LOGIN REQUIRED*
 
@@ -947,11 +953,11 @@ Returns a stream in pcap-ng format of all packets, from all interfaces, associat
 
 This URI will stream indefinitely as packets are received.
 
-##### /phy/phy80211/clients-of/[key]/clients `/phy/phy80211/clients-of/[key]/clients.json`
+#### /phy/phy80211/clients-of/[key]/clients `/phy/phy80211/clients-of/[key]/clients.json`
 
 Returns a list of full device records of clients of an 802.11 access point.  Typically this would be used to fetch detailed information about multiple clients in one request.  Generally, the POST variant should be used, instead, to simplify the results.
 
-##### POST /phy/phy80211/clients-of/[key]/clients `/phy/phy80211/clients-of/[key]/clients.json`
+#### POST /phy/phy80211/clients-of/[key]/clients `/phy/phy80211/clients-of/[key]/clients.json`
 
 Returns a list of full device records of clients of an 802.11 access point.  Typically this would be used to fetch detailed information about mutliple clients of an AP in one request.
 
@@ -963,7 +969,7 @@ The command dictionary is expected to contain:
 | ------- | ------------------------- | ----------------------------------------------------- |
 | fields  | field specification array | Simplified field listing.                             |
 
-##### /devices/views/phydot11_accesspoints/... `/devices/views/phydot11_accesspoints/devices.json` `/devices/views/phydot11_accesspoints/by-time/[time]/devices.json`
+#### /devices/views/phydot11_accesspoints/... `/devices/views/phydot11_accesspoints/devices.json` `/devices/views/phydot11_accesspoints/by-time/[time]/devices.json`
 
 A sub-view of devices showing 802.11 access-points only; This view confirms to the VIEW api documented in the `DEVICES` section.
 
@@ -973,11 +979,11 @@ The Kismet phy80211 fingerprinting system is used for device whitelisting, devic
 
 The fingerprint API can be found under multiple paths, but all will follow this API.  (Documentation to be improved as final paths are chosen).
 
-##### .../all_fingerprints `.../all_fingerprints.json`
+#### .../all_fingerprints `.../all_fingerprints.json`
 
 Returns a list of all fingerprints in this category.
 
-##### POST .../new/insert `.../new/insert.cmd`
+#### POST .../new/insert `.../new/insert.cmd`
 
 *LOGIN REQUIRED*
 
@@ -990,7 +996,7 @@ Insert a new fingerprint.  The fingerprint must not exist.  Expects a command di
 | probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
 | response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
 
-##### POST .../by-mac/[mac]/update `.../by-mac/[mac]/update.cmd`
+#### POST .../by-mac/[mac]/update `.../by-mac/[mac]/update.cmd`
 
 *LOGIN REQUIRED*
 
@@ -1002,13 +1008,13 @@ Update the fingerprint in `[mac]`.  The fingerprint must exist.  Expects a comma
 | probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
 | response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
 
-##### POST .../by-mac/[mac]/delete `.../by-mac/[mac]/delete.cmd`
+#### POST .../by-mac/[mac]/delete `.../by-mac/[mac]/delete.cmd`
 
 *LOGIN REQUIRED*
 
 Removes the fingerprint in `[mac]`.
 
-##### POST .../bulk/insert `.../bulk/insert.cmd`
+#### POST .../bulk/insert `.../bulk/insert.cmd`
 
 *LOGIN REQUIRED*
 
@@ -1027,7 +1033,7 @@ A fingerprint dictionary must include:
 | probe_hash | xxhash32 probe hash | integer | (optional) Kismet hash for static probe IE fields, as found in the `dot11.device/dot11.device.probe_fingerprint` field |
 | response_hash | xxhas32 response hash | integer | (optional) Kismet has for static response IE fields, as found in the `dot11.device/dot11.device.response_fingerprint` field |
 
-##### POST .../bulk/delete `.../bulk/delete.cmd`
+#### POST .../bulk/delete `.../bulk/delete.cmd`
 
 *LOGIN REQUIRED*
 
@@ -1042,7 +1048,7 @@ Expects a command dictionary including:
 
 The UAV/Drone phy defines extra endpoints for matching UAVs based on manufacturer and SSID:
 
-##### /phy/phyuav/manuf_matchers `/phy/phyuav/manuf_matchers.json` 
+#### /phy/phyuav/manuf_matchers `/phy/phyuav/manuf_matchers.json` 
 
 Returns a vector of the manufacturer matches for UAVs and drones; these matches allow the UAV phy to flag devices based on OUI and SSID.
 

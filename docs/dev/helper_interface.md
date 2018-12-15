@@ -1,3 +1,9 @@
+---
+title: "Helper tools"
+permalink: /docs/devel/external_helper_tools/
+toc: true
+---
+
 # Kismet Helper Tools
 
 Kismet helper tools are external programs which Kismet uses; splitting functionality into an external helper can be for several reasons:
@@ -19,18 +25,18 @@ Kismet uses a flexible protocol to communicate with external tools. Built around
 
 The top-level protocol defines a few key commands and their payloads:
 
-#### `MESSAGE` (KismetExternal.MsgbusMessage) *Helper -> Kismet*
+### `MESSAGE` (KismetExternal.MsgbusMessage) *Helper -> Kismet*
 
 Prints a message via the MessageBus system; these messages are printed to the Kismet console, displayed in the Messages section of the UI, and logged to the Messages section of the Kismet log. 
 
-##### Content:
+#### Content:
 
 | Field   | Type        | Content                                   |
 | ------- | ----------- | ----------------------------------------- |
 | msgtype | MessageType | Type of message (Info, Debug, Alert, Etc) |
 | msgtext | string      | Message content                           |
 
-##### MessageType
+#### MessageType
 
 | Type  | Value |
 | ----- | ----- |
@@ -40,37 +46,37 @@ Prints a message via the MessageBus system; these messages are printed to the Ki
 | ALERT | 8     |
 | FATAL | 16    |
 
-#### `PING` (KismetExternal.Ping) *Bidirectional*
+### `PING` (KismetExternal.Ping) *Bidirectional*
 
 A ping message acts as a keepalive signal which expects an answering `PONG` packet. 
 
-##### Content
+#### Content
 
 *None*
 
-#### `PONG` (KismetExternal.Pong) *Bidirectional*
+### `PONG` (KismetExternal.Pong) *Bidirectional*
 
 Answering packet to a `PING`, which must include the sequence number of the `PING` command.  `PONG` responses should be sent immediately.
 
-##### Content
+#### Content
 
 | Field      | Type   | Content                                    |
 | ---------- | ------ | ------------------------------------------ |
 | ping_seqno | uint32 | Seqno of `PING` request this is a reply to |
 
-#### `SHUTDOWN` (KismetExternal.Shutdown) *Bidirectional*
+### `SHUTDOWN` (KismetExternal.Shutdown) *Bidirectional*
 
 Either side of the connection can request the connection be shut down; upon receiving a `SHUTDOWN` message the external helper will be terminated.
 
-##### Content
+#### Content
 
 *None*
 
-#### `SYSTEMREGISTER` (KismetExternal.SystemRegister) *Helper -> Kismet*
+### `SYSTEMREGISTER` (KismetExternal.SystemRegister) *Helper -> Kismet*
 
 When using network sockets to connect external helpers, the Kismet listening socket may be multiplexed across many different handlers.  The external helper can identify itself with the `SYSTEMREGISTER` message so that it may be dispatched to the proper handler.
 
-##### Content
+#### Content
 
 | Field     | Type   | Content        |
 | --------- | ------ | -------------- |
@@ -80,31 +86,31 @@ When using network sockets to connect external helpers, the Kismet listening soc
 
 The Kismet external protocol has hooks for extending the web server functionality to external tools, regardless of the language they are written in. 
 
-#### `HTTPREQUESTAUTH` (KismetExternalHttp.HttpAuthTokenRequest) *Helper -> Kismet*
+### `HTTPREQUESTAUTH` (KismetExternalHttp.HttpAuthTokenRequest) *Helper -> Kismet*
 
 External tools may request a HTTP authorization token; instead of transmitting the Kismet admin username and password, a web session cookie is generated and returned in a `HTTPAUTH` response.
 
-##### Content
+#### Content
 
 *None*
 
-#### `HTTPAUTH` (KismetExternalHttp.HttpAuthToken) *Kismet -> Helper*
+### `HTTPAUTH` (KismetExternalHttp.HttpAuthToken) *Kismet -> Helper*
 
 Once Kismet has generated a HTTP authentication token it is sent to the helper in a `HTTPAUTH` response.  The session hash is suitable for use as the `KISMET` cookie in HTTP communication.
 
-##### Content
+#### Content
 
 | Field | Type   | Content         |
 | ----- | ------ | --------------- |
 | token | string | HTTP auth token |
 
-#### `HTTPREGISTERURI` (KismetExternalHttp.HttpRegisterUri) *Helper -> Kismet*
+### `HTTPREGISTERURI` (KismetExternalHttp.HttpRegisterUri) *Helper -> Kismet*
 
 A helper can create endpoints in the Kismet server by registering the URI.  The URI can be registered as a GET or PUSH, and can specify if there just be an authenticated login. 
 
 Kismet will handle the incoming web request and authentication validation. 
 
-##### Content
+#### Content
 
 | Field         | Type    | Content                                            |
 | ------------- | ------- | -------------------------------------------------- |
@@ -112,23 +118,23 @@ Kismet will handle the incoming web request and authentication validation.
 | method        | string  | HTTP method (currently GET and POST are supported) |
 | auth_required | boolean | Indicates if a valid HTTP session is required      |
 
-#### `HTTPREQUESTCANCEL` (KismetExternalHttp.HttpRequestCancel) *Kismet->Helper*
+### `HTTPREQUESTCANCEL` (KismetExternalHttp.HttpRequestCancel) *Kismet->Helper*
 
 If a HTTP request is closed by the client before the external helper has sent a `HTTPRESPONSE` message with `close_connection`, Kismet will send a `HTTPREQUESTCANCEL` to the helper.  The helper should stop processing this request.
 
-##### Content
+#### Content
 
 | Field  | Type   | Message                    |
 | ------ | ------ | -------------------------- |
 | req_id | uint32 | Session ID to be cancelled |
 
-#### `HTTPREQUEST` (KismetExternalHttp.HttpRequest) *Kismet -> Helper*
+### `HTTPREQUEST` (KismetExternalHttp.HttpRequest) *Kismet -> Helper*
 
 When an incoming request is received by the web server which matches a registered URI, Kismet will send a request packet to the helper with a unique connection ID and any form post variables. 
 
 If the URI requires a login, Kismet will only send the `HTTPREQUEST` to the helper tool if there is a valid login session.
 
-##### Content
+#### Content
 
 | Field     | Type            | Content                                                      |
 | --------- | --------------- | ------------------------------------------------------------ |
@@ -137,7 +143,7 @@ If the URI requires a login, Kismet will only send the `HTTPREQUEST` to the help
 | method    | string          | HTTP method                                                  |
 | post_data | SubHttpPostData | *Optional* Array of HTTP Post variables                      |
 
-##### `SubHttpPostData` (KismetExternalHttp.SubHttpPostData)
+#### `SubHttpPostData` (KismetExternalHttp.SubHttpPostData)
 
 HTTP POST variables are transmitted as an array of HttpPostData.
 
@@ -146,7 +152,7 @@ HTTP POST variables are transmitted as an array of HttpPostData.
 | field   | string | POST variable field   |
 | content | string | POST variable content |
 
-#### `HTTPRESPONSE` (KismetExternalHttp.HttpResponse) *Helper -> Kismet*
+### `HTTPRESPONSE` (KismetExternalHttp.HttpResponse) *Helper -> Kismet*
 
 Multiple response frames may be sent for any request; request responses may include custom HTTP headers, fixed content or streaming data, and external helpers may keep the connection open in a streaming mode to continually send streaming real time data.  
 
@@ -156,7 +162,7 @@ Generally, an external tool should limit the data per frame to a reasonable amou
 
 The helper may include additional data in the `HTTPRESPONSE` such as custom HTTP headers, and the helper may change the HTTP result code.  Headers may only be sent *before* or *with* the first `HTTPRESPONSE` message.
 
-##### Content
+#### Content
 
 | Field          | Type          | Content                                                      |
 | -------------- | ------------- | ------------------------------------------------------------ |
@@ -166,7 +172,7 @@ The helper may include additional data in the `HTTPRESPONSE` such as custom HTTP
 | resultcode     | uint32        | *Optional* HTTP numeric result code.  Connections closed with no `HTTPRESPONSE` messages including a resultcode are closed with `200 OK` |
 | close_response | boolean       | *Optional* This is the last `HTTPRESPONSE` message for this connection, close the HTTP request.  If a `resultcode` has been provided, the final result of the request will be set accordingly. |
 
-##### `SubHttpHeader` (KismetExternalHttp.SubHttpHeader)
+#### `SubHttpHeader` (KismetExternalHttp.SubHttpHeader)
 
 HTTP header values to be transmitted at the beginning of the connection.
 
