@@ -155,6 +155,24 @@ namespace kissqlite3 {
             {{ord_op, field}, {lim_op, limit}}};
     }
 
+    // SELECT (x, y, z) FROM table
+    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields) {
+        return query{db, "DELETE", table, fields};
+    }
+
+    // SELECT (x, y, z) FROM table WHERE (...)
+    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
+            const std::list<query_element>& where_clause) {
+        return query{db, "DELETE", table, fields, where_clause};
+    }
+
+    // SELECT (x, y, z) FROM table WHERE (...) LIMIT N
+    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
+            const std::list<query_element>& where_clause,
+            const _LIMIT& lim_op, int limit) {
+        return query{db, "DELETE", table, fields, where_clause, {{lim_op, limit}}};
+    }
+
     std::ostream& operator<<(std::ostream& os, const insert& i) {
         os << "INSERT INTO " << i.table << " (";
 

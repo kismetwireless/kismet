@@ -250,12 +250,14 @@ namespace kissqlite3 {
     public:
         query(sqlite3 *db, const std::string& table, const std::list<std::string>& fields) :
             db {db},
+            op {"SELECT"},
             table {table},
             fields {fields} { }
 
         query(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
                 const std::list<query_element>& where_clause) : 
             db {db},
+            op {"SELECT"},
             table {table},
             fields {fields},
             where_clause {where_clause} { }
@@ -264,6 +266,34 @@ namespace kissqlite3 {
                 const std::list<query_element>& where_clause,
                 const std::list<query_element>& tail_clause) : 
             db {db},
+            op {"SELECT"},
+            table {table},
+            fields {fields},
+            where_clause {where_clause},
+            tail_clause {tail_clause} { }
+
+        query(sqlite3 *db, const std::string& op, const std::string& table, 
+                const std::list<std::string>& fields) :
+            db {db},
+            op {op},
+            table {table},
+            fields {fields} { }
+
+        query(sqlite3 *db, const std::string& op, const std::string& table, 
+                const std::list<std::string>& fields,
+                const std::list<query_element>& where_clause) : 
+            db {db},
+            op {op},
+            table {table},
+            fields {fields},
+            where_clause {where_clause} { }
+
+        query(sqlite3 *db, const std::string& op, const std::string& table, 
+                const std::list<std::string>& fields,
+                const std::list<query_element>& where_clause,
+                const std::list<query_element>& tail_clause) : 
+            db {db},
+            op {op},
             table {table},
             fields {fields},
             where_clause {where_clause},
@@ -296,7 +326,7 @@ namespace kissqlite3 {
             // Generate the placeholdered WHERE string
             std::stringstream os;
 
-            os << "SELECT ";
+            os << op << " ";
 
             bool comma = false;
             for (auto f : fields) {
@@ -404,6 +434,7 @@ namespace kissqlite3 {
         sqlite3 *db = nullptr;
         sqlite3_stmt *stmt = nullptr;
 
+        std::string op;
         std::string table;
         std::list<std::string> fields;
         std::list<query_element> where_clause;
@@ -493,6 +524,18 @@ namespace kissqlite3 {
     // SELECT (x, y, z) FROM table ORDER BY f LIMIT n
     query _SELECT(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
             const _ORDERBY& ord_op, const std::string& field,
+            const _LIMIT& lim_op, int limit);
+
+    // DELETE (x, y, z) FROM table
+    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields);
+
+    // DELETE (x, y, z) FROM table WHERE (...)
+    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
+            const std::list<query_element>& where_clause);
+
+    // DELETE (x, y, z) FROM table WHERE (...) LIMIT N
+    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
+            const std::list<query_element>& where_clause,
             const _LIMIT& lim_op, int limit);
 
     struct insert_elem {
