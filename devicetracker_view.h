@@ -131,8 +131,9 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
 
     // Complex post endp handler
-    unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, SharedStructured structured,
-            std::map<std::string, std::shared_ptr<std::stringstream>>& postvars);
+    unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 
+            SharedStructured structured, 
+            Kis_Net_Httpd_Connection::variable_cache_map& postvars);
 
     // Time endp handler
     bool device_time_endpoint_path(const std::vector<std::string>& path);
