@@ -165,6 +165,11 @@ protected:
     // commit state we run a 10 second tranasction commit loop
     kis_recursive_timed_mutex transaction_mutex;
     int transaction_timer;
+
+    // Packet clearing API
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
+    unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
+            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
 };
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {

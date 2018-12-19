@@ -77,6 +77,14 @@ KisDatabaseLogfile::KisDatabaseLogfile():
 
     db_enabled = false;
 
+    packet_drop_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", true,
+                [this](std::ostream& stream, const std::string& uri,
+                    SharedStructured post_structured, 
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return packet_drop_endpoint_handler(stream, uri, post_structured, variable_cache);
+                }, nullptr);
+
     Bind_Httpd_Server();
 }
 
@@ -1363,6 +1371,35 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     return MHD_YES;
 }
+
+unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostream,
+        const std::string& uri,
+        SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
+
+    using namespace kissqlite3;
+
+    if (structured == nullptr) {
+        ostream << "Expected 'drop_before' in command dictionary\n";
+        return 400;
+    }
+
+    try {
+        if (structured->hasKey("drop_before")) {
+            auto drop_query = 
+                _DELETE(db, "packets", _WHERE("ts_sec", LE, 
+                            structured->getKeyAsNumber("drop_before")));
+
+        } else {
+            throw std::runtime_error("Expected 'drop_before' in command dictionary");
+        }
+    } catch (const std::exception& e) {
+        ostream << e.what() << "\n";
+        return 400;
+    }
+
+    return 500;
+}
+
 
 Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler) :
