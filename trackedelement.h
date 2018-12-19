@@ -258,8 +258,8 @@ public:
 
     void enforce_type(TrackerType t) {
         if (get_type() != t) 
-            throw std::runtime_error(fmt::format("invalid trackedelement access, cannot use a {} "
-                        "as a {}", type_to_string(get_type()), type_to_string(t)));
+            throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
+                        "as a {}", tracked_id, type_to_string(get_type()), type_to_string(t)));
     }
 
     static void enforce_type(TrackerType t1, TrackerType t2) {
