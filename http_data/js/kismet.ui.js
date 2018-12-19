@@ -326,7 +326,7 @@ exports.DeviceDetails = new Array();
  *  e.append("hi");
  * }
  * */
-exports.AddDeviceDetail = function(id, title, position, options) {
+exports.AddDeviceDetail = function(id, title, pos, options) {
     var settings = $.extend({
         "filter": null,
         "render": null,
@@ -336,14 +336,14 @@ exports.AddDeviceDetail = function(id, title, position, options) {
     var det = {
         id: id,
         title: title,
-        position: position,
+        position: pos,
         options: settings
     };
 
     exports.DeviceDetails.push(det);
 
     exports.DeviceDetails.sort(function(a, b) {
-        return b.position < a.position;
+        return a.position - b.position;
     });
 }
 
