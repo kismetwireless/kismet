@@ -43,10 +43,6 @@
 
 #include <sys/resource.h>
 
-#ifdef HAVE_LIBNCURSES
-#include <ncurses.h>
-#endif
-
 #include "util.h"
 
 #include "globalregistry.h"
@@ -371,8 +367,10 @@ int Usage(char *argv) {
 
     printf(" *** Generic Options ***\n");
     printf(" -v, --version                Show version\n"
-           "     --no-ncurses-wrapper     Disable ncurses wrapper\n"
-           "     --debug                  Disable the ncurses wrapper and the crash\n"
+           "     --show-admin-password    Show admin password in server cosole wrapper\n"
+           "     --no-console-wrapper     Disable server console wrapper\n"
+           "     --no-ncurses-wrapper     Disable server console wrapper\n"
+           "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
            " -f, --config-file <file>     Use alternate configuration file\n"
            "     --no-line-wrap           Turn of linewrapping of output\n"
@@ -433,169 +431,6 @@ void SegVHandler(int sig __attribute__((unused))) {
     exit(-11);
 }
 
-#ifdef HAVE_LIBNCURSES
-std::vector<std::string> ncurses_exitbuf;
-
-pid_t ncurses_kismet_pid = 0;
-
-bool ncurses_die = false;
-
-void NcursesKillHandler(int sig __attribute__((unused))) {
-    ncurses_die = true;
-}
-
-// Handle cancel events - kill kismet, and then catch sigchild
-// when it exits
-void NcursesCancelHandler(int sig __attribute__((unused))) {
-    if (ncurses_kismet_pid != 0) 
-        kill(ncurses_kismet_pid, SIGQUIT);
-    else
-        NcursesKillHandler(sig);
-}
-
-void ncurses_wrapper_fork() {
-    int pipefd[2];
-    
-    if (pipe(pipefd) < 0) {
-        fprintf(stderr, "FATAL: Could not make pipe to fork ncurses: %s\n", 
-                strerror(errno));
-        exit(1);
-    }
-
-    if ((ncurses_kismet_pid = fork()) == 0) {
-        close(pipefd[0]);
-        dup2(pipefd[1], 1);
-        dup2(pipefd[1], 2);
-
-        setbuf(stdout, NULL);
-        setbuf(stderr, NULL);
-
-        close(pipefd[1]);
-
-        // Jump back to the main function that called us
-        return;
-    } else {
-        close(pipefd[1]);
-
-        // Catch all the ways we die and bail out of ncurses mode &
-        // print the last output cleanly
-        signal(SIGKILL, NcursesCancelHandler);
-        signal(SIGQUIT, NcursesCancelHandler);
-        signal(SIGINT, NcursesCancelHandler);
-        signal(SIGTERM, NcursesCancelHandler);
-        signal(SIGHUP, NcursesCancelHandler);
-
-        signal(SIGABRT, NcursesKillHandler);
-        signal(SIGCHLD, NcursesKillHandler);
-
-        // Ignore WINCH and have a wrong-sized screen
-        signal(SIGWINCH, SIG_IGN);
-
-        signal(SIGPIPE, SIG_IGN);
-
-        fcntl(pipefd[0], F_SETFL, fcntl(pipefd[0], F_GETFL, 0) | O_NONBLOCK);
-
-        WINDOW *top_bar, *main_text, *bottom_bar;
-
-        initscr();
-
-        top_bar = newwin(1, COLS, 0, 0);
-        main_text = newwin(LINES - 2, COLS, 1, 0);
-        bottom_bar = newwin(1, COLS, LINES - 1, 0);
-
-        scrollok(main_text, true);
-
-        wattron(top_bar, A_REVERSE);
-        wattron(bottom_bar, A_REVERSE);
-
-        // Cheesy fill
-        for (int x = 0; x < COLS; x += 5) {
-            wprintw(top_bar, "     ");
-        }
-        mvwprintw(top_bar, 0, 0, "Kismet Server");
-        wrefresh(top_bar);
-
-        for (int x = 0; x < COLS; x += 5) {
-            wprintw(bottom_bar, "     ");
-        }
-        mvwprintw(bottom_bar, 0, 0, "Visit http://localhost:2501 to view the Kismet UI");
-        wrefresh(bottom_bar);
-
-        int nread;
-        size_t len = 2048;
-        char *buf = new char[len];
-
-        sigset_t mask, oldmask;
-        sigemptyset(&mask);
-        sigemptyset(&oldmask);
-        sigaddset(&mask, SIGCHLD);
-
-        while (1) {
-            if (ncurses_die) {
-                endwin();
-
-                printf("Kismet server terminated.  Last output:\n");
-
-                for (unsigned int x = 0; x < ncurses_exitbuf.size(); x++) {
-                    printf("%s", ncurses_exitbuf[x].c_str());
-                }
-
-                printf("Kismet exited.\n");
-
-                exit(1);
-            }
-
-            fd_set rset;
-            FD_ZERO(&rset);
-            FD_SET(pipefd[0], &rset);
-
-            struct timeval tm;
-            tm.tv_sec = 0;
-            tm.tv_usec = 100000;
-
-            if (select(pipefd[0] + 1, &rset, NULL, NULL, &tm) < 0) {
-                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                    break;
-                }
-            }
-
-            // Block signals while doing io loops */
-            sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-            while ((nread = read(pipefd[0], buf, len - 1)) > 0) {
-                buf[nread] = 0;
-                waddstr(main_text, buf);
-                wrefresh(main_text);
-
-                ncurses_exitbuf.push_back(std::string(buf));
-                if (ncurses_exitbuf.size() > 10)
-                    ncurses_exitbuf.erase(ncurses_exitbuf.begin());
-            }
-
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                break;
-            }
-
-            sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-        }
-
-        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-
-        delete[] buf;
-    
-        endwin();
-
-        for (unsigned int x = 0; x < ncurses_exitbuf.size(); x++) {
-            printf("%s", ncurses_exitbuf[x].c_str());
-        }
-
-        printf("Kismet exited");
-
-        exit(1);
-    }
-}
-#endif
-
 // Load a UUID
 void Load_Kismet_UUID(GlobalRegistry *globalreg) {
     // Look for a global override
@@ -647,6 +482,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
+        { "no-console-wrapper", no_argument, 0, 'w' },
+        { "show-admin-password", no_argument, 0, 'p' },
         { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
@@ -658,6 +495,7 @@ int main(int argc, char *argv[], char *envp[]) {
     opterr = 0;
 
     bool wrapper = true;
+    bool show_pass = false;
 
     while (1) {
         int r = getopt_long(argc, argv, "-", wrapper_longopt, &option_idx);
@@ -665,6 +503,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (r == 'w') {
             wrapper = false; 
+        } else if (r == 'p') {
+            show_pass = true;
         } else if (r == 'd') {
             debug_mode = true;
             wrapper = false;
@@ -675,11 +515,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     optind = 0;
     option_idx = 0;
-
-#ifdef HAVE_LIBNCURSES
-    if (wrapper)
-        ncurses_wrapper_fork();
-#endif
 
     // Timer for silence
     int local_silent = 0;
@@ -806,7 +641,6 @@ int main(int argc, char *argv[], char *envp[]) {
                  config_base);
     }
 
-    snprintf(errstr, STATUS_MAX, "Reading from config file %s", configfilename);
     globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     
     conf = new ConfigFile(globalregistry);
@@ -821,26 +655,34 @@ int main(int argc, char *argv[], char *envp[]) {
     if (conf->FetchOpt("configdir") != "") {
         configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
     } else {
-        globalregistry->messagebus->InjectMessage("No 'configdir' option in the config file; make sure that the "
+        _MSG("No 'configdir' option in the config file; make sure that the "
                 "Kismet config files are installed and up to date.", MSGFLAG_FATAL);
         SpindownKismet(pollabletracker);
     }
 
     if (stat(configdir.c_str(), &fstat) == -1) {
-        snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' does not exist, making it",
-                configdir.c_str());
-        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+        _MSG_INFO("Local config and cache directory '{}' does not exist; creating it.", configdir);
         if (mkdir(configdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
-            snprintf(errstr, STATUS_MAX, "Could not create config and cache directory: %s",
-                    strerror(errno));
-            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            _MSG_FATAL("Could not create config and cache directory '{}': {}",
+                    configdir, strerror(errno));
             SpindownKismet(pollabletracker);
         }
     } else if (! S_ISDIR(fstat.st_mode)) {
-        snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' exists but is not a directory",
-                configdir.c_str());
-        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        _MSG_FATAL("Local config and chache directory '{}' exists, but is a file (or otherwise not "
+                "a directory)", configdir);
         SpindownKismet(pollabletracker);
+    }
+
+    // Set a terminal margin via raw ncurses code
+    if (wrapper) {
+        // Direct ansi calls to set the top margin and invert colors
+        std::string banner_ansi = "\u001b[2J\u001b[2;r\u001b[1m\u001b[7m";
+        std::string banner = "KISMET - Point your browser to http://localhost:2501 "
+            "for the Kismet UI";
+        std::string banner_tail_ansi = "\u001b[0m";
+
+        // Print the banner and ascii tail to set a top margin
+        printf("%s%s%s\n", banner_ansi.c_str(), banner.c_str(), banner_tail_ansi.c_str());
     }
 
     Load_Kismet_UUID(globalregistry);
@@ -983,7 +825,8 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Create the device tracker
-    auto devicetracker = Devicetracker::create_devicetracker(globalregistry);
+    auto devicetracker = 
+        Devicetracker::create_devicetracker(globalregistry);
 
     // Add channel tracking
     Channeltracker_V2::create_channeltracker(globalregistry);
@@ -998,12 +841,12 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Dissector_IPdata(globalregistry);
 
     // Register the base PHYs
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
-    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
@@ -1021,11 +864,12 @@ int main(int argc, char *argv[], char *envp[]) {
     // Create the database logger as a global because it's a special case
     KisDatabaseLogfile::create_kisdatabaselog();
 
-    LogTracker::create_logtracker();
+    auto logtracker = 
+        LogTracker::create_logtracker();
 
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>()->register_log(SharedLogBuilder(new KisPPILogfileBuilder()));
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>()->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder()));
-    Globalreg::FetchMandatoryGlobalAs<LogTracker>()->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
+    logtracker->register_log(SharedLogBuilder(new KisPPILogfileBuilder()));
+    logtracker->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder()));
+    logtracker->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
 
     std::shared_ptr<Plugintracker> plugintracker;
 
@@ -1040,13 +884,13 @@ int main(int argc, char *argv[], char *envp[]) {
 
 
     // Process plugins and activate them
-    if (plugintracker != NULL) {
+    if (plugintracker != nullptr) {
         plugintracker->ScanPlugins();
         plugintracker->ActivatePlugins();
 
         if (globalregistry->fatal_condition) {
-            globalregistry->messagebus->InjectMessage(
-                        "Failure during activating plugins", MSGFLAG_FATAL);
+            _MSG_FATAL("Failure activating Kismet plugins, make sure that all your plugins "
+                    "are built against the same version of Kismet.");
             SpindownKismet(pollabletracker);
         }
     }

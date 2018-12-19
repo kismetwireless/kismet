@@ -87,12 +87,6 @@
 /* Define to 1 if you have the `cap' library (-lcap). */
 #undef HAVE_LIBCAP
 
-/* Curses terminal lib */
-#undef HAVE_LIBCURSES
-
-/* Define to 1 if you have the `ncurses' library (-lncurses). */
-#undef HAVE_LIBNCURSES
-
 /* libnl netlink library */
 #undef HAVE_LIBNL
 

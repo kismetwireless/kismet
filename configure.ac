@@ -608,7 +608,7 @@ AC_SUBST(instgrp)
 
 termcontrol="none";
     
-# We need microhttpd and curses if we're building kismet_server
+# We need microhttpd if we're building kismet_server
 if test "$caponly" == 0; then
     HAVE_LIBMICROHTTPD=0
     AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
@@ -651,37 +651,6 @@ if test "$caponly" == 0; then
         AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
     fi
 
-    # Check for ncurses for pretty wrapper; no longer mandatory
-    
-    OLIBS="$LIBS"
-    AC_CHECK_LIB([ncurses], [initscr],
-                 AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
-                     foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
-    
-    if test "$foundlcurses" != "yes"; then
-        AC_CHECK_LIB([curses], [initscr],
-                     AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
-                         foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
-    fi
-    
-    if test "$foundlcurses" != "yes"; then
-        AC_MSG_WARN(Failed to find libcurses or libncurses. Kismet will be compiled without the pretty wrapper)
-    fi
-    
-    AC_CHECK_LIB([ncurses], [stdscr], [], [])
-    AC_CHECK_LIB([tinfo], [stdscr], curseaux="$curseaux -ltinfo")
-    
-    if test "$termcontrol" = "ncurses"; then
-        AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
-    else
-        AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
-    fi
-    
-    if test "$foundhcurses" != "yes"; then
-        AC_MSG_WARN(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
-    fi
-    
-    KSLIBS="$KSLIBS $curseaux"
 fi # caponly
 
 
@@ -1517,7 +1486,6 @@ echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
-echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
 printf "          Setuid group: "
 if test "$cygwin" = "yes"; then
