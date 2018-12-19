@@ -326,16 +326,20 @@ namespace kissqlite3 {
             // Generate the placeholdered WHERE string
             std::stringstream os;
 
-            os << op << " ";
 
             bool comma = false;
-            for (auto f : fields) {
-                if (comma)
-                    os << ", ";
-                comma = true;
 
-                os << f;
+            if (fields.size() > 0) {
+                os << op << " ";
+                for (auto f : fields) {
+                    if (comma)
+                        os << ", ";
+                    comma = true;
+
+                    os << f;
+                }
             }
+
             os << " FROM " << table;
 
             if (where_clause.size() > 0) {
@@ -384,10 +388,12 @@ namespace kissqlite3 {
 
                 switch (c.bind_type) {
                     case BindType::sql_blob:
-                        sqlite3_bind_blob(stmt, bind_pos++, c.value.data(), c.value.length(), SQLITE_TRANSIENT);
+                        sqlite3_bind_blob(stmt, bind_pos++, c.value.data(), 
+                                c.value.length(), SQLITE_TRANSIENT);
                         break;
                     case BindType::sql_text:
-                        sqlite3_bind_text(stmt, bind_pos++, c.value.data(), c.value.length(), SQLITE_TRANSIENT);
+                        sqlite3_bind_text(stmt, bind_pos++, c.value.data(), 
+                                c.value.length(), SQLITE_TRANSIENT);
                         break;
                     case BindType::sql_int:
                         sqlite3_bind_int(stmt, bind_pos++, c.num_value);
@@ -526,15 +532,15 @@ namespace kissqlite3 {
             const _ORDERBY& ord_op, const std::string& field,
             const _LIMIT& lim_op, int limit);
 
-    // DELETE (x, y, z) FROM table
-    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields);
+    // DELETE FROM table
+    query _DELETE(sqlite3 *db, const std::string& table);
 
-    // DELETE (x, y, z) FROM table WHERE (...)
-    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
+    // DELETE FROM table WHERE (...)
+    query _DELETE(sqlite3 *db, const std::string& table,
             const std::list<query_element>& where_clause);
 
-    // DELETE (x, y, z) FROM table WHERE (...) LIMIT N
-    query _DELETE(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
+    // DELETE FROM table WHERE (...) LIMIT N
+    query _DELETE(sqlite3 *db, const std::string& table, 
             const std::list<query_element>& where_clause,
             const _LIMIT& lim_op, int limit);
 
