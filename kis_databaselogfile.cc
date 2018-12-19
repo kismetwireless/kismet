@@ -1397,7 +1397,8 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
         return 400;
     }
 
-    return 500;
+    ostream << "Packets removed\n";
+    return 200;
 }
 
 
