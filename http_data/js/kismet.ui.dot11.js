@@ -579,6 +579,15 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     }
                 },
                 {
+                    field: "dot11.advertisedssid.ccx_txpower",
+                    title: "Cisco CCX TxPower",
+                    filterOnZero: true,
+                    help: "Cisco access points may advertise their transmit power in a Cisco CCX IE tag.  Typically this is found on enterprise-level access points, where multiple APs service the same area.",
+                    render: function(opts) {
+                        return opts['value'] + "dBm";
+                    },
+                },
+                {
                     field: "dot11.advertisedssid.dot11r_mobility",
                     title: "802.11r Mobility",
                     filterOnZero: true,

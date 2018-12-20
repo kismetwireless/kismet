@@ -53,6 +53,8 @@
 #include "dot11_parsers/dot11_ie_54_mobility.h"
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
 #include "dot11_parsers/dot11_ie_133_cisco_ccx.h"
+#include "dot11_parsers/dot11_ie_150_vendor.h"
+#include "dot11_parsers/dot11_ie_150_cisco_powerlevel.h"
 #include "dot11_parsers/dot11_ie_191_vht_cap.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
 #include "dot11_parsers/dot11_ie_221_vendor.h"
@@ -1249,7 +1251,16 @@ std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_pa
     }
 
     for (auto ie_tag : *(ietags->tags())) {
-        if (ie_tag->tag_num() == 221) {
+        if (ie_tag->tag_num() == 150) {
+            try {
+                std::shared_ptr<dot11_ie_150_vendor> vendor(new dot11_ie_150_vendor());
+                vendor->parse(ie_tag->tag_data_stream());
+
+                ret.push_back(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()});
+            } catch (const std::exception &e) {
+                return ret;
+            }
+        } else if (ie_tag->tag_num() == 221) {
             try {
                 std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
@@ -1319,10 +1330,19 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     for (auto ie_tag : *(ietags->tags())) {
         auto hash = std::hash<std::string>{};
 
-        auto vendor = std::make_shared<dot11_ie_221_vendor>();
-
-        if (ie_tag->tag_num() == 221) {
+        if (ie_tag->tag_num() == 150) {
             try {
+                auto vendor = std::make_shared<dot11_ie_150_vendor>();
+                vendor->parse(ie_tag->tag_data_stream());
+
+                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
+            } catch (const std::exception& e) {
+                packinfo->corrupt = 1;
+                return -1;
+            }
+        } else if (ie_tag->tag_num() == 221) {
+            try {
+                auto vendor = std::make_shared<dot11_ie_221_vendor>();
                 vendor->parse(ie_tag->tag_data_stream());
 
                 packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
@@ -1589,10 +1609,11 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         if (ie_tag->tag_num() == 11) {
             try {
                 std::shared_ptr<dot11_ie_11_qbss> qbss(new dot11_ie_11_qbss());
+                ie_tag->tag_data_stream()->seek(0);
                 qbss->parse(ie_tag->tag_data_stream());
                 packinfo->qbss = qbss;
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - corrupt QBSS\n");
+                fprintf(stderr, "debug - corrupt QBSS %s\n", e.what());
                 packinfo->corrupt = 1;
                 return -1;
             }
@@ -1877,10 +1898,29 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
 
+        // Vendor 150 collection
+        if (ie_tag->tag_num() == 150) {
+            try {
+                auto vendor = std::make_shared<dot11_ie_150_vendor>();
+                ie_tag->tag_data_stream()->seek(0);
+                vendor->parse(ie_tag->tag_data_stream());
+
+                if (vendor->vendor_oui_int() == dot11_ie_150_cisco_powerlevel::cisco_oui()) {
+                    auto ccx_power = std::make_shared<dot11_ie_150_cisco_powerlevel>();
+                    ccx_power->parse(vendor->vendor_tag_stream());
+
+                    packinfo->ccx_txpower = ccx_power->cisco_ccx_txpower();
+                }
+            } catch (const std::exception& e) {
+                fprintf(stderr, "debug - ie150 vendor tag error: %s\n", e.what());
+                // Don't consider this a corrupt packet because ie150 can be highly variable
+            }
+        }
+
         // IE 192 VHT Operation
         if (ie_tag->tag_num() == 192) {
             try {
-                std::shared_ptr<dot11_ie_192_vht_op> vht(new dot11_ie_192_vht_op());
+                auto vht = std::make_shared<dot11_ie_192_vht_op>();
                 vht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11vht = vht;
 
@@ -1893,8 +1933,11 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
         if (ie_tag->tag_num() == 221) {
-            // We already parsed 221 up above into the vendor variable for hashing
             try {
+                auto vendor = std::make_shared<dot11_ie_221_vendor>();
+                ie_tag->tag_data_stream()->seek(0);
+                vendor->parse(ie_tag->tag_data_stream());
+
                 // Match mis-sized WMM
                 if (packinfo->subtype == packet_sub_beacon &&
                         vendor->vendor_oui_int() == 0x0050f2 &&

@@ -168,6 +168,8 @@ class dot11_packinfo : public packet_component {
 
             beacon_interval = 0;
 
+            ccx_txpower = 0;
+
             new_device = false;
             new_adv_ssid = false;
         }
@@ -267,6 +269,8 @@ class dot11_packinfo : public packet_component {
 
         // 11n MCS rates
         std::vector<std::string> mcs_rates;
+
+        unsigned int ccx_txpower;
 
         // Did we just create records for these?
         bool new_device;
@@ -741,6 +745,8 @@ public:
     __Proxy(dot11e_qbss_stations, uint16_t, uint16_t, uint16_t, dot11e_qbss_stations);
     __Proxy(dot11e_qbss_channel_load, double, double, double, dot11e_qbss_channel_load);
 
+    __Proxy(ccx_txpower, uint8_t, unsigned int, unsigned int, ccx_txpower);
+
     __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
 
 protected:
@@ -815,6 +821,9 @@ protected:
         RegisterField("dot11.advertisedssid.dot11e_channel_utilization_perc", 
                 "802.11e QBSS reported channel utilization, as percentage", 
                 &dot11e_qbss_channel_load);
+
+        RegisterField("dot11.advertisedssid.ccx_txpower",
+                "Cisco CCX advertised TX power (dBm)", &ccx_txpower);
 
         RegisterField("dot11.advertisedssid.ie_tag_list",
                 "802.11 IE tag list in beacon", &ie_tag_list);
@@ -898,6 +907,9 @@ protected:
     std::shared_ptr<TrackerElementUInt8> dot11e_qbss;
     std::shared_ptr<TrackerElementUInt16> dot11e_qbss_stations;
     std::shared_ptr<TrackerElementDouble> dot11e_qbss_channel_load;
+
+    // Cisco CCX
+    std::shared_ptr<TrackerElementUInt8> ccx_txpower;
 
     // IE tags present, and order
     std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;

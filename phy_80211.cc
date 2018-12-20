@@ -1834,6 +1834,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
         }
 
+        // Set tx power
+        ssid->set_ccx_txpower(dot11info->ccx_txpower);
+
         // Set QBSS
         if (dot11info->qbss != NULL) {
             ssid->set_dot11e_qbss(true);
