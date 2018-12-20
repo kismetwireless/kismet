@@ -19,8 +19,10 @@
 #include "dot11_ie_221_cisco_client_mfp.h"
 
 void dot11_ie_221_cisco_client_mfp::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    uint8_t l_mfp = p_io->read_u1();
+    // Throw out sub-type
+    p_io->read_u1();
 
+    uint8_t l_mfp = p_io->read_u1();
     m_client_mfp = (l_mfp & 0x01);
 }
 
