@@ -34,7 +34,7 @@ public:
         return 0x004096;
     }
 
-    constexpr17 static uint8_t wfa_wpa_subtype() {
+    constexpr17 static uint8_t client_mfp_subtype() {
         return 0x14;
     }
 
