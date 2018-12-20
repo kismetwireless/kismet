@@ -17,10 +17,26 @@
 */
 
 #include "dot11_ie_11_qbss.h"
+#include "fmt.h"
 
 void dot11_ie_11_qbss::parse(std::shared_ptr<kaitai::kstream> p_io) {
-    m_station_count = p_io->read_u2le();
-    m_channel_utilization = p_io->read_u1();
-    m_available_admissions = p_io->read_u2le();
+    // V1
+    if (p_io->size() == 4) {
+        m_station_count = p_io->read_u2le();
+        m_channel_utilization = p_io->read_u1();
+        m_available_admissions = p_io->read_u1();
+        return;
+    } 
+
+    // V2
+    if (p_io->size() == 5) {
+        m_station_count = p_io->read_u2le();
+        m_channel_utilization = p_io->read_u1();
+        m_available_admissions = p_io->read_u2le();
+        return;
+    }
+
+    throw std::runtime_error(fmt::format("dot11_ie_11_qbss expected v1 (4 bytes) or v2 (5 bytes), "
+                "got {} bytes", p_io->size()));
 }
 
