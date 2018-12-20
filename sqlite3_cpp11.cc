@@ -369,6 +369,11 @@ namespace kissqlite3 {
     }
 
     template<>
+    unsigned long long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
+        return (unsigned long long) sqlite3_column_int64(stmt, column);
+    }
+
+    template<>
     bool sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
         return (bool) sqlite3_column_int(stmt, column);
     }
