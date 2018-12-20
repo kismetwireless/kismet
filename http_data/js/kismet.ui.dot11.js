@@ -588,6 +588,16 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     },
                 },
                 {
+                    field: "dot11.advertisedssid.cisco_client_mfp",
+                    title: "Client MFP",
+                    filterOnZero: true,
+                    help: "Cisco provides optional management frame protection for clients.  Typically this is found on enterprise-level access points, and should only be found on access points from Cisco.",
+                    render: function(opts) {
+                        if (opts['value'])
+                            return "Enabled";
+                    },
+                },
+                {
                     field: "dot11.advertisedssid.dot11r_mobility",
                     title: "802.11r Mobility",
                     filterOnZero: true,

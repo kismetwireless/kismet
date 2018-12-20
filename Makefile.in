@@ -35,6 +35,7 @@ DOT11_PARSERS = \
  	dot11_parsers/dot11_ie_221_ms_wmm.cc.o \
  	dot11_parsers/dot11_ie_221_dji_droneid.cc.o \
  	dot11_parsers/dot11_ie_221_wfa_wpa.cc.o \
+	dot11_parsers/dot11_ie_221_cisco_client_mfp.cc.o \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o
 

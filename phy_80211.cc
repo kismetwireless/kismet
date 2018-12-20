@@ -1837,6 +1837,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         // Set tx power
         ssid->set_ccx_txpower(dot11info->ccx_txpower);
 
+        // Set client mfp
+        ssid->set_cisco_client_mfp(dot11info->cisco_client_mfp);
+
         // Set QBSS
         if (dot11info->qbss != NULL) {
             ssid->set_dot11e_qbss(true);

@@ -169,6 +169,7 @@ class dot11_packinfo : public packet_component {
             beacon_interval = 0;
 
             ccx_txpower = 0;
+            cisco_client_mfp = false;
 
             new_device = false;
             new_adv_ssid = false;
@@ -271,6 +272,7 @@ class dot11_packinfo : public packet_component {
         std::vector<std::string> mcs_rates;
 
         unsigned int ccx_txpower;
+        bool cisco_client_mfp;
 
         // Did we just create records for these?
         bool new_device;
@@ -746,6 +748,7 @@ public:
     __Proxy(dot11e_qbss_channel_load, double, double, double, dot11e_qbss_channel_load);
 
     __Proxy(ccx_txpower, uint8_t, unsigned int, unsigned int, ccx_txpower);
+    __Proxy(cisco_client_mfp, uint8_t, bool, bool, cisco_client_mfp);
 
     __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
 
@@ -824,6 +827,9 @@ protected:
 
         RegisterField("dot11.advertisedssid.ccx_txpower",
                 "Cisco CCX advertised TX power (dBm)", &ccx_txpower);
+
+        RegisterField("dot11.advertisedssid.cisco_client_mfp",
+                "Cisco client management frame protection", &cisco_client_mfp);
 
         RegisterField("dot11.advertisedssid.ie_tag_list",
                 "802.11 IE tag list in beacon", &ie_tag_list);
@@ -910,6 +916,8 @@ protected:
 
     // Cisco CCX
     std::shared_ptr<TrackerElementUInt8> ccx_txpower;
+    // Cisco frame protection
+    std::shared_ptr<TrackerElementUInt8> cisco_client_mfp;
 
     // IE tags present, and order
     std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;

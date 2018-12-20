@@ -62,6 +62,7 @@
 #include "dot11_parsers/dot11_ie_221_ms_wmm.h"
 #include "dot11_parsers/dot11_ie_221_ms_wps.h"
 #include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
+#include "dot11_parsers/dot11_ie_221_cisco_client_mfp.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -2019,14 +2020,21 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         packinfo->cryptset |= crypt_version_wpa2;
 
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
+                }
 
+                // Look for cisco client MFP
+                if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
+                        vendor->vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
+                    auto mfp = std::make_shared<dot11_ie_221_cisco_client_mfp>();
+                    mfp->parse(vendor->vendor_tag_stream());
 
+                    packinfo->cisco_client_mfp = mfp->client_mfp();
                 }
 
                 // Look for WPS MS
                 if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
-                    std::unique_ptr<dot11_ie_221_ms_wps> wps(new dot11_ie_221_ms_wps());
+                    auto wps = std::make_shared<dot11_ie_221_ms_wps>();
                     wps->parse(vendor->vendor_tag_stream());
 
                     for (auto wpselem : *(wps->wps_elements())) {
