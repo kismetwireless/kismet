@@ -1,0 +1,68 @@
+Kismet RTLAMR Support
+
+- UNDER DEVELOPMENT -
+
+    The rtl-sdr support in Kismet is under heavy development, not all
+    features are complete at this time. Most of this code is adapted
+    from Dragorn's rtl_433 support.
+
+- RTL-SDR -
+
+    The Kismet rtlamr SDR capture requires a RTL-SDR USB device; you 
+    can learn more about these on the main RTL-SDR website:
+        https://www.rtl-sdr.com
+
+    The RTL-SDR is typically an extremely low-cost USB device which
+    can perform limited raw radio capture.  While often *extremely*
+    limited, the RTL-SDR is still capable of a surprising amount of
+    useful capture.
+
+    To use the RTL SDR capture device, you will need a rtlsdr; 
+    your Wi-Fi card cannot receive the signal.
+
+- RTLAMR -
+
+    Kismet requires the rtlamr tool be installed.  The rtlamr
+    tool has to be installed from source. You can download the
+    source at:
+        https://github.com/bemasher/rtlamr
+
+    To compile this program, follow their instructions. Be warned,
+    it requires Go. It also requires rtl_tcp as a shim between
+    rtlamr and the rtl dongle.
+
+- CONFIGURING RTLAMR -
+
+    The only configuration necessary to configure rtlamr is to make
+    sure that your user has access to the rtlsdr USB device.  
+    This is usually accomplished by installing the udev rules which
+    accompany librtlsdr.
+
+    Typically the group `plugdev` is given access; make sure the 
+    user you plan to run Kismet as is in that group.
+
+    For more information, check the documentation that came with
+    librtlsdr or the rtlsdr website:
+        https://rtl-sdr.com
+
+- CONFIGURING KISMET -
+
+    The Kismet capture driver is implemented as a Python datasource;
+    you will need the Kismet-related Python modules from the
+    python_modules/ directory of Kismet (which will be installed
+    automatically in most cases).
+
+    rtlsdr hardware will be automatically detected and shown in the
+    Datasources window, or it can be configured as 'rtlamr-X',
+    where 'X' is the radio you wish to use.  If you have only one
+    radio, this will always be zero; for instance:
+
+        source=rtlamr-0:name=some_sdr
+
+- GOTCHAS -
+
+    If, for whatever reason, the rtl dongle goes through a reset
+    with udev Kismet might get a little cranky. I've only been able
+    to fix this by manually killing the python process and letting
+    Kismet restart everything automagically. The fix is to write a
+    new app that does everything natively within it. Soon.

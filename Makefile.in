@@ -44,7 +44,9 @@ PROTOBUF_CPP_O = \
 	protobuf_cpp/http.pb.cc.o \
 	protobuf_cpp/datasource.pb.cc.o \
 	protobuf_cpp/linuxbluetooth.pb.cc.o \
-	protobuf_cpp/sdrrtl433.pb.cc.o
+	protobuf_cpp/sdrrtl433.pb.cc.o \
+	protobuf_cpp/sdrrtlamr.pb.cc.o \
+	protobuf_cpp/sdrrtladsb.pb.cc.o
 
 PROTOBUF_CPP_H_TARGET = @PROTOBUF_CPP_H_TARGET@
 PROTOBUF_CPP_H = \
@@ -52,7 +54,9 @@ PROTOBUF_CPP_H = \
 	protobuf_cpp/http.pb.h \
 	protobuf_cpp/datasource.pb.h \
 	protobuf_cpp/linuxbluetooth.pb.h \
-	protobuf_cpp/sdrrtl433.pb.h
+	protobuf_cpp/sdrrtl433.pb.h \
+	protobuf_cpp/sdrrtlamr.pb.h \
+	protobuf_cpp/sdrrtladsb.pb.h
 
 PROTOBUF_C_O = \
 	protobuf_c/kismet.pb-c.c.o \
@@ -92,6 +96,12 @@ BUILD_CAPTURE_OSX_COREWLAN = @BUILD_CAPTURE_OSX_COREWLAN@
 
 CAPTURE_SDR_RTL433 = capture_sdr_rtl433/kismet_cap_sdr_rtl433
 BUILD_CAPTURE_SDR_RTL433 = @BUILD_CAPTURE_SDR_RTL433@
+
+CAPTURE_SDR_RTLAMR = capture_sdr_rtlamr/kismet_cap_sdr_rtlamr
+BUILD_CAPTURE_SDR_RTLAMR = @BUILD_CAPTURE_SDR_RTLAMR@
+
+CAPTURE_SDR_RTLADSB = capture_sdr_rtladsb/kismet_cap_sdr_rtladsb
+BUILD_CAPTURE_SDR_RTLADSB = @BUILD_CAPTURE_SDR_RTLADSB@
 
 CAPTURE_FREAKLABS_ZIGBEE = capture_freaklabs_zigbee/kismet_cap_freaklabs_zigbee
 BUILD_CAPTURE_FREAKLABS_ZIGBEE = @BUILD_CAPTURE_FREAKLABS_ZIGBEE@
@@ -135,7 +145,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
-	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o \
+	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
 	kis_net_microhttpd.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea.cc.o gpsserial2.cc.o gpstcp.cc.o \
@@ -150,7 +160,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o \
 	kaitaistream.cc.o \
 	$(DOT11_PARSERS) \
-	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_zwave.cc.o \
+	phy_80211.cc.o phy_80211_dissectors.cc.o phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o \
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
@@ -195,6 +205,12 @@ $(CAPTURE_OSX_COREWLAN): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 
 $(CAPTURE_SDR_RTL433): FORCE
 	(cd capture_sdr_rtl433 && $(MAKE))
+
+$(CAPTURE_SDR_RTLAMR): FORCE
+	(cd capture_sdr_rtlamr && $(MAKE))
+
+$(CAPTURE_SDR_RTLADSB): FORCE
+	(cd capture_sdr_rtladsb && $(MAKE))
 
 $(CAPTURE_HACKRF_SWEEP):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF_SWEEP_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_HACKRF_SWEEP) $(CAPTURE_HACKRF_SWEEP_O) $(DATASOURCE_COMMON_A) -lhackrf -lfftw3 $(LIBMLIB) -lpthread -lm
@@ -272,6 +288,14 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
 		(cd capture_sdr_rtl433 && $(MAKE) install) \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SDR_RTLAMR)"x = "1"x; then \
+		(cd capture_sdr_rtlamr && $(MAKE) install) \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_SDR_RTLADSB)"x = "1"x; then \
+		(cd capture_sdr_rtladsb && $(MAKE) install) \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_FREAKLABS_ZIGBEE)"x = "1"x; then \
@@ -423,6 +447,8 @@ clean:
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_sdr_rtl433 && make clean)
+	@(cd capture_sdr_rtlamr && make clean)
+	@(cd capture_sdr_rtladsb && make clean)
 
 distclean:
 	@-$(MAKE) clean

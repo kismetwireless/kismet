@@ -70,6 +70,8 @@
 #include "datasource_linux_bluetooth.h"
 #include "datasource_osx_corewlan_wifi.h"
 #include "datasource_rtl433.h"
+#include "datasource_rtlamr.h"
+#include "datasource_rtladsb.h"
 #include "datasource_freaklabs_zigbee.h"
 #include "datasource_nrf_mousejack.h"
 
@@ -93,6 +95,8 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 #include "phy_rtl433.h"
+#include "phy_rtlamr.h"
+#include "phy_rtladsb.h"
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
@@ -1000,6 +1004,8 @@ int main(int argc, char *argv[], char *envp[]) {
     // Register the base PHYs
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_RTLAMR_Phy(globalregistry));
+    Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_RTLADSB_Phy(globalregistry));
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
     Globalreg::FetchMandatoryGlobalAs<Devicetracker>()->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
@@ -1015,6 +1021,10 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtlamrBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtlamrMqttBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtladsbBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtladsbMqttBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceFreaklabsZigbeeBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceNrfMousejackBuilder()));
 

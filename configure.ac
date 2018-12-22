@@ -31,6 +31,8 @@ BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=1
+BUILD_CAPTURE_SDR_RTLAMR=1
+BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 
@@ -286,6 +288,8 @@ AC_ARG_ENABLE([python-tools],
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
     BUILD_CAPTURE_SDR_RTL433=0
+    BUILD_CAPTURE_SDR_RTLAMR=0
+    BUILD_CAPTURE_SDR_RTLADSB=0
     BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
     AC_MSG_WARN([Disabling Python and Python-related tools])
 else
@@ -293,7 +297,7 @@ else
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
         AC_MSG_ERROR([Missing python2-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python2-setuptools])
     else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
 fi
 AC_SUBST(BUILD_PYTHON_MODULES)
@@ -1502,6 +1506,8 @@ AC_SUBST(BUILD_CAPTURE_HACKRF_SWEEP)
 AC_SUBST(BUILD_CAPTURE_LINUX_BLUETOOTH)
 AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
+AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
+AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 
@@ -1509,7 +1515,7 @@ AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile python_modules/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile python_modules/Makefile])
 AC_OUTPUT
 
 echo
@@ -1626,6 +1632,20 @@ if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "       RTL-SDR RTLAMR: "
+if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
+        echo "yes";
+else
+        echo "no (python modules are disabled)";
+fi
+
+printf "      RTL-SDR RTLADSB: "
+if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
+        echo "yes";
+else
+        echo "no (python modules are disabled)";
 fi
 
 printf "      Freaklabs Zigbee: "
