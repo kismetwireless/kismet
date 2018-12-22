@@ -1,0 +1,21 @@
+syntax = "proto2";
+
+import "kismet.proto";
+import "datasource.proto";
+
+// DEPRECATED - This is being moved to the new datareport SubJson field for direct logging
+
+package KismetSdrRtladsb;
+
+// RTLadsb report; rtladsb gives us JSON, we pass it on
+// RTLadsbDATAREPORT
+message SdrRtladsbDataReport {
+    required uint64 time_sec = 1;
+    required uint64 time_usec = 2;
+    optional KismetDatasource.SubGps gps = 3;
+    optional KismetExternal.MsgbusMessage message = 4;
+    optional string warning = 5;
+    optional KismetDatasource.SubSignal signal = 6;
+    required string rtljson = 7;
+}
+

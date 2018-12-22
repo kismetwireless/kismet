@@ -66,6 +66,8 @@
 #include "datasource_linux_bluetooth.h"
 #include "datasource_osx_corewlan_wifi.h"
 #include "datasource_rtl433.h"
+#include "datasource_rtlamr.h"
+#include "datasource_rtladsb.h"
 #include "datasource_freaklabs_zigbee.h"
 #include "datasource_nrf_mousejack.h"
 
@@ -89,6 +91,8 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 #include "phy_rtl433.h"
+#include "phy_rtlamr.h"
+#include "phy_rtladsb.h"
 #include "phy_zwave.h"
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
@@ -847,6 +851,8 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
     devicetracker->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
     devicetracker->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_RTLAMR_Phy(globalregistry));
+    devicetracker->RegisterPhyHandler(new Kis_RTLADSB_Phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
@@ -858,6 +864,10 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtlamrBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtlamrMqttBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtladsbBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtladsbMqttBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceFreaklabsZigbeeBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceNrfMousejackBuilder()));
 

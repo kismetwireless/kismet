@@ -625,6 +625,8 @@ LIBOBJS
 BUILD_CAPTURE_NRF_MOUSEJACK
 BUILD_CAPTURE_FREAKLABS_ZIGBEE
 BUILD_CAPTURE_SDR_RTL433
+BUILD_CAPTURE_SDR_RTLAMR
+BUILD_CAPTURE_SDR_RTLADSB
 BUILD_CAPTURE_OSX_COREWLAN
 BUILD_CAPTURE_LINUX_BLUETOOTH
 BUILD_CAPTURE_HACKRF_SWEEP
@@ -3811,6 +3813,8 @@ BUILD_CAPTURE_PCAPFILE=0
 BUILD_CAPTURE_HACKRF_SWEEP=0
 BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=1
+BUILD_CAPTURE_SDR_RTLAMR=1
+BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 
@@ -8068,6 +8072,8 @@ fi
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
     BUILD_CAPTURE_SDR_RTL433=0
+    BUILD_CAPTURE_SDR_RTLAMR=0
+    BUILD_CAPTURE_SDR_RTLADSB=0
     BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling Python and Python-related tools" >&5
 $as_echo "$as_me: WARNING: Disabling Python and Python-related tools" >&2;}
@@ -8096,7 +8102,7 @@ $as_echo "no" >&6; }
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
         as_fn_error $? "Missing python2-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python2-setuptools" "$LINENO" 5
     else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
 fi
 
@@ -11928,7 +11934,7 @@ sharedatadir=${sharedatadir}
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile python_modules/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile python_modules/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -12631,6 +12637,8 @@ do
     "capture_linux_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_linux_wifi/Makefile" ;;
     "capture_osx_corewlan_wifi/Makefile") CONFIG_FILES="$CONFIG_FILES capture_osx_corewlan_wifi/Makefile" ;;
     "capture_sdr_rtl433/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtl433/Makefile" ;;
+    "capture_sdr_rtlamr/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtlamr/Makefile" ;;
+    "capture_sdr_rtladsb/Makefile") CONFIG_FILES="$CONFIG_FILES capture_sdr_rtladsb/Makefile" ;;
     "capture_freaklabs_zigbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_freaklabs_zigbee/Makefile" ;;
     "capture_nrf_mousejack/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_mousejack/Makefile" ;;
     "python_modules/Makefile") CONFIG_FILES="$CONFIG_FILES python_modules/Makefile" ;;
@@ -13334,6 +13342,20 @@ if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "        RTL-SDR RTLAMR: "
+if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
+        echo "yes";
+else
+        echo "no (python modules are disabled)";
+fi
+
+printf "       RTL-SDR RTLADSB: "
+if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
+        echo "yes";
+else
+        echo "no (python modules are disabled)";
 fi
 
 printf "      Freaklabs Zigbee: "
