@@ -33,9 +33,9 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     SetPhyName("RTL433");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
