@@ -249,6 +249,18 @@ class ExternalInterface(object):
 
         self.rbuffer = self.rbuffer[12 + sz:]
 
+    @staticmethod
+    def get_etc():
+        """
+        Get the etc directory from Kismet by querying the KISMET_ETC env variable
+
+        :return: Path to etc (or blank)
+        """
+        if "KISMET_ETC" in os.environ:
+            return os.environ["KISMET_ETC"]
+
+        return ""
+
     def start(self):
         """
         Start the main service loop; this handles input/out from the Kismet server

@@ -664,6 +664,10 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
     }
 
+    auto etcdir = 
+        globalreg->kismet_config->ExpandLogPath("%E", "", "", 0, 1);
+    setenv("KISMET_ETC", etcdir.c_str(), 1);
+
     if (stat(configdir.c_str(), &fstat) == -1) {
         _MSG_INFO("Local config and cache directory '{}' does not exist; creating it.", configdir);
         if (mkdir(configdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
@@ -672,7 +676,7 @@ int main(int argc, char *argv[], char *envp[]) {
             SpindownKismet(pollabletracker);
         }
     } else if (! S_ISDIR(fstat.st_mode)) {
-        _MSG_FATAL("Local config and chache directory '{}' exists, but is a file (or otherwise not "
+        _MSG_FATAL("Local config and cache directory '{}' exists, but is a file (or otherwise not "
                 "a directory)", configdir);
         SpindownKismet(pollabletracker);
     }
