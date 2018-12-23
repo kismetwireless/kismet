@@ -33,9 +33,9 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     SetPhyName("RTLAMR");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
