@@ -42,14 +42,15 @@ import pyModeS as pms
 import KismetExternal
 
 try:
-    csv_file = csv.reader(open('/usr/local/etc/kismet/aircraft_db.csv', "r"), delimiter=",")
+    csv_path = "{}/kismet_aircraft_db.csv".format(KismetExternal.get_etc())
+    csv_file = csv.reader(open(csv_path, "r"), delimiter=",")
     airplanes = []
 
     for row in csv_file:
         airplanes.append(row)
 
 except:
-    print "Couldn't find the airplane csv file '/usr/local/etc/kismet/aircraft_dv.cvs'"
+    print "Couldn't find the airplane csv file '{}'".format(csv_path)
     sys.exit(0)
 
 try:

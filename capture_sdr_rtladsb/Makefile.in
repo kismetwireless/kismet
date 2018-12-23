@@ -8,7 +8,7 @@ all:
 
 install:
 	$(PYTHON2) ./setup.py install
-	cp -f aircraft_db.csv $(ETC)/kismet/
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) aircraft_db.csv $(ETC)/kismet_aircraft_db.csv
 	# These are now part of the setup.py install
 	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
 	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MQTTMONITOR_BIN) $(BIN)/$(MQTTMONITOR_BIN)
