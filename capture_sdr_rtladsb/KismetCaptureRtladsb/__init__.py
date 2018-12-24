@@ -41,8 +41,9 @@ import pyModeS as pms
 
 import KismetExternal
 
+
 try:
-    csv_path = "{}/kismet_aircraft_db.csv".format(KismetExternal.get_etc())
+    csv_path = os.path.join(os.environ["KISMET_ETC"],"kismet_aircraft_db.csv")
     csv_file = csv.reader(open(csv_path, "r"), delimiter=",")
     airplanes = []
 

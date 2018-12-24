@@ -74,9 +74,6 @@ Kis_RTLAMR_Phy::~Kis_RTLAMR_Phy() {
     packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
-//double Kis_RTLAMR_Phy::f_to_c(double f) {
-//    return (f - 32) / (double) 1.8f;
-//}
 
 mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
     // Derive a mac addr from the model and device id data
@@ -106,8 +103,6 @@ mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
     bool set_model = false;
     if (json.isMember("Message")) {
       auto msgjson = json["Message"];
-    
-
       if (msgjson.isMember("ID")) {
           Json::Value i = msgjson["ID"];
           if (i.isNumeric()) {
@@ -117,14 +112,6 @@ mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
       }
     }
   
-    /* if (!set_model && json.isMember("device")) {
-        Json::Value d = json["device"];
-        if (d.isNumeric()) {
-            *model = kis_hton16((uint16_t) d.asUInt());
-            set_model = true;
-        }
-    } */
-
     if (!set_model) {
         *model = 0x0000;
     }
@@ -188,13 +175,13 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json) {
     std::string dn = "PowerMeter";
 
     if (json.isMember("Message")) {
-        auto msgjson = json["Message"];
-        if (msgjson.isMember("ID")) {
-            auto id_j = msgjson["ID"];
-            if (id_j.isString()) {
-                dn = id_j.asString();
-            }
-        }
+      auto msgjson = json["Message"];
+      if (msgjson.isMember("ID")) {
+          Json::Value i = msgjson["ID"];
+          if (i.isNumeric()) {
+              dn = i.asString();
+          }
+      }
     }
 
     basedev->set_manuf(rtl_manuf);
@@ -223,17 +210,12 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json) {
         commondev->set_model(dn);
 
         bool set_id = false;
-        //std::fprintf(stderr, "RTLAMR: ID? %d\n", json["Message"]["ID"]);
         if (json.isMember("Message")) {
-          //std::fprintf(stderr, "RTLAMR: Detected Message\n");
 	  auto msgjson = json["Message"];
           if (msgjson.isMember("ID")) {
-              //std::fprintf(stderr, "RTLAMR: ID Detected\n");
               Json::Value id_j = msgjson["ID"];
-              //std::fprintf(stderr, "RTLAMR: ID? %d\n", id_j);
               if (id_j.isNumeric()) {
                   std::stringstream ss;
-                  //ss << id_j.asDouble();
                   ss << id_j.asString();
                   commondev->set_rtlid(ss.str());
                   set_id = true;
@@ -245,8 +227,6 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json) {
 
           if (!set_id && msgjson.isMember("Consumption")) {
               Json::Value consumption_j = msgjson["Consumption"];
-              //std::fprintf(stderr, "RTLAMR: Consumption Detected\n");
-              //std::fprintf(stderr, "RTLAMR: Consumption? %d\n", consumption_j);
               if (consumption_j.isNumeric()) {
                   std::stringstream ss;
                   ss << consumption_j.asDouble();
@@ -278,8 +258,6 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json) {
     if (is_powermeter(json))
         add_powermeter(json, rtlholder);
 
-    //fprintf(stderr, "RTLAMR: doin something here\n");
-
     if (newrtl && commondev != NULL) {
         std::string info = "Detected new RTLAMR RF device '" + commondev->get_model() + "'";
 
@@ -297,12 +275,9 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json) {
 
 bool Kis_RTLAMR_Phy::is_powermeter(Json::Value json) {
 
-    //fprintf(stderr, "RTLAMR: checking to see if it is a powermeter\n");
     auto msgjson = json["Message"];
     auto id_j = msgjson["ID"];
     auto consumption_j = msgjson["Consumption"];
-
-    //std::fprintf(stderr, "RTLAMR: is_powermeter ID / Consumption  %d  %d\n", id_j, consumption_j);
 
     if (!id_j.isNull() || !consumption_j.isNull()) {
         return true;
@@ -315,8 +290,6 @@ void Kis_RTLAMR_Phy::add_powermeter(Json::Value json, std::shared_ptr<TrackerEle
     auto msgjson = json["Message"];
     auto id_j = msgjson["ID"];
     auto consumption_j = msgjson["Consumption"];
-
-    //fprintf(stderr, "RTLAMR: Detected new powermeter\n");
 
     if (!id_j.isNull() || !consumption_j.isNull()) {
         auto powermeterdev = 
@@ -344,17 +317,12 @@ void Kis_RTLAMR_Phy::add_powermeter(Json::Value json, std::shared_ptr<TrackerEle
 int Kis_RTLAMR_Phy::PacketHandler(CHAINCALL_PARMS) {
     Kis_RTLAMR_Phy *rtlamr = (Kis_RTLAMR_Phy *) auxdata;
 
-    //fprintf(stderr, "RTLAMR: packethandler kicked in\n");
-
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
     kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(rtlamr->pack_comp_json);
     if (json == NULL)
         return 0;
-
-    //std::fprintf(stderr, "RTLAMR: json type: %s\n", json->type.c_str());
-    
 
     if (json->type != "RTLamr")
         return 0;
@@ -365,9 +333,6 @@ int Kis_RTLAMR_Phy::PacketHandler(CHAINCALL_PARMS) {
     try {
         ss >> device_json;
 
-        //std::fprintf(stderr, "RTLAMR: json? %s\n", json->json_string.c_str());
-        //std::fprintf(stderr, "RTLAMR: json? %s\n", device_json);
-        // Copy the JSON as the meta field for logging, if it's valid
         if (rtlamr->json_to_rtl(device_json)) {
             packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtlamr->pack_comp_meta);
             if (metablob == NULL) {
