@@ -396,9 +396,15 @@ void Datasourcetracker::Deferred_Startup() {
 
     std::string optval;
     if ((optval = Globalreg::globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
-        double dv = string_to_rate(optval, 1);
-        config_defaults->set_hop_rate(dv);
-        _MSG("Setting default channel hop rate to " + optval, MSGFLAG_INFO);
+        try {
+            double dv = string_to_rate(optval, 1);
+            config_defaults->set_hop_rate(dv);
+            _MSG("Setting default channel hop rate to " + optval, MSGFLAG_INFO);
+        } catch (const std::exception& e) {
+            _MSG_FATAL("Could not parse channel_hop_speed= config: {}", e.what());
+            globalreg->fatal_condition = 1;
+            return;
+        }
     } else {
         _MSG("No channel_hop_speed= in kismet config, setting hop "
                 "rate to 1/sec", MSGFLAG_INFO);
@@ -1160,7 +1166,14 @@ public:
 
             int ds_offt = (ds_hopchans->size() / offt_count) * nintf;
 
-            double rate = dst->string_to_rate(ds->get_definition_opt("channel_hoprate"), -1);
+            double rate;
+            try {
+                rate = dst->string_to_rate(ds->get_definition_opt("channel_hoprate"), -1);
+            } catch (const std::exception& e) {
+                _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
+                        "channel rate.", ds->get_source_name(), e.what());
+                rate = -1;
+            }
 
             if (rate < 0) {
                 rate = defaults->get_hop_rate();
@@ -1769,9 +1782,16 @@ double Datasourcetracker::string_to_rate(std::string in_str, double in_default) 
     unsigned int v;
     double dv;
 
-    if (sscanf(in_str.c_str(), "%u/sec", &v) == 1) {
+    std::vector<std::string> toks = StrTokenize(in_str, "/");
+
+    if (toks.size() != 2)
+        throw std::runtime_error("Expected [value]/sec or [value]/min");
+
+    v = StringTo<unsigned int>(toks[0]);
+
+    if (toks[1] == "sec") {
         return v;
-    } else if (sscanf(in_str.c_str(), "%u/min", &v) == 1) {
+    } else if (toks[1] == "min") {
         // Channel hop is # of hops a second, timed in usec, so to get hops per
         // minute we get a minutes worth of usecs (60m), divide by the number
         // of hops per minute, then divide a second by that.
@@ -1779,7 +1799,7 @@ double Datasourcetracker::string_to_rate(std::string in_str, double in_default) 
 
         return dv;
     } else {
-        return in_default;
+        throw std::runtime_error("Expected [value]/sec or [value]/min");
     }
 }
 
