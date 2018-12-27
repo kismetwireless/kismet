@@ -189,7 +189,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json) {
 
     basedev->set_manuf(rtl_manuf);
 
-    basedev->set_type_string("RTLADSB AIRPLANES");
+    basedev->set_type_string("Airplane");
     basedev->set_devicename(dn);
 
     auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtladsb_holder_id);

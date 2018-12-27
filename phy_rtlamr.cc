@@ -186,7 +186,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json) {
 
     basedev->set_manuf(rtl_manuf);
 
-    basedev->set_type_string("RTLAMR PowerMeter");
+    basedev->set_type_string("Power Meter");
     basedev->set_devicename(dn);
 
     auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtlamr_holder_id);

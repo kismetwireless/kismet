@@ -203,7 +203,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
 
     basedev->set_manuf(rtl_manuf);
 
-    basedev->set_type_string("RTL433 Sensor");
+    basedev->set_type_string("Sensor");
     basedev->set_devicename(dn);
 
     auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtl433_holder_id);
