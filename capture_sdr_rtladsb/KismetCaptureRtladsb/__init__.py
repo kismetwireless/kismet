@@ -324,10 +324,10 @@ class KismetRtladsb(object):
         ret = {}
 
         # Does the source look like 'rtladsb-XYZ'?
-        if not source[:7] == "rtladsb-":
+        if not source[:9] == "rtladsb-":
             return None
 
-        if source[7:] == "mqtt":
+        if source[9:] == "mqtt":
             if not 'mqtt' in options:
                 return None
             if not has_mqtt:
@@ -347,7 +347,7 @@ class KismetRtladsb(object):
                 return None
 
             try:
-                intnum = int(source[7:])
+                intnum = int(source[9:])
             except ValueError:
                 return None
 
