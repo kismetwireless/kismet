@@ -394,7 +394,7 @@ class KismetRtladsb(object):
                 return ret
 
             try:
-                intnum = int(source[7:])
+                intnum = int(source[8:])
             except ValueError:
                 ret["success"] = False
                 ret["message"] = "Could not parse rtl device"
