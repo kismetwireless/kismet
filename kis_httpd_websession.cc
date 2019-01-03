@@ -26,93 +26,78 @@
 #include "kis_httpd_websession.h"
 #include "alertracker.h"
 
-Kis_Httpd_Websession::Kis_Httpd_Websession(GlobalRegistry *in_globalreg) :
+Kis_Httpd_Websession::Kis_Httpd_Websession() :
     Kis_Net_Httpd_CPPStream_Handler() {
-    globalreg = in_globalreg;
 
     activated = false;
 
-    Bind_Httpd_Server();
+    user_config = false;
+    global_config = false;
 }
 
 void Kis_Httpd_Websession::Deferred_Startup() {
-    std::string olduser = globalreg->kismet_config->FetchOpt("httpd_user");
+    local_locker l(&mutex);
 
-    std::shared_ptr<Alertracker> alertracker = 
-        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-
-    if (olduser != "") {
-        int oldref;
-
-        alertracker->DefineAlert("OLDHTTPDUSER", sat_second, 1, sat_second, 1);
-        oldref = alertracker->ActivateConfiguredAlert("OLDHTTPDUSER", 
-                "Found httpd_user= in global Kismet configs (kismet.conf or "
-                "kismet_http.conf).  This config has been replaced with a "
-                "per-user config in ~/.kismet/kismet_http.conf.  Make sure "
-                "to update your config files!");
-        alertracker->RaiseAlert(oldref, NULL, mac_addr(), mac_addr(),
-                mac_addr(), mac_addr(), "", 
-                "Found httpd_user= in global Kismet configs (kismet.conf or "
-                "kismet_http.conf).  This config has been replaced with a "
-                "per-user config in ~/.kismet/kismet_http.conf.  Make sure "
-                "to update your config files!");
-    }
+    auto alertracker = Globalreg::FetchMandatoryGlobalAs<Alertracker>();
 
     global_config = false;
+    user_config = false;
 
-    conf_username = globalreg->kismet_config->FetchOpt("httpd_username");
-    conf_password = globalreg->kismet_config->FetchOpt("httpd_password");
+    user_httpd_config = new ConfigFile(Globalreg::globalreg);
+    auto conf_dir_path_raw = 
+        Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_auth_file", 
+                "%h/.kismet/kismet_httpd.conf");
+
+    conf_username = Globalreg::globalreg->kismet_config->FetchOpt("httpd_username");
+    conf_password = Globalreg::globalreg->kismet_config->FetchOpt("httpd_password");
 
     if (conf_username != "" || conf_password != "") {
         int globalref;
 
         alertracker->DefineAlert("GLOBALHTTPDUSER", sat_second, 1, sat_second, 1);
         globalref = alertracker->ActivateConfiguredAlert("GLOBALHTTPDUSER", 
-                "Found httpd_username= and httpd_password= in global Kismet "
-                "configs (kismet.conf or kismet_http.conf).  Make sure that this "
-                "file is readable only by the user launching Kismet.  The "
-                "username and password in ~/.kismet/kismet_http.conf will be "
-                "ignored.");
+                fmt::format("Found httpd_username= and httpd_password= in a global Kismet config "
+                "file, such as kismet.conf or kismet_site.conf.  Any login in {} will be "
+                "ignored.", conf_dir_path_raw));
         alertracker->RaiseAlert(globalref, NULL, mac_addr(), mac_addr(),
                 mac_addr(), mac_addr(), "", 
-                "Found httpd_username= and httpd_password= in global Kismet "
-                "configs (kismet.conf or kismet_http.conf).  Make sure that this "
-                "file is readable only by the user launching Kismet.  The "
-                "username and password in ~/.kismet/kismet_http.conf will be "
-                "ignored.");
+                fmt::format("Found httpd_username= and httpd_password= in a global Kismet config "
+                "file, such as kismet.conf or kismet_site.conf.  Any login in {} will be "
+                "ignored.", conf_dir_path_raw));
+
+        if (conf_username == "")
+            conf_username = "kismet";
+
+        if (conf_password == "") {
+            _MSG_FATAL("Found httpd_username= in a global config file, but no httpd_password= "
+                    "directive.  Either define a username and password globally, or remove "
+                    "any httpd_username= options from the Kismet config files.");
+            Globalreg::globalreg->fatal_condition = 1;
+        }
 
         global_config = true;
     } 
 
-    if (conf_username != conf_password && 
-            (conf_username == "" || conf_password == "")) {
-        _MSG("Found httpd_username= or httpd_password= in the global Kismet "
-                "configs (kismet.conf or kismet_http.conf), but BOTH must "
-                "be defined globally when using global configs", MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-    }
-
-    user_httpd_config = new ConfigFile(globalreg);
-
-    auto conf_dir_path_raw = 
-        globalreg->kismet_config->FetchOptDfl("httpd_auth_file", "%h/.kismet/kismet_httpd.conf");
-
     std::string user_httpd_config_file = 
-        globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
+        Globalreg::globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
     if (!global_config) {
         userdir_login();
     }
 
-    activated = true;
-
+    // Fetch our own shared pointer 
     auto websession = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Websession>(globalreg, "WEBSESSION");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Websession>();
 
     httpd->RegisterSessionHandler(websession);
+
+    Bind_Httpd_Server();
+
+    activated = true;
 }
 
 void Kis_Httpd_Websession::userdir_login() {
+    // Parse the config file in the user directory, if it exists
     struct stat buf;
     if (stat(user_httpd_config_file.c_str(), &buf) == 0) {
         user_httpd_config->ParseConfig(user_httpd_config_file.c_str());
@@ -121,83 +106,17 @@ void Kis_Httpd_Websession::userdir_login() {
         conf_password = user_httpd_config->FetchOpt("httpd_password");
     }
 
-    bool update_conf = false;
+    // We use the user config - even if it's blank, we check that elsewhere
+    user_config = true;
 
-    if (conf_username == "") {
+    if (conf_username == "") 
         conf_username = "kismet";
-        update_conf = true;
-    }
 
-    if (conf_password == "") {
-        FILE *urandom = fopen("/dev/urandom", "rb");
-
-        if (urandom == NULL) {
-            _MSG("Failed to open /dev/urandom to seed random, unable to generate "
-                    "the Kismet web admin password.", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return;
-        }
-
-        uint32_t seed;
-
-        if (fread(&seed, sizeof(uint32_t), 1, urandom) != 1) {
-            _MSG("Failed to read /dev/urandom to seed random, unable to generate "
-                    "the Kismet web admin password.", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            fclose(urandom);
-            return;
-        }
-
-        fclose(urandom);
-
-        srand(seed);
-
-        std::string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        std::string genpw;
-
-        for (unsigned int x = 0; x < 16; x++) {
-            genpw += chars[rand() % chars.length()];
-        }
-
-        conf_password = genpw;
-
-        update_conf = true;
-    }
-
-
-    if (update_conf) {
-        user_httpd_config->SetOpt("httpd_username", conf_username, true);
-        user_httpd_config->SetOpt("httpd_password", conf_password, true);
-        user_httpd_config->SaveConfig(user_httpd_config_file.c_str());
-
-        std::shared_ptr<Alertracker> alertracker = 
-            Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-
-        _MSG("Kismet has generated a random login for the web UI; it has been "
-                "saved in " + user_httpd_config_file + ".", MSGFLAG_INFO);
-
-        int newloginref;
-
-        alertracker->DefineAlert("NEWHTTPDUSER", sat_second, 1, sat_second, 1);
-        newloginref = alertracker->ActivateConfiguredAlert("NEWHTTPDUSER", 
-                "This is the first time you have run Kismet on this account.  A "
-                "new password has been automatically generated, and is in " +
-                user_httpd_config_file + ".  You will need this password to configure "
-                "Kismet from the web interface.");
-                
-        alertracker->RaiseAlert(newloginref, NULL, mac_addr(), mac_addr(),
-                mac_addr(), mac_addr(), "", 
-                "This is the first time you have run Kismet on this account.  A "
-                "new password has been automatically generated, and is in " +
-                user_httpd_config_file + ".  You will need this password to configure "
-                "Kismet from the web interface.");
-
-        // Generate a local-only message
-        _MSG("*** Kismet has generated a random password for the web UI.  To "
-                "log in, use user 'kismet' and password '" + conf_password + "'. "
-                "You can view or change the web password in " + user_httpd_config_file,
-                MSGFLAG_INFO | MSGFLAG_LOCAL);
-    }
+    if (conf_password == "")
+        _MSG("This is the first time Kismet has been run as this user.  You will need to set an "
+                "administrator password before you can use many features of Kismet.  Visit "
+                "http://localhost:2501/ to configure the password, or consult the Kismet documentation "
+                "to set a password manually.", MSGFLAG_INFO | MSGFLAG_LOCAL);
 }
 
 Kis_Httpd_Websession::~Kis_Httpd_Websession() {
@@ -205,14 +124,13 @@ Kis_Httpd_Websession::~Kis_Httpd_Websession() {
 }
 
 void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_password) {
-    std::stringstream str;
-
     conf_username = in_username;
     conf_password = in_password;
 
-    str << in_username << ":" << in_password;
+    user_httpd_config->SetOpt("httpd_username", conf_username, true);
+    user_httpd_config->SetOpt("httpd_password", conf_password, true);
 
-
+    user_httpd_config->SaveConfig(user_httpd_config_file.c_str());
 }
 
 bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
@@ -220,6 +138,10 @@ bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
     char *pass = NULL;
 
     if (!activated)
+        return false;
+
+    // Don't allow blank passwords
+    if (conf_username == "" || conf_password == "")
         return false;
 
     user = MHD_basic_auth_get_username_password(connection, &pass);
@@ -233,16 +155,21 @@ bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
 }
 
 bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0)
-        return false;
-
     std::string stripped = Httpd_StripSuffix(path);
 
-    if (stripped == "/session/check_login")
-        return true;
+    if (strcmp(method, "POST") == 0) {
+        if (stripped == "/session/set_password")
+            return true;
+    } else if (strcmp(method, "GET") == 0) {
+        if (stripped == "/session/check_login")
+            return true;
 
-    if (stripped == "/session/check_session")
-        return true;
+        if (stripped == "/session/check_session")
+            return true;
+
+        if (stripped == "/session/check_setup_ok")
+            return true;
+    }
 
     return false;
 }
@@ -260,23 +187,85 @@ void Kis_Httpd_Websession::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     if (stripped == "/session/check_session") {
         if (httpd->HasValidSession(connection, true)) {
-            stream << "Valid session";
+            stream << "Valid session\n";
         }
-    }
+    } else if (stripped == "/session/check_login") {
+        local_locker l(&mutex);
 
-    if (stripped == "/session/check_login") {
         // Never use the session to validate the login, check it manually
         // and reject it 
         if (!validate_login(connection->connection)) {
-            stream << "Invalid login";
+            stream << "Invalid login\n";
             connection->httpcode = 403;
         } else {
             // Generate a session for the login, it's successful
             httpd->HasValidSession(connection, false);
-            stream << "Valid login";
+            stream << "Valid login\n";
+        }
+    } else if (stripped == "/session/check_setup_ok") {
+        if (global_config) {
+            stream << "Login configured globally\n";
+            connection->httpcode = 406;
+        } else if (user_config) {
+            stream << "Login configured\n";
+            connection->httpcode = 200;
+        } else {
+            stream << "Login not configured\n";
+            connection->httpcode = 500;
         }
     }
 
     return;
+}
+
+int Kis_Httpd_Websession::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+    local_locker l(&mutex);
+
+    auto stripped = kishttpd::StripSuffix(concls->url);
+
+    if (stripped == "/session/set_password") {
+        // Reject if we've got a global site config
+        if (global_config) {
+            concls->response_stream << "Login configured globally\n";
+            concls->httpcode = 406;
+            return MHD_YES;
+        }
+
+        // Require login if we've set the user config
+        if (user_config) {
+            if (!httpd->HasValidSession(concls, true)) {
+                return MHD_YES;
+            }
+        }
+
+        // Look for user and pass
+        std::string new_username;
+        std::string new_password;
+
+        if (concls->variable_cache.find("password") == concls->variable_cache.end()) {
+            concls->response_stream << "password field required\n";
+            concls->httpcode = 400;
+            return MHD_YES;
+        }
+
+        new_password = concls->variable_cache["password"]->str();
+
+        if (concls->variable_cache.find("username") != concls->variable_cache.end())
+            new_username = concls->variable_cache["username"]->str();
+        else
+            new_username = conf_username;
+
+        set_login(new_username, new_password);
+
+        concls->response_stream << "Login changed.\n";
+        concls->httpcode = 200;
+        return MHD_YES;
+
+    }
+
+    concls->response_stream << "Unhandled request\n";
+    concls->httpcode = 400;
+
+    return MHD_YES;
 }
 

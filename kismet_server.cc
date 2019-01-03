@@ -791,7 +791,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Add login session
-    Kis_Httpd_Websession::create_websession(globalregistry);
+    Kis_Httpd_Websession::create_websession();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
