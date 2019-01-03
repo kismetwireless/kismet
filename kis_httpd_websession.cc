@@ -94,11 +94,11 @@ void Kis_Httpd_Websession::Deferred_Startup() {
 
     user_httpd_config = new ConfigFile(globalreg);
 
-    std::string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
-    std::string config_dir_path = 
-        globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
+    auto conf_dir_path_raw = 
+        globalreg->kismet_config->FetchOptDfl("httpd_auth_file", "%h/.kismet/kismet_httpd.conf");
 
-    user_httpd_config_file = config_dir_path + "/" + "kismet_httpd.conf";
+    std::string user_httpd_config_file = 
+        globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
     if (!global_config) {
         userdir_login();
