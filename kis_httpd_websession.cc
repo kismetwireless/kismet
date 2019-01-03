@@ -48,6 +48,9 @@ void Kis_Httpd_Websession::Deferred_Startup() {
         Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_auth_file", 
                 "%h/.kismet/kismet_httpd.conf");
 
+    user_httpd_config_file = 
+        Globalreg::globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
+
     conf_username = Globalreg::globalreg->kismet_config->FetchOpt("httpd_username");
     conf_password = Globalreg::globalreg->kismet_config->FetchOpt("httpd_password");
 
@@ -58,12 +61,12 @@ void Kis_Httpd_Websession::Deferred_Startup() {
         globalref = alertracker->ActivateConfiguredAlert("GLOBALHTTPDUSER", 
                 fmt::format("Found httpd_username= and httpd_password= in a global Kismet config "
                 "file, such as kismet.conf or kismet_site.conf.  Any login in {} will be "
-                "ignored.", conf_dir_path_raw));
+                "ignored.", user_httpd_config_file));
         alertracker->RaiseAlert(globalref, NULL, mac_addr(), mac_addr(),
                 mac_addr(), mac_addr(), "", 
                 fmt::format("Found httpd_username= and httpd_password= in a global Kismet config "
                 "file, such as kismet.conf or kismet_site.conf.  Any login in {} will be "
-                "ignored.", conf_dir_path_raw));
+                "ignored.", user_httpd_config_file));
 
         if (conf_username == "")
             conf_username = "kismet";
@@ -77,9 +80,6 @@ void Kis_Httpd_Websession::Deferred_Startup() {
 
         global_config = true;
     } 
-
-    std::string user_httpd_config_file = 
-        Globalreg::globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
     if (!global_config) {
         userdir_login();
@@ -206,7 +206,7 @@ void Kis_Httpd_Websession::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         if (global_config) {
             stream << "Login configured globally\n";
             connection->httpcode = 406;
-        } else if (user_config) {
+        } else if (user_config && conf_password != "") {
             stream << "Login configured\n";
             connection->httpcode = 200;
         } else {
@@ -232,7 +232,7 @@ int Kis_Httpd_Websession::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         }
 
         // Require login if we've set the user config
-        if (user_config) {
+        if (user_config && conf_password != "") {
             if (!httpd->HasValidSession(concls, true)) {
                 return MHD_YES;
             }
@@ -256,6 +256,8 @@ int Kis_Httpd_Websession::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             new_username = conf_username;
 
         set_login(new_username, new_password);
+
+        _MSG_INFO("A new administrator login has been set.");
 
         concls->response_stream << "Login changed.\n";
         concls->httpcode = 200;
