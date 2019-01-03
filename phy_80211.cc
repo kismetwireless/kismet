@@ -2022,9 +2022,12 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (dot11info->wps_serial_number != "")
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
+    /* Manuf should be the IEEE manuf, not inherited from WPS.
+     * Also, never do this - this clobbers the universal 'unknown' manuf.
     // Do we not know the basedev manuf?
     if (Globalreg::globalreg->manufdb->IsUnknownManuf(basedev->get_manuf()) && dot11info->wps_manuf != "")
         basedev->set_manuf(dot11info->wps_manuf);
+        */
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
