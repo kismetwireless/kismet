@@ -1166,10 +1166,15 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
-            // Don't map probe respsonses as clients
-            if (dest_dev != NULL)
-                d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+            if (dest_dev != NULL) {
+                if (dot11info->type == packet_management && 
+                        dot11info->subtype == packet_sub_probe_resp) {
+                    // Don't map probe respsonses as clients
+                } else {
+                    d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
+                            in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                }
+            }
 
             // alerts on broadcast deauths
             if  ((dot11info->subtype == packet_sub_disassociation ||
