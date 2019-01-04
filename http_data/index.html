@@ -203,13 +203,8 @@ $(function() {
     // finalize the tabs
     kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'));
 
-    // Show the welcome
-    var welcome = kismet_ui_base.FirstTimeCheck();
-
     // Check the login
-    if (welcome == false) {
-        kismet_ui_base.FirstLoginCheck();
-    }
+    kismet_ui_base.FirstLoginCheck();
 
 }); // when
 

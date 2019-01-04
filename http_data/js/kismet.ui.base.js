@@ -2074,6 +2074,7 @@ exports.FirstLoginCheck = function() {
 
             loginpanel.close();
 
+            exports.FirstTimeCheck();
         });
 
     $('fs_login', set_password_content).controlgroup();
