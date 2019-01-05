@@ -19,9 +19,9 @@
 #ifndef __KISVERSION_H__
 #define __KISVERSION_H__
 
-#define VERSION_MAJOR	"2018"
-#define VERSION_MINOR	"08"
-#define VERSION_TINY	"BETA1"
+#define VERSION_MAJOR	"2019"
+#define VERSION_MINOR	"01"
+#define VERSION_TINY	"BETA2"
 
 #define REVISION		"$Rev$"
 #define REVDATE			"$LastChangedDate$"
