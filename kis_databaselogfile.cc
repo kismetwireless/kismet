@@ -642,7 +642,7 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
             sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), 
                     typestring.length(), SQLITE_TRANSIENT);
 
-            sqlite3_bind_text(device_stmt, spos++, streamstring.c_str(), 
+            sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(), 
                     streamstring.length(), SQLITE_TRANSIENT);
 
             if (sqlite3_step(device_stmt) != SQLITE_DONE) {
@@ -880,7 +880,7 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
         sqlite3_bind_text(datasource_stmt, 4, namestring.data(), namestring.length(), SQLITE_TRANSIENT);
         sqlite3_bind_text(datasource_stmt, 5, intfstring.data(), intfstring.length(), SQLITE_TRANSIENT);
 
-        sqlite3_bind_text(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
             _MSG("KisDatabaseLogfile unable to insert datasource in " +
@@ -930,7 +930,7 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
         }
 
         sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(alert_stmt, 8, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(alert_stmt, 8, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
             _MSG("KisDatabaseLogfile unable to insert alert in " +

@@ -100,7 +100,7 @@ protected:
 // min/max/avg location
 class kis_tracked_location : public tracker_component {
 public:
-    const static int precision_multiplier = 10000;
+    const static int precision_multiplier = 1000000;
 
     kis_tracked_location();
     kis_tracked_location(int in_id);

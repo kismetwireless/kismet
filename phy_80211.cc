@@ -1166,10 +1166,15 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
-            // Don't map probe respsonses as clients
-            if (dest_dev != NULL)
-                d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+            if (dest_dev != NULL) {
+                if (dot11info->type == packet_management && 
+                        dot11info->subtype == packet_sub_probe_resp) {
+                    // Don't map probe respsonses as clients
+                } else {
+                    d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
+                            in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                }
+            }
 
             // alerts on broadcast deauths
             if  ((dot11info->subtype == packet_sub_disassociation ||
@@ -2022,9 +2027,12 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (dot11info->wps_serial_number != "")
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
+    /* Manuf should be the IEEE manuf, not inherited from WPS.
+     * Also, never do this - this clobbers the universal 'unknown' manuf.
     // Do we not know the basedev manuf?
     if (Globalreg::globalreg->manufdb->IsUnknownManuf(basedev->get_manuf()) && dot11info->wps_manuf != "")
         basedev->set_manuf(dot11info->wps_manuf);
+        */
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
@@ -2194,7 +2202,6 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
 
         if (dot11info->type == packet_management) {
             // Client-level assoc req advertisements
-            
             if (dot11info->subtype == packet_sub_association_req) {
                 if (dot11info->tx_power != nullptr) {
                     clientdot11->set_min_tx_power(dot11info->tx_power->min_power());
@@ -2208,6 +2215,21 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                         clientdot11->get_supported_channels()->push_back(c);
                 }
             }
+
+            if (dot11info->subtype == packet_sub_probe_req ||
+                    dot11info->subtype == packet_sub_association_req ||
+                    dot11info->subtype == packet_sub_reassociation_req) {
+                if (dot11info->wps_manuf != "")
+                    client_record->set_wps_manuf(dot11info->wps_manuf);
+                if (dot11info->wps_model_name != "") {
+                    client_record->set_wps_model_name(dot11info->wps_model_name);
+                }
+                if (dot11info->wps_model_number != "") 
+                    client_record->set_wps_model_number(dot11info->wps_model_number);
+                if (dot11info->wps_serial_number != "")
+                    client_record->set_wps_serial_number(dot11info->wps_serial_number);
+            }
+
         } else if (dot11info->type == packet_data) {
             // Handle the data records for this client association, we're not just a management link
 

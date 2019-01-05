@@ -156,8 +156,12 @@ unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
             return bulk_insert_fingerprint(stream, structured);
         case uri_endpoint::endp_bulk_delete:
             return bulk_delete_fingerprint(stream, structured);
+        default:
+            stream << "Unknown endpoint\n";
+            return 401;
     }
 
+    return 401;
 }
 
 unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,

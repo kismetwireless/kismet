@@ -816,6 +816,36 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     ]
                 },
                 {
+                    field: "dot11.client.wps_manuf",
+                    title: "WPS Manufacturer",
+                    filterOnEmpty: true,
+                    help: "Clients which support Wi-Fi Protected Setup (WPS) may include the device manufacturer in the WPS advertisements.  WPS is not recommended due to security flaws."
+                },
+                {
+                    field: "dot11.client.wps_device_name",
+                    title: "WPS Device",
+                    filterOnEmpty: true,
+                    help: "Clients which support Wi-Fi Protected Setup (WPS) may include the device name in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.client.wps_model_name",
+                    title: "WPS Model",
+                    filterOnEmpty: true,
+                    help: "Clients which support Wi-Fi Protected Setup (WPS) may include the specific device model name in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.client.wps_model_number",
+                    title: "WPS Model #",
+                    filterOnEmpty: true,
+                    help: "Clients which support Wi-Fi Protected Setup (WPS) may include the specific model number in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.client.wps_serial_number",
+                    title: "WPS Serial #",
+                    filterOnEmpty: true,
+                    help: "Clients which support Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
+                },
+                {
                     field: "dot11.client.eap_identity",
                     title: "EAP Identity",
                     filterOnEmpty: true,
