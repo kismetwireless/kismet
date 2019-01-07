@@ -146,12 +146,6 @@ public:
 
     virtual void initialize() { };
 
-    // Build the actual data source; when subclassing this MUST fill in the prototype!
-    // Due to semantics of shared_pointers we can't simply pass a 'this' sharedptr 
-    // to the instantiated datasource, so we need to take a pointer to ourselves 
-    // in the input.
-    // Typical implementation:
-    // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
     virtual std::shared_ptr<SdrIQsource> build_datasource(std::shared_ptr<SdrIQsourceBuilder>
             in_shared_builder __attribute__((unused))) { return nullptr; };
 
