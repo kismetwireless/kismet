@@ -21,7 +21,6 @@
 #include "datasource_rtlamr.h"
 #include "kismet_json.h"
 #include "phy_rtlamr.h"
-#include "protobuf_cpp/sdrrtlamr.pb.h"
 
 KisDatasourceRtlamr::KisDatasourceRtlamr(SharedDatasourceBuilder in_builder, bool in_mqtt) :
     KisDatasource(in_builder) {
