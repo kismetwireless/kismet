@@ -91,6 +91,14 @@ message SubSpecset {
     optional uint64 baseband_amp = 7;
 }
 
+// IQ source configuration
+message SubIqset {
+    optional double center_khz = 1;
+    optional double width_khz = 2;
+    optional double bandwidth_khz = 3;
+
+}
+
 // Spectrum report
 message SubSpectrum {
     optional uint64 time_sec = 1;
