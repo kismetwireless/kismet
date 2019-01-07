@@ -6,7 +6,7 @@ set -e
 
 . /usr/share/debconf/confmodule
 
-PROGRAM=kismet_cap_linux_bluetooth
+PROGRAM=/usr/bin/kismet_cap_linux_bluetooth
 
 GROUP=kismet
 
