@@ -21,7 +21,6 @@
 #include "datasource_rtladsb.h"
 #include "kismet_json.h"
 #include "phy_rtladsb.h"
-#include "protobuf_cpp/sdrrtladsb.pb.h"
 
 KisDatasourceRtladsb::KisDatasourceRtladsb(SharedDatasourceBuilder in_builder, bool in_mqtt) :
     KisDatasource(in_builder) {

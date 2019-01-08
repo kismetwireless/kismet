@@ -21,7 +21,6 @@
 #include "datasource_rtl433.h"
 #include "kismet_json.h"
 #include "phy_rtl433.h"
-#include "protobuf_cpp/sdrrtl433.pb.h"
 
 KisDatasourceRtl433::KisDatasourceRtl433(SharedDatasourceBuilder in_builder, bool in_mqtt) :
     KisDatasource(in_builder) {
