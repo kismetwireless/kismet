@@ -91,8 +91,17 @@ message SubSpecset {
     optional uint64 baseband_amp = 7;
 }
 
-// IQ source configuration
+// Spectrum report
+message SubSpectrum {
+    optional uint64 time_sec = 1;
+    optional uint64 time_usec = 2;
+    optional double start_mhz = 3;
+    optional double end_mhz = 4;
+    optional double bucket_width_hz = 5;
+    repeated int32 data = 6;
+}
 
+// IQ source configuration
 // Gain is an arbitrary gain control; different iq phys provide different
 // gains.  Example gains would be "RXLNA", "RXVGA", "BIAST", "AMPENABLE", etc.
 message SubIqgain {
@@ -115,14 +124,15 @@ message SubIqset {
     optional string antenna = 5;
 }
 
-// Spectrum report
-message SubSpectrum {
-    optional uint64 time_sec = 1;
-    optional uint64 time_usec = 2;
-    optional double start_mhz = 3;
-    optional double end_mhz = 4;
-    optional double bucket_width_hz = 5;
-    repeated int32 data = 6;
+// Interleaved IQ report, 
+message SubIqReport {
+    required uint64 time_sec = 1;
+    // Note: nanosecond time!
+    required uint64 time_nssec = 2;
+    required double center_freq_khz = 3;
+    required double sample_rate_khz = 4;
+    required uint32 sample_width = 5;
+    required bytes iqdata = 6;
 }
 
 // Command success
