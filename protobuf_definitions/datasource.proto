@@ -92,11 +92,27 @@ message SubSpecset {
 }
 
 // IQ source configuration
-message SubIqset {
-    optional double center_khz = 1;
-    optional double width_khz = 2;
-    optional double bandwidth_khz = 3;
 
+// Gain is an arbitrary gain control; different iq phys provide different
+// gains.  Example gains would be "RXLNA", "RXVGA", "BIAST", "AMPENABLE", etc.
+message SubIqgain {
+    required string gaincontrol = 1;
+    required double gainvalue = 2;
+}
+
+// Configure a IQ source, with optional amp configs, and optional antenna selection.
+// Amp configs are arbitrary for different iqphys, as are antennas
+message SubIqset {
+    // Sample center
+    optional double center_freq_khz = 1;
+    // Same width/rate
+    optional double sample_rate_khz = 2;
+    // Bandwidth filter
+    optional double bandwidth_khz = 3;
+    // Gain cotrols
+    repeated SubIqgain gains = 4;
+    // Antenna selector
+    optional string antenna = 5;
 }
 
 // Spectrum report
