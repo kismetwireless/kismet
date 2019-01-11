@@ -2027,6 +2027,9 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (dot11info->wps_serial_number != "")
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
+    if (dot11info->wps_uuid_e != "")
+        ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
+
     /* Manuf should be the IEEE manuf, not inherited from WPS.
      * Also, never do this - this clobbers the universal 'unknown' manuf.
     // Do we not know the basedev manuf?
@@ -2228,6 +2231,9 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                     client_record->set_wps_model_number(dot11info->wps_model_number);
                 if (dot11info->wps_serial_number != "")
                     client_record->set_wps_serial_number(dot11info->wps_serial_number);
+
+                if (dot11info->wps_uuid_e != "")
+                    client_record->set_wps_uuid_e(dot11info->wps_uuid_e);
             }
 
         } else if (dot11info->type == packet_data) {
