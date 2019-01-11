@@ -163,6 +163,12 @@ public:
             return NULL;
         }
 
+        std::shared_ptr<wps_de_sub_uuid_e> sub_element_uuid_e() const {
+            if (wps_de_type() == wps_de_uuid_e)
+                return std::static_pointer_cast<wps_de_sub_uuid_e>(sub_element());
+            return NULL;
+        }
+
     protected:
         uint16_t m_wps_de_type;
         uint16_t m_wps_de_len;
@@ -243,7 +249,7 @@ public:
 
             virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
 
-            std::string uuid() const {
+            std::string str() const {
                 return m_uuid;
             }
 

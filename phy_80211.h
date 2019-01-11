@@ -159,6 +159,7 @@ class dot11_packinfo : public packet_component {
             wps_model_name = "";
             wps_model_number = "";
             wps_serial_number = "";
+            wps_e_uuid = "";
 
             mgt_reason_code = 0;
 
@@ -252,6 +253,7 @@ class dot11_packinfo : public packet_component {
         std::string wps_model_name;
         std::string wps_model_number;
         std::string wps_serial_number;
+        std::string wps_e_uuid;
 
         // Direct kaitai structs pulled from the beacon
         std::shared_ptr<dot11_ie_11_qbss> qbss;
@@ -736,6 +738,8 @@ public:
             wps_model_number_id);
     __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
             wps_serial_number_id);
+    __ProxyDynamic(wps_e_uuid, std::string, std::string, std::string, wps_e_uuid,
+            wps_e_uuid_id);
 
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
@@ -808,6 +812,9 @@ protected:
         wps_serial_number_id = 
             RegisterDynamicField("dot11.advertisedssid.wps_serial_number", 
                 "wps serial number", &wps_serial_number);
+        wps_e_uuid_id =
+            RegisterDynamicField("dot11.advertisedssid.wps_e_uuid", "wps euuid",
+                    &wps_e_uuid);
 
         location_id = 
             RegisterDynamicField("dot11.advertisedssid.location", "location", &location);
@@ -901,6 +908,9 @@ protected:
 
     std::shared_ptr<TrackerElementString> wps_serial_number;
     int wps_serial_number_id;
+
+    std::shared_ptr<TrackerElementString> wps_e_uuid;
+    int wps_e_uuid_id;
 
     std::shared_ptr<kis_tracked_location> location;
     int location_id;
@@ -1010,6 +1020,8 @@ public:
             wps_model_number_id);
     __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
             wps_serial_number_id);
+    __ProxyDynamic(wps_e_uuid, std::string, std::string, std::string, wps_e_uuid,
+            wps_e_uuid_id);
 
 protected:
     virtual void register_fields() override {
@@ -1057,6 +1069,8 @@ protected:
         wps_serial_number_id = 
             RegisterDynamicField("dot11.client.wps_serial_number", 
                 "wps serial number", &wps_serial_number);
+        wps_e_uuid_id =
+            RegisterDynamicField("dot11.client.wps_e_uuid", "wps euuid", &wps_e_uuid);
 
     }
 
@@ -1117,6 +1131,9 @@ protected:
 
     std::shared_ptr<TrackerElementString> wps_serial_number;
     int wps_serial_number_id;
+
+    std::shared_ptr<TrackerElementString> wps_e_uuid;
+    int wps_e_uuid_id;
 };
 
 // Bitset of top-level device types for easy sorting/browsing

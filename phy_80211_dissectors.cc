@@ -2079,6 +2079,12 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                             packinfo->wps_serial_number = MungeToPrintable(serial_num->str());
                             continue;
                         }
+
+                        auto euuid = wpselem->sub_element_uuid_e();
+                        if (euuid != nullptr) {
+                            packinfo->wps_e_uuid = MungeToPrintable(euuid->str());
+                            continue;
+                        }
                     }
                 }
             } catch (const std::exception &e) {
