@@ -280,6 +280,13 @@ AC_ARG_ENABLE(capture-tools-only,
 	[caponly=0]
 )
 
+if test $caponly = 0; then
+    ALLTARGETS='$(STD_ALL)'
+else
+    ALLTARGETS='$(DS_ONLY)'
+fi
+AC_SUBST(ALLTARGETS)
+
 AC_ARG_ENABLE([python-tools],
         AS_HELP_STRING([--disable-python-tools], [Disable Python modules and Python-only data sources]),
         [want_python=no],

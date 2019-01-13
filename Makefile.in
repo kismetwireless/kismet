@@ -171,7 +171,10 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 
 PS	= kismet
 
-ALL	= Makefile $(PS) $(DATASOURCE_BINS)
+STD_ALL = Makefile $(PS) $(DATASOURCE_BINS)
+DS_ONLY = Makefile $(DATASOURCE_BINS)
+
+ALL	= @ALLTARGETS@
 
 INSTBINS = $(PS) $(DATASOURCE_BINS)
 

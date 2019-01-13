@@ -624,9 +624,9 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 BUILD_CAPTURE_NRF_MOUSEJACK
 BUILD_CAPTURE_FREAKLABS_ZIGBEE
-BUILD_CAPTURE_SDR_RTL433
-BUILD_CAPTURE_SDR_RTLAMR
 BUILD_CAPTURE_SDR_RTLADSB
+BUILD_CAPTURE_SDR_RTLAMR
+BUILD_CAPTURE_SDR_RTL433
 BUILD_CAPTURE_OSX_COREWLAN
 BUILD_CAPTURE_LINUX_BLUETOOTH
 BUILD_CAPTURE_HACKRF_SWEEP
@@ -690,6 +690,7 @@ LIBMLIB
 PTHREAD_LIBS
 PTHREAD_CFLAGS
 BUILD_PYTHON_MODULES
+ALLTARGETS
 EGREP
 GREP
 CXXCPP
@@ -8061,6 +8062,13 @@ else
 fi
 
 
+if test $caponly = 0; then
+    ALLTARGETS='$(STD_ALL)'
+else
+    ALLTARGETS='$(DS_ONLY)'
+fi
+
+
 # Check whether --enable-python-tools was given.
 if test "${enable_python_tools+set}" = set; then :
   enableval=$enable_python_tools; want_python=no
@@ -11930,6 +11938,8 @@ sharedatadir=${sharedatadir}
 
 
 
+
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
@@ -13344,14 +13354,14 @@ else
 	echo "no (python modules are disabled)";
 fi
 
-printf "        RTL-SDR RTLAMR: "
+printf "       RTL-SDR RTLAMR: "
 if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
         echo "yes";
 else
         echo "no (python modules are disabled)";
 fi
 
-printf "       RTL-SDR RTLADSB: "
+printf "      RTL-SDR RTLADSB: "
 if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
         echo "yes";
 else
