@@ -4,6 +4,7 @@
 
 # vim session
 .*.swp*
+.*.tmp*
 
 # Test files
 callgrind*
