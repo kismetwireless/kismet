@@ -2749,19 +2749,29 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
 
     /* Eject ourselves from the namespace into a new temporary one */
     if (unshare(CLONE_NEWNS) < 0) {
-        snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
-                strerror(errno));
-        cf_send_warning(caph, errstr);
-        return -1;
+        /* Only send warning if we're running as root */
+        if (geteuid() == 0) {
+            snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
+                    strerror(errno));
+            cf_send_warning(caph, errstr);
+            return -1;
+        }
+
+        return 0;
     }
 
     /* Remount / as a read-only bind-mount of itself over our rootfs */
     if (mount("/", "/", "bind", MS_BIND | MS_REMOUNT | MS_PRIVATE | 
                 MS_REC | MS_RDONLY, NULL) < 0) {
-        snprintf(errstr, STATUS_MAX, "datasource failed to remount root in jail as RO: %s",
-                strerror(errno));
-        cf_send_warning(caph, errstr);
-        return -1;
+        /* Only send warning if we're running as root */
+        if (geteuid() == 0) {
+            snprintf(errstr, STATUS_MAX, "datasource failed to remount root in jail as RO: %s",
+                    strerror(errno));
+            cf_send_warning(caph, errstr);
+            return -1;
+        }
+
+        return 0;
     }
 
     return 1;
