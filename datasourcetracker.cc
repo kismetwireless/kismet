@@ -729,8 +729,9 @@ int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
         SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
         if (StrLower(b->get_source_type()) == StrLower(in_builder->get_source_type())) {
-            _MSG_ERROR("A dtasource driver has already been registered for source type '{}', "
-                    "cannot register it twice; check your plugins", b->get_source_type());
+            _MSG_ERROR("Already registered a data source for type '{}', check that you don't have "
+                    "two copies of the same plugin installed in different locations or under "
+                    "different names.", b->get_source_type());
             return -1;
         }
     }
