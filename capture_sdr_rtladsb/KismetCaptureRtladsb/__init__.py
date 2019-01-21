@@ -324,7 +324,7 @@ class KismetRtladsb(object):
         ret = {}
 
         # Does the source look like 'rtladsb-XYZ'?
-        if not source[:9] == "rtladsb-":
+        if not source[:8] == "rtladsb-":
             return None
 
         if source[9:] == "mqtt":
@@ -347,7 +347,7 @@ class KismetRtladsb(object):
                 return None
 
             try:
-                intnum = int(source[9:])
+                intnum = int(source[8:])
             except ValueError:
                 return None
 
@@ -373,7 +373,7 @@ class KismetRtladsb(object):
 
         intnum = -1
 
-        if source[7:] == "mqtt":
+        if source[8:] == "mqtt":
             if not 'mqtt' in options:
                 ret["success"] = False
                 ret["message"] = "MQTT requested, but no mqtt=xyz option in source definition"
