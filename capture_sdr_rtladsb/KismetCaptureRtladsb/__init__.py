@@ -51,7 +51,7 @@ try:
         airplanes.append(row)
 
 except:
-    print "Couldn't find the airplane csv file '{}'".format(csv_path)
+    print "Couldn't find the airplane csv file '{}'. If this is a drone, set KISMET_ETC in your path".format(csv_path)
     sys.exit(0)
 
 try:
