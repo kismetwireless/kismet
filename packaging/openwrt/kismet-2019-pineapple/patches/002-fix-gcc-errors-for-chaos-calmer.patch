@@ -1,0 +1,25 @@
+--- a/kis_mutex.h
++++ b/kis_mutex.h
+@@ -369,10 +369,10 @@ protected:
+ class local_shared_unlocker {
+ public:
+     local_shared_unlocker(kis_recursive_timed_mutex *in) : 
+-        cpplock{*in} { }
++        cpplock(*in) { }
+ 
+     local_shared_unlocker(kis_recursive_timed_mutex& in) :
+-        cpplock{in} { }
++        cpplock(in) { }
+ 
+     ~local_shared_unlocker() {
+         cpplock.unlock();
+--- a/phy_rtladsb.cc
++++ b/phy_rtladsb.cc
+@@ -16,6 +16,7 @@
+     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ 
+ */
++#define _GLIBCXX_USE_C99 1
+ 
+ #include "config.h"
+ 
