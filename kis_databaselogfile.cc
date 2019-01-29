@@ -161,7 +161,7 @@ void KisDatabaseLogfile::Log_Close() {
 
     db_enabled = false;
 
-    std::shared_ptr<Packetchain> packetchain =
+    auto packetchain =
         Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
     if (packetchain != NULL) 
         packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
@@ -978,7 +978,6 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
 
 int KisDatabaseLogfile::packet_handler(CHAINCALL_PARMS) {
     // Extremely basic shim to our built-in logging
-
     KisDatabaseLogfile *logfile = (KisDatabaseLogfile *) auxdata;
 
     return logfile->log_packet(in_pack);
