@@ -97,13 +97,19 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     bool dbr = Database_Open(in_path);
 
-    if (!dbr)
+    if (!dbr) {
+        _MSG_FATAL("Unable to open KismetDB log at {}", in_path);
+        globalreg->fatal_condition = true;
         return false;
+    }
 
     dbr = Database_UpgradeDB();
 
-    if (!dbr)
+    if (!dbr) {
+        _MSG_FATAL("Unable to update existing KismetDB log at {}", in_path);
+        globalreg->fatal_condition = true;
         return false;
+    }
 
     set_int_log_path(in_path);
     set_int_log_open(true);
