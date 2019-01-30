@@ -98,7 +98,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     bool dbr = Database_Open(in_path);
 
     if (!dbr) {
-        _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists"
+        _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
                 "and that you have write permissions to it.", in_path);
         globalreg->fatal_condition = true;
         return false;
