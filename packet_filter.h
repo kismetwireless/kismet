@@ -70,11 +70,13 @@ protected:
 
     // Default endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> default_endp;
+    int handle_set_default_endp(std::ostream& stream, SharedStructured post_structured);
 
     // Default display endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> self_endp;
-    // Build the return object
-    virtual std::shared_ptr<TrackerElementMap> default_endp_builder() = 0;
+    // Build the return object; subfilters must implement this to bypass class heirarchy & call
+    // build_self_content
+    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() = 0;
     // Cascading build
     virtual void build_self_content(std::shared_ptr<TrackerElementMap> content);
 };

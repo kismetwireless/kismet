@@ -36,9 +36,39 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
 
     self_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
+                url, false,
                 [this]() -> std::shared_ptr<TrackerElement> {
-                    return default_endp_builder();
+                    return self_endp_handler();
                 }, mutex);
+
+    auto posturl = fmt::format("{}/set_default", url);
+    default_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
+                url, true,
+                [this](std::ostream& stream, const std::string& uri,
+                    SharedStructured post_structured, 
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+                    return handle_set_default_endp(stream, post_structured);
+                }, mutex);
+    
+}
+
+int Packetfilter::handle_set_default_endp(std::ostream& stream, SharedStructured structured) {
+    try {
+        if (structured->hasKey("default")) {
+            set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
+            stream << "Default filter: " << get_filter_default() << "\n";
+            return 200;
+        } else {
+            throw std::runtime_error(std::string("Missing 'default' key in command dictionary."));
+        }
+    } catch (const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled request\n";
+    return 500;
 }
 
 void Packetfilter::build_self_content(std::shared_ptr<TrackerElementMap> content) {
