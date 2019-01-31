@@ -63,6 +63,8 @@ protected:
 
     kis_recursive_timed_mutex mutex;
 
+    std::string base_uri;
+
     std::shared_ptr<TrackerElementString> filter_id;
     std::shared_ptr<TrackerElementString> filter_description;
     std::shared_ptr<TrackerElementString> filter_type;

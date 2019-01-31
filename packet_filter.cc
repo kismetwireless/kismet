@@ -24,7 +24,11 @@
 
 
 Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_description,
-        const std::string& in_type) {
+        const std::string& in_type) :
+    tracker_component() {
+
+    register_fields();
+    reserve_fields(nullptr);
 
     set_filter_id(in_id);
     set_filter_description(in_description);
@@ -32,7 +36,9 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
 
     set_filter_default(false);
 
-    auto url = fmt::format("/packetfilters/filters/{}/filter", in_id);
+    base_uri = fmt::format("/packetfilters/{}", in_id);
+
+    auto url = fmt::format("{}/filter", base_uri);
 
     self_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
@@ -41,7 +47,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
                     return self_endp_handler();
                 }, mutex);
 
-    auto posturl = fmt::format("{}/set_default", url);
+    auto posturl = fmt::format("{}/set_default", base_uri);
     default_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
                 url, true,
@@ -93,6 +99,9 @@ bool Packetfilter::filterstring_to_bool(const std::string& str) {
     if (cstr == "reject")
         return true;
 
+    if (cstr == "deny")
+        return true;
+
     if (cstr == "filter")
         return true;
 
@@ -100,5 +109,13 @@ bool Packetfilter::filterstring_to_bool(const std::string& str) {
         return true;
 
     return false;
+}
+
+PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::string& in_description) :
+    Packetfilter(in_id, in_description, "mac_addr") {
+
+    register_fields();
+    reserve_fields(nullptr);
+
 }
 
