@@ -50,11 +50,11 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     auto posturl = fmt::format("{}/set_default", base_uri);
     default_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
-                url, true,
+                posturl, true,
                 [this](std::ostream& stream, const std::string& uri,
                     SharedStructured post_structured, 
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
-                    return handle_set_default_endp(stream, post_structured);
+                    return default_set_endp_handler(stream, post_structured);
                 }, mutex);
     
 }
@@ -117,5 +117,17 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     register_fields();
     reserve_fields(nullptr);
 
+    auto posturl = fmt::format("{}/set_mac_filters", base_uri);
+    default_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
+                posturl, true,
+                [this](std::ostream& stream, const std::string& uri,
+                    SharedStructured post_structured, 
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+                    return macaddr_endp_handler(stream, post_structured);
+                }, mutex);
+
 }
+
+
 
