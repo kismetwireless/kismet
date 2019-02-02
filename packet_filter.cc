@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -59,7 +59,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     
 }
 
-int Packetfilter::handle_set_default_endp(std::ostream& stream, SharedStructured structured) {
+int Packetfilter::default_set_endp_handler(std::ostream& stream, SharedStructured structured) {
     try {
         if (structured->hasKey("default")) {
             set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
@@ -117,15 +117,45 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     register_fields();
     reserve_fields(nullptr);
 
-    auto posturl = fmt::format("{}/set_mac_filters", base_uri);
-    default_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
-                posturl, true,
-                [this](std::ostream& stream, const std::string& uri,
+    macaddr_edit_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+                [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
+                    // /packetfilters/[id]/[block]/filter
+                    if (path.size() < 4)
+                        return false;
+
+                    if (path[0] != "packetfilters")
+                        return false;
+
+                    if (path[1] != get_filter_id())
+                        return false;
+
+                    if (path[3] != "filter")
+                        return false;
+
+                    if (path[2] == "source")
+                        return true;
+
+                    if (path[2] == "destination")
+                        return true;
+
+                    if (path[2] == "network")
+                        return true;
+
+                    if (path[2] == "other")
+                        return true;
+
+                    if (path[2] == "any")
+                        return true;
+
+                    return false;
+                },
+                true,
+                [this](std::ostream& stream, const std::vector<std::string>& path, const std::string& uri,
                     SharedStructured post_structured, 
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
-                    return macaddr_endp_handler(stream, post_structured);
-                }, mutex);
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return edit_endp_handler(stream, path, post_structured);
+                }, &mutex);
 
 }
 

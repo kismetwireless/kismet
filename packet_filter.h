@@ -122,7 +122,12 @@ protected:
     std::shared_ptr<TrackerElementMacMap> filter_any;
 
     // Address management endpoint keyed on path
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> macaddr_endp;
-    unsigned int macaddr_endp_handler(std::ostream& stream, SharedStructured structured);
+    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_edit_endp;
+    unsigned int edit_endp_handler(std::ostream& stream, const std::vector<std::string>& path, 
+            SharedStructured structured);
+
+    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_remove_endp;
+    unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
+            SharedStructured structured);
 };
 
