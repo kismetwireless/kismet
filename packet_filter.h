@@ -105,18 +105,20 @@ protected:
                 "Destination address filters", &filter_dest);
         RegisterField("kismet.packetfilter.macaddr.network", 
                 "Network/BSSID address filters", &filter_network);
-        RegisterField("kismet.packetfilter.macaddr.transmit", 
-                "Transmit address filters", &filter_transmit);
+        RegisterField("kismet.packetfilter.macaddr.other", 
+                "Other address filters", &filter_other);
 
         RegisterField("kismet.packetfilter.macaddr.any", 
-                "Any matching address type", &filter_transmit);
+                "Any matching address type", &filter_any);
     }
+
+    unsigned int pack_comp_common;
 
     // Source, dest, and BSSID (for wifi) or transmitter (for others)
     std::shared_ptr<TrackerElementMacMap> filter_source;
     std::shared_ptr<TrackerElementMacMap> filter_dest;
     std::shared_ptr<TrackerElementMacMap> filter_network;
-    std::shared_ptr<TrackerElementMacMap> filter_transmit;
+    std::shared_ptr<TrackerElementMacMap> filter_other;
 
     // ANY address found in a packet
     std::shared_ptr<TrackerElementMacMap> filter_any;

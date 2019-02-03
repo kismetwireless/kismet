@@ -21,7 +21,8 @@
 #include "fmt.h"
 #include "packet_filter.h"
 #include "util.h"
-
+#include "packet.h"
+#include "packetchain.h"
 
 Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_description,
         const std::string& in_type) :
@@ -198,6 +199,57 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
                     return remove_endp_handler(stream, path, post_structured);
                 }, &mutex);
 
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
+}
+
+bool PacketfilterMacaddr::filter_packet(kis_packet *packet) {
+    auto common = packet->fetch<kis_common_info>(pack_comp_common);
+
+    if (common == nullptr)
+        return get_filter_default();
+
+    auto si = filter_source->find(common->source);
+    if (si != filter_source->end()) {
+        auto v = std::static_pointer_cast<TrackerElementUInt8>(si->second);
+        return v->get();
+    }
+
+    auto di = filter_dest->find(common->dest);
+    if (di != filter_dest->end()) {
+        auto v = std::static_pointer_cast<TrackerElementUInt8>(di->second);
+        return v->get();
+    }
+
+    auto ni = filter_network->find(common->network);
+    if (ni != filter_network->end()) {
+        auto v = std::static_pointer_cast<TrackerElementUInt8>(ni->second);
+        return v->get();
+    }
+
+    auto oi = filter_other->find(common->transmitter);
+    if (oi != filter_other->end()) {
+        auto v = std::static_pointer_cast<TrackerElementUInt8>(ni->second);
+        return v->get();
+    }
+
+    auto ai = filter_any->find(common->source);
+
+    if (ai == filter_any->end())
+        ai = filter_any->find(common->dest);
+
+    if (ai == filter_any->end())
+        ai = filter_any->find(common->network);
+
+    if (ai == filter_any->end())
+        ai = filter_any->find(common->transmitter);
+
+    if (ai != filter_any->end()) {
+        auto v = std::static_pointer_cast<TrackerElementUInt8>(ai->second);
+        return v->get();
+    }
+
+    return get_filter_default();
 }
 
 
