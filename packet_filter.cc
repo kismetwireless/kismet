@@ -45,8 +45,9 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
                 url, false,
                 [this]() -> std::shared_ptr<TrackerElement> {
+                    local_locker lock(&mutex);
                     return self_endp_handler();
-                }, mutex);
+                });
 
     auto posturl = fmt::format("{}/set_default", base_uri);
     default_endp =
@@ -55,8 +56,9 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
                 [this](std::ostream& stream, const std::string& uri,
                     SharedStructured post_structured, 
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+                    local_locker lock(&mutex);
                     return default_set_endp_handler(stream, post_structured);
-                }, mutex);
+                });
     
 }
 
