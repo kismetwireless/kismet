@@ -1218,12 +1218,31 @@ public:
         return map.size();
     }
 
+    // std::insert methods, does not replace existing objects
     std::pair<iterator, bool> insert(pair p) {
         return map.insert(p);
     }
 
     std::pair<iterator, bool> insert(const K& i, const V& e) {
         return insert(std::make_pair(i, e));
+    }
+
+    // insert, and replace if key is found.  if key is not found, insert
+    // as normal.
+    std::pair<iterator, bool> replace(pair p) {
+        auto k = map.find(p.first);
+        if (k != map.end())
+            map.erase(k);
+
+        return map.insert(p);
+    }
+
+    std::pair<iterator, bool> replace(const K& i, const V& e) {
+        auto k = map.find(i);
+        if (i != map.end())
+            map.erase(k);
+
+        return map.insert(std::make_pair(i, e));
     }
 
 protected:
