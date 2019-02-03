@@ -117,6 +117,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     register_fields();
     reserve_fields(nullptr);
 
+    // Set and clear endpoints
     macaddr_edit_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
@@ -151,13 +152,52 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
                     return false;
                 },
                 true,
-                [this](std::ostream& stream, const std::vector<std::string>& path, const std::string& uri,
-                    SharedStructured post_structured, 
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                [this](std::ostream& stream, const std::vector<std::string>& path, 
+                        const std::string& uri, SharedStructured post_structured, 
+                        Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
                     return edit_endp_handler(stream, path, post_structured);
                 }, &mutex);
 
-}
+    macaddr_remove_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+                [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
+                    // /packetfilters/[id]/[block]/remove
+                    if (path.size() < 4)
+                        return false;
 
+                    if (path[0] != "packetfilters")
+                        return false;
+
+                    if (path[1] != get_filter_id())
+                        return false;
+
+                    if (path[3] != "remove")
+                        return false;
+
+                    if (path[2] == "source")
+                        return true;
+
+                    if (path[2] == "destination")
+                        return true;
+
+                    if (path[2] == "network")
+                        return true;
+
+                    if (path[2] == "other")
+                        return true;
+
+                    if (path[2] == "any")
+                        return true;
+
+                    return false;
+                },
+                true,
+                [this](std::ostream& stream, const std::vector<std::string>& path,
+                        const std::string& uri, SharedStructured post_structured,
+                        Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return remove_endp_handler(stream, path, post_structured);
+                }, &mutex);
+
+}
 
 
