@@ -1239,7 +1239,7 @@ public:
 
     std::pair<iterator, bool> replace(const K& i, const V& e) {
         auto k = map.find(i);
-        if (i != map.end())
+        if (k != map.end())
             map.erase(k);
 
         return map.insert(std::make_pair(i, e));
