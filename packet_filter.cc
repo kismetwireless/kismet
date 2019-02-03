@@ -203,6 +203,70 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
 }
 
+unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream, 
+        const std::vector<std::string>& path, SharedStructured structured) {
+
+    if (path.size() < 3) {
+        stream << "Malformed request path\n";
+        return 500;
+    }
+
+    try {
+        if (!structured->hasKey("filter")) {
+            stream << "Missing 'filter' object in request\n";
+            return 500;
+        }
+
+        auto filter = structured->getStructuredByKey("filter");
+
+        if (!filter->isDictionary()) {
+            stream << "Expected dictionary 'filter' object\n";
+            return 500;
+        }
+
+        std::shared_ptr<TrackerElementMacMap> target;
+
+        if (path[2] == "source")
+            target = filter_source;
+
+        if (path[2] == "destination")
+            target = filter_dest;
+
+        if (path[2] == "network")
+            target = filter_network;
+
+        if (path[2] == "other")
+            target = filter_other;
+
+        if (path[2] == "any")
+            target = filter_any;
+
+        if (target == nullptr) 
+            throw std::runtime_error(fmt::format("Could not match target filter '{}'",
+                        kishttpd::EscapeHtml(path[2])));
+
+        for (auto i : filter->getStructuredStrMap()) {
+            mac_addr m{i.first};
+            bool v = i.second->getBool();
+
+            if (m.error) 
+                throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
+                            kishttpd::EscapeHtml(i.first)));
+
+            auto sv = std::make_shared<TrackerElementUInt8>(0, v);
+
+            target->replace(m, sv);
+        }
+
+    } catch (const std::exception& e) {
+        stream << "Error handling request: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled request\n";
+    return 500;
+}
+
 bool PacketfilterMacaddr::filter_packet(kis_packet *packet) {
     auto common = packet->fetch<kis_common_info>(pack_comp_common);
 
