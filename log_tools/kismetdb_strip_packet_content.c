@@ -38,9 +38,7 @@
 
 void print_help(char *argv) {
     printf("Kismet packet content strip tool.\n");
-    printf("A simple tool for stripping the packet data from a KismetDB log file.\n"
-           "Typically the packet content should be stripped before uploading to \n"
-           "a site like Wigle\n");
+    printf("A simple tool for stripping the packet data from a KismetDB log file.\n");
     printf("Usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output kismetdb file with packet content stripped\n"
