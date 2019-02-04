@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <sqlite3.h>
 
@@ -42,7 +44,8 @@ void print_help(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output kismetdb file with packet content stripped\n"
-           " -v, --verbose                Verbose output\n");
+           " -v, --verbose                Verbose output\n"
+           " -f, --force                  Force writing to the target file, even if it exists.\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -50,6 +53,7 @@ int main(int argc, char *argv[]) {
         { "in", required_argument, 0, 'i' },
         { "out", required_argument, 0, 'o' },
         { "verbose", no_argument, 0, 'b' },
+        { "force", no_argument, 0, 'f' },
         { "help", no_argument, 0, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -60,6 +64,7 @@ int main(int argc, char *argv[]) {
 
     char *in_fname = NULL, *out_fname = NULL;
     bool verbose = false;
+    bool force = false;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -69,9 +74,11 @@ int main(int argc, char *argv[]) {
     char copybuf[4096];
     size_t copysz, writesz;
 
+    struct stat statbuf;
+
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:v", 
+                            "-hi:o:vf", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -84,11 +91,14 @@ int main(int argc, char *argv[]) {
             out_fname = strdup(optarg);
         } else if (r == 'v') { 
             verbose = true;
+        } else if (r == 'f') {
+            force = true;
         }
     }
 
     if (out_fname == NULL || in_fname == NULL) {
-        fprintf(stderr, "ERROR: Expected --in [kismetdb file] and --out [stripped kismetdb file]\n");
+        fprintf(stderr, "ERROR: Expected --in [kismetdb file] and "
+                "--out [stripped kismetdb file]\n");
         exit(1);
     }
 
@@ -96,6 +106,18 @@ int main(int argc, char *argv[]) {
 
     if (verbose)
         printf("* Preparing input database '%s'...\n", in_fname);
+
+    if (stat(out_fname, &statbuf) < 0) {
+        if (errno != ENOENT) {
+            fprintf(stderr, "ERROR:  Unexpected problem checking output "
+                    "file '%s': %s\n", out_fname, strerror(errno));
+            exit(1);
+        }
+    } else if (force == false) {
+        fprintf(stderr, "ERROR:  Output file '%s' exists already; use --force to "
+                "clobber the file.\n", out_fname);
+        exit(1);
+    }
 
     sql_r = sqlite3_open(in_fname, &db);
 
