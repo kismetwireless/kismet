@@ -106,11 +106,16 @@ BUILD_CAPTURE_FREAKLABS_ZIGBEE = @BUILD_CAPTURE_FREAKLABS_ZIGBEE@
 CAPTURE_NRF_MOUSEJACK = capture_nrf_mousejack/kismet_cap_nrf_mousejack
 BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 
+# Capture binaries to build
+DATASOURCE_BINS = @DATASOURCE_BINS@
+
 # Do we build and install the python modules?
 BUILD_PYTHON_MODULES = @BUILD_PYTHON_MODULES@
 
-# Capture binaries to build
-DATASOURCE_BINS = @DATASOURCE_BINS@
+LOGTOOL_KISMETDB_STRIP = log_tools/kismetdb_strip_packets
+
+LOGTOOL_BINS = $(LOGTOOL_KISMETDB_STRIP)
+
 
 # Disabled; Kaitai generates unusable C++ code currently
 # KAITAI_PARSERS = \
@@ -171,7 +176,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 
 PS	= kismet
 
-STD_ALL = Makefile $(PS) $(DATASOURCE_BINS)
+STD_ALL = Makefile $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS)
 DS_ONLY = Makefile $(DATASOURCE_BINS)
 
 ALL	= @ALLTARGETS@
@@ -187,6 +192,9 @@ all-with-plugins:
 
 $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_STRIP):	log_tools/kismetdb_strip_packet_content.c.o
+	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) log_tools/kismetdb_strip_packet_content.c.o -lsqlite3
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
@@ -255,6 +263,9 @@ commoninstall: $(INSTBINS)
 
 	# Install the alias script
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 kismet_server $(BIN)/kismet_server; 
+
+	# Install the compiled log tools
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_STRIP) $(BIN)/`basename $(LOGTOOL_KISMETDB_STRIP)`;
 
 	mkdir -p $(BIN)
 
@@ -425,6 +436,7 @@ rpm:
 
 depclean:
 	@-rm -f *.d
+	@-rm -f log_tools/*.d
 
 clean:
 	@-rm -f *.o *.mo
@@ -435,6 +447,8 @@ clean:
 	@-rm -f dot11_parsers/*.d
 	@-rm -f protobuf_cpp/*.pb.*
 	@-rm -f protobuf_c/*.pb-c.*
+	@-rm -f log_tools/*.o
+	@-rm -f log_tools/*.d
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(BUILD_CAPTURE_PCAPFILE)
