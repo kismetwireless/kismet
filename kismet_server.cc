@@ -371,7 +371,6 @@ int Usage(char *argv) {
 
     printf(" *** Generic Options ***\n");
     printf(" -v, --version                Show version\n"
-           "     --show-admin-password    Show admin password in server cosole wrapper\n"
            "     --no-console-wrapper     Disable server console wrapper\n"
            "     --no-ncurses-wrapper     Disable server console wrapper\n"
            "     --debug                  Disable the console wrapper and the crash\n"
