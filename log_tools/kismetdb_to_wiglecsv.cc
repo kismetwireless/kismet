@@ -24,6 +24,9 @@
 #include "config.h"
 
 #include <map>
+#include <iomanip>
+#include <ctime>
+#include <iostream>
 
 #include <string.h>
 #include <stdio.h>
@@ -40,6 +43,78 @@
 
 #include "json/json.h"
 #include "sqlite3_cpp11.h"
+
+#include "packet_ieee80211.h"
+
+// Some conversion functions from Kismet for Wi-Fi channels
+int FrequencyToWifiChannel(double in_freq) {
+    if (in_freq == 0)
+        return 0;
+
+    in_freq = in_freq / 1000;
+
+    if (in_freq == 2484)
+        return 14;
+    else if (in_freq < 2484)
+        return (in_freq - 2407) / 5;
+    else if (in_freq >= 4910 && in_freq <= 4980)
+        return (in_freq - 4000) / 5;
+    else if (in_freq <= 45000)
+        return (in_freq - 5000) / 5;
+    else if (in_freq >= 58320 && in_freq <= 64800)
+        return (in_freq - 56160) / 2160;
+    else
+        return in_freq;
+}
+
+std::string WifiCryptToString(unsigned long cryptset) {
+    std::stringstream ss;
+
+    if (cryptset & crypt_wps)
+        ss << "[WPS] ";
+
+    if ((cryptset & crypt_protectmask) == crypt_wep) 
+        ss << "[WEP] ";
+
+    if (cryptset & crypt_wpa) {
+
+        std::string cryptver = "";
+
+        if (cryptset & crypt_tkip) {
+            if (cryptset & crypt_aes_ccm) {
+                cryptver = "CCMP+TKIP";
+            } else {
+                cryptver = "TKIP";
+            }
+        } else if (cryptset & crypt_aes_ccm) {
+            cryptver = "CCMP";
+        }
+
+        std::string authver = "";
+
+        if (cryptset & crypt_psk) {
+            authver = "PSK";
+        } else if (cryptset & crypt_eap) {
+            authver = "EAP";
+        }
+
+        if ((cryptset & crypt_version_wpa) && (cryptset & crypt_version_wpa2)) {
+            ss << "[WPA-" << authver << "-" << cryptver << "] ";
+            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
+        } else if (cryptset & crypt_version_wpa2) {
+            ss << "[WPA2-" << authver << "-" << cryptver << "] ";
+        } else {
+            ss << "[WPA-" << authver << "-" << cryptver << "] ";
+        }
+    }
+
+    auto retstr = ss.str();
+
+    if (retstr.length() > 0)
+        return retstr.substr(0, retstr.length() - 1);
+
+    return "";
+}
 
 void print_help(char *argv) {
     printf("Kismetdb to WigleCSV\n");
@@ -185,18 +260,26 @@ int main(int argc, char *argv[]) {
     // on it as a string
     class cache_obj {
     public:
-        cache_obj(uint64_t t, std::string s, std::string c) :
+        cache_obj(std::string t, std::string s, std::string c) :
             first_time{t},
-            ssid{s},
+            name{s},
             crypto{c} { }
 
-        uint64_t first_time;
-        std::string ssid;
+        std::string first_time;
+        std::string name;
         std::string crypto;
     };
 
     std::map<std::string, cache_obj *> device_cache_map;
 
+    // CSV headers
+    fprintf(ofile, "WigleWifi-1.4,appRelease=20190201,model=Kismet,release=2019.02.01.%d,"
+            "device=kismet,display=kismet,board=kismet,brand=kismet\n",
+            db_version);
+    fprintf(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
+            "AltitudeMeters,AccuracyMeters,Type\n");
+
+    // Prep the packet list for different kismetdb versions
     std::list<std::string> packet_fields;
 
     if (db_version < 5) {
@@ -219,6 +302,12 @@ int main(int argc, char *argv[]) {
 
         auto lat = 0.0f, lon = 0.0f, alt = 0.0f, spd = 0.0f;
 
+        auto signal = sqlite3_column_as<int>(p, 4);
+        auto channel = sqlite3_column_as<double>(p, 5);
+
+        auto crypt = std::string{""};
+
+        // Handle the different versions
         if (db_version < 5) {
             lat = sqlite3_column_as<double>(p, 2) / 100000;
             lon = sqlite3_column_as<double>(p, 3) / 100000;
@@ -243,7 +332,7 @@ int main(int argc, char *argv[]) {
             auto dev = dev_query.begin();
 
             if (dev == dev_query.end()) {
-                printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
+                // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
                 continue;
             }
 
@@ -253,10 +342,40 @@ int main(int argc, char *argv[]) {
             try {
                 ss >> json;
 
-                uint64_t timestamp = json["kismet.device.base.first_time"].asInt64();
-                std::string ssid = json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString();
+                auto timestamp = json["kismet.device.base.first_time"].asUInt64();
+                auto name = std::string{""};
+                auto crypt = std::string{""};
+                auto type = json["kismet.device.base.type"].asString();
 
-                cached = new cache_obj{timestamp, ssid, "[tbd]"};
+                if (phy == "IEEE802.11") {
+                    if (type != "Wi-Fi AP")
+                        continue;
+
+                    name = json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString();
+
+                    auto last_ssid_key = 
+                        json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();
+                    std::stringstream ss;
+
+                    ss << last_ssid_key;
+
+                    auto cryptset = 
+
+                    crypt = WifiCryptToString(
+                            json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()]["dot11.advertisedssid.crypt_set"].asUInt64()
+                            );
+
+                    crypt += "[ESS]";
+
+                }
+
+                std::time_t timet(timestamp);
+                std::tm tm = *std::localtime(&timet);
+                std::stringstream ts;
+
+                ts << std::put_time(&tm, "%Y-%b-%d %H:%M:%S"); 
+
+                cached = new cache_obj{ts.str(), name, crypt};
 
                 device_cache_map[sourcemac] = cached;
 
@@ -269,14 +388,20 @@ int main(int argc, char *argv[]) {
         if (cached == nullptr)
             continue;
 
-        printf("%s %s %lu \"%s\" %lf %lf %f %f %d %f\n", 
-                sourcemac.c_str(), phy.c_str(),
-                cached->first_time, cached->ssid.c_str(),
-                lat, lon, alt, spd,
-                sqlite3_column_as<int>(p, 4),
-                sqlite3_column_as<double>(p, 5));
+        if (phy == "IEEE802.11")
+            channel = FrequencyToWifiChannel(channel);
 
+        // printf("MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,AltitudeMeters,AccuracyMeters,Type\n");
 
+        fprintf(ofile, "%s,%s,%s,%s,%d,%d,%lf,%f,%lf,0,%s\n",
+                sourcemac.c_str(),
+                cached->name.c_str(),
+                cached->crypto.c_str(),
+                cached->first_time.c_str(),
+                (int) channel,
+                signal,
+                lat, lon, alt,
+                "WIFI");
     }
 
     sqlite3_close(db);
