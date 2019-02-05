@@ -114,7 +114,12 @@ BUILD_PYTHON_MODULES = @BUILD_PYTHON_MODULES@
 
 LOGTOOL_KISMETDB_STRIP = log_tools/kismetdb_strip_packets
 
-LOGTOOL_BINS = $(LOGTOOL_KISMETDB_STRIP)
+LOGTOOL_KISMETDB_WIGLE = log_tools/kismetdb_to_wiglecsv
+LOGTOOL_KISMETDB_WIGLE_O = \
+	log_tools/kismetdb_to_wiglecsv.cc.o \
+	sqlite3_cpp11.cc.o jsonhpp.cc.o
+
+LOGTOOL_BINS = $(LOGTOOL_KISMETDB_STRIP) $(LOGTOOL_KISMETDB_WIGLE)
 
 
 # Disabled; Kaitai generates unusable C++ code currently
@@ -195,6 +200,9 @@ $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,
 
 $(LOGTOOL_KISMETDB_STRIP):	log_tools/kismetdb_strip_packet_content.c.o
 	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) log_tools/kismetdb_strip_packet_content.c.o -lsqlite3
+
+$(LOGTOOL_KISMETDB_WIGLE):	$(LOGTOOL_KISMETDB_WIGLE_O)
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_WIGLE) $(LOGTOOL_KISMETDB_WIGLE_O) $(LIBS) $(CXXLIBS) -rdynamic
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
