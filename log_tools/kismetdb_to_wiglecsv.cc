@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
         std::string crypto;
     };
 
-    std::map<std::string, cache_obj> device_cache_map;
+    std::map<std::string, cache_obj *> device_cache_map;
 
     std::list<std::string> packet_fields;
 
@@ -229,35 +229,53 @@ int main(int argc, char *argv[]) {
             spd = sqlite3_column_as<double>(p, 7);
         }
 
-        printf("%s %s %lf %lf %f %f %d %f\n", 
+        auto ci = device_cache_map.find(sourcemac);
+        cache_obj *cached = nullptr;
+
+        if (ci != device_cache_map.end()) {
+            cached = ci->second;
+        } else {
+            auto dev_query = _SELECT(db, "devices", {"device"},
+                    _WHERE("devmac", EQ, sourcemac,
+                        AND,
+                        "phyname", EQ, phy));
+
+            auto dev = dev_query.begin();
+
+            if (dev == dev_query.end()) {
+                printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
+                continue;
+            }
+
+            Json::Value json;
+            std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
+
+            try {
+                ss >> json;
+
+                uint64_t timestamp = json["kismet.device.base.first_time"].asInt64();
+                std::string ssid = json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString();
+
+                cached = new cache_obj{timestamp, ssid, "[tbd]"};
+
+                device_cache_map[sourcemac] = cached;
+
+            } catch (const std::exception& e) {
+                fprintf(stderr, "WARNING:  Could not process device info for %s/%s, skipping\n",
+                        sourcemac.c_str(), phy.c_str());
+            }
+        }
+
+        if (cached == nullptr)
+            continue;
+
+        printf("%s %s %lu \"%s\" %lf %lf %f %f %d %f\n", 
                 sourcemac.c_str(), phy.c_str(),
+                cached->first_time, cached->ssid.c_str(),
                 lat, lon, alt, spd,
                 sqlite3_column_as<int>(p, 4),
                 sqlite3_column_as<double>(p, 5));
 
-        auto dev_query = _SELECT(db, "devices", {"device"},
-                _WHERE("devmac", EQ, sourcemac,
-                    AND,
-                    "phyname", EQ, phy));
-
-        auto dev = dev_query.begin();
-
-        if (dev == dev_query.end()) {
-            printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
-            continue;
-        }
-
-        Json::Value json;
-        std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
-
-        try {
-            ss >> json;
-
-
-        } catch (const std::exception& e) {
-            fprintf(stderr, "WARNING:  Could not process device info for %s/%s, skipping\n",
-                    sourcemac.c_str(), phy.c_str());
-        }
 
     }
 
