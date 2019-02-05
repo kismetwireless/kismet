@@ -1449,15 +1449,18 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-capture-tools-only  Configure and build for capture tools and remote only
-  --disable-python-tools  Disable Python modules and Python-only data sources
+  --disable-python-tools  Disable building Python modules and Python-only data
+                          sources
   --disable-largefile     omit support for large files
-  --disable-mutextimeout  disable failsafe mutex lock timeout
-  --disable-linuxwext     disable Linux wireless extensions
-  --disable-pcre          disable building pcre components
+  --disable-mutextimeout  Disable failsafe thread mutex timer, use with
+                          caution
+  --disable-linuxwext     Disable Linux wireless extensions
+  --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
-  --disable-pcap          disable libpcap (most sources) capture support
-  --disable-libnm         Disable libnm support
-  --disable-libusb        Disable libUSB support
+  --disable-pcap          Disable libpcap support and most data sources
+  --disable-libnm         Disable libnm networkmanager support
+  --disable-libusb        Disable libUSB support and any libUSB based data
+                          sources
   --disable-lmsensors     Disable lmsensors support
   --disable-optimization        disable -Ox gcc optimization
   --enable-asan           enable ASAN address debugging
@@ -8069,11 +8072,16 @@ else
 fi
 
 
+want_python=yes
 # Check whether --enable-python-tools was given.
 if test "${enable_python_tools+set}" = set; then :
-  enableval=$enable_python_tools; want_python=no
+  enableval=$enable_python_tools; case "${enableval}" in
+	  no) want_python=no ;;
+	   *) want_python=yes ;;
+	 esac
 else
   want_python=yes
+
 fi
 
 
@@ -11623,14 +11631,20 @@ fi
 
 
 
-want_usb="no"
+want_usb="yes"
 have_usb="no"
+
 # Check whether --enable-libusb was given.
 if test "${enable_libusb+set}" = set; then :
-  enableval=$enable_libusb; want_usb=no
+  enableval=$enable_libusb; case "${enableval}" in
+	  no) want_usb=no ;;
+	   *) want_usb=yes ;;
+	 esac
 else
   want_usb=yes
+
 fi
+
 
 if test "x$want_usb" != "xno"; then :
 

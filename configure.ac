@@ -287,10 +287,15 @@ else
 fi
 AC_SUBST(ALLTARGETS)
 
+want_python=yes
 AC_ARG_ENABLE([python-tools],
-        AS_HELP_STRING([--disable-python-tools], [Disable Python modules and Python-only data sources]),
-        [want_python=no],
-        [want_python=yes])
+    AS_HELP_STRING([--disable-python-tools], [Disable building Python modules and Python-only data sources]),
+	[case "${enableval}" in
+	  no) want_python=no ;;
+	   *) want_python=yes ;;
+	 esac],
+	[want_python=yes]
+)
 
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
@@ -731,7 +736,7 @@ fi
 
 # Allow disabling mutex timeout, use with caution
 AC_ARG_ENABLE(mutextimeout,
-	[  --disable-mutextimeout  disable failsafe mutex lock timeout],
+    AS_HELP_STRING([--disable-mutextimeout], [Disable failsafe thread mutex timer, use with caution]),
 	[case "${enableval}" in
 	  no) wantmutex=0 ;;
 	   *) wantmutex=1 ;;
@@ -757,7 +762,7 @@ AC_ARG_WITH(linuxheaders,
 	])
 
 AC_ARG_ENABLE(linuxwext,
-	[  --disable-linuxwext     disable Linux wireless extensions],
+    AS_HELP_STRING([--disable-linuxwext], [Disable Linux wireless extensions]),
 	[case "${enableval}" in
 	  no) wantwext=no ;;
 	   *) wantwext=yes ;;
@@ -855,7 +860,7 @@ AC_ARG_WITH(pcreheaders,
 	])
 
 AC_ARG_ENABLE(pcre,
-	[  --disable-pcre          disable building pcre components],
+    AS_HELP_STRING([--disable-pcre], [Disable PCRE regex]),
 	[case "${enableval}" in
 	  no) wantpcre=no ;;
 	   *) wantpcre=yes ;;
@@ -932,7 +937,7 @@ AC_ARG_ENABLE(prelude,
 ],[wantprelude=no])
 
 AC_ARG_ENABLE(pcap,
-	[  --disable-pcap          disable libpcap (most sources) capture support],
+    AS_HELP_STRING([--disable-pcap], [Disable libpcap support and most data sources]),
 	[case "${enableval}" in
 	  no) wantpcap=no ;;
 	   *) wantpcap=yes ;;
@@ -1167,7 +1172,7 @@ NMCFLAGS=""
 
 want_libnm="no"
 AC_ARG_ENABLE(libnm,
-        AS_HELP_STRING([--disable-libnm], [Disable libnm support]),
+        AS_HELP_STRING([--disable-libnm], [Disable libnm networkmanager support]),
         [want_libnm=no],
         [want_libnm=yes])
 
@@ -1339,12 +1344,18 @@ fi
 AC_SUBST(NLLIBS)
 AC_SUBST(NLCFLAGS)
 
-want_usb="no"
+want_usb="yes"
 have_usb="no"
-AC_ARG_ENABLE(libusb,
-        AS_HELP_STRING([--disable-libusb], [Disable libUSB support]),
-        [want_usb=no],
-        [want_usb=yes])
+
+AC_ARG_ENABLE([libusb],
+    AS_HELP_STRING([--disable-libusb], [Disable libUSB support and any libUSB based data sources]),
+	[case "${enableval}" in
+	  no) want_usb=no ;;
+	   *) want_usb=yes ;;
+	 esac],
+	[want_usb=yes]
+)
+
 AS_IF([test "x$want_usb" != "xno"], [
     # We only *require* protobuf for C++
     PKG_CHECK_MODULES([libusb], [libusb-1.0], have_libusb_pkg=yes)
