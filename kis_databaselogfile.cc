@@ -247,13 +247,13 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
             "strongest_signal INT, " // Strongest signal
 
-            "min_lat INT, " // Normalized locational bounding rectangle
-            "min_lon INT, "
-            "max_lat INT, "
-            "max_lon INT, "
+            "min_lat REAL, " // locational bounding rectangle
+            "min_lon REAL, "
+            "max_lat REAL, "
+            "max_lon REAL, "
 
-            "avg_lat INT, " // Average location
-            "avg_lon INT, "
+            "avg_lat REAL, " // Average location
+            "avg_lon REAL, "
 
             "bytes_data INT, " // Amount of data seen on device
 
@@ -289,8 +289,11 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
             "devkey TEXT, " // Device key
 
-            "lat INT, " // Normalized location
-            "lon INT, "
+            "lat REAL, " // location
+            "lon REAL, "
+            "alt REAL, "
+            "speed REAL, "
+            "heading REAL, "
 
             "packet_len INT, " // Packet length
 
@@ -323,8 +326,8 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
             "phyname TEXT, " // Packet name and phy
             "devmac TEXT, "
 
-            "lat INT, " // Normalized location
-            "lon INT, "
+            "lat REAL, " // Location
+            "lon REAL, "
 
             "datasource TEXT, " // UUID of data source
 
@@ -376,8 +379,8 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
             "phyname TEXT, " // Alert phy
             "devmac TEXT, " // Primary device associated with alert
 
-            "lat INT, " // Normalized location
-            "lon INT, "
+            "lat REAL, " // Location
+            "lon REAL, "
 
             "header TEXT, " // Alert header/type
 
@@ -399,8 +402,8 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
             "ts_sec INT, " // Timestamps
 
-            "lat INT, " // Normalized location
-            "lon INT, "
+            "lat REAL, " // Location
+            "lon REAL, "
 
             "msgtype TEXT, " // Message type
             
@@ -424,8 +427,11 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
             "ts_sec INT, " // Timestamps
             "ts_usec INT, "
 
-            "lat INT, " // Normalized location
-            "lon INT, "
+            "lat REAL, " // Location
+            "lon REAL, "
+            "alt REAL, "
+            "speed REAL, "
+            "heading REAL, "
 
             "snaptype TEXT, " // Type of snapshot record
 
@@ -446,7 +452,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
     }
 
-    Database_SetDBVersion(4);
+    Database_SetDBVersion(5);
 
     // Prepare the statements we'll need later
     //
@@ -471,12 +477,12 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         "INSERT INTO packets "
         "(ts_sec, ts_usec, phyname, "
         "sourcemac, destmac, transmac, devkey, frequency, " 
-        "lat, lon, "
+        "lat, lon, alt, speed, heading, "
         "packet_len, signal, "
         "datasource, "
         "dlt, packet, "
         "error) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
@@ -491,10 +497,10 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         "INSERT INTO data "
         "(ts_sec, ts_usec, "
         "phyname, devmac, "
-        "lat, lon, "
+        "lat, lon, alt, speed, heading, "
         "datasource, "
         "type, json) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
@@ -623,26 +629,26 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
             sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
 
             if (d->get_tracker_location() != NULL) {
-                sqlite3_bind_int64(device_stmt, spos++, 
-                        d->get_location()->get_min_loc()->get_lat() * 100000);
-                sqlite3_bind_int64(device_stmt, spos++,
-                        d->get_location()->get_min_loc()->get_lon() * 100000);
-                sqlite3_bind_int64(device_stmt, spos++,
-                        d->get_location()->get_max_loc()->get_lat() * 100000);
-                sqlite3_bind_int64(device_stmt, spos++,
-                        d->get_location()->get_max_loc()->get_lon() * 100000);
-                sqlite3_bind_int64(device_stmt, spos++,
-                        d->get_location()->get_avg_loc()->get_lat() * 100000);
-                sqlite3_bind_int64(device_stmt, spos++,
-                        d->get_location()->get_avg_loc()->get_lon() * 100000);
+                sqlite3_bind_double(device_stmt, spos++, 
+                        d->get_location()->get_min_loc()->get_lat());
+                sqlite3_bind_double(device_stmt, spos++,
+                        d->get_location()->get_min_loc()->get_lon());
+                sqlite3_bind_double(device_stmt, spos++,
+                        d->get_location()->get_max_loc()->get_lat());
+                sqlite3_bind_double(device_stmt, spos++,
+                        d->get_location()->get_max_loc()->get_lon());
+                sqlite3_bind_double(device_stmt, spos++,
+                        d->get_location()->get_avg_loc()->get_lat());
+                sqlite3_bind_double(device_stmt, spos++,
+                        d->get_location()->get_avg_loc()->get_lon());
             } else {
                 // Empty location
-                sqlite3_bind_int(device_stmt, spos++, 0);
-                sqlite3_bind_int(device_stmt, spos++, 0);
-                sqlite3_bind_int(device_stmt, spos++, 0);
-                sqlite3_bind_int(device_stmt, spos++, 0);
-                sqlite3_bind_int(device_stmt, spos++, 0);
-                sqlite3_bind_int(device_stmt, spos++, 0);
+                sqlite3_bind_double(device_stmt, spos++, 0);
+                sqlite3_bind_double(device_stmt, spos++, 0);
+                sqlite3_bind_double(device_stmt, spos++, 0);
+                sqlite3_bind_double(device_stmt, spos++, 0);
+                sqlite3_bind_double(device_stmt, spos++, 0);
+                sqlite3_bind_double(device_stmt, spos++, 0);
             }
 
             sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
@@ -728,48 +734,56 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         local_locker dblock(&ds_mutex);
         sqlite3_reset(packet_stmt);
 
-        sqlite3_bind_int64(packet_stmt, 1, in_pack->ts.tv_sec);
-        sqlite3_bind_int64(packet_stmt, 2, in_pack->ts.tv_usec);
+        int sql_pos = 1;
 
-        sqlite3_bind_text(packet_stmt, 3, phystring.c_str(), phystring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(packet_stmt, 4, macstring.c_str(), macstring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(packet_stmt, 5, deststring.c_str(), deststring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(packet_stmt, 6, transstring.c_str(), transstring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(packet_stmt, 7, keystring.c_str(), keystring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_double(packet_stmt, 8, frequency);
+        sqlite3_bind_int64(packet_stmt, sql_pos++, in_pack->ts.tv_sec);
+        sqlite3_bind_int64(packet_stmt, sql_pos++, in_pack->ts.tv_usec);
+
+        sqlite3_bind_text(packet_stmt, sql_pos++, phystring.c_str(), phystring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(packet_stmt, sql_pos++, macstring.c_str(), macstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(packet_stmt, sql_pos++, deststring.c_str(), deststring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(packet_stmt, sql_pos++, transstring.c_str(), transstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(packet_stmt, sql_pos++, keystring.c_str(), keystring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_double(packet_stmt, sql_pos++, frequency);
 
         if (gpsdata != NULL) {
-            sqlite3_bind_int64(packet_stmt, 9, gpsdata->lat * 100000);
-            sqlite3_bind_int64(packet_stmt, 10, gpsdata->lon * 100000);
+            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->lat);
+            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->lon);
+            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->alt);
+            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->speed);
+            sqlite3_bind_double(packet_stmt, sql_pos++, gpsdata->heading);
         } else {
-            sqlite3_bind_int(packet_stmt, 9, 0);
-            sqlite3_bind_int(packet_stmt, 10, 0);
+            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
+            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
+            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
+            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
+            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
         }
 
         if (chunk != NULL) {
-            sqlite3_bind_int64(packet_stmt, 11, chunk->length);
+            sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length);
         } else {
-            sqlite3_bind_int(packet_stmt, 11, 0);
+            sqlite3_bind_int(packet_stmt, sql_pos++, 0);
         }
 
         if (radioinfo != NULL) {
-            sqlite3_bind_int(packet_stmt, 12, radioinfo->signal_dbm);
+            sqlite3_bind_int(packet_stmt, sql_pos++, radioinfo->signal_dbm);
         } else {
-            sqlite3_bind_int(packet_stmt, 12, 0);
+            sqlite3_bind_int(packet_stmt, sql_pos++, 0);
         }
 
-        sqlite3_bind_text(packet_stmt, 13, sourceuuidstring.c_str(), 
+        sqlite3_bind_text(packet_stmt, sql_pos++, sourceuuidstring.c_str(), 
                 sourceuuidstring.length(), SQLITE_TRANSIENT);
 
         if (chunk != NULL) {
-            sqlite3_bind_int(packet_stmt, 14, chunk->dlt);
-            sqlite3_bind_blob(packet_stmt, 15, (const char *) chunk->data, chunk->length, 0);
+            sqlite3_bind_int(packet_stmt, sql_pos++, chunk->dlt);
+            sqlite3_bind_blob(packet_stmt, sql_pos++, (const char *) chunk->data, chunk->length, 0);
         } else {
-            sqlite3_bind_int(packet_stmt, 14, -1);
-            sqlite3_bind_text(packet_stmt, 15, "", 0, SQLITE_TRANSIENT);
+            sqlite3_bind_int(packet_stmt, sql_pos++, -1);
+            sqlite3_bind_text(packet_stmt, sql_pos++, "", 0, SQLITE_TRANSIENT);
         }
 
-        sqlite3_bind_int(packet_stmt, 16, in_pack->error);
+        sqlite3_bind_int(packet_stmt, sql_pos++, in_pack->error);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
             _MSG("KisDatabaseLogfile unable to insert packet in " +
@@ -811,24 +825,32 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
         local_locker dblock(&ds_mutex);
         sqlite3_reset(data_stmt);
 
-        sqlite3_bind_int64(data_stmt, 1, tv.tv_sec);
-        sqlite3_bind_int64(data_stmt, 2, tv.tv_usec);
+        int sql_pos = 1;
 
-        sqlite3_bind_text(data_stmt, 3, phystring.c_str(), phystring.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(data_stmt, 4, macstring.c_str(), macstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_int64(data_stmt, sql_pos++, tv.tv_sec);
+        sqlite3_bind_int64(data_stmt, sql_pos++, tv.tv_usec);
+
+        sqlite3_bind_text(data_stmt, sql_pos++, phystring.c_str(), phystring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos++, macstring.c_str(), macstring.length(), SQLITE_TRANSIENT);
 
         if (gps != NULL) {
-            sqlite3_bind_int64(data_stmt, 5, gps->lat * 100000);
-            sqlite3_bind_int64(data_stmt, 6, gps->lon * 100000);
+            sqlite3_bind_double(data_stmt, sql_pos++, gps->lat);
+            sqlite3_bind_double(data_stmt, sql_pos++, gps->lon);
+            sqlite3_bind_double(data_stmt, sql_pos++, gps->alt);
+            sqlite3_bind_double(data_stmt, sql_pos++, gps->speed);
+            sqlite3_bind_double(data_stmt, sql_pos++, gps->heading);
         } else {
-            sqlite3_bind_int(data_stmt, 5, 0);
-            sqlite3_bind_int(data_stmt, 6, 0);
+            sqlite3_bind_double(data_stmt, sql_pos++, 0);
+            sqlite3_bind_double(data_stmt, sql_pos++, 0);
+            sqlite3_bind_double(data_stmt, sql_pos++, 0);
+            sqlite3_bind_double(data_stmt, sql_pos++, 0);
+            sqlite3_bind_double(data_stmt, sql_pos++, 0);
         }
 
-        sqlite3_bind_text(data_stmt, 7, uuidstring.c_str(), uuidstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos, uuidstring.c_str(), uuidstring.length(), SQLITE_TRANSIENT);
 
-        sqlite3_bind_text(data_stmt, 8, type.data(), type.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(data_stmt, 9, json.data(), json.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos, type.data(), type.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos, json.data(), json.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(data_stmt) != SQLITE_DONE) {
             _MSG("KisDatabaseLogfile unable to insert data in " +
@@ -929,8 +951,8 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
         sqlite3_bind_text(alert_stmt, 4, macstring.c_str(), macstring.length(), SQLITE_TRANSIENT);
 
         if (in_alert->get_location()->get_valid()) {
-            sqlite3_bind_int64(alert_stmt, 5, in_alert->get_location()->get_lat() * 100000);
-            sqlite3_bind_int64(alert_stmt, 6, in_alert->get_location()->get_lon() * 100000);
+            sqlite3_bind_double(alert_stmt, 5, in_alert->get_location()->get_lat());
+            sqlite3_bind_double(alert_stmt, 6, in_alert->get_location()->get_lon());
         } else {
             sqlite3_bind_int(alert_stmt, 5, 0);
             sqlite3_bind_int(alert_stmt, 6, 0);
@@ -963,8 +985,8 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_bind_int64(snapshot_stmt, 2, tv.tv_usec);
 
     if (gps != NULL) {
-        sqlite3_bind_int64(snapshot_stmt, 3, gps->lat * 100000);
-        sqlite3_bind_int64(snapshot_stmt, 4, gps->lon * 100000);
+        sqlite3_bind_double(snapshot_stmt, 3, gps->lat);
+        sqlite3_bind_double(snapshot_stmt, 4, gps->lon);
     } else {
         sqlite3_bind_int(snapshot_stmt, 3, 0);
         sqlite3_bind_int(snapshot_stmt, 4, 0);
@@ -1091,19 +1113,19 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
             if (connection->has_cached_variable("location_lat_min"))
                 query.append_where(AND, _WHERE("lat", GE, 
-                            connection->variable_cache_as<long int>("location_lat_min") * 100000));
+                            connection->variable_cache_as<double>("location_lat_min")));
 
             if (connection->has_cached_variable("location_lon_min"))
                 query.append_where(AND, _WHERE("lon", GE, 
-                            connection->variable_cache_as<long int>("location_lon_min") * 100000));
+                            connection->variable_cache_as<double>("location_lon_min")));
 
             if (connection->has_cached_variable("location_lat_max"))
                 query.append_where(AND, _WHERE("lat", LE, 
-                            connection->variable_cache_as<long int>("location_lat_max") * 100000));
+                            connection->variable_cache_as<double>("location_lat_max")));
 
             if (connection->has_cached_variable("location_lon_max"))
                 query.append_where(AND, _WHERE("lon", LE, 
-                            connection->variable_cache_as<long int>("location_lon_max") * 100000));
+                            connection->variable_cache_as<double>("location_lon_max")));
 
             if (connection->has_cached_variable("size_min"))
                 query.append_where(AND, _WHERE("size", GE, 
@@ -1284,19 +1306,19 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             if (filterdata->hasKey("location_lat_min"))
                 query.append_where(AND, 
-                        _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min") * 100000));
+                        _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min")));
 
             if (filterdata->hasKey("location_lon_min"))
                 query.append_where(AND, 
-                        _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min") * 100000));
+                        _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min")));
 
             if (filterdata->hasKey("location_lat_max"))
                 query.append_where(AND, 
-                        _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max") * 100000));
+                        _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max")));
 
             if (filterdata->hasKey("location_lon_max"))
                 query.append_where(AND, 
-                        _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max") * 100000));
+                        _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max")));
 
             if (filterdata->hasKey("size_min"))
                 query.append_where(AND, _WHERE("size", GE, filterdata->getKeyAsNumber("size_min")));
