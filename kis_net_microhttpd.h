@@ -685,6 +685,8 @@ protected:
 
     bool http_serve_files, http_serve_user_files;
 
+    std::string uri_prefix;
+
     struct MHD_Daemon *microhttpd;
     std::vector<Kis_Net_Httpd_Handler *> handler_vec;
 

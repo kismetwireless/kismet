@@ -142,6 +142,8 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 
     http_port = globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
 
+    uri_prefix = globalreg->kismet_config->FetchOptDfl("httpd_uri_prefix", "");
+
     std::string http_data_dir, http_aux_data_dir;
 
     http_data_dir = globalreg->kismet_config->FetchOpt("httpd_home");
@@ -550,7 +552,7 @@ void Kis_Net_Httpd::WriteSessions() {
 }
 
 int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connection,
-    const char *url, const char *method, const char *version __attribute__ ((unused)),
+    const char *in_url, const char *method, const char *version __attribute__ ((unused)),
     const char *upload_data, size_t *upload_data_size, void **ptr) {
 
     //fprintf(stderr, "debug - HTTP request: '%s' method '%s'\n", url, method); 
@@ -587,13 +589,24 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     } 
     
     Kis_Net_Httpd_Handler *handler = NULL;
+
+    // Look for the URI prefix
+    std::string url(in_url);
+    auto uri_prefix_len = kishttpd->uri_prefix.length();
+    if (uri_prefix_len > 0 && url.substr(0, uri_prefix_len) == kishttpd->uri_prefix) {
+        url = url.substr(uri_prefix_len, url.length());
+
+        // Don't kill a leading '/' if the user specified a match that eats it
+        if (url[0] != '/')
+            url = "/" + url;
+    }
     
     {
         local_locker conclock(&(kishttpd->controller_mutex));
         /* Find a handler that can handle this path & method */
 
         for (auto h : kishttpd->handler_vec) {
-            if (h->Httpd_VerifyPath(url, method)) {
+            if (h->Httpd_VerifyPath(url.c_str(), method)) {
                 handler = h;
                 break;
             }
@@ -646,7 +659,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
     if (handler == NULL) {
         // Try to check a static url
-        if (handle_static_file(cls, concls, url, method) < 0) {
+        if (handle_static_file(cls, concls, url.c_str(), method) < 0) {
             // fprintf(stderr, "   404 no handler for request %s\n", url);
 
             auto fourohfour = fmt::format("<h1>404</h1>Unable to find resource {}\n", 
@@ -682,7 +695,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         concls->post_complete = true;
 
         // Handle a post req inside the processor and return the results
-        return (concls->httpdhandler)->Httpd_HandlePostRequest(kishttpd, concls, url,
+        return (concls->httpdhandler)->Httpd_HandlePostRequest(kishttpd, concls, url.c_str(),
                 method, upload_data, upload_data_size);
     } else {
         // Handle GET + any others
@@ -699,7 +712,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
                     return MHD_YES;
                 }, concls);
        
-        ret = (concls->httpdhandler)->Httpd_HandleGetRequest(kishttpd, concls, url, method, 
+        ret = (concls->httpdhandler)->Httpd_HandleGetRequest(kishttpd, concls, url.c_str(), method, 
                 upload_data, upload_data_size);
     }
 
