@@ -11022,12 +11022,16 @@ if test "$linux" = "yes"; then
 NMLIBS=""
 NMCFLAGS=""
 
-want_libnm="no"
+want_libnm="yes"
 # Check whether --enable-libnm was given.
 if test "${enable_libnm+set}" = set; then :
-  enableval=$enable_libnm; want_libnm=no
+  enableval=$enable_libnm; case "${enableval}" in
+	  no) want_libnm=no ;;
+	   *) want_libnm=yes ;;
+	 esac
 else
   want_libnm=yes
+
 fi
 
 
@@ -11777,13 +11781,19 @@ fi
 
 if test "$linux" = "yes"; then :
 
-want_lmsensors="no"
+
+want_lmsensors="yes"
 # Check whether --enable-lmsensors was given.
 if test "${enable_lmsensors+set}" = set; then :
-  enableval=$enable_lmsensors; want_lmsensors=no
+  enableval=$enable_lmsensors; case "${enableval}" in
+	  no) want_lmsensors=no ;;
+	   *) want_lmsensors=yes ;;
+	 esac
 else
   want_lmsensors=yes
+
 fi
+
 
 if test "x$want_lmsensors" != "xno"; then :
 
@@ -13429,7 +13439,7 @@ fi
 if test "$pcap" != "yes" -a "$linux" = "yes"; then
 	echo
 	echo "*** WARNING ***"
-	echo "LibPCAP was not found."
+	echo "LibPCAP was not found (or was disabled)."
 	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
 	echo "almost certainly NOT BE WHAT YOU WANT."
 	echo "You need both the libpcap libraries and development headers (called "
@@ -13439,7 +13449,7 @@ fi
 if test "$havenetlink" != "yes" -a "$linux" = "yes"; then
 	echo
 	echo "*** WARNING ***"
-	echo "LibNL/nl80211 support was not found.  Kismet uses libnl to control "
+	echo "LibNL/nl80211 support was not found (or was disabled).  Kismet uses libnl to control "
 	echo "mac80211 based wireless interfaces, which comprise the vast majority of"
 	echo "interfaces on modern Linux systems.  Unless you plan to use only "
 	echo "older drivers, you need libnl."
@@ -13456,9 +13466,9 @@ fi
 if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo
     echo "*** WARNING ***"
-    echo "libnm (the NetworkManager control library) was not found.  Kismet uses "
-    echo "libnm to prevent NetworkManager from reconfiguring monitor mode interfaces "
-    echo "while Kismet is running; without this library you will need to manually "
+    echo "libnm (the NetworkManager control library) was not found (or it was disabled). "
+    echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
+    echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
 fi
 
