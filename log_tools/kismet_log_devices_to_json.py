@@ -83,7 +83,7 @@ c = db.cursor()
 devs = []
 
 for row in c.execute(sql, replacements):
-    devs.append(json.loads(row[0]))
+    devs.append(json.loads(str(row[0])))
 
 if results.outfile:
     logf = open(results.outfile, "w")

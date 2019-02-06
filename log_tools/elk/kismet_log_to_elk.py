@@ -83,7 +83,7 @@ c = db.cursor()
 
 for row in c.execute(sql):
     try:
-        dev = strip_old_empty_trees(json.loads(row[0]))
+        dev = strip_old_empty_trees(json.loads(str(row[0])))
         dev = rename_json_keys(dev)
         res = es.index(index='kismet', doc_type='device', body=dev)
         print dev['kismet_device_base_key'], res

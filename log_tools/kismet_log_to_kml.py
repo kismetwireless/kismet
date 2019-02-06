@@ -100,7 +100,7 @@ num_plotted = 0
 
 for row in c.execute(sql, replacements):
     try:
-        dev = json.loads(row[0])
+        dev = json.loads(str(row[0]))
 
         # Check for the SSID if we're doing that; allow it to trip
         # a KeyError and jump out of processing this device
