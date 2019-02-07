@@ -151,7 +151,7 @@ div.topright_holder {
     border: none; 
 } 
 .ui-tabs-nav .ui-state-active { 
-    background: transparent url(/images/uiTabsArrow.png) no-repeat bottom center; 
+    background: transparent url(images/uiTabsArrow.png) no-repeat bottom center; 
     border: none; 
 } 
 .ui-tabs-nav .ui-state-default a { 
