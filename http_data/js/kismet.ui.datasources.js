@@ -17,7 +17,7 @@ $('<link>')
     .attr({
         type: 'text/css',
         rel: 'stylesheet',
-        href: '/css/kismet.ui.datasources.css'
+        href: 'css/kismet.ui.datasources.css'
     });
 
 
@@ -162,7 +162,7 @@ function channelcoverage_backend_refresh() {
     if (channelcoverage_panel.is(':hidden'))
         return;
 
-    $.get("/datasource/all_sources.json")
+    $.get("datasource/all_sources.json")
     .done(function(data) {
         // Build a list of all devices we haven't seen before and set their
         // initial positions to match
@@ -647,7 +647,7 @@ function update_datasource2(data, state) {
                     state['defer_command_progress'] = true;
 
                     var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                    $.post("/datasource/add_source.cmd", postdata, "json")
+                    $.post("datasource/add_source.cmd", postdata, "json")
                     .always(function() {
                         state['defer_command_progress'] = false;
                     });
@@ -785,7 +785,7 @@ function update_datasource2(data, state) {
                     "uuid": uuid
                 };
                 var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
+                $.post("datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
                 .always(function() {
                         state['defer_command_progress'] = false;
                     });
@@ -848,7 +848,7 @@ function update_datasource2(data, state) {
                             };
 
                             var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                            $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
+                            $.post("datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
                             .always(function() {
                                 state['defer_command_progress'] = false;
                             });
@@ -891,7 +891,7 @@ function update_datasource2(data, state) {
                             };
 
                             var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                            $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
+                            $.post("datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
                             .always(function() {
                                 state['defer_command_progress'] = false;
                             });
@@ -1013,7 +1013,7 @@ function update_datasource2(data, state) {
                   "uuid": uuid
               };
               var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-              $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
+              $.post("datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
               .always(function() {
                       state['defer_command_progress'] = false;
                       });
@@ -1063,7 +1063,7 @@ function update_datasource2(data, state) {
               };
 
               var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-              $.post("/datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
+              $.post("datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
               .always(function() {
                 state['defer_command_progress'] = false;
               });
@@ -1360,7 +1360,7 @@ function datasource_source_refresh(state, cb) {
         clearTimeout(state['datasource_get_tid']);
 
     var grab_sources = function(state, cb) {
-        $.get("/datasource/all_sources.json")
+        $.get("datasource/all_sources.json")
         .done(function(data) {
             state['kismet_sources'] = data;
             cb(data);
@@ -1396,7 +1396,7 @@ function datasource_interface_refresh(state, cb) {
         clearTimeout(state['datasource_interface_tid']);
 
     var grab_interfaces = function(state, cb) {
-        $.get("/datasource/list_interfaces.json")
+        $.get("datasource/list_interfaces.json")
         .done(function(data) {
             state['kismet_interfaces'] = data;
             cb(data);

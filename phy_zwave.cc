@@ -52,7 +52,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_zwave", "/js/kismet.ui.zwave.js");
+    httpregistry->register_js_module("kismet_ui_zwave", "js/kismet.ui.zwave.js");
 }
 
 Kis_Zwave_Phy::~Kis_Zwave_Phy() {

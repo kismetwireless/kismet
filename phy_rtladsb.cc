@@ -65,7 +65,7 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_rtladsb", "/js/kismet.ui.rtladsb.js");
+    httpregistry->register_js_module("kismet_ui_rtladsb", "js/kismet.ui.rtladsb.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }

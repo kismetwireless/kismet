@@ -17,7 +17,7 @@ $('<link>')
     .attr({
         type: 'text/css', 
         rel: 'stylesheet',
-        href: '/css/kismet.ui.gadgets.css'
+        href: 'css/kismet.ui.gadgets.css'
     });
 
 // Defined gadgets

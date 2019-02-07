@@ -13,7 +13,7 @@ exports.timestamp_sec = 0;
 exports.timestamp_usec = 0;
 
 function update_ts() {
-    $.get("/system/timestamp.json")
+    $.get("system/timestamp.json")
     .done(function(data) {
         data = exports.sanitizeObject(data);
         exports.timestamp_sec = data['kismet.system.timestamp.sec'];
@@ -112,7 +112,7 @@ exports.GetDynamicIncludes = function() {
     // Make a deferred promise that the scripts are loaded
     var scriptchain = $.Deferred();
 
-    $.get("/dynamic.json", function(data) {
+    $.get("dynamic.json", function(data) {
         // Build a list of deferred stuff
         var scriptloads = new Array();
 

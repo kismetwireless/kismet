@@ -17,7 +17,7 @@ $('<link>')
     .attr({
         type: 'text/css',
         rel: 'stylesheet',
-        href: '/css/kismet.ui.tabpane.css'
+        href: 'css/kismet.ui.tabpane.css'
     });
 
 /* List of objects used to turn into tabs */

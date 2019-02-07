@@ -12,7 +12,7 @@ var exports = {};
 exports.load_complete = 0;
 
 /* Fetch the system user */
-$.get("/system/status.json")
+$.get("system/status.json")
 .done(function(data) {
     exports.system_user = data['kismet.system.user'];
 })
@@ -26,7 +26,7 @@ $('<link>')
     .attr({
         type: 'text/css',
         rel: 'stylesheet',
-        href: '/css/kismet.ui.base.css'
+        href: 'css/kismet.ui.base.css'
     });
 
 /* Define some callback functions for the table */
@@ -345,7 +345,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                         "username": newvalue
                                     };
                                     var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                    $.post("/devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
+                                    $.post("devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
                                 }
                             });
                         }
@@ -383,7 +383,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                         "tagvalue": newvalue.escapeSpecialChars(),
                                     };
                                     var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                    $.post("/devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
+                                    $.post("devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
                                 }
                             });
                         }
@@ -882,7 +882,7 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
 
 kismet_ui.AddDeviceDetail("devel", "Dev/Debug Options", 10000, {
     render: function(data) {
-        return 'Device JSON: <a href="/devices/by-key/' + data['kismet.device.base.key'] + '/device.json" target="_new">link</a><br />';
+        return 'Device JSON: <a href="devices/by-key/' + data['kismet.device.base.key'] + '/device.json" target="_new">link</a><br />';
     }});
 
 /* Sidebar:  Memory monitor
@@ -904,7 +904,7 @@ kismet_ui_sidebar.AddSidebarItem({
     priority: 10000,
     listTitle: '<i class="fa fa-download"></i> Download Pcap-NG',
     clickCallback: function() {
-        location.href = "/datasource/pcap/all_sources.pcapng";
+        location.href = "datasource/pcap/all_sources.pcapng";
     },
 });
 */
@@ -959,7 +959,7 @@ function memorydisplay_refresh() {
     if (memory_panel.is(':hidden'))
         return;
 
-    $.get("/system/status.json")
+    $.get("system/status.json")
     .done(function(data) {
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
@@ -1231,7 +1231,7 @@ kismet_ui_settings.AddSettingsPane({
     create: function(elem) {
         elem.append($('<i>').html('Loading plugin data...'));
 
-        $.get("/plugins/all_plugins.json")
+        $.get("plugins/all_plugins.json")
         .done(function(data) {
             elem.empty();
     
@@ -1598,7 +1598,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
 
     var signal = lastsignal;
 
-    $.get("/devices/by-key/" + key + "/device.json")
+    $.get("devices/by-key/" + key + "/device.json")
     .done(function(data) {
         var title = '<i class="fa fa-signal" /> Signal ' +
             data['kismet.device.base.macaddr'] + ' ' +
@@ -1764,7 +1764,7 @@ exports.login_pending = false;
 
 exports.ProvisionedPasswordCheck = function(cb) {
     $.ajax({
-        url: "/session/check_setup_ok",
+        url: "session/check_setup_ok",
 
         error: function(jqXHR, textStatus, errorThrown) {
             cb(jqXHR.status);
@@ -1781,7 +1781,7 @@ exports.LoginCheck = function(cb, user, pw) {
     pw = pw || kismet.getStorage('kismet.base.login.password', '');
 
     $.ajax({
-        url: "/session/check_login",
+        url: "session/check_login",
 
         beforeSend: function (xhr) {
             xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
@@ -2065,7 +2065,7 @@ exports.FirstLoginCheck = function() {
             console.log("posting");
             $.ajax({
                 type: "POST",
-                url: "/session/set_password",
+                url: "session/set_password",
                 data: postdata,
                 error: function(jqXHR, textStatus, errorThrown) {
                     alert("Could not set login, check your kismet server logs.")

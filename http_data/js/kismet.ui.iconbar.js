@@ -17,7 +17,7 @@ $('<link>')
     .attr({
         type: 'text/css', 
         rel: 'stylesheet',
-        href: '/css/kismet.ui.iconbar.css'
+        href: 'css/kismet.ui.iconbar.css'
     });
 
 /* Iconbar items are stored as a list of objects with callbacks for when they

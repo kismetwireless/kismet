@@ -63,7 +63,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid)
     auto httpregistry = 
         Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_bluetooth", 
-            "/js/kismet.ui.bluetooth.js");
+            "js/kismet.ui.bluetooth.js");
 }
 
 Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {

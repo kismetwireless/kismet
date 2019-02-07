@@ -80,7 +80,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_rtl433", "/js/kismet.ui.rtl433.js");
+    httpregistry->register_js_module("kismet_ui_rtl433", "js/kismet.ui.rtl433.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }

@@ -22,7 +22,7 @@
     var batoverlay;
 
     var batinfo_refresh = function() {
-        $.get("/system/status.json")
+        $.get("system/status.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

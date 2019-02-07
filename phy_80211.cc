@@ -721,7 +721,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
-    httpregistry->register_js_module("kismet_ui_dot11", "/js/kismet.ui.dot11.js");
+    httpregistry->register_js_module("kismet_ui_dot11", "js/kismet.ui.dot11.js");
 
     clients_of_endp =
         std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(

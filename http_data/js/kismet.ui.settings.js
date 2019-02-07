@@ -17,7 +17,7 @@ $('<link>')
     .attr({
         type: 'text/css', 
         rel: 'stylesheet',
-        href: '/css/kismet.ui.settings.css'
+        href: 'css/kismet.ui.settings.css'
     });
 
 /*

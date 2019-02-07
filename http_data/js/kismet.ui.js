@@ -14,13 +14,13 @@ $('<link>')
     .attr({
         type: 'text/css',
         rel: 'stylesheet',
-        href: '/css/spectrum.css'
+        href: 'css/spectrum.css'
     });
 $('<script>')
     .appendTo('head')
     .attr({
         type: 'text/javascript',
-        src: '/js/spectrum.js'
+        src: 'js/spectrum.js'
     });
 
 exports.last_timestamp = 0;
@@ -416,7 +416,7 @@ exports.DeviceDetailWindow = function(key) {
             var panel = this;
             var content = this.content;
 
-            $.get("/devices/by-key/" + key + "/device.json")
+            $.get("devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
                     fulldata = kismet.sanitizeObject(fulldata);
 
@@ -555,7 +555,7 @@ exports.connection_error_panel = null;
 exports.HealthCheck = function() {
     var timerid;
 
-    $.get("/system/status.json")
+    $.get("system/status.json")
     .done(function(data) {
         data = kismet.sanitizeObject(data);
 
@@ -775,7 +775,7 @@ exports.InitializeDeviceTable = function(element) {
 
         // Create a complex post to get our summary fields only
         ajax: {
-            url: "/devices/summary/devices.json",
+            url: "devices/summary/devices.json",
             data: {
                 json: JSON.stringify(json)
             },

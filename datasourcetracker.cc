@@ -452,7 +452,7 @@ void Datasourcetracker::Deferred_Startup() {
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
         Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_datasources", 
-            "/js/kismet.ui.datasources.js");
+            "js/kismet.ui.datasources.js");
 
     database_log_enabled = false;
 

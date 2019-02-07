@@ -40,12 +40,26 @@ bool Kis_Httpd_Registry::register_js_module(std::string in_module, std::string i
     local_locker lock(&reg_lock);
 
     if (js_module_path_map.find(in_module) != js_module_path_map.end()) {
-        _MSG("HTTPD Module Registry: Module '" + in_module + "' already "
-                "registered", MSGFLAG_ERROR);
+        _MSG_ERROR("HTTPD Module Registry: Module '{}' already registered",
+                in_module);
         return false;
     }
 
-    js_module_path_map.emplace(in_module, in_path);
+    // Hack around for re-homing kismet resources; alert on a leading '/' and fix it.
+    if (in_path.length() == 0) {
+        _MSG_ERROR("HTTPD Module Registry: Module {} with no path", in_module);
+        return false;
+    }
+
+    if (in_path[0] == '/') {
+        _MSG_ERROR("HTTPD Module Registry: Module {} starts with a '/', for newer "
+                "Kismet systems this should be a relative path; check that your plugin "
+                "is updated.  Kismet will automatically make this a relative path.",
+                in_module);
+        in_path = in_path.substr(1, in_path.length());
+    }
+
+    js_module_path_map[in_module] = in_path;
 
     return true;
 }

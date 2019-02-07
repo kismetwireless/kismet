@@ -17,7 +17,7 @@ $('<link>')
     .attr({
         type: 'text/css', 
         rel: 'stylesheet',
-        href: '/css/kismet.ui.sidebar.css'
+        href: 'css/kismet.ui.sidebar.css'
     });
 
 /* Sidebar items are stored as a list of objects defining callbacks which
