@@ -430,14 +430,16 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
-    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-            adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi", 
-                strlen("kismet_cap_osx_corewlan_wifi")) & 0xFFFFFFFF,
-            hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
-            hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
-    *uuid = strdup(errstr);
-
-    printf("probe returned\n");
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strdup(placeholder);
+    } else {
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
+                adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi", 
+                    strlen("kismet_cap_osx_corewlan_wifi")) & 0xFFFFFFFF,
+                hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
+                hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
+        *uuid = strdup(errstr);
+    }
 
     return 1;
 }
@@ -521,12 +523,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
-    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-            adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi", 
-                strlen("kismet_cap_osx_corewlan_wifi")) & 0xFFFFFFFF,
-            hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
-            hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
-    *uuid = strdup(errstr);
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strdup(placeholder);
+    } else {
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
+                adler32_csum((unsigned char *) "kismet_cap_osx_corewlan_wifi", 
+                    strlen("kismet_cap_osx_corewlan_wifi")) & 0xFFFFFFFF,
+                hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
+                hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
+        *uuid = strdup(errstr);
+    }
 
     local_wifi->cap_interface = strdup(local_wifi->interface);
 
