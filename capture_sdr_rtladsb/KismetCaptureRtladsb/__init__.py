@@ -37,9 +37,19 @@ import threading
 import time
 import uuid
 import csv
-import pyModeS as pms
 
-import KismetExternal
+# Ugly awful exit crash for import errors
+try:
+    import pyModeS as pms
+except ImportError:
+    print("Could not import pyModeS; please install it either from a system package or via pip")
+    sys.exit(0)
+
+try:
+    import KismetExternal
+except ImportError:
+    print("Could not import KismetExternal; please make sure you installed all the Kismet python modules.")
+    sys.exit(0)
 
 
 try:
@@ -51,7 +61,7 @@ try:
         airplanes.append(row)
 
 except:
-    print "Couldn't find the airplane csv file '{}'. If this is a drone, set KISMET_ETC in your path".format(csv_path)
+    print("Couldn't find the airplane csv file '{}'. If this is a drone, set KISMET_ETC in your path".format(csv_path))
     sys.exit(0)
 
 try:

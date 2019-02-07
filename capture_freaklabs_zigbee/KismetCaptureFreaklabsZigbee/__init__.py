@@ -56,7 +56,11 @@ import threading
 import time
 import uuid
 
-import KismetExternal
+try:
+    import KismetExternal
+except ImportError:
+    print("Could not import KismetExternal; please install the Kismet python modules.")
+    sys.exit(0)
 
 LINKTYPE_IEEE802_15_4_NOFCS = 230
 LINKTYPE_IEEE802_15_4 = 195

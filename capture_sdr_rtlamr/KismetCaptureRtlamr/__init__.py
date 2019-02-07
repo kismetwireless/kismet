@@ -37,7 +37,11 @@ import threading
 import time
 import uuid
 
-import KismetExternal
+try:
+    import KismetExternal
+except ImportError:
+    print("Could not import KismetExternal; please make sure you installed all the Kismet python modules.")
+    sys.exit(0)
 
 try:
     import paho.mqtt.client as mqtt
