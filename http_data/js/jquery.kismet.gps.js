@@ -132,7 +132,7 @@
     }
 
     var gps_refresh = function() {
-        $.get("/gps/location.json")
+        $.get("gps/location.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

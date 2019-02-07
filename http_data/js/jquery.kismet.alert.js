@@ -267,7 +267,7 @@
     }
 
     var alert_refresh = function(fetchtime = last_time) {
-        $.get("/alerts/last-time/" + fetchtime + "/alerts.json")
+        $.get("alerts/last-time/" + fetchtime + "/alerts.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 
