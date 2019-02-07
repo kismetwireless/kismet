@@ -40,7 +40,7 @@
     };
 
     var messagebus_refresh = function(state) {
-        $.get("/messagebus/last-time/" + state['last_msg_time'] + "/messages.json")
+        $.get("messagebus/last-time/" + state['last_msg_time'] + "/messages.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

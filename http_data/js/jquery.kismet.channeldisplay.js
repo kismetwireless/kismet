@@ -22,7 +22,7 @@
             return;
         }
 
-        $.get(state.options.url + "/channels/channels.json")
+        $.get(state.options.url + "channels/channels.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 
