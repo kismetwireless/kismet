@@ -56,6 +56,8 @@
 
 #include <sqlite3.h>
 
+#include <memory>
+
 namespace kissqlite3 {
 
     // Very fragile iterator wrapper; the stmt incremental processing doesn't allow us to have multiple views
@@ -68,13 +70,13 @@ namespace kissqlite3 {
     // is likely dangerous.  
     class sqlite3_stmt_iterator {
         public:
-            sqlite3_stmt_iterator(sqlite3_stmt *stmt) :
+            sqlite3_stmt_iterator(std::shared_ptr<sqlite3_stmt> stmt) :
                 stmt {stmt} { }
             sqlite3_stmt_iterator() :
                 end {true} { }
 
             sqlite3_stmt_iterator& operator++() {
-                auto r = sqlite3_step(stmt);
+                auto r = sqlite3_step(stmt.get());
 
                 if (r != SQLITE_ROW)
                     end = true;
@@ -90,12 +92,12 @@ namespace kissqlite3 {
                 return (end != s.end);
             }
 
-            sqlite3_stmt *operator*() {
+            std::shared_ptr<sqlite3_stmt> operator*() {
                 return stmt;
             }
 
         protected:
-            sqlite3_stmt *stmt = nullptr;
+            std::shared_ptr<sqlite3_stmt> stmt;
             bool end = false;
     };
 
@@ -320,12 +322,8 @@ namespace kissqlite3 {
         }
 
         void bind_stmt() {
-            if (stmt != nullptr)
-                sqlite3_finalize(stmt);
-
             // Generate the placeholdered WHERE string
             std::stringstream os;
-
 
             bool comma = false;
 
@@ -374,11 +372,16 @@ namespace kissqlite3 {
             int r;
             const char *pz = nullptr;
 
-            r = sqlite3_prepare(db, os.str().c_str(), os.str().length(), &stmt, &pz);
+            sqlite3_stmt *stmt_raw;
+            r = sqlite3_prepare(db, os.str().c_str(), os.str().length(), &stmt_raw, &pz);
 
             if (r != SQLITE_OK)
                 throw std::runtime_error("Failed to prepare statement: " + os.str() + " " + 
                         std::string(sqlite3_errmsg(db)));
+
+            stmt = std::shared_ptr<sqlite3_stmt>(stmt_raw, [](sqlite3_stmt *p) {
+                    sqlite3_finalize(p);
+                });
 
             // Bind all the values
             unsigned int bind_pos = 1;
@@ -388,31 +391,31 @@ namespace kissqlite3 {
 
                 switch (c.bind_type) {
                     case BindType::sql_blob:
-                        sqlite3_bind_blob(stmt, bind_pos++, c.value.data(), 
+                        sqlite3_bind_blob(stmt.get(), bind_pos++, c.value.data(), 
                                 c.value.length(), SQLITE_TRANSIENT);
                         break;
                     case BindType::sql_text:
-                        sqlite3_bind_text(stmt, bind_pos++, c.value.data(), 
+                        sqlite3_bind_text(stmt.get(), bind_pos++, c.value.data(), 
                                 c.value.length(), SQLITE_TRANSIENT);
                         break;
                     case BindType::sql_int:
-                        sqlite3_bind_int(stmt, bind_pos++, c.num_value);
+                        sqlite3_bind_int(stmt.get(), bind_pos++, c.num_value);
                         break;
                     case BindType::sql_int64:
-                        sqlite3_bind_int64(stmt, bind_pos++, c.num_value);
+                        sqlite3_bind_int64(stmt.get(), bind_pos++, c.num_value);
                         break;
                     case BindType::sql_double:
-                        sqlite3_bind_double(stmt, bind_pos++, c.num_value);
+                        sqlite3_bind_double(stmt.get(), bind_pos++, c.num_value);
                         break;
                     case BindType::sql_null:
-                        sqlite3_bind_null(stmt, bind_pos++);
+                        sqlite3_bind_null(stmt.get(), bind_pos++);
                         break;
                     case BindType::sql_joining_op:
                         break;
                 };
             }
 
-            r = sqlite3_reset(stmt);
+            r = sqlite3_reset(stmt.get());
             if (r != SQLITE_OK)
                 throw std::runtime_error("Failed to prepare statement to execute: " + os.str() + " " +
                         std::string(sqlite3_errmsg(db)));
@@ -425,7 +428,7 @@ namespace kissqlite3 {
                 return sqlite3_stmt_iterator();
 
             bind_stmt();
-            auto r = sqlite3_step(stmt);
+            auto r = sqlite3_step(stmt.get());
 
             if (r != SQLITE_ROW)
                 return sqlite3_stmt_iterator();
@@ -438,7 +441,7 @@ namespace kissqlite3 {
         }
 
         sqlite3 *db = nullptr;
-        sqlite3_stmt *stmt = nullptr;
+        std::shared_ptr<sqlite3_stmt> stmt;
 
         std::string op;
         std::string table;
@@ -643,34 +646,34 @@ namespace kissqlite3 {
 
     // Simple column extractors
     template<typename T>
-    T sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    T sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    int sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    int sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    unsigned int sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    unsigned int sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    unsigned long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    unsigned long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    unsigned long long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    unsigned long long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    bool sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    bool sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    float sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    float sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    double sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    double sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    std::string sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    std::string sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 };
 
 #endif

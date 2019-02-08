@@ -346,52 +346,52 @@ namespace kissqlite3 {
 
     // Extractors
     template<typename T>
-    T sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column);
+    T sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column);
 
     template<>
-    int sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (int) sqlite3_column_int(stmt, column);
+    int sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (int) sqlite3_column_int(stmt.get(), column);
     }
 
     template<>
-    unsigned int sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (unsigned int) sqlite3_column_int(stmt, column);
+    unsigned int sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (unsigned int) sqlite3_column_int(stmt.get(), column);
     }
 
     template<>
-    long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (long) sqlite3_column_int64(stmt, column);
+    long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (long) sqlite3_column_int64(stmt.get(), column);
     }
 
     template<>
-    unsigned long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (unsigned long) sqlite3_column_int64(stmt, column);
+    unsigned long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (unsigned long) sqlite3_column_int64(stmt.get(), column);
     }
 
     template<>
-    unsigned long long sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (unsigned long long) sqlite3_column_int64(stmt, column);
+    unsigned long long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (unsigned long long) sqlite3_column_int64(stmt.get(), column);
     }
 
     template<>
-    bool sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (bool) sqlite3_column_int(stmt, column);
+    bool sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (bool) sqlite3_column_int(stmt.get(), column);
     }
 
     template<>
-    float sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return (float) sqlite3_column_double(stmt, column);
+    float sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (float) sqlite3_column_double(stmt.get(), column);
     }
 
     template<>
-    double sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        return sqlite3_column_double(stmt, column);
+    double sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return sqlite3_column_double(stmt.get(), column);
     }
 
     template<>
-    std::string sqlite3_column_as(sqlite3_stmt *stmt, unsigned int column) {
-        auto raw = (const char *) sqlite3_column_blob(stmt, column);
-        auto len = sqlite3_column_bytes(stmt, column);
+    std::string sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        auto raw = (const char *) sqlite3_column_blob(stmt.get(), column);
+        auto len = sqlite3_column_bytes(stmt.get(), column);
         return std::string(raw, len);
     }
 
