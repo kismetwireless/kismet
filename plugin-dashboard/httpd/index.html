@@ -5,64 +5,64 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="/js/jquery-3.1.0.min.js"></script>
-<script src="/js/jquery-ui.min.js"></script>
-<script src="/js/jquery.ui.touch-punch.min.js"></script>
-<script src="/js/jquery.ajax.binary.js"></script>
-<script src="/js/jquery.jspanel-compiled.min.js"></script>
-<script src="/js/simple-expand.min.js"></script>
+<script src="js/jquery-3.1.0.min.js"></script>
+<script src="js/jquery-ui.min.js"></script>
+<script src="js/jquery.ui.touch-punch.min.js"></script>
+<script src="js/jquery.ajax.binary.js"></script>
+<script src="js/jquery.jspanel-compiled.min.js"></script>
+<script src="js/simple-expand.min.js"></script>
 
-<script src="/js/jquery.sparkline.min.js"></script>
+<script src="js/jquery.sparkline.min.js"></script>
 
-<script src="/js/raphael.min.js"></script>
-<script src="/js/morris.min.js"></script>
+<script src="js/raphael.min.js"></script>
+<script src="js/morris.min.js"></script>
 
-<script src="/js/Chart.bundle.min.js"></script>
+<script src="js/Chart.bundle.min.js"></script>
 
-<script src="/js/js.storage.min.js"></script>
+<script src="js/js.storage.min.js"></script>
 
-<script src="/js/tooltipster.bundle.min.js"></script>
+<script src="js/tooltipster.bundle.min.js"></script>
 
-<script src="/js/kismet.utils.js"></script>
+<script src="js/kismet.utils.js"></script>
 
 <!-- Core UI elements that get loaded first, we need these for some of the kismet
     UI base code unfortunately even if we don't implement them -->
-<script src="/js/kismet.ui.sidebar.js"></script>
-<script src="/js/kismet.ui.tabpane.js"></script>
-<script src="/js/kismet.ui.settings.js"></script>
+<script src="js/kismet.ui.sidebar.js"></script>
+<script src="js/kismet.ui.tabpane.js"></script>
+<script src="js/kismet.ui.settings.js"></script>
 
-<script src="/js/kismet.ui.js"></script>
-<script src="/js/kismet.ui.base.js"></script>
+<script src="js/kismet.ui.js"></script>
+<script src="js/kismet.ui.base.js"></script>
 
-<script src="/js/kismet.ui.iconbar.js"></script>
-<script src="/js/jquery.kismet.alert.js"></script>
-<script src="/js/jquery.kismet.battery.js"></script>
-<script src="/js/jquery.kismet.channeldisplay.js"></script>
+<script src="js/kismet.ui.iconbar.js"></script>
+<script src="js/jquery.kismet.alert.js"></script>
+<script src="js/jquery.kismet.battery.js"></script>
+<script src="js/jquery.kismet.channeldisplay.js"></script>
 
-<script src="/js/kismet.ui.dot11.js"></script>
+<script src="js/kismet.ui.dot11.js"></script>
 
 <!-- Local includes from our relative js dir -->
 <script src="js/packery.pkgd.min.js"></script>
 
-<link rel="stylesheet" type="text/css" href="/css/font-awesome.min.css" />
+<link rel="stylesheet" type="text/css" href="css/font-awesome.min.css" />
 
-<link rel="stylesheet" type="text/css" href="/css/tooltipster.bundle.min.css" />
+<link rel="stylesheet" type="text/css" href="css/tooltipster.bundle.min.css" />
 
-<link rel="stylesheet" type="text/css" href="/css/jquery-ui.min.css" />
-<link rel="stylesheet" type="text/css" href="/css/jquery.jspanel.min.css" />
-<link rel="stylesheet" type="text/css" href="/css/morris.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
+<link rel="stylesheet" type="text/css" href="css/morris.css" />
 
-<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.messagebus.css" />
-<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.channeldisplay.css" />
-<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.alert.css" />
-<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.battery.css" />
-<link rel="stylesheet" type="text/css" href="/css/jquery.kismet.channeldisplay.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.kismet.messagebus.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.kismet.channeldisplay.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.kismet.alert.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.kismet.battery.css" />
+<link rel="stylesheet" type="text/css" href="css/jquery.kismet.channeldisplay.css" />
 
-<link rel="stylesheet" type="text/css" href="/css/reset.css" />
-<link rel="stylesheet" type="text/css" href="/css/text.css" /> 
-<link rel="stylesheet" type="text/css" href="/css/layout.css" /> 
+<link rel="stylesheet" type="text/css" href="css/reset.css" />
+<link rel="stylesheet" type="text/css" href="css/text.css" /> 
+<link rel="stylesheet" type="text/css" href="css/layout.css" /> 
 
-<link rel="stylesheet" type="text/css" href="/css/kismet.css" />
+<link rel="stylesheet" type="text/css" href="css/kismet.css" />
 
 <!-- Local includes from our relative css link -->
 <link rel="stylesheet" type="text/css" href="css/dashboard.css" />
@@ -73,7 +73,7 @@ var last_packets = 0;
 var last_devs = 0;
 
 function datasources() {
-    $.get("/datasource/all_sources.json")
+    $.get("datasource/all_sources.json")
     .done(function(data) {
         $('#numsources').html(data.length);
 
@@ -94,7 +94,7 @@ function datasources() {
 }
 
 function status() {
-    $.get("/system/status.json")
+    $.get("system/status.json")
     .done(function(data) {
         var devices = data['kismet.system.devices.count'];
 
