@@ -123,8 +123,11 @@ void print_help(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output Wigle CSV file\n"
-           " -v, --verbose                Verbose output\n"
            " -f, --force                  Force writing to the target file, even if it exists.\n"
+           " -r, --rate-limit [rate]      Limit updated records to one update per [rate] seconds\n"
+           "                              per device\n"
+           " -c, --cache-limit [limit]    Maximum number of device to cache, defaults to 1000.\n"
+           " -v, --verbose                Verbose output\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n");
 }
 
@@ -136,7 +139,9 @@ int main(int argc, char *argv[]) {
         { "force", no_argument, 0, 'f' },
         { "help", no_argument, 0, 'h' },
         { "skip-clean", no_argument, 0, 's' },
-        { "secret", no_argument, 0, 'k' }, // secret argument required to make it work
+        { "rate-limit", required_argument, 0, 'r'},
+        { "cache-limit", required_argument, 0, 'c'},
+        { "secret", no_argument, 0, 'k' }, // secret argument required to make it work until we're sure it feeds good data to wigle
         { 0, 0, 0, 0 }
     };
 
@@ -159,9 +164,12 @@ int main(int argc, char *argv[]) {
 
     struct stat statbuf;
 
+    unsigned int rate_limit = 0;
+    unsigned int cache_limit = 1000;
+
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:vfsk", 
+                            "-hi:o:r:c:vfsk", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -180,11 +188,21 @@ int main(int argc, char *argv[]) {
             skipclean = true;
         } else if (r == 'k') {
             beta_ok_secret = true;
+        } else if (r == 'r') {
+            if (sscanf(optarg, "%u", &rate_limit) != 1) {
+                fprintf(stderr, "ERROR:  Expected a rate limit of # seconds between packets of the same device.\n");
+                exit(1);
+            }
+        } else if (r == 'c') {
+            if (sscanf(optarg, "%u", &cache_limit) != 1) {
+                fprintf(stderr, "ERROR:  Expected a cache limit number.\n");
+                exit(1);
+            }
         }
     }
 
     if (!beta_ok_secret) {
-        fprintf(stderr, "ERROR: This code doesn't work yet!  It will soon though.  Sorry!\n");
+        fprintf(stderr, "ERROR: This code doesn't isn't quite done yet!  It will be soon though.  Sorry!\n");
         exit(1);
     }
 
@@ -263,14 +281,19 @@ int main(int argc, char *argv[]) {
         cache_obj(std::string t, std::string s, std::string c) :
             first_time{t},
             name{s},
-            crypto{c} { }
+            crypto{c},
+            last_time_sec{0} { }
 
         std::string first_time;
         std::string name;
         std::string crypto;
+        uint64_t last_time_sec;
     };
 
     std::map<std::string, cache_obj *> device_cache_map;
+
+    if (verbose) 
+        printf("* Starting to process file, max device cache %u\n", cache_limit);
 
     // CSV headers
     fprintf(ofile, "WigleWifi-1.4,appRelease=20190201,model=Kismet,release=2019.02.01.%d,"
@@ -283,9 +306,9 @@ int main(int argc, char *argv[]) {
     std::list<std::string> packet_fields;
 
     if (db_version < 5) {
-        packet_fields = std::list<std::string>{"sourcemac", "phyname", "lat", "lon", "signal", "frequency"};
+        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", "signal", "frequency"};
     } else {
-        packet_fields = std::list<std::string>{"sourcemac", "phyname", "lat", "lon", "signal", "frequency", "alt", "speed"};
+        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", "signal", "frequency", "alt", "speed"};
     }
 
     auto query = _SELECT(db, "packets", packet_fields,
@@ -295,27 +318,45 @@ int main(int argc, char *argv[]) {
                 AND,
                 "lon", NEQ, 0));
 
+    unsigned long n_logs = 0;
+    unsigned long n_discarded_logs = 0;
 
     for (auto p : query) {
-        auto sourcemac = sqlite3_column_as<std::string>(p, 0);
-        auto phy = sqlite3_column_as<std::string>(p, 1);
+        // Brute-force cache maintenance; if we're full at the start of the 
+        // processing loop, nuke the ENTIRE cache and rebuild it; this is
+        // cleaner than constantly re-sorting it.
+        if (device_cache_map.size() >= cache_limit) {
+            if (verbose)
+                printf("* Cleaning cache...\n");
+
+            for (auto i : device_cache_map) {
+                delete(i.second);
+            }
+
+            device_cache_map.clear();
+        }
+
+
+        auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
+        auto sourcemac = sqlite3_column_as<std::string>(p, 1);
+        auto phy = sqlite3_column_as<std::string>(p, 2);
 
         auto lat = 0.0f, lon = 0.0f, alt = 0.0f, spd = 0.0f;
 
-        auto signal = sqlite3_column_as<int>(p, 4);
-        auto channel = sqlite3_column_as<double>(p, 5);
+        auto signal = sqlite3_column_as<int>(p, 5);
+        auto channel = sqlite3_column_as<double>(p, 6);
 
         auto crypt = std::string{""};
 
         // Handle the different versions
         if (db_version < 5) {
-            lat = sqlite3_column_as<double>(p, 2) / 100000;
-            lon = sqlite3_column_as<double>(p, 3) / 100000;
+            lat = sqlite3_column_as<double>(p, 3) / 100000;
+            lon = sqlite3_column_as<double>(p, 4) / 100000;
         } else {
-            lat = sqlite3_column_as<double>(p, 2);
-            lon = sqlite3_column_as<double>(p, 3);
-            alt = sqlite3_column_as<double>(p, 6);
-            spd = sqlite3_column_as<double>(p, 7);
+            lat = sqlite3_column_as<double>(p, 3);
+            lon = sqlite3_column_as<double>(p, 4);
+            alt = sqlite3_column_as<double>(p, 7);
+            spd = sqlite3_column_as<double>(p, 8);
         }
 
         auto ci = device_cache_map.find(sourcemac);
@@ -385,8 +426,22 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        n_logs++;
+        if (n_logs % 10000 == 0 && verbose)
+            printf("* Processed %lu records, %lu discarded from rate limiting, %lu devices, cache %lu\n", 
+                    n_logs, n_discarded_logs, device_cache_map.size(), device_cache_map.size());
+
         if (cached == nullptr)
             continue;
+
+        // Rate throttle
+        if (rate_limit != 0 && cached->last_time_sec != 0) {
+            if (cached->last_time_sec + rate_limit < ts) {
+                n_discarded_logs++;
+                continue;
+            }
+        } 
+        cached->last_time_sec = ts;
 
         if (phy == "IEEE802.11")
             channel = FrequencyToWifiChannel(channel);
@@ -406,8 +461,11 @@ int main(int argc, char *argv[]) {
 
     sqlite3_close(db);
 
-    if (verbose) 
+    if (verbose)  {
+        printf("* Processed %lu records, %lu discarded from rate limiting, %lu devices\n", 
+                n_logs, n_discarded_logs, device_cache_map.size());
         printf("* Done!\n");
+    }
 
     return 0;
 }
