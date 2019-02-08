@@ -221,7 +221,7 @@ class KismetFreaklabsZigbee(object):
         self.band_map["800"] = ["0"]
         self.band_map["900"] = []
         self.band_map["2400"] = []
-        for c in range(1, 12):
+        for c in range(1, 11):
             self.band_map["900"].append("{}".format(c))
         for c in range(11, 27):
             self.band_map["2400"].append("{}".format(c))
