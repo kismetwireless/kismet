@@ -212,7 +212,15 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    /* Open the database and run the vacuum command to clean up any stray journals */
+    if (stat(in_fname, &statbuf) < 0) {
+        if (errno == ENOENT) 
+            fprintf(stderr, "ERROR:  Input file '%s' does not exist.\n", in_fname);
+        else
+            fprintf(stderr, "ERROR:  Unexpected problem checking input "
+                    "file '%s': %s\n", in_fname, strerror(errno));
+
+        exit(1);
+    }
 
     if (stat(out_fname, &statbuf) < 0) {
         if (errno != ENOENT) {
@@ -226,6 +234,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    /* Open the database and run the vacuum command to clean up any stray journals */
     sql_r = sqlite3_open(in_fname, &db);
 
     if (sql_r) {
