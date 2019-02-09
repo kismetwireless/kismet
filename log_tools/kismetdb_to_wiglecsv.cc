@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
     static struct option longopt[] = {
         { "in", required_argument, 0, 'i' },
         { "out", required_argument, 0, 'o' },
-        { "verbose", no_argument, 0, 'b' },
+        { "verbose", no_argument, 0, 'v' },
         { "force", no_argument, 0, 'f' },
         { "help", no_argument, 0, 'h' },
         { "skip-clean", no_argument, 0, 's' },
