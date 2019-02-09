@@ -259,46 +259,58 @@ int main(int argc, char *argv[]) {
     }
 
     // Use our sql adapters
+
     using namespace kissqlite3;
 
-    // Get the version
-    auto version_query = _SELECT(db, "KISMET", {"db_version"});
-    auto version_ret = version_query.begin();
-    if (version_ret == version_query.end()) {
-        fprintf(stderr, "ERROR:  Unable to fetch database version.\n");
-        sqlite3_close(db);
-        exit(1);
+    int db_version = 0;
+    long int n_total_packets_db = 0L;
+    long int n_packets_db = 0L;
+    long int n_devices_db = 0L;
+
+    try {
+        // Get the version
+        auto version_query = _SELECT(db, "KISMET", {"db_version"});
+        auto version_ret = version_query.begin();
+        if (version_ret == version_query.end()) {
+            fprintf(stderr, "ERROR:  Unable to fetch database version.\n");
+            sqlite3_close(db);
+            exit(1);
+        }
+        db_version = sqlite3_column_as<int>(*version_ret, 0);
+
+        if (verbose)
+            printf("* Found KismetDB version %d\n", db_version);
+
+        // Get the total counts
+        auto npackets_q = _SELECT(db, "packets", 
+                {"count(*), sum(case when (sourcemac != '00:00:00:00:00:00' "
+                "and lat != 0 and lon != 0) then 1 else 0 end)"});
+        auto npackets_ret = npackets_q.begin();
+        if (npackets_ret == npackets_q.end()) {
+            fprintf(stderr, "ERROR:  Unable to fetch packet count.\n");
+            sqlite3_close(db);
+            exit(1);
+        }
+        n_total_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
+        n_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 1);
+
+        auto ndevices_q = _SELECT(db, "devices", {"count(*)"});
+        auto ndevices_ret = ndevices_q.begin();
+        if (ndevices_ret == ndevices_q.end()) {
+            fprintf(stderr, "ERROR:  Unable to fetch device count.\n");
+            sqlite3_close(db);
+            exit(1);
+        }
+        n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
+
+        if (verbose) 
+            printf("* Found %lu devices, %lu usable packets, %lu total packets\n", 
+                    n_devices_db, n_packets_db, n_total_packets_db);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "ERROR:  Could not get database information from '%s': %s\n",
+                in_fname, e.what());
+        exit(0);
     }
-    auto db_version = sqlite3_column_as<int>(*version_ret, 0);
-
-    if (verbose)
-        printf("* Found KismetDB version %d\n", db_version);
-
-    // Get the total counts
-    auto npackets_q = _SELECT(db, "packets", 
-            {"count(*), sum(case when (sourcemac != '00:00:00:00:00:00' "
-            "and lat != 0 and lon != 0) then 1 else 0 end)"});
-    auto npackets_ret = npackets_q.begin();
-    if (npackets_ret == npackets_q.end()) {
-        fprintf(stderr, "ERROR:  Unable to fetch packet count.\n");
-        sqlite3_close(db);
-        exit(1);
-    }
-    auto n_total_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
-    auto n_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 1);
-
-    auto ndevices_q = _SELECT(db, "devices", {"count(*)"});
-    auto ndevices_ret = ndevices_q.begin();
-    if (ndevices_ret == ndevices_q.end()) {
-        fprintf(stderr, "ERROR:  Unable to fetch device count.\n");
-        sqlite3_close(db);
-        exit(1);
-    }
-    auto n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
-
-    if (verbose) 
-        printf("* Found %lu devices, %lu usable packets, %lu total packets\n", 
-                n_devices_db, n_packets_db, n_total_packets_db);
 
     ofile = fopen(out_fname, "w");
     if (ofile == NULL) {
