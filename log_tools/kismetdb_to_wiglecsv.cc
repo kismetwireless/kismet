@@ -505,6 +505,7 @@ int main(int argc, char *argv[]) {
                 "WIFI");
     }
 
+    fclose(ofile);
     sqlite3_close(db);
 
     if (verbose)  {
