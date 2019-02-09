@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
     optind = 0;
     opterr = 0;
 
-    char *in_fname = NULL, *out_fname = NULL;
+    std::string in_fname, out_fname;
     bool verbose = false;
     bool force = false;
     bool skipclean = false;
@@ -177,9 +177,9 @@ int main(int argc, char *argv[]) {
             print_help(argv[0]);
             exit(1);
         } else if (r == 'i') {
-            in_fname = strdup(optarg);
+            in_fname = std::string(optarg);
         } else if (r == 'o') {
-            out_fname = strdup(optarg);
+            out_fname = std::string(optarg);
         } else if (r == 'v') { 
             verbose = true;
         } else if (r == 'f') {
@@ -206,46 +206,48 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (out_fname == NULL || in_fname == NULL) {
+    if (out_fname == "" || in_fname == "") {
         fprintf(stderr, "ERROR: Expected --in [kismetdb file] and "
                 "--out [wigle CSV file]\n");
         exit(1);
     }
 
-    if (stat(in_fname, &statbuf) < 0) {
+    if (stat(in_fname.c_str(), &statbuf) < 0) {
         if (errno == ENOENT) 
-            fprintf(stderr, "ERROR:  Input file '%s' does not exist.\n", in_fname);
+            fprintf(stderr, "ERROR:  Input file '%s' does not exist.\n", 
+                    in_fname.c_str());
         else
             fprintf(stderr, "ERROR:  Unexpected problem checking input "
-                    "file '%s': %s\n", in_fname, strerror(errno));
+                    "file '%s': %s\n", in_fname.c_str(), strerror(errno));
 
         exit(1);
     }
 
-    if (stat(out_fname, &statbuf) < 0) {
-        if (errno != ENOENT) {
-            fprintf(stderr, "ERROR:  Unexpected problem checking output "
-                    "file '%s': %s\n", out_fname, strerror(errno));
+    if (out_fname != "-") {
+        if (stat(out_fname.c_str(), &statbuf) < 0) {
+            if (errno != ENOENT) {
+                fprintf(stderr, "ERROR:  Unexpected problem checking output "
+                        "file '%s': %s\n", out_fname.c_str(), strerror(errno));
+                exit(1);
+            }
+        } else if (force == false) {
+            fprintf(stderr, "ERROR:  Output file '%s' exists already; use --force to "
+                    "clobber the file.\n", out_fname.c_str());
             exit(1);
         }
-    } else if (force == false) {
-        fprintf(stderr, "ERROR:  Output file '%s' exists already; use --force to "
-                "clobber the file.\n", out_fname);
-        exit(1);
     }
 
     /* Open the database and run the vacuum command to clean up any stray journals */
-    sql_r = sqlite3_open(in_fname, &db);
+    sql_r = sqlite3_open(in_fname.c_str(), &db);
 
     if (sql_r) {
-        fprintf(stderr, "ERROR:  Unable to open '%s': %s\n",
-                in_fname, sqlite3_errmsg(db));
+        fprintf(stderr, "ERROR:  Unable to open '%s': %s\n", in_fname.c_str(), sqlite3_errmsg(db));
         exit(1);
     }
 
     if (!skipclean) {
         if (verbose)
-            printf("* Preparing input database '%s'...\n", in_fname);
+            fprintf(stderr, "* Preparing input database '%s'...\n", in_fname.c_str());
 
 
         sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
@@ -279,7 +281,7 @@ int main(int argc, char *argv[]) {
         db_version = sqlite3_column_as<int>(*version_ret, 0);
 
         if (verbose)
-            printf("* Found KismetDB version %d\n", db_version);
+            fprintf(stderr, "* Found KismetDB version %d\n", db_version);
 
         // Get the total counts
         auto npackets_q = _SELECT(db, "packets", 
@@ -304,19 +306,23 @@ int main(int argc, char *argv[]) {
         n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
 
         if (verbose) 
-            printf("* Found %lu devices, %lu usable packets, %lu total packets\n", 
+            fprintf(stderr, "* Found %lu devices, %lu usable packets, %lu total packets\n", 
                     n_devices_db, n_packets_db, n_total_packets_db);
     } catch (const std::exception& e) {
         fprintf(stderr, "ERROR:  Could not get database information from '%s': %s\n",
-                in_fname, e.what());
+                in_fname.c_str(), e.what());
         exit(0);
     }
 
-    ofile = fopen(out_fname, "w");
-    if (ofile == NULL) {
-        fprintf(stderr, "ERROR:  Unable to open output file for writing: %s\n",
-                strerror(errno));
-        exit(1);
+    if (out_fname == "-") {
+        ofile = stdout;
+    } else {
+        ofile = fopen(out_fname.c_str(), "w");
+        if (ofile == NULL) {
+            fprintf(stderr, "ERROR:  Unable to open output file for writing: %s\n",
+                    strerror(errno));
+            exit(1);
+        }
     }
 
     // Define a simple cache; we don't need to use a proper kismet macaddr here, just operate
@@ -338,7 +344,7 @@ int main(int argc, char *argv[]) {
     std::map<std::string, cache_obj *> device_cache_map;
 
     if (verbose) 
-        printf("* Starting to process file, max device cache %u\n", cache_limit);
+        fprintf(stderr, "* Starting to process file, max device cache %u\n", cache_limit);
 
     // CSV headers
     fprintf(ofile, "WigleWifi-1.4,appRelease=20190201,model=Kismet,release=2019.02.01.%d,"
@@ -373,7 +379,7 @@ int main(int argc, char *argv[]) {
         // cleaner than constantly re-sorting it.
         if (device_cache_map.size() >= cache_limit) {
             if (verbose)
-                printf("* Cleaning cache...\n");
+                fprintf(stderr, "* Cleaning cache...\n");
 
             for (auto i : device_cache_map) {
                 delete(i.second);
@@ -384,7 +390,7 @@ int main(int argc, char *argv[]) {
 
         n_logs++;
         if (n_logs % n_division == 0 && verbose)
-            printf("* %d%% Processed %lu records, %lu discarded from rate limiting, cache %lu\n", 
+            fprintf(stderr, "* %d%% Processed %lu records, %lu discarded from rate limiting, cache %lu\n", 
                     (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
                     n_logs, n_discarded_logs, device_cache_map.size());
 
@@ -505,13 +511,15 @@ int main(int argc, char *argv[]) {
                 "WIFI");
     }
 
-    fclose(ofile);
+    if (ofile != stdout)
+        fclose(ofile);
+
     sqlite3_close(db);
 
     if (verbose)  {
-        printf("* Processed %lu records, %lu discarded from rate limiting, %lu devices\n", 
+        fprintf(stderr, "* Processed %lu records, %lu discarded from rate limiting, %lu devices\n", 
                 n_logs, n_discarded_logs, device_cache_map.size());
-        printf("* Done!\n");
+        fprintf(stderr, "* Done!\n");
     }
 
     return 0;
