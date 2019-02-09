@@ -252,20 +252,44 @@ int main(int argc, char *argv[]) {
     // Use our sql adapters
     using namespace kissqlite3;
 
+    // Get the version
     auto version_query = _SELECT(db, "KISMET", {"db_version"});
     auto version_ret = version_query.begin();
-
     if (version_ret == version_query.end()) {
         fprintf(stderr, "ERROR:  Unable to fetch database version.\n");
         sqlite3_close(db);
         exit(1);
     }
-
-    // Get the version
-    int db_version = sqlite3_column_as<int>(*version_ret, 0);
+    auto db_version = sqlite3_column_as<int>(*version_ret, 0);
 
     if (verbose)
         printf("* Found KismetDB version %d\n", db_version);
+
+    // Get the total counts
+    auto npackets_q = _SELECT(db, "packets", 
+            {"count(*), sum(case when (sourcemac != '00:00:00:00:00:00' "
+            "and lat != 0 and lon != 0) then 1 else 0 end)"});
+    auto npackets_ret = npackets_q.begin();
+    if (npackets_ret == npackets_q.end()) {
+        fprintf(stderr, "ERROR:  Unable to fetch packet count.\n");
+        sqlite3_close(db);
+        exit(1);
+    }
+    auto n_total_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
+    auto n_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 1);
+
+    auto ndevices_q = _SELECT(db, "devices", {"count(*)"});
+    auto ndevices_ret = ndevices_q.begin();
+    if (ndevices_ret == ndevices_q.end()) {
+        fprintf(stderr, "ERROR:  Unable to fetch device count.\n");
+        sqlite3_close(db);
+        exit(1);
+    }
+    auto n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
+
+    if (verbose) 
+        printf("* Found %lu devices, %lu usable packets, %lu total packets\n", 
+                n_devices_db, n_packets_db, n_total_packets_db);
 
     ofile = fopen(out_fname, "w");
     if (ofile == NULL) {
@@ -320,6 +344,7 @@ int main(int argc, char *argv[]) {
 
     unsigned long n_logs = 0;
     unsigned long n_discarded_logs = 0;
+    unsigned long n_division = (n_packets_db / 20);
 
     for (auto p : query) {
         // Brute-force cache maintenance; if we're full at the start of the 
@@ -336,6 +361,11 @@ int main(int argc, char *argv[]) {
             device_cache_map.clear();
         }
 
+        n_logs++;
+        if (n_logs % n_division == 0 && verbose)
+            printf("* %d%% Processed %lu records, %lu discarded from rate limiting, cache %lu\n", 
+                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
+                    n_logs, n_discarded_logs, device_cache_map.size());
 
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
         auto sourcemac = sqlite3_column_as<std::string>(p, 1);
@@ -425,11 +455,6 @@ int main(int argc, char *argv[]) {
                         sourcemac.c_str(), phy.c_str());
             }
         }
-
-        n_logs++;
-        if (n_logs % 10000 == 0 && verbose)
-            printf("* Processed %lu records, %lu discarded from rate limiting, %lu devices, cache %lu\n", 
-                    n_logs, n_discarded_logs, device_cache_map.size(), device_cache_map.size());
 
         if (cached == nullptr)
             continue;
