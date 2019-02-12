@@ -141,7 +141,6 @@ int main(int argc, char *argv[]) {
         { "skip-clean", no_argument, 0, 's' },
         { "rate-limit", required_argument, 0, 'r'},
         { "cache-limit", required_argument, 0, 'c'},
-        { "secret", no_argument, 0, 'k' }, // secret argument required to make it work until we're sure it feeds good data to wigle
         { 0, 0, 0, 0 }
     };
 
@@ -153,8 +152,6 @@ int main(int argc, char *argv[]) {
     bool verbose = false;
     bool force = false;
     bool skipclean = false;
-
-    bool beta_ok_secret = false;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -169,7 +166,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:vfsk", 
+                            "-hi:o:r:c:vfs", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -186,8 +183,6 @@ int main(int argc, char *argv[]) {
             force = true;
         } else if (r == 's') {
             skipclean = true;
-        } else if (r == 'k') {
-            beta_ok_secret = true;
         } else if (r == 'r') {
             if (sscanf(optarg, "%u", &rate_limit) != 1) {
                 fprintf(stderr, "ERROR:  Expected a rate limit of # seconds between packets of the same device.\n");
@@ -199,11 +194,6 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
         }
-    }
-
-    if (!beta_ok_secret) {
-        fprintf(stderr, "ERROR: This code doesn't isn't quite done yet!  It will be soon though.  Sorry!\n");
-        exit(1);
     }
 
     if (out_fname == "" || in_fname == "") {
