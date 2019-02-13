@@ -107,5 +107,12 @@ protected:
     unsigned int edit_endp_handler(std::ostream& stream, const std::vector<std::string>& path, 
             SharedStructured structured);
 
+    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_remove_endp;
+    unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
+            SharedStructured structured);
+
+    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() override;
+    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content) override;
+
 };
 
