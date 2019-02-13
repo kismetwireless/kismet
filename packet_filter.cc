@@ -208,7 +208,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
 unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
 
-    if (path.size() < 3) {
+    if (path.size() < 4) {
         stream << "Malformed request path\n";
         return 500;
     }
@@ -272,7 +272,7 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
 unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
 
-    if (path.size() < 3) {
+    if (path.size() < 4) {
         stream << "Malformed request path\n";
         return 500;
     }
