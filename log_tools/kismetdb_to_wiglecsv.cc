@@ -46,6 +46,26 @@
 
 #include "packet_ieee80211.h"
 
+// Aggressive additional mangle of text to handle converting ',' and '"' to
+// hexcode for CSV
+std::string MungeForCSV(const std::string& in_data) {
+	std::string ret;
+
+	for (size_t i = 0; i < in_data.length(); i++) {
+		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126 &&
+				in_data[i] != ',' && in_data[i] != '\"' ) {
+			ret += in_data[i];
+		} else {
+			ret += '\\';
+			ret += ((in_data[i] >> 6) & 0x03) + '0';
+			ret += ((in_data[i] >> 3) & 0x07) + '0';
+			ret += ((in_data[i] >> 0) & 0x07) + '0';
+		}
+	}
+
+	return ret;
+}
+
 // Some conversion functions from Kismet for Wi-Fi channels
 int FrequencyToWifiChannel(double in_freq) {
     if (in_freq == 0)
@@ -439,7 +459,7 @@ int main(int argc, char *argv[]) {
                     if (type != "Wi-Fi AP")
                         continue;
 
-                    name = json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString();
+                    name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
 
                     auto last_ssid_key = 
                         json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();
