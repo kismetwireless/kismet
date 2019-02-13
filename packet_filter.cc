@@ -379,4 +379,21 @@ bool PacketfilterMacaddr::filter_packet(kis_packet *packet) {
     return get_filter_default();
 }
 
+std::shared_ptr<TrackerElementMap> PacketfilterMacaddr::self_endp_handler() {
+    auto ret = std::make_shared<TrackerElementMap>();
+    build_self_content(ret);
+    return ret;
+}
+
+void PacketfilterMacaddr::build_self_content(std::shared_ptr<TrackerElementMap> content) { 
+    Packetfilter::build_self_content(content);
+
+    content->insert(filter_source);
+    content->insert(filter_dest);
+    content->insert(filter_network);
+    content->insert(filter_other);
+    content->insert(filter_any);
+
+}
+
 
