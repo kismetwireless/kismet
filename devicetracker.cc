@@ -599,9 +599,6 @@ std::shared_ptr<kis_tracked_device_base>
             mac_addr in_mac, Kis_Phy_Handler *in_phy, kis_packet *in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
-    // We must protect the device list to determine if the device is 'new'
-    local_locker list_locker(&devicelist_mutex);
-
     std::stringstream sstr;
 
     bool new_device = false;
@@ -613,15 +610,18 @@ std::shared_ptr<kis_tracked_device_base>
 	packetchain_comp_datasource *pack_datasrc =
 		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 
-    std::shared_ptr<kis_tracked_device_base> device = NULL;
+    std::shared_ptr<kis_tracked_device_base> device;
     device_key key;
 
     key = device_key(globalreg->server_uuid_hash, in_phy->FetchPhynameHash(), in_mac);
 
-	if ((device = FetchDevice(key)) == NULL) {
+    // FetchDevice protects the device list itself
+	if ((device = FetchDevice(key)) == nullptr) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
-            return NULL;
+            return nullptr;
 
+        // Generate a new device, it gets filled in independently of the device list
+        // and gets appended to the list and views at the end
         device =
             std::make_shared<kis_tracked_device_base>(device_base_id);
         // Device ID is the size of the vector so a new device always gets put
@@ -649,8 +649,10 @@ std::shared_ptr<kis_tracked_device_base>
 
     }
 
-    // Lock the device itself for updating, now that it's part of the list
-    local_locker devlocker(&(device->device_mutex));
+    // Lock the device itself for updating; use a demand locker so we can let go
+    // of the device before we re-acquire the devicelist
+    local_demand_locker devlocker(&(device->device_mutex));
+    devlocker.lock();
 
     // Tag the packet with the base device
 	kis_tracked_device_info *devinfo =
@@ -793,8 +795,13 @@ std::shared_ptr<kis_tracked_device_base>
     if (pack_common != NULL)
         device->add_basic_crypt(pack_common->basic_crypt_set);
 
+    // Done with the device
+    devlocker.unlock();
+
     // Add the new device at the end once we've populated it
     if (new_device) {
+        local_locker list_locker(&devicelist_mutex);
+
         tracked_map[key] = device;
 
         tracked_vec.push_back(device);
