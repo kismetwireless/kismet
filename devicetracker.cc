@@ -599,7 +599,8 @@ std::shared_ptr<kis_tracked_device_base>
             mac_addr in_mac, Kis_Phy_Handler *in_phy, kis_packet *in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
-    // We must protect the device list to determine if the device is 'new'
+    // The device list has to be locked for the duration of the device assignment and
+    // update since devices only get added at the end
     local_locker list_locker(&devicelist_mutex);
 
     std::stringstream sstr;
