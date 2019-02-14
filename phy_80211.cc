@@ -2131,6 +2131,20 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
 
+        probessid->set_wps_state(dot11info->wps);
+        if (dot11info->wps_manuf != "")
+            probessid->set_wps_manuf(dot11info->wps_manuf);
+        if (dot11info->wps_model_name != "") {
+            probessid->set_wps_model_name(dot11info->wps_model_name);
+        }
+        if (dot11info->wps_model_number != "") 
+            probessid->set_wps_model_number(dot11info->wps_model_number);
+        if (dot11info->wps_serial_number != "")
+            probessid->set_wps_serial_number(dot11info->wps_serial_number);
+
+        if (dot11info->wps_uuid_e != "")
+            probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+
         // Update the IE listing at the device level
         auto taglist = PacketDot11IElist(in_pack, dot11info);
         probessid->get_ie_tag_list()->clear();
@@ -2217,23 +2231,6 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                     for (auto c : dot11info->supported_channels->supported_channels()) 
                         clientdot11->get_supported_channels()->push_back(c);
                 }
-            }
-
-            if (dot11info->subtype == packet_sub_probe_req ||
-                    dot11info->subtype == packet_sub_association_req ||
-                    dot11info->subtype == packet_sub_reassociation_req) {
-                if (dot11info->wps_manuf != "")
-                    client_record->set_wps_manuf(dot11info->wps_manuf);
-                if (dot11info->wps_model_name != "") {
-                    client_record->set_wps_model_name(dot11info->wps_model_name);
-                }
-                if (dot11info->wps_model_number != "") 
-                    client_record->set_wps_model_number(dot11info->wps_model_number);
-                if (dot11info->wps_serial_number != "")
-                    client_record->set_wps_serial_number(dot11info->wps_serial_number);
-
-                if (dot11info->wps_uuid_e != "")
-                    client_record->set_wps_uuid_e(dot11info->wps_uuid_e);
             }
 
         } else if (dot11info->type == packet_data) {

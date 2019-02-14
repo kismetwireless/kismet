@@ -603,6 +603,19 @@ public:
 
     __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
 
+    __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
+    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
+    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, 
+            wps_device_name_id);
+    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, 
+            wps_model_name_id);
+    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number,
+            wps_model_number_id);
+    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
+            wps_serial_number_id);
+    __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e,
+            wps_uuid_e_id);
+
 protected:
     virtual void register_fields() override {
         RegisterField("dot11.probedssid.ssid", "probed ssid string (sanitized)", &ssid);
@@ -620,10 +633,30 @@ protected:
         RegisterField("dot11.probedssid.dot11r_mobility_domain_id", 
                 "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
 
-        RegisterField("dot11.probessid.crypt_set", "Requested encryption set", &crypt_set);
+        RegisterField("dot11.probedssid.crypt_set", "Requested encryption set", &crypt_set);
 
-        RegisterField("dot11.probessid.ie_tag_list",
+        RegisterField("dot11.probedssid.ie_tag_list",
                 "802.11 IE tag list in beacon", &ie_tag_list);
+
+        wps_state_id =
+            RegisterDynamicField("dot11.probedssid.wps_state", "WPS state bitfield", &wps_state);
+        wps_manuf_id =
+            RegisterDynamicField("dot11.probedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
+        wps_device_name_id =
+            RegisterDynamicField("dot11.probedssid.wps_device_name", "wps device name", 
+                    &wps_device_name);
+        wps_model_name_id =
+            RegisterDynamicField("dot11.probedssid.wps_model_name", "wps model name", 
+                    &wps_model_name);
+        wps_model_number_id =
+            RegisterDynamicField("dot11.probedssid.wps_model_number", "wps model number", 
+                    &wps_model_number);
+        wps_serial_number_id = 
+            RegisterDynamicField("dot11.probedssid.wps_serial_number", 
+                "wps serial number", &wps_serial_number);
+        wps_uuid_e_id =
+            RegisterDynamicField("dot11.probedssid.wps_uuid_e", "wps euuid", &wps_uuid_e);
+
     }
 
     std::shared_ptr<TrackerElementString> ssid;
@@ -641,6 +674,28 @@ protected:
     std::shared_ptr<TrackerElementUInt64> crypt_set;
 
     std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;
+
+    // WPS components
+    std::shared_ptr<TrackerElementUInt32> wps_state;
+    int wps_state_id;
+
+    std::shared_ptr<TrackerElementString> wps_manuf;
+    int wps_manuf_id;
+
+    std::shared_ptr<TrackerElementString> wps_device_name;
+    int wps_device_name_id;
+
+    std::shared_ptr<TrackerElementString> wps_model_name;
+    int wps_model_name_id;
+
+    std::shared_ptr<TrackerElementString> wps_model_number;
+    int wps_model_number_id;
+
+    std::shared_ptr<TrackerElementString> wps_serial_number;
+    int wps_serial_number_id;
+
+    std::shared_ptr<TrackerElementByteArray> wps_uuid_e;
+    int wps_uuid_e_id;
 };
 
 /* Advertised SSID
@@ -909,7 +964,7 @@ protected:
     std::shared_ptr<TrackerElementString> wps_serial_number;
     int wps_serial_number_id;
 
-    std::shared_ptr<TrackerElementString> wps_uuid_e;
+    std::shared_ptr<TrackerElementByteArray> wps_uuid_e;
     int wps_uuid_e_id;
 
     std::shared_ptr<kis_tracked_location> location;
@@ -1011,18 +1066,6 @@ public:
 
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
 
-    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
-    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, 
-            wps_device_name_id);
-    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, 
-            wps_model_name_id);
-    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number,
-            wps_model_number_id);
-    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
-            wps_serial_number_id);
-    __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e,
-            wps_uuid_e_id);
-
 protected:
     virtual void register_fields() override {
         RegisterField("dot11.client.bssid", "bssid", &bssid);
@@ -1054,23 +1097,6 @@ protected:
 
         location_id =
             RegisterDynamicField("dot11.client.location", "location", &location);
-
-        wps_manuf_id =
-            RegisterDynamicField("dot11.client.wps_manuf", "WPS manufacturer", &wps_manuf);
-        wps_device_name_id =
-            RegisterDynamicField("dot11.client.wps_device_name", "wps device name", 
-                    &wps_device_name);
-        wps_model_name_id =
-            RegisterDynamicField("dot11.client.wps_model_name", "wps model name", 
-                    &wps_model_name);
-        wps_model_number_id =
-            RegisterDynamicField("dot11.client.wps_model_number", "wps model number", 
-                    &wps_model_number);
-        wps_serial_number_id = 
-            RegisterDynamicField("dot11.client.wps_serial_number", 
-                "wps serial number", &wps_serial_number);
-        wps_uuid_e_id =
-            RegisterDynamicField("dot11.client.wps_uuid_e", "wps euuid", &wps_uuid_e);
 
     }
 
@@ -1112,28 +1138,6 @@ protected:
 
     std::shared_ptr<kis_tracked_location> location;
     int location_id;
-
-    // WPS components
-    std::shared_ptr<TrackerElementUInt32> wps_state;
-    int wps_state_id;
-
-    std::shared_ptr<TrackerElementString> wps_manuf;
-    int wps_manuf_id;
-
-    std::shared_ptr<TrackerElementString> wps_device_name;
-    int wps_device_name_id;
-
-    std::shared_ptr<TrackerElementString> wps_model_name;
-    int wps_model_name_id;
-
-    std::shared_ptr<TrackerElementString> wps_model_number;
-    int wps_model_number_id;
-
-    std::shared_ptr<TrackerElementString> wps_serial_number;
-    int wps_serial_number_id;
-
-    std::shared_ptr<TrackerElementString> wps_uuid_e;
-    int wps_uuid_e_id;
 };
 
 // Bitset of top-level device types for easy sorting/browsing
