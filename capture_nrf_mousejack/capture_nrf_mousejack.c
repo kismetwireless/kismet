@@ -490,6 +490,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+#if 0
+    /* Try to reset it */
+    r = libusb_reset_device(localnrf->nrf_handle);
+
+    if (r < 0) {
+        printf("reset failed\n");
+        snprintf(errstr, STATUS_MAX, "Resetting USB device failed, continuing anyhow...");
+    }
+#endif
+
     /* Try to claim it */
     r = libusb_claim_interface(localnrf->nrf_handle, 0);
     if (r < 0) {
