@@ -62,6 +62,10 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::parse(std::shared_ptr<kaitai::kstr
         std::shared_ptr<wps_de_sub_state> s(new wps_de_sub_state());
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
+    } else if (wps_de_type() == wps_de_uuid_e) {
+        std::shared_ptr<wps_de_sub_uuid_e> s(new wps_de_sub_uuid_e());
+        s->parse(m_wps_de_content_data_stream);
+        m_sub_element = s;
     } else {
         std::shared_ptr<wps_de_sub_generic> s(new wps_de_sub_generic());
         s->parse(m_wps_de_content_data_stream);

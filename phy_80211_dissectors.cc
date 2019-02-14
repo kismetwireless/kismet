@@ -2082,7 +2082,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                         auto euuid = wpselem->sub_element_uuid_e();
                         if (euuid != nullptr) {
-                            packinfo->wps_uuid_e = MungeToPrintable(euuid->str());
+                            packinfo->wps_uuid_e = euuid->str();
                             continue;
                         }
                     }
