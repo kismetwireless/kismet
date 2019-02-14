@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -315,7 +315,12 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
         fprintf(stderr, "WARNING: Kismet changes the configuration of network devices.\n"
                 "         In most cases you will need to restart networking for\n"
                 "         your interface (varies per distribution/OS, but \n"
-                "         usually:  /etc/init.d/networking restart\n\n");
+                "         typically one of:\n"
+                "         sudo service networking restart\n"
+                "         sudo /etc/init.d/networkign restart\n"
+                "         or\n"
+                "         nmcli device set managed [device] true\n"
+                "\n");
 
         fprintf(stderr, "Kismet exiting.\n");
     }
