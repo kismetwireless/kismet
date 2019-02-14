@@ -177,6 +177,10 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     return actual_len;
 }
 
+int nrf_enable_pa(kis_capture_handler_t *caph) {
+    return nrf_send_command_with_resp(caph, MOUSEJACK_ENABLE_LNA_PA, NULL, 0);
+}
+
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
@@ -508,6 +512,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     libusb_set_configuration(localnrf->nrf_handle, 0);
 
     nrf_enter_promisc_mode(caph, NULL, 0);
+    nrf_enable_pa(caph);
 
     return 1;
 }
