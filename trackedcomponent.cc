@@ -79,6 +79,13 @@ SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerEle
         }
     }
 
+    // Look for the value in our own map already in case a parent instance
+    // initialized it already
+    auto existing = find(i);
+
+    if (existing != end() && existing->second != nullptr)
+        return existing->second;
+
     // Build it
     r = Globalreg::globalreg->entrytracker->GetSharedInstance(i);
 
