@@ -93,7 +93,7 @@ public:
 
 protected:
     virtual void register_fields() override {
-        tracker_component::register_fields();
+        Classfilter::register_fields();
 
         RegisterField("kismet.classfilter.macaddr.addresses",
                 "MAC address filters", &filter_block);

@@ -85,6 +85,13 @@ KisDatabaseLogfile::KisDatabaseLogfile():
                     return packet_drop_endpoint_handler(stream, uri, post_structured, variable_cache);
                 }, nullptr);
 
+    device_mac_filter = 
+        std::make_shared<ClassfilterMacaddr>("kismetdb_devices", 
+                "Kismetdb device MAC filtering");
+    packet_mac_filter = 
+        std::make_shared<PacketfilterMacaddr>("kismetdb_packets", 
+                "Kismetdb packet MAC filtering");
+
     Bind_Httpd_Server();
 }
 

@@ -35,7 +35,7 @@ Classfilter::Classfilter(const std::string& in_id, const std::string& in_descrip
 
     set_filter_default(false);
 
-    base_uri = fmt::format("/classfilters/{}", in_id);
+    base_uri = fmt::format("/filters/class/{}", in_id);
 
     auto url = fmt::format("{}/filter", base_uri);
 
@@ -122,17 +122,20 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
     macaddr_edit_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /classfilters/[id]/filter
-                    if (path.size() < 3)
+                    // /filters/class/[id]/set_filter
+                    if (path.size() < 4)
                         return false;
 
-                    if (path[0] != "classfilters")
+                    if (path[0] != "filters")
                         return false;
 
-                    if (path[1] != get_filter_id())
+                    if (path[1] != "class")
                         return false;
 
-                    if (path[2] == "filter")
+                    if (path[2] != get_filter_id())
+                        return false;
+
+                    if (path[3] == "set_filter")
                         return true;
 
                     return false;
@@ -147,17 +150,20 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
     macaddr_remove_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /classfilters/[id]/remove
-                    if (path.size() < 3)
+                    // /filters/class/[id]/remove_filter
+                    if (path.size() < 4)
                         return false;
 
-                    if (path[0] != "classfilters")
+                    if (path[0] != "filters")
                         return false;
 
-                    if (path[1] != get_filter_id())
+                    if (path[1] != "class")
                         return false;
 
-                    if (path[2] != "remove")
+                    if (path[2] != get_filter_id())
+                        return false;
+
+                    if (path[3] != "remove_filter")
                         return false;
 
                     return false;
@@ -172,12 +178,6 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
 
 unsigned int ClassfilterMacaddr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
-
-    if (path.size() < 3) {
-        stream << "Malformed request path\n";
-        return 500;
-    }
-
     try {
         if (!structured->hasKey("filter")) {
             stream << "Missing 'filter' object in request\n";
@@ -217,12 +217,6 @@ unsigned int ClassfilterMacaddr::edit_endp_handler(std::ostream& stream,
 
 unsigned int ClassfilterMacaddr::remove_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
-
-    if (path.size() < 3) {
-        stream << "Malformed request path\n";
-        return 500;
-    }
-
     try {
         if (!structured->hasKey("filter")) {
             stream << "Missing 'filter' object in request\n";

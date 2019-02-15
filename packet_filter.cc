@@ -37,7 +37,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
 
     set_filter_default(false);
 
-    base_uri = fmt::format("/packetfilters/{}", in_id);
+    base_uri = fmt::format("/filters/packet/{}", in_id);
 
     auto url = fmt::format("{}/filter", base_uri);
 
@@ -124,32 +124,35 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     macaddr_edit_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /packetfilters/[id]/[block]/filter
-                    if (path.size() < 4)
+                    // /filters/packet/[id]/[block]/set_filter
+                    if (path.size() < 5)
                         return false;
 
-                    if (path[0] != "packetfilters")
+                    if (path[0] != "filters")
                         return false;
 
-                    if (path[1] != get_filter_id())
+                    if (path[1] != "packet")
                         return false;
 
-                    if (path[3] != "filter")
+                    if (path[2] != get_filter_id())
                         return false;
 
-                    if (path[2] == "source")
+                    if (path[4] != "set_filter")
+                        return false;
+
+                    if (path[3] == "source")
                         return true;
 
-                    if (path[2] == "destination")
+                    if (path[3] == "destination")
                         return true;
 
-                    if (path[2] == "network")
+                    if (path[3] == "network")
                         return true;
 
-                    if (path[2] == "other")
+                    if (path[3] == "other")
                         return true;
 
-                    if (path[2] == "any")
+                    if (path[3] == "any")
                         return true;
 
                     return false;
@@ -164,32 +167,35 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     macaddr_remove_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /packetfilters/[id]/[block]/remove
-                    if (path.size() < 4)
+                    // /filters/packet/[id]/[block]/remove_filter
+                    if (path.size() < 5)
                         return false;
 
-                    if (path[0] != "packetfilters")
+                    if (path[0] != "filters")
                         return false;
 
-                    if (path[1] != get_filter_id())
+                    if (path[1] != "packet")
                         return false;
 
-                    if (path[3] != "remove")
+                    if (path[2] != get_filter_id())
                         return false;
 
-                    if (path[2] == "source")
+                    if (path[4] != "remove_filter")
+                        return false;
+
+                    if (path[3] == "source")
                         return true;
 
-                    if (path[2] == "destination")
+                    if (path[3] == "destination")
                         return true;
 
-                    if (path[2] == "network")
+                    if (path[3] == "network")
                         return true;
 
-                    if (path[2] == "other")
+                    if (path[3] == "other")
                         return true;
 
-                    if (path[2] == "any")
+                    if (path[3] == "any")
                         return true;
 
                     return false;
@@ -208,7 +214,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
 unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
 
-    if (path.size() < 4) {
+    if (path.size() < 5) {
         stream << "Malformed request path\n";
         return 500;
     }
@@ -228,19 +234,19 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
 
         std::shared_ptr<TrackerElementMacMap> target;
 
-        if (path[2] == "source")
+        if (path[3] == "source")
             target = filter_source;
 
-        if (path[2] == "destination")
+        if (path[3] == "destination")
             target = filter_dest;
 
-        if (path[2] == "network")
+        if (path[3] == "network")
             target = filter_network;
 
-        if (path[2] == "other")
+        if (path[3] == "other")
             target = filter_other;
 
-        if (path[2] == "any")
+        if (path[3] == "any")
             target = filter_any;
 
         if (target == nullptr) 
@@ -272,7 +278,7 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
 unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
 
-    if (path.size() < 4) {
+    if (path.size() < 5) {
         stream << "Malformed request path\n";
         return 500;
     }
@@ -292,19 +298,19 @@ unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream,
 
         std::shared_ptr<TrackerElementMacMap> target;
 
-        if (path[2] == "source")
+        if (path[3] == "source")
             target = filter_source;
 
-        if (path[2] == "destination")
+        if (path[3] == "destination")
             target = filter_dest;
 
-        if (path[2] == "network")
+        if (path[3] == "network")
             target = filter_network;
 
-        if (path[2] == "other")
+        if (path[3] == "other")
             target = filter_other;
 
-        if (path[2] == "any")
+        if (path[3] == "any")
             target = filter_any;
 
         if (target == nullptr) 

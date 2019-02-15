@@ -97,7 +97,7 @@ public:
 
 protected:
     virtual void register_fields() override {
-        tracker_component::register_fields();
+        Packetfilter::register_fields();
 
         RegisterField("kismet.packetfilter.macaddr.source", 
                 "Source address filters", &filter_source);

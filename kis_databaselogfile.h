@@ -50,6 +50,8 @@
 #include "packetchain.h"
 #include "pcapng_stream_ringbuf.h"
 #include "sqlite3_cpp11.h"
+#include "class_filter.h"
+#include "packet_filter.h"
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
@@ -170,6 +172,12 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
             SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+
+    // Device log filter
+    std::shared_ptr<ClassfilterMacaddr> device_mac_filter;
+
+    // Packet log filter
+    std::shared_ptr<PacketfilterMacaddr> packet_mac_filter;
 };
 
 class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
