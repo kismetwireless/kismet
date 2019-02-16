@@ -1,3 +1,6 @@
 [submodule "docs"]
 	path = docs
 	url = https://www.kismetwireless.net/git/kismet-docs.git
+[submodule "python_modules/KismetDatabase"]
+	path = python_modules/KismetDatabase
+	url = https://www.kismetwireless.net/git/python-kismet-db.git
