@@ -603,6 +603,9 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
 
         auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
 
+        if (device_mac_filter->filter(d->get_macaddr()))
+            continue;
+
         phystring = d->get_phyname();
         macstring = d->get_macaddr().Mac2String();
         typestring = d->get_type_string();
@@ -683,6 +686,9 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     std::string keystring;
     std::string sourceuuidstring;
     double frequency;
+
+    if (packet_mac_filter->filter_packet(in_pack))
+        return 0;
 
     kis_datachunk *chunk = 
         (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
