@@ -9,11 +9,15 @@
 
 var exports = {};
 
+var local_uri_prefix = ""; 
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 exports.timestamp_sec = 0;
 exports.timestamp_usec = 0;
 
 function update_ts() {
-    $.get("system/timestamp.json")
+    $.get(local_uri_prefix + "system/timestamp.json")
     .done(function(data) {
         data = exports.sanitizeObject(data);
         exports.timestamp_sec = data['kismet.system.timestamp.sec'];
@@ -112,7 +116,7 @@ exports.GetDynamicIncludes = function() {
     // Make a deferred promise that the scripts are loaded
     var scriptchain = $.Deferred();
 
-    $.get("dynamic.json", function(data) {
+    $.get(local_uri_prefix + "dynamic.json", function(data) {
         // Build a list of deferred stuff
         var scriptloads = new Array();
 
@@ -120,7 +124,7 @@ exports.GetDynamicIncludes = function() {
         for (var p in data['dynamicjs']) {
             // console.log("calling getscript " + data.dynamicjs[p]['js']);
 
-            $.getScript(data.dynamicjs[p]['js']);
+            $.getScript(local_uri_prefix + data.dynamicjs[p]['js']);
             // console.log("looping to see if it loaded");
 
             // Make a deferred entry per script we load

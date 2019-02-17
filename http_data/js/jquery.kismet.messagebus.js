@@ -19,6 +19,10 @@
 //
 
 (function ($) {
+    var local_uri_prefix = "";
+    if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+        local_uri_prefix = KISMET_URI_PREFIX;
+
     // Message flags
     var MSGFLAG_NONE = 0;
     var MSGFLAG_DEBUG = 1;
@@ -40,7 +44,8 @@
     };
 
     var messagebus_refresh = function(state) {
-        $.get("messagebus/last-time/" + state['last_msg_time'] + "/messages.json")
+        $.get(local_uri_prefix + "messagebus/last-time/" + 
+                state['last_msg_time'] + "/messages.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

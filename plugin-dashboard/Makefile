@@ -7,6 +7,8 @@ KIS_INC_DIR ?= $(KIS_SRC_DIR)
 
 -include $(KIS_SRC_DIR)/Makefile.inc
 
+INSTALL ?= install
+
 BLDHOME	= .
 top_builddir = $(BLDHOME)
 

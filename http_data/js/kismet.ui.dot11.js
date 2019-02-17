@@ -8,6 +8,10 @@
 
 var exports = {};
 
+var local_uri_prefix = ""; 
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 // Flag we're still loading
 exports.load_complete = 0;
 
@@ -739,7 +743,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
                     var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid');
                     var alink = $('a#' + key, opts['container']);
-                    $.get("devices/by-key/" + key +
+                    $.get(local_uri_prefix + "devices/by-key/" + key +
                             "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
                     .done(function(clidata) {
                         clidata = kismet.sanitizeObject(clidata);
@@ -774,7 +778,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.bssid_key",
                     title: "Name",
                     draw: function(opts) {
-                        $.get("devices/by-key/" + opts['value'] +
+                        $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
                                 "/device.json/kismet.device.base.commonname")
                         .done(function(clidata) {
                             clidata = kismet.sanitizeObject(clidata);
@@ -791,7 +795,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.bssid_key",
                     title: "Last SSID",
                     draw: function(opts) {
-                        $.get("devices/by-key/" + opts['value'] +
+                        $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
                                 "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
                         .done(function(clidata) {
                             clidata = kismet.sanitizeObject(clidata);
@@ -941,7 +945,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         var clientid = kismet.ObjectByString(data, opts['basekey']);
                         var apkey = data['kismet.device.base.macaddr'];
 
-                        $.get("devices/by-key/" + clientid + "/device.json")
+                        $.get(local_uri_prefix + "devices/by-key/" + clientid + "/device.json")
                         .done(function(clidata) {
                             clidata = kismet.sanitizeObject(clidata);
 
