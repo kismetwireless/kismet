@@ -1041,7 +1041,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // Detect if we're an adhoc bssid
             if (dot11info->ibss) {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                bssid_dev->set_type_string("Wi-Fi Adhoc");
+                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
                 bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
             } else {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
@@ -1102,7 +1102,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // If it's sending ibss-flagged packets it's got to be adoc
             if (dot11info->ibss) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                source_dev->set_type_string("Wi-Fi Adhoc");
+                source_dev->set_type_string("Wi-Fi Ad-Hoc");
                 source_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
             } else {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of 
