@@ -9,6 +9,10 @@
 //
 
 (function ($) {
+    var local_uri_prefix = "";
+    if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+        local_uri_prefix = KISMET_URI_PREFIX;
+
     var base_options = { 
         use_color: true,
         max_backlog: 50,
@@ -267,7 +271,7 @@
     }
 
     var alert_refresh = function(fetchtime = last_time) {
-        $.get("alerts/last-time/" + fetchtime + "/alerts.json")
+        $.get(local_uri_prefix + "alerts/last-time/" + fetchtime + "/alerts.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

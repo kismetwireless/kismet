@@ -7,6 +7,10 @@
 //
 
 (function ($) {
+    var local_uri_prefix = "";
+    if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+        local_uri_prefix = KISMET_URI_PREFIX;
+
     var base_options = { 
         use_color: true,
     };
@@ -22,7 +26,7 @@
     var batoverlay;
 
     var batinfo_refresh = function() {
-        $.get("system/status.json")
+        $.get(local_uri_prefix + "system/status.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

@@ -8,11 +8,15 @@
 
 var exports = {};
 
+var local_uri_prefix = "";
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 // Flag we're still loading
 exports.load_complete = 0;
 
 /* Fetch the system user */
-$.get("system/status.json")
+$.get(local_uri_prefix + "system/status.json")
 .done(function(data) {
     exports.system_user = data['kismet.system.user'];
 })
@@ -26,7 +30,7 @@ $('<link>')
     .attr({
         type: 'text/css',
         rel: 'stylesheet',
-        href: 'css/kismet.ui.base.css'
+        href: local_uri_prefix + 'css/kismet.ui.base.css'
     });
 
 /* Define some callback functions for the table */
@@ -345,7 +349,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                         "username": newvalue
                                     };
                                     var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                    $.post("devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
+                                    $.post(local_uri_prefix + "devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
                                 }
                             });
                         }
@@ -383,7 +387,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                                         "tagvalue": newvalue.escapeSpecialChars(),
                                     };
                                     var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                    $.post("devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
+                                    $.post(local_uri_prefix + "devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
                                 }
                             });
                         }
@@ -959,7 +963,7 @@ function memorydisplay_refresh() {
     if (memory_panel.is(':hidden'))
         return;
 
-    $.get("system/status.json")
+    $.get(local_uri_prefix + "system/status.json")
     .done(function(data) {
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
@@ -1231,7 +1235,7 @@ kismet_ui_settings.AddSettingsPane({
     create: function(elem) {
         elem.append($('<i>').html('Loading plugin data...'));
 
-        $.get("plugins/all_plugins.json")
+        $.get(local_uri_prefix + "plugins/all_plugins.json")
         .done(function(data) {
             elem.empty();
     
@@ -1598,7 +1602,7 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
 
     var signal = lastsignal;
 
-    $.get("devices/by-key/" + key + "/device.json")
+    $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
     .done(function(data) {
         var title = '<i class="fa fa-signal" /> Signal ' +
             data['kismet.device.base.macaddr'] + ' ' +

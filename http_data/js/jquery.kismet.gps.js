@@ -9,6 +9,10 @@
 //
 
 (function ($) {
+    var local_uri_prefix = "";
+    if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+        local_uri_prefix = KISMET_URI_PREFIX;
+
     var base_options = {
         use_color: true,
     };
@@ -132,7 +136,7 @@
     }
 
     var gps_refresh = function() {
-        $.get("gps/location.json")
+        $.get(local_uri_prefix + "gps/location.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

@@ -8,6 +8,10 @@
 
 var exports = {};
 
+var local_uri_prefix = ""; 
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 // Flag we're still loading
 exports.load_complete = 0;
 
@@ -17,7 +21,7 @@ $('<link>')
     .attr({
         type: 'text/css', 
         rel: 'stylesheet',
-        href: 'css/kismet.ui.settings.css'
+        href: local_uri_prefix + 'css/kismet.ui.settings.css'
     });
 
 /*

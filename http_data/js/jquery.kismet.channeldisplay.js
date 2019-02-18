@@ -10,6 +10,10 @@
 
 
 (function($) {
+    var local_uri_prefix = "";
+    if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+        local_uri_prefix = KISMET_URI_PREFIX;
+
     var base_options = {
         url: ""
     };
@@ -22,7 +26,7 @@
             return;
         }
 
-        $.get(state.options.url + "channels/channels.json")
+        $.get(local_uri_prefix + state.options.url + "channels/channels.json")
         .done(function(data) {
             data = kismet.sanitizeObject(data);
 

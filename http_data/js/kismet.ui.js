@@ -6,6 +6,10 @@
 
 "use strict";
 
+var local_uri_prefix = "";
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 var exports = {};
 
 // Load spectrum css and js
@@ -14,13 +18,13 @@ $('<link>')
     .attr({
         type: 'text/css',
         rel: 'stylesheet',
-        href: 'css/spectrum.css'
+        href: local_uri_prefix + 'css/spectrum.css'
     });
 $('<script>')
     .appendTo('head')
     .attr({
         type: 'text/javascript',
-        src: 'js/spectrum.js'
+        src: local_uri_prefix + 'js/spectrum.js'
     });
 
 exports.last_timestamp = 0;
@@ -416,7 +420,7 @@ exports.DeviceDetailWindow = function(key) {
             var panel = this;
             var content = this.content;
 
-            $.get("devices/by-key/" + key + "/device.json")
+            $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
                     fulldata = kismet.sanitizeObject(fulldata);
 
@@ -555,7 +559,7 @@ exports.connection_error_panel = null;
 exports.HealthCheck = function() {
     var timerid;
 
-    $.get("system/status.json")
+    $.get(local_uri_prefix + "system/status.json")
     .done(function(data) {
         data = kismet.sanitizeObject(data);
 
