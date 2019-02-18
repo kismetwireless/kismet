@@ -361,7 +361,7 @@ configsinstall:
 	@echo
 	@echo
 	@echo "Existing config files have not been replaced; if the Kismet "; 
-	@echo "configuration files have changed, you will need t manually ";
+	@echo "configuration files have changed, you will need to manually ";
 	@echo "reconcile the differences in the config files!";
 	@echo "You can replace all config files with: ";
 	@echo "    make forceconfigs";
