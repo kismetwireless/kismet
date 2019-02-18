@@ -345,19 +345,32 @@ commoninstall: $(INSTBINS)
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
 ${CONFINSTTARGETS}: install_conf_%: 
 	@if test -f $(ETC)/$*; then \
-		echo "$(ETC)/$(f) already exists; it will not be automatically replaced."; \
-		echo "HOWEVER if there have been any changes you will need to manually"; \
-		echo "reconcile the differences in the config files!"; \
-		echo "You can update all config files with"; \
-		echo "make forceconfigs"; \
+		echo "$(ETC)/$* already exists; it will not be automatically replaced."; \
 	else \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  \
 	fi
 
 FORCECONFINSTTARGETS = $(addprefix install_force_conf_, $(CONFIGFILES))
 ${FORCECONFINSTTARGETS}: install_force_conf_%: 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  
+
+configsinstall:
+	$(MAKE) $(CONFINSTTARGETS)
+
+	@echo
+	@echo
+	@echo "Existing config files have not been replaced; if the Kismet "; 
+	@echo "configuration files have changed, you will need t manually ";
+	@echo "reconcile the differences in the config files!";
+	@echo "You can replace all config files with: ";
+	@echo "    make forceconfigs";
+	@echo 
+	@echo "You can simplify future configuration changes by using the ";
+	@echo "kismet_site.conf config file, for more info see the docs at:";
+	@echo "https://www.kismetwireless.net/docs/readme/config_files/";
+	@echo
+	@echo
 
 suidinstall: $(PS) $(DATASOURCE_BINS)
 	-groupadd -r -f $(SUIDGROUP)
@@ -365,14 +378,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@$(MAKE) -e commoninstall
 	@$(MAKE) -e binsuidinstall
 
-	@$(MAKE) install_conf_kismet.conf
-	@$(MAKE) install_conf_kismet_httpd.conf
-	@$(MAKE) install_conf_kismet_memory.conf
-	@$(MAKE) install_conf_kismet_alerts.conf
-	@$(MAKE) install_conf_kismet_storage.conf
-	@$(MAKE) install_conf_kismet_logging.conf
-	@$(MAKE) install_conf_kismet_uav.conf
-	@$(MAKE) install_conf_kismet_80211.conf
+	@$(MAKE) configsinstall
 
 	@echo
 	@echo
@@ -399,14 +405,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 install: $(INSTBINS)
 	@$(MAKE) -e commoninstall
 
-	@$(MAKE) install_conf_kismet.conf
-	@$(MAKE) install_conf_kismet_httpd.conf
-	@$(MAKE) install_conf_kismet_memory.conf
-	@$(MAKE) install_conf_kismet_alerts.conf
-	@$(MAKE) install_conf_kismet_storage.conf
-	@$(MAKE) install_conf_kismet_logging.conf
-	@$(MAKE) install_conf_kismet_uav.conf
-	@$(MAKE) install_conf_kismet_80211.conf
+	@$(MAKE) configsinstall
 
 	@echo
 	@echo
@@ -432,14 +431,7 @@ install: $(INSTBINS)
 	@echo "make forceconfigs"
 
 forceconfigs: 
-	@$(MAKE) install_force_conf_kismet.conf
-	@$(MAKE) install_force_conf_kismet_httpd.conf
-	@$(MAKE) install_force_conf_kismet_memory.conf
-	@$(MAKE) install_force_conf_kismet_alerts.conf
-	@$(MAKE) install_force_conf_kismet_storage.conf
-	@$(MAKE) install_force_conf_kismet_logging.conf
-	@$(MAKE) install_force_conf_kismet_uav.conf
-	@$(MAKE) install_force_conf_kismet_80211.conf
+	$(MAKE) $(FORCECONFINSTTARGETS)
 
 uavconfig:
 	@echo "Generating kismet_uav.conf"
