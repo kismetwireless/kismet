@@ -91,6 +91,8 @@ public:
 
     virtual bool filter(mac_addr in_mac);
 
+    virtual void set_filter(mac_addr in_mac, const std::string& in_phy);
+
 protected:
     virtual void register_fields() override {
         Classfilter::register_fields();
@@ -98,9 +100,19 @@ protected:
         RegisterField("kismet.classfilter.macaddr.addresses",
                 "MAC address filters", &filter_block);
 
+        filter_sub_phy_id = 
+            RegisterField("kismet.classfilter.macaddr.phyname",
+                    TrackerElementFactory<TrackerElementString>(),
+                    "Applied PHY name for MAC");
+        filter_sub_value_id =
+            RegisterField("kismet.classfilter.macaddr.value",
+                    TrackerElementFactory<TrackerElementUInt8>(),
+                    "Filter value");
     }
 
     std::shared_ptr<TrackerElementMacMap> filter_block;
+
+    int filter_sub_phy_id, filter_sub_value_id;
 
     // Address management endpoint keyed on path
     std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_edit_endp;
