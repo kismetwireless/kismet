@@ -303,29 +303,29 @@ public:
     // Unlock the conditional, unblocking whatever thread was blocked
     // waiting for us, and passing whatever data we'd like to pass
     void unlock(t in_data) {
-        std::unique_lock<std::mutex> lk(m);
+        {
+            std::lock_guard<std::mutex> lk(m);
 
-        locked = false;
-        data = in_data;
-
-        lk.unlock();
+            locked = false;
+            data = in_data;
+        }
         cv.notify_all();
     }
 
     void unlock() {
-        std::unique_lock<std::mutex> lk(m);
+        {
+            std::lock_guard<std::mutex> lk(m);
 
-        locked = false;
-        lk.unlock();
+            locked = false;
+        }
 
         cv.notify_all();
     }
 
-
 protected:
     std::mutex m;
     std::condition_variable cv;
-    std::atomic<bool> locked;
+    bool locked;
     t data;
 };
 

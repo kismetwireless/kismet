@@ -1306,20 +1306,8 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHan
             cl->lock();
         }
 
-#ifdef __APPLE__
-        // OSX on Mojave seems to have some real issues with block_for_ms (which calls
-        // the deeper std::condition_variable::wait_for).  For now, bypass the stall protection
-        // when we're building on OSX.
         if (cl->block_until())
             return;
-#else
-        // Block outside of the mutex protection; do a timed block so we keep checking to see
-        // how we're doing; this is a little less efficient but doesn't kill us, and can catch
-        // some stall conditions
-        auto delay = std::chrono::milliseconds(100);
-        if (cl->block_for_ms(delay))
-            return;
-#endif
     }
 }
 
@@ -1332,25 +1320,31 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
     // Protect that we have to exit the buffer cb before the stream can be killed, don't
-    // use an automatic locker because we can't let it time out
+    // use an automatic locker because we can't let it time out.  This could sit locked for
+    // a long time while the generator populates data; if there's a HTTP error we need to
+    // let this end gracefully.
     stream_aux->get_buffer_event_mutex()->lock();
 
     std::shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
 
+    // Target buffer before we send it out via MHD
     size_t read_sz = 0;
-
-    // Read from the buffer; currently we have to force a copy into our existing
-    // buffer unfortunately
     unsigned char *zbuf;
 
+    // Keep going until we have something to send
     while (read_sz == 0) {
         // We get called as soon as the webserver has either a) processed our request
         // or b) sent what we gave it; we need to hold the thread until we
         // get more data in the buf, so we block until we have data
         stream_aux->block_until_data(rbh);
 
+        // We want to send everything we had in the buffer, even if we're in an error 
+        // state, because the error text might be in the buffer (or the buffer generator
+        // has completed and it's time to return)
         read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
 
+        // If we've got nothing left either it's the end of the buffer or we're pending
+        // more data hitting the request
         if (read_sz == 0) {
             rbh->PeekFreeWriteBufferData(zbuf);
 
@@ -1362,13 +1356,16 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         }
     }
 
+    // We've got data to send; copy it into the microhttpd output buffer
     if (read_sz != 0 && zbuf != NULL && buf != NULL) {
         memcpy(buf, zbuf, read_sz);
     }
 
+    // Clean up the writebuffer access
     rbh->PeekFreeWriteBufferData(zbuf);
     rbh->ConsumeWriteBufferData(read_sz);
 
+    // Unlock the stream
     stream_aux->get_buffer_event_mutex()->unlock();
 
     return (ssize_t) read_sz;
@@ -1389,7 +1386,7 @@ static void free_buffer_aux_callback(void *cls) {
     size_t read_sz = 0;
     unsigned char *zbuf;
 
-    while (1) {
+    while (aux->get_in_error() == false) {
         aux->block_until_data(rbh);
 
         read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
@@ -1435,23 +1432,33 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
             new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
-        // Set up a locker to make sure the thread is up and running
-        conditional_locker<int> cl;
-        cl.lock();
+        // Set up a locker to make sure the thread is up and running; this keeps us from
+        // processing the stream contents until that thread is up and doing something.
+        conditional_locker<int> aux_startup_cl;
+        aux_startup_cl.lock();
 
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
         // connection BEFORE calling our cleanup on our response!
         aux->generator_thread =
-            std::thread([this, &cl, aux, httpd, connection, url, method, 
+            std::thread([this, &aux_startup_cl, aux, httpd, connection, url, method, 
                     upload_data, upload_data_size] {
                 // Unlock the http thread as soon as we've spawned it
-                cl.unlock(1);
+                aux_startup_cl.unlock(1);
 
-                // Trigger 'error' when the function is complete & returns a 'complete' value;
-                // causing us to finish the stream; if the stream returns a MHD_NO we expect
-                // it to close its stream itself later; if we have an exception, treat it as
-                // the stream closing
+                // Callbacks can do two things - either run forever until their data is
+                // done being generated, or spawn their own processing systems that write
+                // back to the stream over time.  Most generate all their data in one go and
+                // flush it out the stream at the same time, while pcap live streams and a
+                // few others generate data over time.
+                //
+                // When the populator returns a MHD_YES it has completed and the stream should
+                // be shut down.  We accomplish this by setting a stream error, which should in
+                // turn unlock the callback and complete the stream.
+                //
+                // If it returns MHD_NO we let it run on forever until it kills its stream itself.
+                // Exceptions are treated as MHD_YES and the stream closed - something went wrong
+                // in the generator and it's not going to clean itself up.
                 try {
                     int r = Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
                             upload_data_size);
@@ -1468,7 +1475,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 });
 
         // We unlock when the generator thread has started
-        cl.block_until();
+        aux_startup_cl.block_until();
 
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
