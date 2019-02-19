@@ -122,8 +122,8 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
     macaddr_edit_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /filters/class/[id]/set_filter
-                    if (path.size() < 4)
+                    // /filters/class/[id]/[phyname]/set_filter
+                    if (path.size() < 5)
                         return false;
 
                     if (path[0] != "filters")
@@ -135,7 +135,7 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
                     if (path[2] != get_filter_id())
                         return false;
 
-                    if (path[3] == "set_filter")
+                    if (path[4] == "set_filter")
                         return true;
 
                     return false;
@@ -150,8 +150,8 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
     macaddr_remove_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /filters/class/[id]/remove_filter
-                    if (path.size() < 4)
+                    // /filters/class/[id]/[phyname]/remove_filter
+                    if (path.size() < 5)
                         return false;
 
                     if (path[0] != "filters")
@@ -163,7 +163,7 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
                     if (path[2] != get_filter_id())
                         return false;
 
-                    if (path[3] != "remove_filter")
+                    if (path[4] != "remove_filter")
                         return false;
 
                     return false;
