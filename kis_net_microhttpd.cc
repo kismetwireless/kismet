@@ -1306,11 +1306,20 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHan
             cl->lock();
         }
 
+#ifdef __APPLE__
+        // OSX on Mojave seems to have some real issues with block_for_ms (which calls
+        // the deeper std::condition_variable::wait_for).  For now, bypass the stall protection
+        // when we're building on OSX.
+        if (cl->block_until())
+            return;
+#else
         // Block outside of the mutex protection; do a timed block so we keep checking to see
-        // how we're doing; this is less efficient...
+        // how we're doing; this is a little less efficient but doesn't kill us, and can catch
+        // some stall conditions
         auto delay = std::chrono::milliseconds(100);
         if (cl->block_for_ms(delay))
             return;
+#endif
     }
 }
 
