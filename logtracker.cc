@@ -149,6 +149,8 @@ void LogTracker::Deferred_Startup() {
     else
         set_int_log_prefix(argprefix);
 
+    Globalreg::globalreg->log_prefix = get_log_prefix();
+
     set_int_log_template(Globalreg::globalreg->kismet_config->FetchOptDfl("log_template", 
                 "%p/%n-%D-%t-%i.%l"));
 
