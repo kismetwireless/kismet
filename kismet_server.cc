@@ -85,6 +85,8 @@
 #include "kis_httpd_websession.h"
 #include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"
+#include "streamtracker.h"
+#include "eventbus.h"
 
 #include "gpstracker.h"
 
@@ -99,14 +101,9 @@
 #include "phy_nrf_mousejack.h"
 
 #include "ipc_remote2.h"
-
 #include "manuf.h"
-
 #include "entrytracker.h"
-
 #include "json_adapter.h"
-
-#include "streamtracker.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -637,6 +634,9 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL | MSGFLAG_ERROR);
     // Register the smart msg printer for everything
     globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
+
+	// Create the event bus
+	auto eventbus = Eventbus::create_eventbus();
 
     // We need to create the pollable system near the top of execution as well
     std::shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
