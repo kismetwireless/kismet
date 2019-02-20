@@ -91,7 +91,8 @@ public:
 
     virtual bool filter(mac_addr in_mac);
 
-    virtual void set_filter(mac_addr in_mac, const std::string& in_phy);
+    virtual void set_filter(mac_addr in_mac, const std::string& in_phy, bool value);
+    virtual void remove_filter(mac_addr in_mac, const std::string& in_phy);
 
 protected:
     virtual void register_fields() override {

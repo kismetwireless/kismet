@@ -176,6 +176,14 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
                 }, &mutex);
 }
 
+void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, bool value) {
+
+}
+
+void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_phy) {
+
+}
+
 unsigned int ClassfilterMacaddr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
     try {
