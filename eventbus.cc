@@ -22,6 +22,10 @@ Eventbus::Eventbus() {
     next_cbl_id = 1;
 }
 
+Eventbus::~Eventbus() {
+
+}
+
 unsigned long Eventbus::register_listener(const std::string& channel, cb_func cb) {
     local_locker l(&mutex);
 
