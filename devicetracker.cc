@@ -71,7 +71,10 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     httpd_pcap = std::make_shared<Devicetracker_Httpd_Pcap>();
 
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+
+	eventbus =
+		Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     device_base_id =
         entrytracker->RegisterField("kismet.device.base", 
@@ -502,6 +505,8 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_datapackets[num] = 0;
 	phy_errorpackets[num] = 0;
 	phy_filterpackets[num] = 0;
+
+	eventbus->publish(std::make_shared<EventNewPhy>(strongphy));
 
 	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);

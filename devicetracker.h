@@ -56,6 +56,7 @@
 #include "devicetracker_view.h"
 #include "devicetracker_workers.h"
 #include "kis_database.h"
+#include "eventbus.h"
 
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
@@ -121,6 +122,17 @@ public:
 
 	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
     Kis_Phy_Handler *FetchPhyHandlerByName(std::string in_name);
+
+    // Eventbus event we inject when a new phy is added
+    class EventNewPhy : public EventbusEvent {
+    public:
+        EventNewPhy(Kis_Phy_Handler *handler) :
+            EventbusEvent("NEW_PHY"),
+            phy{handler} { }
+        virtual ~EventNewPhy() {}
+
+        Kis_Phy_Handler *phy;
+    };
 
     std::string FetchPhyName(int in_phy);
 
@@ -289,6 +301,7 @@ protected:
 	GlobalRegistry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<Eventbus> eventbus;
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
