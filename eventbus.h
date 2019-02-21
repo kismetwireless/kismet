@@ -45,6 +45,8 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <queue>
+#include <thread>
 #include <functional>
 
 #include "globalregistry.h"
@@ -87,10 +89,22 @@ public:
     unsigned long register_listener(const std::list<std::string>& channels, cb_func cb);
     void remove_listener(unsigned long id);
 
-    void publish(std::shared_ptr<EventbusEvent> event);
+    template<typename T>
+    void publish(T event) {
+        local_locker l(&mutex);
+
+        auto evt_cast = 
+            std::static_pointer_cast<EventbusEvent>(event);
+
+        event_queue.push(evt_cast);
+        event_cl.unlock(1);
+    }
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    // We need 2 mutexes - we have to block removing a callback while we're dispatching
+    // an event, because we need to not lock up the entire event bus while we're 
+    // sending out events
+    kis_recursive_timed_mutex mutex, handler_mutex;
 
     unsigned long next_cbl_id;
 
@@ -108,6 +122,14 @@ protected:
     // Map of event IDs to listener objects
     std::map<std::string, std::vector<std::shared_ptr<callback_listener>>> callback_table;
     std::map<unsigned long, std::shared_ptr<callback_listener>> callback_id_table;
+
+    // Event pool and handler thread
+    std::queue<std::shared_ptr<EventbusEvent>> event_queue;
+    std::thread event_dispatch_t;
+    conditional_locker<int> event_cl;
+    std::atomic<bool> shutdown;
+    void event_queue_dispatcher();
+    
 };
 
 #endif

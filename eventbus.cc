@@ -20,14 +20,73 @@
 
 Eventbus::Eventbus() {
     next_cbl_id = 1;
+
+    shutdown = false;
+
+    event_cl.lock();
+
+    event_dispatch_t =
+        std::thread([this]() {
+                event_queue_dispatcher();
+            });
+   
 }
 
 Eventbus::~Eventbus() {
+    shutdown = true;
 
+    event_cl.unlock(0);
+    event_dispatch_t.join();
+}
+
+void Eventbus::event_queue_dispatcher() {
+    local_demand_locker l(&mutex);
+
+    while (1) {
+        if (shutdown)
+            return;
+
+        // Lock while we examine the queue
+        l.lock();
+
+        if (event_queue.size() != 0) {
+            auto e = event_queue.front();
+            event_queue.pop();
+
+            auto ch_listeners = callback_table.find(e->get_event());
+
+            if (ch_listeners == callback_table.end()) {
+                l.unlock();
+                continue;
+            }
+
+            // Lock the handler mutex while we're processing an event
+            {
+                local_locker rl(&handler_mutex);
+
+                // Unlock the rest of the eventbus
+                l.unlock();
+
+                auto listeners{ch_listeners->second};
+
+                for (auto cbl : ch_listeners->second) {
+                    cbl->cb(e);
+                }
+            }
+
+            // Loop for more events
+            continue;
+        }
+
+        // No more events
+       l.unlock();
+
+       event_cl.block_until();
+    }
 }
 
 unsigned long Eventbus::register_listener(const std::string& channel, cb_func cb) {
-    local_locker l(&mutex);
+    local_locker l(&handler_mutex);
 
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
 
@@ -38,7 +97,7 @@ unsigned long Eventbus::register_listener(const std::string& channel, cb_func cb
 }
 
 unsigned long Eventbus::register_listener(const std::list<std::string>& channels, cb_func cb) {
-    local_locker l(&mutex);
+    local_locker l(&handler_mutex);
 
     auto cbl = std::make_shared<callback_listener>(channels, cb, next_cbl_id++);
 
@@ -52,7 +111,7 @@ unsigned long Eventbus::register_listener(const std::list<std::string>& channels
 }
 
 void Eventbus::remove_listener(unsigned long id) {
-    local_locker l(&mutex);
+    local_locker l(&handler_mutex);
 
     // Find matching cbl
     auto cbl = callback_id_table.find(id);
@@ -74,18 +133,5 @@ void Eventbus::remove_listener(unsigned long id) {
 
     // Remove from CBL ID table
     callback_id_table.erase(cbl);
-}
-
-void Eventbus::publish(std::shared_ptr<EventbusEvent> event) {
-    local_locker l(&mutex);
-
-    auto ch_listeners = callback_table.find(event->get_event());
-
-    if (ch_listeners == callback_table.end())
-        return;
-
-    for (auto cbl : ch_listeners->second) {
-        cbl->cb(event);
-    }
 }
 
