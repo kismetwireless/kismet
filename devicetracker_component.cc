@@ -390,6 +390,7 @@ void kis_tracked_device_base::register_fields() {
     RegisterField("kismet.device.base.key", "unique device key across phy and server", &key);
     RegisterField("kismet.device.base.macaddr", "mac address", &macaddr);
     RegisterField("kismet.device.base.phyname", "phy name", &phyname);
+	RegisterField("kismet.device.base.phyid", "phy internal id", &phyid);
     RegisterField("kismet.device.base.name", "printable device name", &devicename);
     username_id = 
         RegisterDynamicField("kismet.device.base.username", "user name", &username);

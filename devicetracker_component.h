@@ -286,6 +286,7 @@ public:
             });
 
     __Proxy(phyname, std::string, std::string, std::string, phyname);
+	__Proxy(phyid, uint32_t, uint32_t, uint32_t, phyid);
 
     __ProxyL(devicename, std::string, std::string, std::string, devicename, 
             [this](std::string i) -> bool {
@@ -463,6 +464,7 @@ protected:
 
     // Phy name
     std::shared_ptr<TrackerElementString> phyname;
+	std::shared_ptr<TrackerElementUInt32> phyid;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP guess, etc.
     std::shared_ptr<TrackerElementString> devicename;
