@@ -637,6 +637,7 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_key(key);
         device->set_macaddr(in_mac);
         device->set_phyname(in_phy->FetchPhyName());
+		device->set_phyid(in_phy->FetchPhyId());
 
         device->set_server_uuid(globalreg->server_uuid);
 
