@@ -603,7 +603,7 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
 
         auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
 
-        if (device_mac_filter->filter(d->get_macaddr()))
+        if (device_mac_filter->filter(d->get_macaddr(), d->get_phyid()))
             continue;
 
         phystring = d->get_phyname();
