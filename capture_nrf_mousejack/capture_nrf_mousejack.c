@@ -606,6 +606,10 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
+        /* Skip runt packets caused by timeouts */
+        if (buf_rx_len == 1)
+            continue;
+
         /*
         if (buf_rx_len > 1) {
             fprintf(stderr, "mousejack saw %d ", buf_rx_len);
