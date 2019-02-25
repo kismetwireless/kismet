@@ -363,10 +363,10 @@ protected:
     // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
     
     virtual void register_fields() override {
-        RegisterField("rtl433.device.lightning.strike_count", "Strike count", &strike_count);
-        RegisterField("rtl433.device.lightning.storm_distance", "Storm distance (no unit)", &storm_distance);
-        RegisterField("rtl433.device.lightning.storm_active", "Storm active", &storm_active);
-        RegisterField("rtl433.device.lightning.rfi", "Lightning radio frequency interference", &lightning_rfi);
+        RegisterField("rtl433.device.lightning_strike_count", "Strike count", &strike_count);
+        RegisterField("rtl433.device.lightning_storm_distance", "Storm distance (no unit)", &storm_distance);
+        RegisterField("rtl433.device.lightning_storm_active", "Storm active", &storm_active);
+        RegisterField("rtl433.device.lightning_rfi", "Lightning radio frequency interference", &lightning_rfi);
     }
 
     std::shared_ptr<TrackerElementUInt64> strike_count;
