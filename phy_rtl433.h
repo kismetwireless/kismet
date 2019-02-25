@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -318,6 +318,63 @@ protected:
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> lux_rrd;
 };
 
+class rtl433_tracked_lightningsensor : public tracker_component {
+public:
+    rtl433_tracked_lightningsensor() :
+        tracker_component() {
+            register_fields();
+            reserve_fields(nullptr);
+        }
+
+    rtl433_tracked_lightningsensor(int in_id) :
+        tracker_component(in_id) {
+            register_fields();
+            reserve_fields(nullptr);
+        }
+
+    rtl433_tracked_lightningsensor(int in_id, std::shared_ptr<TrackerElementMap> e) :
+        tracker_component(in_id) {
+            register_fields();
+            reserve_fields(e);
+        }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("rtl322_tracked_lightningsensor");
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    __Proxy(strike_count, uint64_t, uint64_t, uint64_t, strike_count);
+    __Proxy(storm_distance, uint64_t, uint64_t, uint64_t, storm_distance);
+    __Proxy(storm_active, uint8_t, bool, bool, storm_active);
+    __Proxy(lightning_rfi, uint64_t, uint64_t, uint64_t, lightning_rfi);
+
+protected:
+    // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
+    
+    virtual void register_fields() override {
+        RegisterField("rtl433.device.lightning.strike_count", "Strike count", &strike_count);
+        RegisterField("rtl433.device.lightning.storm_distance", "Storm distance (no unit)", &storm_distance);
+        RegisterField("rtl433.device.lightning.storm_active", "Storm active", &storm_active);
+        RegisterField("rtl433.device.lightning.rfi", "Lightning radio frequency interference", &lightning_rfi);
+    }
+
+    std::shared_ptr<TrackerElementUInt64> strike_count;
+    std::shared_ptr<TrackerElementUInt64> storm_distance;
+    std::shared_ptr<TrackerElementUInt8> storm_active;
+    std::shared_ptr<TrackerElementUInt64> lightning_rfi;
+};
+
 // TPMS tire pressure sensors
 class rtl433_tracked_tpms : public tracker_component {
 public:
@@ -463,11 +520,13 @@ protected:
     bool is_thermometer(Json::Value json);
     bool is_tpms(Json::Value json);
     bool is_switch(Json::Value json);
+    bool is_lightning(Json::Value json);
 
     void add_weather_station(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
     void add_thermometer(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
     void add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
     void add_switch(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_lightning(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
 
     double f_to_c(double f);
 
@@ -477,7 +536,8 @@ protected:
     std::shared_ptr<EntryTracker> entrytracker;
 
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
-        rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id;
+        rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id,
+        rtl433_lightning_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 

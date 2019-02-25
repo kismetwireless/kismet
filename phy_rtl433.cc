@@ -74,6 +74,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 TrackerElementFactory<rtl433_tracked_switch>(),
                 "RTL433 power switch");
 
+    rtl433_lightning_id =
+        Globalreg::globalreg->entrytracker->RegisterField("rtl322.device.lightningsensor",
+                TrackerElementFactory<rtl433_tracked_lightningsensor>(),
+                "RTL433 lightning sensor");
+
     // Make the manuf string
     rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTL433");
 
@@ -288,6 +293,9 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json) {
     if (is_switch(json))
         add_switch(json, rtlholder);
 
+    if (is_lightning(json))
+        add_lightning(json, rtlholder);
+
     if (newrtl && commondev != NULL) {
         std::string info = "Detected new RTL433 RF device '" + commondev->get_model() + "'";
 
@@ -349,6 +357,18 @@ bool Kis_RTL433_Phy::is_switch(Json::Value json) {
     auto sw1_j = json["switch1"];
 
     if (!sw0_j.isNull() || !sw1_j.isNull())
+        return true;
+
+    return false;
+}
+
+bool Kis_RTL433_Phy::is_lightning(Json::Value json) {
+    auto strike_j = json["strike_count"];
+    auto storm_j = json["storm_dist"];
+    auto active_j = json["active"];
+    auto rfi_j = json["rfi"];
+
+    if (!strike_j.isNull() && !storm_j.isNull() && !active_j.isNull() && !rfi_j.isNull()) 
         return true;
 
     return false;
@@ -549,6 +569,35 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<TrackerElement
     }
 }
 
+void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+    // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
+    auto strike_j = json["strike_count"];
+    auto storm_j = json["storm_dist"];
+    auto active_j = json["active"];
+    auto rfi_j = json["rfi"];
+
+    if (!strike_j.isNull() && !storm_j.isNull() && !active_j.isNull() && !rfi_j.isNull()) {}
+        auto lightningdev = 
+            rtlholder->get_sub_as<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
+
+        if (lightningdev == NULL) {
+            lightningdev = 
+                std::make_shared<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
+            rtlholder->insert(lightningdev);
+        }
+
+        if (strike_j.isNumeric())
+            lightningdev->set_strike_count(strike_j.asUInt64());
+
+        if (storm_j.isNumeric())
+            lightningdev->set_storm_distance(storm_j.asUInt64());
+
+        if (active_j.isNumeric())
+            lightningdev->set_storm_active(active_j.asUInt());
+
+        if (rfi_j.isNumeric()) 
+            lightningdev->set_lightning_rfi(rfi_j.asUInt64());
+}
 
 int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
     Kis_RTL433_Phy *rtl433 = (Kis_RTL433_Phy *) auxdata;
