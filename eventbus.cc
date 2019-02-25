@@ -49,7 +49,7 @@ void Eventbus::event_queue_dispatcher() {
         // Lock while we examine the queue
         l.lock();
 
-        if (event_queue.size() != 0) {
+        if (event_queue.size() > 0) {
             auto e = event_queue.front();
             event_queue.pop();
 
@@ -78,10 +78,14 @@ void Eventbus::event_queue_dispatcher() {
             continue;
         }
 
-        // No more events
-       l.unlock();
+        // Reset the lock
+        event_cl.lock();
+      
+        // Unlock our hold on the system
+        l.unlock();
 
-       event_cl.block_until();
+        // Wait until new events
+        event_cl.block_until();
     }
 }
 
