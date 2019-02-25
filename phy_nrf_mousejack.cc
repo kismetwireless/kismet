@@ -34,6 +34,7 @@
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
 #include "dlttracker.h"
+#include "manuf.h"
 
 Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     Kis_Phy_Handler(in_globalreg, in_phyid) {
@@ -67,9 +68,13 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid)
         Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
         */
 
+    // Make the manuf string
+    mj_manuf_amazon = Globalreg::globalreg->manufdb->MakeManuf("Amazon");
+    mj_manuf_logitech = Globalreg::globalreg->manufdb->MakeManuf("Logitech");
+    mj_manuf_microsoft = Globalreg::globalreg->manufdb->MakeManuf("Microsoft");
+
     packetchain->RegisterHandler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->RegisterHandler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
-
 }
 
 Kis_Mousejack_Phy::~Kis_Mousejack_Phy() {
@@ -136,6 +141,30 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "KB/Mouse");
+
+    // Figure out what we think it could be; this isn't very precise.  Fingerprinting
+    // based on methods in mousejack python.
+    if (packdata->length == 6) {
+        device->set_manuf(mphy->mj_manuf_amazon);
+    } else if (packdata->length == 10 && packdata->data[0] == 0x00 && packdata->data[1] == 0xC2) {
+        // Logitech mouse movement
+        device->set_manuf(mphy->mj_manuf_logitech);
+    } else if (packdata->length == 22 && packdata->data[0] == 0x00 && packdata->data[1] == 0xD3) {
+        // Logitech keyboard 
+        device->set_manuf(mphy->mj_manuf_logitech);
+    } else if (packdata->length == 5 && packdata->data[0] == 0x00 && packdata->data[1] == 0x40) {
+        // Logitech keepalive
+        device->set_manuf(mphy->mj_manuf_logitech);
+    } else if (packdata->length == 10 && packdata->data[0] == 0x00 && packdata->data[1] == 0x4F) {
+        // Logitech sleep timer
+        device->set_manuf(mphy->mj_manuf_logitech);
+    } else if (packdata->length == 19 && 
+            (packdata->data[0] == 0x08 || packdata->data[0] == 0x0c) &&
+            packdata->data[6] == 0x40) {
+        device->set_manuf(mphy->mj_manuf_microsoft);
+    } else if (packdata->length == 19 && packdata->data[0] == 0x0a) {
+        device->set_manuf(mphy->mj_manuf_microsoft);
+    }
 
     auto nrf =
         device->get_sub_as<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
