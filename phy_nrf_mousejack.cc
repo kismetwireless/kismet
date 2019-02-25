@@ -72,6 +72,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid)
     mj_manuf_amazon = Globalreg::globalreg->manufdb->MakeManuf("Amazon");
     mj_manuf_logitech = Globalreg::globalreg->manufdb->MakeManuf("Logitech");
     mj_manuf_microsoft = Globalreg::globalreg->manufdb->MakeManuf("Microsoft");
+    mj_manuf_nrf = Globalreg::globalreg->manufdb->MakeManuf("nRF/Mousejack HID");
 
     packetchain->RegisterHandler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->RegisterHandler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
@@ -164,6 +165,8 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
         device->set_manuf(mphy->mj_manuf_microsoft);
     } else if (packdata->length == 19 && packdata->data[0] == 0x0a) {
         device->set_manuf(mphy->mj_manuf_microsoft);
+    } else {
+        device->set_manuf(mphy->mj_manuf_nrf);
     }
 
     auto nrf =

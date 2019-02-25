@@ -123,6 +123,7 @@ protected:
     std::shared_ptr<TrackerElementString> mj_manuf_amazon;
     std::shared_ptr<TrackerElementString> mj_manuf_logitech;
     std::shared_ptr<TrackerElementString> mj_manuf_microsoft;
+    std::shared_ptr<TrackerElementString> mj_manuf_nrf;
 
 };
 
