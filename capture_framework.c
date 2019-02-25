@@ -2699,6 +2699,10 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
      *
      */
 
+    /* Can't drop caps unless running as root so don't try */
+    if (getuid() != 0 && geteuid() != 0)
+        return 0;
+
     char errstr[STATUS_MAX];
 #ifdef HAVE_CAPABILITY
 	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
@@ -2746,6 +2750,10 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 int cf_jail_filesystem(kis_capture_handler_t *caph) {
     char errstr[STATUS_MAX];
 #ifdef SYS_LINUX
+
+    /* Can't jail filesystem if not running as root */
+    if (getuid() != 0 && geteuid() != 0)
+        return 0;
 
     /* Eject ourselves from the namespace into a new temporary one */
     if (unshare(CLONE_NEWNS) < 0) {
