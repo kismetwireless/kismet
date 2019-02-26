@@ -139,7 +139,7 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.lightning/rtl433.device.lighnting_strike_count",
+                    field: "rtl433.device/rtl433.device.lightning/rtl433.device.lightning_strike_count",
                     title: "Strike Count",
                     filterOnEmpty: true,
                     help: "Last reported lighting strike count (may reset arbitrarily)"
