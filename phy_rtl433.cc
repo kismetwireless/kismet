@@ -75,7 +75,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "RTL433 power switch");
 
     rtl433_lightning_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl322.device.lightningsensor",
+        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.lightningsensor",
                 TrackerElementFactory<rtl433_tracked_lightningsensor>(),
                 "RTL433 lightning sensor");
 
