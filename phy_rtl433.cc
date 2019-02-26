@@ -368,10 +368,10 @@ bool Kis_RTL433_Phy::is_lightning(Json::Value json) {
     auto active_j = json["active"];
     auto rfi_j = json["rfi"];
 
-    if (!strike_j.isNull() && !storm_j.isNull() && !active_j.isNull() && !rfi_j.isNull()) 
-        return true;
+    if (strike_j.isNull() || storm_j.isNull() || active_j.isNull() || rfi_j.isNull()) 
+        return false;
 
-    return false;
+    return true;
 }
 
 void Kis_RTL433_Phy::add_weather_station(Json::Value json, 
@@ -576,27 +576,29 @@ void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<TrackerElem
     auto active_j = json["active"];
     auto rfi_j = json["rfi"];
 
-    if (!strike_j.isNull() && !storm_j.isNull() && !active_j.isNull() && !rfi_j.isNull()) {}
-        auto lightningdev = 
-            rtlholder->get_sub_as<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
+    if (strike_j.isNull() || storm_j.isNull() || active_j.isNull() || rfi_j.isNull()) 
+        return;
 
-        if (lightningdev == NULL) {
-            lightningdev = 
-                std::make_shared<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
-            rtlholder->insert(lightningdev);
-        }
+    auto lightningdev = 
+        rtlholder->get_sub_as<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
 
-        if (strike_j.isNumeric())
-            lightningdev->set_strike_count(strike_j.asUInt64());
+    if (lightningdev == NULL) {
+        lightningdev = 
+            std::make_shared<rtl433_tracked_lightningsensor>(rtl433_lightning_id);
+        rtlholder->insert(lightningdev);
+    }
 
-        if (storm_j.isNumeric())
-            lightningdev->set_storm_distance(storm_j.asUInt64());
+    if (strike_j.isNumeric())
+        lightningdev->set_strike_count(strike_j.asUInt64());
 
-        if (active_j.isNumeric())
-            lightningdev->set_storm_active(active_j.asUInt());
+    if (storm_j.isNumeric())
+        lightningdev->set_storm_distance(storm_j.asUInt64());
 
-        if (rfi_j.isNumeric()) 
-            lightningdev->set_lightning_rfi(rfi_j.asUInt64());
+    if (active_j.isNumeric())
+        lightningdev->set_storm_active(active_j.asUInt());
+
+    if (rfi_j.isNumeric()) 
+        lightningdev->set_lightning_rfi(rfi_j.asUInt64());
 }
 
 int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
