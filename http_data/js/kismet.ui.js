@@ -697,9 +697,11 @@ function ScheduleDeviceSummary() {
             // Restore our scroll position
             $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
             $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
-            // Set our timer
-            deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
         }, false);
+    
+    // Set our timer outside of the datatable callback so that we get called even
+    // if the ajax load fails
+    deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
 
     return;
 }
