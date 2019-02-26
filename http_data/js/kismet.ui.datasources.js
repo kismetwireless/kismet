@@ -24,6 +24,14 @@ $('<link>')
         href: local_uri_prefix + 'css/kismet.ui.datasources.css'
     });
 
+/* Convert a hop rate to human readable */
+exports.hop_to_human = function(hop) {
+    if (hop > 1) {
+        return hop + "/second";
+    }
+
+    return (hop * 60) + "/min";
+}
 
 /* Sidebar:  Channel coverage
  *
@@ -621,7 +629,6 @@ function update_datasource2(data, state) {
             state['content'].append(idiv);
         }
 
-        console.log(intf);
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
         set_row(idiv, 'driver', '<b>Capture Driver</b>', intf['kismet.datasource.type_driver']['kismet.datasource.driver.type']);
         if (intf['kismet.datasource.probed.hardware'] !== '')
@@ -1085,7 +1092,13 @@ function update_datasource2(data, state) {
               });
               })
             );
-          }
+
+          quickopts.append(
+            $('<span>', {
+              id: "hoprate"
+              }).html("")
+            );
+        }
 
         var uuid = source['kismet.datasource.uuid'];
         var hop_chans = source['kismet.datasource.hop_channels'];
@@ -1096,9 +1109,12 @@ function update_datasource2(data, state) {
             if (source['kismet.datasource.hopping']) {
                 $('#hop', quickopts).addClass('enable-chan-user');
                 $('#lock', quickopts).removeClass('enable-chan-user');
+                $('#hoprate', quickopts).html(exports.hop_to_human(source['kismet.datasource.hop_rate']));
+                $('#hoprate', quickopts).show();
             } else {
                 $('#hop', quickopts).removeClass('enable-chan-user');
                 $('#lock', quickopts).addClass('enable-chan-user');
+                $('#hoprate', quickopts).hide();
             }
 
             $('button.chanbutton', chanbuttons).each(function(i) {
