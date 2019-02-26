@@ -139,13 +139,13 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 filterOnEmpty: true,
                 fields: [
                 {
-                    field: "rtl433.device/rtl433.device.lightning/rtl433.device.lightning_strike_count",
+                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_strike_count",
                     title: "Strike Count",
                     filterOnEmpty: true,
                     help: "Last reported lighting strike count (may reset arbitrarily)"
                 },
                 {
-                    field: "rtl433.device/rtl433.device.lightning/rtl433.device.lightning_storm_active",
+                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_storm_active",
                     title: "Storm Active",
                     filterOnEmpty: true,
                     help: "Storm currently active",
@@ -156,13 +156,13 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                     }
                 },
                 {
-                    field: "rtl433.device/rtl433.device.lightning/rtl433.device.lightning_rfi",
+                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_rfi",
                     title: "RFI",
                     filterOnEmpty: true,
                     help: "Radio Frequency Interference from lightning activity"
                 },
                 {
-                    field: "rtl433.device/rtl433.device.lightning/rtl433.device.lightning_storm_distance",
+                    field: "rtl433.device/rtl433.device.lightningsensor/rtl433.device.lightning_storm_distance",
                     title: "Storm distance",
                     filterOnEmpty: true,
                     help: "Estimated storm distance (no distance units provided)"
