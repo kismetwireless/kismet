@@ -1855,17 +1855,22 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                 ssize_t amt_read;
                 size_t amt_buffered;
                 uint8_t rbuf[1024];
+                size_t maxread = 0;
 
-                /* We deliberately read as much as we need and try to put it in the 
-                 * buffer, if the buffer fills up something has gone wrong anyhow */
+                /* Read don't read more than we can handle in the buffer or in our
+                 * read slot */
+                maxread = kis_simple_ringbuf_available(caph->in_ringbuf);
+
+                if (maxread > 1024)
+                    maxread = 1024;
 
                 /* If it looks like we're doing remote cap over tcp, use recv because
                  * OSX seems to ignore O_NONBLOCK; on the other hand, if it's IPC over
                  * pipes, we HAVE to use read because recv will fail! */
                 if (caph->remote_host != NULL)
-                    amt_read = recv(read_fd, rbuf, 1024, MSG_DONTWAIT);
+                    amt_read = recv(read_fd, rbuf, maxread, MSG_DONTWAIT);
                 else
-                    amt_read = read(read_fd, rbuf, 1024);
+                    amt_read = read(read_fd, rbuf, maxread);
 
                 if (amt_read <= 0) {
                     if (errno != EINTR && errno != EAGAIN) {
