@@ -720,10 +720,14 @@ exports.CreateDeviceTable = function(element) {
 
     // Set an onclick handler to spawn the device details dialog
     $('tbody', element).on('click', 'tr', function () {
+        kismet_ui.DeviceDetailWindow(this.id);
+
+        // Use the ID above we insert in the row creation, instead of looking in the
+        // device list data
         // Fetch the data of the row that got clicked
-        var device_dt = element.DataTable();
-        var data = device_dt.row( this ).data();
-        var key = data['kismet.device.base.key'];
+        // var device_dt = element.DataTable();
+        // var data = device_dt.row( this ).data();
+        // var key = data['kismet.device.base.key'];
 
         kismet_ui.DeviceDetailWindow(key);
     } );
