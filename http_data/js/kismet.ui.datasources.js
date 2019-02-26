@@ -1109,7 +1109,8 @@ function update_datasource2(data, state) {
             if (source['kismet.datasource.hopping']) {
                 $('#hop', quickopts).addClass('enable-chan-user');
                 $('#lock', quickopts).removeClass('enable-chan-user');
-                $('#hoprate', quickopts).html(exports.hop_to_human(source['kismet.datasource.hop_rate']));
+                $('#hoprate', quickopts).html("  (Hopping at " + 
+                        exports.hop_to_human(source['kismet.datasource.hop_rate']) + ")");
                 $('#hoprate', quickopts).show();
             } else {
                 $('#hop', quickopts).removeClass('enable-chan-user');
