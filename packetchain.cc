@@ -70,6 +70,9 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
         packet_threads.push_back(std::thread([this]() { 
             packet_queue_processor();
         }));
+
+        thread_set_process_name(fmt::format("kismet [packetchain {}/{}]", 
+                    i, std::thread::hardware_concurrency()), packet_threads.back());
     }
 }
 

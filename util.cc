@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -69,6 +69,8 @@
 #include <stdexcept>
 
 #include "packet.h"
+
+#include <pthread.h>
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
@@ -969,3 +971,16 @@ std::string hexstr_to_binstr(const char *hs) {
 
     return r;
 }
+
+#if defined(SYS_LINUX) || defined(SYS_DARWIN) || defined(SYS_NETBSD) || defined(SYS_OPENBSD)
+void thread_set_process_name(const std::string& name, pthread_t *thread) { 
+    pthread_setname_np(*thread, name.c_str());
+}
+
+void thread_set_process_name(const std::string& name, std::thread& thread) {
+    pthread_setname_np(thread.native_handle(), name.c_str());
+}
+#else
+void thread_set_process_name(const std::string& name, pthread_t *thread) { }
+void thread_set_process_name(const std::string& name, std::thread& thread) { }
+#endif

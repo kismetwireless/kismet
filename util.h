@@ -362,5 +362,8 @@ double ts_now_to_double();
 
 std::string hexstr_to_binstr(const char *hs);
 
+void thread_set_process_name(const std::string& name, pthread_t *thread);
+void thread_set_process_name(const std::string& name, std::thread& thread);
+
 #endif
 
