@@ -26,11 +26,15 @@ $('<link>')
 
 /* Convert a hop rate to human readable */
 exports.hop_to_human = function(hop) {
-    if (hop > 1) {
+    if (hop > 1) 
         return hop + "/second";
-    }
 
-    return (hop * 60) + "/min";
+    var s = hop / 60.0f;
+
+    if (s < 60)
+        return s + "/minute";
+
+    return s + " seconds";
 }
 
 /* Sidebar:  Channel coverage
