@@ -284,7 +284,7 @@ public:
         type = packet_basic_unknown;
         direction = packet_direction_unknown;
 
-        phyid = 0;
+        phyid = -1;
         error = 0;
         datasize = 0;
         channel = "0";
