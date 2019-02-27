@@ -339,7 +339,7 @@ public:
         }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl322_tracked_lightningsensor");
+        return Adler32Checksum("rtl433_tracked_lightningsensor");
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {

@@ -318,6 +318,13 @@ int main(int argc, char *argv[]) {
         if (verbose) 
             fprintf(stderr, "* Found %lu devices, %lu usable packets, %lu total packets\n", 
                     n_devices_db, n_packets_db, n_total_packets_db);
+
+        if (n_packets_db == 0) {
+            fprintf(stderr, "ERROR:  No usable packets in the log file; packets must have GPS information\n"
+                            "        to be usable with Wigle.\n");
+            sqlite3_close(db);
+            exit(1);
+        }
     } catch (const std::exception& e) {
         fprintf(stderr, "ERROR:  Could not get database information from '%s': %s\n",
                 in_fname.c_str(), e.what());

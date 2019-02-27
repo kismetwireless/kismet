@@ -181,7 +181,7 @@ class KismetRtl433(object):
 
     def __rtl_thread(self):
         """ Internal thread for running the rtl binary """
-        cmd = [ self.opts['rtlbin'], '-F', 'json' ]
+        cmd = [ self.opts['rtlbin'], '-F', 'json', '-G' ]
 
         if self.opts['device'] is not None:
             cmd.append('-d')

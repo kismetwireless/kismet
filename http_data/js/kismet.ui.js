@@ -697,9 +697,11 @@ function ScheduleDeviceSummary() {
             // Restore our scroll position
             $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
             $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
-            // Set our timer
-            deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
         }, false);
+    
+    // Set our timer outside of the datatable callback so that we get called even
+    // if the ajax load fails
+    deviceTid = setTimeout(ScheduleDeviceSummary, 2000);
 
     return;
 }
@@ -718,10 +720,14 @@ exports.CreateDeviceTable = function(element) {
 
     // Set an onclick handler to spawn the device details dialog
     $('tbody', element).on('click', 'tr', function () {
+        kismet_ui.DeviceDetailWindow(this.id);
+
+        // Use the ID above we insert in the row creation, instead of looking in the
+        // device list data
         // Fetch the data of the row that got clicked
-        var device_dt = element.DataTable();
-        var data = device_dt.row( this ).data();
-        var key = data['kismet.device.base.key'];
+        // var device_dt = element.DataTable();
+        // var data = device_dt.row( this ).data();
+        // var key = data['kismet.device.base.key'];
 
         kismet_ui.DeviceDetailWindow(key);
     } );

@@ -231,9 +231,9 @@ int main(int argc, char *argv[]) {
 
         if (newline) {
             if (!ekjson) {
-                printf(",\n");
+                fprintf(ofile, ",\n");
             } else {
-                printf("\n");
+                fprintf(ofile, "\n");
             }
         }
         newline = true;
