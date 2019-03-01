@@ -93,12 +93,10 @@ devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
 
 bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
         std::shared_ptr<kis_tracked_device_base> device) {
-    std::vector<std::vector<int> >::iterator i;
-
     bool matched = false;
 
     // Go through the fields
-    for (i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
+    for (auto i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
         // We should never have to search nested vectors so we don't use
         // multipath
         SharedTrackerElement field = GetTrackerElementPath(*i, device);
@@ -112,13 +110,15 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
         } else if (field->get_type() == TrackerType::TrackerByteArray) {
             // Try a raw string match against a binary field
             matched = 
-                std::static_pointer_cast<TrackerElementByteArray>(field)->get().find(query) != 
-                std::string::npos;
+                std::static_pointer_cast<TrackerElementByteArray>(field)->get().find(query) != std::string::npos;
         } else if (field->get_type() == TrackerType::TrackerMac && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
                 std::static_pointer_cast<TrackerElementMacAddr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+        } else if (field->get_type() == TrackerType::TrackerUuid) {
+            matched =
+                TrackerElement::safe_cast_as<TrackerElementUUID>(field)->get().asString().find(query) != std::string::npos;
         }
 
         if (matched)
