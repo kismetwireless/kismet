@@ -314,7 +314,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
                 "         your interface (varies per distribution/OS, but \n"
                 "         typically one of:\n"
                 "         sudo service networking restart\n"
-                "         sudo /etc/init.d/networkign restart\n"
+                "         sudo /etc/init.d/networking restart\n"
                 "         or\n"
                 "         nmcli device set managed [device] true\n"
                 "\n");
