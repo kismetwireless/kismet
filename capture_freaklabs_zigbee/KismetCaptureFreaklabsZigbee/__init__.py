@@ -319,7 +319,7 @@ class KismetFreaklabsZigbee(object):
                     c = self.chan_config['chan_pos'] % len(self.chan_config['hop_channels'])
                     self.serialhandler.set_channel(c)
                 except FreaklabException as e:
-                    self.kismet.send_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
+                    self.kismet.send_datasource_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
                     break
                 finally:
                     self.chan_config_lock.release()
@@ -341,7 +341,7 @@ class KismetFreaklabsZigbee(object):
                 try:
                     raw = self.serialhandler.read_frame()
                 except FreaklabException as e:
-                    self.kismet.send_error_report(message = "Error reading from zigbee device: {}".format(e))
+                    self.kismet.send_datasource_error_report(message = "Error reading from zigbee device: {}".format(e))
                     break
 
                 if len(raw) == 0:
