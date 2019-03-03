@@ -308,7 +308,8 @@ Datasourcetracker::Datasourcetracker() :
     Kis_Net_Httpd_CPPStream_Handler(),
     TcpServerV2(Globalreg::globalreg) {
 
-    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+    eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     proto_id = 
         Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.driver",
@@ -889,6 +890,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
             // call our callback w/ whatever we know
             if (success) {
                 in_cb(true, "", ds);
+                eventbus->publish(std::make_shared<EventNewDatasource>(ds));
             } else {
                 // It's 'safe' to put them in the broken source vec because all we do is
                 // clear that vector on a timer; if the source is in error state but

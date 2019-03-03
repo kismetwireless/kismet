@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -41,6 +41,7 @@
 #include "buffer_handler.h"
 #include "tracked_rrd.h"
 #include "kis_mutex.h"
+#include "eventbus.h"
 
 /* Data source tracker
  *
@@ -373,6 +374,17 @@ public:
     // Shut down all sources, this happens as kismet is terminating
     virtual void Deferred_Shutdown() override;
 
+    // Eventbus event we inject when a new ds is added
+    class EventNewDatasource : public EventbusEvent {
+    public:
+        EventNewDatasource(std::shared_ptr<KisDatasource> source) :
+            EventbusEvent("NEW_DATASOURCE"),
+            datasource{source} { }
+        virtual ~EventNewDatasource() {}
+
+        std::shared_ptr<KisDatasource> datasource;
+    };
+
     // Add a driver
     int register_datasource(SharedDatasourceBuilder in_builder);
 
@@ -450,6 +462,7 @@ protected:
 
     std::shared_ptr<Datasourcetracker> datasourcetracker;
     std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<Eventbus> eventbus;
 
     kis_recursive_timed_mutex dst_lock;
 
