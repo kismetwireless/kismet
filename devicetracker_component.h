@@ -412,9 +412,7 @@ public:
 
     void inc_frequency_count(double frequency);
 
-    SharedTrackerElement get_seenby_map() {
-        return seenby_map;
-    }
+    __ProxyTrackable(seenby_map, TrackerElementIntMap, seenby_map);
 
     void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
             Packinfo_Sig_Combo *siginfo, bool update_rrd);
