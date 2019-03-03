@@ -32,7 +32,7 @@
 
 // Common view holder mechanism which handles view endpoints, view filtering, and so on.
 //
-// Views are optimized for maintinaing independent, sorted lists of devices.  For a view to work,
+// Views are optimized for maintaining independent, sorted lists of devices.  For a view to work,
 // it requires assisting code in the appropriate areas (such as adding a SSID to a dot11 device).
 //
 // Views are best suited to long-term alternate representations of data, such as 'all access points',
