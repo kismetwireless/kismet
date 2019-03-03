@@ -32,7 +32,7 @@
 
 // Common view holder mechanism which handles view endpoints, view filtering, and so on.
 //
-// Views are optimized for maintinaing independent, sorted lists of devices.  For a view to work,
+// Views are optimized for maintaining independent, sorted lists of devices.  For a view to work,
 // it requires assisting code in the appropriate areas (such as adding a SSID to a dot11 device).
 //
 // Views are best suited to long-term alternate representations of data, such as 'all access points',
@@ -63,7 +63,14 @@ public:
     using new_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
     using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
+    // Primary method; where the ID is the core access of the view
     DevicetrackerView(const std::string& in_id, const std::string& in_description,
+            new_device_cb in_new_cb, updated_device_cb in_upd_cb);
+
+    // Secondary method, where you can specify alternate paths to access; this is used for 
+    // things like the per-source view organized by uuid (/devices/views/by-uuid/[uuid]/...)
+    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+            const std::vector<std::string>& in_aux_path, 
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     virtual ~DevicetrackerView() {
@@ -80,7 +87,7 @@ public:
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker lock(&mutex);
+       local_shared_unlocker lock(&mutex);
     }
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
@@ -103,7 +110,7 @@ protected:
 
         RegisterField("kismet.devices.view.id", "View ID/Endpoint", &view_id);
         RegisterField("kismet.devices.view.description", "List description", &view_description);
-        RegisterField("kismet.devices.view.size", "Number of device in list", &list_sz);
+        RegisterField("kismet.devices.view.size", "Number of devices in list", &list_sz);
 
         // We don't register device_list as a field because we never want to dump it 
         // un-processed; use the view APIs for managing that
@@ -124,11 +131,13 @@ protected:
     // Map of device presence in our list for fast referece during updates
     std::map<device_key, bool> device_presence_map;
 
-    // Complex endpoint
+    // Complex endpoint and optional extended URI endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_uri_endp;
 
     // Simpler time-based endpoints
     std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
+    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_uri_endp;
 
     // Complex post endp handler
     unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 
@@ -138,6 +147,10 @@ protected:
     // Time endp handler
     bool device_time_endpoint_path(const std::vector<std::string>& path);
     std::shared_ptr<TrackerElement> device_time_endpoint(const std::vector<std::string>& path);
+
+    std::vector<std::string> uri_extras;
+    bool device_time_uri_endpoint_path(const std::vector<std::string>& path);
+    std::shared_ptr<TrackerElement> device_time_uri_endpoint(const std::vector<std::string>& path);
 
     // Devicetracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those

@@ -79,6 +79,7 @@ class SerialInputHandler(object):
     def __init__(self, port, baudrate):
         self.__sensniff_magic_legacy = struct.pack('BBBB', 0x53, 0x6E, 0x69, 0x66)
         self.__sensniff_magic = struct.pack('BBBB', 0xC1, 0x1F, 0xFE, 0x72)
+        self._current_channel = -1
 
         try:
             self.port = serial.Serial(port = port,
@@ -165,12 +166,8 @@ class SerialInputHandler(object):
 
         # If we reach here, we have a command response
         b = bytearray(b)
-        # if cmd == CMD_CHANNEL:
-        #     # We'll only ever see this if the user asked for it, so we are
-        #     # running interactive. Print away
-        #     print 'Sniffing in channel: %d' % (b[0],)
-        # else:
-        #     logger.warn("Received a command response with unknown code")
+        if cmd == CMD_CHANNEL:
+             self._current_channel = b[0]
         return ''
 
     def __write_command(self, cmd):
@@ -181,6 +178,10 @@ class SerialInputHandler(object):
 
     def set_channel(self, channel):
         self.__write_command(bytearray([CMD_SET_CHANNEL, 1, channel]))
+        # this hardware takes 150ms for PLL lock, full stop
+        time.sleep (0.15)
+        if ((channel != self._current_channel) and (self._current_channel != -1)):
+            raise FreaklabException
 
     def get_channel(self):
         self.__write_command(bytearray([CMD_GET_CHANNEL]))
@@ -231,7 +232,7 @@ class KismetFreaklabsZigbee(object):
 
         self.defaults['device'] = "/dev/ttyUSB0"
         self.defaults['baudrate'] = "57600"
-        self.defaults['band'] = "900"
+        self.defaults['band'] = "2400"
         self.defaults['name'] = None
 
         self.hop_thread = None
@@ -243,7 +244,7 @@ class KismetFreaklabsZigbee(object):
         self.chan_config['hopping'] = True
         self.chan_config['channel'] = "0"
         self.chan_config['hop_channels'] = []
-        self.chan_config['hop_rate'] = 5
+        self.chan_config['hop_rate'] = 1
         self.chan_config['chan_skip'] = 0
         self.chan_config['chan_offset'] = 0
 
@@ -316,10 +317,10 @@ class KismetFreaklabsZigbee(object):
 
                 try:
                     self.chan_config_lock.acquire()
-                    c = self.chan_config['chan_pos'] % len(self.chan_config['hop_channels'])
+                    c = int(self.chan_config['hop_channels'][self.chan_config['chan_pos'] % len(self.chan_config['hop_channels'])])
                     self.serialhandler.set_channel(c)
                 except FreaklabException as e:
-                    self.kismet.send_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
+                    self.kismet.send_datasource_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
                     break
                 finally:
                     self.chan_config_lock.release()
@@ -341,7 +342,7 @@ class KismetFreaklabsZigbee(object):
                 try:
                     raw = self.serialhandler.read_frame()
                 except FreaklabException as e:
-                    self.kismet.send_error_report(message = "Error reading from zigbee device: {}".format(e))
+                    self.kismet.send_datasource_error_report(message = "Error reading from zigbee device: {}".format(e))
                     break
 
                 if len(raw) == 0:

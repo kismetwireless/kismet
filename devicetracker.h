@@ -303,6 +303,12 @@ protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<Eventbus> eventbus;
 
+    unsigned long new_datasource_evt_id;
+
+    // Map of seen-by views
+    bool map_seenby_views;
+    std::map<uuid, std::shared_ptr<DevicetrackerView>> seenby_view_map;
+
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
     int device_summary_base_id;
@@ -420,6 +426,9 @@ protected:
     bool ram_no_rrd;
 
 protected:
+    // Handle new datasources and create endpoints for them
+    void HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt);
+
     // Insert a device directly into the records
     void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
 

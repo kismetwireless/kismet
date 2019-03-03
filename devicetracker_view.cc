@@ -59,6 +59,68 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
                 }, &mutex);
 }
 
+DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string& in_description,
+        const std::vector<std::string>& in_aux_path, 
+        new_device_cb in_new_cb, updated_device_cb in_update_cb) :
+    tracker_component{},
+    new_cb {in_new_cb},
+    update_cb {in_update_cb},
+    uri_extras {in_aux_path} {
+
+    using namespace std::placeholders;
+
+    register_fields();
+    reserve_fields(nullptr);
+
+    view_id->set(in_id);
+    view_description->set(in_description);
+
+    device_list = std::make_shared<TrackerElementVector>();
+
+    auto uri = fmt::format("/devices/views/{}/devices", in_id);
+    device_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
+                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return device_endpoint_handler(stream, uri, post_structured, variable_cache);
+                }, &mutex);
+
+    time_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return device_time_endpoint_path(path);
+                }, false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                    return device_time_endpoint(path);
+                }, &mutex);
+
+    if (in_aux_path.size() == 0)
+        return;
+
+    // Concatenate the alternate endpoints and register the same endpoint handlers
+    std::stringstream ss;
+    for (auto i : in_aux_path)
+        ss << i << "/";
+
+    uri = fmt::format("/devices/views/{}devices", ss.str());
+    device_uri_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
+                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return device_endpoint_handler(stream, uri, post_structured, variable_cache);
+                }, &mutex);
+
+    time_uri_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return device_time_uri_endpoint_path(path);
+                }, false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                    return device_time_uri_endpoint(path);
+                }, &mutex);
+    
+}
+
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
     local_demand_locker dl(&mutex);
@@ -178,6 +240,70 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const st
         return ret;
 
     auto tv = StringTo<int64_t>(path[4], 0);
+    time_t ts;
+
+    // Don't allow 'all' devices b/c it's really expensive
+    if (tv == 0)
+        return ret;
+
+    if (tv < 0)
+        ts = time(0) - tv;
+    else
+        ts = tv;
+
+    auto worker = 
+        DevicetrackerViewFunctionWorker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                if (dev->get_last_time() < ts)
+                    return false;
+
+                return true;
+                });
+
+    return doDeviceWork(worker);
+}
+
+bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::string>& path) {
+    // /devices/views/[extrasN]/last-time/[time]/devices
+    
+    auto extras_sz = uri_extras.size();
+
+    if (extras_sz == 0)
+        return false;
+
+    if (path.size() < (5 + extras_sz))
+        return false;
+
+    if (path[0] != "devices" || path[1] != "views" || path[extras_sz + 2] != "last-time" || 
+            path[extras_sz + 4] != "devices")
+        return false;
+
+    for (size_t s = 0; s < extras_sz; s++) {
+        if (path[2 + s] != uri_extras[s]) {
+            return false;
+        }
+    }
+
+    try {
+        StringTo<int64_t>(path[3 + extras_sz]);
+    } catch (const std::exception& e) {
+        return false;
+    }
+
+    return true;
+}
+
+std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(const std::vector<std::string>& path) {
+    auto ret = std::make_shared<TrackerElementVector>();
+
+    auto extras_sz = uri_extras.size();
+
+    if (extras_sz == 0)
+        return ret;
+
+    if (path.size() < (5 + extras_sz))
+        return ret;
+
+    auto tv = StringTo<int64_t>(path[3 + extras_sz], 0);
     time_t ts;
 
     // Don't allow 'all' devices b/c it's really expensive

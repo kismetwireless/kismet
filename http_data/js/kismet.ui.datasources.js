@@ -26,13 +26,15 @@ $('<link>')
 
 /* Convert a hop rate to human readable */
 exports.hop_to_human = function(hop) {
-    if (hop > 1) 
+    if (hop > 1) {
         return hop + "/second";
+    }
 
-    var s = hop / 60.0f;
+    var s = (hop / 60.0);
 
-    if (s < 60)
+    if (s < 60) {
         return s + "/minute";
+    }
 
     return s + " seconds";
 }
