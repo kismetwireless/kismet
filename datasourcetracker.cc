@@ -1780,23 +1780,31 @@ int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 }
 
 double Datasourcetracker::string_to_rate(std::string in_str, double in_default) {
-    unsigned int v;
-    double dv;
+    double v, dv;
 
     std::vector<std::string> toks = StrTokenize(in_str, "/");
 
     if (toks.size() != 2)
-        throw std::runtime_error("Expected [value]/sec or [value]/min");
+        throw std::runtime_error("Expected [value]/sec or [value]/min or [value]/dwell");
 
-    v = StringTo<unsigned int>(toks[0]);
+    v = StringTo<double>(toks[0]);
 
     if (toks[1] == "sec") {
         return v;
+    } else if (toks[1] == "dwell") {
+        // Channel dwell is # of *seconds per hop* for very long hop intervals; so to get
+        // hops per minute it's dwell seconds.  We convert to a double # of hops per minute,
+        // then apply the formula below to turn that into the double value; simplified to:
+        dv = 1.0f / v;
+
+        return dv;
     } else if (toks[1] == "min") {
         // Channel hop is # of hops a second, timed in usec, so to get hops per
         // minute we get a minutes worth of usecs (60m), divide by the number
         // of hops per minute, then divide a second by that.
-        dv = (double) 1000000 / (double) ((double) (1000000 * 60) / (double) v);
+        // dv = (double) 1000000 / (double) ((double) (1000000 * 60) / (double) v);
+        // simplified to:
+        dv = v / 60.0f;
 
         return dv;
     } else {
