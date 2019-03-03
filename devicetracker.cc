@@ -37,6 +37,7 @@
 #include "messagebus.h"
 #include "packetchain.h"
 #include "devicetracker.h"
+#include "datasourcetracker.h"
 #include "packet.h"
 #include "gpstracker.h"
 #include "alertracker.h"
@@ -278,6 +279,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         ram_no_rrd = false;
     }
 
+    if (!globalreg->kismet_config->FetchOptBoolean("track_device_seenby_views", true)) {
+        _MSG("Not building device seenby views to save RAM", MSGFLAG_INFO);
+        map_seenby_views = false;
+    } else {
+        map_seenby_views = true;
+    }
+
     if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
         unsigned int lograte = 
             globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
@@ -408,10 +416,19 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Database_UpgradeDB();
 
     Bind_Httpd_Server();
+
+    new_datasource_evt_id = 
+        eventbus->register_listener("NEW_DATASOURCE",
+            [this](std::shared_ptr<EventbusEvent> evt) {
+                HandleNewDatasourceEvent(evt);
+            });
 }
 
 Devicetracker::~Devicetracker() {
     local_locker lock(&devicelist_mutex);
+
+    if (eventbus != nullptr)
+        eventbus->remove_listener(new_datasource_evt_id);
 
     if (statestore != NULL) {
         delete(statestore);
@@ -1593,6 +1610,32 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
 
     return;
 }
+
+void Devicetracker::HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt) {
+    auto ds_evt = std::static_pointer_cast<Datasourcetracker::EventNewDatasource>(evt);
+
+    if (map_seenby_views) {
+        auto source_uuid = ds_evt->datasource->get_source_uuid();
+        auto source_key = ds_evt->datasource->get_source_key();
+
+        auto k = seenby_view_map.find(source_uuid);
+
+        if (k == seenby_view_map.end()) {
+            auto seenby_view =
+                std::make_shared<DevicetrackerView>(fmt::format("seenby-{}", source_uuid), 
+                        fmt::format("Devices seen by datasource {}", source_uuid),
+                        std::list<std::string>{"seenby-uuid", source_uuid.asString()},
+                        [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            return dev->get_seenby_map()->find(source_key) != dev->get_seenby_map()->end();
+                        },
+                        [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            return dev->get_seenby_map()->find(source_key) != dev->get_seenby_map()->end();
+                        });
+            add_view(seenby_view);
+        }
+    }
+}
+
 
 DevicetrackerStateStore::DevicetrackerStateStore(GlobalRegistry *in_globalreg,
         Devicetracker *in_devicetracker) :
