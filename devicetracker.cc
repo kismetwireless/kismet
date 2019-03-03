@@ -810,6 +810,9 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);
 
+        if (map_seenby_views)
+            update_view_device(device);
+
         if (sc != NULL)
             delete(sc);
 	}
@@ -1624,7 +1627,7 @@ void Devicetracker::HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt)
             auto seenby_view =
                 std::make_shared<DevicetrackerView>(fmt::format("seenby-{}", source_uuid), 
                         fmt::format("Devices seen by datasource {}", source_uuid),
-                        std::list<std::string>{"seenby-uuid", source_uuid.asString()},
+                        std::vector<std::string>{"seenby-uuid", source_uuid.asString()},
                         [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_seenby_map()->find(source_key) != dev->get_seenby_map()->end();
                         },
