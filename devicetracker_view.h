@@ -63,7 +63,14 @@ public:
     using new_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
     using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
+    // Primary method; where the ID is the core access of the view
     DevicetrackerView(const std::string& in_id, const std::string& in_description,
+            new_device_cb in_new_cb, updated_device_cb in_upd_cb);
+
+    // Secondary method, where you can specify alternate paths to access; this is used for 
+    // things like the per-source view organized by uuid (/devices/views/by-uuid/[uuid]/...)
+    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+            const std::list<std::string>& in_aux_path, 
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     virtual ~DevicetrackerView() {
@@ -124,11 +131,13 @@ protected:
     // Map of device presence in our list for fast referece during updates
     std::map<device_key, bool> device_presence_map;
 
-    // Complex endpoint
+    // Complex endpoint and optional extended URI endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_uri_endp;
 
     // Simpler time-based endpoints
     std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
+    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_uri_endp;
 
     // Complex post endp handler
     unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 

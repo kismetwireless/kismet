@@ -59,6 +59,64 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
                 }, &mutex);
 }
 
+DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string& in_description,
+        const std::list<std::string>& in_aux_path, 
+        new_device_cb in_new_cb, updated_device_cb in_update_cb) :
+    tracker_component{},
+    new_cb {in_new_cb},
+    update_cb {in_update_cb} {
+
+    using namespace std::placeholders;
+
+    register_fields();
+    reserve_fields(nullptr);
+
+    view_id->set(in_id);
+    view_description->set(in_description);
+
+    device_list = std::make_shared<TrackerElementVector>();
+
+    auto uri = fmt::format("/devices/views/{}/devices", in_id);
+    device_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
+                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return device_endpoint_handler(stream, uri, post_structured, variable_cache);
+                }, &mutex);
+
+    time_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return device_time_endpoint_path(path);
+                }, false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                    return device_time_endpoint(path);
+                }, &mutex);
+
+    // Concatenate the alternate endpoints and register the same endpoint handlers
+    std::stringstream ss;
+    for (auto i : in_aux_path)
+        ss << i << "/";
+
+    uri = fmt::format("/devices/views/{}devices", ss.str());
+    device_uri_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
+                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return device_endpoint_handler(stream, uri, post_structured, variable_cache);
+                }, &mutex);
+
+    time_uri_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return device_time_endpoint_path(path);
+                }, false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                    return device_time_endpoint(path);
+                }, &mutex);
+    
+}
+
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
     local_demand_locker dl(&mutex);
