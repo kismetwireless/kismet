@@ -70,7 +70,7 @@ public:
     // Secondary method, where you can specify alternate paths to access; this is used for 
     // things like the per-source view organized by uuid (/devices/views/by-uuid/[uuid]/...)
     DevicetrackerView(const std::string& in_id, const std::string& in_description,
-            const std::list<std::string>& in_aux_path, 
+            const std::vector<std::string>& in_aux_path, 
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     virtual ~DevicetrackerView() {
@@ -87,7 +87,7 @@ public:
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker lock(&mutex);
+       local_shared_unlocker lock(&mutex);
     }
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
@@ -147,6 +147,10 @@ protected:
     // Time endp handler
     bool device_time_endpoint_path(const std::vector<std::string>& path);
     std::shared_ptr<TrackerElement> device_time_endpoint(const std::vector<std::string>& path);
+
+    std::vector<std::string> uri_extras;
+    bool device_time_uri_endpoint_path(const std::vector<std::string>& path);
+    std::shared_ptr<TrackerElement> device_time_uri_endpoint(const std::vector<std::string>& path);
 
     // Devicetracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those
