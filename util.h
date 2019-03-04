@@ -365,5 +365,18 @@ std::string hexstr_to_binstr(const char *hs);
 void thread_set_process_name(const std::string& name, pthread_t *thread);
 void thread_set_process_name(const std::string& name, std::thread& thread);
 
+// Closure promise; executes a function as it leaves scope
+class closure_promise {
+public:
+    closure_promise(std::function<void (void)> promise) :
+        promise{promise} {}
+
+    ~closure_promise() {
+        promise();
+    }
+protected:
+    std::function<void (void)> promise;
+};
+
 #endif
 
