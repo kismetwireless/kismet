@@ -621,6 +621,18 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
+    if (daemonize) {
+        int pid = fork();
+        if (pid < 0) {
+            fprintf(stderr, "FATAL: Unable to fork child process: %s\n",
+              strerror(errno));
+            exit(1);
+        } else if (pid > 0) {
+            fprintf(stderr, "Silencing output and entering daemon mode...\n");
+            exit(0);
+        }
+    }
+
     // First order - create our message bus and our client for outputting
     MessageBus::create_messagebus(globalregistry);
 
@@ -636,7 +648,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
 	// Create the event bus
-	auto eventbus = Eventbus::create_eventbus();
+	Eventbus::create_eventbus();
 
     // We need to create the pollable system near the top of execution as well
     std::shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
@@ -751,17 +763,7 @@ int main(int argc, char *argv[], char *envp[]) {
     entrytracker->RegisterSerializer("cmd", std::make_shared<JsonAdapter::Serializer>());
 
     if (daemonize) {
-        int pid = fork();
-        if (pid < 0) {
-            fprintf(stderr, "FATAL: Unable to fork child process: %s\n",
-              strerror(errno));
-            exit(1);
-        } else if (pid > 0) {
-            fprintf(stderr, "Silencing output and entering daemon mode...\n");
-            exit(0);
-        }
-
-        // remove messagebus clients
+        // remove messagebus clients so we stop printing
         globalregistry->messagebus->RemoveClient(fqmescli);
         globalregistry->messagebus->RemoveClient(smartmsgcli);
     }
