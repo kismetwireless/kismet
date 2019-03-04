@@ -477,8 +477,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
                 }
             }
 
-            if (in_window_len > 500) 
-                in_window_len = 500;
+            if (in_window_len > 200) 
+                in_window_len = 200;
 
             // Set the window elements for datatables
             length_elem->set(in_window_len);
