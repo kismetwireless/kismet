@@ -151,6 +151,20 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
 
     unsigned int ncreated = 0;
 
+    // Do some basic validation on the definition
+    // If there's a comma in the interface name and no colon, someone probably typoed; 
+    // if there's a comma before the colon, also probably a typo
+    auto comma_pos = definition.find(",");
+    auto colon_pos = definition.find(":");
+
+    if ((comma_pos != std::string::npos && colon_pos == std::string::npos) || comma_pos < colon_pos) {
+        _MSG_ERROR("Found a ',' in the source definition '{}'.  Sources should be defined as "
+                "interface:option1,option2,... this is likely a typo in your 'source=' config "
+                "or in your '-c' option on the command line.", definition);
+        cancel();
+        return;
+    }
+
     for (auto i : *proto_vec) {
         auto b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
