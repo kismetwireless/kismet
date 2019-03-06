@@ -323,7 +323,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     return false;
                 }, nullptr);
 
-        MatchOnDevices(fw);
+        MatchOnReadonlyDevices(fw);
         return MHD_YES;
     }
 
@@ -445,7 +445,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
                         return true;
                     }, nullptr);
-            MatchOnDevices(fw);
+            MatchOnReadonlyDevices(fw);
             devvec = fw->GetMatchedDevices();
 
             Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
@@ -846,7 +846,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     // If we're doing a basic regex outside of devicetables
                     // shenanigans...
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevices(worker);
+                    MatchOnReadonlyDevices(worker);
 
                     auto pcredevs = worker->GetMatchedDevices();
 
@@ -920,7 +920,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                     auto worker = 
                         std::make_shared<devicetracker_stringmatch_worker>(dt_search, dt_search_paths);
-                    MatchOnDevices(worker);
+                    MatchOnReadonlyDevices(worker);
 
                     auto matchvec = worker->GetMatchedDevices();
 
@@ -1108,12 +1108,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                         return true;
                         }, nullptr);
-                MatchOnDevices(tw);
+                MatchOnReadonlyDevices(tw);
                 timedevs = tw->GetMatchedDevices();
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevices(worker, timedevs);
+                    MatchOnReadonlyDevices(worker, timedevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;
@@ -1181,19 +1181,19 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 if (post_ts != 0) {
                     // time-match then phy-match then pass to regex
-                    MatchOnDevices(tw);
+                    MatchOnReadonlyDevices(tw);
                     timedevs = tw->GetMatchedDevices();
-                    MatchOnDevices(pw, timedevs);
+                    MatchOnReadonlyDevices(pw, timedevs);
                     phydevs = pw->GetMatchedDevices();
                 }  else {
                     // Phy match only
-                    MatchOnDevices(pw);
+                    MatchOnReadonlyDevices(pw);
                     phydevs = pw->GetMatchedDevices();
                 }
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnDevices(worker, phydevs);
+                    MatchOnReadonlyDevices(worker, phydevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = phydevs;
