@@ -501,7 +501,7 @@ std::string Devicetracker::FetchPhyName(int in_phy) {
 }
 
 int Devicetracker::FetchNumDevices() {
-    local_locker lock(&devicelist_mutex);
+    local_shared_locker lock(&devicelist_mutex);
 
     return tracked_map.size();
 }
@@ -536,7 +536,7 @@ void Devicetracker::UpdateFullRefresh() {
 }
 
 std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(device_key in_key) {
-    local_locker lock(&devicelist_mutex);
+    local_shared_locker lock(&devicelist_mutex);
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -673,7 +673,7 @@ std::shared_ptr<kis_tracked_device_base>
 
     }
 
-    // Lock the device itself for updating, now that it's part of the list
+    // Lock the device itself for updating, now that it exists
     local_locker devlocker(&(device->device_mutex));
 
     // Tag the packet with the base device
@@ -830,6 +830,8 @@ std::shared_ptr<kis_tracked_device_base>
         auto mm_pair = std::make_pair(in_mac, device);
         tracked_mac_multimap.insert(mm_pair);
 
+        // Unlock the device list before adding it to the device views
+        list_locker.unlock();
         new_view_device(device);
     }
 
@@ -846,12 +848,26 @@ void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> wo
         std::shared_ptr<TrackerElementVector> vec, bool batch) {
 
     // Make a copy of the vector
-    local_demand_locker locker(&devicelist_mutex);
-    locker.lock();
-    auto immutable_copy = std::make_shared<TrackerElementVector>(vec);
-    locker.unlock();
+    std::shared_ptr<TrackerElementVector> immutable_copy;
+    {
+        local_shared_locker locker(&devicelist_mutex);
+        immutable_copy = std::make_shared<TrackerElementVector>(vec);
+    }
 
     MatchOnDevicesRaw(worker, immutable_copy, batch);
+}
+
+void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+
+    // Make a copy of the vector
+    std::shared_ptr<TrackerElementVector> immutable_copy;
+    {
+        local_shared_locker locker(&devicelist_mutex);
+        immutable_copy = std::make_shared<TrackerElementVector>(vec);
+    }
+
+    MatchOnReadonlyDevicesRaw(worker, immutable_copy, batch);
 
 }
 
@@ -880,15 +896,55 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
     worker->Finalize(this);
 }
 
+void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+
+    kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
+           if (val == nullptr)
+               return;
+
+           std::shared_ptr<kis_tracked_device_base> v = 
+               std::static_pointer_cast<kis_tracked_device_base>(val);
+
+           bool m;
+
+           // Lock the device itself inside the worker op
+           {
+               local_shared_locker devlocker(&(v->device_mutex));
+               m = worker->MatchDevice(this, v);
+           }
+
+           if (m) 
+               worker->MatchedDevice(v);
+       });
+
+    worker->Finalize(this);
+}
+
 void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    local_demand_locker devlocker(&devicelist_mutex);
-    devlocker.lock();
-    std::vector<std::shared_ptr<kis_tracked_device_base>> copy_vec = vec;
-    devlocker.unlock();
+    // Make a copy of the vector
+    std::vector<std::shared_ptr<kis_tracked_device_base>> copy_vec;
+    {
+        local_shared_locker locker(&devicelist_mutex);
+        copy_vec = vec;
+    }
 
     MatchOnDevicesRaw(worker, copy_vec, batch);
+}
+
+void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
+
+    // Make a copy of the vector
+    std::vector<std::shared_ptr<kis_tracked_device_base>> copy_vec;
+    {
+        local_shared_locker locker(&devicelist_mutex);
+        copy_vec = vec;
+    }
+
+    MatchOnReadonlyDevicesRaw(worker, copy_vec, batch);
 }
 
 void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
@@ -914,8 +970,35 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
     worker->Finalize(this);
 }
 
+void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
+
+    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+            if (val == nullptr)
+                return;
+
+            auto v = std::static_pointer_cast<kis_tracked_device_base>(val);
+
+            bool m;
+
+            {
+                local_shared_locker devlocker(&v->device_mutex);
+                m = worker->MatchDevice(this, v);
+            }
+
+            if (m)
+                worker->MatchedDevice(v);
+        });
+
+    worker->Finalize(this);
+}
+
 void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
     MatchOnDevices(worker, immutable_tracked_vec, batch);
+}
+
+void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
+    MatchOnReadonlyDevices(worker, immutable_tracked_vec, batch);
 }
 
 // Simple std::sort comparison function to order by the least frequently
@@ -1184,7 +1267,7 @@ void Devicetracker::remove_view(const std::string& in_id) {
 }
 
 void Devicetracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_locker l(&view_mutex);
+    local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);
@@ -1193,7 +1276,7 @@ void Devicetracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_
 }
 
 void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_locker l(&view_mutex);
+    local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);
@@ -1202,7 +1285,7 @@ void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> 
 }
 
 void Devicetracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_locker l(&view_mutex);
+    local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<DevicetrackerView>(i);

@@ -158,10 +158,15 @@ public:
     //
     // Typically used to build a subset of devices for serialization
     void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch = true);
+    // Perform a read-only match; MAY NOT edit devices in the worker!
+    void MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is duplicated under mutex and then processed.
     void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+    // Perform a readonly filter, MUST NOT modify devices
+    void MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
@@ -169,10 +174,17 @@ public:
     // a safe operation (the vector must not be modified during execution of the worker)
     void MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+    // Perform a readonly match
+    void MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is duplicated under mutex and then processed.
     void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+            const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
+            bool batch = true);
+    // RO only
+    void MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
@@ -180,6 +192,10 @@ public:
     // ALL devices in the system; the source vector is not duplicated, the caller must ensure
     // this is a safe operation (the vector must not be modified during execution of the worker)
     void MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+            const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
+            bool batch = true);
+    // RO only
+    void MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 

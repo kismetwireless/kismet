@@ -77,13 +77,16 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
 
     device_list = std::make_shared<TrackerElementVector>();
 
+    // Because we can't lock the device view and acquire locks on devices while the caller
+    // might also hold locks on devices, we need to specially handle the mutex ourselves;
+    // all our endpoints are registered w/ no mutex, accordingly.
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, false,
                 [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
-                }, &mutex);
+                }, nullptr);
 
     time_endp =
         std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
@@ -92,7 +95,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
                 }, false,
                 [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
                     return device_time_endpoint(path);
-                }, &mutex);
+                }, nullptr);
 
     if (in_aux_path.size() == 0)
         return;
@@ -108,7 +111,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
                 [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
-                }, &mutex);
+                }, nullptr);
 
     time_uri_endp =
         std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
@@ -117,18 +120,30 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
                 }, false,
                 [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
                     return device_time_uri_endpoint(path);
-                }, &mutex);
+                }, nullptr);
     
 }
 
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
-    local_demand_locker dl(&mutex);
-    dl.lock();
-    auto immutable_copy = std::make_shared<TrackerElementVector>(device_list);
-    dl.unlock();
+    std::shared_ptr<TrackerElementVector> immutable_copy;
+    {
+        local_shared_locker dl(&mutex);
+        immutable_copy = std::make_shared<TrackerElementVector>(device_list);
+    }
 
     return doDeviceWork(worker, immutable_copy);
+}
+
+std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker) {
+    // Make a copy of the vector
+    std::shared_ptr<TrackerElementVector> immutable_copy;
+    {
+        local_shared_locker dl(&mutex);
+        immutable_copy = std::make_shared<TrackerElementVector>(device_list);
+    }
+
+    return doReadonlyDeviceWork(worker, immutable_copy);
 }
 
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker,
@@ -155,7 +170,38 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
                 ret->push_back(dev);
             }
 
-            });
+        });
+
+    worker.setMatchedDevices(ret);
+
+    return ret;
+}
+
+std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
+        std::shared_ptr<TrackerElementVector> devices) {
+    auto ret = std::make_shared<TrackerElementVector>();
+    kis_recursive_timed_mutex ret_mutex;
+
+    kismet__for_each(devices->begin(), devices->end(),
+            [&](SharedTrackerElement val) {
+
+            if (val == nullptr)
+                return;
+
+            auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
+
+            bool m;
+            {
+                local_shared_locker devlocker(&dev->device_mutex);
+                m = worker.matchDevice(dev);
+            }
+
+            if (m) {
+                local_locker retl(&ret_mutex);
+                ret->push_back(dev);
+            }
+
+        });
 
     worker.setMatchedDevices(ret);
 
@@ -163,39 +209,43 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
 }
 
 void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(&mutex);
-
-    if (new_cb != nullptr)
-        if (new_cb(device))
+    if (new_cb != nullptr) {
+        local_locker l(&mutex);
+        if (new_cb(device)) {
             device_list->push_back(device);
+        }
+    }
 }
 
 void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(&mutex);
 
     if (update_cb == nullptr)
         return;
 
-    bool retain = update_cb(device);
-    auto dpmi = device_presence_map.find(device->get_key());
+    {
+        local_locker l(&mutex);
+        bool retain = update_cb(device);
 
-    // If we're adding the device (or keeping it) and we don't have it tracked,
-    // add it and record it in the presence map
-    if (retain && dpmi == device_presence_map.end()) {
-        device_list->push_back(device);
-        device_presence_map[device->get_key()] = true;
-    }
+        auto dpmi = device_presence_map.find(device->get_key());
 
-    // if we're removing the device, find it in the vector and remove it, and remove
-    // it from the presence map; this is expensive
-    if (!retain && dpmi != device_presence_map.end()) {
-        for (auto di = device_list->begin(); di != device_list->end(); ++di) {
-            if (*di == device) {
-                device_list->erase(di);
-                break;
-            }
+        // If we're adding the device (or keeping it) and we don't have it tracked,
+        // add it and record it in the presence map
+        if (retain && dpmi == device_presence_map.end()) {
+            device_list->push_back(device);
+            device_presence_map[device->get_key()] = true;
         }
-        device_presence_map.erase(dpmi);
+
+        // if we're removing the device, find it in the vector and remove it, and remove
+        // it from the presence map; this is expensive
+        if (!retain && dpmi != device_presence_map.end()) {
+            for (auto di = device_list->begin(); di != device_list->end(); ++di) {
+                if (*di == device) {
+                    device_list->erase(di);
+                    break;
+                }
+            }
+            device_presence_map.erase(dpmi);
+        }
     }
 }
 
@@ -238,6 +288,9 @@ bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>
 }
 
 std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const std::vector<std::string>& path) {
+    // The device worker creates an immutable copy of the device list under its own RO mutex,
+    // so we don't have to lock here.
+    
     auto ret = std::make_shared<TrackerElementVector>();
 
     if (path.size() < 6)
@@ -263,7 +316,7 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const st
                 return true;
                 });
 
-    return doDeviceWork(worker);
+    return doReadonlyDeviceWork(worker);
 }
 
 bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::string>& path) {
@@ -297,6 +350,8 @@ bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::str
 }
 
 std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(const std::vector<std::string>& path) {
+    // The device worker creates an immutable copy of the device list under its own RO mutex,
+    // so we don't have to lock here.
     auto ret = std::make_shared<TrackerElementVector>();
 
     auto extras_sz = uri_extras.size();
@@ -327,12 +382,14 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(cons
                 return true;
                 });
 
-    return doDeviceWork(worker);
+    return doReadonlyDeviceWork(worker);
 }
 
 unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream, 
         const std::string& uri, SharedStructured structured,
         std::map<std::string, std::shared_ptr<std::stringstream>>& postvars) {
+    // The device worker creates an immutable copy of the device list under its own RO mutex,
+    // so we don't have to lock here.
 
     // Summarization vector based on simplification part of shared data
     auto summary_vec = std::vector<SharedElementSummary>{};
@@ -528,7 +585,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
                     });
 
         // Do the work and copy the vector
-        auto ts_vec = doDeviceWork(worker, next_work_vec);
+        auto ts_vec = doReadonlyDeviceWork(worker, next_work_vec);
         next_work_vec->set(ts_vec->begin(), ts_vec->end());
     }
 
@@ -536,7 +593,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     if (search_term.length() > 0 && search_paths.size() > 0) {
         auto worker =
             DevicetrackerViewStringmatchWorker(search_term, search_paths);
-        auto s_vec = doDeviceWork(worker, next_work_vec);
+        auto s_vec = doReadonlyDeviceWork(worker, next_work_vec);
         next_work_vec->set(s_vec->begin(), s_vec->end());
     }
 
@@ -545,7 +602,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
         try {
             auto worker = 
                 DevicetrackerViewRegexWorker(regex);
-            auto r_vec = doDeviceWork(worker, next_work_vec);
+            auto r_vec = doReadonlyDeviceWork(worker, next_work_vec);
             next_work_vec->set(r_vec->begin(), r_vec->end());
         } catch (const std::exception& e) {
             stream << "Invalid regex: " << e.what() << "\n";
