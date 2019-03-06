@@ -1643,7 +1643,7 @@ public:
 
     TrackerElementVector(std::shared_ptr<TrackerElementVector> v) :
         TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
-        vector = v->vector;
+        vector = vector_t(v->begin(), v->end());
     }
 
     TrackerElementVector(const_iterator a, const_iterator b) :
