@@ -48,6 +48,7 @@
 #include "base64.h"
 
 #include "devicetracker.h"
+#include "devicetracker_component.h"
 #include "phy_80211.h"
 
 #include "structured.h"
@@ -778,6 +779,94 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                             cl->push_back(d);
                     }
 
+                } catch (const std::exception& e) {
+                    return cl;
+                }
+
+                return cl;
+                });
+
+    related_to_key_endp =
+        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                // /phy/phy80211/related-to/[key]/devices
+
+                if (path.size() < 5)
+                return false;
+
+                if (path[0] != "phy" || path[1] != "phy80211" || path[2] != "related-to" || 
+                        path[4] != "devices")
+                return false;
+
+                try {
+                auto key = StringTo<device_key>(path[3]);
+                auto dev = devicetracker->FetchDevice(key);
+
+                if (dev == nullptr)
+                return false;
+
+                auto dot11 =
+                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                if (dot11 == nullptr)
+                    return false;
+
+                } catch (const std::exception& e) {
+                    return false;
+                }
+
+                return true;
+                },
+                false,
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                auto cl = std::make_shared<TrackerElementVector>();
+
+                try {
+                    auto key = StringTo<device_key>(path[3]);
+                    auto dev = devicetracker->FetchDevice(key);
+
+                    if (dev == nullptr)
+                        return cl;
+
+                    auto dot11 =
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                    if (dot11 == nullptr)
+                        return cl;
+
+                    // Make a map of devices we've already looked at
+                    std::map<device_key, bool> seen_nodes;
+
+                    std::function<void (std::shared_ptr<kis_tracked_device_base>)> find_clients = 
+                        [&](std::shared_ptr<kis_tracked_device_base> dev) {
+                        local_shared_locker l(&dev->device_mutex);
+
+                        // Don't add non-dot11 devices
+                        auto dot11 =
+                            dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                        if (dot11 == nullptr)
+                            return;
+
+                        // Don't add devices we've already added
+                        if (seen_nodes.find(dev->get_key()) != seen_nodes.end())
+                            return;
+
+                        // Add this device
+                        seen_nodes[dev->get_key()] = true;
+                        cl->push_back(dev);
+
+                        // For every client, repeat, looking for associated clients and shard APs
+                        for (auto ci : *dot11->get_associated_client_map()) {
+                            auto dk = std::static_pointer_cast<TrackerElementDeviceKey>(ci.second);
+                            auto d = devicetracker->FetchDevice(dk->get());
+
+                            if (d != nullptr)
+                                find_clients(d);
+                        }
+                    };
+
+                    find_clients(dev);
                 } catch (const std::exception& e) {
                     return cl;
                 }

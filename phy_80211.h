@@ -1809,6 +1809,9 @@ protected:
 
     // New endpoints as we migrate to the simplified API
     std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> clients_of_endp;
+
+    // Related-by API
+    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> related_to_key_endp;
 };
 
 #endif
