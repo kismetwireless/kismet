@@ -1346,7 +1346,7 @@ void Devicetracker::databaselog_write_devices() {
                 return false;
         }, nullptr);
 
-    MatchOnDevices(fw);
+    MatchOnReadonlyDevices(fw);
 
     last_database_logged = time(0);
 
@@ -1354,7 +1354,7 @@ void Devicetracker::databaselog_write_devices() {
 }
 
 void Devicetracker::databaselog_write_devices(std::shared_ptr<TrackerElementVector> vec) {
-    auto dbf = Globalreg::FetchGlobalAs<KisDatabaseLogfile>(globalreg, "DATABASELOG");
+    auto dbf = Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>();
     
     if (dbf == NULL)
         return;
