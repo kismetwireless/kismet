@@ -286,6 +286,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         map_seenby_views = true;
     }
 
+    if (!globalreg->kismet_config->FetchOptBoolean("track_device_phy_views", true)) {
+        _MSG("Not building device phy views to save RAM", MSGFLAG_INFO);
+        map_phy_views = false;
+    } else {
+        map_phy_views = true;
+    }
+
     if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
         unsigned int lograte = 
             globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
@@ -427,8 +434,9 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 Devicetracker::~Devicetracker() {
     local_locker lock(&devicelist_mutex);
 
-    if (eventbus != nullptr)
+    if (eventbus != nullptr) {
         eventbus->remove_listener(new_datasource_evt_id);
+    }
 
     if (statestore != NULL) {
         delete(statestore);
@@ -522,6 +530,27 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_datapackets[num] = 0;
 	phy_errorpackets[num] = 0;
 	phy_filterpackets[num] = 0;
+
+    if (map_phy_views) {
+        auto phy_id = strongphy->FetchPhyId();
+
+        auto k = phy_view_map.find(phy_id);
+        if (k == phy_view_map.end()) {
+            auto phy_view = 
+                std::make_shared<DevicetrackerView>(fmt::format("phy-{}", strongphy->FetchPhyName()),
+                        fmt::format("Devices of phy type {}", strongphy->FetchPhyName()),
+                        std::vector<std::string>{"phy", strongphy->FetchPhyName()},
+                        [phy_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            return dev->get_phyid() == phy_id;
+                        },
+                        [phy_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            return dev->get_phyid() == phy_id;
+                        }
+                        );
+            phy_view_map[phy_id] = phy_view;
+            add_view(phy_view);
+        }
+    }
 
 	eventbus->publish(std::make_shared<EventNewPhy>(strongphy));
 
@@ -1717,11 +1746,11 @@ void Devicetracker::HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt)
                         [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_seenby_map()->find(source_key) != dev->get_seenby_map()->end();
                         });
+            seenby_view_map[source_uuid] = seenby_view;
             add_view(seenby_view);
         }
     }
 }
-
 
 DevicetrackerStateStore::DevicetrackerStateStore(GlobalRegistry *in_globalreg,
         Devicetracker *in_devicetracker) :

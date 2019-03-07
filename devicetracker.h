@@ -325,6 +325,10 @@ protected:
     bool map_seenby_views;
     std::map<uuid, std::shared_ptr<DevicetrackerView>> seenby_view_map;
 
+    // Map of phy views
+    bool map_phy_views;
+    std::map<int, std::shared_ptr<DevicetrackerView>> phy_view_map;
+
     // Base IDs for tracker components
     int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
     int device_summary_base_id;
