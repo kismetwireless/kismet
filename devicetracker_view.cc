@@ -211,8 +211,14 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(De
 void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
         local_locker l(&mutex);
+
         if (new_cb(device)) {
-            device_list->push_back(device);
+            auto dpmi = device_presence_map.find(device->get_key());
+
+            if (dpmi == device_presence_map.end()) {
+                device_presence_map[device->get_key()] = true;
+                device_list->push_back(device);
+            }
         }
     }
 }
@@ -233,6 +239,7 @@ void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> de
         if (retain && dpmi == device_presence_map.end()) {
             device_list->push_back(device);
             device_presence_map[device->get_key()] = true;
+            return;
         }
 
         // if we're removing the device, find it in the vector and remove it, and remove
@@ -245,6 +252,7 @@ void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> de
                 }
             }
             device_presence_map.erase(dpmi);
+            return;
         }
     }
 }

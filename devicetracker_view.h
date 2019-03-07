@@ -91,7 +91,7 @@ public:
     }
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
-    // before perforing work
+    // before performing work
     virtual std::shared_ptr<TrackerElementVector> doDeviceWork(DevicetrackerViewWorker& worker);
     // Do read-only work; this MAY NOT modify devices in the worker!
     virtual std::shared_ptr<TrackerElementVector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker);
