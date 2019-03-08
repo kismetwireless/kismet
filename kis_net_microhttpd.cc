@@ -1569,6 +1569,19 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     Bind_Httpd_Server();
 }
 
+Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
+        bool in_auth, Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func,
+        kis_recursive_timed_mutex *in_mutex) :
+    Kis_Net_Httpd_Chain_Stream_Handler {},
+    auth_req {in_auth},
+    uri {in_uri}, 
+    content { nullptr },
+    generator {in_func},
+    mutex {in_mutex} {
+
+    Bind_Httpd_Server();
+}
+
 bool Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
     auto stripped = Httpd_StripSuffix(path);
 
@@ -1619,20 +1632,26 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
         return MHD_YES;
     }
 
-    std::shared_ptr<TrackerElement> output_content;
+    try {
+        std::shared_ptr<TrackerElement> output_content;
 
-    if (content == nullptr && generator == nullptr) {
-        stream << "Invalid request: No backing content present";
-        connection->httpcode = 400;
+        if (content == nullptr && generator == nullptr) {
+            stream << "Invalid request: No backing content present";
+            connection->httpcode = 400;
+            return MHD_YES;
+        }
+
+        if (generator != nullptr)
+            output_content = generator();
+        else
+            output_content = content;
+
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+    } catch (const std::exception& e) {
+        stream << "Error: " << e.what() << "\n";
+        connection->httpcode = 500;
         return MHD_YES;
     }
-
-    if (generator != nullptr)
-        output_content = generator();
-    else
-        output_content = content;
-
-    Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
 
     return MHD_YES;
 }

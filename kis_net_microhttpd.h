@@ -493,6 +493,8 @@ public:
             std::shared_ptr<TrackerElement> in_content, 
             kis_recursive_timed_mutex *in_mutex);
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, bool in_auth, gen_func in_func);
+    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, bool in_auth, gen_func in_func,
+            kis_recursive_timed_mutex *in_mutex);
 
     virtual ~Kis_Net_Httpd_Simple_Tracked_Endpoint() { }
 
