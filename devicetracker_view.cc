@@ -219,6 +219,8 @@ void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> devic
                 device_presence_map[device->get_key()] = true;
                 device_list->push_back(device);
             }
+
+            list_sz->set(device_list->size());
         }
     }
 }
@@ -239,6 +241,7 @@ void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> de
         if (retain && dpmi == device_presence_map.end()) {
             device_list->push_back(device);
             device_presence_map[device->get_key()] = true;
+            list_sz->set(device_list->size());
             return;
         }
 
@@ -252,6 +255,7 @@ void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> de
                 }
             }
             device_presence_map.erase(dpmi);
+            list_sz->set(device_list->size());
             return;
         }
     }
@@ -271,6 +275,8 @@ void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> de
                 break;
             }
         }
+        
+        list_sz->set(device_list->size());
     }
 }
 

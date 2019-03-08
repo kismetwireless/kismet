@@ -80,10 +80,10 @@ public:
     // Protect proxies w/ mutex
     __ProxyGet(view_id, std::string, std::string, view_id);
     __ProxyGet(view_description, std::string, std::string, view_description);
+    __ProxyGet(list_sz, uint64_t, uint64_t, list_sz);
 
     virtual void pre_serialize() override {
         local_eol_shared_locker lock(&mutex);
-        list_sz->set(device_list->size());
     }
 
     virtual void post_serialize() override {
@@ -126,7 +126,7 @@ protected:
     std::shared_ptr<TrackerElementString> view_id;
     std::shared_ptr<TrackerElementUUID> view_uuid;
     std::shared_ptr<TrackerElementString> view_description;
-    std::shared_ptr<TrackerElementUInt32> list_sz;
+    std::shared_ptr<TrackerElementUInt64> list_sz;
 
     new_device_cb new_cb;
     updated_device_cb update_cb;
