@@ -55,17 +55,10 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
         // Simple fixed URLS
 
         std::string stripped = Httpd_StripSuffix(path);
-        bool can_serialize = Httpd_CanSerialize(path);
 
         // Explicit compare for .ekjson because it doesn't serialize the 
         // same way
         if (strcmp(path, "/devices/all_devices.ekjson") == 0)
-            return true;
-
-        if (stripped == "/phy/all_phys" && can_serialize)
-            return true;
-
-        if (stripped == "/phy/all_phys_dt" && can_serialize)
             return true;
 
         // Split URL and process
@@ -244,37 +237,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Devicetracker::httpd_all_phys(std::string path, std::ostream &stream,
-        std::string in_wrapper_key) {
-
-    std::shared_ptr<TrackerElement> transmit;
-    std::shared_ptr<TrackerElementMap> wrapper;
-
-    auto phyvec =
-        std::make_shared<TrackerElementVector>(phy_base_id);
-
-    if (in_wrapper_key != "") {
-        wrapper = std::make_shared<TrackerElementMap>();
-        wrapper->insert(phyvec);
-        phyvec->set_local_name(in_wrapper_key);
-        transmit = wrapper;
-    } else {
-        transmit = phyvec;
-    }
-
-    auto anyphy = std::make_shared<kis_tracked_phy>(phy_base_id);
-    anyphy->set_from_phy(this, KIS_PHY_ANY);
-    phyvec->push_back(anyphy);
-
-    for (const auto& mi : phy_handler_map) {
-        auto p = std::make_shared<kis_tracked_phy>(phy_base_id);
-        p->set_from_phy(this, mi.first);
-        phyvec->push_back(p);
-    }
-
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, wrapper, NULL);
-}
-
 int Devicetracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
@@ -328,16 +290,6 @@ int Devicetracker::Httpd_CreateStreamResponse(
     }
 
     std::string stripped = Httpd_StripSuffix(path);
-
-    if (stripped == "/phy/all_phys") {
-        httpd_all_phys(path, stream);
-        return MHD_YES;
-    }
-
-    if (stripped == "/phy/all_phys_dt") {
-        httpd_all_phys(path, stream, "aaData");
-        return MHD_YES;
-    }
 
     std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
@@ -1280,5 +1232,38 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
 
     stream << "Unhandled request\n";
     return 500;
+}
+
+std::shared_ptr<TrackerElement> Devicetracker::all_phys_endp_handler() {
+    auto ret_vec = 
+        std::make_shared<TrackerElementVector>();
+
+    for (auto i : phy_handler_map) {
+        auto tracked_phy =
+            std::make_shared<TrackerElementMap>(phy_phyentry_id);
+
+        auto tracked_name =
+            std::make_shared<TrackerElementString>(phy_phyname_id, i.second->FetchPhyName());
+        auto tracked_id =
+            std::make_shared<TrackerElementUInt32>(phy_phyid_id, i.second->FetchPhyId());
+        auto tracked_dev_count =
+            std::make_shared<TrackerElementUInt64>(phy_devices_count_id);
+        auto tracked_packet_count =
+            std::make_shared<TrackerElementUInt64>(phy_packets_count_id, phy_packets[i.second->FetchPhyId()]);
+
+        auto pv_key = phy_view_map.find(i.second->FetchPhyId());
+        if (pv_key != phy_view_map.end())
+            tracked_dev_count->set(pv_key->second->get_list_sz());
+
+        tracked_phy->insert(tracked_name);
+        tracked_phy->insert(tracked_id);
+        tracked_phy->insert(tracked_dev_count);
+        tracked_phy->insert(tracked_packet_count);
+
+        ret_vec->push_back(tracked_phy);
+
+    }
+
+    return ret_vec;
 }
 

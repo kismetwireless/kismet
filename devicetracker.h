@@ -271,12 +271,6 @@ public:
 
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
     
-    // Generate a list of all phys, serialized appropriately.  If specified,
-    // wrap it in a dictionary and name it with the key in in_wrapper, which
-    // is required for some js libs like datatables.
-    void httpd_all_phys(std::string url, std::ostream &stream, 
-            std::string in_wrapper_key = "");
-
     // Timetracker event handler
     virtual int timetracker_event(int eventid);
 
@@ -330,7 +324,7 @@ protected:
     std::map<int, std::shared_ptr<DevicetrackerView>> phy_view_map;
 
     // Base IDs for tracker components
-    int device_list_base_id, device_base_id, phy_base_id, phy_entry_id;
+    int device_list_base_id, device_base_id;
     int device_summary_base_id;
     int device_update_required_id, device_update_timestamp_id;
 
@@ -399,11 +393,16 @@ protected:
     std::shared_ptr<TrackerElementVector> view_vec;
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> view_endp;
 
-    // Multimac endpoint using new API
+    // Multimac endpoint using new http API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> multimac_endp;
     unsigned int multimac_endp_handler(std::ostream& stream, const std::string& uri,
             SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache);
-            
+
+    // /phys/all_phys.json endpoint using new simple endpoint API
+    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> all_phys_endp;
+    std::shared_ptr<TrackerElement> all_phys_endp_handler();
+    int phy_phyentry_id, phy_phyname_id, phy_devices_count_id, 
+        phy_packets_count_id, phy_phyid_id;
 
 	// Registered PHY types
 	int next_phy_id;
@@ -466,63 +465,6 @@ protected:
 
     // Load stored tags
     void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
-};
-
-class kis_tracked_phy : public tracker_component {
-public:
-    kis_tracked_phy() :
-        tracker_component() {
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    kis_tracked_phy(int in_id) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    kis_tracked_phy(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        tracker_component(in_id) {
-
-        register_fields();
-        reserve_fields(e);
-    }
-
-    virtual uint32_t get_signature() const override {
-        return Adler32Checksum("kis_tracked_phy");
-    }
-
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
-    __Proxy(phy_id, int32_t, int32_t, int32_t, phy_id);
-    __Proxy(phy_name, std::string, std::string, std::string, phy_name);
-
-    void set_from_phy(Devicetracker *devicetracker, int phy) {
-        set_phy_id(phy);
-        set_phy_name(devicetracker->FetchPhyName(phy));
-    }
-
-protected:
-    virtual void register_fields() override {
-        tracker_component::register_fields();
-
-        RegisterField("kismet.phy.id", "phy id", &phy_id);
-        RegisterField("kismet.phy.name", "phy name", &phy_name);
-    }
-
-    std::shared_ptr<TrackerElementInt32> phy_id;
-    std::shared_ptr<TrackerElementString> phy_name;
 };
 
 class devicelist_scope_locker {

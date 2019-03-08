@@ -86,15 +86,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 TrackerElementFactory<TrackerElementVector>(),
                 "list of devices");
 
-    phy_base_id =
-        entrytracker->RegisterField("kismet.phy.list", 
-                TrackerElementFactory<TrackerElementVector>(),
-                "list of phys");
-
-    phy_entry_id =
-        entrytracker->RegisterField("kismet.phy.entry", 
-                TrackerElementFactory<TrackerElementMap>(),
-                "phy entry");
 
     device_summary_base_id =
         entrytracker->RegisterField("kismet.device.summary_list",
@@ -417,6 +408,39 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
                 return multimac_endp_handler(stream, uri, structured, variable_cache);
                 });
+
+    phy_phyentry_id =
+        entrytracker->RegisterField("kismet.phy.phy",
+                TrackerElementFactory<TrackerElementMap>(),
+                "Kismet PHY handler");
+
+    phy_phyname_id =
+        entrytracker->RegisterField("kismet.phy.phy_name",
+                TrackerElementFactory<TrackerElementString>(),
+                "Phy name (consistent across executions)");
+
+    phy_phyid_id =
+        entrytracker->RegisterField("kismet.phy.phy_id",
+                TrackerElementFactory<TrackerElementUInt32>(),
+                "Phy ID (dynamic runtime index, may change between executions)");
+
+    phy_devices_count_id =
+        entrytracker->RegisterField("kismet.phy.device_count",
+                TrackerElementFactory<TrackerElementUInt64>(),
+                "Devices present in phy");
+
+    phy_packets_count_id =
+        entrytracker->RegisterField("kismet.phy.packet_count",
+                TrackerElementFactory<TrackerElementUInt64>(),
+                "Packets seen in phy");
+
+    all_phys_endp = 
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
+                "/phy/all_phys", false,
+                [this]() -> std::shared_ptr<TrackerElement> {
+                    return all_phys_endp_handler();
+                },
+                &devicelist_mutex);
 
     // Open and upgrade the DB, default path
     Database_Open("");
