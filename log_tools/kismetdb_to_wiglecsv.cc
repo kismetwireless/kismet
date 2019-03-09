@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <ctime>
 #include <iostream>
+#include <tuple>
 
 #include <string.h>
 #include <stdio.h>
@@ -85,6 +86,24 @@ int FrequencyToWifiChannel(double in_freq) {
         return (in_freq - 56160) / 2160;
     else
         return in_freq;
+}
+
+// we can't do this is as a sqlite function, as cool as that would be, because sqlite functions
+// can't be part of a `where`, only a `having`, which introduces tons of problems.
+double distance_meters(double lat0, double lon0, double lat1, double lon1) {
+    lat0 = (M_PI / 180) * lat0;
+    lon0 = (M_PI / 180) * lon0;
+    lat1 = (M_PI / 180) * lat1;
+    lon1 = (M_PI / 180) * lon1;
+
+    double diff_lon = lon1 - lon0;
+    double diff_lat = lat1 - lat0;
+
+    double ret = 
+        (2 * asin(sqrt(pow(sin(diff_lat / 2), 2) +
+                       cos(lat0) * cos(lat1) * pow(sin(diff_lon / 2), 2)))) * 6731000.0f;
+
+    return ret;
 }
 
 std::string WifiCryptToString(unsigned long cryptset) {
@@ -148,7 +167,10 @@ void print_help(char *argv) {
            "                              per device\n"
            " -c, --cache-limit [limit]    Maximum number of device to cache, defaults to 1000.\n"
            " -v, --verbose                Verbose output\n"
-           " -s, --skip-clean             Don't clean (sql vacuum) input database\n");
+           " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
+           " -e, --exclude lat,lon,dist   Exclude records within 'dist' *meters* of the lat,lon\n"
+           "                              provided.  This can be used to exclude packets close to\n"
+           "                              your home, or other sensitive locations.\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -161,6 +183,7 @@ int main(int argc, char *argv[]) {
         { "skip-clean", no_argument, 0, 's' },
         { "rate-limit", required_argument, 0, 'r'},
         { "cache-limit", required_argument, 0, 'c'},
+        { "exclude", required_argument, 0, 'e'},
         { 0, 0, 0, 0 }
     };
 
@@ -172,6 +195,8 @@ int main(int argc, char *argv[]) {
     bool verbose = false;
     bool force = false;
     bool skipclean = false;
+
+    std::vector<std::tuple<double, double, double>> exclusion_zones;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -186,7 +211,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:vfs", 
+                            "-hi:o:r:c:e:vfs", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -213,6 +238,15 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "ERROR:  Expected a cache limit number.\n");
                 exit(1);
             }
+        } else if (r == 'e') {
+            double lat, lon, distance;
+
+            if (sscanf(optarg, "%lf,%lf,%lf", &lat, &lon, &distance) != 3) {
+                fprintf(stderr, "ERROR:  Expected an exclusion zone of lat,lon,distance_in_meters.\n");
+                exit(1);
+            }
+
+            exclusion_zones.push_back(std::make_tuple(lat, lon, distance));
         }
     }
 
@@ -387,7 +421,9 @@ int main(int argc, char *argv[]) {
                 "lon", NEQ, 0));
 
     unsigned long n_logs = 0;
-    unsigned long n_discarded_logs = 0;
+    unsigned long n_saved = 0;
+    unsigned long n_discarded_logs_rate = 0;
+    unsigned long n_discarded_logs_zones = 0;
     unsigned long n_division = (n_packets_db / 20);
 
     for (auto p : query) {
@@ -407,9 +443,9 @@ int main(int argc, char *argv[]) {
 
         n_logs++;
         if (n_logs % n_division == 0 && verbose)
-            fprintf(stderr, "* %d%% Processed %lu records, %lu discarded from rate limiting, cache %lu\n", 
+            fprintf(stderr, "* %d%% Processed %lu records, %lu discarded from rate limiting, %lu discarded from exclusion zones, cache %lu\n", 
                     (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
-                    n_logs, n_discarded_logs, device_cache_map.size());
+                    n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size());
 
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
         auto sourcemac = sqlite3_column_as<std::string>(p, 1);
@@ -448,6 +484,20 @@ int main(int argc, char *argv[]) {
 
             if (dev == dev_query.end()) {
                 // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
+                continue;
+            }
+
+            // Check to see if we lie in any exclusion zones
+            bool violates_exclusion = false;
+            for (auto ez : exclusion_zones) {
+                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                    violates_exclusion = true;
+                    break;
+                }
+            }
+
+            if (violates_exclusion) {
+                n_discarded_logs_zones++;
                 continue;
             }
 
@@ -506,7 +556,7 @@ int main(int argc, char *argv[]) {
         // Rate throttle
         if (rate_limit != 0 && cached->last_time_sec != 0) {
             if (cached->last_time_sec + rate_limit < ts) {
-                n_discarded_logs++;
+                n_discarded_logs_rate++;
                 continue;
             }
         } 
@@ -526,16 +576,32 @@ int main(int argc, char *argv[]) {
                 signal,
                 lat, lon, alt,
                 "WIFI");
+
+        n_saved++;
     }
 
-    if (ofile != stdout)
+    if (ofile != stdout) {
         fclose(ofile);
+
+    }
 
     sqlite3_close(db);
 
+    if (n_saved == 0) {
+        fprintf(stderr, "Error: No records saved, not saving empty output file.  Your log file may have no\n"
+                "packets with GPS information, no packets with recognized devices, or your exclusion\n"
+                "options have blocked all possible packets (%lu blocked by %lu exclusion(s))\n",
+                n_discarded_logs_zones, exclusion_zones.size());
+
+        if (ofile != stdout)
+            unlink(out_fname.c_str());
+
+        exit(1);
+    }
+
     if (verbose)  {
-        fprintf(stderr, "* Processed %lu records, %lu discarded from rate limiting, %lu devices\n", 
-                n_logs, n_discarded_logs, device_cache_map.size());
+        fprintf(stderr, "* Processed %lu records, %lu discarded from rate limiting, %lu discarded from exclusion zones\n", 
+                n_logs, n_discarded_logs_rate, n_discarded_logs_zones);
         fprintf(stderr, "* Done!\n");
     }
 
