@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,7 +21,7 @@
 #include <math.h>
 #include <cmath>
 
-#include "tracked_location.h"
+#include "trackedlocation.h"
 #include "gpstracker.h"
 
 kis_tracked_location_triplet::kis_tracked_location_triplet() :

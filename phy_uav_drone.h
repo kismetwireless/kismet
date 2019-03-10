@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,7 +21,7 @@
 #define __PHY_UAV_DRONE_H__
 
 #include "trackedelement.h"
-#include "tracked_location.h"
+#include "trackedlocation.h"
 #include "phyhandler.h"
 #include "packetchain.h"
 

@@ -27,8 +27,8 @@
 #include "trackedelement.h"
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
-#include "tracked_location.h"
-#include "tracked_geometry.h"
+#include "trackedlocation.h"
+#include "trackedgeometry.h"
 
 
 class tracked_device_geometry : public tracker_component {

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -38,8 +38,8 @@
 #include "entrytracker.h"
 #include "packet.h"
 #include "uuid.h"
-#include "tracked_location.h"
-#include "tracked_rrd.h"
+#include "trackedlocation.h"
+#include "trackedrrd.h"
 #include "packinfo_signal.h"
 
 class KisDatasource;

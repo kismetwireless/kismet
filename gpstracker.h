@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -26,7 +26,7 @@
 #include "packetchain.h"
 #include "globalregistry.h"
 #include "kis_net_microhttpd.h"
-#include "tracked_location.h"
+#include "trackedlocation.h"
 
 class KisGpsBuilder;
 typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
