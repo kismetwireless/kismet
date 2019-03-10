@@ -145,6 +145,7 @@ void tracked_system_status::register_fields() {
     RegisterField("kismet.system.memory.rss", "memory RSS in kbytes", &memory);
     RegisterField("kismet.system.devices.count", "number of devices in devicetracker", &devices);
     RegisterField("kismet.system.user", "user Kismet is running as", &username);
+    RegisterField("kismet.system.version", "Kismet version string", &server_version);
     RegisterField("kismet.system.server_uuid", "UUID of kismet server", &server_uuid);
     RegisterField("kismet.system.server_name", "Arbitrary name of server instance", &server_name);
     RegisterField("kismet.system.server_description", 
