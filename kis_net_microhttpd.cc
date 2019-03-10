@@ -1067,7 +1067,16 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
 
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
-    Httpd_PostComplete(connection);
+    try {
+        Httpd_PostComplete(connection);
+    } catch (const std::exception& e) {
+        auto err = fmt::format("Server error:  Uncaught exception '{}'\n", e.what());
+
+        connection->response = 
+            MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
+        connection->httpcode = 500;
+        return httpd->SendStandardHttpResponse(httpd, connection, url);
+    }
 
     if (connection->response == NULL) {
         connection->response = 
@@ -1529,6 +1538,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
                     }
                 } catch (const std::exception& e) {
                     // fprintf(stderr, "debug - exception - triggering error\n");
+                    _MSG_ERROR("HTTPD: Uncaught exception '{}' on '{}'", e.what(), connection->url);
                     aux->sync();
                     aux->trigger_error();
                 }
@@ -1696,10 +1706,16 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 
     std::shared_ptr<TrackerElement> output_content;
 
-    if (generator != nullptr)
-        output_content = generator();
-    else
-        output_content = content;
+    try {
+        if (generator != nullptr)
+            output_content = generator();
+        else
+            output_content = content;
+    } catch (const std::exception& e) {
+        stream << "Invalid request / error processing request: " << e.what() << "\n";
+        concls->httpcode = 500;
+        return MHD_YES;
+    }
 
     // Common structured API data
     SharedStructured structdata;
@@ -1862,7 +1878,13 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
     if (tokenurl.size())
         tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
 
-    output_content = generator(tokenurl);
+    try {
+        output_content = generator(tokenurl);
+    } catch (const std::exception& e) {
+        stream << "Invalid request / error processing request: " << e.what() << "\n";
+        connection->httpcode = 500;
+        return MHD_YES;
+    }
 
     Globalreg::FetchMandatoryGlobalAs<EntryTracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
 
@@ -1910,7 +1932,13 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
 
     std::shared_ptr<TrackerElement> output_content;
 
-    output_content = generator(tokenurl);
+    try {
+        output_content = generator(tokenurl);
+    } catch (const std::exception& e) {
+        stream << "Invalid request / error processing request: " << e.what() << "\n";
+        concls->httpcode = 500;
+        return MHD_YES;
+    }
 
     // Common structured API data
     SharedStructured structdata;
@@ -2006,8 +2034,9 @@ bool Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_VerifyPath(const char *path, cons
 
     auto stripped = Httpd_StripSuffix(path);
 
-    if (stripped == uri && Httpd_CanSerialize(path))
+    if (stripped == uri && Httpd_CanSerialize(path)) {
         return true;
+    }
 
     return false;
 }
@@ -2019,6 +2048,9 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_CreateStreamResponse(
         size_t *upload_data_size) {
 
     // Do nothing, we only handle POST
+    connection->response_stream << "Invalid request: POST expected\n";
+    connection->httpcode = 400;
+   
     return MHD_YES;
 }
 
@@ -2048,17 +2080,17 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
             });
 
     if (auth_req) {
-        if (!httpd->HasValidSession(concls)) 
+        if (!httpd->HasValidSession(concls)) {
             stream << "Login required\n";
-        concls->httpcode = 401;
-        return MHD_YES;
+            concls->httpcode = 401;
+            return MHD_YES;
+        }
     }
 
     try {
         SharedStructured structdata;
 
-        if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
                 std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
         } else {
@@ -2067,16 +2099,17 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
         }
 
         auto r = generator(stream, concls->url, structdata, concls->variable_cache);
-
         concls->httpcode = r;
+
         return MHD_YES;
     } catch(const std::exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
+        stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
     }
 
+    stream << "Unhandled request\n";
+    concls->httpcode = 500;
     return MHD_YES;
 }
 
