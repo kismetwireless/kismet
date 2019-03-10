@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -84,6 +84,20 @@ KisDatabaseLogfile::KisDatabaseLogfile():
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
                     return packet_drop_endpoint_handler(stream, uri, post_structured, variable_cache);
                 }, nullptr);
+
+    make_poi_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/poi/create_poi", true,
+                [this](std::ostream& stream, const std::string& uri,
+                    SharedStructured post_structured,
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return make_poi_endp_handler(stream, uri, post_structured, variable_cache);
+                });
+
+    list_poi_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/poi/list_poi", true,
+                [this]() -> std::shared_ptr<TrackerElement> {
+                    return list_poi_endp_handler();
+                });
 
     device_mac_filter = 
         std::make_shared<ClassfilterMacaddr>("kismetdb_devices", 
@@ -1437,6 +1451,32 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
     return 200;
 }
 
+unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream, 
+        const std::string& uri, SharedStructured structured,
+        Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
+
+    auto gpstracker = Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    std::string poi_data;
+
+    if (structured != nullptr) {
+        if (structured->hasKey("note")) {
+            poi_data = "{\"note\": \"" +
+                JsonAdapter::SanitizeString(structured->getKeyAsString("note")) +
+                        "\"}";
+        }
+    }
+
+    log_snapshot(gpstracker->get_best_location(), tv, "POI", poi_data);
+
+    ostream << "POI created\n";
+    return 200;
+}
+
+std::shared_ptr<TrackerElement> KisDatabaseLogfile::list_poi_endp_handler() {
+    return std::make_shared<TrackerElementVector>();
+}
 
 Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler) :

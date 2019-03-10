@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -172,6 +172,14 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
             SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+
+    // POI API
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> make_poi_endp;
+    unsigned int make_poi_endp_handler(std::ostream& stream, const std::string& uri,
+            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+
+    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_poi_endp;
+    std::shared_ptr<TrackerElement> list_poi_endp_handler();
 
     // Device log filter
     std::shared_ptr<ClassfilterMacaddr> device_mac_filter;
