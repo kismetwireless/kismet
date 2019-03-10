@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -35,6 +35,8 @@
 #include "entrytracker.h"
 #include "system_monitor.h"
 #include "json_adapter.h"
+#include "version.h"
+#include "fmt.h"
 
 Systemmonitor::Systemmonitor() :
     LifetimeGlobal() {
@@ -86,6 +88,9 @@ Systemmonitor::Systemmonitor() :
     status->set_username(uidstr.str());
 
     status->set_server_uuid(Globalreg::globalreg->server_uuid);
+
+    status->set_server_version(fmt::format("{}-{}-{}", 
+                VERSION_MAJOR, VERSION_MINOR, VERSION_TINY));
 
     status->set_server_name(Globalreg::globalreg->kismet_config->FetchOpt("server_name"));
     status->set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));

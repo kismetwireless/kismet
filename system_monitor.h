@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -80,6 +80,7 @@ public:
     __Proxy(devices, uint64_t, uint64_t, uint64_t, devices);
 
     __Proxy(username, std::string, std::string, std::string, username);
+    __Proxy(server_version, std::string, std::string, std::string, server_version);
 
     __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
     __Proxy(server_name, std::string, std::string, std::string, server_name);
@@ -114,6 +115,7 @@ protected:
     std::shared_ptr<TrackerElementString> server_name;
     std::shared_ptr<TrackerElementString> server_description;
     std::shared_ptr<TrackerElementString> server_location;
+    std::shared_ptr<TrackerElementString> server_version;
 
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> memory_rrd;
     std::shared_ptr<TrackerElementUInt64> devices;
