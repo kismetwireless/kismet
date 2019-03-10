@@ -538,7 +538,7 @@ int main(int argc, char *argv[]) {
                 std::tm tm = *std::localtime(&timet);
                 std::stringstream ts;
 
-                ts << std::put_time(&tm, "%Y-%b-%d %H:%M:%S"); 
+                ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
 
                 cached = new cache_obj{ts.str(), name, crypt};
 
