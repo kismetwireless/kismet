@@ -53,6 +53,7 @@ RingbufV2::~RingbufV2() {
 
 #ifdef PROFILE_RINGBUFV2
 void RingbufV2::profile() {
+#if 0
     fprintf(stderr, "profile - ringbufv2 - %p stats - \n"
             "    len %lu\n"
             "    write zero copy %lu\n"
@@ -86,6 +87,7 @@ void RingbufV2::profile() {
 
     fprintf(stderr, "     total saved: %2.2f %c\n", total, u);
     last_profile_bytes = 0;
+#endif
 }
 #endif
 
@@ -264,7 +266,7 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
         return 0;
 
     if (available() < (ssize_t) in_sz) {
-        fprintf(stderr, "debug - ringbuf2 - insufficient space in buffer for %lu available %lu length %lu\n", in_sz, available(), length);
+        // fprintf(stderr, "debug - ringbuf2 - insufficient space in buffer for %lu available %lu length %lu\n", in_sz, available(), length);
         return 0;
     }
 
@@ -407,9 +409,11 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
         if (written < 0)
             return false;
 
+#if 0
         if (!((size_t) written == in_sz)) {
             fprintf(stderr, "debug - ringbuf2 - copied %ld wanted %lu\n", written, in_sz);
         }
+#endif
 
         return (size_t) written == in_sz;
     } else {
@@ -422,9 +426,11 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
         if (written < 0)
             return false;
 
+#if 0
         if (!((size_t) written == in_sz)) {
             fprintf(stderr, "debug - ringbuf2 - zero copied %ld wanted %lu\n", written, in_sz);
         }
+#endif
 
         return (size_t) written == in_sz;
     }
