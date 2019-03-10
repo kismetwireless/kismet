@@ -1428,6 +1428,11 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
 
     using namespace kissqlite3;
 
+    if (!db_enabled) {
+        ostream << "Illegal request: kismetdb log not enabled\n";
+        return 400;
+    }
+
     if (structured == nullptr) {
         ostream << "Expected 'drop_before' in command dictionary\n";
         return 400;
@@ -1454,6 +1459,11 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
 unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream, 
         const std::string& uri, SharedStructured structured,
         Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
+
+    if (!db_enabled) {
+        ostream << "Illegal request: kismetdb log not enabled\n";
+        return 400;
+    }
 
     auto gpstracker = Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
     struct timeval tv;
