@@ -1636,10 +1636,11 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
             });
 
     if (auth_req) {
-        if (!httpd->HasValidSession(connection)) 
+        if (!httpd->HasValidSession(connection)) {
             stream << "Login required\n";
-        connection->httpcode = 401;
-        return MHD_YES;
+            connection->httpcode = 401;
+            return MHD_YES;
+        }
     }
 
     try {
@@ -1692,10 +1693,11 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
             });
 
     if (auth_req) {
-        if (!httpd->HasValidSession(concls)) 
+        if (!httpd->HasValidSession(concls)) {
             stream << "Login required\n";
-        concls->httpcode = 401;
-        return MHD_YES;
+            concls->httpcode = 401;
+            return MHD_YES;
+        }
     }
 
     if (content == nullptr && generator == nullptr) {
@@ -1863,10 +1865,11 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
             });
 
     if (auth_req) {
-        if (!httpd->HasValidSession(connection)) 
+        if (!httpd->HasValidSession(connection))  {
             stream << "Login required\n";
-        connection->httpcode = 401;
-        return MHD_YES;
+            connection->httpcode = 401;
+            return MHD_YES;
+        }
     }
 
     std::shared_ptr<TrackerElement> output_content;
@@ -1917,10 +1920,11 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
             });
 
     if (auth_req) {
-        if (!httpd->HasValidSession(concls)) 
+        if (!httpd->HasValidSession(concls)) {
             stream << "Login required\n";
-        concls->httpcode = 401;
-        return MHD_YES;
+            concls->httpcode = 401;
+            return MHD_YES;
+        }
     }
 
     auto stripped = Httpd_StripSuffix(concls->url);
@@ -2195,10 +2199,11 @@ int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connectio
             });
 
     if (auth_req) {
-        if (!httpd->HasValidSession(concls)) 
+        if (!httpd->HasValidSession(concls))  {
             stream << "Login required\n";
-        concls->httpcode = 401;
-        return MHD_YES;
+            concls->httpcode = 401;
+            return MHD_YES;
+        }
     }
 
     auto stripped = Httpd_StripSuffix(concls->url);
