@@ -19,6 +19,9 @@ callgrind*
 *.pb-c.c
 *.pb-c.h
 
+# Autogen'd version
+version.c
+
 # Python compiled code
 *.pyc
 capture_*/*.egg-info/
