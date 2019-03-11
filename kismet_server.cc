@@ -553,8 +553,8 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->version_major = VERSION_MAJOR;
     globalregistry->version_minor = VERSION_MINOR;
     globalregistry->version_tiny = VERSION_TINY;
-    globalregistry->revision = REVISION;
-    globalregistry->revdate = REVDATE;
+    globalregistry->version_git_rev = VERSION_GIT_COMMIT;
+    globalregistry->build_date = VERSION_BUILD_TIME;
 
     // Copy for modules
     globalregistry->argc = argc;

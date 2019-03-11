@@ -234,8 +234,8 @@ public:
     std::string version_major;
 	std::string version_minor;
 	std::string version_tiny;
-	std::string revision;
-	std::string revdate;
+    std::string version_git_rev;
+    std::string build_date;
 
 	// Vector of child signals
     pid_t sigchild_vec[1024];

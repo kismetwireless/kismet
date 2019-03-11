@@ -64,3 +64,5 @@ HTTPD		= ${DESTDIR}@datadir@/kismet/httpd/
 
 PLUGINLDFLAGS += @PLUGINLDFLAGS@ @LDFLAGS@
 
+GIT			?= git
+

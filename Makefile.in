@@ -202,8 +202,13 @@ all-with-plugins:
 	@make all
 	@make plugins
 
-$(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO))
-	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
+# Autogen the version file
+version.c:	FORCE
+	@{ $(GIT) rev-parse --short HEAD 2>/dev/null || echo "non-git-release"; } | awk ' BEGIN {print "#include \"version.h\""} {print "const char *VERSION_GIT_COMMIT = \"" $$0"\";"} END {}' > version.c
+	@date | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
+
+$(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO)) version.c.o
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(LOGTOOL_KISMETDB_STRIP):	log_tools/kismetdb_strip_packet_content.c.o log_tools/kismetdb_strip_packet_content.c.d
 	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) log_tools/kismetdb_strip_packet_content.c.o -lsqlite3

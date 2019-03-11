@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -20,11 +20,11 @@
 #define __KISVERSION_H__
 
 #define VERSION_MAJOR	"2019"
-#define VERSION_MINOR	"01"
-#define VERSION_TINY	"BETA2"
+#define VERSION_MINOR	"03"
+#define VERSION_TINY	"GIT"
 
-#define REVISION		"$Rev$"
-#define REVDATE			"$LastChangedDate$"
+extern const char *VERSION_GIT_COMMIT;
+extern const char *VERSION_BUILD_TIME;
 
 #endif
 
