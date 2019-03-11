@@ -89,8 +89,9 @@ Systemmonitor::Systemmonitor() :
 
     status->set_server_uuid(Globalreg::globalreg->server_uuid);
 
-    status->set_server_version(fmt::format("{}-{}-{}", 
-                VERSION_MAJOR, VERSION_MINOR, VERSION_TINY));
+    status->set_server_version(fmt::format("{}-{}-{}", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY));
+    status->set_server_git(VERSION_GIT_COMMIT);
+    status->set_build_time(VERSION_BUILD_TIME);
 
     status->set_server_name(Globalreg::globalreg->kismet_config->FetchOpt("server_name"));
     status->set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));
@@ -146,12 +147,12 @@ void tracked_system_status::register_fields() {
     RegisterField("kismet.system.devices.count", "number of devices in devicetracker", &devices);
     RegisterField("kismet.system.user", "user Kismet is running as", &username);
     RegisterField("kismet.system.version", "Kismet version string", &server_version);
+    RegisterField("kismet.system.git", "Git commit string", &server_git);
+    RegisterField("kismet.system.build_time", "Server build time", &build_time);
     RegisterField("kismet.system.server_uuid", "UUID of kismet server", &server_uuid);
     RegisterField("kismet.system.server_name", "Arbitrary name of server instance", &server_name);
-    RegisterField("kismet.system.server_description", 
-            "Arbitrary server description", &server_description);
-    RegisterField("kismet.system.server_location", 
-            "Arbitrary server location string", &server_location);
+    RegisterField("kismet.system.server_description", "Arbitrary server description", &server_description);
+    RegisterField("kismet.system.server_location", "Arbitrary server location string", &server_location);
 
     RegisterField("kismet.system.memory.rrd", "memory used RRD", &memory_rrd); 
     RegisterField("kismet.system.devices.rrd", "device count RRD", &devices_rrd);
