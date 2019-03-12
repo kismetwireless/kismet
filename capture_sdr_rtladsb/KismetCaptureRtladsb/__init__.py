@@ -45,12 +45,7 @@ except ImportError:
     print("Could not import pyModeS; please install it either from a system package or via pip")
     sys.exit(0)
 
-try:
-    import KismetExternal
-except ImportError:
-    print("Could not import KismetExternal; please make sure you installed all the Kismet python modules.")
-    sys.exit(0)
-
+import kismetexternal
 
 try:
     csv_path = os.path.join(os.environ["KISMET_ETC"],"kismet_aircraft_db.csv")
@@ -61,7 +56,7 @@ try:
         airplanes.append(row)
 
 except:
-    print("Couldn't find the airplane csv file '{}'. If this is a drone, set KISMET_ETC in your path".format(csv_path))
+    print("Couldn't find the airplane csv file. If this is a drone, set KISMET_ETC in your path")
     sys.exit(0)
 
 try:
@@ -128,7 +123,7 @@ class KismetRtladsb(object):
             sys.exit(0)
 
         if not self.config.source == None:
-            (source, options) = KismetExternal.Datasource.parse_definition(self.config.source)
+            (source, options) = kismetexternal.Datasource.parse_definition(self.config.source)
 
             if source == None:
                 print("Could not parse the --source option; this should be a standard Kismet source definition.")
@@ -154,7 +149,7 @@ class KismetRtladsb(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
-        self.kismet = KismetExternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
+        self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)
@@ -300,7 +295,7 @@ class KismetRtladsb(object):
 
         if self.rtllib != None:
             for i in range(0, self.rtl_get_device_count()):
-                intf = KismetExternal.datasource_pb2.SubInterface()
+                intf = kismetexternal.datasource_pb2.SubInterface()
                 intf.interface = "rtladsb-{}".format(i)
                 intf.flags = ""
                 intf.hardware = self.rtl_get_device_name(i)
@@ -314,20 +309,20 @@ class KismetRtladsb(object):
         opts.setdefault('mqtt_port', '1883')
         opts.setdefault('mqtt_channel', 'kismet')
 
-        mqhash = KismetExternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
+        mqhash = kismetexternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
         mqhex = "0000{:02X}".format(mqhash)
 
-        return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", mqhex)
+        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", mqhex)
 
     def __get_rtlsdr_uuid(self, intnum):
         # Get the USB info
         (manuf, product, serial) = self.get_rtl_usb_info(intnum)
 
         # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
-        devicehash = KismetExternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehash = kismetexternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
         devicehex = "0000{:02X}".format(devicehash)
 
-        return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", devicehex)
+        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", devicehex)
 
     # Implement the probesource callback for the datasource api
     def datasource_probesource(self, source, options):
@@ -344,7 +339,10 @@ class KismetRtladsb(object):
                 return None
 
             ret['hardware'] = "MQTT"
-            ret['uuid'] = self.__get_mqtt_uuid(options)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_mqtt_uuid(options)
         else:
             # Do we have librtl?
             if not self.have_librtl:
@@ -365,7 +363,10 @@ class KismetRtladsb(object):
                 return None
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
-            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
         ret['channel'] = self.opts['channel']
         ret['channels'] = [self.opts['channel']]
@@ -394,7 +395,10 @@ class KismetRtladsb(object):
                 return ret
             
             ret['hardware'] = "MQTT"
-            ret['uuid'] = self.__get_mqtt_uuid(options)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_mqtt_uuid(options)
 
             self.mqtt_mode = True
         else:
@@ -419,7 +423,10 @@ class KismetRtladsb(object):
                 self.opts['channel'] = options['channel']
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
-            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
             self.opts['device'] = intnum
 
@@ -450,7 +457,7 @@ class KismetRtladsb(object):
             j = json.loads(injson)
             r = json.dumps(j)
 
-            report = KismetExternal.datasource_pb2.SubJson()
+            report = kismetexternal.datasource_pb2.SubJson()
 
             dt = datetime.now()
             report.time_sec = int(time.mktime(dt.timetuple()))
