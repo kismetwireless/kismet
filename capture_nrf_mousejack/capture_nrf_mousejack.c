@@ -266,11 +266,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
-    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-            adler32_csum((unsigned char *) "kismet_cap_nrf_mousejack", 
-                strlen("kismet_cap_nrf_mousejack")) & 0xFFFFFFFF,
-            busno, devno);
-    *uuid = strdup(errstr);
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strdup(placeholder);
+    } else {
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
+                adler32_csum((unsigned char *) "kismet_cap_nrf_mousejack", 
+                    strlen("kismet_cap_nrf_mousejack")) & 0xFFFFFFFF,
+                busno, devno);
+        *uuid = strdup(errstr);
+    }
 
     /* NRF supports 2-83 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 82);
@@ -463,11 +467,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
-    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-            adler32_csum((unsigned char *) "kismet_cap_nrf_mousejack", 
-                strlen("kismet_cap_nrf_mousejack")) & 0xFFFFFFFF,
-            busno, devno);
-    *uuid = strdup(errstr);
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strdup(placeholder);
+    } else {
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
+                adler32_csum((unsigned char *) "kismet_cap_nrf_mousejack", 
+                    strlen("kismet_cap_nrf_mousejack")) & 0xFFFFFFFF,
+                busno, devno);
+        *uuid = strdup(errstr);
+    }
 
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nrfmousejack");
@@ -667,8 +675,6 @@ int main(int argc, char *argv[]) {
     if (r < 0) {
         return -1;
     }
-
-    libusb_set_debug(localnrf.libusb_ctx, 3);
 
     localnrf.caph = caph;
 
