@@ -56,6 +56,7 @@ class KismetRtl433(object):
         self.opts['channel'] = "433.920MHz"
         self.opts['gain'] = None
         self.opts['device'] = None
+        self.opts['uuid'] = None
 
         # Thread that runs the RTL popen
         self.rtl_thread = None
@@ -312,7 +313,10 @@ class KismetRtl433(object):
                 return None
 
             ret['hardware'] = "MQTT"
-            ret['uuid'] = self.__get_mqtt_uuid(options)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_mqtt_uuid(options)
         else:
             # Do we have librtl?
             if not self.have_librtl:
@@ -333,7 +337,11 @@ class KismetRtl433(object):
                 return None
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
-            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
         ret['channel'] = self.opts['channel']
         ret['channels'] = [self.opts['channel']]
@@ -345,8 +353,8 @@ class KismetRtl433(object):
 
         # Does the source look like 'rtl433-XYZ'?
         if not source[:7] == "rtl433-":
-            ret["success"] = False
-            ret["message"] = "Could not parse which rtlsdr device to use"
+            ret['success'] = False
+            ret['message'] = "Could not parse which rtlsdr device to use"
             return ret
 
         intnum = -1
@@ -362,32 +370,38 @@ class KismetRtl433(object):
                 return ret
             
             ret['hardware'] = "MQTT"
-            ret['uuid'] = self.__get_mqtt_uuid(options)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_mqtt_uuid(options)
 
             self.mqtt_mode = True
         else:
             if not self.have_librtl:
-                ret["success"] = False
-                ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
+                ret['success'] = False
+                ret['message'] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
                 return ret
 
             try:
                 intnum = int(source[7:])
             except ValueError:
-                ret["success"] = False
-                ret["message"] = "Could not parse rtl device"
+                ret['success'] = False
+                ret['message'] = "Could not parse rtl device"
                 return ret
 
             if intnum >= self.rtl_get_device_count():
-                ret["success"] = False
-                ret["message"] = "Could not find rtl-sdr device {}".format(intnum)
+                ret['success'] = False
+                ret['message'] = "Could not find rtl-sdr device {}".format(intnum)
                 return ret
 
             if 'channel' in options:
                 self.opts['channel'] = options['channel']
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
-            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+            if ('uuid' in options):
+                ret['uuid'] = options['uuid']
+            else:
+                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
             self.opts['device'] = intnum
 
