@@ -38,11 +38,7 @@ import threading
 import time
 import uuid
 
-try:
-    import KismetExternal
-except ImportError:
-    print("Could not import KismetExternal; please make sure you installed all the Kismet python modules.")
-    sys.exit(0)
+import KismetCaptureRtl433.kismetexternal
 
 try:
     import paho.mqtt.client as mqtt
@@ -108,7 +104,7 @@ class KismetRtl433(object):
             sys.exit(0)
 
         if not self.config.source == None:
-            (source, options) = KismetExternal.Datasource.parse_definition(self.config.source)
+            (source, options) = kismetexteral.Datasource.parse_definition(self.config.source)
 
             if source == None:
                 print("Could not parse the --source option; this should be a standard Kismet source definition.")
@@ -134,7 +130,7 @@ class KismetRtl433(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
-        self.kismet = KismetExternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
+        self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)
@@ -272,7 +268,7 @@ class KismetRtl433(object):
 
         if self.rtllib != None:
             for i in range(0, self.rtl_get_device_count()):
-                intf = KismetExternal.datasource_pb2.SubInterface()
+                intf = kismetexternal.datasource_pb2.SubInterface()
                 intf.interface = "rtl433-{}".format(i)
                 intf.flags = ""
                 intf.hardware = self.rtl_get_device_name(i)
@@ -286,20 +282,20 @@ class KismetRtl433(object):
         opts.setdefault('mqtt_port', '1883')
         opts.setdefault('mqtt_channel', 'kismet')
 
-        mqhash = KismetExternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
+        mqhash = kismetexternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
         mqhex = "0000{:02X}".format(mqhash)
 
-        return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", mqhex)
+        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", mqhex)
 
     def __get_rtlsdr_uuid(self, intnum):
         # Get the USB info
         (manuf, product, serial) = self.get_rtl_usb_info(intnum)
 
         # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
-        devicehash = KismetExternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehash = kismetexternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
         devicehex = "0000{:02X}".format(devicehash)
 
-        return KismetExternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", devicehex)
+        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", devicehex)
 
     # Implement the probesource callback for the datasource api
     def datasource_probesource(self, source, options):
@@ -422,7 +418,7 @@ class KismetRtl433(object):
             j = json.loads(injson)
             r = json.dumps(j)
 
-            report = KismetExternal.datasource_pb2.SubJson()
+            report = kismetexternal.datasource_pb2.SubJson()
 
             dt = datetime.now()
             report.time_sec = int(time.mktime(dt.timetuple()))

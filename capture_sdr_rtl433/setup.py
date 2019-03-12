@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='KismetCaptureRtl433',
       version='2018.0.0',
@@ -8,8 +8,8 @@ setup(name='KismetCaptureRtl433',
       author='Mike Kershaw / Dragorn',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
-      install_requires=['protobuf', 'KismetExternal'],
-      packages=['KismetCaptureRtl433'],
+      install_requires=['protobuf'],
+      packages=find_packages(),
       scripts=['kismet_cap_sdr_rtl433', 'kismet_cap_sdr_rtl433_mqtt'],
      )
 
