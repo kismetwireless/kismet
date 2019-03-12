@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='KismetCaptureRtlamr',
       version='2018.0.0',
@@ -9,7 +9,7 @@ setup(name='KismetCaptureRtlamr',
       author_email='russell@handorf.com',
       url='https://www.handorf.com/',
       install_requires=['protobuf', 'KismetExternal'],
-      packages=['KismetCaptureRtlamr'],
+      packages=find_packages(),
       scripts=['kismet_cap_sdr_rtlamr', 'kismet_cap_sdr_rtlamr_mqtt'],
      )
 
