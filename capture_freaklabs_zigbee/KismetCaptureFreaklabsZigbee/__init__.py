@@ -56,11 +56,7 @@ import threading
 import time
 import uuid
 
-try:
-    import KismetExternal
-except ImportError:
-    print("Could not import KismetExternal; please install the Kismet python modules.")
-    sys.exit(0)
+import KismetCaptureFreaklabsZigbee.kismetexternal
 
 LINKTYPE_IEEE802_15_4_NOFCS = 230
 LINKTYPE_IEEE802_15_4 = 195
@@ -267,7 +263,7 @@ class KismetFreaklabsZigbee(object):
         self.proberet = None
 
         if not self.config.source == None:
-            (source, options) = KismetExternal.Datasource.parse_definition(self.config.source)
+            (source, options) = kismetexternal.Datasource.parse_definition(self.config.source)
 
             if source == None:
                 print("Could not parse the --source option; this should be a standard Kismet source definition.")
@@ -293,7 +289,7 @@ class KismetFreaklabsZigbee(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
-        self.kismet = KismetExternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
+        self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)
@@ -348,7 +344,7 @@ class KismetFreaklabsZigbee(object):
                 if len(raw) == 0:
                     continue
 
-                packet = KismetExternal.datasource_pb2.SubPacket()
+                packet = kismetexternal.datasource_pb2.SubPacket()
                 dt = datetime.now()
                 packet.time_sec = int(time.mktime(dt.timetuple()))
                 packet.time_usec = int(dt.microsecond)
@@ -376,10 +372,13 @@ class KismetFreaklabsZigbee(object):
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
 
     def __get_uuid(self, opts):
-        uhash = KismetExternal.Datasource.adler32("{}{}{}{}".format(opts['device'], opts['baudrate'], opts['band'], opts['name']))
+        if ('uuid' in opts):
+            return opts['uuid']
+
+        uhash = kismetexternal.Datasource.adler32("{}{}{}{}".format(opts['device'], opts['baudrate'], opts['band'], opts['name']))
         uhex = "0000{:02X}".format(uhash)
 
-        return KismetExternal.Datasource.make_uuid("kismet_cap_freaklabs_zigbee", uhex)
+        return kismetexternal.Datasource.make_uuid("kismet_cap_freaklabs_zigbee", uhex)
 
     # Implement the probesource callback for the datasource api
     def datasource_probesource(self, source, options):

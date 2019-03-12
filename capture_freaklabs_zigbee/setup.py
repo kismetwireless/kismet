@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='KismetCaptureFreaklabsZigbee',
       version='2018.0.0',
@@ -8,8 +8,8 @@ setup(name='KismetCaptureFreaklabsZigbee',
       author='Mike Kershaw / Dragorn',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
-      install_requires=['protobuf', 'KismetExternal', 'pyserial'],
-      packages=['KismetCaptureFreaklabsZigbee'],
+      install_requires=['protobuf', 'pyserial'],
+      packages=find_packages(),
       scripts=['kismet_cap_freaklabs_zigbee'],
      )
 
