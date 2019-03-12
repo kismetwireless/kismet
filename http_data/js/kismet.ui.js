@@ -728,8 +728,7 @@ exports.CreateDeviceTable = function(element) {
         // var device_dt = element.DataTable();
         // var data = device_dt.row( this ).data();
         // var key = data['kismet.device.base.key'];
-
-        kismet_ui.DeviceDetailWindow(key);
+        // kismet_ui.DeviceDetailWindow(key);
     } );
 
     $('tbody', element)
