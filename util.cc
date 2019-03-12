@@ -972,7 +972,7 @@ std::string hexstr_to_binstr(const char *hs) {
     return r;
 }
 
-#if defined(SYS_LINUX) || defined(SYS_DARWIN) || defined(SYS_NETBSD) || defined(SYS_OPENBSD)
+#if defined(SYS_LINUX)
 void thread_set_process_name(const std::string& name, pthread_t *thread) { 
     pthread_setname_np(*thread, name.c_str());
 }
