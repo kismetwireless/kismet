@@ -171,7 +171,7 @@ exports.AddDeviceRowHighlight = function(options) {
     DeviceRowHighlights.sort(function(a, b) {
         if (a.priority < b.priority)
             return -1;
-        if (b.priority > a.priorty)
+        if (b.priority > a.priority)
             return 1;
 
         return 0;
