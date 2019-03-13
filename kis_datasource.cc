@@ -83,6 +83,8 @@ KisDatasource::~KisDatasource() {
     if (ping_timer_id > 0)
         timetracker->RemoveTimer(ping_timer_id);
 
+    cancel_all_commands("source deleted");
+
     command_ack_map.clear();
 
     // We don't call a normal close here because we can't risk double-free
