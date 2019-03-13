@@ -174,8 +174,8 @@ class SerialInputHandler(object):
 
     def set_channel(self, channel):
         self.__write_command(bytearray([CMD_SET_CHANNEL, 1, channel]))
-        # this hardware takes 150ms for PLL lock, full stop
-        time.sleep (0.15)
+        # this hardware takes 150us for PLL lock and we need enough time to read the success message
+        time.sleep (0.003)
         if ((channel != self._current_channel) and (self._current_channel != -1)):
             raise FreaklabException
 
@@ -228,7 +228,7 @@ class KismetFreaklabsZigbee(object):
 
         self.defaults['device'] = "/dev/ttyUSB0"
         self.defaults['baudrate'] = "57600"
-        self.defaults['band'] = "2400"
+        self.defaults['band'] = "auto"
         self.defaults['name'] = None
 
         self.hop_thread = None
@@ -317,7 +317,6 @@ class KismetFreaklabsZigbee(object):
                     self.serialhandler.set_channel(c)
                 except FreaklabException as e:
                     self.kismet.send_datasource_error_report(message = "Could not tune to {}: {}".format(self.chan_config['chan_pos'], e))
-                    break
                 finally:
                     self.chan_config_lock.release()
 
@@ -331,6 +330,19 @@ class KismetFreaklabsZigbee(object):
         self.hop_thread = threading.Thread(target = hop_func)
         self.hop_thread.daemon = True
         self.hop_thread.start()
+
+    def __detect_band(self):
+        try:
+            self.serialhandler.set_channel(12)
+            return "900"
+        except FreaklabException as e:
+            True
+
+        try:
+            self.serialhandler.set_channel(13)
+            return "2400"
+        except FreaklabException as e:
+            return "unknown"
 
     def __start_monitor(self):
         def mon_func():
@@ -375,7 +387,7 @@ class KismetFreaklabsZigbee(object):
         if ('uuid' in opts):
             return opts['uuid']
 
-        uhash = kismetexternal.Datasource.adler32("{}{}{}{}".format(opts['device'], opts['baudrate'], opts['band'], opts['name']))
+        uhash = kismetexternal.Datasource.adler32("{}{}{}".format(opts['device'], opts['baudrate'], opts['name']))
         uhex = "0000{:02X}".format(uhash)
 
         return kismetexternal.Datasource.make_uuid("kismet_cap_freaklabs_zigbee", uhex)
@@ -399,16 +411,6 @@ class KismetFreaklabsZigbee(object):
             ret['success'] = False
             ret['message'] = "{}".format(e)
             return ret
-
-        if not opts['band'] in self.band_map:
-            ret['success'] = False
-            ret['message'] = "Unknown band {}".format(opts['band'])
-            return ret
-
-        band = self.band_map[opts['band']]
-
-        ret['channel'] = band[0]
-        ret['channels'] = band
 
         ret['capture_interface'] = opts['device']
         ret['hardware'] = "freaklabs-{}".format(opts['band'])
@@ -436,6 +438,17 @@ class KismetFreaklabsZigbee(object):
             ret['message'] = "{}".format(e)
             return ret
 
+        self.__start_monitor()
+        time.sleep(10)
+
+        if opts['band'] == "auto":
+            opts['band'] = self.__detect_band()
+
+        if opts['band'] == "unknown":
+            ret['success'] = False
+            ret['message'] = "Failed to auto-detect band"
+            return ret
+
         if not opts['band'] in self.band_map:
             ret['success'] = False
             ret['message'] = "Unknown band {}".format(opts['band'])
@@ -452,8 +465,6 @@ class KismetFreaklabsZigbee(object):
         ret['hardware'] = "freaklabs-{}".format(opts['band'])
 
         ret['success'] = True
-
-        self.__start_monitor()
 
         return ret
 
