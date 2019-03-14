@@ -331,17 +331,17 @@ class KismetFreaklabsZigbee(object):
         self.hop_thread.daemon = True
         self.hop_thread.start()
 
-    def __detect_band(self):
+    def __detect_band(self, device):
         try:
             self.serialhandler.set_channel(2)
-            self.kismet.send_message("Found band \'900MHz\' for \'{}\'".format(self.config.source))
+            self.kismet.send_message("Found band \'900MHz\' for freaklabs source on \'{}\'".format(device))
             return "900"
         except FreaklabException as e:
             True
 
         try:
             self.serialhandler.set_channel(13)
-            self.kismet.send_message("Found band \'2.4GHz\' for \'{}\'".format(self.config.source))
+            self.kismet.send_message("Found band \'2.4GHz\' for freaklabs source on \'{}\'".format(device))
             return "2400"
         except FreaklabException as e:
             return "unknown"
@@ -445,7 +445,7 @@ class KismetFreaklabsZigbee(object):
         time.sleep(10)
 
         if opts['band'] == "auto":
-            opts['band'] = self.__detect_band()
+            opts['band'] = self.__detect_band(opts['device'])
 
         if opts['band'] == "unknown":
             ret['success'] = False
