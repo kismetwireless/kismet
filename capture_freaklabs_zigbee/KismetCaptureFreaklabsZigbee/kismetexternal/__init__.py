@@ -662,6 +662,10 @@ class Datasource(ExternalInterface):
         if opts is None:
             self.send_datasource_open_report(seqno, success=False,
                                              message="helper does not support opening sources")
+        if not opts['success']:
+            #this is where it exits if anything fails during early stages (like opensource)
+            #but it does not cause any alerts at all and that's bad
+            self.spindown()
 
         self.send_datasource_open_report(seqno, **opts)
 
