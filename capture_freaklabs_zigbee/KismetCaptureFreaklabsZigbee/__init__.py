@@ -333,7 +333,7 @@ class KismetFreaklabsZigbee(object):
 
     def __detect_band(self):
         try:
-            self.serialhandler.set_channel(12)
+            self.serialhandler.set_channel(2)
             return "900"
         except FreaklabException as e:
             True
