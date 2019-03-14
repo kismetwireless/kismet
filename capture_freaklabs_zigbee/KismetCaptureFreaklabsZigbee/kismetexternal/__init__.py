@@ -662,6 +662,8 @@ class Datasource(ExternalInterface):
         if opts is None:
             self.send_datasource_open_report(seqno, success=False,
                                              message="helper does not support opening sources")
+        if not opts['success']:
+            self.spindown()
 
         self.send_datasource_open_report(seqno, **opts)
 
