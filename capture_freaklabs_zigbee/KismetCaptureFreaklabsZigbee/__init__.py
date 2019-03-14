@@ -390,7 +390,7 @@ class KismetFreaklabsZigbee(object):
         # Make sure we unlock if we're locked as we start
         if self.monitor_thread:
             with self.cv, self.l:
-                self.monitor_thread_started = TRue
+                self.monitor_thread_started = True
                 self.cv.notifyAll()
                 return
 
