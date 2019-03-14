@@ -334,12 +334,14 @@ class KismetFreaklabsZigbee(object):
     def __detect_band(self):
         try:
             self.serialhandler.set_channel(2)
+            self.kismet.send_message("Found band \'900MHz\' for \'{}\'".format(self.config.source))
             return "900"
         except FreaklabException as e:
             True
 
         try:
             self.serialhandler.set_channel(13)
+            self.kismet.send_message("Found band \'2.4GHz\' for \'{}\'".format(self.config.source))
             return "2400"
         except FreaklabException as e:
             return "unknown"
