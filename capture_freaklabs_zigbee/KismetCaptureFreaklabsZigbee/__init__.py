@@ -413,7 +413,8 @@ class KismetFreaklabsZigbee(object):
             return ret
 
         ret['capture_interface'] = opts['device']
-        ret['hardware'] = "freaklabs-{}".format(opts['band'])
+        if not opts['band'] == 'auto':
+            ret['hardware'] = "freaklabs-{}".format(opts['band'])
 
         ret['success'] = True
         return ret
