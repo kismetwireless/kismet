@@ -26,7 +26,7 @@ $('<link>')
 
 /* Convert a hop rate to human readable */
 exports.hop_to_human = function(hop) {
-    if (hop > 1) {
+    if (hop >= 1) {
         return hop + "/second";
     }
 
