@@ -88,7 +88,7 @@ protected:
 class ClassfilterMacaddr : public Classfilter {
 public:
     ClassfilterMacaddr(const std::string& in_id, const std::string& in_descripton);
-    virtual ~ClassfilterMacaddr() {}
+    virtual ~ClassfilterMacaddr();
 
     virtual bool filter(mac_addr in_mac, unsigned int in_phy);
 
@@ -113,11 +113,10 @@ protected:
         RegisterField("kismet.classfilter.macaddr.address_by_phy",
                 "MAC address filters", &filter_phy_block);
 
-		// Mac based map
-		filter_sub_mac_id =
-			RegisterField("kismet.classfilter.macaddr.filter_block",
-					TrackerElementFactory<TrackerElementMacMap>(),
-					"MAC address filters");
+        // Mac based map filter_sub_mac_id =
+        RegisterField("kismet.classfilter.macaddr.filter_block",
+                TrackerElementFactory<TrackerElementMacMap>(),
+                "MAC address filters");
 
 		// Filter value
         filter_sub_value_id =

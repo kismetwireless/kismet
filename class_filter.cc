@@ -186,6 +186,11 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
                 }, &mutex);
 }
 
+ClassfilterMacaddr::~ClassfilterMacaddr() {
+    if (eventbus != nullptr) 
+        eventbus->remove_listener(eb_id);
+}
+
 void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, bool value) {
 	local_locker l(&mutex);
 
