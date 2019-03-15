@@ -661,7 +661,7 @@ int main(int argc, char *argv[], char *envp[]) {
                  config_base);
     }
 
-    globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    // globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     
     conf = new ConfigFile(globalregistry);
     if (conf->ParseConfig(configfilename) < 0) {
