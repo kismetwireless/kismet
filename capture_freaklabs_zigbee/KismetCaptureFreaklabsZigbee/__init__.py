@@ -466,7 +466,7 @@ class KismetFreaklabsZigbee(object):
         # Spin on the conditional lock until the monitor thread comes up
         with self.cv:
             while not self.__get_monitor_thread_started():
-                cv.wait()
+                self.cv.wait()
 
         if opts['band'] == "auto":
             opts['band'] = self.__detect_band(opts['device'])
