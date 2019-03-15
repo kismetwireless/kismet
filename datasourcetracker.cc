@@ -1183,13 +1183,16 @@ public:
 
             int ds_offt = (ds_hopchans->size() / offt_count) * nintf;
 
-            double rate;
-            try {
-                rate = dst->string_to_rate(ds->get_definition_opt("channel_hoprate"), -1);
-            } catch (const std::exception& e) {
-                _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
-                        "channel rate.", ds->get_source_name(), e.what());
-                rate = -1;
+            double rate = defaults->get_hop_rate();
+
+            if (ds->get_definition_opt("channel_hoprate") != "") {
+                try {
+                    rate = dst->string_to_rate(ds->get_definition_opt("channel_hoprate"), -1);
+                } catch (const std::exception& e) {
+                    _MSG_ERROR("Source '{}' could not parse channel_hoprate= option: {}, using default "
+                            "channel rate.", ds->get_source_name(), e.what());
+                    rate = -1;
+                }
             }
 
             if (rate < 0) {
