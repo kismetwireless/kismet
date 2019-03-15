@@ -20,8 +20,8 @@
 
 #include "packetchain.h"
 #include "packet.h"
-
 #include "trackedcomponent.h"
+#include "eventbus.h"
 
 // Common packet filter mechanism which can be used in multiple locations;
 // implements basic default behavior, filtering by address, and REST endpoints.
@@ -91,37 +91,82 @@ protected:
 class PacketfilterMacaddr : public Packetfilter {
 public:
     PacketfilterMacaddr(const std::string& in_id, const std::string& in_description);
-    virtual ~PacketfilterMacaddr() {}
+    virtual ~PacketfilterMacaddr();
 
     virtual bool filter_packet(kis_packet *packet) override;
+
+    // We use strings for blocks here for maximum flexibility in the future since
+    // *adding* a filter should be a relatively non-realtime task
+    virtual void set_filter(mac_addr in_mac, const std::string& in_phy,
+            const std::string& in_block, bool value);
+    virtual void remove_filter(mac_addr in_mac, const std::string &in_phy,
+            const std::string& in_block);
 
 protected:
     virtual void register_fields() override {
         Packetfilter::register_fields();
 
-        RegisterField("kismet.packetfilter.macaddr.source", 
-                "Source address filters", &filter_source);
-        RegisterField("kismet.packetfilter.macaddr.destination", 
-                "Destination address filters", &filter_dest);
-        RegisterField("kismet.packetfilter.macaddr.network", 
-                "Network/BSSID address filters", &filter_network);
-        RegisterField("kismet.packetfilter.macaddr.other", 
-                "Other address filters", &filter_other);
+		// Phy-based map
+        RegisterField("kismet.packetfilter.macaddr.blocks_by_phy",
+                "MAC address filters", &filter_phy_blocks);
 
-        RegisterField("kismet.packetfilter.macaddr.any", 
-                "Any matching address type", &filter_any);
+        filter_sub_value_id =
+            RegisterField("kismet.packetfilter.macaddr.value",
+                    TrackerElementFactory<TrackerElementUInt8>(),
+                    "Filter value");
+
+        filter_source_id =
+            RegisterField("kismet.packetfilter.macaddr.source", 
+                    TrackerElementFactory<TrackerElementMacMap>(),
+                    "Source address filters");
+
+        filter_dest_id =
+            RegisterField("kismet.packetfilter.macaddr.destination", 
+                    TrackerElementFactory<TrackerElementMacMap>(),
+                    "Destination address filters");
+
+        filter_network_id =
+            RegisterField("kismet.packetfilter.macaddr.network", 
+                    TrackerElementFactory<TrackerElementMacMap>(),
+                    "Network/BSSID address filters");
+
+        filter_other_id =
+            RegisterField("kismet.packetfilter.macaddr.other", 
+                    TrackerElementFactory<TrackerElementMacMap>(),
+                    "Other address filters");
+
+        filter_any_id =
+            RegisterField("kismet.packetfilter.macaddr.any", 
+                    TrackerElementFactory<TrackerElementMacMap>(),
+                    "Any matching address type");
     }
+
+    std::shared_ptr<Devicetracker> devicetracker;
+	std::shared_ptr<Eventbus> eventbus;
+	unsigned long eb_id;
+
+	void update_phy_map(std::shared_ptr<EventbusEvent> evt);
 
     unsigned int pack_comp_common;
 
-    // Source, dest, and BSSID (for wifi) or transmitter (for others)
-    std::shared_ptr<TrackerElementMacMap> filter_source;
-    std::shared_ptr<TrackerElementMacMap> filter_dest;
-    std::shared_ptr<TrackerElementMacMap> filter_network;
-    std::shared_ptr<TrackerElementMacMap> filter_other;
+    int filter_sub_value_id, filter_source_id, filter_dest_id, 
+        filter_network_id, filter_other_id, filter_any_id;
 
-    // ANY address found in a packet
-    std::shared_ptr<TrackerElementMacMap> filter_any;
+    // Externally exposed tracked table
+    std::shared_ptr<TrackerElementStringMap> filter_phy_blocks;
+
+    struct phy_filter_group {
+        std::map<mac_addr, bool> filter_source;
+        std::map<mac_addr, bool> filter_dest;
+        std::map<mac_addr, bool> filter_network;
+        std::map<mac_addr, bool> filter_other;
+        std::map<mac_addr, bool> filter_any;
+    };
+
+	// Internal fast lookup tables per-phy we use for actual filtering
+	std::map<int, struct phy_filter_group> phy_mac_filter_map;
+	// Internal unknown phy map for filters registered before we had a phy ID
+	std::map<std::string, struct phy_filter_group> unknown_phy_mac_filter_map;
 
     // Address management endpoint keyed on path
     std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_edit_endp;
