@@ -106,6 +106,93 @@ KisDatabaseLogfile::KisDatabaseLogfile():
         std::make_shared<PacketfilterMacaddr>("kismetdb_packets", 
                 "Kismetdb packet MAC filtering");
 
+    auto device_filter_dfl = 
+        Globalreg::globalreg->kismet_config->FetchOptDfl("kis_log_device_filter_default", "pass");
+
+    if (device_filter_dfl == "pass" || device_filter_dfl == "false") {
+        device_mac_filter->set_filter_default(false);
+    } else if (device_filter_dfl == "block" || device_filter_dfl == "true") {
+        device_mac_filter->set_filter_default(true);
+    } else {
+        _MSG_ERROR("Couldn't parse 'kis_log_device_filter_default', expected 'pass' or 'block', filter "
+                "defaulting to 'pass'.");
+    }
+
+    auto device_filter_vec =
+        Globalreg::globalreg->kismet_config->FetchOptVec("kis_log_device_filter");
+    for (auto dfi : device_filter_vec) {
+        // phy,mac,value
+        auto filter_toks = StrTokenize(dfi, ",");
+
+        if (filter_toks.size() != 3) {
+            _MSG_ERROR("Skipping invalid kis_log_device_filter option '{}', expected phyname,mac,filtertype.", dfi);
+            continue;
+        }
+
+        mac_addr m(filter_toks[1]);
+        if (m.error) {
+            _MSG_ERROR("Skipping invalid kis_log_device_filter option '{}', expected phyname,mac,filtertype "
+                    "but got error parsing '{}' as a MAC address.", dfi, filter_toks[1]);
+            continue;
+        }
+
+        bool filter_opt = false;
+        if (filter_toks[2] == "pass" || filter_toks[2] == "false") {
+            filter_opt = false;
+        } else if (filter_toks[2] == "block" || filter_toks[2] == "true") {
+            filter_opt = true;
+        } else {
+            _MSG_ERROR("Skipping invalid kis_log_device_filter option '{}', expected phyname,mac,filtertype "
+                    "but got an error parsing '{}' as a filter block or pass.", dfi, filter_toks[2]);
+            continue;
+        }
+
+        device_mac_filter->set_filter(m, filter_toks[0], filter_opt);
+    }
+
+    auto packet_filter_dfl = 
+        Globalreg::globalreg->kismet_config->FetchOptDfl("kis_log_packet_filter_default", "pass");
+
+    if (packet_filter_dfl == "pass" || packet_filter_dfl == "false") {
+        packet_mac_filter->set_filter_default(false);
+    } else if (packet_filter_dfl == "block" || packet_filter_dfl == "true") {
+        packet_mac_filter->set_filter_default(true);
+    } else {
+        _MSG_ERROR("Couldn't parse 'kis_log_packet_filter_default', expected 'pass' or 'block', filter "
+                "defaulting to 'pass'.");
+    }
+
+    auto packet_filter_vec =
+        Globalreg::globalreg->kismet_config->FetchOptVec("kis_log_packet_filter");
+    for (auto dfi : packet_filter_vec) {
+        // phy,block,mac,value
+        auto filter_toks = StrTokenize(dfi, ",");
+
+        if (filter_toks.size() != 4) {
+            _MSG_ERROR("Skipping invalid kis_log_packet_filter option '{}', expected phyname,filterblock,mac,filtertype.", dfi);
+            continue;
+        }
+
+        mac_addr m(filter_toks[2]);
+        if (m.error) {
+            _MSG_ERROR("Skipping invalid kis_log_packet_filter option '{}', expected phyname,filterblock,mac,filtertype "
+                    "but got error parsing '{}' as a MAC address.", dfi, filter_toks[2]);
+            continue;
+        }
+
+        bool filter_opt = false;
+        if (filter_toks[3] == "pass" || filter_toks[3] == "false") {
+            filter_opt = false;
+        } else if (filter_toks[3] == "block" || filter_toks[3] == "true") {
+            filter_opt = true;
+        } else {
+            _MSG_ERROR("Skipping invalid kis_log_packet_filter option '{}', expected phyname,filterblock,mac,filtertype "
+                    "but got an error parsing '{}' as a filter block or pass.", dfi, filter_toks[3]);
+            continue;
+        }
+
+        packet_mac_filter->set_filter(m, filter_toks[0], filter_toks[1], filter_opt);
+    }
     Bind_Httpd_Server();
 }
 
