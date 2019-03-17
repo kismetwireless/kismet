@@ -234,9 +234,6 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     set_fix = false;
     set_heading = false;
 
-    // Update the timestamp now
-    last_data_time = time(0);
-
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
         tcphandler->ConsumeReadBufferData(inptok[it].length() + 1);
@@ -639,6 +636,11 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 #endif
         } 
     }
+
+    // If we've gotten this far in the parser, we've gotten usable data, even if it's not
+    // actionable data (ie status w/ no valid signal is OK, but mangled unparsable nonsense
+    // isn't.)
+    last_data_time = time(0);
 
     // fprintf(stderr, "gps set loc %d alt %d spd %d fix %d heading %d\n", set_lat_lon, set_alt, set_speed, set_fix, set_heading);
 
