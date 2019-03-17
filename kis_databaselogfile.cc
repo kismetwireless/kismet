@@ -250,6 +250,10 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
             local_locker dblock(&ds_mutex);
 
             sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+
+            // Flush the filesystem
+            sync();
+
             sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
             return 1;
