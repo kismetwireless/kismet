@@ -338,6 +338,10 @@ commoninstall: $(INSTBINS)
 		(cd capture_freaklabs_zigbee && $(MAKE) install) \
 	fi;
 
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(LOGTOOL_KISMETDB_JSON) $(BIN)/`basename $(LOGTOOL_KISMETDB_JSON)`;
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(LOGTOOL_KISMETDB_STRIP) $(BIN)/`basename $(LOGTOOL_KISMETDB_STRIP)`;
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(LOGTOOL_KISMETDB_WIGLE) $(BIN)/`basename $(LOGTOOL_KISMETDB_WIGLE)`;
+
 	mkdir -p $(LIB)/pkgconfig
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 packaging/kismet.pc $(LIB)/pkgconfig/kismet.pc
 
