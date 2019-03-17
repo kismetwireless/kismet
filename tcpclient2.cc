@@ -50,17 +50,13 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
     std::stringstream msg;
 
     if (connected) {
-        msg << "TCP client asked to connect to " << in_host << ":" <<
-            in_port << " but already connected to " << host << ":" << port;
-        _MSG(msg.str(), MSGFLAG_ERROR);
-
+        _MSG_ERROR("TCP client asked to connect to {}:{} but is already connected "
+                "to {}:{}", in_host, in_port, host, port);
         return -1;
     }
 
     if ((client_host = gethostbyname(in_host.c_str())) == NULL) {
-        msg << "TCP client could not resolve host \"" << in_host << "\"";
-        _MSG(msg.str(), MSGFLAG_ERROR);
-
+        _MSG_ERROR("Could not resolve hostname {}", in_host);
         return -1;
     }
 
@@ -79,9 +75,8 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
     client_sock.sin_port = htons(in_port);
 
     if ((cli_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        msg << "TCP client could not connect to " << in_host << ":" << in_port <<
-            " - " << kis_strerror_r(errno);
-        _MSG(msg.str(), MSGFLAG_ERROR);
+        _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
+                in_host, in_port, kis_strerror_r(errno), errno);
         return -1;
     }
 
@@ -101,9 +96,8 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
             connected = false;
             pending_connect = false;
 
-            msg << "TCP client could not connect to " << in_host << ":" << in_port <<
-                " - " << kis_strerror_r(errno);
-            _MSG(msg.str(), MSGFLAG_ERROR);
+            _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
+                    in_host, in_port, kis_strerror_r(errno), errno);
 
             // Send the error to any listeners
             handler->BufferError(msg.str());
@@ -164,9 +158,8 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             r = getsockopt(cli_fd, SOL_SOCKET, SO_ERROR, &e, &l);
 
             if (r < 0 || e != 0) {
-                msg << "TCP client could not connect to " << host << ":" << port <<
-                    " - " << kis_strerror_r(errno);
-                _MSG(msg.str(), MSGFLAG_ERROR);
+                _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
+                        host, port, kis_strerror_r(errno), errno);
 
                 handler->BufferError(msg.str());
 
