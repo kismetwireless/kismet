@@ -17,14 +17,14 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 
 include $(INCLUDE_DIR)/package.mk
 
-PKG_BUILD_DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
+PKG_BUILD_DEPENDS:=+libusb-compat +libpthread +libpcap +libnl-tiny +libprotobuf-c
 
 define Package/kismet-remote
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Kismet Remote Capture (2018-08-BETA1)
   URL:=https://www.kismetwireless.net/
-  DEPENDS:=+libpthread +libpcap +libnl-tiny +libprotobuf-c
+  DEPENDS:=+libusb-compat +libpthread +libpcap +libnl-tiny +libprotobuf-c
 endef
 
 define Package/kismet-remote/description
