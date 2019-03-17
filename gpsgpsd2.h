@@ -49,8 +49,6 @@ public:
     virtual bool get_device_connected();
 
 protected:
-    int error_reconnect_timer;
-
     std::shared_ptr<PollableTracker> pollabletracker;
 
     std::shared_ptr<TcpClientV2> tcpclient;
@@ -59,6 +57,13 @@ protected:
     // Device
     std::string host;
     unsigned int port;
+
+    // Last time we got data, to allow us to reset the connection if we 
+    // seem to stall
+    time_t last_data_time;
+    int data_timeout_timer;
+
+    int error_reconnect_timer;
 
     // Last time we calculated the heading, don't do it more than once every 
     // few seconds or we get nasty noise

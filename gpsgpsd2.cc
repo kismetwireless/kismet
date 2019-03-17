@@ -43,18 +43,42 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
         pollabletracker = 
             Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
+        last_data_time = time(0);
+
         auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
         error_reconnect_timer = 
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                     [this](int) -> int {
+                    local_locker l(&gps_mutex);
                     if (get_device_connected()) 
-                    return 1;
+                        return 1;
 
                     open_gps(get_gps_definition());
 
                     return 1;
                     });
+
+        data_timeout_timer =
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+                    [this](int) -> int {
+                    local_locker l(&gps_mutex);
+
+                    if (!get_device_connected())
+                        return 1;
+
+                    if (time(0) - last_data_time > 30) {
+                        _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
+                                "to GPSD server.");
+                       
+                        tcpclient->Disconnect();
+                        set_int_device_connected(false);
+                        open_gps(get_gps_definition());
+                    }
+
+                    return 1;
+                    });
+
     }
 
 GPSGpsdV2::~GPSGpsdV2() {
@@ -64,9 +88,11 @@ GPSGpsdV2::~GPSGpsdV2() {
 
     delete(tcphandler);
 
-    std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
-    if (timetracker != nullptr)
+    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (timetracker != nullptr) {
         timetracker->RemoveTimer(error_reconnect_timer);
+        timetracker->RemoveTimer(data_timeout_timer);
+    }
 }
 
 bool GPSGpsdV2::open_gps(std::string in_opts) {
@@ -126,7 +152,10 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
     host = proto_host;
     port = proto_port;
 
-    _MSG_INFO("GPSGPSD connecting to GPSD server on {}:{}", host, port);
+    _MSG_INFO("GPSGPSD connected to GPSD server on {}:{}", host, port);
+
+    // Reset the time counter
+    last_data_time = time(0);
 
     set_int_device_connected(true);
 
@@ -167,6 +196,16 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     size_t buf_sz;
     char *buf;
 
+    // We defer logging that we saw new data until we see a complete record, in case 
+    // one of the weird failure conditions of GPSD is to send a partial record
+
+    if (tcphandler->GetReadBufferAvailable() == 0) {
+        _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
+                "disconnecting and reconnecting.");
+        tcpclient->Disconnect();
+        set_int_device_connected(false);
+    }
+
     // Peek at all the data we have available
     buf_sz = tcphandler->PeekReadBufferData((void **) &buf, 
             tcphandler->GetReadBufferAvailable());
@@ -194,6 +233,9 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     set_speed = false;
     set_fix = false;
     set_heading = false;
+
+    // Update the timestamp now
+    last_data_time = time(0);
 
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
@@ -334,8 +376,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                 }
 
             } catch (std::exception& e) {
-                _MSG(std::string("GPSGpsdV2 - Invalid JSON block from GPSD: ") + 
-                        std::string(e.what()), MSGFLAG_ERROR);
+                _MSG_ERROR("GPSGPSDv2 got an invalid JSON record from GPSD: '{}'", e.what());
                 continue;
             }
         } else if (poll_mode == 0 && inptok[it] == "GPSD") {
