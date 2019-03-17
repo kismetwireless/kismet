@@ -275,7 +275,7 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
         throw std::runtime_error(fmt::format("Unknown target block '{}' in filter", 
                     kishttpd::EscapeHtml(in_block)));
 
-	if (tracked_phy_key == filter_phy_blocks->end()) {
+    if (tracked_phy_key == filter_phy_blocks->end()) {
         // Generate all the required blocks
         tracked_phy_map = std::make_shared<TrackerElementMap>();
 
