@@ -277,7 +277,7 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
 
 	if (tracked_phy_key == filter_phy_blocks->end()) {
         // Generate all the required blocks
-		tracked_phy_map = std::make_shared<TrackerElementMap>();
+        tracked_phy_map = std::make_shared<TrackerElementMap>();
 
         auto block_source = std::make_shared<TrackerElementMap>(filter_source_id);
         auto block_dest = std::make_shared<TrackerElementMap>(filter_dest_id);
@@ -291,27 +291,27 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
         tracked_phy_map->insert(block_other);
         tracked_phy_map->insert(block_any);
 
-		filter_phy_blocks->insert(in_phy, tracked_phy_map);
+        filter_phy_blocks->insert(in_phy, tracked_phy_map);
 	} else {
-		tracked_phy_map = TrackerElement::safe_cast_as<TrackerElementMap>(tracked_phy_key->second);
+        tracked_phy_map = TrackerElement::safe_cast_as<TrackerElementMap>(tracked_phy_key->second);
 	}
 
     // Find the target filter block
     target_block_map = tracked_phy_map->get_sub_as<TrackerElementMacMap>(target_block_map_id);
 
     // Find the actual filter
-	auto tracked_mac_key = target_block_map->find(in_mac);
-	if (tracked_mac_key == target_block_map->end()) {
-		auto tracked_value = std::make_shared<TrackerElementUInt8>(filter_sub_value_id);
-		tracked_value->set(value);
-		target_block_map->insert(in_mac, tracked_value);
-	} else {
-		auto bool_value = TrackerElement::safe_cast_as<TrackerElementUInt8>(tracked_mac_key->second);
-		bool_value->set(value);
-	}
+    auto tracked_mac_key = target_block_map->find(in_mac);
+    if (tracked_mac_key == target_block_map->end()) {
+        auto tracked_value = std::make_shared<TrackerElementUInt8>(filter_sub_value_id);
+        tracked_value->set(value);
+        target_block_map->insert(in_mac, tracked_value);
+    } else {
+        auto bool_value = TrackerElement::safe_cast_as<TrackerElementUInt8>(tracked_mac_key->second);
+        bool_value->set(value);
+    }
 
 	// Try to build the id-based lookup table
-	auto phy = devicetracker->FetchPhyHandlerByName(in_phy);
+    auto phy = devicetracker->FetchPhyHandlerByName(in_phy);
 
 	// Cache unknown for future lookups
 	if (phy == nullptr) {
@@ -325,7 +325,7 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
             unknown_phy_mac_filter_map[in_phy].filter_other[in_mac] = value;
         else if (in_block == "any")
             unknown_phy_mac_filter_map[in_phy].filter_any[in_mac] = value;
-		return;
+        return;
 	}
 
 	// Set known phy types
@@ -352,24 +352,25 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
     std::shared_ptr<TrackerElementMacMap> target_block_map;
     int target_block_map_id;
 
-    if (in_block == "source")
+    if (in_block == "source") {
         target_block_map_id = filter_source_id;
-    else if (in_block == "destination")
+    } else if (in_block == "destination") {
         target_block_map_id = filter_dest_id;
-    else if (in_block == "network")
+    } else if (in_block == "network") {
         target_block_map_id = filter_network_id;
-    else if (in_block == "other")
+    } else if (in_block == "other") {
         target_block_map_id = filter_other_id;
-    else if (in_block == "any")
+    } else if (in_block == "any") {
         target_block_map_id = filter_any_id;
-    else
+    } else {
         throw std::runtime_error(fmt::format("Unknown target block '{}' in filter", 
                     kishttpd::EscapeHtml(in_block)));
+    }
 
 	if (tracked_phy_key == filter_phy_blocks->end()) {
         return;
 	} else {
-		tracked_phy_map = TrackerElement::safe_cast_as<TrackerElementMap>(tracked_phy_key->second);
+        tracked_phy_map = TrackerElement::safe_cast_as<TrackerElementMap>(tracked_phy_key->second);
 	}
 
     // Find the target filter block
@@ -407,7 +408,7 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
             if (k != unknown_phy_mac_filter_map[in_phy].filter_any.end())
                 unknown_phy_mac_filter_map[in_phy].filter_any.erase(k);
         }
-		return;
+        return;
 	}
 
     if (in_block == "source") {
