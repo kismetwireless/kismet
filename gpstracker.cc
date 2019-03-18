@@ -308,6 +308,12 @@ void GpsTracker::Httpd_CreateStreamResponse(
     }
 
     if (stripped == "/gps/location") {
+        if (!httpd->HasValidSession(connection)) {
+            stream << "Login required\n";
+            connection->httpcode = 401;
+            return;
+        }
+
         kis_gps_packinfo *pi = get_best_location();
 
         auto loctrip =
