@@ -41,10 +41,9 @@
 #include <sqlite3.h>
 
 #include "getopt.h"
-
 #include "json/json.h"
 #include "sqlite3_cpp11.h"
-
+#include "fmt.h"
 #include "packet_ieee80211.h"
 
 // Aggressive additional mangle of text to handle converting ',' and '"' to
@@ -230,19 +229,19 @@ int main(int argc, char *argv[]) {
             skipclean = true;
         } else if (r == 'r') {
             if (sscanf(optarg, "%u", &rate_limit) != 1) {
-                fprintf(stderr, "ERROR:  Expected a rate limit of # seconds between packets of the same device.\n");
+                fmt::print(stderr, "ERROR:  Expected a rate limit of # seconds between packets of the same device.\n");
                 exit(1);
             }
         } else if (r == 'c') {
             if (sscanf(optarg, "%u", &cache_limit) != 1) {
-                fprintf(stderr, "ERROR:  Expected a cache limit number.\n");
+                fmt::print(stderr, "ERROR:  Expected a cache limit number.\n");
                 exit(1);
             }
         } else if (r == 'e') {
             double lat, lon, distance;
 
             if (sscanf(optarg, "%lf,%lf,%lf", &lat, &lon, &distance) != 3) {
-                fprintf(stderr, "ERROR:  Expected an exclusion zone of lat,lon,distance_in_meters.\n");
+                fmt::print(stderr, "ERROR:  Expected an exclusion zone of lat,lon,distance_in_meters.\n");
                 exit(1);
             }
 
@@ -251,18 +250,16 @@ int main(int argc, char *argv[]) {
     }
 
     if (out_fname == "" || in_fname == "") {
-        fprintf(stderr, "ERROR: Expected --in [kismetdb file] and "
-                "--out [wigle CSV file]\n");
+        fmt::print(stderr, "ERROR: Expected --in [kismetdb file] and --out [wigle CSV file]\n");
         exit(1);
     }
 
     if (stat(in_fname.c_str(), &statbuf) < 0) {
         if (errno == ENOENT) 
-            fprintf(stderr, "ERROR:  Input file '%s' does not exist.\n", 
-                    in_fname.c_str());
+            fmt::print(stderr, "ERROR:  Input file '{}' does not exist.\n", in_fname);
         else
-            fprintf(stderr, "ERROR:  Unexpected problem checking input "
-                    "file '%s': %s\n", in_fname.c_str(), strerror(errno));
+            fmt::print(stderr, "ERROR:  Unexpected problem checking input "
+                    "file '{}': {}\n", in_fname, strerror(errno));
 
         exit(1);
     }
@@ -270,13 +267,13 @@ int main(int argc, char *argv[]) {
     if (out_fname != "-") {
         if (stat(out_fname.c_str(), &statbuf) < 0) {
             if (errno != ENOENT) {
-                fprintf(stderr, "ERROR:  Unexpected problem checking output "
-                        "file '%s': %s\n", out_fname.c_str(), strerror(errno));
+                fmt::print(stderr, "ERROR:  Unexpected problem checking output "
+                        "file '{}': {}\n", out_fname, strerror(errno));
                 exit(1);
             }
         } else if (force == false) {
-            fprintf(stderr, "ERROR:  Output file '%s' exists already; use --force to "
-                    "clobber the file.\n", out_fname.c_str());
+            fmt::print(stderr, "ERROR:  Output file '{}' exists already; use --force to "
+                    "clobber the file.\n", out_fname);
             exit(1);
         }
     }
@@ -285,20 +282,19 @@ int main(int argc, char *argv[]) {
     sql_r = sqlite3_open(in_fname.c_str(), &db);
 
     if (sql_r) {
-        fprintf(stderr, "ERROR:  Unable to open '%s': %s\n", in_fname.c_str(), sqlite3_errmsg(db));
+        fmt::print(stderr, "ERROR:  Unable to open '{}': {}\n", in_fname, sqlite3_errmsg(db));
         exit(1);
     }
 
     if (!skipclean) {
         if (verbose)
-            fprintf(stderr, "* Preparing input database '%s'...\n", in_fname.c_str());
+            fmt::print(stderr, "* Preparing input database '{}'...\n", in_fname);
 
 
         sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
 
         if (sql_r != SQLITE_OK) {
-            fprintf(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: %s\n",
-                    sql_errmsg);
+            fmt::print(stderr, "ERROR:  Unable to clean up (vacuum) database before copying: {}\n", sql_errmsg);
             sqlite3_close(db);
             exit(1);
         }
@@ -318,14 +314,14 @@ int main(int argc, char *argv[]) {
         auto version_query = _SELECT(db, "KISMET", {"db_version"});
         auto version_ret = version_query.begin();
         if (version_ret == version_query.end()) {
-            fprintf(stderr, "ERROR:  Unable to fetch database version.\n");
+            fmt::print(stderr, "ERROR:  Unable to fetch database version.\n");
             sqlite3_close(db);
             exit(1);
         }
         db_version = sqlite3_column_as<int>(*version_ret, 0);
 
         if (verbose)
-            fprintf(stderr, "* Found KismetDB version %d\n", db_version);
+            fmt::print(stderr, "* Found KismetDB version {}\n", db_version);
 
         // Get the total counts
         auto npackets_q = _SELECT(db, "packets", 
@@ -333,7 +329,7 @@ int main(int argc, char *argv[]) {
                 "and lat != 0 and lon != 0) then 1 else 0 end)"});
         auto npackets_ret = npackets_q.begin();
         if (npackets_ret == npackets_q.end()) {
-            fprintf(stderr, "ERROR:  Unable to fetch packet count.\n");
+            fmt::print(stderr, "ERROR:  Unable to fetch packet count.\n");
             sqlite3_close(db);
             exit(1);
         }
@@ -343,25 +339,24 @@ int main(int argc, char *argv[]) {
         auto ndevices_q = _SELECT(db, "devices", {"count(*)"});
         auto ndevices_ret = ndevices_q.begin();
         if (ndevices_ret == ndevices_q.end()) {
-            fprintf(stderr, "ERROR:  Unable to fetch device count.\n");
+            fmt::print(stderr, "ERROR:  Unable to fetch device count.\n");
             sqlite3_close(db);
             exit(1);
         }
         n_devices_db = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
 
         if (verbose) 
-            fprintf(stderr, "* Found %lu devices, %lu usable packets, %lu total packets\n", 
+            fmt::print(stderr, "* Found {} devices, {} usable packets, {} total packets\n", 
                     n_devices_db, n_packets_db, n_total_packets_db);
 
         if (n_packets_db == 0) {
-            fprintf(stderr, "ERROR:  No usable packets in the log file; packets must have GPS information\n"
+            fmt::print(stderr, "ERROR:  No usable packets in the log file; packets must have GPS information\n"
                             "        to be usable with Wigle.\n");
             sqlite3_close(db);
             exit(1);
         }
     } catch (const std::exception& e) {
-        fprintf(stderr, "ERROR:  Could not get database information from '%s': %s\n",
-                in_fname.c_str(), e.what());
+        fmt::print(stderr, "ERROR:  Could not get database information from '{}': {}\n", in_fname, e.what());
         exit(0);
     }
 
@@ -370,8 +365,7 @@ int main(int argc, char *argv[]) {
     } else {
         ofile = fopen(out_fname.c_str(), "w");
         if (ofile == NULL) {
-            fprintf(stderr, "ERROR:  Unable to open output file for writing: %s\n",
-                    strerror(errno));
+            fmt::print(stderr, "ERROR:  Unable to open output file for writing: {}\n", strerror(errno));
             exit(1);
         }
     }
@@ -395,13 +389,12 @@ int main(int argc, char *argv[]) {
     std::map<std::string, cache_obj *> device_cache_map;
 
     if (verbose) 
-        fprintf(stderr, "* Starting to process file, max device cache %u\n", cache_limit);
+        fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
     // CSV headers
-    fprintf(ofile, "WigleWifi-1.4,appRelease=20190201,model=Kismet,release=2019.02.01.%d,"
-            "device=kismet,display=kismet,board=kismet,brand=kismet\n",
-            db_version);
-    fprintf(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
+    fmt::print(ofile, "WigleWifi-1.4,appRelease=20190201,model=Kismet,release=2019.02.01.{},"
+            "device=kismet,display=kismet,board=kismet,brand=kismet\n", db_version);
+    fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,Type\n");
 
     // Prep the packet list for different kismetdb versions
@@ -432,7 +425,7 @@ int main(int argc, char *argv[]) {
         // cleaner than constantly re-sorting it.
         if (device_cache_map.size() >= cache_limit) {
             if (verbose)
-                fprintf(stderr, "* Cleaning cache...\n");
+                fmt::print(stderr, "* Cleaning cache...\n");
 
             for (auto i : device_cache_map) {
                 delete(i.second);
@@ -443,9 +436,10 @@ int main(int argc, char *argv[]) {
 
         n_logs++;
         if (n_logs % n_division == 0 && verbose)
-            fprintf(stderr, "* %d%% Processed %lu records, %lu discarded from rate limiting, %lu discarded from exclusion zones, cache %lu\n", 
+            std::cerr << 
+                fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
                     (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
-                    n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size());
+                    n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
 
         auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
         auto sourcemac = sqlite3_column_as<std::string>(p, 1);
@@ -545,8 +539,8 @@ int main(int argc, char *argv[]) {
                 device_cache_map[sourcemac] = cached;
 
             } catch (const std::exception& e) {
-                fprintf(stderr, "WARNING:  Could not process device info for %s/%s, skipping\n",
-                        sourcemac.c_str(), phy.c_str());
+                std::cerr << 
+                    fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
             }
         }
 
@@ -567,11 +561,11 @@ int main(int argc, char *argv[]) {
 
         // printf("MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,AltitudeMeters,AccuracyMeters,Type\n");
 
-        fprintf(ofile, "%s,%s,%s,%s,%d,%d,%lf,%f,%lf,0,%s\n",
-                sourcemac.c_str(),
-                cached->name.c_str(),
-                cached->crypto.c_str(),
-                cached->first_time.c_str(),
+        fmt::print(ofile, "{},{},{},{},{},{},{:f},{:f},{:f},0,{}\n",
+                sourcemac,
+                cached->name,
+                cached->crypto,
+                cached->first_time,
                 (int) channel,
                 signal,
                 lat, lon, alt,
@@ -588,9 +582,9 @@ int main(int argc, char *argv[]) {
     sqlite3_close(db);
 
     if (n_saved == 0) {
-        fprintf(stderr, "Error: No records saved, not saving empty output file.  Your log file may have no\n"
+        fmt::print(stderr, "ERROR: No records saved, not saving empty output file.  Your log file may have no\n"
                 "packets with GPS information, no packets with recognized devices, or your exclusion\n"
-                "options have blocked all possible packets (%lu blocked by %lu exclusion(s))\n",
+                "options have blocked all possible packets ({} blocked by {} exclusion(s))\n",
                 n_discarded_logs_zones, exclusion_zones.size());
 
         if (ofile != stdout)
@@ -600,9 +594,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (verbose)  {
-        fprintf(stderr, "* Processed %lu records, %lu discarded from rate limiting, %lu discarded from exclusion zones\n", 
+        fmt::print(stderr, "* Processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones\n", 
                 n_logs, n_discarded_logs_rate, n_discarded_logs_zones);
-        fprintf(stderr, "* Done!\n");
+        fmt::print(stderr, "* Done!\n");
     }
 
     return 0;
