@@ -78,11 +78,13 @@ public:
 
 class MessageBus : public LifetimeGlobal {
 public:
+    static std::string global_name() { return "MESSAGEBUS"; }
+
     static std::shared_ptr<MessageBus> create_messagebus(GlobalRegistry *in_globalreg) {
         std::shared_ptr<MessageBus> mon(new MessageBus(in_globalreg));
         in_globalreg->messagebus = mon.get();
         in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("MESSAGEBUS", mon);
+        in_globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 
