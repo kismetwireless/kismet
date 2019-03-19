@@ -52,13 +52,14 @@
 #include "sqlite3_cpp11.h"
 #include "class_filter.h"
 #include "packet_filter.h"
+#include "messagebus.h"
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
 class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
-    public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+    public Kis_Net_Httpd_Ringbuf_Stream_Handler, public MessageClient {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
@@ -127,11 +128,15 @@ public:
 
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
 
+    // Messagebus API
+    virtual void ProcessMessage(std::string in_msg, int in_flags) override;
+
 protected:
     // Is the database even enabled?
     std::atomic<bool> db_enabled;
 
     std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<GpsTracker> gpstracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
         pack_comp_device, pack_comp_datasource, pack_comp_common,
