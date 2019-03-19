@@ -470,7 +470,11 @@ exports.DeviceDetailWindow = function(key) {
                         }
                     }
                     accordion.accordion({ heightStyle: 'fill' });
-                });
+                })
+            .fail(function(jqxhr, texterror) {
+                content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
+                        "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
+            });
         }
     }).resize({
         width: w,
