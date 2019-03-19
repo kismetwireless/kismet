@@ -76,9 +76,6 @@ KisDatabaseLogfile::KisDatabaseLogfile():
     devicetracker =
         Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
-    gpstracker = 
-        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
-
     db_enabled = false;
 
     packet_drop_endp =
@@ -211,6 +208,15 @@ KisDatabaseLogfile::~KisDatabaseLogfile() {
         messagebus->RemoveClient(this);
 
     Log_Close();
+}
+
+void KisDatabaseLogfile::Deferred_Startup() {
+    gpstracker = 
+        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
+}
+
+void KisDatabaseLogfile::Deferred_Shutdown() {
+
 }
 
 bool KisDatabaseLogfile::Log_Open(std::string in_path) {
@@ -707,13 +713,18 @@ void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
     local_locker dblock(&ds_mutex);
     sqlite3_reset(msg_stmt);
 
-    unsigned int spos = 0;
-
-    auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+    unsigned int spos = 1;
 
     sqlite3_bind_int64(msg_stmt, spos++, time(0));
-    sqlite3_bind_double(msg_stmt, spos++, loc->lat);
-    sqlite3_bind_double(msg_stmt, spos++, loc->lon);
+
+    if (gpstracker != nullptr) {
+        auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+        sqlite3_bind_double(msg_stmt, spos++, loc->lat);
+        sqlite3_bind_double(msg_stmt, spos++, loc->lon);
+    } else {
+        sqlite3_bind_double(msg_stmt, spos++, 0);
+        sqlite3_bind_double(msg_stmt, spos++, 0);
+    }
 
     std::string msgtype;
 
@@ -1616,7 +1627,11 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
         }
     }
 
-    auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+    std::shared_ptr<kis_gps_packinfo> loc;
+
+    if (gpstracker != nullptr) 
+        loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+
     log_snapshot(loc.get(), tv, "POI", poi_data);
 
     ostream << "POI created\n";
