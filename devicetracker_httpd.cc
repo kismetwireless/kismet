@@ -302,17 +302,25 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
         if (tokenurl[2] == "by-key") {
             if (tokenurl.size() < 5) {
+                _MSG_ERROR("HTTP request for {}; invalid by-key URI", path);
+                stream << "Invalid by-key URI\n";
+                connection->httpcode = 500;
                 return MHD_YES;
             }
 
-            if (!Httpd_CanSerialize(tokenurl[4]))
+            if (!Httpd_CanSerialize(tokenurl[4])) {
+                _MSG_ERROR("HTTP request for {}; can't actually serialize.", path);
+                connection->httpcode = 500;
                 return MHD_YES;
+            }
 
             device_key key(tokenurl[3]);
             auto dev = FetchDevice(key);
 
-            if (dev == NULL) {
-                stream << "Invalid device key";
+            if (dev == nullptr) {
+                _MSG_ERROR("HTTP request for {}; invalid device key {}", path, tokenurl[3]);
+                stream << "Invalid device key\n";
+                connection->httpcode = 500;
                 return MHD_YES;
             }
 
@@ -329,19 +337,22 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
                     SharedTrackerElement sub = dev->get_child_path(fpath);
 
-                    if (sub == NULL) {
+                    if (sub == nullptr) {
+                        _MSG_ERROR("HTTP request for {}; could not map child path to a device record node.", path);
+                        stream << "Invalid sub-key path\n";
+                        connection->httpcode = 500;
                         return MHD_YES;
                     } 
 
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
-
                     return MHD_YES;
                 }
 
                 Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
-
                 return MHD_YES;
             } else {
+                stream << "<h1>Server error</h1>Unhandled by-key target.";
+                connection->httpcode = 500;
                 return MHD_YES;
             }
         } else if (tokenurl[2] == "by-mac") {
