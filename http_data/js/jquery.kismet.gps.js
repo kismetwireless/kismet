@@ -136,34 +136,37 @@
     }
 
     var gps_refresh = function() {
-        $.get(local_uri_prefix + "gps/location.json")
-        .done(function(data) {
-            data = kismet.sanitizeObject(data);
+        kismet_ui_base.LoginCheck(function(success) {
+            if (success) {
+                $.get(local_uri_prefix + "gps/location.json")
+                .done(function(data) {
+                    data = kismet.sanitizeObject(data);
 
-            last_gps = data;
+                    last_gps = data;
 
-            if (last_gps == null ||
-                (last_gps != null && last_gps['kismet.common.location.valid'] == 0) ||
-                (last_gps != null && last_gps['kismet.common.location.fix'] < 2)) {
-                gpsicon.removeClass('kg-icon-3d');
-                gpsicon.removeClass('kg-icon-2d');
-                element.tooltipster('content', 'GPS connection lost...');
-                return;
-            } else if (last_gps['kismet.common.location.fix'] == 2) {
-                gpsicon.removeClass('kg-icon-3d');
-                gpsicon.addClass('kg-icon-2d');
-                element.tooltipster('content', 'GPS fix' +  last_gps['kismet.common.location.lat'] + ' x ' +
-                last_gps['kismet.common.location.lon']);
-            } else if (last_gps['kismet.common.location.fix'] == 3) {
-                gpsicon.removeClass('kg-icon-2d');
-                gpsicon.addClass('kg-icon-3d');
-                element.tooltipster('content', 'GPS fix ' +
-                last_gps['kismet.common.location.lat'] + ' x ' +
-                last_gps['kismet.common.location.lon'] + ' ' +
-                kismet_ui.renderDistance(last_gps['kismet.common.location.alt'] / 1000, 0));
+                    if (last_gps == null ||
+                        (last_gps != null && last_gps['kismet.common.location.valid'] == 0) ||
+                        (last_gps != null && last_gps['kismet.common.location.fix'] < 2)) {
+                        gpsicon.removeClass('kg-icon-3d');
+                        gpsicon.removeClass('kg-icon-2d');
+                        element.tooltipster('content', 'GPS connection lost...');
+                        return;
+                    } else if (last_gps['kismet.common.location.fix'] == 2) {
+                        gpsicon.removeClass('kg-icon-3d');
+                        gpsicon.addClass('kg-icon-2d');
+                        element.tooltipster('content', 'GPS fix' +  last_gps['kismet.common.location.lat'] + ' x ' +
+                            last_gps['kismet.common.location.lon']);
+                    } else if (last_gps['kismet.common.location.fix'] == 3) {
+                        gpsicon.removeClass('kg-icon-2d');
+                        gpsicon.addClass('kg-icon-3d');
+                        element.tooltipster('content', 'GPS fix ' +
+                            last_gps['kismet.common.location.lat'] + ' x ' +
+                            last_gps['kismet.common.location.lon'] + ' ' +
+                            kismet_ui.renderDistance(last_gps['kismet.common.location.alt'] / 1000, 0));
+                    }
+                });
             }
-        })
-        .always(function() {
+
             timerid = setTimeout(gps_refresh, 1000);
         });
     }
