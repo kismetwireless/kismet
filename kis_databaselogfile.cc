@@ -36,7 +36,8 @@ KisDatabaseLogfile::KisDatabaseLogfile():
     KisLogfile(SharedLogBuilder(NULL)), 
     KisDatabase(Globalreg::globalreg, "kismetlog"),
     LifetimeGlobal(),
-    Kis_Net_Httpd_Ringbuf_Stream_Handler() {
+    Kis_Net_Httpd_Ringbuf_Stream_Handler(),
+    MessageClient(Globalreg::globalreg, nullptr) {
 
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
@@ -73,7 +74,10 @@ KisDatabaseLogfile::KisDatabaseLogfile():
     snapshot_pz = NULL;
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+
+    gpstracker = 
+        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
 
     db_enabled = false;
 
@@ -193,10 +197,19 @@ KisDatabaseLogfile::KisDatabaseLogfile():
 
         packet_mac_filter->set_filter(m, filter_toks[0], filter_toks[1], filter_opt);
     }
+
+    auto messagebus = 
+        Globalreg::FetchMandatoryGlobalAs<MessageBus>();
+    messagebus->RegisterClient(this, MSGFLAG_ALL);
+
     Bind_Httpd_Server();
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
+    auto messagebus = Globalreg::FetchGLobalAs<MessageBus>();
+    if (messagebus != nullptr)
+        messagebus->RemoveClient(this);
+
     Log_Close();
 }
 
@@ -208,7 +221,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     if (!dbr) {
         _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
                 "and that you have write permissions to it.", in_path);
-        globalreg->fatal_condition = true;
+        Globalreg::globalreg->fatal_condition = true;
         return false;
     }
 
@@ -216,7 +229,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     if (!dbr) {
         _MSG_FATAL("Unable to update existing KismetDB log at {}", in_path);
-        globalreg->fatal_condition = true;
+        Globalreg::globalreg->fatal_condition = true;
         return false;
     }
 
@@ -685,6 +698,41 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     }
 
     return 1;
+}
+
+void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
+    if (!db_enabled)
+        return;
+
+    local_locker dblock(&ds_mutex);
+    sqlite3_reset(msg_stmt);
+
+    unsigned int spos = 0;
+
+    auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+
+    sqlite3_bind_int64(msg_stmt, spos++, time(0));
+    sqlite3_bind_double(msg_stmt, spos++, loc->lat);
+    sqlite3_bind_double(msg_stmt, spos++, loc->lon);
+
+    std::string msgtype;
+
+    if (in_flags & MSGFLAG_INFO)
+        msgtype = "INFO";
+    else if (in_flags & MSGFLAG_ERROR)
+        msgtype = "ERROR";
+    else if (in_flags & MSGFLAG_DEBUG)
+        msgtype = "DEBUG";
+    else if (in_flags & MSGFLAG_FATAL)
+        msgtype = "FATAL";
+
+    sqlite3_bind_text(msg_stmt, spos++, msgtype.c_str(), msgtype.length(), SQLITE_TRANSIENT);
+    sqlite3_bind_text(msg_stmt, spos++, in_msg.c_str(), in_msg.length(), SQLITE_TRANSIENT);
+
+    if (sqlite3_step(msg_stmt) != SQLITE_DONE) {
+        Log_Close();
+        _MSG_ERROR("Unable to insert message into {}: {}", ds_dbfile, sqlite3_errmsg(db));
+    }
 }
 
 int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_devices) {
@@ -1556,7 +1604,6 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
         return 400;
     }
 
-    auto gpstracker = Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
     struct timeval tv;
     gettimeofday(&tv, nullptr);
     std::string poi_data;
@@ -1569,7 +1616,8 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
         }
     }
 
-    log_snapshot(gpstracker->get_best_location(), tv, "POI", poi_data);
+    auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+    log_snapshot(loc.get(), tv, "POI", poi_data);
 
     ostream << "POI created\n";
     return 200;
