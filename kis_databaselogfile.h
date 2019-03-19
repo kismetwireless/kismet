@@ -59,7 +59,7 @@
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
 class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
-    public Kis_Net_Httpd_Ringbuf_Stream_Handler, public MessageClient {
+    public Kis_Net_Httpd_Ringbuf_Stream_Handler, public MessageClient, public DeferredStartup {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
@@ -73,6 +73,9 @@ public:
 
     KisDatabaseLogfile();
     virtual ~KisDatabaseLogfile();
+
+    virtual void Deferred_Startup() override;
+    virtual void Deferred_Shutdown() override;
 
     void SetDatabaseBuilder(SharedLogBuilder in_builder) {
         builder = in_builder;
