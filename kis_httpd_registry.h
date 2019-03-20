@@ -38,11 +38,13 @@
 class Kis_Httpd_Registry : public Kis_Net_Httpd_CPPStream_Handler, 
     public LifetimeGlobal {
 public:
+    static std::string global_name() { return "WEBREGISTRY"; }
+
     static std::shared_ptr<Kis_Httpd_Registry> 
         create_http_registry(GlobalRegistry *in_globalreg) {
             std::shared_ptr<Kis_Httpd_Registry> mon(new Kis_Httpd_Registry(in_globalreg));
             in_globalreg->RegisterLifetimeGlobal(mon);
-            in_globalreg->InsertGlobal("WEBREGISTRY", mon);
+            in_globalreg->InsertGlobal(global_name(), mon);
             return mon;
     }
 
