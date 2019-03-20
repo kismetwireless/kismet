@@ -1019,10 +1019,10 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
             sqlite3_bind_double(data_stmt, sql_pos++, 0);
         }
 
-        sqlite3_bind_text(data_stmt, sql_pos, uuidstring.c_str(), uuidstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos++, uuidstring.c_str(), uuidstring.length(), SQLITE_TRANSIENT);
 
-        sqlite3_bind_text(data_stmt, sql_pos, type.data(), type.length(), SQLITE_TRANSIENT);
-        sqlite3_bind_text(data_stmt, sql_pos, json.data(), json.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos++, type.data(), type.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(data_stmt, sql_pos++, json.data(), json.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(data_stmt) != SQLITE_DONE) {
             _MSG("KisDatabaseLogfile unable to insert data in " +
