@@ -1294,6 +1294,7 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute_
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
+    // fmt::print(stderr, "buffer available {}\n", in_amt);
     cl->unlock(1);
 }
 
@@ -1301,6 +1302,8 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHan
     while (1) {
         { 
             local_locker lock(&aux_mutex);
+
+            // fmt::print(stderr, "buffer block until sees {}\n", rbh->GetReadBufferUsed());
 
             // Immediately return if we have pending data
             if (rbh->GetReadBufferUsed()) {
@@ -1352,13 +1355,15 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         // has completed and it's time to return)
         read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
 
+        // fmt::print(stderr, "buffer read sz {}\n", read_sz);
+
         // If we've got nothing left either it's the end of the buffer or we're pending
         // more data hitting the request
         if (read_sz == 0) {
             rbh->PeekFreeWriteBufferData(zbuf);
 
             if (stream_aux->get_in_error()) {
-                // fprintf(stderr, "debug - buffer event %p end of stream\n", stream_aux);
+                // fmt::print(stderr, "buffer hit end of stream, error flagged\n");
                 stream_aux->get_buffer_event_mutex()->unlock();
                 return MHD_CONTENT_READER_END_OF_STREAM;
             }
@@ -1449,9 +1454,18 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
         // connection BEFORE calling our cleanup on our response!
+        
+        // Copy our function parameters in case we lose them before the lambda thread executes
+        // on a very slow or single-core system
+        auto url_copy = std::string(url);
+        auto method_copy = std::string(method);
+        auto upload_data_copy = std::string(upload_data, *upload_data_size);
+
         aux->generator_thread =
-            std::thread([this, &aux_startup_cl, aux, httpd, connection, url, method, 
-                    upload_data, upload_data_size] {
+            std::thread([this, &aux_startup_cl, aux, httpd, connection, url_copy, 
+                    method_copy, upload_data_copy] {
+                // fmt::print(stderr, "generator thread starting for url {}\n", url_copy);
+
                 // Unlock the http thread as soon as we've spawned it
                 aux_startup_cl.unlock(1);
 
@@ -1469,14 +1483,18 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 // Exceptions are treated as MHD_YES and the stream closed - something went wrong
                 // in the generator and it's not going to clean itself up.
                 try {
-                    int r = Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
-                            upload_data_size);
+                    size_t sz = upload_data_copy.size();
+                    int r = Httpd_CreateStreamResponse(httpd, connection, url_copy.c_str(), 
+                            method_copy.c_str(), upload_data_copy.data(), &sz);
+
+                    // fmt::print(stderr, "generator completed callback\n");
 
                     if (r == MHD_YES) {
                         aux->sync();
                         aux->trigger_error();
                     }
                 } catch (const std::exception& e) {
+                    // fmt::print(stderr, "generator thread exception: {}\n", e.what());
                     aux->sync();
                     aux->trigger_error();
                 }
@@ -1484,7 +1502,9 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 });
 
         // We unlock when the generator thread has started
+        // fmt::print(stderr, "blocking until generator\n");
         aux_startup_cl.block_until();
+        // fmt::print(stderr, "unblocked from generator\n");
 
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,

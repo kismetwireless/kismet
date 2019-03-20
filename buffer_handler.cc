@@ -546,8 +546,9 @@ std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::s
 
     std::streamsize sz = std::stringbuf::xsputn(s, n);
 
+    // fmt::print(stderr, "DEBUG - ostringstreambuf put {}\n", n);
+
     if (str().length() >= 1024) {
-        // fprintf(stderr, "debug - xsputn len %lu\n", str().length());
         sync();
     }
 
@@ -560,7 +561,6 @@ BufferHandlerOStringStreambuf::int_type BufferHandlerOStringStreambuf::overflow(
     BufferHandlerOStringStreambuf::int_type it = std::stringbuf::overflow(ch);
 
     if (str().length() >= 1024) {
-        // fprintf(stderr, "debug - overflow len %lu\n", str().length());
         sync();
     }
 
@@ -576,7 +576,7 @@ int BufferHandlerOStringStreambuf::sync() {
 
     size_t sz = str().length();
 
-    // fprintf(stderr, "debug - sync %lu\n", sz);
+    // fmt::print(stderr, "debug - ostringstreambuf sync {}\n", sz);
 
     ssize_t written = 
         rb_handler->PutWriteBufferData((void *) str().data(), sz, true);

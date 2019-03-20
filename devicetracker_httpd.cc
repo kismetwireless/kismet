@@ -243,6 +243,8 @@ int Devicetracker::Httpd_CreateStreamResponse(
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
+    // fmt::print(stderr, "createstreamresponse path {}\n", path);
+
     if (strcmp(method, "GET") != 0) {
         return MHD_YES;
     }
@@ -291,10 +293,15 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
     std::string stripped = Httpd_StripSuffix(path);
 
+    // fmt::print(stderr, "tokenizing path {}\n", path);
+
     std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
-    if (tokenurl.size() < 2)
+    // fmt::print(stderr, "path {} tokenized to size {}\n", path, tokenurl.size());
+
+    if (tokenurl.size() < 2) {
         return MHD_YES;
+    }
 
     if (tokenurl[1] == "devices") {
         if (tokenurl.size() < 5)
@@ -349,6 +356,8 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 }
 
                 Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
+                // fmt::print(stderr, "Wrote data for key {}", key);
+
                 return MHD_YES;
             } else {
                 stream << "<h1>Server error</h1>Unhandled by-key target.";
