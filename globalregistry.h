@@ -127,13 +127,10 @@ class Kis_Net_Httpd;
 // DEPRECATED... Trying to switch to each component registering by name
 // and finding related component by name.  Try to avoid using _PCM etc
 // in future code
-#define _PCM(x)		globalreg->packetcomp_map[(x)]
-#define _NPM(x)		globalreg->netproto_map[(x)]
-#define _ARM(x)		globalreg->alertref_map[(x)]
-#define _ALERT(x, y, z, a)	globalreg->alertracker->RaiseAlert((x), (y), \
+#define _ALERT(x, y, z, a)	Globalreg::globalreg->alertracker->RaiseAlert((x), (y), \
 	(z)->bssid_mac, (z)->source_mac, (z)->dest_mac, (z)->other_mac, \
 	(z)->channel, (a))
-#define _COMMONALERT(t, p, c, b, a)  globalreg->alertracker->RaiseAlert((t), (p), \
+#define _COMMONALERT(t, p, c, b, a)  Globalreg::globalreg->alertracker->RaiseAlert((t), (p), \
 	(b), (c)->source, (c)->dest, mac_addr(0), (c)->channel, (a))
 
 // Send a msg via gloablreg msgbus
