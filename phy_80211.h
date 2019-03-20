@@ -1685,6 +1685,7 @@ protected:
     std::shared_ptr<Alertracker> alertracker;
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<Devicetracker> devicetracker;
 
     // Checksum of recent packets for duplication filtering
     uint32_t *recent_packet_checksums;

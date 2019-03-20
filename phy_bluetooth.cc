@@ -33,17 +33,19 @@
 #include "phy_bluetooth.h"
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
+#include "alertracker.h"
 
 Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid) : 
     Kis_Phy_Handler(in_globalreg, in_phyid) {
-    globalreg = in_globalreg;
 
     alertracker = 
-        Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Alertracker>();
     packetchain = 
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>(globalreg, "ENTRYTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+    devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
     SetPhyName("Bluetooth");
 
@@ -61,7 +63,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid)
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_bluetooth", 
             "js/kismet.ui.bluetooth.js");
 }

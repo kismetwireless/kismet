@@ -36,6 +36,8 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+    devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -63,8 +65,8 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTLADSB");
 
     // Register js module for UI
-    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+    auto httpregistry =
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_rtladsb", "js/kismet.ui.rtladsb.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
@@ -143,10 +145,13 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json) {
 
     // To interact with devicetracker we (currently) need to turn this into
     // something that looks vaguely like a packet
-    kis_packet *pack = new kis_packet(globalreg);
+    kis_packet *pack = new kis_packet(Globalreg::globalreg);
 
-    pack->ts.tv_sec = globalreg->timestamp.tv_sec;
-    pack->ts.tv_usec = globalreg->timestamp.tv_usec;
+    struct timeval ts;
+    gettimeofday(&ts, nullptr);
+
+    pack->ts.tv_sec = ts.tv_sec;
+    pack->ts.tv_usec = ts.tv_usec;
 
     kis_common_info *common = new kis_common_info();
 

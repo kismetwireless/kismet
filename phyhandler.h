@@ -35,26 +35,22 @@ class Kis_Phy_Handler {
 public:
 	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
     Kis_Phy_Handler(GlobalRegistry *in_globalreg) {
-        globalreg = in_globalreg;
         phyid = -1;
         phyname = "NONE";
-        devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
     }
 
     virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) = 0;
 
     Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) {
-        globalreg = in_globalreg;
         phyid = in_phyid;
         phyname = "NONE";
-        devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 	}
 
 	virtual ~Kis_Phy_Handler() { }
 
-	virtual std::string FetchPhyName() { return phyname; }
-	virtual int FetchPhyId() { return phyid; }
-    virtual uint32_t FetchPhynameHash() { return phyname_hash; }
+	std::string FetchPhyName() { return phyname; }
+	int FetchPhyId() { return phyid; }
+    uint32_t FetchPhynameHash() { return phyname_hash; }
 
     // Called for all instantiated phys when restoring a network object from
     // a stored record; This function is expected to inspect the abstract object
@@ -64,14 +60,10 @@ public:
             SharedTrackerElement in_device __attribute__((unused))) { }
 
 protected:
-    virtual void SetPhyName(std::string in_phyname) {
+    void SetPhyName(std::string in_phyname) {
         phyname = in_phyname;
         phyname_hash = device_key::gen_pkey(phyname);
     }
-
-	GlobalRegistry *globalreg;
-
-    std::shared_ptr<Devicetracker> devicetracker;
 
     std::string phyname;
     uint32_t phyname_hash;

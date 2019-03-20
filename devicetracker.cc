@@ -131,16 +131,16 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
-	pack_comp_device = _PCM(PACK_COMP_DEVICE) =
+	pack_comp_device = 
 		packetchain->RegisterPacketComponent("DEVICE");
 
-	pack_comp_common =  _PCM(PACK_COMP_COMMON) =
+	pack_comp_common =  
 		packetchain->RegisterPacketComponent("COMMON");
 
-	pack_comp_basicdata = _PCM(PACK_COMP_BASICDATA) =
+	pack_comp_basicdata = 
 		packetchain->RegisterPacketComponent("BASICDATA");
 
-	_PCM(PACK_COMP_MANGLEFRAME) =
+    pack_comp_mangleframe =
 		packetchain->RegisterPacketComponent("MANGLEDATA");
 
 	pack_comp_radiodata =

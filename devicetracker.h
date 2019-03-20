@@ -371,8 +371,9 @@ protected:
 	int devcomp_ref_common;
 
     // Packet components we add or interact with
-	int pack_comp_device, pack_comp_common, pack_comp_basicdata,
-		pack_comp_radiodata, pack_comp_gps, pack_comp_datasrc;
+    int pack_comp_device, pack_comp_common, pack_comp_basicdata,
+        pack_comp_radiodata, pack_comp_gps, pack_comp_datasrc,
+        pack_comp_mangleframe;
 
 	// Tracked devices
     device_map_t tracked_map;

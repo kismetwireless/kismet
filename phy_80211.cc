@@ -200,16 +200,19 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     Kis_Net_Httpd_CPPStream_Handler() {
 
     alertracker =
-        Globalreg::FetchGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Alertracker>();
 
     packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
 
     timetracker =
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+
+    devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
 	// Initialize the crc tables
-	crc32_init_table_80211(globalreg->crc32_table);
+	crc32_init_table_80211(Globalreg::globalreg->crc32_table);
 
     SetPhyName("IEEE802.11");
 
@@ -228,7 +231,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
 	// If we haven't registered packet components yet, do so.  We have to
 	// co-exist with the old tracker core for some time
-	pack_comp_80211 = _PCM(PACK_COMP_80211) =
+	pack_comp_80211 =
 		packetchain->RegisterPacketComponent("PHY80211");
 
 	pack_comp_basicdata = 
@@ -491,11 +494,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // Threshold
     signal_too_loud_threshold = 
-        globalreg->kismet_config->FetchOptInt("dot11_max_signal", -10);
+        Globalreg::globalreg->kismet_config->FetchOptInt("dot11_max_signal", -10);
 
 	// Do we process the whole data packet?
-    if (globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
-		globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
+		Globalreg::globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
 		_MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
 			 "of data packets entirely", MSGFLAG_INFO);
 		dissect_data = 0;
@@ -505,7 +508,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // Do we process phy and control frames?  They seem to be the glitchiest
     // on many cards including the ath9k which is otherwise excellent
-    if (globalreg->kismet_config->FetchOptBoolean("dot11_process_phy", 0)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_process_phy", 0)) {
         _MSG("PHY802.11 will process Wi-Fi 'phy' and 'control' type frames, which "
                 "gives the most complete view of device traffic but may result in "
                 "false devices due to driver and firmware quirks.", MSGFLAG_INFO);
@@ -523,12 +526,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
 	// Load the wep keys from the config file
 	if (LoadWepkeys() < 0) {
-		globalreg->fatal_condition = 1;
+        Globalreg::globalreg->fatal_condition = 1;
 		return;
 	}
 
     // TODO turn into REST endpoint
-    if (globalreg->kismet_config->FetchOptBoolean("allowkeytransmit", 0)) {
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("allowkeytransmit", 0)) {
         _MSG("Allowing Kismet clients to view WEP keys", MSGFLAG_INFO);
         client_wepkey_allowed = 1;
     } else {
@@ -541,11 +544,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // Set up the device timeout
     device_idle_expiration =
-        globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
+        Globalreg::globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
-            globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
+            Globalreg::globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
 
         std::stringstream ss;
         ss << "Removing 802.11 device info which has been inactive for more than " <<
@@ -563,17 +566,17 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         device_idle_timer = -1;
     }
 
-	conf_save = globalreg->timestamp.tv_sec;
+	conf_save = Globalreg::globalreg->timestamp.tv_sec;
 
-	ssid_conf = new ConfigFile(globalreg);
-	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
-	globalreg->InsertGlobal("SSID_CONF_FILE", std::shared_ptr<ConfigFile>(ssid_conf));
+	ssid_conf = new ConfigFile(Globalreg::globalreg);
+	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(Globalreg::globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+    Globalreg::globalreg->InsertGlobal("SSID_CONF_FILE", std::shared_ptr<ConfigFile>(ssid_conf));
 
     httpd_pcap.reset(new Phy_80211_Httpd_Pcap());
 
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
-        globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 2048);
+        Globalreg::globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 2048);
     recent_packet_checksums = new uint32_t[recent_packet_checksums_sz];
     for (unsigned int x = 0; x < recent_packet_checksums_sz; x++) {
         recent_packet_checksums[x] = 0;
@@ -581,7 +584,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     recent_packet_checksum_pos = 0;
 
     // Parse the ssid regex options
-    auto apspoof_lines = globalreg->kismet_config->FetchOptVec("apspoof");
+    auto apspoof_lines = Globalreg::globalreg->kismet_config->FetchOptVec("apspoof");
 
     for (auto l : apspoof_lines) {
         size_t cpos = l.find(':');
@@ -721,7 +724,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_dot11", "js/kismet.ui.dot11.js");
 
     clients_of_endp =
@@ -918,14 +921,14 @@ const std::string Kis_80211_Phy::KhzToChannel(const double in_khz) {
 int Kis_80211_Phy::LoadWepkeys() {
     // Convert the WEP mappings to our real map
     std::vector<std::string> raw_wepmap_vec;
-    raw_wepmap_vec = globalreg->kismet_config->FetchOptVec("wepkey");
+    raw_wepmap_vec = Globalreg::globalreg->kismet_config->FetchOptVec("wepkey");
     for (size_t rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
         std::string wepline = raw_wepmap_vec[rwvi];
 
         size_t rwsplit = wepline.find(",");
         if (rwsplit == std::string::npos) {
             _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
 			return -1;
         }
 
@@ -933,7 +936,7 @@ int Kis_80211_Phy::LoadWepkeys() {
 
         if (bssid_mac.error == 1) {
             _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
 			return -1;
         }
 
@@ -945,7 +948,7 @@ int Kis_80211_Phy::LoadWepkeys() {
         if (len != 5 && len != 13 && len != 16) {
 			_MSG("Invalid key '" + rawkey + "' length " + IntToString(len) + 
 				 " in a wepkey= config file entry", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
 			return -1;
         }
 
@@ -1058,7 +1061,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         // don't want to do much more complex object creation
         commoninfo->type = packet_basic_mgmt;
         
-        if (dot11info->bssid_mac != globalreg->empty_mac && 
+        if (dot11info->bssid_mac != Globalreg::globalreg->empty_mac && 
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
 
             bssid_dev =
@@ -1843,7 +1846,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         // If we have a new ssid and we can consider raising an alert, do the 
         // regex compares to see if we trigger apspoof
         if (dot11info->ssid_len != 0 &&
-                globalreg->alertracker->PotentialAlert(alert_ssidmatch_ref)) {
+                alertracker->PotentialAlert(alert_ssidmatch_ref)) {
             for (auto s : *ssid_regex_vec) {
                 std::shared_ptr<dot11_tracked_ssid_alert> sa =
                     std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
@@ -1859,7 +1862,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                         "rule " + sa->get_group_name() + 
                         std::string(" which may indicate spoofing or impersonation.");
 
-                    globalreg->alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
+                    alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
                             dot11info->bssid_mac, 
                             dot11info->source_mac, 
                             dot11info->dest_mac, 
@@ -2996,7 +2999,7 @@ int Kis_80211_Phy::timetracker_event(int eventid) {
     // Spawn a worker to handle this
     if (eventid == device_idle_timer) {
         auto worker = 
-            std::make_shared<phy80211_devicetracker_expire_worker>(globalreg,
+            std::make_shared<phy80211_devicetracker_expire_worker>(Globalreg::globalreg,
                 device_idle_expiration, device_idle_min_packets, dot11_device_entry_id);
         devicetracker->MatchOnDevices(worker);
     }

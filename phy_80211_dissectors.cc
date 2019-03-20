@@ -628,7 +628,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             // If beacons aren't do a broadcast destination, consider them corrupt.
-            if (packinfo->dest_mac != globalreg->broadcast_mac) {
+            if (packinfo->dest_mac != Globalreg::globalreg->broadcast_mac) {
                 fprintf(stderr, "debug - dest mac not broadcast\n");
                 packinfo->corrupt = 1;
             }
@@ -722,7 +722,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
                 packinfo->corrupt = 1;
-                in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
 
@@ -738,7 +738,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 } catch (const std::exception& e) {
                     // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
                     packinfo->corrupt = 1;
-                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
                 }
 
@@ -2323,7 +2323,7 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
     if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+         (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL)
         return 0;
     if (packinfo->corrupt)
         return 0;
@@ -2398,7 +2398,7 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
     if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+         (dot11_packinfo *) in_pack->fetch(PACK_COMP_80211)) == NULL)
         return 0;
     if (packinfo->corrupt)
         return 0;
@@ -2508,7 +2508,7 @@ std::shared_ptr<dot11_tracked_eapol>
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
     if ((packinfo = 
-                (dot11_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
+                (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL) {
         return NULL;
     }
 

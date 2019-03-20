@@ -148,6 +148,7 @@ protected:
     std::shared_ptr<Alertracker> alertracker;
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Devicetracker> devicetracker;
 
     int bluetooth_device_entry_id;
 

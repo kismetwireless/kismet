@@ -534,6 +534,7 @@ protected:
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Devicetracker> devicetracker;
 
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id,

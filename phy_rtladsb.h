@@ -212,15 +212,15 @@ public:
 protected:
     virtual void register_fields() override {
         RegisterField("rtladsb.device.icao", "ICAO", &icao);
-	RegisterField("rtladsb.device.regid", "REGID", &regid);
-	RegisterField("rtladsb.device.mdl", "MDL", &mdl);
-	RegisterField("rtladsb.device.atype", "Type", &atype);
-	RegisterField("rtladsb.device.aoperator", "Operator", &aoperator);
-	RegisterField("rtladsb.device.callsign", "Callsign", &callsign);
-	RegisterField("rtladsb.device.altitude", "Altitude", &altitude);
-	RegisterField("rtladsb.device.speed", "Speed", &speed);
-	RegisterField("rtladsb.device.heading", "Heading", &heading);
-	RegisterField("rtladsb.device.gsas", "GSAS", &gsas);
+        RegisterField("rtladsb.device.regid", "REGID", &regid);
+        RegisterField("rtladsb.device.mdl", "MDL", &mdl);
+        RegisterField("rtladsb.device.atype", "Type", &atype);
+        RegisterField("rtladsb.device.aoperator", "Operator", &aoperator);
+        RegisterField("rtladsb.device.callsign", "Callsign", &callsign);
+        RegisterField("rtladsb.device.altitude", "Altitude", &altitude);
+        RegisterField("rtladsb.device.speed", "Speed", &speed);
+        RegisterField("rtladsb.device.heading", "Heading", &heading);
+        RegisterField("rtladsb.device.gsas", "GSAS", &gsas);
 
         //RegisterField("rtladsb.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
     }
@@ -276,6 +276,7 @@ protected:
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<Devicetracker> devicetracker;
 
     int rtladsb_holder_id, rtladsb_common_id, rtladsb_adsb_id;
     //std::string rtladsb_icao_id;

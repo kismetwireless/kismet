@@ -35,9 +35,11 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     SetPhyName("Z-Wave");
 
     packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker =
-        Globalreg::FetchGlobalAs<EntryTracker>(globalreg, "ENTRY_TRACKER");
+        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+    devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -50,7 +52,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     zwave_manuf = Globalreg::globalreg->manufdb->MakeManuf("Z-Wave");
 
     // Register js module for UI
-    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
+    auto httpregistry = 
         Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "js/kismet.ui.zwave.js");
 }
@@ -138,9 +140,13 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     if (dmac.error)
         return false;
 
-    kis_packet *pack = new kis_packet(globalreg);
-    pack->ts.tv_sec = globalreg->timestamp.tv_sec;
-    pack->ts.tv_usec = globalreg->timestamp.tv_usec;
+    kis_packet *pack = new kis_packet(Globalreg::globalreg);
+
+    struct timeval ts;
+    gettimeofday(&ts, nullptr);
+
+    pack->ts.tv_sec = ts.tv_sec;
+    pack->ts.tv_usec = ts.tv_usec;
 
     kis_common_info *common = new kis_common_info();
 
