@@ -2705,7 +2705,7 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
      */
 
     /* Can't drop caps unless running as root so don't try */
-    if (getuid() != 0 && geteuid() != 0)
+    if (getuid() != 0)
         return 0;
 
     char errstr[STATUS_MAX];
@@ -2757,13 +2757,13 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
 #ifdef SYS_LINUX
 
     /* Can't jail filesystem if not running as root */
-    if (getuid() != 0 && geteuid() != 0)
+    if (getuid() != 0)
         return 0;
 
     /* Eject ourselves from the namespace into a new temporary one */
     if (unshare(CLONE_NEWNS) < 0) {
         /* Only send warning if we're running as root */
-        if (geteuid() == 0) {
+        if (getuid() == 0) {
             snprintf(errstr, STATUS_MAX, "datasource failed to jail to new namespace: %s",
                     strerror(errno));
             cf_send_warning(caph, errstr);
@@ -2777,7 +2777,7 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
     if (mount("/", "/", "bind", MS_BIND | MS_REMOUNT | MS_PRIVATE | 
                 MS_REC | MS_RDONLY, NULL) < 0) {
         /* Only send warning if we're running as root */
-        if (geteuid() == 0) {
+        if (getuid() == 0) {
             snprintf(errstr, STATUS_MAX, "datasource failed to remount root in jail as RO: %s",
                     strerror(errno));
             cf_send_warning(caph, errstr);
