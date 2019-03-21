@@ -327,10 +327,10 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 render: function(opts) {
                     var name = opts['data']['kismet.device.base.username'];
                     
-                    if (name === "")
-                        name = opts['value'];
+                    if (typeof(name) == 'undefined' || name == "")
+                        name = opts['data']['kismet.device.base.commonname'];
 
-                    if (name === "")
+                    if (typeof(name) == 'undefined' || name == "")
                         name = opts['data']['kismet.device.base.macaddr'];
 
                     var nameobj = 
@@ -2056,8 +2056,6 @@ exports.FirstLoginCheck = function() {
     $('#save_password', set_password_content)
         .button()
         .on('click', function() {
-            console.log("saving");
-
             kismet.putStorage('kismet.base.login.username', $('#user', set_password_content).val());
             kismet.putStorage('kismet.base.login.password', $('#password', set_password_content).val());
 
@@ -2066,7 +2064,6 @@ exports.FirstLoginCheck = function() {
                 "password": $('#password', set_password_content).val()
             };
 
-            console.log("posting");
             $.ajax({
                 type: "POST",
                 url: "session/set_password",
