@@ -132,7 +132,7 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json) {
+bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string err;
     std::string v;
 
@@ -143,17 +143,13 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json) {
         return false;
     }
 
-    // To interact with devicetracker we (currently) need to turn this into
-    // something that looks vaguely like a packet
-    kis_packet *pack = new kis_packet(Globalreg::globalreg);
+    kis_common_info *common = 
+        (kis_common_info *) packet->fetch(pack_comp_common);
 
-    struct timeval ts;
-    gettimeofday(&ts, nullptr);
-
-    pack->ts.tv_sec = ts.tv_sec;
-    pack->ts.tv_usec = ts.tv_usec;
-
-    kis_common_info *common = new kis_common_info();
+    if (common == NULL) {
+        common = new kis_common_info;
+        packet->insert(pack_comp_common, common);
+    }
 
     common->type = packet_basic_data;
     common->phyid = FetchPhyId();
@@ -173,17 +169,12 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json) {
     common->source = rtlmac;
     common->transmitter = rtlmac;
 
-    pack->insert(pack_comp_common, common);
-
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common, common->source, this, pack,
+        devicetracker->UpdateCommonDevice(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTLADSB Sensor");
 
     local_locker bssidlock(&(basedev->device_mutex));
-
-    // Get rid of our pseudopacket
-    delete(pack);
 
     std::string dn = "Airplane";
 
@@ -358,8 +349,6 @@ void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<TrackerElementM
     }
 }
 
-
-
 int Kis_RTLADSB_Phy::PacketHandler(CHAINCALL_PARMS) {
     Kis_RTLADSB_Phy *rtladsb = (Kis_RTLADSB_Phy *) auxdata;
 
@@ -387,7 +376,7 @@ int Kis_RTLADSB_Phy::PacketHandler(CHAINCALL_PARMS) {
         //std::fprintf(stderr, "RTLADSB: json? %s\n", json->json_string.c_str());
         //std::fprintf(stderr, "RTLADSB: json? %s\n", device_json);
         // Copy the JSON as the meta field for logging, if it's valid
-        if (rtladsb->json_to_rtl(device_json)) {
+        if (rtladsb->json_to_rtl(device_json, in_pack)) {
             packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtladsb->pack_comp_meta);
             if (metablob == NULL) {
                 metablob = new packet_metablob("RTLADSB", json->json_string);

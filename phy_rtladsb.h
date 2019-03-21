@@ -264,7 +264,7 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json);
+    bool json_to_rtl(Json::Value in_json, kis_packet *packet);
 
     bool is_adsb(Json::Value json);
 
