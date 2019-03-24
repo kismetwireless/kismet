@@ -38,11 +38,6 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
 
     gps_location = new kis_gps_packinfo();
     gps_last_location = new kis_gps_packinfo();
-
-    tracked_location =
-        std::make_shared<kis_tracked_location_triplet>(tracked_location_id);
-    tracked_last_location =
-        std::make_shared<kis_tracked_location_triplet>(tracked_last_location_id);
 }
 
 KisGps::~KisGps() {
@@ -224,26 +219,22 @@ double KisGps::GpsCalcRad(double lat) {
 }
 
 void KisGps::update_locations() {
-    if (gps_location != NULL) {
-        tracked_location->set_lat(gps_location->lat);
-        tracked_location->set_lon(gps_location->lon);
-        tracked_location->set_alt(gps_location->alt);
-        tracked_location->set_speed(gps_location->speed);
-        tracked_location->set_heading(gps_location->heading);
-        tracked_location->set_fix(gps_location->fix);
-        tracked_location->set_time_sec(gps_location->tv.tv_sec);
-        tracked_location->set_time_usec(gps_location->tv.tv_usec);
-    }
+    tracked_last_location->set_lat(gps_last_location->lat);
+    tracked_last_location->set_lon(gps_last_location->lon);
+    tracked_last_location->set_alt(gps_last_location->alt);
+    tracked_last_location->set_speed(gps_last_location->speed);
+    tracked_last_location->set_heading(gps_last_location->heading);
+    tracked_last_location->set_fix(gps_last_location->fix);
+    tracked_last_location->set_time_sec(gps_last_location->tv.tv_sec);
+    tracked_last_location->set_time_usec(gps_last_location->tv.tv_usec);
 
-    if (gps_last_location != NULL) {
-        tracked_last_location->set_lat(gps_last_location->lat);
-        tracked_last_location->set_lon(gps_last_location->lon);
-        tracked_last_location->set_alt(gps_last_location->alt);
-        tracked_last_location->set_speed(gps_last_location->speed);
-        tracked_last_location->set_heading(gps_last_location->heading);
-        tracked_last_location->set_fix(gps_last_location->fix);
-        tracked_last_location->set_time_sec(gps_last_location->tv.tv_sec);
-        tracked_last_location->set_time_usec(gps_last_location->tv.tv_usec);
-    }
+    tracked_location->set_lat(gps_location->lat);
+    tracked_location->set_lon(gps_location->lon);
+    tracked_location->set_alt(gps_location->alt);
+    tracked_location->set_speed(gps_location->speed);
+    tracked_location->set_heading(gps_location->heading);
+    tracked_location->set_fix(gps_location->fix);
+    tracked_location->set_time_sec(gps_location->tv.tv_sec);
+    tracked_location->set_time_usec(gps_location->tv.tv_usec);
 }
 

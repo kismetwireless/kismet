@@ -156,12 +156,8 @@ protected:
 
         RegisterField("kismet.gps.connected", "GPS device is connected", &gps_connected);
 
-        tracked_location_id = 
-            RegisterDynamicField("kismet.gps.location", "current location", &tracked_location);
-
-        tracked_last_location_id = 
-            RegisterDynamicField("kismet.gps.last_location",
-                    "previous location", &tracked_last_location);
+        RegisterField("kismet.gps.location", "current location", &tracked_location);
+        RegisterField("kismet.gps.last_location", "previous location", &tracked_last_location);
 
         RegisterField("kismet.gps.uuid", "UUID", &gps_uuid);
         RegisterField("kismet.gps.definition", "GPS definition", &gps_definition);
@@ -184,10 +180,7 @@ protected:
 
     std::shared_ptr<TrackerElementInt32> gps_priority;
 
-    int tracked_location_id;
     std::shared_ptr<kis_tracked_location_triplet> tracked_location;
-
-    int tracked_last_location_id;
     std::shared_ptr<kis_tracked_location_triplet> tracked_last_location;
 
     kis_gps_packinfo *gps_location;

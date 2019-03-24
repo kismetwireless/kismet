@@ -302,6 +302,12 @@ void GpsTracker::Httpd_CreateStreamResponse(
     }
 
     if (stripped == "/gps/all_gps") {
+        if (!httpd->HasValidSession(connection)) {
+            stream << "Login required\n";
+            connection->httpcode = 401;
+            return;
+        }
+
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, 
                 gps_instances_vec, NULL);
         return;
