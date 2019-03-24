@@ -219,7 +219,7 @@ $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,
 $(LOGTOOL_KISMETDB_STRIP):	log_tools/kismetdb_strip_packet_content.c.o log_tools/kismetdb_strip_packet_content.c.d
 	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) log_tools/kismetdb_strip_packet_content.c.o -lsqlite3
 
-$(LOGTOOL_KISMETDB_WIGLE):	$(LOGTOOL_KISMETDB_WIGLE_O) $(patsubst %c.o,%c.d,$(PSO))
+$(LOGTOOL_KISMETDB_WIGLE):	$(LOGTOOL_KISMETDB_WIGLE_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_WIGLE_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_WIGLE) $(LOGTOOL_KISMETDB_WIGLE_O) $(LIBS) $(CXXLIBS) -rdynamic
 
 $(LOGTOOL_KISMETDB_JSON):	$(LOGTOOL_KISMETDB_JSON_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_JSON_O))
@@ -573,10 +573,10 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
 
 %.c.d:  %.c $(PROTOBUF_C_H)
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) -MT $*.c.o $*.c > $*.c.d
 
 %.cc.d: %.cc $(PROTOBUF_CPP_H_TARGET)
-	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
+	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) -MT $*.cc.o $*.cc > $*.cc.d
 
 .PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h
 
@@ -586,6 +586,10 @@ include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))
 endif
+include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
+include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STRIP_O)))
+include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_JSON_O)))
+include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STATS_O)))
 
 .SUFFIXES: .c .cc .o 
 
