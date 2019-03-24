@@ -71,15 +71,17 @@ namespace kissqlite3 {
     class sqlite3_stmt_iterator {
         public:
             sqlite3_stmt_iterator(std::shared_ptr<sqlite3_stmt> stmt) :
-                stmt {stmt} { }
+                stmt {stmt},
+                end {false} { }
             sqlite3_stmt_iterator() :
                 end {true} { }
 
             sqlite3_stmt_iterator& operator++() {
                 auto r = sqlite3_step(stmt.get());
 
-                if (r != SQLITE_ROW)
+                if (r != SQLITE_ROW) {
                     end = true;
+                }
 
                 return *this;
             }
@@ -419,6 +421,17 @@ namespace kissqlite3 {
             if (r != SQLITE_OK)
                 throw std::runtime_error("Failed to prepare statement to execute: " + os.str() + " " +
                         std::string(sqlite3_errmsg(db)));
+        }
+
+        // Similar to begin, but throws an exception if the query cannot be run or has
+        // no results.
+        sqlite3_stmt_iterator run() {
+            auto r = begin();
+
+            if (r == end())
+                throw std::runtime_error("Could not execute query");
+
+            return r;
         }
 
         // Get the begin and 'end' iterators; the begin iterator executes the first step of
