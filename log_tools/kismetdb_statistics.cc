@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!skipclean) {
-        fmt::print("* Preparing input database '{}'...\n", in_fname);
+        fmt::print("* Cleaning database '{}'...\n", in_fname);
 
         sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
 
@@ -151,63 +151,70 @@ int main(int argc, char *argv[]) {
 
     try {
         // Get the version
-        int db_version = 0;
         auto version_query = _SELECT(db, "KISMET", {"db_version"});
-        auto version_ret = version_query.begin();
-        if (version_ret == version_query.end()) {
-            fmt::print(stderr, "ERROR:  Unable to fetch database version.\n");
-            sqlite3_close(db);
-            exit(1);
-        }
-        db_version = sqlite3_column_as<int>(*version_ret, 0);
+        auto version_ret = version_query.run();
+        auto db_version = sqlite3_column_as<int>(*version_ret, 0);
 
-        fmt::print("* KismetDB version: {}\n", in_fname, db_version);
+        fmt::print("  KismetDB version: {}\n", db_version);
         fmt::print("\n");
 
         // Get the total counts
-        unsigned long n_total_packets_db = 0L;
-        unsigned long n_packets_with_loc = 0L;
         auto npackets_q = _SELECT(db, "packets", 
                 {"count(*), sum(case when (lat != 0 and lon != 0) then 1 else 0 end)"});
-        auto npackets_ret = npackets_q.begin();
-        if (npackets_ret == npackets_q.end()) {
-            fmt::print(stderr, "ERROR:  Unable to fetch packet count.\n");
-            sqlite3_close(db);
-            exit(1);
-        }
-        n_total_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
-        n_packets_with_loc = sqlite3_column_as<unsigned long>(*npackets_ret, 1);
+        auto npackets_ret = npackets_q.run();
+        auto n_total_packets_db = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
+        auto n_packets_with_loc = sqlite3_column_as<unsigned long>(*npackets_ret, 1);
 
-        unsigned long n_total_data_db = 0L;
-        unsigned long n_data_with_loc = 0L;
         auto ndata_q = _SELECT(db, "data",
                 {"count(*), sum(case when(lat != 0 and lon != 0) then 1 else 0 end)"});
-        auto ndata_ret = ndata_q.begin();
-        if (ndata_ret == ndata_q.end()) {
-            fmt::print(stderr, "ERROR: Unable to fetch data count.\n");
-            sqlite3_close(db);
-            exit(1);
-        }
-        n_total_data_db = sqlite3_column_as<unsigned long>(*ndata_ret, 0);
-        n_data_with_loc = sqlite3_column_as<unsigned long>(*ndata_ret, 1);
+        auto ndata_ret = ndata_q.run();
+        auto n_total_data_db = sqlite3_column_as<unsigned long>(*ndata_ret, 0);
+        auto n_data_with_loc = sqlite3_column_as<unsigned long>(*ndata_ret, 1);
 
         fmt::print("  Packets: {}\n", n_total_packets_db);
         fmt::print("  Non-packet data: {}\n", n_total_data_db);
+        fmt::print("\n");
+       
+        auto ndevices_q = _SELECT(db, "devices", {"count(*)", "min(first_time)", "max(last_time)"});
+        auto ndevices_ret = ndevices_q.run();
+        auto n_total_devices = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
+        auto min_time = sqlite3_column_as<time_t>(*ndevices_ret, 1);
+        auto max_time = sqlite3_column_as<time_t>(*ndevices_ret, 2);
+
+        auto min_tm = *std::localtime(&min_time);
+        auto max_tm = *std::localtime(&max_time);
+
+        fmt::print("  Devices: {}\n", n_total_devices);
+        fmt::print("  Devices seen between: {} ({}) to {} ({})\n",
+                std::put_time(&min_tm, "%Y-%m-%d %H:%M:%S"), min_time,
+                std::put_time(&max_tm, "%Y-%m-%d %H:%M:%S"), max_time);
+
         fmt::print("  Packets with location: {}\n", n_packets_with_loc);
         fmt::print("  Data with location: {}\n", n_data_with_loc);
         fmt::print("\n");
-       
-        unsigned long n_total_devices;
-        auto ndevices_q = _SELECT(db, "devices", {"count(*)"});
-        auto ndevices_ret = ndevices_q.begin();
-        if (ndevices_ret == ndevices_q.end()) {
-            fmt::print(stderr, "ERROR:  Unable to fetch device count.\n");
+
+        auto n_sources_q = _SELECT(db, "datasources",
+                {"count(*)"});
+        auto n_sources_q_ret = n_sources_q.run();
+        fmt::print("  {} datasources\n", sqlite3_column_as<unsigned int>(*n_sources_q_ret, 0));
+        
+        auto sources_q = _SELECT(db, "datasources", 
+                {"uuid", "typestring", "definition", "name", "interface"});
+        auto sources_q_ret = sources_q.begin();
+        if (sources_q_ret == sources_q.end()) {
+            fmt::print(stderr, "ERROR:  Unable to fetch datasource count.\n");
             sqlite3_close(db);
             exit(1);
         }
-        n_total_devices = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
 
-        fmt::print("  Devices: {}\n", n_total_devices);
+        for (auto i = sources_q.begin(); i != sources_q.end(); ++i) {
+        // for (auto i : sources_q) {
+            fmt::print("    {:<16} {:<16} {} {}\n",
+                    sqlite3_column_as<std::string>(*i, 3),
+                    sqlite3_column_as<std::string>(*i, 4),
+                    sqlite3_column_as<std::string>(*i, 0),
+                    sqlite3_column_as<std::string>(*i, 1));
+        }
 
     } catch (const std::exception& e) {
         fmt::print(stderr, "ERROR:  Could not get database information from '{}': {}\n", in_fname, e.what());
