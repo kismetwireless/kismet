@@ -213,6 +213,12 @@ version.c:	FORCE
 	@{ $(GIT) rev-parse --short HEAD 2>/dev/null || echo "non-git-release"; } | awk ' BEGIN {print "#include \"version.h\""} {print "const char *VERSION_GIT_COMMIT = \"" $$0"\";"} END {}' > version.c
 	@date | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
 
+# Force remove version.c.o since it's left behind owned by root as part of suidinstall, which screws
+# up a lot of builds for people; we assume we can `rm -f` it
+version.c.o : version.c version.c.d
+	@rm -f version.c.o
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c version.c -o version.c.o
+
 $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO)) version.c.o
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
