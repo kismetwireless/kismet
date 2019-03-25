@@ -38,15 +38,18 @@ import time
 import uuid
 import csv
 
-# Ugly awful exit crash for import errors
+# Set a flag and throw an error out the protocol if modes is not available
+have_pymodes = False
 try:
     import pyModeS as pms
+    have_pymodes = True
 except ImportError:
+    # Spam an error to the console and pick up an error later during open
     print("Could not import pyModeS; please install it either from a system package or via pip")
-    sys.exit(0)
 
-import kismetexternal
+import KismetCaptureRtladsb.kismetexternal
 
+have_csv = False
 try:
     csv_path = os.path.join(os.environ["KISMET_ETC"],"kismet_aircraft_db.csv")
     csv_file = csv.reader(open(csv_path, "r"), delimiter=",")
@@ -55,9 +58,11 @@ try:
     for row in csv_file:
         airplanes.append(row)
 
+    have_csv = True
+
 except:
+    # Spam an error to the console and pick up an error later during open
     print("Couldn't find the airplane csv file. If this is a drone, set KISMET_ETC in your path")
-    sys.exit(0)
 
 try:
     import paho.mqtt.client as mqtt
@@ -380,6 +385,18 @@ class KismetRtladsb(object):
         if not source[:8] == "rtladsb-":
             ret["success"] = False
             ret["message"] = "Could not parse which rtlsdr device to use"
+            return ret
+
+        global have_pymodes
+        if not have_pymodes:
+            ret["success"] = False
+            ret["message"] = "PyModeS not installed, install it via pip or your distribution"
+            return ret
+
+        global have_csv
+        if not have_csv:
+            ret["success"] = False
+            ret["message"] = "Could not find the kismet_aircraft_db.csv file, if running as a drone, be sure to set the KISMET_ETC variable."
             return ret
 
         intnum = -1
