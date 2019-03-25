@@ -127,7 +127,7 @@ LOGTOOL_KISMETDB_JSON_O = \
 LOGTOOL_KISMETDB_STATS = log_tools/kismetdb_statistics
 LOGTOOL_KISMETDB_STATS_O = \
 	log_tools/kismetdb_statistics.cc.o \
-	sqlite3_cpp11.cc.o
+	sqlite3_cpp11.cc.o jsoncpp.cc.o
 
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \

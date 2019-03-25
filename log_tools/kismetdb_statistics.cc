@@ -189,17 +189,13 @@ int main(int argc, char *argv[]) {
                 std::put_time(&min_tm, "%Y-%m-%d %H:%M:%S"), min_time,
                 std::put_time(&max_tm, "%Y-%m-%d %H:%M:%S"), max_time);
 
-        fmt::print("  Packets with location: {}\n", n_packets_with_loc);
-        fmt::print("  Data with location: {}\n", n_data_with_loc);
-        fmt::print("\n");
-
         auto n_sources_q = _SELECT(db, "datasources",
                 {"count(*)"});
         auto n_sources_q_ret = n_sources_q.run();
         fmt::print("  {} datasources\n", sqlite3_column_as<unsigned int>(*n_sources_q_ret, 0));
         
         auto sources_q = _SELECT(db, "datasources", 
-                {"uuid", "typestring", "definition", "name", "interface"});
+                {"uuid", "typestring", "definition", "name", "interface", "json"});
         auto sources_q_ret = sources_q.begin();
         if (sources_q_ret == sources_q.end()) {
             fmt::print(stderr, "ERROR:  Unable to fetch datasource count.\n");
@@ -214,7 +210,89 @@ int main(int argc, char *argv[]) {
                     sqlite3_column_as<std::string>(*i, 4),
                     sqlite3_column_as<std::string>(*i, 0),
                     sqlite3_column_as<std::string>(*i, 1));
+
+            Json::Value json;
+            std::stringstream ss(sqlite3_column_as<std::string>(*i, 5));
+
+            ss >> json;
+
+            // Pull some data out of the JSON records
+            fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].asString());
+            fmt::print("      Packets: {}\n", json["kismet.datasource.num_packets"].asDouble());
+
+            if (json["kismet.datasource.hopping"].asInt()) {
+                auto rate = json["kismet.datasource.hop_rate"].asDouble();
+
+                if (rate >= 1) {
+                    fmt::print("      Hop rate: {:f}/second\n", rate);
+                } else if (rate / 60.0f < 60) {
+                    fmt::print("      Hop rate: {:f}/minute\n", rate / 60.0f);
+                } else {
+                    fmt::print("      Hop rate: {:f} seconds\n", rate / 60.0f);
+                }
+
+                std::stringstream chan_ss;
+                bool comma = false;
+                for (auto c : json["kismet.datasource.hop_channels"]) {
+                    if (comma)
+                        chan_ss << ", ";
+
+                    comma = true;
+
+                    chan_ss << c.asString();
+                }
+
+                if (chan_ss.str().length()) {
+                    fmt::print("      Hop channels: {}\n", chan_ss.str());
+                }
+            } else {
+                auto chan = json["kismet.datasource.channel"].asString();
+                if (chan.length()) {
+                    fmt::print("      Channel: {}", chan);
+                }
+            }
         }
+        fmt::print("\n");
+
+        auto range_q = _SELECT(db, "devices",
+                {"min(min_lat)", "min(min_lon)", "max(max_lat)", "max(max_lon)"},
+                _WHERE("min_lat", NEQ, 0, 
+                    AND, 
+                    "min_lon", NEQ, 0, 
+                    AND,
+                    "max_lat", NEQ, 0,
+                    AND,
+                    "max_lon", NEQ, 0));
+
+        double min_lat, min_lon, max_lat, max_lon;
+
+        try {
+            auto range_q_ret = range_q.run();
+
+            min_lat = sqlite3_column_as<double>(*range_q_ret, 0);
+            min_lon = sqlite3_column_as<double>(*range_q_ret, 1);
+            max_lat = sqlite3_column_as<double>(*range_q_ret, 2);
+            max_lon = sqlite3_column_as<double>(*range_q_ret, 3);
+
+        } catch (const std::exception& e) {
+            min_lat = 0;
+            max_lat = 0;
+            min_lon = 0;
+            max_lon = 0;
+        }
+
+        if (min_lat == 0 || min_lon == 0 || max_lat == 0 || max_lon == 0) {
+            fmt::print("  Location data: None\n");
+        } else {
+            auto diag_distance = distance_meters(min_lat, min_lon, max_lat, max_lon) / 1000.0f;
+            fmt::print("  Bounding location: {:f},{:f} {:f},{:f} (~{:f} Km)\n",
+                    min_lat, min_lon, max_lat, max_lon, diag_distance);
+        }
+
+        fmt::print("  Packets with location: {}\n", n_packets_with_loc);
+        fmt::print("  Data with location: {}\n", n_data_with_loc);
+        fmt::print("\n");
+
 
     } catch (const std::exception& e) {
         fmt::print(stderr, "ERROR:  Could not get database information from '{}': {}\n", in_fname, e.what());
