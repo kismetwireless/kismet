@@ -176,6 +176,10 @@ protected:
     kis_recursive_timed_mutex transaction_mutex;
     int transaction_timer;
 
+    // Packet time limit
+    unsigned int packet_timeout;
+    int packet_timeout_timer;
+
     // Packet clearing API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,

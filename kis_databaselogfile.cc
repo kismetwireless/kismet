@@ -78,6 +78,87 @@ KisDatabaseLogfile::KisDatabaseLogfile():
 
     db_enabled = false;
 
+    Bind_Httpd_Server();
+}
+
+KisDatabaseLogfile::~KisDatabaseLogfile() {
+    auto messagebus = Globalreg::FetchGlobalAs<MessageBus>();
+    if (messagebus != nullptr)
+        messagebus->RemoveClient(this);
+
+    Log_Close();
+}
+
+void KisDatabaseLogfile::Deferred_Startup() {
+    gpstracker = 
+        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
+}
+
+void KisDatabaseLogfile::Deferred_Shutdown() {
+
+}
+
+bool KisDatabaseLogfile::Log_Open(std::string in_path) {
+    local_locker dbl(&ds_mutex);
+
+    auto timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+
+    bool dbr = Database_Open(in_path);
+
+    if (!dbr) {
+        _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
+                "and that you have write permissions to it.", in_path);
+        Globalreg::globalreg->fatal_condition = true;
+        return false;
+    }
+
+    dbr = Database_UpgradeDB();
+
+    if (!dbr) {
+        _MSG_FATAL("Unable to update existing KismetDB log at {}", in_path);
+        Globalreg::globalreg->fatal_condition = true;
+        return false;
+    }
+
+    set_int_log_path(in_path);
+    set_int_log_open(true);
+
+	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
+
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_packets", true)) {
+        _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
+        std::shared_ptr<Packetchain> packetchain =
+            Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+
+        packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
+                CHAINPOS_LOGGING, -100);
+    }
+   
+    packet_timeout =
+        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_packet_timeout", 0);
+
+    if (packet_timeout != 0) {
+        packet_timeout_timer = 
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+                    [this](int) -> int {
+
+                    auto pkt_delete = 
+                        fmt::format("DELETE FROM packets WHERE ts_sec < {}",
+                                time(0) - packet_timeout);
+                    auto data_delete =
+                        fmt::format("DELETE FROM data WHERE ts_sec < {}",
+                                time(0) - packet_timeout);
+
+                    sqlite3_exec(db, pkt_delete.c_str(), NULL, NULL, NULL);
+                    sqlite3_exec(db, data_delete.c_str(), NULL, NULL, NULL);
+
+                    return 1;
+                    });
+    } else {
+        packet_timeout_timer = -1;
+    }
+
     packet_drop_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", true,
                 [this](std::ostream& stream, const std::string& uri,
@@ -201,59 +282,6 @@ KisDatabaseLogfile::KisDatabaseLogfile():
         messagebus->RegisterClient(this, MSGFLAG_ALL);
     }
 
-    Bind_Httpd_Server();
-}
-
-KisDatabaseLogfile::~KisDatabaseLogfile() {
-    auto messagebus = Globalreg::FetchGlobalAs<MessageBus>();
-    if (messagebus != nullptr)
-        messagebus->RemoveClient(this);
-
-    Log_Close();
-}
-
-void KisDatabaseLogfile::Deferred_Startup() {
-    gpstracker = 
-        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
-}
-
-void KisDatabaseLogfile::Deferred_Shutdown() {
-
-}
-
-bool KisDatabaseLogfile::Log_Open(std::string in_path) {
-    local_locker dbl(&ds_mutex);
-
-    bool dbr = Database_Open(in_path);
-
-    if (!dbr) {
-        _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
-                "and that you have write permissions to it.", in_path);
-        Globalreg::globalreg->fatal_condition = true;
-        return false;
-    }
-
-    dbr = Database_UpgradeDB();
-
-    if (!dbr) {
-        _MSG_FATAL("Unable to update existing KismetDB log at {}", in_path);
-        Globalreg::globalreg->fatal_condition = true;
-        return false;
-    }
-
-    set_int_log_path(in_path);
-    set_int_log_open(true);
-
-	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
-
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_packets", true)) {
-        _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
-        std::shared_ptr<Packetchain> packetchain =
-            Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
-
-        packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
-                CHAINPOS_LOGGING, -100);
-    }
 
     db_enabled = true;
 
@@ -262,8 +290,6 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     // Go into transactional mode where we only commit every 10 seconds
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
     transaction_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
@@ -288,11 +314,13 @@ void KisDatabaseLogfile::Log_Close() {
 
     set_int_log_open(false);
 
-    // Kill the timer
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
-    if (timetracker != NULL)
+    // Kill the timers
+    auto timetracker = 
+        Globalreg::FetchGlobalAs<Timetracker>();
+    if (timetracker != NULL) {
         timetracker->RemoveTimer(transaction_timer);
+        timetracker->RemoveTimer(packet_timeout_timer);
+    }
 
     // End the transaction
     {
@@ -302,7 +330,7 @@ void KisDatabaseLogfile::Log_Close() {
     db_enabled = false;
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::FetchGlobalAs<Packetchain>();
     if (packetchain != NULL) 
         packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
 
