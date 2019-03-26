@@ -738,7 +738,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    Kis_Net_Httpd::create_httpd(globalregistry);
+    Kis_Net_Httpd::create_httpd();
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);

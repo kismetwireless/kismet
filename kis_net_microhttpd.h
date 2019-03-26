@@ -616,15 +616,15 @@ class Kis_Net_Httpd : public LifetimeGlobal {
 public:
     static std::string global_name() { return "HTTPD_SERVER"; }
 
-    static std::shared_ptr<Kis_Net_Httpd> create_httpd(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Kis_Net_Httpd> mon(new Kis_Net_Httpd(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<Kis_Net_Httpd> create_httpd() {
+        std::shared_ptr<Kis_Net_Httpd> mon(new Kis_Net_Httpd());
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 
 private:
-    Kis_Net_Httpd(GlobalRegistry *in_globalreg);
+    Kis_Net_Httpd();
 
 public:
     virtual ~Kis_Net_Httpd();
@@ -681,8 +681,6 @@ public:
             const char *reason);
 
 protected:
-    GlobalRegistry *globalreg;
-
     unsigned int http_port;
 
     bool http_serve_files, http_serve_user_files;

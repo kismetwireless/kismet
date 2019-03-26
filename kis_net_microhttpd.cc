@@ -126,28 +126,26 @@ std::shared_ptr<TrackerElement> kishttpd::SummarizeWithStructured(std::shared_pt
     return SummarizeTrackerElement(in_data, summary_vec, rename_map);
 }
 
-Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
-    globalreg = in_globalreg;
-
+Kis_Net_Httpd::Kis_Net_Httpd() {
     running = false;
 
     use_ssl = false;
     cert_pem = NULL;
     cert_key = NULL;
 
-    if (globalreg->kismet_config == NULL) {
+    if (Globalreg::globalreg->kismet_config == NULL) {
         fprintf(stderr, "FATAL OOPS: Kis_Net_Httpd called without kismet_config\n");
         exit(1);
     }
 
-    http_port = globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
+    http_port = Globalreg::globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
 
-    uri_prefix = globalreg->kismet_config->FetchOptDfl("httpd_uri_prefix", "");
+    uri_prefix = Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_uri_prefix", "");
 
     std::string http_data_dir, http_aux_data_dir;
 
-    http_data_dir = globalreg->kismet_config->FetchOpt("httpd_home");
-    http_aux_data_dir = globalreg->kismet_config->FetchOpt("httpd_user_home");
+    http_data_dir = Globalreg::globalreg->kismet_config->FetchOpt("httpd_home");
+    http_aux_data_dir = Globalreg::globalreg->kismet_config->FetchOpt("httpd_user_home");
 
     if (http_data_dir == "") {
         _MSG("No httpd_home defined in kismet.conf, disabling static file serving. "
@@ -156,7 +154,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         http_serve_files = false;
     } else {
         http_data_dir = 
-            globalreg->kismet_config->ExpandLogPath(http_data_dir, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->ExpandLogPath(http_data_dir, "", "", 0, 1);
         _MSG("Serving static content from '" + http_data_dir + "'",
                 MSGFLAG_INFO);
         http_serve_files = true;
@@ -171,7 +169,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
         http_serve_user_files = false;
     } else {
         http_aux_data_dir = 
-            globalreg->kismet_config->ExpandLogPath(http_aux_data_dir, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->ExpandLogPath(http_aux_data_dir, "", "", 0, 1);
         _MSG("Serving static userdir content from '" + http_aux_data_dir + "'",
                 MSGFLAG_INFO);
         http_serve_user_files = true;
@@ -185,11 +183,11 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     }
 
     session_timeout = 
-        globalreg->kismet_config->FetchOptUInt("httpd_session_timeout", 7200);
+        Globalreg::globalreg->kismet_config->FetchOptUInt("httpd_session_timeout", 7200);
 
-    use_ssl = globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
-    pem_path = globalreg->kismet_config->FetchOpt("httpd_ssl_cert");
-    key_path = globalreg->kismet_config->FetchOpt("httpd_ssl_key");
+    use_ssl = Globalreg::globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
+    pem_path = Globalreg::globalreg->kismet_config->FetchOpt("httpd_ssl_cert");
+    key_path = Globalreg::globalreg->kismet_config->FetchOpt("httpd_ssl_key");
 
     RegisterMimeType("html", "text/html");
     RegisterMimeType("svg", "image/svg+xml");
@@ -201,7 +199,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     RegisterMimeType("ekjson", "application/json");
     RegisterMimeType("pcap", "application/vnd.tcpdump.pcap");
 
-    std::vector<std::string> mimeopts = globalreg->kismet_config->FetchOptVec("httpd_mime");
+    std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->FetchOptVec("httpd_mime");
     for (unsigned int i = 0; i < mimeopts.size(); i++) {
         std::vector<std::string> mime_comps = StrTokenize(mimeopts[i], ":");
 
@@ -220,13 +218,13 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
     store_sessions = false;
     session_db = NULL;
 
-    sessiondb_file = globalreg->kismet_config->FetchOpt("httpd_session_db");
+    sessiondb_file = Globalreg::globalreg->kismet_config->FetchOpt("httpd_session_db");
 
     if (sessiondb_file != "") {
         sessiondb_file = 
-            globalreg->kismet_config->ExpandLogPath(sessiondb_file, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->ExpandLogPath(sessiondb_file, "", "", 0, 1);
 
-        session_db = new ConfigFile(globalreg);
+        session_db = new ConfigFile(Globalreg::globalreg);
 
         store_sessions = true;
 
@@ -262,8 +260,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
                 }
 
                 // Ignore old sessions
-                if (sess->session_created + sess->session_lifetime < 
-                        globalreg->timestamp.tv_sec) 
+                if (sess->session_created + sess->session_lifetime < time(0)) 
                     continue;
 
                 // Don't use AddSession because we don't want to trigger a write, yet
@@ -276,7 +273,7 @@ Kis_Net_Httpd::Kis_Net_Httpd(GlobalRegistry *in_globalreg) {
 Kis_Net_Httpd::~Kis_Net_Httpd() {
     local_locker lock(&controller_mutex);
 
-    globalreg->RemoveGlobal("HTTPD_SERVER");
+    Globalreg::globalreg->RemoveGlobal("HTTPD_SERVER");
 
     // Wipe out all handlers
     handler_vec.erase(handler_vec.begin(), handler_vec.end());
@@ -394,21 +391,21 @@ int Kis_Net_Httpd::StartHttpd() {
         if (pem_path == "") {
             _MSG("SSL requested but missing httpd_ssl_cert= configuration option.",
                     MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
             return -1;
         }
 
         if (key_path == "") {
             _MSG("SSL requested but missing httpd_ssl_key= configuration option.",
                     MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
             return -1;
         }
 
         pem_path =
-            globalreg->kismet_config->ExpandLogPath(pem_path, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->ExpandLogPath(pem_path, "", "", 0, 1);
         key_path =
-            globalreg->kismet_config->ExpandLogPath(key_path, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->ExpandLogPath(key_path, "", "", 0, 1);
 
         cert_pem = read_ssl_file(pem_path);
         cert_key = read_ssl_file(key_path);
@@ -416,7 +413,7 @@ int Kis_Net_Httpd::StartHttpd() {
         if (cert_pem == NULL || cert_key == NULL) {
             _MSG("SSL requested but unable to load cert and key files, check your "
                     "configuration!", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -440,7 +437,7 @@ int Kis_Net_Httpd::StartHttpd() {
     if (microhttpd == NULL) {
         _MSG("Failed to start http server on port " + UIntToString(http_port),
                 MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
+        Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -490,9 +487,8 @@ void Kis_Net_Httpd::MHD_Panic(void *cls, const char *file __attribute__((unused)
 
     httpd->running = false;
 
-    httpd->globalreg->fatal_condition = 1;
-    httpd->globalreg->messagebus->InjectMessage("Unable to continue after "
-            "MicroHTTPD fatal error: " + std::string(reason), MSGFLAG_FATAL);
+    Globalreg::globalreg->fatal_condition = 1;
+    _MSG_FATAL("Unable to continue after MicroHTTPD fatal issue: {}", reason);
 
     // Null out the microhttpd since it can't keep operating and can't be
     // trusted to close down properly
@@ -559,7 +555,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     //
     Kis_Net_Httpd *kishttpd = (Kis_Net_Httpd *) cls;
 
-    if (kishttpd->globalreg->spindown || kishttpd->globalreg->fatal_condition)
+    if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition)
         return MHD_NO;
     
     // Update the session records if one exists
@@ -577,13 +573,12 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         if (si != kishttpd->session_map.end()) {
             // Delete if the session has expired and don't assign as a session
             if (si->second->session_lifetime != 0 &&
-                    si->second->session_seen + si->second->session_lifetime < 
-                    kishttpd->globalreg->timestamp.tv_sec) {
+                    si->second->session_seen + si->second->session_lifetime < time(0)) {
                 kishttpd->DelSession(si);
             } else {
                 // Update the last seen, assign as the current session
                 s = si->second;
-                s->session_seen = kishttpd->globalreg->timestamp.tv_sec;
+                s->session_seen = time(0);
             }
         }
     } 
@@ -1116,7 +1111,7 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
             }
 
             // Is the session still valid?
-            if (globalreg->timestamp.tv_sec < s->session_created + s->session_lifetime) {
+            if (time(0) < s->session_created + s->session_lifetime) {
                 connection->session = s;
                 return true;
             } else {
@@ -1198,7 +1193,7 @@ Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
 
     s.reset(new Kis_Net_Httpd_Session());
     s->sessionid = cookie.str();
-    s->session_created = globalreg->timestamp.tv_sec;
+    s->session_created = time(0);
     s->session_seen = s->session_created;
     s->session_lifetime = in_lifetime;
 
