@@ -337,7 +337,7 @@ namespace Globalreg {
     }
 
     template<typename T>
-    std::shared_ptr<T> FetchGLobalAs() {
+    std::shared_ptr<T> FetchGlobalAs() {
         return FetchGlobalAs<T>(globalreg, T::global_name());
     }
 
