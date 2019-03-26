@@ -195,15 +195,17 @@ KisDatabaseLogfile::KisDatabaseLogfile():
         packet_mac_filter->set_filter(m, filter_toks[0], filter_toks[1], filter_opt);
     }
 
-    auto messagebus = 
-        Globalreg::FetchMandatoryGlobalAs<MessageBus>();
-    messagebus->RegisterClient(this, MSGFLAG_ALL);
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_messages", true)) {
+        auto messagebus = 
+            Globalreg::FetchMandatoryGlobalAs<MessageBus>();
+        messagebus->RegisterClient(this, MSGFLAG_ALL);
+    }
 
     Bind_Httpd_Server();
 }
 
 KisDatabaseLogfile::~KisDatabaseLogfile() {
-    auto messagebus = Globalreg::FetchGLobalAs<MessageBus>();
+    auto messagebus = Globalreg::FetchGlobalAs<MessageBus>();
     if (messagebus != nullptr)
         messagebus->RemoveClient(this);
 
