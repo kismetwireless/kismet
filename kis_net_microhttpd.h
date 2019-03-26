@@ -682,6 +682,7 @@ public:
 
 protected:
     unsigned int http_port;
+    std::string http_host;
 
     bool http_serve_files, http_serve_user_files;
 

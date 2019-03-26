@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include "globalregistry.h"
 #include "messagebus.h"
@@ -139,6 +140,11 @@ Kis_Net_Httpd::Kis_Net_Httpd() {
     }
 
     http_port = Globalreg::globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
+    http_host = Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_bind_address", "");
+
+    if (http_host == "") {
+        _MSG_INFO("Kismet will only listen to HTTP requests on {}:{}", http_port, http_host);
+    }
 
     uri_prefix = Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_uri_prefix", "");
 
@@ -418,16 +424,35 @@ int Kis_Net_Httpd::StartHttpd() {
         }
     }
 
+    struct sockaddr_in listen_addr;
+
+    memset(&listen_addr, 0, sizeof(struct sockaddr_in));
+    listen_addr.sin_family = AF_INET;
+    listen_addr.sin_port = htons(http_port);
+
+    if (http_host == "") {
+        listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    } else {
+        if (inet_pton(AF_INET, http_host.c_str(), &(listen_addr.sin_addr.s_addr)) == 0) {
+            _MSG_FATAL("httpd_bind_address provided, but couldn't parse {} as an address, expected an "
+                    "IP address of a local interface in a.b.c.d format.", http_host);
+            Globalreg::globalreg->fatal_condition = 1;
+            return -1;
+        }
+    }
 
     if (!use_ssl) {
         microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION,
                 http_port, NULL, NULL, 
                 &http_request_handler, this, 
                 MHD_OPTION_NOTIFY_COMPLETED, &http_request_completed, NULL,
+                MHD_OPTION_SOCK_ADDR, (struct sockaddr *) &listen_addr, 
                 MHD_OPTION_END); 
     } else {
         microhttpd = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION | MHD_USE_SSL,
                 http_port, NULL, NULL, &http_request_handler, this, 
+                MHD_OPTION_NOTIFY_COMPLETED, &http_request_completed, NULL,
+                MHD_OPTION_SOCK_ADDR, (struct sockaddr *) &listen_addr, 
                 MHD_OPTION_HTTPS_MEM_KEY, cert_key,
                 MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
                 MHD_OPTION_END); 
@@ -445,7 +470,10 @@ int Kis_Net_Httpd::StartHttpd() {
 
     running = true;
 
-    _MSG("Started http server on port " + UIntToString(http_port), MSGFLAG_INFO);
+    if (http_host == "")
+        _MSG_INFO("Started http server on port {}", http_port);
+    else
+        _MSG_INFO("Started http server on {}:{}", http_host, http_port);
 
     return 1;
 }
