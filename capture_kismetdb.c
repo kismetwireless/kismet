@@ -48,13 +48,17 @@ typedef struct {
     sqlite3 *db;
     char *dbname;
 
+    /* Optional filters for sub-sources */
+    char *sub_uuid;
+    int sub_dlt;
+
     int realtime;
     struct timeval last_ts;
 
     unsigned int pps_throttle;
 } local_pcap_t;
 
-// Version callback
+/* Version callback */
 int sqlite_version_cb(void *ver, int argc, char **data, char **) {
     if (argc != 1) {
         *((unsigned int *) ver) = 0;
@@ -354,10 +358,10 @@ void capture_thread(kis_capture_handler_t *caph) {
 
 int main(int argc, char *argv[]) {
     local_pcap_t local_pcap = {
-        .pd = NULL,
-        .pcapfname = NULL,
-        .datalink_type = -1,
-        .override_dlt = -1,
+        .db = NULL,
+        .dbname = NULL,
+        .sub_uuid = NULL,
+        .sub_dlt = 0,
         .realtime = 0,
         .last_ts.tv_sec = 0,
         .last_ts.tv_usec = 0,
