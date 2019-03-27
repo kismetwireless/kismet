@@ -185,8 +185,10 @@ unsigned int KisDatabase::Database_GetDBVersion() {
 
     r = sqlite3_exec(db, sql.c_str(),
             [] (void *ver, int argc, char **data, char **) -> int {
-                if (argc != 1)
+                if (argc != 1) {
                     *((unsigned int *) ver) = 0;
+                    return 0;
+                }
 
                 if (sscanf(data[0], "%u", (unsigned int *) ver) != 1) {
                     *((unsigned int *) ver) = 0;
