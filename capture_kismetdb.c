@@ -46,13 +46,27 @@
 
 typedef struct {
     sqlite3 *db;
-    char *pcapfname;
+    char *dbname;
 
     int realtime;
     struct timeval last_ts;
 
     unsigned int pps_throttle;
 } local_pcap_t;
+
+// Version callback
+int sqlite_version_cb(void *ver, int argc, char **data, char **) {
+    if (argc != 1) {
+        *((unsigned int *) ver) = 0;
+        return 0;
+    }
+
+    if (sscanf(data[0], "%u", (unsigned int *) ver) != 1) {
+        *((unsigned int *) ver) = 0;
+    }
+
+    return 0;
+}
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, KismetExternal__Command *frame,
@@ -74,7 +88,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int sql_r;
 
     const char *kismet_version_sql = 
-        "select version from kismet;";
+        "SELECT db_version FROM KISMET";
+    unsigned int dbversion = 0;
+    char *sErrMsg = NULL;
 
     *ret_spectrum = NULL;
 
@@ -105,6 +121,104 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     sql_r = sqlite3_open(dbname, &db);
     if (sql_r) {
         snprintf(msg, STATUS_MAX, "Unable to open kismetdb file: %s", sqlite3_errmsg(db));
+        return 0;
+    }
+
+    sql_r = sqlite3_exec(db, kismet_version_sql, sqlite_version_cb, &dbversion, &sErrMsg);
+    if (sql_r != SQLITE_OK || dbversion == 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find kismetdb version in database %s: %s", dbname, sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 0;
+    }
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strdup(placeholder);
+    } else {
+        /* Kluge a UUID out of the name */
+        snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+                adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                    strlen("kismet_cap_kismetdb")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) dbname, 
+                    strlen(dbname)) & 0xFFFFFFFF);
+        *uuid = strdup(errstr);
+    }
+
+    sqlite3_close(db);
+
+    return 1;
+}
+
+int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
+        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
+        cf_params_interface_t **ret_interface, 
+        cf_params_spectrum_t **ret_spectrum) {
+    char *placeholder = NULL;
+    int placeholder_len;
+
+    char *dbname = NULL;
+
+    struct stat sbuf;
+
+    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+
+    char errstr[PCAP_ERRBUF_SIZE] = "";
+
+    /* pcapfile does not support channel ops */
+    *ret_interface = cf_params_interface_new();
+    *ret_spectrum = NULL;
+
+    *uuid = NULL;
+    *dlt = 0;
+
+    int sql_r;
+
+    const char *kismet_version_sql = 
+        "SELECT db_version FROM KISMET";
+    unsigned int dbversion = 0;
+    char *sErrMsg = NULL;
+
+    /* Clean up any old state */
+    if (local_pcap->dbname != NULL) {
+        free(local_pcap->dbname);
+        local_pcap->dbname = NULL;
+    }
+
+    if (local_pcap->db != NULL) {
+        sqlite3_close(local_pcap->db);
+        local_pcap->db = NULL;
+    }
+
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        /* What was not an error during probe definitely is an error during open */
+        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition");
+        return -1;
+    }
+
+    dbname = strndup(placeholder, placeholder_len);
+
+    local_pcap->dbname = dbname;
+
+    if (stat(dbname, &sbuf) < 0) {
+        snprintf(msg, STATUS_MAX, "Could not stat() file '%s', something is very odd", dbname);
+        return -1;
+    }
+
+    if (!S_ISREG(sbuf.st_mode)) {
+        snprintf(msg, STATUS_MAX, "Kismetdb '%s' is not a normal file", dbname);
+        return -1;
+    }
+
+    sql_r = sqlite3_open(dbname, &local_pcap->db);
+    if (sql_r) {
+        snprintf(msg, STATUS_MAX, "Unable to open kismetdb file: %s", sqlite3_errmsg(local_pcap->db));
+        return -1;
+    }
+
+    sql_r = sqlite3_exec(local_pcap->db, kismet_version_sql, sqlite_version_cb, &dbversion, &sErrMsg);
+    if (sql_r != SQLITE_OK || dbversion == 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find kismetdb version in database %s: %s", dbname, sqlite3_errmsg(local_pcap->db));
+        sqlite3_close(local_pcap->db);
+        local_pcap->db = NULL;
         return -1;
     }
 
@@ -120,85 +234,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         *uuid = strdup(errstr);
     }
 
-    return 1;
-}
-
-int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
-        char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
-        cf_params_interface_t **ret_interface, 
-        cf_params_spectrum_t **ret_spectrum) {
-    char *placeholder = NULL;
-    int placeholder_len;
-
-    char *pcapfname = NULL;
-
-    struct stat sbuf;
-
-    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
-
-    char errstr[PCAP_ERRBUF_SIZE] = "";
-
-    /* pcapfile does not support channel ops */
-    *ret_interface = cf_params_interface_new();
-    *ret_spectrum = NULL;
-
-    *uuid = NULL;
-    *dlt = 0;
-
-    /* Clean up any old state */
-    if (local_pcap->pcapfname != NULL) {
-        free(local_pcap->pcapfname);
-        local_pcap->pcapfname = NULL;
-    }
-
-    if (local_pcap->pd != NULL) {
-        pcap_close(local_pcap->pd);
-        local_pcap->pd = NULL;
-    }
-
-    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        /* What was not an error during probe definitely is an error during open */
-        snprintf(msg, STATUS_MAX, "Unable to find PCAP file name in definition");
-        return -1;
-    }
-
-    pcapfname = strndup(placeholder, placeholder_len);
-
-    local_pcap->pcapfname = pcapfname;
-
-    if (stat(pcapfname, &sbuf) < 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find pcapfile '%s'", pcapfname);
-        return -1;
-    }
-
-    /* We don't check for regular file during open, only probe; we don't want to 
-     * open a fifo during probe and then cause a glitch, but we could open it during
-     * normal operation */
-
-    local_pcap->pd = pcap_open_offline(pcapfname, errstr);
-    if (strlen(errstr) > 0) {
-        snprintf(msg, STATUS_MAX, "%s", errstr);
-        return -1;
-    }
-
-    local_pcap->datalink_type = pcap_datalink(local_pcap->pd);
-    *dlt = local_pcap->datalink_type;
-
-    /* Kluge a UUID out of the name */
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
-            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
-                strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) pcapfname, 
-                strlen(pcapfname)) & 0xFFFFFFFF);
-    *uuid = strdup(errstr);
-
     /* Succesful open with no channel, hop, or chanset data */
-    snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
+    snprintf(msg, STATUS_MAX, "Opened kismetdb '%s' for playback", dbname);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
         if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
             snprintf(errstr, PCAP_ERRBUF_SIZE, 
-                    "Pcapfile '%s' will replay in realtime", pcapfname);
+                    "kismetdb '%s' will replay in realtime", dbname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             local_pcap->realtime = 1;
         }
@@ -206,7 +248,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         unsigned int pps;
         if (sscanf(placeholder, "%u", &pps) == 1) {
             snprintf(errstr, PCAP_ERRBUF_SIZE,
-                    "Pcapfile '%s' will throttle to %u packets per second", pcapfname, pps);
+                    "kismetdb '%s' will throttle to %u packets per second", dbname, pps);
             cf_send_message(caph, errstr,MSGFLAG_INFO);
             local_pcap->pps_throttle = pps;
         }
