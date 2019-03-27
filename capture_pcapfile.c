@@ -131,14 +131,17 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     pcap_close(pd);
 
-    /* Kluge a UUID out of the name */
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
-            adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
-                strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
-            adler32_csum((unsigned char *) pcapfname, 
-                strlen(pcapfname)) & 0xFFFFFFFF);
-    *uuid = strdup(errstr);
-
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strdup(placeholder);
+    } else {
+        /* Kluge a UUID out of the name */
+        snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+                adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
+                    strlen("kismet_cap_pcapfile")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) pcapfname, 
+                    strlen(pcapfname)) & 0xFFFFFFFF);
+        *uuid = strdup(errstr);
+    }
 
     return 1;
 }
