@@ -37,6 +37,7 @@ capture_linux_bluetooth/kismet_cap_linux_bluetooth
 capture_linux_wifi/kismet_cap_linux_wifi
 capture_osx_corewlan_wifi/kismet_cap_osx_corewlan
 kismet_cap_pcapfile
+kismet_cap_kismetdb
 
 log_tools/kismetdb_strip_packets
 log_tools/kismetdb_to_wiglecsv

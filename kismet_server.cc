@@ -62,6 +62,7 @@
 #include "kis_datasource.h"
 #include "datasourcetracker.h"
 #include "datasource_pcapfile.h"
+#include "datasource_kismetdb.h"
 #include "datasource_linux_wifi.h"
 #include "datasource_linux_bluetooth.h"
 #include "datasource_osx_corewlan_wifi.h"
@@ -869,6 +870,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Add the datasources
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder()));
+    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceKismetdbBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder()));
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder()));

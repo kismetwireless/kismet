@@ -62,7 +62,7 @@ typedef struct {
 } local_pcap_t;
 
 /* Version callback */
-int sqlite_version_cb(void *ver, int argc, char **data, char **) {
+int sqlite_version_cb(void *ver, int argc, char **data, char **colnames) {
     if (argc != 1) {
         *((unsigned int *) ver) = 0;
         return 0;
@@ -350,7 +350,9 @@ void capture_thread(kis_capture_handler_t *caph) {
     long ts_sec, ts_usec;
 
     unsigned int packet_len;
-    void *packet_data;
+    const void *packet_data;
+    double packet_frequency;
+    int dlt;
 
     char *data_type;
     char *data_json;
@@ -367,6 +369,8 @@ void capture_thread(kis_capture_handler_t *caph) {
     const char *basic_data_sql_v5 =
         "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data";
 
+    int colno;
+
     if (local_pcap->db_version <= 4) {
         sql_r = sqlite3_prepare(local_pcap->db, basic_packet_sql_v4, strlen(basic_packet_sql_v4), &packet_stmt, &packet_pz);
     } else if (local_pcap->db_version >= 5) {
@@ -374,21 +378,55 @@ void capture_thread(kis_capture_handler_t *caph) {
     }
 
     if (sql_r != SQLITE_OK) {
-        snprintf(errstr, 4096, "KismetDB '%s' could not prepare packet query: '%s'",
+        snprintf(errstr, 4096, "KismetDB '%s' could not prepare packet query: %s",
+                local_pcap->dbname, sqlite3_errmsg(local_pcap->db));
+        cf_send_error(caph, 0, errstr);
+        return;
+    }
+
+    sql_r = sqlite3_reset(packet_stmt);
+    if (sql_r != SQLITE_OK) {
+        snprintf(errstr, 4096, "KismetDB '%s' could not prepare packet query: %s",
                 local_pcap->dbname, sqlite3_errmsg(local_pcap->db));
         cf_send_error(caph, 0, errstr);
         return;
     }
 
     while (1) {
+        sql_r = sqlite3_step(packet_stmt);
+
+        if (sql_r != SQLITE_ROW)
+            break;
+
+        colno = 0;
+
+        ts_sec = sqlite3_column_int64(packet_stmt, colno++);
+        ts_usec = sqlite3_column_int64(packet_stmt, colno++);
+
+        packet_frequency = sqlite3_column_double(packet_stmt, colno++);
+
+        lat = sqlite3_column_double(packet_stmt, colno++);
+        lon = sqlite3_column_double(packet_stmt, colno++);
+
+        if (local_pcap->db_version >= 5) {
+            alt = sqlite3_column_double(packet_stmt, colno++);
+            speed = sqlite3_column_double(packet_stmt, colno++);
+            heading = sqlite3_column_double(packet_stmt, colno++);
+        }
+
+        dlt = sqlite3_column_int(packet_stmt, colno++);
+
+        packet_len = sqlite3_column_bytes(packet_stmt, colno);
+        packet_data = sqlite3_column_blob(packet_stmt, colno++);
+
+        kismetdb_dispatch_packet_cb((u_char *) caph, ts_sec, ts_usec, dlt,
+                packet_len, (const u_char *) packet_data,
+                lat, lon, alt, speed, heading);
 
     }
 
-
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "Pcapfile '%s' closed: %s", 
-            local_pcap->pcapfname, 
-            strlen(pcap_errstr) == 0 ? "end of pcapfile reached" : pcap_errstr );
-
+    snprintf(errstr, 4096, "KismetDB '%s' closed, all packets and data processed.", 
+            local_pcap->dbname);
     cf_send_message(caph, errstr, MSGFLAG_INFO);
 
     /* Instead of dying, spin forever in a sleep loop */
@@ -420,7 +458,7 @@ int main(int argc, char *argv[]) {
 
     /* fprintf(stderr, "CAPTURE_PCAPFILE launched on pid %d\n", getpid()); */
 
-    kis_capture_handler_t *caph = cf_handler_init("pcapfile");
+    kis_capture_handler_t *caph = cf_handler_init("kismetdb");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "

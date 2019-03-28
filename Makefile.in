@@ -77,6 +77,11 @@ CAPTURE_PCAPFILE_O = \
 CAPTURE_PCAPFILE 	= kismet_cap_pcapfile
 BUILD_CAPTURE_PCAPFILE = @BUILD_CAPTURE_PCAPFILE@
 
+CAPTURE_KISMETDB_O = \
+	capture_kismetdb.c.o
+CAPTURE_KISMETDB 	= kismet_cap_kismetdb
+BUILD_CAPTURE_KISMETDB = @BUILD_CAPTURE_KISMETDB@
+
 CAPTURE_LINUX_WIFI	= capture_linux_wifi/kismet_cap_linux_wifi
 BUILD_CAPTURE_LINUX_WIFI = @BUILD_CAPTURE_LINUX_WIFI@
 
@@ -240,6 +245,9 @@ $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 $(CAPTURE_PCAPFILE):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_PCAPFILE_O)
 	$(CC) $(LDFLAGS) -o $(CAPTURE_PCAPFILE) $(CAPTURE_PCAPFILE_O) $(DATASOURCE_COMMON_A) $(PCAPLIBS) $(DATASOURCE_LIBS)
 
+$(CAPTURE_KISMETDB):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_KISMETDB_O)
+	$(CC) $(LDFLAGS) -o $(CAPTURE_KISMETDB) $(CAPTURE_KISMETDB_O) $(DATASOURCE_COMMON_A) $(DATASOURCE_LIBS) -lsqlite3
+
 $(CAPTURE_LINUX_WIFI):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_linux_wifi && $(MAKE))
 
@@ -312,6 +320,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_PCAPFILE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_PCAPFILE) $(BIN)/$(CAPTURE_PCAPFILE); \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_KISMETDB)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_KISMETDB) $(BIN)/$(CAPTURE_KISMETDB); \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_LINUX_WIFI)"x = "1"x; then \
@@ -485,6 +497,7 @@ clean:
 	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(BUILD_CAPTURE_PCAPFILE)
+	@-rm -f $(BUILD_CAPTURE_KISMETDB)
 	@-rm -f $(BUILD_CAPTURE_LINUX_WIFI)
 	@-rm -f $(BUILD_CAPTURE_LINUX_BLUETOOTH)
 	@-rm -f $(BUILD_CAPTURE_OSX_COREWLAN)
@@ -591,6 +604,9 @@ include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_PCAPFILE_O)))
+endif
+ifneq ($(BUILD_CAPTURE_KISMETDB)x, "x")
+	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_KISMETDB_O)))
 endif
 include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
 include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STRIP_O)))
