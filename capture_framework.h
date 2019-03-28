@@ -744,6 +744,22 @@ int cf_send_data(kis_capture_handler_t *caph,
         KismetDatasource__SubGps *kv_gps,
         struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack);
 
+/* Send a DATA frame with JSON non-packet data
+ * Can be called from any thread
+ *
+ * If present, include message_kv, signal_kv, or gps_kv along with the json data.
+ *
+ * Returns:
+ * -1   An error occured
+ *  0   Insufficient space in buffer, try again
+ *  1   Success
+ */
+int cf_send_json(kis_capture_handler_t *caph,
+        KismetExternal__MsgbusMessage *kv_message,
+        KismetDatasource__SubSignal *kv_signal,
+        KismetDatasource__SubGps *kv_gps,
+        struct timeval ts, char *type, char *json);
+
 /* Send a CONFIGRESP with only a success and optional message
  *
  * Returns:

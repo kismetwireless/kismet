@@ -2542,6 +2542,76 @@ int cf_send_data(kis_capture_handler_t *caph,
     return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
 }
 
+int cf_send_json(kis_capture_handler_t *caph,
+        KismetExternal__MsgbusMessage *kv_message,
+        KismetDatasource__SubSignal *kv_signal,
+        KismetDatasource__SubGps *kv_gps,
+        struct timeval ts, char *type, char *json) {
+
+    KismetDatasource__DataReport kedata;
+    KismetDatasource__SubJson kejson;
+    KismetDatasource__SubGps kegps;
+
+    kismet_datasource__data_report__init(&kedata);
+    kismet_datasource__sub_json__init(&kejson);
+    kismet_datasource__sub_gps__init(&kegps);
+
+    kedata.signal = kv_signal;
+    kedata.message = kv_message;
+
+    if (kv_gps != NULL) {
+        kedata.gps = kv_gps;
+    } else if (caph->gps_fixed_lat != 0) {
+        struct timeval tv;
+
+        kegps.lat = caph->gps_fixed_lat;
+        kegps.lon = caph->gps_fixed_lon;
+        kegps.alt = caph->gps_fixed_alt;
+        kegps.fix = 3;
+
+        gettimeofday(&tv, NULL);
+        kegps.time_sec = tv.tv_sec;
+        kegps.time_usec = tv.tv_usec;
+
+        kegps.type = strdup("remote-fixed");
+
+        if (caph->gps_name != NULL)
+            kegps.name = strdup(caph->gps_name);
+        else
+            kegps.name = strdup("remote-fixed");
+
+        kedata.gps = &kegps;
+    }
+
+    if (type != NULL && json  != NULL) {
+        kejson.time_sec = ts.tv_sec;
+        kejson.time_usec = ts.tv_usec;
+        kejson.type = type;
+        kejson.json = json;
+
+        kedata.json = &kejson;
+    }
+
+    uint8_t *buf;
+    size_t buf_len;
+
+    buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
+    buf = (uint8_t *) malloc(buf_len);
+
+    if (buf == NULL) {
+        return -1;
+    }
+
+    kismet_datasource__data_report__pack(&kedata, buf);
+
+    if (kegps.name != NULL)
+        free(kegps.name);
+    if (kegps.type != NULL)
+        free(kegps.type);
+
+    return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
+}
+
 
 int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno, 
         unsigned int success, const char *msg, const char *warning) {
