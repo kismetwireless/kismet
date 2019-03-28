@@ -39,6 +39,8 @@
 
 #include <arpa/inet.h>
 
+#include <string.h>
+
 #include "config.h"
 #include "capture_framework.h"
 
@@ -266,10 +268,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
         unsigned int dlt, uint32_t len, const u_char *data,
         double lat, double lon, double alt, double speed, double heading) {
+
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
     int ret;
     unsigned long delay_usec = 0;
+
+    KismetDatasource__SubGps kegps;
+
+    kismet_datasource__sub_gps__init(&kegps);
 
     /* If we're doing 'realtime' playback, delay accordingly based on the
      * previous packet. 
@@ -312,15 +319,33 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
             usleep(delay_usec);
     }
 
-    /* Try repeatedly to send the packet; go into a thread wait state if
-     * the write buffer is full & we'll be woken up as soon as it flushes
-     * data out in the main select() loop */
+    /* Fill in the GPS */
+    kegps.lat = lat;
+    kegps.lon = lon;
+    kegps.alt = alt;
+    kegps.heading = heading;
+
+    if (alt != 0)
+        kegps.fix = 3;
+    else
+        kegps.fix = 2;
+
+    kegps.time_sec = ts_sec;
+    kegps.time_usec = ts_usec;
+
+    kegps.type = strdup("kismetdb");
+    kegps.name = strdup("kismetdb");
+
     struct timeval ts;
     ts.tv_sec = ts_sec;
     ts.tv_usec = ts_usec;
+
+    /* Try repeatedly to send the packet; go into a thread wait state if
+     * the write buffer is full & we'll be woken up as soon as it flushes
+     * data out in the main select() loop */
     while (1) {
         if ((ret = cf_send_data(caph, 
-                        NULL, NULL, NULL,
+                        NULL, NULL, &kegps,
                         ts, 
                         dlt,
                         len, (uint8_t *) data)) < 0) {
@@ -335,6 +360,111 @@ void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
             break;
         }
     }
+
+    if (kegps.name != NULL)
+        free(kegps.name);
+    if (kegps.type != NULL)
+        free(kegps.type);
+}
+
+void kismetdb_dispatch_data_cb(u_char *user, long ts_sec, long ts_usec,
+        char *type, char *json,
+        double lat, double lon, double alt, double speed, double heading) {
+
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
+    local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
+    int ret;
+    unsigned long delay_usec = 0;
+
+    KismetDatasource__SubGps kegps;
+    kismet_datasource__sub_gps__init(&kegps);
+
+    /* If we're doing 'realtime' playback, delay accordingly based on the
+     * previous packet. 
+     *
+     * Because we're in our own thread, we can block as long as we want - this
+     * simulates blocking IO for capturing from hardware, too.
+     */
+    if (local_pcap->realtime) {
+        if (local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) {
+            delay_usec = 0;
+        } else {
+            /* Catch packets with inconsistent times */
+            if (ts_sec < local_pcap->last_ts.tv_sec) {
+                delay_usec = 0;
+            } else {
+                delay_usec = (ts_sec - local_pcap->last_ts.tv_sec) * 1000000L;
+            }
+
+            if (ts_usec < local_pcap->last_ts.tv_usec) {
+                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + ts_usec;
+            } else {
+                delay_usec += ts_usec - local_pcap->last_ts.tv_usec;
+            }
+
+        }
+
+        local_pcap->last_ts.tv_sec = ts_sec;
+        local_pcap->last_ts.tv_usec = ts_usec;
+
+        if (delay_usec != 0) {
+            usleep(delay_usec);
+        }
+    }
+
+    /* If we're doing 'packet per second' throttling, delay accordingly */
+    if (local_pcap->pps_throttle > 0) {
+        delay_usec = 1000000L / local_pcap->pps_throttle;
+
+        if (delay_usec != 0)
+            usleep(delay_usec);
+    }
+
+    /* Fill in the GPS */
+    kegps.lat = lat;
+    kegps.lon = lon;
+    kegps.alt = alt;
+    kegps.heading = heading;
+
+    if (alt != 0)
+        kegps.fix = 3;
+    else
+        kegps.fix = 2;
+
+    kegps.time_sec = ts_sec;
+    kegps.time_usec = ts_usec;
+
+    kegps.type = strdup("kismetdb");
+    kegps.name = strdup("kismetdb");
+
+    struct timeval ts;
+    ts.tv_sec = ts_sec;
+    ts.tv_usec = ts_usec;
+
+    /* Try repeatedly to send the packet; go into a thread wait state if
+     * the write buffer is full & we'll be woken up as soon as it flushes
+     * data out in the main select() loop */
+    while (1) {
+        if ((ret = cf_send_json(caph, 
+                        NULL, NULL, &kegps,
+                        ts, 
+                        type, json)) < 0) {
+            cf_send_error(caph, 0, "unable to send DATA frame");
+            cf_handler_spindown(caph);
+        } else if (ret == 0) {
+            /* Go into a wait for the write buffer to get flushed */
+            // fprintf(stderr, "debug - pcapfile - dispatch_cb - no room in write buffer - waiting for it to have more space\n");
+            cf_handler_wait_ringbuffer(caph);
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    if (kegps.name != NULL)
+        free(kegps.name);
+    if (kegps.type != NULL)
+        free(kegps.type);
 }
 
 void capture_thread(kis_capture_handler_t *caph) {
@@ -343,31 +473,48 @@ void capture_thread(kis_capture_handler_t *caph) {
     char errstr[4096];
 
     int sql_r;
+
     sqlite3_stmt *packet_stmt = NULL;
     const char *packet_pz = NULL;
 
-    double lat = 0, lon = 0, alt = 0, speed = 0, heading = 0;
-    long ts_sec, ts_usec;
+    sqlite3_stmt *data_stmt = NULL;
+    const char *data_pz = NULL;
 
+    int packet_r, data_r;
+
+    /* Common between both packets and data */
+    double lat = 0, lon = 0, alt = 0, speed = 0, heading = 0;
+
+    /* Last packet timestamp */
+    long packet_ts_sec, packet_ts_usec;
+
+    /* Packet data */
     unsigned int packet_len;
     const void *packet_data;
     double packet_frequency;
     int dlt;
 
-    char *data_type;
-    char *data_json;
+    /* Last data timestamp */
+    long data_ts_sec, data_ts_usec;
 
+    /* Data... data... */
+    char *data_type = NULL;
+    char *data_json = NULL;
+
+    /* V4 didn't have speed, heading, etc, and used the normalized encoding */
     const char *basic_packet_sql_v4 = 
-        "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet FROM packets";
-    
-    const char *basic_packet_sql_v5 = 
-        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet FROM packets";
+        "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet FROM packets ORDER BY ts_sec, ts_usec";
 
     const char *basic_data_sql_v4 =
-        "SELECT ts_sec, ts_usec, (lat / 100000.0), (lon / 100000.0), type, json FROM data";
+        "SELECT ts_sec, ts_usec, (lat / 100000.0), (lon / 100000.0), type, json FROM data ORDER BY ts_sec, ts_usec";
     
+   
+    /* V5 has full GPS, and in natural doubles */
+    const char *basic_packet_sql_v5 = 
+        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet FROM packets ORDER BY ts_sec, ts_usec";
+
     const char *basic_data_sql_v5 =
-        "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data";
+        "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data ORDER BY ts_sec, ts_usec";
 
     int colno;
 
@@ -375,10 +522,27 @@ void capture_thread(kis_capture_handler_t *caph) {
         sql_r = sqlite3_prepare(local_pcap->db, basic_packet_sql_v4, strlen(basic_packet_sql_v4), &packet_stmt, &packet_pz);
     } else if (local_pcap->db_version >= 5) {
         sql_r = sqlite3_prepare(local_pcap->db, basic_packet_sql_v5, strlen(basic_packet_sql_v5), &packet_stmt, &packet_pz);
+    }  else {
+        sql_r = SQLITE_ERROR;
     }
 
     if (sql_r != SQLITE_OK) {
         snprintf(errstr, 4096, "KismetDB '%s' could not prepare packet query: %s",
+                local_pcap->dbname, sqlite3_errmsg(local_pcap->db));
+        cf_send_error(caph, 0, errstr);
+        return;
+    }
+
+    if (local_pcap->db_version <= 4) {
+        sql_r = sqlite3_prepare(local_pcap->db, basic_data_sql_v4, strlen(basic_data_sql_v4), &data_stmt, &data_pz);
+    } else if (local_pcap->db_version >= 5) {
+        sql_r = sqlite3_prepare(local_pcap->db, basic_data_sql_v5, strlen(basic_data_sql_v5), &data_stmt, &data_pz);
+    }  else {
+        sql_r = SQLITE_ERROR;
+    }
+
+    if (sql_r != SQLITE_OK) {
+        snprintf(errstr, 4096, "KismetDB '%s' could not prepare data query: %s",
                 local_pcap->dbname, sqlite3_errmsg(local_pcap->db));
         cf_send_error(caph, 0, errstr);
         return;
@@ -392,37 +556,81 @@ void capture_thread(kis_capture_handler_t *caph) {
         return;
     }
 
-    while (1) {
-        sql_r = sqlite3_step(packet_stmt);
+    sql_r = sqlite3_reset(data_stmt);
+    if (sql_r != SQLITE_OK) {
+        snprintf(errstr, 4096, "KismetDB '%s' could not prepare data query: %s",
+                local_pcap->dbname, sqlite3_errmsg(local_pcap->db));
+        cf_send_error(caph, 0, errstr);
+        return;
+    }
 
-        if (sql_r != SQLITE_ROW)
-            break;
+    packet_r = sqlite3_step(packet_stmt);
+    data_r = sqlite3_step(data_stmt);
 
-        colno = 0;
+    while (packet_r == SQLITE_ROW && data_r == SQLITE_ROW) {
+        lat = 0;
+        lon = 0;
+        alt = 0;
+        speed = 0;
+        heading = 0;
 
-        ts_sec = sqlite3_column_int64(packet_stmt, colno++);
-        ts_usec = sqlite3_column_int64(packet_stmt, colno++);
+        packet_ts_sec = sqlite3_column_int64(packet_stmt, 0);
+        packet_ts_usec = sqlite3_column_int64(packet_stmt, 1);
 
-        packet_frequency = sqlite3_column_double(packet_stmt, colno++);
+        data_ts_sec = sqlite3_column_int64(data_stmt, 0);
+        data_ts_usec = sqlite3_column_int64(data_stmt, 1);
 
-        lat = sqlite3_column_double(packet_stmt, colno++);
-        lon = sqlite3_column_double(packet_stmt, colno++);
+        /* Merge the timelines of the two tables; if the packet comes first process it, 
+         * otherwise process the data, and repeat */
+        if (packet_ts_sec < data_ts_sec ||
+                (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec)) {
+            colno = 2;
 
-        if (local_pcap->db_version >= 5) {
-            alt = sqlite3_column_double(packet_stmt, colno++);
-            speed = sqlite3_column_double(packet_stmt, colno++);
-            heading = sqlite3_column_double(packet_stmt, colno++);
+            packet_frequency = sqlite3_column_double(packet_stmt, colno++);
+
+            lat = sqlite3_column_double(packet_stmt, colno++);
+            lon = sqlite3_column_double(packet_stmt, colno++);
+
+            if (local_pcap->db_version >= 5) {
+                alt = sqlite3_column_double(packet_stmt, colno++);
+                speed = sqlite3_column_double(packet_stmt, colno++);
+                heading = sqlite3_column_double(packet_stmt, colno++);
+            }
+
+            dlt = sqlite3_column_int(packet_stmt, colno++);
+
+            packet_len = sqlite3_column_bytes(packet_stmt, colno);
+            packet_data = sqlite3_column_blob(packet_stmt, colno++);
+
+            kismetdb_dispatch_packet_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, dlt,
+                    packet_len, (const u_char *) packet_data,
+                    lat, lon, alt, speed, heading);
+
+            packet_r = sqlite3_step(packet_stmt);
+        } else {
+            colno = 2;
+
+            lat = sqlite3_column_double(data_stmt, colno++);
+            lon = sqlite3_column_double(data_stmt, colno++);
+
+            if (local_pcap->db_version >= 5) {
+                alt = sqlite3_column_double(data_stmt, colno++);
+                speed = sqlite3_column_double(data_stmt, colno++);
+                heading = sqlite3_column_double(data_stmt, colno++);
+            }
+
+            data_type = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
+            data_json = strdup((const char *) sqlite3_column_text(data_stmt, colno++));
+
+            kismetdb_dispatch_data_cb((u_char *) caph, packet_ts_sec, packet_ts_usec, 
+                    data_type, data_json,
+                    lat, lon, alt, speed, heading);
+
+            free(data_type);
+            free(data_json);
+
+            data_r = sqlite3_step(data_stmt);
         }
-
-        dlt = sqlite3_column_int(packet_stmt, colno++);
-
-        packet_len = sqlite3_column_bytes(packet_stmt, colno);
-        packet_data = sqlite3_column_blob(packet_stmt, colno++);
-
-        kismetdb_dispatch_packet_cb((u_char *) caph, ts_sec, ts_usec, dlt,
-                packet_len, (const u_char *) packet_data,
-                lat, lon, alt, speed, heading);
-
     }
 
     snprintf(errstr, 4096, "KismetDB '%s' closed, all packets and data processed.", 
