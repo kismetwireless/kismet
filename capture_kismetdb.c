@@ -52,6 +52,9 @@ typedef struct {
     char *sub_uuid;
     int sub_dlt;
 
+    /* Database version */
+    int db_version;
+
     int realtime;
     struct timeval last_ts;
 
@@ -85,7 +88,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     struct stat sbuf;
 
-    char errstr[PCAP_ERRBUF_SIZE] = "";
+    char errstr[4096] = "";
 
     sqlite3 *db;
 
@@ -139,7 +142,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         *uuid = strdup(placeholder);
     } else {
         /* Kluge a UUID out of the name */
-        snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+        snprintf(errstr, 4096, "%08X-0000-0000-0000-0000%08X",
                 adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
                     strlen("kismet_cap_kismetdb")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) dbname, 
@@ -165,7 +168,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
 
-    char errstr[PCAP_ERRBUF_SIZE] = "";
+    char errstr[4096] = "";
 
     /* pcapfile does not support channel ops */
     *ret_interface = cf_params_interface_new();
@@ -178,7 +181,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     const char *kismet_version_sql = 
         "SELECT db_version FROM KISMET";
-    unsigned int dbversion = 0;
     char *sErrMsg = NULL;
 
     /* Clean up any old state */
@@ -218,8 +220,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    sql_r = sqlite3_exec(local_pcap->db, kismet_version_sql, sqlite_version_cb, &dbversion, &sErrMsg);
-    if (sql_r != SQLITE_OK || dbversion == 0) {
+    sql_r = sqlite3_exec(local_pcap->db, kismet_version_sql, sqlite_version_cb, &(local_pcap->db_version), &sErrMsg);
+    if (sql_r != SQLITE_OK || local_pcap->db_version == 0) {
         snprintf(msg, STATUS_MAX, "Unable to find kismetdb version in database %s: %s", dbname, sqlite3_errmsg(local_pcap->db));
         sqlite3_close(local_pcap->db);
         local_pcap->db = NULL;
@@ -230,7 +232,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(placeholder);
     } else {
         /* Kluge a UUID out of the name */
-        snprintf(errstr, PCAP_ERRBUF_SIZE, "%08X-0000-0000-0000-0000%08X",
+        snprintf(errstr, 4096, "%08X-0000-0000-0000-0000%08X",
                 adler32_csum((unsigned char *) "kismet_cap_pcapfile", 
                     strlen("kismet_cap_kismetdb")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) dbname, 
@@ -243,7 +245,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {
         if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
-            snprintf(errstr, PCAP_ERRBUF_SIZE, 
+            snprintf(errstr, 4096, 
                     "kismetdb '%s' will replay in realtime", dbname);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             local_pcap->realtime = 1;
@@ -251,7 +253,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } else if ((placeholder_len = cf_find_flag(&placeholder, "pps", definition)) > 0) {
         unsigned int pps;
         if (sscanf(placeholder, "%u", &pps) == 1) {
-            snprintf(errstr, PCAP_ERRBUF_SIZE,
+            snprintf(errstr, 4096,
                     "kismetdb '%s' will throttle to %u packets per second", dbname, pps);
             cf_send_message(caph, errstr,MSGFLAG_INFO);
             local_pcap->pps_throttle = pps;
@@ -261,8 +263,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     return 1;
 }
 
-void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
-        const u_char *data)  {
+void kismetdb_dispatch_packet_cb(u_char *user, long ts_sec, long ts_usec,
+        unsigned int dlt, uint32_t len, const u_char *data,
+        double lat, double lon, double alt, double speed, double heading) {
     kis_capture_handler_t *caph = (kis_capture_handler_t *) user;
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
     int ret;
@@ -278,24 +281,23 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
         if (local_pcap->last_ts.tv_sec == 0 && local_pcap->last_ts.tv_usec == 0) {
             delay_usec = 0;
         } else {
-            /* Catch corrupt pcaps w/ inconsistent times */
-            if (header->ts.tv_sec < local_pcap->last_ts.tv_sec) {
+            /* Catch packets with inconsistent times */
+            if (ts_sec < local_pcap->last_ts.tv_sec) {
                 delay_usec = 0;
             } else {
-                delay_usec = (header->ts.tv_sec - local_pcap->last_ts.tv_sec) * 1000000L;
+                delay_usec = (ts_sec - local_pcap->last_ts.tv_sec) * 1000000L;
             }
 
-            if (header->ts.tv_usec < local_pcap->last_ts.tv_usec) {
-                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + 
-                    header->ts.tv_usec;
+            if (ts_usec < local_pcap->last_ts.tv_usec) {
+                delay_usec += (1000000L - local_pcap->last_ts.tv_usec) + ts_usec;
             } else {
-                delay_usec += header->ts.tv_usec - local_pcap->last_ts.tv_usec;
+                delay_usec += ts_usec - local_pcap->last_ts.tv_usec;
             }
 
         }
 
-        local_pcap->last_ts.tv_sec = header->ts.tv_sec;
-        local_pcap->last_ts.tv_usec = header->ts.tv_usec;
+        local_pcap->last_ts.tv_sec = ts_sec;
+        local_pcap->last_ts.tv_usec = ts_usec;
 
         if (delay_usec != 0) {
             usleep(delay_usec);
@@ -313,13 +315,15 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
     /* Try repeatedly to send the packet; go into a thread wait state if
      * the write buffer is full & we'll be woken up as soon as it flushes
      * data out in the main select() loop */
+    struct timeval ts;
+    ts.tv_sec = ts_sec;
+    ts.tv_usec = ts_usec;
     while (1) {
         if ((ret = cf_send_data(caph, 
                         NULL, NULL, NULL,
-                        header->ts, 
-                        local_pcap->datalink_type,
-                        header->caplen, (uint8_t *) data)) < 0) {
-            pcap_breakloop(local_pcap->pd);
+                        ts, 
+                        dlt,
+                        len, (uint8_t *) data)) < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
         } else if (ret == 0) {
@@ -335,12 +339,51 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
 
 void capture_thread(kis_capture_handler_t *caph) {
     local_pcap_t *local_pcap = (local_pcap_t *) caph->userdata;
-    char errstr[PCAP_ERRBUF_SIZE];
-    char *pcap_errstr;
 
-    pcap_loop(local_pcap->pd, -1, pcap_dispatch_cb, (u_char *) caph);
+    char errstr[4096];
 
-    pcap_errstr = pcap_geterr(local_pcap->pd);
+    int sql_r;
+    sqlite3_stmt *packet_stmt = NULL;
+    const char *packet_pz = NULL;
+
+    double lat = 0, lon = 0, alt = 0, speed = 0, heading = 0;
+    long ts_sec, ts_usec;
+
+    unsigned int packet_len;
+    void *packet_data;
+
+    char *data_type;
+    char *data_json;
+
+    const char *basic_packet_sql_v4 = 
+        "SELECT ts_sec, ts_usec, frequency, (lat / 100000.0), (lon / 100000.0), dlt, packet FROM packets";
+    
+    const char *basic_packet_sql_v5 = 
+        "SELECT ts_sec, ts_usec, frequency, lat, lon, alt, speed, heading, dlt, packet FROM packets";
+
+    const char *basic_data_sql_v4 =
+        "SELECT ts_sec, ts_usec, (lat / 100000.0), (lon / 100000.0), type, json FROM data";
+    
+    const char *basic_data_sql_v5 =
+        "SELECT ts_sec, ts_usec, lat, lon, alt, speed, heading, type, json FROM data";
+
+    if (local_pcap->db_version <= 4) {
+        sql_r = sqlite3_prepare(local_pcap->db, basic_packet_sql_v4, strlen(basic_packet_sql_v4), &packet_stmt, &packet_pz);
+    } else if (local_pcap->db_version >= 5) {
+        sql_r = sqlite3_prepare(local_pcap->db, basic_packet_sql_v5, strlen(basic_packet_sql_v5), &packet_stmt, &packet_pz);
+    }
+
+    if (sql_r != SQLITE_OK) {
+        snprintf(errstr, 4096, "KismetDB '%s' could not prepare packet query: '%s'",
+                local_pcap->dbname, sqlite3_errmsg(local_pcap->db));
+        cf_send_error(caph, 0, errstr);
+        return;
+    }
+
+    while (1) {
+
+    }
+
 
     snprintf(errstr, PCAP_ERRBUF_SIZE, "Pcapfile '%s' closed: %s", 
             local_pcap->pcapfname, 
