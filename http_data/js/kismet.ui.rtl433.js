@@ -133,6 +133,32 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 ]
             },
             {
+                field: "rtl433.device/rtl433.device.tpms",
+                groupTitle: "Tire pressure",
+                id: "group_tpms_data",
+                filterOnEmpty: true,
+                fields: [
+                {
+                    field: "rtl433.device/rtl433.device.tpms/rtl433.device.tpms.pressure_bar",
+                    title: "Pressure",
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " bar";
+                    },
+                    help: "Reported TPMS pressure in bars",
+                },
+                {
+                    field: "rtl433.device/rtl433.device.tpms/rtl433.device.tpms.pressure_kpa",
+                    title: "Pressure",
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " kPa";
+                    },
+                    help: "Reported TPMS pressure in kPa",
+                },
+                ]
+            },
+            {
                 field: "rtl433.device/rtl433.device.lightningsensor",
                 groupTitle: "Lightning Sensor",
                 id: "group_lightning_data",

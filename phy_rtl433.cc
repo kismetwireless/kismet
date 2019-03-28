@@ -475,6 +475,7 @@ void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<TrackerEl
 void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
     auto type_j = json["type"];
     auto pressure_j = json["pressure_bar"];
+    auto pressurekpa_j = json["pressure_kPa"];
     auto flags_j = json["flags"];
     auto checksum_j = json["mic"];
     auto state_j = json["state"];
@@ -492,6 +493,10 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMa
 
         if (pressure_j.isNumeric()) {
             tpmsdev->set_pressure_bar(pressure_j.asDouble());
+        }
+
+        if (pressurekpa_j.isNumeric()) {
+            tpmsdev->set_pressure_kpa(pressurekpa_j.asDouble());
         }
 
         if (flags_j.isString()) {

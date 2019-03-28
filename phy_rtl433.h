@@ -413,6 +413,7 @@ public:
     }
 
     __Proxy(pressure_bar, double, double, double, pressure_bar);
+    __Proxy(pressure_kpa, double, double, double, pressure_kpa);
     __Proxy(flags, std::string, std::string, std::string, flags);
     __Proxy(state, std::string, std::string, std::string, state);
     __Proxy(checksum, std::string, std::string, std::string, checksum);
@@ -421,6 +422,7 @@ public:
 protected:
     virtual void register_fields() override {
         RegisterField("rtl433.device.tpms.pressure_bar", "Pressure, in bars", &pressure_bar);
+        RegisterField("rtl433.device.tpms.pressure_kpa", "Pressure, in kPa", &pressure_kpa);
         RegisterField("rtl433.device.tpms.flags", "TPMS flags", &flags);
         RegisterField("rtl433.device.tpms.state", "TPMS state", &state);
         RegisterField("rtl433.device.tpms.checksum", "TPMS checksum", &checksum);
@@ -428,6 +430,7 @@ protected:
     }
 
     std::shared_ptr<TrackerElementDouble> pressure_bar;
+    std::shared_ptr<TrackerElementDouble> pressure_kpa;
     std::shared_ptr<TrackerElementString> flags;
     std::shared_ptr<TrackerElementString> state;
     std::shared_ptr<TrackerElementString> checksum;
