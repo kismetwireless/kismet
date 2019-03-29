@@ -420,21 +420,20 @@ bool TcpServerV2::AllowConnection(int in_fd) {
         }
     }
 
-    std::string reject = std::string(inet_ntoa(client_addr.sin_addr));
-    _MSG("TCP server rejected connection from untrusted IP " + reject,
-            MSGFLAG_ERROR);
+    _MSG_ERROR("TCP server refusing connection from unauthorized address {}", 
+            inet_ntoa(client_addr.sin_addr));
 
     return false;
 }
 
-std::shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd __attribute__((unused))) {
+std::shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd) {
     // Basic allocation
     std::shared_ptr<BufferHandlerGeneric> rbh(new BufferHandler<RingbufV2>(ringbuf_size, ringbuf_size));  
 
     // Protocol errors kill the connection
-    rbh->SetProtocolErrorCb([this, in_fd]() {
-        // fprintf(stderr, "debug - tcpserver - protocolerror\n");
-        KillConnection(in_fd);
+    auto fd_alias = in_fd;
+    rbh->SetProtocolErrorCb([this, fd_alias]() {
+        KillConnection(fd_alias);
     });
 
     return rbh;

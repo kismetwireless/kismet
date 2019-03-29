@@ -217,36 +217,40 @@ DST_DatasourceList::DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_
 }
 
 DST_DatasourceList::~DST_DatasourceList() {
-    local_locker lock(&list_lock);
-
     cancelled = true;
 
     // Cancel any pending timer
     if (cancel_timer >= 0) {
         timetracker->RemoveTimer(cancel_timer);
+        cancel_timer = -1;
     }
 
     // Cancel any probing sources and delete them
     for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
         (*i)->close_source();
     }
+
+    local_locker lock(&list_lock);
 }
 
 void DST_DatasourceList::cancel() {
     local_locker lock(&list_lock);
+
+    // Cancel any pending timer
+    if (cancel_timer >= 0) {
+        timetracker->RemoveTimer(cancel_timer);
+        cancel_timer = -1;
+    }
 
     if (cancelled)
         return;
 
     cancelled = true;
 
-    // Cancel any pending timer
-    if (cancel_timer >= 0) {
-        timetracker->RemoveTimer(cancel_timer);
+    for (auto i : ipc_list_map) {
+        i.second->close_source();
     }
-    for (auto i = ipc_list_map.begin(); i != ipc_list_map.end(); ++i) {
-        i->second->close_source();
-    }
+    ipc_list_map.clear();
 
     if (list_cb) 
         list_cb(listed_sources);
@@ -254,6 +258,9 @@ void DST_DatasourceList::cancel() {
 
 void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, unsigned int in_transaction) {
     local_locker lock(&list_lock);
+
+    timetracker->RemoveTimer(cancel_timer);
+    cancel_timer = -1;
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
@@ -276,6 +283,10 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
 }
 
 void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
+    // Cancel any existing timer in case we got called twice
+    if (cancel_timer >= 0)
+        timetracker->RemoveTimer(cancel_timer);
+
     cancel_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
