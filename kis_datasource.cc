@@ -590,6 +590,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error
         // Cancel any timers
         if (cmd->timer_id > -1) {
             timetracker->RemoveTimer(cmd->timer_id);
+            cmd->timer_id = -1;
         }
 
         // fprintf(stderr, "debug - erasing from command ack via cancel %u\n", in_transaction);
