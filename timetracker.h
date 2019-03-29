@@ -47,6 +47,9 @@ public:
     struct timer_event {
         int timer_id;
 
+        // Is the timer cancelled?
+        std::atomic<bool> timer_cancelled;
+
         // Time it was scheduled
         struct timeval schedule_tm;
 
@@ -130,11 +133,13 @@ protected:
             int in_recurring, TimetrackerEvent *event);
     int RegisterTimer_nb(int timeslices, struct timeval *in_trigger,
             int in_recurring, std::function<int (int)> event);
-    int RemoveTimer_nb(int timer_id);
 
     int next_timer_id;
     std::map<int, timer_event *> timer_map;
     std::vector<timer_event *> sorted_timers;
+
+    kis_recursive_timed_mutex removed_id_mutex;
+    std::vector<int> removed_timer_ids;
 };
 
 class TimetrackerEvent {
