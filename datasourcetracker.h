@@ -139,8 +139,6 @@ protected:
 
     std::function<void (SharedDatasourceBuilder)> probe_cb;
     std::atomic<bool> cancelled;
-
-    int cancel_timer;
 };
 
 typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
@@ -194,8 +192,6 @@ protected:
 
     std::function<void (std::vector<SharedInterface>)> list_cb;
     std::atomic<bool> cancelled;
-
-    int cancel_timer;
 
     std::vector<SharedInterface> listed_sources;
 };
