@@ -74,14 +74,16 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
 KisDatasource::~KisDatasource() {
     local_locker lock(&ext_mutex);
 
-    // fprintf(stderr, "debug - ~KisDatasource\n");
-
     // Cancel any timer
-    if (error_timer_id > 0)
+    if (error_timer_id > 0) {
         timetracker->RemoveTimer(error_timer_id);
+        error_timer_id = -1;
+    }
 
-    if (ping_timer_id > 0)
+    if (ping_timer_id > 0) {
         timetracker->RemoveTimer(ping_timer_id);
+        error_timer_id = -1;
+    }
 
     cancel_all_commands("source deleted");
 
