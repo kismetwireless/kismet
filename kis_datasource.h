@@ -450,7 +450,7 @@ protected:
         unsigned int transaction;
         uint32_t command_seq;
         time_t command_time;
-        int timer_id;
+        std::atomic<int> timer_id;
 
         // Callbacks
         list_callback_t list_cb;
