@@ -135,7 +135,7 @@ void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_pas
 
 bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
     char *user;
-    char *pass = NULL;
+    char *pass = nullptr;
 
     if (!activated)
         return false;
@@ -146,9 +146,24 @@ bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
 
     user = MHD_basic_auth_get_username_password(connection, &pass);
 
-    if (user == NULL || pass == NULL || 
-            conf_username != user || conf_password != pass) {
+    if (user == nullptr || pass == nullptr || conf_username != user || conf_password != pass) {
+        if (user != nullptr) {
+            free(user);
+        }
+
+        if (pass != nullptr) {
+            free(pass);
+        }
+
         return false;
+    }
+
+    if (user != nullptr) {
+        free(user);
+    }
+
+    if (pass != nullptr) {
+        free(pass);
     }
 
     return true;
