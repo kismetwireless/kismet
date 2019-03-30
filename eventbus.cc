@@ -27,11 +27,10 @@ Eventbus::Eventbus() {
 
     event_dispatch_t =
         std::thread([this]() {
+                thread_set_process_name("kismet [eventbus]", event_dispatch_t);
                 event_queue_dispatcher();
             });
 
-    thread_set_process_name("kismet [eventbus]", event_dispatch_t);
-   
 }
 
 Eventbus::~Eventbus() {
