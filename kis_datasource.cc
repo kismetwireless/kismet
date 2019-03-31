@@ -74,14 +74,16 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
 KisDatasource::~KisDatasource() {
     local_locker lock(&ext_mutex);
 
-    // fprintf(stderr, "debug - ~KisDatasource\n");
-
     // Cancel any timer
-    if (error_timer_id > 0)
+    if (error_timer_id > 0) {
         timetracker->RemoveTimer(error_timer_id);
+        error_timer_id = -1;
+    }
 
-    if (ping_timer_id > 0)
+    if (ping_timer_id > 0) {
         timetracker->RemoveTimer(ping_timer_id);
+        error_timer_id = -1;
+    }
 
     cancel_all_commands("source deleted");
 
@@ -588,6 +590,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error
         // Cancel any timers
         if (cmd->timer_id > -1) {
             timetracker->RemoveTimer(cmd->timer_id);
+            cmd->timer_id = -1;
         }
 
         // fprintf(stderr, "debug - erasing from command ack via cancel %u\n", in_transaction);
