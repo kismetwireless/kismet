@@ -223,7 +223,6 @@ void DST_DatasourceList::cancel() {
     for (auto i : ipc_list_map) {
         i.second->close_source();
     }
-    ipc_list_map.clear();
 
     cancelled = true;
 
