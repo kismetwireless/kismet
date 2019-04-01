@@ -216,16 +216,17 @@ DST_DatasourceList::~DST_DatasourceList() {
 void DST_DatasourceList::cancel() {
     local_locker lock(&list_lock);
 
-    for (auto i : ipc_list_map) {
-        i.second->close_source();
-    }
-    ipc_list_map.clear();
-
     if (cancelled)
         return;
 
+    // Abort anything already underway
+    for (auto i : ipc_list_map) {
+        i.second->close_source();
+    }
+
     cancelled = true;
 
+    // Trigger the callback
     if (list_cb) 
         list_cb(listed_sources);
 }
@@ -247,6 +248,7 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
         ipc_list_map.erase(v);
     }
 
+    // If we've emptied the vec, end
     if (ipc_list_map.size() == 0) {
         cancel();
         return;
@@ -257,6 +259,8 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
     list_cb = in_cb;
 
     std::vector<SharedDatasourceBuilder> remote_builders;
+
+    bool created_ipc = false;
 
     for (auto i : *proto_vec) {
         SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
@@ -272,6 +276,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
         {
             local_locker lock(&list_lock);
             ipc_list_map[transaction] = pds;
+            created_ipc = true;
         }
 
         pds->list_interfaces(transaction, 
@@ -280,12 +285,9 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
             });
     }
 
-    {
-        local_locker lock(&list_lock);
-        if (ipc_list_map.size() == 0) {
-            cancel();
-        }
-    }
+    // If we didn't create any IPC events we'll never complete; call cancel directly
+    if (!created_ipc)
+        cancel();
 }
 
 
