@@ -26,6 +26,9 @@
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
+#include "kis_net_microhttpd.h"
+#include "devicetracker_view.h"
+#include "timetracker.h"
 
 /* SSID scan mode
  *
@@ -37,6 +40,38 @@
  *     bssid until a WPA handshake is seen or the maximum lock time has
  *     expired
  * 4.  Continue hopping
+ *
+ *
+ * Configuration options:
+ *
+ * Enable ssidscan mode at all
+ * bool: dot11_ssidscan_enabled=true
+ *
+ * Target SSIDs
+ * multiple/vector: dot11_ssidscan_ssid=....(regex) 
+ *
+ * Block initial logging of devices & packets and only log ours
+ * bool: dot11_ssidscan_block_logging=true
+ *
+ * Manipulate logging to log target devices and packets
+ * bool: dot11_ssidscan_dynamic_logging=true
+ *
+ * Ignore a device entirely once we've captured a handshake:
+ * bool: dot11_ssidscan_ignore_after_handshake=true
+ *
+ * Minimum amount of time to spend scanning even if a target is nearby
+ * uint: dot11_ssidscan_minimum_hop=123
+ *
+ * Maximum amount of time to spend locked to a device, even if we don't
+ * capture a handshake
+ * uint: dot11_ssidscan_maximum_lock=123
+ *
+ *
+ * Endpoints
+ * GET  AUTH /phy/phy80211/ssidscan/status.json
+ * POST AUTH /phy/phy80211/ssidscan/config.cmd
+ *
+ * VIEW      /devices/view/ssidscan/devices.json etc
  *
  */
 
@@ -59,6 +94,8 @@ public:
 
 
 protected:
+    kis_recursive_timed_mutex mutex;
+
     // Target SSIDs
     std::shared_ptr<TrackerElementVector> target_ssids;
 
@@ -84,6 +121,25 @@ protected:
     // Filter logging; otherwise log all packets (or whatever the user configured)
     // and just manipulate the sources
     std::shared_ptr<TrackerElementUInt8> filter_logs;
+
+    // Status/config view endp
+    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> dot11_ssidscan_status_endp;
+    std::shared_ptr<TrackerElement> status_endp_handler();
+
+    // Configure set endp
+    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> dot11_ssidscan_config_endp;
+    unsigned int config_endp_handler(std::ostream& stream, const std::string& url,
+            SharedStructured post_structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache);
+
+    // Reference we hold to the device view we populate with matched devices
+    std::shared_ptr<DevicetrackerView> target_devices_view;
+
+    // Reference we h old to the device view we populate with 'completed' devices
+    std::shared_ptr<DevicetrackerView> completed_device_view;
+
+    std::shared_ptr<Timetracker> timetracker;
+    int hopping_mode_end_timer;
+    int capture_mode_end_timer;
 
 };
 
