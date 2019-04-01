@@ -27,6 +27,19 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
+/* SSID scan mode
+ *
+ * 1.  Take a list of SSIDs (or SSID regexes), and optionally a list of 
+ *     hopping and locking sources
+ * 2.  Channel hop looking for devices advertising the SSID
+ * 3.  Lock a source to the channel, set a log filter to enable logging the 
+ *     target bssid device and packets, and capture data about the target 
+ *     bssid until a WPA handshake is seen or the maximum lock time has
+ *     expired
+ * 4.  Continue hopping
+ *
+ */
+
 class Dot11_SsidScan : public LifetimeGlobal {
 public:
     static std::string global_name() { return "DOT11_SSIDSCAN"; }
@@ -53,20 +66,23 @@ protected:
     std::shared_ptr<TrackerElementVector> hopping_datasources;
     std::shared_ptr<TrackerElementVector> locking_datasources;
 
-    // Do we ignore after we think we got a handshake?
+    // Do we ignore a target bssid after we think we got a handshake?
     std::shared_ptr<TrackerElementUInt8> ignore_after_handshake;
 
     // Maximum time spent capturing if no free source is in the 'hopping' pool
+    // or if there are multiple target bssids
     std::shared_ptr<TrackerElementUInt32> max_contend_cap_seconds;
 
     // Minimum time spent hopping looking for targets if no free source is in the 
-    // 'locked' pool
+    // 'locked' pool, even if there are targets in view
     std::shared_ptr<TrackerElementUInt32> min_scan_seconds;
 
-    // Automatically set the log filters on startup
+    // Automatically set the log filters on startup to exclude all devices and 
+    // packets except the ones we specify
     std::shared_ptr<TrackerElementUInt8> set_initial_log_filters;
 
-    // Filter logging
+    // Filter logging; otherwise log all packets (or whatever the user configured)
+    // and just manipulate the sources
     std::shared_ptr<TrackerElementUInt8> filter_logs;
 
 };
