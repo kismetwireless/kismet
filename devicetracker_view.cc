@@ -280,6 +280,39 @@ void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> de
     }
 }
 
+void DevicetrackerView::addDeviceDirect(std::shared_ptr<kis_tracked_device_base> device) {
+    local_locker l(&mutex);
+
+    auto di = device_presence_map.find(device->get_key());
+
+    if (di != device_presence_map.end())
+        return;
+
+    device_presence_map[device->get_key()] = true;
+    device_list->push_back(device);
+
+    list_sz->set(device_list->size());
+}
+
+void DevicetrackerView::removeDeviceDirect(std::shared_ptr<kis_tracked_device_base> device) {
+    local_locker l(&mutex);
+
+    auto di = device_presence_map.find(device->get_key());
+
+    if (di != device_presence_map.end()) {
+        device_presence_map.erase(di);
+
+        for (auto vi = device_list->begin(); vi != device_list->end(); ++vi) {
+            if (*vi == device) {
+                device_list->erase(vi);
+                break;
+            }
+        }
+        
+        list_sz->set(device_list->size());
+    }
+}
+
 bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>& path) {
     // /devices/views/[id]/last-time/[time]/devices
 
