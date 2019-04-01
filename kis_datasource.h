@@ -425,12 +425,14 @@ protected:
             command_seq = in_seq;
             command_time = time(0);
 
-            timetracker = in_src->timetracker;
+            timetracker = 
+                Globalreg::FetchMandatoryGlobalAs<Timetracker>();
 
             // Generate a timeout for 5 seconds from now
+            auto src_alias = in_src;
             timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15,
-                    NULL, 0, [in_src, this](int) -> int {
-                    in_src->cancel_command(command_seq, "Command did not complete");
+                    NULL, 0, [src_alias, this](int) -> int {
+                    src_alias->cancel_command(command_seq, "Command did not complete");
                     return 0;
                 });
 
@@ -439,6 +441,7 @@ protected:
         ~tracked_command() {
             if (timer_id > -1) {
                 timetracker->RemoveTimer(timer_id);
+                timer_id = -1;
             }
         }
 
@@ -447,7 +450,7 @@ protected:
         unsigned int transaction;
         uint32_t command_seq;
         time_t command_time;
-        int timer_id;
+        std::atomic<int> timer_id;
 
         // Callbacks
         list_callback_t list_cb;

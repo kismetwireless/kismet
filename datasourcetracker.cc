@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -47,7 +47,6 @@ DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition,
     transaction_id = 0;
 
     cancelled = false;
-    cancel_timer = -1;
 }
 
 DST_DatasourceProbe::~DST_DatasourceProbe() {
@@ -66,12 +65,6 @@ void DST_DatasourceProbe::cancel() {
         // fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
 
         cancelled = true;
-
-        // Cancel any pending timer
-        if (cancel_timer >= 0) {
-            // fprintf(stderr, "debug - dstprobe cancelling completion timer %d\n", cancel_timer);
-            timetracker->RemoveTimer(cancel_timer);
-        }
 
         // Cancel any other competing probing sources; this may trigger the callbacks
         // which will call the completion function, but we'll ignore them because
@@ -135,15 +128,6 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
 void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb) {
     {
         local_locker lock(&probe_lock);
-
-        cancel_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
-                    [this] (int) -> int {
-                    _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
-                    cancel();
-                    return 0;
-                    });
-
         probe_cb = in_cb;
     }
 
@@ -182,18 +166,20 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
             ncreated++;
         }
 
-#if 0
-        auto pt = std::thread([](SharedDatasource pds, std::string definition, 
-                    unsigned int transaction, DST_DatasourceProbe *dst_probe) {
-#endif
-            pds->probe_interface(definition, transaction, 
-                [this](unsigned int transaction, bool success, std::string reason) {
+        // Set up the cancellation timer
+        int cancel_timer = 
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+                    [this] (int) -> int {
+                        _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
+                        cancel();
+                        return 0;
+                    });
+
+        pds->probe_interface(definition, transaction, 
+                [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
+                    timetracker->RemoveTimer(cancel_timer);
                     complete_probe(success, transaction, reason);
                 });
-#if 0
-        }, pds, definition, transaction, this);
-        pt.detach();
-#endif
     }
 
     // We've done all we can; if we haven't gotten an answer yet and we
@@ -206,30 +192,25 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
 }
 
 DST_DatasourceList::DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec) {
-    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<Timetracker>();
 
     proto_vec = in_protovec;
 
     transaction_id = 0;
 
     cancelled = false;
-    cancel_timer = -1;
 }
 
 DST_DatasourceList::~DST_DatasourceList() {
-    local_locker lock(&list_lock);
-
     cancelled = true;
-
-    // Cancel any pending timer
-    if (cancel_timer >= 0) {
-        timetracker->RemoveTimer(cancel_timer);
-    }
 
     // Cancel any probing sources and delete them
     for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
         (*i)->close_source();
     }
+
+    local_locker lock(&list_lock);
 }
 
 void DST_DatasourceList::cancel() {
@@ -238,16 +219,14 @@ void DST_DatasourceList::cancel() {
     if (cancelled)
         return;
 
+    // Abort anything already underway
+    for (auto i : ipc_list_map) {
+        i.second->close_source();
+    }
+
     cancelled = true;
 
-    // Cancel any pending timer
-    if (cancel_timer >= 0) {
-        timetracker->RemoveTimer(cancel_timer);
-    }
-    for (auto i = ipc_list_map.begin(); i != ipc_list_map.end(); ++i) {
-        i->second->close_source();
-    }
-
+    // Trigger the callback
     if (list_cb) 
         list_cb(listed_sources);
 }
@@ -269,6 +248,7 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
         ipc_list_map.erase(v);
     }
 
+    // If we've emptied the vec, end
     if (ipc_list_map.size() == 0) {
         cancel();
         return;
@@ -276,16 +256,11 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
 }
 
 void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
-    cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
-            [this] (int) -> int {
-                cancel();
-                return 0;
-            });
-
     list_cb = in_cb;
 
     std::vector<SharedDatasourceBuilder> remote_builders;
+
+    bool created_ipc = false;
 
     for (auto i : *proto_vec) {
         SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
@@ -301,6 +276,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
         {
             local_locker lock(&list_lock);
             ipc_list_map[transaction] = pds;
+            created_ipc = true;
         }
 
         pds->list_interfaces(transaction, 
@@ -309,12 +285,9 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
             });
     }
 
-    {
-        local_locker lock(&list_lock);
-        if (ipc_list_map.size() == 0) {
-            cancel();
-        }
-    }
+    // If we didn't create any IPC events we'll never complete; call cancel directly
+    if (!created_ipc)
+        cancel();
 }
 
 
@@ -364,8 +337,7 @@ Datasourcetracker::~Datasourcetracker() {
     }
 
     for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
-        // TODO implement these
-        // i->second->cancel();
+        i->second->cancel();
     }
 
     datasource_vec.reset();
@@ -960,9 +932,20 @@ void Datasourcetracker::list_interfaces(const std::function<void (std::vector<Sh
         listing_map[listid] = dst_list;
     }
 
+    // Set up a cancellation timer
+    int cancel_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            [dst_list] (int) -> int {
+                dst_list->cancel();
+                return 0;
+            });
+
+
     // Initiate the probe
-    dst_list->list_sources([this, listid, in_cb](std::vector<SharedInterface> interfaces) {
-        // Lock on completion
+    dst_list->list_sources([this, cancel_timer, listid, in_cb](std::vector<SharedInterface> interfaces) {
+        // We're complete; cancel the timer if it's still around.
+        timetracker->RemoveTimer(cancel_timer);
+
         local_demand_locker lock(&dst_lock);
         lock.lock();
 
