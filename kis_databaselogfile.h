@@ -134,6 +134,15 @@ public:
     // Messagebus API
     virtual void ProcessMessage(std::string in_msg, int in_flags) override;
 
+    // Direct access to the filters for setting programatically
+    std::shared_ptr<PacketfilterMacaddr> GetPacketFilter() { 
+        return packet_mac_filter;
+    }
+
+    std::shared_ptr<ClassfilterMacaddr> GetDeviceFilter() {
+        return device_mac_filter;
+    }
+
 protected:
     // Is the database even enabled?
     std::atomic<bool> db_enabled;
