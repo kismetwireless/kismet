@@ -87,15 +87,16 @@ public:
 
     static std::string global_name() { return "TIMETRACKER"; }
 
-    static std::shared_ptr<Timetracker> create_timetracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Timetracker> mon(new Timetracker(in_globalreg));
-        in_globalreg->timetracker = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<Timetracker> create_timetracker() {
+        std::shared_ptr<Timetracker> mon(new Timetracker());
+        Globalreg::globalreg->timetracker = mon.get();
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
+
 private:
-    Timetracker(GlobalRegistry *in_globalreg);
+    Timetracker();
 
 public:
     virtual ~Timetracker();
@@ -120,21 +121,14 @@ public:
     int RemoveTimer(int timer_id);
 
 protected:
-    GlobalRegistry *globalreg;
-
     kis_recursive_timed_mutex time_mutex;
 
-    // Nonblocking versions
-    int RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
-                      int in_recurring, 
-                      int (*in_callback)(timer_event *, void *, GlobalRegistry *),
-                      void *in_parm);
-    int RegisterTimer_nb(int timeslices, struct timeval *in_trigger,
-            int in_recurring, TimetrackerEvent *event);
-    int RegisterTimer_nb(int timeslices, struct timeval *in_trigger,
-            int in_recurring, std::function<int (int)> event);
+    // Do we have to re-sort the list of timers?
+    std::atomic<bool> timer_sort_required;
 
-    int next_timer_id;
+    // Next timer ID to be assigned
+    std::atomic<int> next_timer_id;
+
     std::map<int, timer_event *> timer_map;
     std::vector<timer_event *> sorted_timers;
 

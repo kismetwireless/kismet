@@ -478,8 +478,7 @@ void Load_Kismet_UUID(GlobalRegistry *globalreg) {
 
 int main(int argc, char *argv[], char *envp[]) {
     exec_name = argv[0];
-    char errstr[STATUS_MAX];
-    char *configfilename = NULL;
+    std::string configfilename;
     ConfigFile *conf;
     int option_idx = 0;
     GlobalRegistry *globalreg;
@@ -607,7 +606,7 @@ int main(int argc, char *argv[], char *envp[]) {
             Usage(argv[0]);
             exit(1);
         } else if (r == 'f') {
-            configfilename = strdup(optarg);
+            configfilename = std::string(optarg);
         } else if (r == nlwc) {
             glob_linewrap = 0;
         } else if (r == 's') {
@@ -655,15 +654,12 @@ int main(int argc, char *argv[], char *envp[]) {
     std::shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
 
     // Open, initial parse, and assign the config file
-    if (configfilename == NULL) {
-        configfilename = new char[1024];
-        snprintf(configfilename, 1024, "%s/%s", 
-                 getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC,
-                 config_base);
+    if (configfilename == "") {
+        configfilename = fmt::format("{}/{}",
+                getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC,
+                config_base);
     }
 
-    // globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-    
     conf = new ConfigFile(globalregistry);
     if (conf->ParseConfig(configfilename) < 0) {
         exit(1);
@@ -735,7 +731,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Make the timetracker
-    Timetracker::create_timetracker(globalregistry);
+    Timetracker::create_timetracker();
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
@@ -972,9 +968,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                fprintf(stderr, "Main select failed: %s\n", strerror(errno));
-                snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
-                         strerror(errno));
+                fmt::print(stderr, "Main select loop failed: {} {}", errno, strerror(errno));
                 CatchShutdown(-1);
             }
         }
@@ -982,13 +976,13 @@ int main(int argc, char *argv[], char *envp[]) {
         // Block signals while doing io loops */
         sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
-        globalregistry->timetracker->Tick();
+        Globalreg::globalreg->timetracker->Tick();
 
         pollabletracker->ProcessPollableSelect(rset, wset);
 
         sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
-        if (globalregistry->fatal_condition || globalregistry->spindown) {
+        if (Globalreg::globalreg->fatal_condition || Globalreg::globalreg->spindown) {
             break;
         }
     }

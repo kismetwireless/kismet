@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -22,20 +22,20 @@
 
 #include "timetracker.h"
 
-Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
-    globalreg = in_globalreg;
-
+Timetracker::Timetracker() {
     next_timer_id = 0;
 
-	globalreg->start_time = time(0);
-	gettimeofday(&(globalreg->timestamp), NULL);
+    timer_sort_required = true;
+
+    Globalreg::globalreg->start_time = time(0);
+	gettimeofday(&(Globalreg::globalreg->timestamp), NULL);
 }
 
 Timetracker::~Timetracker() {
     local_locker lock(&time_mutex);
 
-    globalreg->RemoveGlobal("TIMETRACKER");
-    globalreg->timetracker = NULL;
+    Globalreg::globalreg->RemoveGlobal("TIMETRACKER");
+    Globalreg::globalreg->timetracker = NULL;
 
     // Free the events
     for (std::map<int, timer_event *>::iterator x = timer_map.begin();
@@ -49,24 +49,27 @@ int Timetracker::Tick() {
     // Handle scheduled events
     struct timeval cur_tm;
     gettimeofday(&cur_tm, NULL);
-	globalreg->timestamp.tv_sec = cur_tm.tv_sec;
-	globalreg->timestamp.tv_usec = cur_tm.tv_usec;
-    int timerid;
+    Globalreg::globalreg->timestamp.tv_sec = cur_tm.tv_sec;
+    Globalreg::globalreg->timestamp.tv_usec = cur_tm.tv_usec;
 
-    // Sort and duplicate the vector to a safe list
+    // Sort and duplicate the vector to a safe list; we have to re-sort 
+    // timers from recurring events
     lock.lock();
-    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+
+    if (timer_sort_required)
+        stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+
+    timer_sort_required = false;
+
     auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
     lock.unlock();
     // Sort the timers
 
     for (auto evt : action_timers) {
-        timerid = evt->timer_id;
-
         // If we're pending cancellation, throw us out
         if (evt->timer_cancelled) {
             local_locker rl(&removed_id_mutex);
-            removed_timer_ids.push_back(timerid);
+            removed_timer_ids.push_back(evt->timer_id);
             continue;
         }
 
@@ -79,7 +82,7 @@ int Timetracker::Tick() {
         // Call the function with the given parameters
         int ret = 0;
         if (evt->callback != NULL) {
-            ret = (*evt->callback)(evt, evt->callback_parm, globalreg);
+            ret = (*evt->callback)(evt, evt->callback_parm, Globalreg::globalreg);
         } else if (evt->event != NULL) {
             ret = evt->event->timetracker_event(evt->timer_id);
         } else if (evt->event_func != NULL) {
@@ -98,15 +101,17 @@ int Timetracker::Tick() {
                 evt->trigger_tm.tv_usec %= 1000000L;
             }
 
+            timer_sort_required = true;
         } else {
             local_locker rl(&removed_id_mutex);
-            removed_timer_ids.push_back(timerid);
+            removed_timer_ids.push_back(evt->timer_id);
             continue;
         }
     }
 
     {
-        // Actually remove the timers under lock
+        // Actually remove the timers under dual lock
+        local_locker l(&time_mutex);
         local_locker rl(&removed_id_mutex);
         for (auto x : removed_timer_ids) {
             auto itr = timer_map.find(x);
@@ -134,15 +139,8 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, 
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
-    local_locker lock(&time_mutex);
-    return RegisterTimer_nb(in_timeslices, in_trigger, 
-            in_recurring, in_callback, in_parm);
-}
+    local_locker l(&time_mutex);
 
-int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
-                               int in_recurring, 
-                               int (*in_callback)(TIMEEVENT_PARMS),
-                               void *in_parm) {
     timer_event *evt = new timer_event;
 
     evt->timer_id = next_timer_id++;
@@ -167,19 +165,15 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
     sorted_timers.push_back(evt);
 
     // Resort the list
-    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+    timer_sort_required = true;
 
     return evt->timer_id;
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, TimetrackerEvent *in_event) {
-    local_locker lock(&time_mutex);
-    return RegisterTimer_nb(in_timeslices, in_trigger, in_recurring, in_event);
-}
+    local_locker l(&time_mutex);
 
-int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
-        int in_recurring, TimetrackerEvent *in_event) {
     timer_event *evt = new timer_event;
 
     evt->timer_cancelled = false;
@@ -215,19 +209,15 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
     sorted_timers.push_back(evt);
 
     // Resort the list
-    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+    timer_sort_required = true;
 
     return evt->timer_id;
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, std::function<int (int)> in_event) {
-    local_locker lock(&time_mutex);
-    return RegisterTimer_nb(in_timeslices, in_trigger, in_recurring, in_event);
-}
+    local_locker l(&time_mutex);
 
-int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
-        int in_recurring, std::function<int (int)> in_event) {
     timer_event *evt = new timer_event;
 
     evt->timer_cancelled = false;
@@ -264,7 +254,7 @@ int Timetracker::RegisterTimer_nb(int in_timeslices, struct timeval *in_trigger,
     sorted_timers.push_back(evt);
 
     // Resort the list
-    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+    timer_sort_required = true;
 
     return evt->timer_id;
 }
