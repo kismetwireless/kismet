@@ -23,12 +23,13 @@
 
 #include "kis_net_microhttpd.h"
 
+#include "devicetracker_view.h"
+#include "eventbus.h"
 #include "globalregistry.h"
+#include "kis_net_microhttpd.h"
+#include "timetracker.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
-#include "devicetracker_view.h"
-#include "timetracker.h"
 
 /* SSID scan mode
  *
@@ -159,6 +160,11 @@ protected:
     std::shared_ptr<Timetracker> timetracker;
     int hopping_mode_end_timer;
     int capture_mode_end_timer;
+
+    // Eventbus subscription for new datasources
+    std::shared_ptr<Eventbus> eventbus;
+    unsigned long eventbus_id;
+    void handle_eventbus_evt(std::shared_ptr<EventbusEvent> evt);
 
 };
 
