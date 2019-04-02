@@ -316,6 +316,43 @@ Datasourcetracker::Datasourcetracker() :
         Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
                 TrackerElementFactory<TrackerElementVector>(), "Configured sources");
 
+    all_sources_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources", false,
+                datasource_vec, &dst_lock);
+
+    defaults_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/defaults", false,
+                config_defaults, &dst_lock);
+
+    types_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/types", false,
+                proto_vec, &dst_lock);
+
+    list_interfaces_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/list_interfaces", true,
+                [this]() -> std::shared_ptr<TrackerElement> {
+                    // Locker for waiting for the list callback
+                    auto cl = std::make_shared<conditional_locker<std::vector<SharedInterface> >>();
+
+                    cl->lock();
+
+                    // Initiate the open
+                    list_interfaces(
+                        [cl](std::vector<SharedInterface> iflist) {
+                            cl->unlock(iflist);
+                        });
+
+                    // Block until the list cmd unlocks us
+                    std::vector<SharedInterface> iflist = cl->block_until();
+
+                    auto iv = std::make_shared<TrackerElementVector>();
+
+                    for (auto li : iflist)
+                        iv->push_back(li);
+
+                    return iv;
+                });
+
     Bind_Httpd_Server();
 }
 
@@ -1296,18 +1333,6 @@ bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
         if (!Httpd_CanSerialize(path))
             return false;
 
-        if (stripped == "/datasource/all_sources")
-            return true;
-
-        if (stripped == "/datasource/types")
-            return true;
-
-        if (stripped == "/datasource/defaults")
-            return true;
-
-        if (stripped == "/datasource/list_interfaces")
-            return true;
-
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
         if (tokenurl.size() < 5)
@@ -1371,54 +1396,6 @@ void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (!Httpd_CanSerialize(path))
         return;
 
-    if (stripped == "/datasource/all_sources") {
-        local_shared_locker lock(&dst_lock);
-        Httpd_Serialize(path, stream, datasource_vec);
-        return; 
-    }
-
-    if (stripped == "/datasource/types") {
-        local_shared_locker lock(&dst_lock);
-        Httpd_Serialize(path, stream, proto_vec);
-        return;
-    }
-
-    if (stripped == "/datasource/defaults") {
-        local_shared_locker lock(&dst_lock);
-        Httpd_Serialize(path, stream, config_defaults);
-        return;
-    }
-
-    if (stripped == "/datasource/list_interfaces") {
-        // Require a login for doing an interface list
-        if (!httpd->HasValidSession(connection, true)) {
-            return;
-        }
-
-        // Locker for waiting for the list callback
-        auto cl = std::make_shared<conditional_locker<std::vector<SharedInterface> >>();
-
-        cl->lock();
-
-        // Initiate the open
-        list_interfaces(
-                [cl](std::vector<SharedInterface> iflist) {
-                    cl->unlock(iflist);
-                });
-
-        // Block until the list cmd unlocks us
-        std::vector<SharedInterface> iflist = cl->block_until();
-
-        auto iv = std::make_shared<TrackerElementVector>();
-
-        for (auto i : iflist) {
-            iv->push_back(i);
-        }
-
-        Httpd_Serialize(path, stream, iv);
-
-        return;
-    }
 
     std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
