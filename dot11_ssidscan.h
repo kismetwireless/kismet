@@ -26,6 +26,7 @@
 #include "devicetracker_view.h"
 #include "eventbus.h"
 #include "globalregistry.h"
+#include "kis_databaselogfile.h"
 #include "kis_net_microhttpd.h"
 #include "timetracker.h"
 #include "trackedelement.h"
@@ -165,6 +166,9 @@ protected:
     std::shared_ptr<Eventbus> eventbus;
     unsigned long eventbus_id;
     void handle_eventbus_evt(std::shared_ptr<EventbusEvent> evt);
+
+    // Database log for filtering
+    std::shared_ptr<KisDatabaseLogfile> databaselog;
 
 };
 

@@ -16,20 +16,30 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "dot11_ssidscan.h"
 #include "configfile.h"
+#include "datasourcetracker.h"
 #include "devicetracker.h"
+#include "dot11_ssidscan.h"
 #include "entrytracker.h"
 
 Dot11_SsidScan::Dot11_SsidScan() {
     timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+    hopping_mode_end_timer = -1;
+    capture_mode_end_timer = -1;
 
     auto entrytracker = 
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
     auto devicetracker =
         Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+
+    eventbus =
+        Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+    eventbus_id = 0;
+
+    databaselog =
+        Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>();
 
     // We aren't a tracked component so we register our sub elements directly
     ssidscan_enabled =
@@ -156,5 +166,72 @@ Dot11_SsidScan::Dot11_SsidScan() {
                 nullptr, nullptr);
     devicetracker->add_view(completed_device_view);
 
+    eventbus_id =
+        eventbus->register_listener("NEW_DATASOURCE",
+                [this](std::shared_ptr<EventbusEvent> evt) { handle_eventbus_evt(evt); });
+
+}
+
+Dot11_SsidScan::~Dot11_SsidScan() {
+    eventbus->remove_listener(eventbus_id);
+    timetracker->RemoveTimer(hopping_mode_end_timer);
+    timetracker->RemoveTimer(capture_mode_end_timer);
+
+}
+
+void Dot11_SsidScan::handle_eventbus_evt(std::shared_ptr<EventbusEvent> evt) {
+    auto source_evt = 
+        std::static_pointer_cast<Datasourcetracker::EventNewDatasource>(evt);
+
+}
+
+unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std::string& url,
+        SharedStructured post_structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+
+    try {
+        if (post_structured->hasKey("ssidscan_enabled")) {
+            auto enabled = post_structured->getKeyAsBool("ssidscan_enabled");
+
+            if (enabled != get_ssidscan_enabled()) {
+                set_ssidscan_enabled(enabled);
+
+                if (enabled) {
+                    _MSG_INFO("Enabling ssidscan module, this will change the behavior of datasources and logs.");
+
+                    // TODO enable code
+                } else {
+                    _MSG_INFO("Disabling ssidscan module, data sources may remain in unexpected stated.");
+
+                    // TODO disable code 
+                }
+            }
+        }
+
+        if (post_structured->hasKey("ignore_after_handshake"))
+            set_ignore_after_handshake(post_structured->getKeyAsBool("ignore_after_handshake"));
+
+        if (post_structured->hasKey("max_capture_seconds")) 
+            set_max_contend_cap_seconds(post_structured->getKeyAsNumber("max_capture_seconds"));
+
+        if (post_structured->hasKey("min_scan_seconds")) 
+            set_min_scan_seconds(post_structured->getKeyAsNumber("min_scan_seconds"));
+
+        if (post_structured->hasKey("restrict_log_filters")) {
+            auto enabled = post_structured->getKeyAsBool("restrict_log_filters");
+
+            if (enabled != get_filter_logs()) {
+                set_filter_logs(enabled);
+
+                // TODO set filters for all existing devices
+            } 
+        }
+
+    } catch (const std::exception& e) {
+        stream << "Unable to configure: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unimplemented\n";
+    return 500;
 }
 
