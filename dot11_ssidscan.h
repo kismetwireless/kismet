@@ -50,6 +50,12 @@
  * Target SSIDs
  * multiple/vector: dot11_ssidscan_ssid=....(regex) 
  *
+ * Datasource UUIDs to use for hopping
+ * multiple/vector: dot11_ssidscan_hop_datasource=...
+ *
+ * Datasource UUIDs to use for locking
+ * multiple/vector: dot11_ssidscan_lock_datasource=...
+ *
  * Block initial logging of devices & packets and only log ours
  * bool: dot11_ssidscan_block_logging=true
  *
@@ -92,14 +98,26 @@ private:
 public:
     virtual ~Dot11_SsidScan();
 
-
 protected:
+    __Proxy(ssidscan_enabled, uint8_t, bool, bool, ssidscan_enabled);
+    __Proxy(ignore_after_handshake, uint8_t, bool, bool, ignore_after_handshake);
+    __Proxy(max_contend_cap_seconds, uint32_t, uint32_t, uint32_t, max_contend_cap_seconds);
+    __Proxy(min_scan_seconds, uint32_t, uint32_t, uint32_t, min_scan_seconds);
+    __Proxy(initial_log_filters, uint8_t, bool, bool, initial_log_filters);
+    __Proxy(filter_logs, uint8_t, bool, bool, filter_logs);
+
     kis_recursive_timed_mutex mutex;
 
+    // Are we active at all?
+    std::shared_ptr<TrackerElementUInt8> ssidscan_enabled;
+
     // Target SSIDs
-    std::shared_ptr<TrackerElementVector> target_ssids;
+    std::shared_ptr<TrackerElementVectorString> target_ssids;
 
     // Pool of sources (if multiple are available)
+    std::shared_ptr<TrackerElementVector> hopping_datasources_uuids;
+    std::shared_ptr<TrackerElementVector> locking_datasources_uuids;
+
     std::shared_ptr<TrackerElementVector> hopping_datasources;
     std::shared_ptr<TrackerElementVector> locking_datasources;
 
@@ -116,7 +134,7 @@ protected:
 
     // Automatically set the log filters on startup to exclude all devices and 
     // packets except the ones we specify
-    std::shared_ptr<TrackerElementUInt8> set_initial_log_filters;
+    std::shared_ptr<TrackerElementUInt8> initial_log_filters;
 
     // Filter logging; otherwise log all packets (or whatever the user configured)
     // and just manipulate the sources
@@ -131,10 +149,12 @@ protected:
     unsigned int config_endp_handler(std::ostream& stream, const std::string& url,
             SharedStructured post_structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache);
 
-    // Reference we hold to the device view we populate with matched devices
+    // Reference we hold to the device view we populate with matched devices which may
+    // include completed devices
     std::shared_ptr<DevicetrackerView> target_devices_view;
 
-    // Reference we h old to the device view we populate with 'completed' devices
+    // Reference we h old to the device view we populate with 'completed' devices that have
+    // seen a wpa handshake
     std::shared_ptr<DevicetrackerView> completed_device_view;
 
     std::shared_ptr<Timetracker> timetracker;
