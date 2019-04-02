@@ -18,6 +18,7 @@
 
 #include "dot11_ssidscan.h"
 #include "configfile.h"
+#include "devicetracker.h"
 #include "entrytracker.h"
 
 Dot11_SsidScan::Dot11_SsidScan() {
@@ -26,6 +27,9 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     auto entrytracker = 
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+
+    auto devicetracker =
+        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
     // We aren't a tracked component so we register our sub elements directly
     ssidscan_enabled =
@@ -110,6 +114,49 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     set_min_scan_seconds(config->FetchOptUInt("dot11_ssidscan_minimum_hop", 30));
     set_max_contend_cap_seconds(config->FetchOptUInt("dot11_ssidscan_maximum_lock", 30));
+
+    dot11_ssidscan_status_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/phy/phy80211/ssidscan/status", true,
+                [this]() -> std::shared_ptr<TrackerElement> {
+                    auto retmap = std::make_shared<TrackerElementMap>();
+
+                    retmap->insert(ssidscan_enabled);
+                    retmap->insert(target_ssids);
+                    retmap->insert(hopping_datasources_uuids);
+                    retmap->insert(locking_datasources_uuids);
+                    retmap->insert(ignore_after_handshake);
+                    retmap->insert(initial_log_filters);
+                    retmap->insert(filter_logs);
+                    retmap->insert(min_scan_seconds);
+                    retmap->insert(max_contend_cap_seconds);
+
+                    return retmap;
+                }, &mutex);
+
+    dot11_ssidscan_config_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/phy/phy80211/ssidscan/config", true,
+                [this](std::ostream& stream, const std::string& url,
+                    SharedStructured post_structured, 
+                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    return config_endp_handler(stream, url, post_structured, variable_cache);
+                }, &mutex);
+
+    // Make the views with no completion functions, we maintain them manually
+    target_devices_view =
+        std::make_shared<DevicetrackerView>(
+                "phydot11_ssidtrack_targets",
+                "Devices matching SSIDTrack targets",
+                nullptr,
+                nullptr);
+    devicetracker->add_view(target_devices_view);
+
+    completed_device_view =
+        std::make_shared<DevicetrackerView>(
+                "phydot11_ssidtrack_completed",
+                "Devices with completed handshakes",
+                nullptr,
+                nullptr);
+    devicetracker->add_view(completed_device_view);
 
 }
 

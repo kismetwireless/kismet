@@ -142,7 +142,6 @@ protected:
 
     // Status/config view endp
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> dot11_ssidscan_status_endp;
-    std::shared_ptr<TrackerElement> status_endp_handler();
 
     // Configure set endp
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> dot11_ssidscan_config_endp;
