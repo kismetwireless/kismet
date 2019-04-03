@@ -1190,10 +1190,8 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         sqlite3_bind_double(snapshot_stmt, 3, gps->lat);
         sqlite3_bind_double(snapshot_stmt, 4, gps->lon);
     } else {
-        std::shared_ptr<kis_gps_packinfo> loc;
-
         if (gpstracker != nullptr) {
-            loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+            auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
             sqlite3_bind_double(snapshot_stmt, 3, loc->lat);
             sqlite3_bind_double(snapshot_stmt, 4, loc->lon);
         } else {

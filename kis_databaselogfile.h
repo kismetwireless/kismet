@@ -66,6 +66,7 @@ public:
     static std::shared_ptr<KisDatabaseLogfile> 
         create_kisdatabaselog() {
             std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile());
+            Globalreg::globalreg->RegisterDeferredGlobal(mon);
             Globalreg::globalreg->RegisterLifetimeGlobal(mon);
             Globalreg::globalreg->InsertGlobal(global_name(), mon);
             return mon;
