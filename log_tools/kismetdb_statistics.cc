@@ -353,7 +353,7 @@ int main(int argc, char *argv[]) {
                 root["max_lon"] = max_lon;
                 root["diag_distance_km"] = diag_distance;
             } else {
-                fmt::print("  Bounding location: {:f},{:f} {:f},{:f} (~{:f} Km)\n",
+                fmt::print("  Bounding location: {:3.10f},{:3.10f} {:3.10f},{:3.10f} (~{:f} Km)\n",
                         min_lat, min_lon, max_lat, max_lon, diag_distance);
             }
         }

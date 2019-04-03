@@ -561,7 +561,7 @@ int main(int argc, char *argv[]) {
 
         // printf("MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,AltitudeMeters,AccuracyMeters,Type\n");
 
-        fmt::print(ofile, "{},{},{},{},{},{},{:f},{:f},{:f},0,{}\n",
+        fmt::print(ofile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
                 sourcemac,
                 cached->name,
                 cached->crypto,
