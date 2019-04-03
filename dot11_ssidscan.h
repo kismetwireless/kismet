@@ -170,6 +170,21 @@ protected:
     // Database log for filtering
     std::shared_ptr<KisDatabaseLogfile> databaselog;
 
+    // Saved state for previous filtering and logging
+    bool previous_dblog_default_packet;
+    bool previous_dblog_default_device;
+
+    // Original state for interfaces
+    struct datasource_state {
+        bool hopping;
+        std::shared_ptr<TrackerElementVector> source_hop_vec;
+        std::string source_channel;
+    };
+    std::map<uuid, datasource_state> previous_datasource_hop_map;
+
+    bool enable_ssidscan();
+    bool disable_ssidscan();
+
 };
 
 #endif /* ifndef PHY_80211_SSIDSCAN */

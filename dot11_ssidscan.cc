@@ -200,7 +200,7 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
 
                     // TODO enable code
                 } else {
-                    _MSG_INFO("Disabling ssidscan module, data sources may remain in unexpected stated.");
+                    _MSG_INFO("Disabling ssidscan module, data sources may remain in unexpected states.");
 
                     // TODO disable code 
                 }
@@ -233,5 +233,16 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
 
     stream << "Unimplemented\n";
     return 500;
+}
+
+bool Dot11_SsidScan::enable_ssidscan() {
+
+
+    return false;
+}
+
+bool Dot11_SsidScan::disable_ssidscan() {
+
+    return false;
 }
 
