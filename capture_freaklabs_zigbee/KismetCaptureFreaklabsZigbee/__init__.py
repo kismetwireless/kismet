@@ -176,7 +176,7 @@ class SerialInputHandler(object):
         self.__write_command(bytearray([CMD_SET_CHANNEL, 1, channel]))
         # this hardware takes 150us for PLL lock and we need enough time to read the success message
         time.sleep (0.003)
-        if ((channel != self._current_channel) and (self._current_channel != -1)):
+        if (channel != self._current_channel):
             raise FreaklabException
 
     def get_channel(self):
@@ -184,11 +184,6 @@ class SerialInputHandler(object):
 
 class KismetFreaklabsZigbee(object):
     def __init__(self):
-        # Startup thread controls
-        self.cv = threading.Condition()
-        self.l = threading.Lock()
-        self.monitor_thread_started = False
-
         # Frequency map
         self.frequencies = {
             0: 868,
@@ -352,17 +347,8 @@ class KismetFreaklabsZigbee(object):
         except FreaklabException as e:
             return "unknown"
 
-    def __get_monitor_thread_started(self):
-        with self.l:
-            return self.monitor_thread_started
-
     def __start_monitor(self):
         def mon_func():
-            # Unlock that the monitor thread has launched
-            with self.cv, self.l:
-                self.monitor_thread_started = True
-                self.cv.notifyAll()
-
             while self.kismet.is_running():
                 try:
                     raw = self.serialhandler.read_frame()
@@ -387,12 +373,8 @@ class KismetFreaklabsZigbee(object):
 
             self.monitor_thread = None
 
-        # Make sure we unlock if we're locked as we start
         if self.monitor_thread:
-            with self.cv, self.l:
-                self.monitor_thread_started = True
-                self.cv.notifyAll()
-                return
+            return
 
         self.monitor_thread = threading.Thread(target = mon_func)
         self.monitor_thread.daemon = True
@@ -463,10 +445,19 @@ class KismetFreaklabsZigbee(object):
         # Launch the monitor thread
         self.__start_monitor()
 
-        # Spin on the conditional lock until the monitor thread comes up
-        with self.cv:
-            while not self.__get_monitor_thread_started():
-                self.cv.wait()
+        while True:
+            try:
+                self.serialhandler.set_channel(2)
+                break
+            except:
+                time.sleep(0.1)
+
+            try:
+                self.serialhandler.set_channel(13)
+                break
+            except:
+                time.sleep(0.4)
+
 
         if opts['band'] == "auto":
             opts['band'] = self.__detect_band(opts['device'])
