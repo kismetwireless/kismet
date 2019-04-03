@@ -189,8 +189,8 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
     arec->set_phy(in_phy);
     arec->set_time_last(0);
 
-	alert_name_map[arec->get_header()] = arec->get_alert_ref();
-	alert_ref_map[arec->get_alert_ref()] = arec;
+    alert_name_map.insert(std::make_pair(arec->get_header(), arec->get_alert_ref()));
+    alert_ref_map.insert(std::make_pair(arec->get_alert_ref(), arec));
 
     alert_defs_vec->push_back(arec);
 
@@ -200,8 +200,10 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
 int Alertracker::FetchAlertRef(std::string in_header) {
     local_locker lock(&alert_mutex);
 
-    if (alert_name_map.find(in_header) != alert_name_map.end())
-        return alert_name_map[in_header];
+    auto ni = alert_name_map.find(in_header);
+
+    if (ni != alert_name_map.end())
+        return ni->second;
 
     return -1;
 }
@@ -472,7 +474,7 @@ int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name,
 		return -1;
 	}
 
-	(*ret_name) = StrLower(tokens[0]);
+	(*ret_name) = StrUpper(tokens[0]);
 
 	if (ParseRateUnit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
 		ParseRateUnit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
@@ -532,7 +534,7 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
             return -1;
         }
 
-        alert_conf_map[StrLower(rec->header)] = rec;
+        alert_conf_map.insert(std::make_pair(rec->header, rec));
     }
 
     return 1;
@@ -542,21 +544,20 @@ int Alertracker::DefineAlert(std::string name, alert_time_unit limit_unit, int l
         alert_time_unit burst_unit, int burst_rate) {
     local_locker lock(&alert_mutex);
 
-    for (auto i = alert_conf_map.begin(); i != alert_conf_map.end(); ++i) {
-        if (StrLower(name) == i->first) {
-            _MSG("Tried to define alert '" + name + "' twice.", MSGFLAG_ERROR);
-            return -1;
-        }
+    auto ai = alert_conf_map.find(StrUpper(name));
+    if (ai != alert_conf_map.end()) {
+        _MSG_ERROR("alerttracker - tried to define alert '{}' twice.", name);
+        return -1;
     }
 
     alert_conf_rec *rec = new alert_conf_rec;
-    rec->header = name;
+    rec->header = StrUpper(name);
     rec->limit_unit = limit_unit;
     rec->limit_rate = limit_rate;
     rec->burst_unit = burst_unit;
     rec->limit_burst = burst_rate;
 
-    alert_conf_map[StrLower(rec->header)] = rec;
+    alert_conf_map.insert(std::make_pair(rec->header, rec));
 
     return 1;
 }
@@ -571,19 +572,20 @@ int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_d
     {
         local_locker lock(&alert_mutex);
 
-        std::string hdr = StrLower(in_header);
+        std::string hdr = StrUpper(in_header);
 
-        if (alert_conf_map.find(hdr) == alert_conf_map.end()) {
-            _MSG("Using default rates (10/min,1/sec) for alert '" + in_header + "'",
-                    MSGFLAG_INFO);
+        auto hi = alert_conf_map.find(hdr);
+
+        if (hi == alert_conf_map.end()) {
+            _MSG_INFO("Using default rates of 10/min, 1/sec for alert '{}'", in_header);
             DefineAlert(in_header, sat_minute, 10, sat_second, 1);
-        }
+        } 
 
-        rec = alert_conf_map[hdr];
+        rec = hi->second;
     }
 
 	return RegisterAlert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
-						 rec->burst_unit, rec->limit_burst, in_phy);
+            rec->burst_unit, rec->limit_burst, in_phy);
 }
 
 int Alertracker::FindActivatedAlert(std::string in_header) {
