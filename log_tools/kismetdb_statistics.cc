@@ -71,13 +71,15 @@ void print_help(char *argv) {
            "the CSV format used by Wigle\n");
     printf("Usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
-           " -s, --skip-clean             Don't clean (sql vacuum) input database\n");
+           " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
+           " -j, --json                   Dump stats as a JSON dictionary");
 }
 
 int main(int argc, char *argv[]) {
     static struct option longopt[] = {
         { "in", required_argument, 0, 'i' },
         { "skip-clean", no_argument, 0, 's' },
+        { "json", no_argument, 0, 'j' },
         { "help", no_argument, 0, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -88,6 +90,8 @@ int main(int argc, char *argv[]) {
 
     std::string in_fname;
     bool skipclean = false;
+    bool outputjson = false;
+    Json::Value root;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -97,7 +101,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:s", longopt, &option_idx);
+                            "-hi:sj", longopt, &option_idx);
         if (r < 0) break;
 
         if (r == 'h') {
@@ -107,6 +111,8 @@ int main(int argc, char *argv[]) {
             in_fname = std::string(optarg);
         } else if (r == 's') {
             skipclean = true;
+        } else if (r == 'j') {
+            outputjson = true;
         }
     }
 
@@ -134,7 +140,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!skipclean) {
-        fmt::print("* Cleaning database '{}'...\n", in_fname);
+        fmt::print(stderr, "* Cleaning database '{}'...\n", in_fname);
 
         sql_r = sqlite3_exec(db, "VACUUM;", NULL, NULL, &sql_errmsg);
 
@@ -149,14 +155,21 @@ int main(int argc, char *argv[]) {
 
     using namespace kissqlite3;
 
+    if (outputjson)
+        root["file"] = in_fname;
+
     try {
         // Get the version
         auto version_query = _SELECT(db, "KISMET", {"db_version"});
         auto version_ret = version_query.run();
         auto db_version = sqlite3_column_as<int>(*version_ret, 0);
 
-        fmt::print("  KismetDB version: {}\n", db_version);
-        fmt::print("\n");
+        if (outputjson) {
+            root["kismetdb_version"] = db_version;
+        } else {
+            fmt::print("  KismetDB version: {}\n", db_version);
+            fmt::print("\n");
+        }
 
         // Get the total counts
         auto npackets_q = _SELECT(db, "packets", 
@@ -171,9 +184,14 @@ int main(int argc, char *argv[]) {
         auto n_total_data_db = sqlite3_column_as<unsigned long>(*ndata_ret, 0);
         auto n_data_with_loc = sqlite3_column_as<unsigned long>(*ndata_ret, 1);
 
-        fmt::print("  Packets: {}\n", n_total_packets_db);
-        fmt::print("  Non-packet data: {}\n", n_total_data_db);
-        fmt::print("\n");
+        if (outputjson) {
+            root["packets"] = n_total_packets_db;
+            root["data_packets"] = n_total_data_db;
+        } else {
+            fmt::print("  Packets: {}\n", n_total_packets_db);
+            fmt::print("  Non-packet data: {}\n", n_total_data_db);
+            fmt::print("\n");
+        }
        
         auto ndevices_q = _SELECT(db, "devices", {"count(*)", "min(first_time)", "max(last_time)"});
         auto ndevices_ret = ndevices_q.run();
@@ -184,15 +202,23 @@ int main(int argc, char *argv[]) {
         auto min_tm = *std::localtime(&min_time);
         auto max_tm = *std::localtime(&max_time);
 
-        fmt::print("  Devices: {}\n", n_total_devices);
-        fmt::print("  Devices seen between: {} ({}) to {} ({})\n",
-                std::put_time(&min_tm, "%Y-%m-%d %H:%M:%S"), min_time,
-                std::put_time(&max_tm, "%Y-%m-%d %H:%M:%S"), max_time);
+        if (outputjson) {
+            root["devices"] = n_total_devices;
+            root["device_min_time"] = min_time;
+            root["device_max_time"] = max_time;
+        } else {
+            fmt::print("  Devices: {}\n", n_total_devices);
+            fmt::print("  Devices seen between: {} ({}) to {} ({})\n",
+                    std::put_time(&min_tm, "%Y-%m-%d %H:%M:%S"), min_time,
+                    std::put_time(&max_tm, "%Y-%m-%d %H:%M:%S"), max_time);
+        }
 
         auto n_sources_q = _SELECT(db, "datasources",
                 {"count(*)"});
         auto n_sources_q_ret = n_sources_q.run();
-        fmt::print("  {} datasources\n", sqlite3_column_as<unsigned int>(*n_sources_q_ret, 0));
+
+        if (!outputjson)
+            fmt::print("  {} datasources\n", sqlite3_column_as<unsigned int>(*n_sources_q_ret, 0));
         
         auto sources_q = _SELECT(db, "datasources", 
                 {"uuid", "typestring", "definition", "name", "interface", "json"});
@@ -203,13 +229,24 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
+        Json::Value ds_vec;
+
         for (auto i = sources_q.begin(); i != sources_q.end(); ++i) {
-        // for (auto i : sources_q) {
-            fmt::print("    {:<16} {:<16} {} {}\n",
-                    sqlite3_column_as<std::string>(*i, 3),
-                    sqlite3_column_as<std::string>(*i, 4),
-                    sqlite3_column_as<std::string>(*i, 0),
-                    sqlite3_column_as<std::string>(*i, 1));
+            Json::Value ds_root;
+
+            if (outputjson) {
+                ds_root["uuid"] = sqlite3_column_as<std::string>(*i, 0);
+                ds_root["type"] = sqlite3_column_as<std::string>(*i, 1);
+                ds_root["definition"] = sqlite3_column_as<std::string>(*i, 2);
+                ds_root["name"] = sqlite3_column_as<std::string>(*i, 3);
+                ds_root["interface"] = sqlite3_column_as<std::string>(*i, 4);
+            } else {
+                fmt::print("    {:<16} {:<16} {} {}\n",
+                        sqlite3_column_as<std::string>(*i, 3),
+                        sqlite3_column_as<std::string>(*i, 4),
+                        sqlite3_column_as<std::string>(*i, 0),
+                        sqlite3_column_as<std::string>(*i, 1));
+            }
 
             Json::Value json;
             std::stringstream ss(sqlite3_column_as<std::string>(*i, 5));
@@ -217,18 +254,26 @@ int main(int argc, char *argv[]) {
             ss >> json;
 
             // Pull some data out of the JSON records
-            fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].asString());
-            fmt::print("      Packets: {}\n", json["kismet.datasource.num_packets"].asDouble());
+            if (outputjson) {
+                ds_root["hardware"] = json["kismet.datasource.hardware"];
+                ds_root["packets"] = json["kismet.datasource.num_packets"];
+            } else {
+                fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].asString());
+                fmt::print("      Packets: {}\n", json["kismet.datasource.num_packets"].asDouble());
+            }
 
             if (json["kismet.datasource.hopping"].asInt()) {
-                auto rate = json["kismet.datasource.hop_rate"].asDouble();
-
-                if (rate >= 1) {
-                    fmt::print("      Hop rate: {:f}/second\n", rate);
-                } else if (rate / 60.0f < 60) {
-                    fmt::print("      Hop rate: {:f}/minute\n", rate / 60.0f);
+                if (outputjson) {
+                    ds_root["hop_rate"] = json["kismet.datasource.hop_rate"];
                 } else {
-                    fmt::print("      Hop rate: {:f} seconds\n", rate / 60.0f);
+                    auto rate = json["kismet.datasource.hop_rate"].asDouble();
+                    if (rate >= 1) {
+                        fmt::print("      Hop rate: {:f}/second\n", rate);
+                    } else if (rate / 60.0f < 60) {
+                        fmt::print("      Hop rate: {:f}/minute\n", rate / 60.0f);
+                    } else {
+                        fmt::print("      Hop rate: {:f} seconds\n", rate / 60.0f);
+                    }
                 }
 
                 std::stringstream chan_ss;
@@ -243,16 +288,31 @@ int main(int argc, char *argv[]) {
                 }
 
                 if (chan_ss.str().length()) {
-                    fmt::print("      Hop channels: {}\n", chan_ss.str());
+                    if (outputjson) {
+                        ds_root["hop_channels"] = chan_ss.str();
+                    } else {
+                        fmt::print("      Hop channels: {}\n", chan_ss.str());
+                    }
                 }
             } else {
                 auto chan = json["kismet.datasource.channel"].asString();
                 if (chan.length()) {
-                    fmt::print("      Channel: {}", chan);
+                    if (outputjson) {
+                        ds_root["channel"] = chan;
+                    } else {
+                        fmt::print("      Channel: {}", chan);
+                    }
                 }
             }
+
+            ds_vec.append(ds_root);
         }
-        fmt::print("\n");
+
+        if (outputjson) {
+            root["datasources"] = ds_vec;
+        } else {
+            fmt::print("\n");
+        }
 
         auto range_q = _SELECT(db, "devices",
                 {"min(min_lat)", "min(min_lon)", "max(max_lat)", "max(max_lon)"},
@@ -282,22 +342,36 @@ int main(int argc, char *argv[]) {
         }
 
         if (min_lat == 0 || min_lon == 0 || max_lat == 0 || max_lon == 0) {
-            fmt::print("  Location data: None\n");
+            if (!outputjson)
+                fmt::print("  Location data: None\n");
         } else {
             auto diag_distance = distance_meters(min_lat, min_lon, max_lat, max_lon) / 1000.0f;
-            fmt::print("  Bounding location: {:f},{:f} {:f},{:f} (~{:f} Km)\n",
-                    min_lat, min_lon, max_lat, max_lon, diag_distance);
+            if (outputjson) {
+                root["min_lat"] = min_lat;
+                root["min_lon"] = min_lon;
+                root["max_lat"] = max_lat;
+                root["max_lon"] = max_lon;
+                root["diag_distance_km"] = diag_distance;
+            } else {
+                fmt::print("  Bounding location: {:f},{:f} {:f},{:f} (~{:f} Km)\n",
+                        min_lat, min_lon, max_lat, max_lon, diag_distance);
+            }
         }
 
-        fmt::print("  Packets with location: {}\n", n_packets_with_loc);
-        fmt::print("  Data with location: {}\n", n_data_with_loc);
-        fmt::print("\n");
+        if (!outputjson) {
+            fmt::print("  Packets with location: {}\n", n_packets_with_loc);
+            fmt::print("  Data with location: {}\n", n_data_with_loc);
+            fmt::print("\n");
+        }
 
 
     } catch (const std::exception& e) {
         fmt::print(stderr, "ERROR:  Could not get database information from '{}': {}\n", in_fname, e.what());
         exit(0);
     }
+
+    if (outputjson)
+        fmt::print("{}\n", root);
 
     return 0;
 }
