@@ -184,11 +184,6 @@ class SerialInputHandler(object):
 
 class KismetFreaklabsZigbee(object):
     def __init__(self):
-        # Startup thread controls
-        self.cv = threading.Condition()
-        self.l = threading.Lock()
-        self.monitor_thread_started = False
-
         # Frequency map
         self.frequencies = {
             0: 868,
@@ -352,17 +347,8 @@ class KismetFreaklabsZigbee(object):
         except FreaklabException as e:
             return "unknown"
 
-    def __get_monitor_thread_started(self):
-        with self.l:
-            return self.monitor_thread_started
-
     def __start_monitor(self):
         def mon_func():
-            # Unlock that the monitor thread has launched
-            with self.cv, self.l:
-                self.monitor_thread_started = True
-                self.cv.notifyAll()
-
             while self.kismet.is_running():
                 try:
                     raw = self.serialhandler.read_frame()
@@ -387,12 +373,7 @@ class KismetFreaklabsZigbee(object):
 
             self.monitor_thread = None
 
-        # Make sure we unlock if we're locked as we start
         if self.monitor_thread:
-            with self.cv, self.l:
-                self.monitor_thread_started = True
-                self.cv.notifyAll()
-                return
 
         self.monitor_thread = threading.Thread(target = mon_func)
         self.monitor_thread.daemon = True
@@ -462,11 +443,6 @@ class KismetFreaklabsZigbee(object):
 
         # Launch the monitor thread
         self.__start_monitor()
-
-        # Spin on the conditional lock until the monitor thread comes up
-        with self.cv:
-            while not self.__get_monitor_thread_started():
-                self.cv.wait()
 
         if opts['band'] == "auto":
             opts['band'] = self.__detect_band(opts['device'])
