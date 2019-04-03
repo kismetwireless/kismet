@@ -65,6 +65,8 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	globalreg = in_globalreg;
 
+    next_phy_id = 0;
+
     // create a vector
     immutable_tracked_vec = std::make_shared<TrackerElementVector>();
 
@@ -123,8 +125,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
-
-	next_phy_id = 0;
 
     std::shared_ptr<Packetchain> packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");

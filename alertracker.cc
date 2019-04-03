@@ -35,6 +35,8 @@
 Alertracker::Alertracker() :
     Kis_Net_Httpd_CPPStream_Handler() {
 
+	next_alert_id = 0;
+
     packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
@@ -74,8 +76,6 @@ Alertracker::Alertracker() :
 
 
     Bind_Httpd_Server();
-
-	next_alert_id = 0;
 
 	if (Globalreg::globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
@@ -579,9 +579,17 @@ int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_d
         if (hi == alert_conf_map.end()) {
             _MSG_INFO("Using default rates of 10/min, 1/sec for alert '{}'", in_header);
             DefineAlert(in_header, sat_minute, 10, sat_second, 1);
-        } 
 
-        rec = hi->second;
+            auto hi_full = alert_conf_map.find(hdr);
+            if (hi_full == alert_conf_map.end()) {
+                _MSG_ERROR("Failed to define default rate alert '{}'", in_header);
+                return -1;
+            }
+
+            rec = hi_full->second;
+        } else {
+            rec = hi->second;
+        }
     }
 
 	return RegisterAlert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 

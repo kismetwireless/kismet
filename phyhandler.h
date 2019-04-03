@@ -34,17 +34,15 @@ class kis_tracked_device_base;
 class Kis_Phy_Handler {
 public:
 	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg) {
-        phyid = -1;
-        phyname = "NONE";
-    }
+    Kis_Phy_Handler(GlobalRegistry *in_globalreg) :
+        phyname {"NONE"},
+        phyid {-1} { }
 
     virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) = 0;
 
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) {
-        phyid = in_phyid;
-        phyname = "NONE";
-	}
+    Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) :
+        phyname {"NONE"},
+        phyid {in_phyid} { }
 
 	virtual ~Kis_Phy_Handler() { }
 
