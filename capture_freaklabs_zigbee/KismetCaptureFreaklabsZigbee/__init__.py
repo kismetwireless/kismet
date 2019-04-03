@@ -176,7 +176,7 @@ class SerialInputHandler(object):
         self.__write_command(bytearray([CMD_SET_CHANNEL, 1, channel]))
         # this hardware takes 150us for PLL lock and we need enough time to read the success message
         time.sleep (0.003)
-        if ((channel != self._current_channel) and (self._current_channel != -1)):
+        if (channel != self._current_channel):
             raise FreaklabException
 
     def get_channel(self):
@@ -443,6 +443,20 @@ class KismetFreaklabsZigbee(object):
 
         # Launch the monitor thread
         self.__start_monitor()
+
+        while True:
+            try:
+                self.serialhandler.set_channel(2)
+                break
+            except:
+                time.sleep(0.1)
+
+            try:
+                self.serialhandler.set_channel(13)
+                break
+            except:
+                time.sleep(0.4)
+
 
         if opts['band'] == "auto":
             opts['band'] = self.__detect_band(opts['device'])
