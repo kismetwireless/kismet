@@ -39,6 +39,9 @@ RingbufV2::RingbufV2(size_t in_sz) {
     copy_r_bytes = 0;
     last_profile_bytes = 0;
 #endif
+
+    peek_reserved = false;
+    free_peek = false;
 }
 
 RingbufV2::~RingbufV2() {
@@ -124,6 +127,8 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
 
     // Always reserve first since we may blindly peek_free later
     peek_reserved = true;
+    // Set free manually later if necessary
+    free_peek = false;
 
     if (opsize == 0) {
         free_peek = false;
