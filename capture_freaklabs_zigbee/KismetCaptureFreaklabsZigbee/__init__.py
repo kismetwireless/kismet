@@ -374,6 +374,7 @@ class KismetFreaklabsZigbee(object):
             self.monitor_thread = None
 
         if self.monitor_thread:
+            return
 
         self.monitor_thread = threading.Thread(target = mon_func)
         self.monitor_thread.daemon = True
