@@ -276,21 +276,21 @@ int main(int argc, char *argv[]) {
                     }
                 }
 
-                std::stringstream chan_ss;
-                bool comma = false;
-                for (auto c : json["kismet.datasource.hop_channels"]) {
-                    if (comma)
-                        chan_ss << ", ";
+                if (outputjson) {
+                    ds_root["hop_channels"] = json["kismet.datasource.hop_channels"];
+                } else {
+                    std::stringstream chan_ss;
+                    bool comma = false;
+                    for (auto c : json["kismet.datasource.hop_channels"]) {
+                        if (comma)
+                            chan_ss << ", ";
 
-                    comma = true;
+                        comma = true;
 
-                    chan_ss << c.asString();
-                }
+                        chan_ss << c.asString();
+                    }
 
-                if (chan_ss.str().length()) {
-                    if (outputjson) {
-                        ds_root["hop_channels"] = chan_ss.str();
-                    } else {
+                    if (chan_ss.str().length()) {
                         fmt::print("      Hop channels: {}\n", chan_ss.str());
                     }
                 }
