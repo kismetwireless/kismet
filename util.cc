@@ -75,24 +75,24 @@
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
 std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
-    std::string ret;
+    std::stringstream ret;
 	unsigned int i;
 
 	for (i = 0; i < max; i++) {
 		if ((unsigned char) in_data[i] == 0 && nullterm == 1)
-			return ret;
+			return ret.str();
 
 		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
-			ret += in_data[i];
+            ret << in_data[i];
 		} else {
-			ret += '\\';
-			ret += ((in_data[i] >> 6) & 0x03) + '0';
-			ret += ((in_data[i] >> 3) & 0x07) + '0';
-			ret += ((in_data[i] >> 0) & 0x07) + '0';
+            ret << "\\";
+			ret << ((in_data[i] >> 6) & 0x03) + '0';
+            ret << ((in_data[i] >> 3) & 0x07) + '0';
+			ret << ((in_data[i] >> 0) & 0x07) + '0';
 		}
 	}
 
-	return ret;
+	return ret.str();
 }
 
 std::string MungeToPrintable(const std::string& in_str) {
