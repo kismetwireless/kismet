@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -30,12 +30,22 @@
 
 class Kis_DLT_PPI : public Kis_DLT_Handler {
 public:
-	Kis_DLT_PPI() { fprintf(stderr, "FATAL OOPS: Kis_DLT_PPI()\n"); exit(1); }
-	Kis_DLT_PPI(GlobalRegistry *in_globalreg);
+    static std::string global_name() { return "DLT_PPI"; }
+
+    static std::shared_ptr<Kis_DLT_PPI> create_dlt() {
+        std::shared_ptr<Kis_DLT_PPI> mon(new Kis_DLT_PPI());
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        return mon;
+    }
+
+private:
+	Kis_DLT_PPI();
+
+public:
+	virtual ~Kis_DLT_PPI() { };
 
 	virtual int HandlePacket(kis_packet *in_pack);
-
-	~Kis_DLT_PPI();
 };
 
 #endif

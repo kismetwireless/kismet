@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -65,21 +65,15 @@
 #define IEEE80211_RADIOTAP_F_BADFCS     0x40    /* frame has bad FCS */
 #endif
 
-Kis_DLT_Radiotap::Kis_DLT_Radiotap(GlobalRegistry *in_globalreg) :
-	Kis_DLT_Handler(in_globalreg) {
+Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
+	Kis_DLT_Handler() {
 
 	dlt_name = "Radiotap";
 	dlt = DLT_IEEE802_11_RADIO;
 
-	globalreg->InsertGlobal("DLT_RADIOTAP", std::shared_ptr<Kis_DLT_Radiotap>(this));
-
 	_MSG("Registering support for DLT_RADIOTAP packet header decoding", MSGFLAG_INFO);
 
     crc32_init_table_80211(crc32_table);
-}
-
-Kis_DLT_Radiotap::~Kis_DLT_Radiotap() {
-    globalreg->RemoveGlobal("DLT_RADIOTAP");
 }
 
 #define ALIGN_OFFSET(offset, width) \
@@ -483,8 +477,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
 		// Compare it and flag the packet
 		uint32_t calc_crc =
-			crc32_le_80211(globalreg->crc32_table, decapchunk->data, 
-						   decapchunk->length);
+			crc32_le_80211(crc32_table, decapchunk->data, decapchunk->length);
         uint32_t flipped_crc = kis_swap32(calc_crc);
 
         // compare both representations

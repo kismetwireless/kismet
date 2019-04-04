@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -34,19 +34,13 @@
 
 #include "gpstracker.h"
 
-Kis_DLT_PPI::Kis_DLT_PPI(GlobalRegistry *in_globalreg) :
-	Kis_DLT_Handler(in_globalreg) {
+Kis_DLT_PPI::Kis_DLT_PPI() :
+	Kis_DLT_Handler() {
 
 	dlt_name = "PPI";
 	dlt = DLT_PPI;
 
-	globalreg->InsertGlobal("DLT_PPI", std::shared_ptr<Kis_DLT_PPI>(this));
-
 	_MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
-}
-
-Kis_DLT_PPI::~Kis_DLT_PPI() {
-	globalreg->InsertGlobal("DLT_PPI", NULL);
 }
 
 int Kis_DLT_PPI::HandlePacket(kis_packet *in_pack) {
