@@ -185,8 +185,8 @@ int main(int argc, char *argv[]) {
         auto n_data_with_loc = sqlite3_column_as<unsigned long>(*ndata_ret, 1);
 
         if (outputjson) {
-            root["packets"] = n_total_packets_db;
-            root["data_packets"] = n_total_data_db;
+            root["packets"] = (uint64_t) n_total_packets_db;
+            root["data_packets"] = (uint64_t) n_total_data_db;
         } else {
             fmt::print("  Packets: {}\n", n_total_packets_db);
             fmt::print("  Non-packet data: {}\n", n_total_data_db);
@@ -203,9 +203,9 @@ int main(int argc, char *argv[]) {
         auto max_tm = *std::localtime(&max_time);
 
         if (outputjson) {
-            root["devices"] = n_total_devices;
-            root["device_min_time"] = min_time;
-            root["device_max_time"] = max_time;
+            root["devices"] = (uint64_t) n_total_devices;
+            root["device_min_time"] = (uint64_t) min_time;
+            root["device_max_time"] = (uint64_t) max_time;
         } else {
             fmt::print("  Devices: {}\n", n_total_devices);
             fmt::print("  Devices seen between: {} ({}) to {} ({})\n",
