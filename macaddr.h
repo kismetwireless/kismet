@@ -322,7 +322,7 @@ struct mac_addr {
     }
 
     inline std::string MacFull2String() const {
-        return Mac2String() + "/" + MacMask2String();
+        return fmt::format("{}/{}", Mac2String(), MacMask2String());
     }
 
     friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);
