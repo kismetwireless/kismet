@@ -139,9 +139,6 @@ public:
         if (device == NULL)
             return false;
 
-        if (device->get_last_time() < stime - channelv2->device_decay)
-            return false;
-
         if (device->get_frequency() == 0)
             return false;
 
@@ -151,9 +148,13 @@ public:
             auto i = device_count.find(device->get_frequency());
 
             if (i != device_count.end()) {
-                i->second++;
+                if (device->get_last_time() > (stime - channelv2->device_decay))
+                    i->second++;
             } else {
-                device_count.insert(std::make_pair(device->get_frequency(), 1));
+                if (device->get_last_time() > (stime - channelv2->device_decay))
+                    device_count.insert(std::make_pair(device->get_frequency(), 1));
+                else
+                    device_count.insert(std::make_pair(device->get_frequency(), 0));
             }
         }
 
