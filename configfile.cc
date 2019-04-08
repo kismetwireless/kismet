@@ -319,15 +319,15 @@ int ConfigFile::FetchOptBoolean(std::string in_key, int dvalue) {
 }
 
 int ConfigFile::FetchOptInt(const std::string& in_key, int dvalue) {
-    return fetchOptAs<int>(in_key, dvalue);
+    return FetchOptAs<int>(in_key, dvalue);
 }
 
 unsigned int ConfigFile::FetchOptUInt(const std::string& in_key, unsigned int dvalue) {
-    return fetchOptAs<unsigned int>(in_key, dvalue);
+    return FetchOptAs<unsigned int>(in_key, dvalue);
 }
 
 unsigned long ConfigFile::FetchOptULong(const std::string& in_key, unsigned long dvalue) {
-    return fetchOptAs<unsigned long>(in_key, dvalue);
+    return FetchOptAs<unsigned long>(in_key, dvalue);
 }
 
 int ConfigFile::FetchOptDirty(const std::string& in_key) {
