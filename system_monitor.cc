@@ -29,14 +29,15 @@
 #include <sensors/sensors.h>
 #endif
 
-#include "globalregistry.h"
-#include "util.h"
 #include "battery.h"
 #include "entrytracker.h"
-#include "system_monitor.h"
-#include "json_adapter.h"
-#include "version.h"
 #include "fmt.h"
+#include "globalregistry.h"
+#include "json_adapter.h"
+#include "kis_databaselogfile.h"
+#include "system_monitor.h"
+#include "util.h"
+#include "version.h"
 
 Systemmonitor::Systemmonitor() :
     LifetimeGlobal() {
@@ -121,6 +122,36 @@ Systemmonitor::Systemmonitor() :
                 return tse;
             });
 
+    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_system_status", true)) {
+        auto snap_time_s = 
+            Globalreg::globalreg->kismet_config->FetchOptAs<unsigned int>("kis_log_system_status_rate", 30);
+
+        kismetdb_log_timer =
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * snap_time_s, nullptr, 1, 
+                    [this](int) -> int {
+                        auto kismetdb = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
+
+                        if (kismetdb == nullptr)
+                            return 1;
+
+                        struct timeval tv;
+                        gettimeofday(&tv, nullptr);
+
+                        std::stringstream js;
+
+                        {
+                            local_locker l(&monitor_mutex);
+                            js << status;
+                        }
+
+                        kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
+
+                        return 1;
+                    });
+    } else {
+        kismetdb_log_timer = -1;
+    }
+
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -129,8 +160,10 @@ Systemmonitor::~Systemmonitor() {
     Globalreg::globalreg->RemoveGlobal("SYSTEMMONITOR");
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
-    if (timetracker != nullptr)
+    if (timetracker != nullptr) {
         timetracker->RemoveTimer(timer_id);
+        timetracker->RemoveTimer(kismetdb_log_timer);
+    }
 }
 
 void tracked_system_status::register_fields() {

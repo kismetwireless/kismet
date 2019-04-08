@@ -160,6 +160,8 @@ protected:
     std::shared_ptr<tracked_system_status> status;
 
     long mem_per_page;
+
+    int kismetdb_log_timer;
 };
 
 #endif
