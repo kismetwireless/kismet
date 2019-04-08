@@ -128,9 +128,7 @@ public:
         stime = time(0);
     }
 
-    virtual ~channeltracker_v2_device_worker() {
-
-    }
+    virtual ~channeltracker_v2_device_worker() { }
 
     // Count all the devices.  We use a filter worker but 'match' on all
     // and count them into our local map
@@ -167,7 +165,6 @@ public:
     }
 
 protected:
-    GlobalRegistry *globalreg;
     Channeltracker_V2 *channelv2;
 
     std::map<double, unsigned int> device_count;
@@ -175,7 +172,6 @@ protected:
     time_t stime;
 
     kis_recursive_timed_mutex workermutex;
-
 };
 
 
@@ -190,8 +186,7 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    std::shared_ptr<Timetracker> timetracker =
-        Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
     if (timetracker != nullptr)
         timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
