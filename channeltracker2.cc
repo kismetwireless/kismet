@@ -214,13 +214,11 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
     local_locker locker(&(cv2->lock));
 
-    kis_layer1_packinfo *l1info =
-        (kis_layer1_packinfo *) in_pack->fetch(cv2->pack_comp_l1data);
-	kis_common_info *common = 
-		(kis_common_info *) in_pack->fetch(cv2->pack_comp_common);
+    auto l1info = in_pack->fetch<kis_layer1_packinfo>(cv2->pack_comp_l1data);
+	auto common = in_pack->fetch<kis_common_info>(cv2->pack_comp_common);
 
     // Nothing to do with no l1info
-    if (l1info == NULL)
+    if (l1info == nullptr)
         return 1;
 
     std::shared_ptr<Channeltracker_V2_Channel> freq_channel;
@@ -240,7 +238,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
         }
     }
 
-    if (common != NULL) {
+    if (common != nullptr) {
         if (!(common->channel == "0") && !(common->channel == "")) {
             auto smi = cv2->channel_map->find(common->channel);
 
