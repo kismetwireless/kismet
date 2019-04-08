@@ -141,7 +141,7 @@ Systemmonitor::Systemmonitor() :
 
                         {
                             local_locker l(&monitor_mutex);
-                            js << status;
+                            Globalreg::globalreg->entrytracker->Serialize("json", js, status, NULL);
                         }
 
                         kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
