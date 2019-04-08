@@ -9,7 +9,7 @@ RUN apt-get update && \
     libcap-dev libpcap-dev libncurses5-dev libnm-dev libdw-dev \
     libsqlite3-dev libprotobuf-dev libprotobuf-c-dev \
     protobuf-compiler protobuf-c-compiler \
-    librtlsdr0 
+    librtlsdr0 libusb-1.0
 
 COPY build-kismet.sh /opt/build-kismet.sh
 RUN /bin/bash /opt/build-kismet.sh
