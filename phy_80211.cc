@@ -2722,7 +2722,7 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
         WPAVER = "WPA3";
 
 	if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
-        return fmt::format("WPA3-COMPAT-PSK");
+        return fmt::format("WPA3-TRANSITION");
 
     if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_sae))
         return fmt::format("{}-SAE", WPAVER);
