@@ -153,7 +153,7 @@ struct mac_addr {
         longmask = (uint64_t) -1;
 
         for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
-            uint64_t v = in[x];
+            uint64_t v = (in[x] & 0xFF);
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
     }
