@@ -823,11 +823,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     draw: function(opts) {
                         $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
                                 "/device.json/kismet.device.base.commonname")
+                        .fail(function() {
+                            opts['container'].html('<i>None</i>');
+                        })
                         .done(function(clidata) {
                             clidata = kismet.sanitizeObject(clidata);
 
                             if (clidata === '' || clidata === '""') {
-                                opts['container'].html('<i>None/i>');
+                                opts['container'].html('<i>None</i>');
                             } else {
                                 opts['container'].html(clidata);
                             }
@@ -840,6 +843,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     draw: function(opts) {
                         $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
                                 "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                        .fail(function() {
+                            opts['container'].html('<i>Unknown</i>');
+                        })
                         .done(function(clidata) {
                             clidata = kismet.sanitizeObject(clidata);
 
