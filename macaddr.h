@@ -147,6 +147,17 @@ struct mac_addr {
         }
     }
 
+    mac_addr(const char *in, unsigned int len) {
+        error = 0;
+        longmac = 0;
+        longmask = (uint64_t) -1;
+
+        for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
+            uint64_t v = in[x];
+            longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
+        }
+    }
+
     // slash-style byte count mask
     mac_addr(uint8_t *in, unsigned int len, unsigned int mask) {
         error = 0;
