@@ -599,6 +599,30 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID on an alternate BSSID.",
                 },
                 {
+                    field: "dot11.advertisedssid.owe_bssid",
+                    title: "OWE BSSID",
+                    filterOnEmpty: true,
+                    help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID with a reference to the linked BSSID.",
+                    draw: function(opts) {
+                        $.get(local_uri_prefix + "devices/by-mac/" + opts['value'] + "/devices.json")
+                        .fail(function() {
+                            opts['container'].html(opts['value']);
+                        })
+                        .done(function(clidata) {
+                            clidata = kismet.sanitizeObject(clidata);
+
+                            for (var cl of clidata) {
+                                if (cl['kismet.device.base.phyname'] === 'IEEE802.11') {
+                                    opts['container'].html(opts['value'] + ' <a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + cl['kismet.device.base.key'] + '\')">View AP Details</a>');
+                                    return;
+                                }
+
+                            }
+                            opts['container'].html(opts['value']);
+                        });
+                    },
+                },
+                {
                     field: "dot11.advertisedssid.crypt_set",
                     title: "Encryption",
                     render: function(opts) {
