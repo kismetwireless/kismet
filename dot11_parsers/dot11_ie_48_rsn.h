@@ -71,6 +71,34 @@ public:
         return m_akm_ciphers;
     }
 
+    constexpr17 uint16_t rsn_capabilities() const {
+        return m_rsn_capabilities;
+    }
+
+    constexpr17 bool rsn_capability_preauth() const {
+        return rsn_capabilities() & 0x01;
+    }
+
+    constexpr17 bool rsn_capability_wep_pairwise() const {
+        return rsn_capabilities() & 0x02;
+    }
+
+    constexpr17 uint8_t rsn_capability_ptksa_replay() const {
+        return (rsn_capabilities() & 0x0C) >> 2;
+    }
+
+    constexpr17 uint8_t rsn_capability_gtksa_replay() const {
+        return (rsn_capabilities() & 0x30) >> 4;
+    }
+
+    constexpr17 bool rsn_capability_mfp_required() const {
+        return (rsn_capabilities() & 0x40);
+    }
+
+    constexpr17 bool rsn_capability_mfp_supported() const {
+        return (rsn_capabilities() & 0x80);
+    }
+
 protected:
     uint16_t m_rsn_version;
     std::shared_ptr<dot11_ie_48_rsn_rsn_cipher> m_group_cipher;
@@ -78,6 +106,7 @@ protected:
     std::shared_ptr<shared_rsn_cipher_vector> m_pairwise_ciphers;
     uint16_t m_akm_count;
     std::shared_ptr<shared_rsn_management_vector> m_akm_ciphers;
+    uint16_t m_rsn_capabilities;
 
 public:
     class dot11_ie_48_rsn_rsn_cipher {

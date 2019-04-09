@@ -485,6 +485,20 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     empty: "<i>Broadcast</i>"
                 },
                 {
+                    field: "dot11.probedssid.wpa_mfp_required",
+                    title: "WPA MFP",
+                    help: "WPA Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.",
+                    render: function(opts) {
+                        if (opts['value'])
+                            return "Required";
+
+                        if (opts['base']['dot11.probedssid.wpa_mfp_supported'])
+                            return "Supported";
+
+                        return "Unavailable";
+                    }
+                },
+                {
                     field: "dot11.probedssid.first_time",
                     title: "First Seen",
                     render: kismet_ui.RenderTrimmedTime,
@@ -629,6 +643,20 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         return exports.CryptToHumanReadable(opts['value']);
                     },
                     help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
+                },
+                {
+                    field: "dot11.advertisedssid.wpa_mfp_required",
+                    title: "WPA MFP",
+                    help: "WPA Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.",
+                    render: function(opts) {
+                        if (opts['value'])
+                            return "Required";
+
+                        if (opts['base']['dot11.advertisedssid.wpa_mfp_supported'])
+                            return "Supported";
+
+                        return "Unavailable";
+                    }
                 },
                 {
                     field: "dot11.advertisedssid.channel",

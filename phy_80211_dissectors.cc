@@ -1750,6 +1750,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
 
+                packinfo->rsn = rsn;
             } catch (const std::exception& e) {
                 rsn_invalid = true;
                 packinfo->corrupt = 1;

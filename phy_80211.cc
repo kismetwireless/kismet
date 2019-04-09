@@ -1910,6 +1910,14 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (ssid->get_last_time() < in_pack->ts.tv_sec)
         ssid->set_last_time(in_pack->ts.tv_sec);
 
+    // Update MFP
+    if (dot11info->rsn != nullptr) {
+        ssid->set_wpa_mfp_required(dot11info->rsn->rsn_capability_mfp_required());
+        ssid->set_wpa_mfp_supported(dot11info->rsn->rsn_capability_mfp_supported());
+    } else {
+        ssid->set_wpa_mfp_required(false);
+        ssid->set_wpa_mfp_supported(false);
+    }
 
     if (dot11info->subtype == packet_sub_beacon) {
         auto tag_hash = xxHashCPP{};
@@ -2241,6 +2249,15 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
 
         dot11dev->set_last_probed_ssid(probessid->get_ssid());
         dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
+
+        // Update MFP
+        if (dot11info->rsn != nullptr) {
+            probessid->set_wpa_mfp_required(dot11info->rsn->rsn_capability_mfp_required());
+            probessid->set_wpa_mfp_supported(dot11info->rsn->rsn_capability_mfp_supported());
+        } else {
+            probessid->set_wpa_mfp_required(false);
+            probessid->set_wpa_mfp_supported(false);
+        }
 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);

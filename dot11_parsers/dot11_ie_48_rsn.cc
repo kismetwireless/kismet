@@ -36,7 +36,7 @@ void dot11_ie_48_rsn::parse(std::shared_ptr<kaitai::kstream> p_io) {
         a->parse(p_io);
         m_akm_ciphers->push_back(a);
     }
-
+    m_rsn_capabilities = p_io->read_u2le();
 }
 
 void dot11_ie_48_rsn::dot11_ie_48_rsn_rsn_cipher::parse(std::shared_ptr<kaitai::kstream> p_io) {

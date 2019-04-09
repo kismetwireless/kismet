@@ -51,6 +51,7 @@
 #include "dot11_parsers/dot11_ie_11_qbss.h"
 #include "dot11_parsers/dot11_ie_33_power.h"
 #include "dot11_parsers/dot11_ie_36_supported_channels.h"
+#include "dot11_parsers/dot11_ie_48_rsn.h"
 #include "dot11_parsers/dot11_ie_54_mobility.h"
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
@@ -264,6 +265,7 @@ class dot11_packinfo : public packet_component {
         std::shared_ptr<dot11_ie_61_ht_op> dot11ht;
         std::shared_ptr<dot11_ie_192_vht_op> dot11vht;
         std::shared_ptr<dot11_ie_221_owe_transition> owe_transition;
+        std::shared_ptr<dot11_ie_48_rsn> rsn;
 
         std::shared_ptr<dot11_ie_221_dji_droneid> droneid;
 
@@ -602,6 +604,8 @@ public:
             dot11r_mobility_domain_id);
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
+    __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
+    __Proxy(wpa_mfp_supported, uint8_t, bool, bool, wpa_mfp_supported);
 
     __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
 
@@ -636,6 +640,11 @@ protected:
                 "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
 
         RegisterField("dot11.probedssid.crypt_set", "Requested encryption set", &crypt_set);
+
+        RegisterField("dot11.probedssid.wpa_mfp_required",
+            "WPA management protection required", &wpa_mfp_required);
+        RegisterField("dot11.probedssid.wpa_mfp_supported",
+            "WPA management protection supported", &wpa_mfp_supported);
 
         RegisterField("dot11.probedssid.ie_tag_list",
                 "802.11 IE tag list in beacon", &ie_tag_list);
@@ -674,6 +683,8 @@ protected:
     int location_id;
 
     std::shared_ptr<TrackerElementUInt64> crypt_set;
+    std::shared_ptr<TrackerElementUInt8> wpa_mfp_required;
+    std::shared_ptr<TrackerElementUInt8> wpa_mfp_supported;
 
     std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;
 
@@ -763,6 +774,10 @@ public:
     __Proxy(ssid_cloaked, uint8_t, bool, bool, ssid_cloaked);
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
+
+    // WPA MFP
+    __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
+    __Proxy(wpa_mfp_supported, uint8_t, bool, bool, wpa_mfp_supported);
 
     __Proxy(maxrate, double, double, double, maxrate);
 
@@ -857,6 +872,11 @@ protected:
         RegisterField("dot11.advertisedssid.beacons_sec", "beacons seen in past second", &beacons_sec);
         RegisterField("dot11.advertisedssid.ietag_checksum", 
                 "checksum of all ie tags", &ietag_checksum);
+
+        RegisterField("dot11.advertisedssid.wpa_mfp_required",
+            "WPA management protection required", &wpa_mfp_required);
+        RegisterField("dot11.advertisedssid.wpa_mfp_supported",
+            "WPA management protection supported", &wpa_mfp_supported);
 
         dot11d_country_id = 
             RegisterDynamicField("dot11.advertisedssid.dot11d_country", "802.11d country", 
@@ -959,6 +979,8 @@ protected:
     std::shared_ptr<TrackerElementString> beacon_info;
     std::shared_ptr<TrackerElementUInt8> ssid_cloaked;
     std::shared_ptr<TrackerElementUInt64> crypt_set;
+    std::shared_ptr<TrackerElementUInt8> wpa_mfp_required;
+    std::shared_ptr<TrackerElementUInt8> wpa_mfp_supported;
     std::shared_ptr<TrackerElementDouble> maxrate;
     std::shared_ptr<TrackerElementUInt32> beaconrate;
     std::shared_ptr<TrackerElementUInt32> beacons_sec;
