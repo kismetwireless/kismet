@@ -232,6 +232,7 @@ typedef struct {
 #define crypt_ttls			(1 << 13)
 #define crypt_tls			(1 << 14)
 #define crypt_peap			(1 << 15)
+#define crypt_sae           (1 << 16)
 // Lower byte mask - cryptset & protectmask yields basic setting, ie cannot be
 // WEP+PEAP, but COULD be WEP+ISAKMP or WEP+WPS
 #define crypt_protectmask 	0xFFFFF
@@ -244,6 +245,7 @@ typedef struct {
 #define crypt_wps 					(1 << 26)
 #define crypt_version_wpa   (1 << 27)
 #define crypt_version_wpa2  (1 << 28)
+#define crypt_version_wpa3  (1 << 29)
 // L3 encryption mask
 #define crypt_l3_mask		0x300004
 // L2 encryption mask

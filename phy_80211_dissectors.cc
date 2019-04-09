@@ -265,6 +265,9 @@ int Kis_80211_Phy::WPAKeyMgtConv(uint8_t mgt_index) {
         case 2:
             ret |= crypt_psk;
             break;
+        case 8:
+            ret |= crypt_sae;
+            break;
         default:
             ret = 0;
             break;
@@ -1736,9 +1739,13 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     packinfo->cryptset |= WPAKeyMgtConv(i->management_type());
                 }
 
-                // Set version flag - this is probably wrong but keep it 
-                // for now
-                packinfo->cryptset |= crypt_version_wpa2;
+                // IF we're advertised using IE48 RSN, we're wpa2 or wpa3.  WPA3
+                // sets SAE...
+                if (packinfo->cryptset & crypt_sae) {
+                    packinfo->cryptset |= crypt_version_wpa3;
+                } else {
+                    packinfo->cryptset |= crypt_version_wpa2;
+                }
 
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
 
@@ -2018,6 +2025,8 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         packinfo->cryptset |= crypt_version_wpa;
                     if (wpa->wpa_version() == 2)
                         packinfo->cryptset |= crypt_version_wpa2;
+                    if (wpa->wpa_version() == 3)
+                        packinfo->cryptset |= crypt_version_wpa3;
 
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                 }

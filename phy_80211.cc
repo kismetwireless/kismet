@@ -2637,23 +2637,34 @@ std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 	if ((cryptset & crypt_protectmask) == crypt_wep)
 		return StringAppend(ret, "WEP");
 
+    std::string WPAVER = "WPA";
+
+    if (cryptset & crypt_version_wpa2)
+        WPAVER = "WPA2";
+
+    if (cryptset & crypt_version_wpa3)
+        WPAVER = "WPA3";
+
 	if (cryptset & crypt_wpa)
-		ret = StringAppend(ret, "WPA");
+		ret = StringAppend(ret, WPAVER);
 
 	if (cryptset & crypt_psk)
-		ret = StringAppend(ret, "WPA-PSK");
+		ret = StringAppend(ret, fmt::format("{}-PSK", WPAVER));
+
+    if (cryptset & crypt_sae)
+        ret = StringAppend(ret, fmt::format("{}-SAE", WPAVER));
 
 	if (cryptset & crypt_eap)
 		ret = StringAppend(ret, "EAP");
 
 	if (cryptset & crypt_peap)
-		ret = StringAppend(ret, "WPA-PEAP");
+		ret = StringAppend(ret, fmt::format("{}-PEAP", WPAVER));
 	if (cryptset & crypt_leap)
-		ret = StringAppend(ret, "WPA-LEAP");
+		ret = StringAppend(ret, fmt::format("{}-LEAP", WPAVER));
 	if (cryptset & crypt_ttls)
-		ret = StringAppend(ret, "WPA-TTLS");
+		ret = StringAppend(ret, fmt::format("{}-TTLS", WPAVER));
 	if (cryptset & crypt_tls)
-		ret = StringAppend(ret, "WPA-TLS");
+		ret = StringAppend(ret, fmt::format("{}-TLS", WPAVER));
 
 	if (cryptset & crypt_wpa_migmode)
 		ret = StringAppend(ret, "WPA-MIGRATION");
@@ -2702,17 +2713,31 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
 	if (cryptset == crypt_unknown)
 		return "Unknown";
 
+    std::string WPAVER = "WPA";
+
+    if (cryptset & crypt_version_wpa2)
+        WPAVER = "WPA2";
+
+    if (cryptset & crypt_version_wpa3)
+        WPAVER = "WPA3";
+
+	if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
+        return fmt::format("WPA3-COMPAT-PSK");
+
+    if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_sae))
+        return fmt::format("{}-SAE", WPAVER);
+
+    if (cryptset & crypt_psk)
+        return fmt::format("{}-PSK", WPAVER);
+
 	if (cryptset & crypt_peap)
-        return "WPA-PEAP";
-
+		return fmt::format("{}-PEAP", WPAVER);
 	if (cryptset & crypt_leap)
-        return "WPA-LEAP";
-
+		return fmt::format("{}-LEAP", WPAVER);
 	if (cryptset & crypt_ttls)
-        return "WPA-TTLS";
-
+		return fmt::format("{}-TTLS", WPAVER);
 	if (cryptset & crypt_tls)
-        return "WPA-TLS";
+		return fmt::format("{}-TLS", WPAVER);
 
 	if (cryptset & crypt_wep40)
         return "WEP40";
@@ -2721,16 +2746,16 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
         return "WEP104";
 
 	if (cryptset & crypt_tkip)
-        return "WPA-TKIP";
+        return fmt::format("{}-TKIP", WPAVER);
 
 	if (cryptset & crypt_aes_ocb)
-        return "WPA-OCB";
+        return fmt::format("{}-OCB", WPAVER);
 
 	if (cryptset & crypt_aes_ccm)
-        return "WPA-CCMP";
+        return fmt::format("{}-CCMP", WPAVER);
 
-    if (cryptset & crypt_wpa)
-        return "WPA";
+	if (cryptset & crypt_wpa)
+        return WPAVER;
 
     if (cryptset & crypt_wep)
         return "WEP";

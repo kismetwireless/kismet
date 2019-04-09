@@ -124,7 +124,8 @@ public:
             mgmt_ft_psk = 4,
             mgmt_wpa_sha256 = 5,
             mgmt_psk_sha256 = 6,
-            mgmt_tdls_tpk = 7
+            mgmt_tdls_tpk = 7,
+            mgmt_sae = 8
         };
 
         dot11_ie_48_rsn_rsn_management() { }

@@ -33,6 +33,7 @@ exports.crypt_leap = (1 << 12);
 exports.crypt_ttls = (1 << 13);
 exports.crypt_tls = (1 << 14);
 exports.crypt_peap = (1 << 15);
+exports.crypt_sae = (1 << 16);
 
 exports.crypt_protectmask = 0xFFFFF;
 exports.crypt_isakmp = (1 << 20);
@@ -44,6 +45,7 @@ exports.crypt_unknown_nonwep = (1 << 25);
 exports.crypt_wps = (1 << 26);
 exports.crypt_version_wpa = (1 << 27);
 exports.crypt_version_wpa2 = (1 << 28);
+exports.crypt_version_wpa3 = (1 << 29);
 
 exports.crypt_l3_mask = 0x300004;
 exports.crypt_l2_mask = 0xFBFA;
@@ -65,17 +67,28 @@ exports.CryptToHumanReadable = function(cryptset) {
         return ret.join(" ");
     }
 
+    var WPAVER = "WPA";
+
+    if (cryptset & exports.crypt_version_wpa2)
+        WPAVER = "WPA2";
+
+    if (cryptset & exports.crypt_version_wpa3)
+        WPAVER = "WPA3";
+
     if (cryptset & exports.crypt_wpa)
-        ret.push("WPA");
+        ret.push(WPAVER);
 
     if (cryptset & exports.crypt_psk)
-        ret.push("WPA-PSK");
+        ret.push(WPAVER + "-PSK");
+
+    if (cryptset & exports.crypt_sae)
+        ret.push(WPAVER + "-SAE");
 
     if (cryptset & exports.crypt_eap)
-        ret.push("WPA-EAP");
+        ret.push(WPAVER + "-EAP");
 
     if (cryptset & exports.crypt_peap)
-        ret.push("EAP-PEAP");
+        ret.push(WPAVER + "-PEAP");
 
     if (cryptset & exports.crypt_leap)
         ret.push("EAP-LEAP");
