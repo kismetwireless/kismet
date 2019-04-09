@@ -358,6 +358,41 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        auto breadcrumb_q = _SELECT(db, "snapshots",
+                {"lat", "lon"},
+                _WHERE("lat", NEQ, 0, 
+                    AND,
+                    "lon", NEQ, 0,
+                    AND,
+                    "snaptype", EQ, "GPS"));
+        double bc_cur_lat = 0, bc_cur_lon = 0, bc_last_lat = 0, bc_last_lon = 0;
+        double breadcrumb_len = 0;
+
+        for (auto bc : breadcrumb_q) {
+            if (bc_last_lat == 0 || bc_last_lon == 0) {
+                bc_last_lat = sqlite3_column_as<double>(bc, 0);
+                bc_last_lon = sqlite3_column_as<double>(bc, 1);
+                continue;
+            }
+
+            bc_cur_lat = sqlite3_column_as<double>(bc, 0);
+            bc_cur_lon = sqlite3_column_as<double>(bc, 1);
+
+            if (bc_cur_lat == bc_last_lat && bc_cur_lon == bc_last_lon)
+                continue;
+
+            breadcrumb_len += distance_meters(bc_cur_lat, bc_cur_lon, bc_last_lat, bc_last_lon);
+
+            bc_last_lat = bc_cur_lat;
+            bc_last_lon = bc_cur_lon;
+        }
+
+        if (outputjson) {
+            root["breadcrumb_dist_meters"] = breadcrumb_len;
+        } else {
+            fmt::print("  Breadcrumb travel distance: {} Km\n", breadcrumb_len / 1000);
+        }
+
         if (!outputjson) {
             fmt::print("  Packets with location: {}\n", n_packets_with_loc);
             fmt::print("  Data with location: {}\n", n_data_with_loc);
