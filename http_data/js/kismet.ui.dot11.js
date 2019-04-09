@@ -486,14 +486,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.probedssid.wpa_mfp_required",
-                    title: "WPA MFP",
-                    help: "WPA Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.",
+                    title: "MFP",
+                    help: "Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.  It can be part of the 802.11w Wi-Fi standard, or proprietary Cisco extensions.",
                     render: function(opts) {
                         if (opts['value'])
-                            return "Required";
+                            return "Required (802.11w)";
 
                         if (opts['base']['dot11.probedssid.wpa_mfp_supported'])
-                            return "Supported";
+                            return "Supported (802.11w)";
 
                         return "Unavailable";
                     }
@@ -646,14 +646,17 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.wpa_mfp_required",
-                    title: "WPA MFP",
-                    help: "WPA Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.",
+                    title: "MFP",
+                    help: "Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.  It can be part of the Wi-Fi 802.11w standard or a custom Cisco extension.",
                     render: function(opts) {
                         if (opts['value'])
-                            return "Required";
+                            return "Required (802.11w)";
 
                         if (opts['base']['dot11.advertisedssid.wpa_mfp_supported'])
-                            return "Supported";
+                            return "Supported (802.11w)";
+
+                        if (opts['base']['dot11.advertisedssid.cisco_client_mfp'])
+                            return "Supported (Cisco)";
 
                         return "Unavailable";
                     }
@@ -714,16 +717,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "Cisco access points may advertise their transmit power in a Cisco CCX IE tag.  Typically this is found on enterprise-level access points, where multiple APs service the same area.",
                     render: function(opts) {
                         return opts['value'] + "dBm";
-                    },
-                },
-                {
-                    field: "dot11.advertisedssid.cisco_client_mfp",
-                    title: "Client MFP",
-                    filterOnZero: true,
-                    help: "Cisco provides optional management frame protection for clients.  Typically this is found on enterprise-level access points, and should only be found on access points from Cisco.",
-                    render: function(opts) {
-                        if (opts['value'])
-                            return "Enabled";
                     },
                 },
                 {
