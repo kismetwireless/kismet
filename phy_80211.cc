@@ -1813,15 +1813,30 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_ssid_cloaked(true);
         ssid->set_ssid_len(dot11info->ssid_len);
 
-        std::string ssidstr;
-        if (ssid->get_ssid_cloaked()) {
-            ssidstr = "a cloaked SSID";
-        } else {
-            ssidstr = "SSID '" + ssid->get_ssid() + "'";
+        if (dot11info->owe_transition != nullptr) {
+            ssid->set_owe_bssid(dot11info->owe_transition->bssid());
+            ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
+            ssid->set_owe_ssid(MungeToPrintable(dot11info->owe_transition->ssid()));
         }
 
-        _MSG("802.11 Wi-Fi device " + basedev->get_macaddr().Mac2String() + 
-                " advertising " + ssidstr, MSGFLAG_INFO);
+        std::string ssidstr;
+        if (ssid->get_ssid_cloaked()) {
+            // Use the OWE SSID if we can
+            if (dot11info->owe_transition != nullptr) {
+                if (dot11info->owe_transition->ssid().length() != 0)
+                    ssidstr = fmt::format("an OWE SSID '{}' for BSSID {}", 
+                            MungeToPrintable(dot11info->owe_transition->ssid()),
+                            dot11info->owe_transition->bssid());
+                else
+                {} {}                    ssidstr = "a cloaked SSID";
+            } else {
+                ssidstr = "a cloaked SSID";
+            }
+        } else {
+            ssidstr = fmt::format("SSID '{}'", ssid->get_ssid());
+        }
+
+        _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
 
         if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
                 ssid->get_ssid() == "AirJack" ) {
@@ -1872,6 +1887,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 }
             }
         }
+
     } else {
         ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         if (ssid->get_last_time() < in_pack->ts.tv_sec)
@@ -1994,6 +2010,12 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
         }
 
+        // Update OWE
+        if (dot11info->owe_transition != nullptr) {
+            ssid->set_owe_bssid(dot11info->owe_transition->bssid());
+            ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
+            ssid->set_owe_ssid(MungeToPrintable(dot11info->owe_transition->ssid()));
+        }
 
     } else if (dot11info->subtype == packet_sub_probe_resp) {
         if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
@@ -2637,6 +2659,9 @@ std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
 	if ((cryptset & crypt_protectmask) == crypt_wep)
 		return StringAppend(ret, "WEP");
 
+    if (cryptset & crypt_wpa_owe)
+        return "OWE";
+
     std::string WPAVER = "WPA";
 
     if (cryptset & crypt_version_wpa2)
@@ -2712,6 +2737,9 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
 
 	if (cryptset == crypt_unknown)
 		return "Unknown";
+
+    if (cryptset & crypt_wpa_owe)
+        return "OWE";
 
     std::string WPAVER = "WPA";
 

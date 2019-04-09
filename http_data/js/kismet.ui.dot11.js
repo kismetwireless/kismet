@@ -34,6 +34,7 @@ exports.crypt_ttls = (1 << 13);
 exports.crypt_tls = (1 << 14);
 exports.crypt_peap = (1 << 15);
 exports.crypt_sae = (1 << 16);
+exports.crypt_wpa_owe = (1 << 17);
 
 exports.crypt_protectmask = 0xFFFFF;
 exports.crypt_isakmp = (1 << 20);
@@ -66,6 +67,9 @@ exports.CryptToHumanReadable = function(cryptset) {
         ret.push("WEP");
         return ret.join(" ");
     }
+
+    if (cryptset & exports.crypt_wpa_owe)
+        return "OWE";
 
     var WPAVER = "WPA";
 
@@ -559,8 +563,15 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 groupIterate: true,
                 iterateTitle: function(opts) {
                     var lastssid = opts['value'][opts['index']]['dot11.advertisedssid.ssid'];
-                    if (lastssid === '')
+                    var lastowessid = opts['value'][opts['index']]['dot11.advertisedssid.owe_ssid'];
+
+                    if (lastssid === '') {
+                        if (lastowessid !== '') {
+                            return "SSID: " + lastowessid + "  <i>(OWE)</i>";
+                        }
+
                         return "SSID: <i>Unknown</i>";
+                    }
 
                     return "SSID: " + lastssid;
                 },
@@ -568,8 +579,24 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.advertisedssid.ssid",
                     title: "SSID",
-                    empty: "<i>Unknown</i>",
+                    render: function(opts) {
+                        if (opts['value'] === '') {
+                            if (opts['base']['dot11.advertisedssid.owe_ssid'] === '') {
+                                return "<i>Unknown</i>";
+                            } else {
+                                return "<i>SSID advertised as OWE</i>";
+                            }
+                        }
+
+                        return opts['value'];
+                    },
                     help: "Advertised SSIDs can be any data, up to 32 characters.  Some access points attempt to cloak the SSID by sending blank spaces or an empty string; these SSIDs can be discovered when a client connects to the network.",
+                },
+                {
+                    field: "dot11.advertisedssid.owe_ssid",
+                    title: "OWE SSID",
+                    filterOnEmpty: true,
+                    help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID on an alternate BSSID.",
                 },
                 {
                     field: "dot11.advertisedssid.crypt_set",

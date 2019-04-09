@@ -226,13 +226,13 @@ typedef struct {
 #define crypt_aes_ccm		(1 << 9)
 //WPA Migration Mode
 #define crypt_wpa_migmode	(1 << 10)
-// Derived from data traffic
 #define crypt_eap			(1 << 11)
 #define crypt_leap			(1 << 12)
 #define crypt_ttls			(1 << 13)
 #define crypt_tls			(1 << 14)
 #define crypt_peap			(1 << 15)
 #define crypt_sae           (1 << 16)
+#define crypt_wpa_owe       (1 << 17)
 // Lower byte mask - cryptset & protectmask yields basic setting, ie cannot be
 // WEP+PEAP, but COULD be WEP+ISAKMP or WEP+WPS
 #define crypt_protectmask 	0xFFFFF

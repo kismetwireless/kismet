@@ -20,6 +20,7 @@
 
 void dot11_ie_221_owe_transition::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_vendor_type = p_io->read_u1();
+
     m_bssid = mac_addr(p_io->read_bytes(6).data(), 6);
 
     auto ssid_len = p_io->read_u1();

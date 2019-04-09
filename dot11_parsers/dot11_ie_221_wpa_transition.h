@@ -35,6 +35,10 @@ public:
         return 0x506f9a;
     }
 
+    constexpr17 static unsigned int owe_transition_subtype() {
+        return 28;
+    }
+
     void parse(std::shared_ptr<kaitai::kstream> p_io);
 
     constexpr17 uint8_t vendor_type() const {

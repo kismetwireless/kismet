@@ -55,6 +55,7 @@
 #include "dot11_parsers/dot11_ie_61_ht_op.h"
 #include "dot11_parsers/dot11_ie_192_vht_op.h"
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
+#include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 
 /*
  * 802.11 PHY handlers
@@ -262,6 +263,7 @@ class dot11_packinfo : public packet_component {
         std::shared_ptr<dot11_ie_54_mobility> dot11r_mobility;
         std::shared_ptr<dot11_ie_61_ht_op> dot11ht;
         std::shared_ptr<dot11_ie_192_vht_op> dot11vht;
+        std::shared_ptr<dot11_ie_221_owe_transition> owe_transition;
 
         std::shared_ptr<dot11_ie_221_dji_droneid> droneid;
 
@@ -741,6 +743,10 @@ public:
     __Proxy(ssid, std::string, std::string, std::string, ssid);
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
 
+    __ProxyDynamic(owe_ssid, std::string, std::string, std::string, owe_ssid, owe_ssid_id);
+    __ProxyDynamic(owe_ssid_len, uint32_t, unsigned, unsigned int, owe_ssid_len, owe_ssid_len_id);
+    __ProxyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, owe_bssid, owe_bssid_id);
+
     __Proxy(ssid_beacon, uint8_t, bool, bool, ssid_beacon);
     __Proxy(ssid_probe_response, uint8_t, bool, bool, ssid_probe_response);
 
@@ -814,9 +820,20 @@ public:
 protected:
 
     virtual void register_fields() override {
-        RegisterField("dot11.advertisedssid.ssid", "probed ssid string (sanitized)", &ssid);
+        RegisterField("dot11.advertisedssid.ssid", "beaconed ssid string (sanitized)", &ssid);
         RegisterField("dot11.advertisedssid.ssidlen", 
-                "probed ssid string length (original bytes)", &ssid_len);
+                "beaconed ssid string length (original bytes)", &ssid_len);
+
+        owe_ssid_id =
+            RegisterDynamicField("dot11.advertisedssid.owe_ssid",
+                    "Opportunistic Wireless Encryption (OWE) linked companion SSID", &owe_ssid);
+        owe_ssid_len_id =
+            RegisterDynamicField("dot11.advertisedssid.owe_ssid_len",
+                    "Opportunistic Wireless Encryption (OWE) SSID length (original bytes)", &owe_ssid_len);
+        owe_bssid_id =
+            RegisterDynamicField("dot11.advertisedssid.owe_bssid",
+                    "Opportunistic Wireless Encryption (OWE) companion BSSID", &owe_bssid);
+
         RegisterField("dot11.advertisedssid.beacon", "ssid advertised via beacon", &ssid_beacon);
         RegisterField("dot11.advertisedssid.probe_response", "ssid advertised via probe response", 
                 &ssid_probe_response);
@@ -917,6 +934,16 @@ protected:
 
     std::shared_ptr<TrackerElementString> ssid;
     std::shared_ptr<TrackerElementUInt32> ssid_len;
+
+    std::shared_ptr<TrackerElementString> owe_ssid;
+    int owe_ssid_id;
+
+    std::shared_ptr<TrackerElementUInt32> owe_ssid_len;
+    int owe_ssid_len_id;
+
+    std::shared_ptr<TrackerElementMacAddr> owe_bssid;
+    int owe_bssid_id;
+
     std::shared_ptr<TrackerElementUInt8> ssid_beacon;
     std::shared_ptr<TrackerElementUInt8> ssid_probe_response;
 

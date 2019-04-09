@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -63,6 +63,7 @@
 #include "dot11_parsers/dot11_ie_221_ms_wps.h"
 #include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
 #include "dot11_parsers/dot11_ie_221_cisco_client_mfp.h"
+#include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -515,7 +516,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->other_mac = mac_addr(0);
 
         } else {
-            fprintf(stderr, "debug - unknown type - %u %u\n", fc->type, fc->subtype);
+            // fmt::print(stderr, "debug - unknown type - {} {}\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
 
             packinfo->bssid_mac = mac_addr(0);
@@ -695,7 +696,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
         } else {
-            fprintf(stderr, "debug - unhandled type - %u %u\n", fc->type, fc->subtype);
+            // fmt::print(stderr, "debug - unhandled type - {} {}\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
         }
 
@@ -922,7 +923,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
             packinfo->header_offset += 2;
         } else {
-            fprintf(stderr, "debug - unknown type/subtype %u %u\n", packinfo->type, packinfo->subtype);
+            fmt::print(stderr, "debug - unknown type/subtype {} {}\n", packinfo->type, packinfo->subtype);
             packinfo->corrupt = 1;
             packinfo->subtype = packet_sub_unknown;
             in_pack->insert(pack_comp_80211, packinfo);
@@ -2038,6 +2039,16 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     mfp->parse(vendor->vendor_tag_stream());
 
                     packinfo->cisco_client_mfp = mfp->client_mfp();
+                }
+
+                // Look for wpa owe transitional tags
+                if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
+                    if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
+                        auto owe_trans = std::make_shared<dot11_ie_221_owe_transition>();
+                        owe_trans->parse(vendor->vendor_tag_stream());
+                        packinfo->owe_transition = owe_trans;
+                        packinfo->cryptset |= crypt_wpa_owe;
+                    }
                 }
 
                 // Look for WPS MS
