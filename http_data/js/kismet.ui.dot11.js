@@ -78,7 +78,7 @@ exports.CryptToHumanReadable = function(cryptset) {
     if (cryptset & exports.crypt_wpa)
         ret.push(WPAVER);
 
-	if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
+	if ((cryptset & exports.crypt_version_wpa3) && (cryptset & exports.crypt_psk) && (cryptset & exports.crypt_sae))
         ret.push("WPA3-TRANSITION");
 
     if (cryptset & exports.crypt_psk)
