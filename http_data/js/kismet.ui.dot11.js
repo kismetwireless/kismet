@@ -68,6 +68,9 @@ exports.CryptToHumanReadable = function(cryptset) {
         return ret.join(" ");
     }
 
+    if (cryptset == exports.crypt_wpa_owe)
+        return "Open (OWE)";
+
     if (cryptset & exports.crypt_wpa_owe)
         return "OWE";
 
