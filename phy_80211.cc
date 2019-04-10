@@ -2755,6 +2755,9 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
 	if (cryptset == crypt_unknown)
 		return "Unknown";
 
+    if (cryptset == crypt_wpa_owe)
+        return "Open (OWE)";
+
     if (cryptset & crypt_wpa_owe)
         return "OWE";
 
