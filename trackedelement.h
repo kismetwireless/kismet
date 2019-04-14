@@ -67,17 +67,11 @@ public:
 
     device_key(const device_key& k);
 
-    // Create a key from a server/phy component and device component
-    device_key(uint64_t in_spkey, uint64_t in_dkey);
+    // Create a key from a computed phy hash and a mac address
+    device_key(uint32_t in_pkey, mac_addr in_device);
 
-    // Create a key from independent components
-    device_key(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey);
-
-    // Create a key from a cached spkey and a mac address
-    device_key(uint64_t in_spkey, mac_addr in_device);
-
-    // Create a key from a computed hashes and a mac address
-    device_key(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device);
+    // Create a key from a computed phy hash and a computed mac address
+    device_key(uint32_t in_pkey, uint64_t in_device);
 
     // Create a key from an incoming string/exported key; this should only happen during
     // deserialization and rest queries; it's fairly expensive otherwise

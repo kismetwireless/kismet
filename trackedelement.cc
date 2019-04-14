@@ -43,26 +43,14 @@ device_key::device_key(const device_key& k) {
     error = k.error;
 }
 
-device_key::device_key(uint64_t in_spkey, uint64_t in_dkey) {
-    spkey = in_spkey;
+device_key::device_key(uint32_t in_pkey, uint64_t in_dkey) {
+    spkey = in_pkey & 0xFFFFFFFF;
     dkey = in_dkey;
     error = false;
 }
 
-device_key::device_key(uint32_t in_skey, uint32_t in_pkey, uint64_t in_dkey) {
-    spkey = (((uint64_t) in_skey) << 32) | in_pkey;
-    dkey = in_dkey;
-    error = false;
-}
-
-device_key::device_key(uint32_t in_skey, uint32_t in_pkey, mac_addr in_device) {
-    spkey = (((uint64_t) in_skey) << 32) | in_pkey;
-    dkey = in_device.longmac;
-    error = false;
-}
-
-device_key::device_key(uint64_t in_spkey, mac_addr in_device) {
-    spkey = in_spkey;
+device_key::device_key(uint32_t in_pkey, mac_addr in_device) {
+    spkey = in_pkey & 0xFFFFFFFF;
     dkey = in_device.longmac;
     error = false;
 }
