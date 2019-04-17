@@ -2151,29 +2151,27 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
 
     exports.ProvisionedPasswordCheck(function(code) {
         if (code == 200 || code == 406) {
-            /* Initial setup has been complete, now check the login itself, if we're not silenced */
-            if (kismet.getStorage('kismet.base.warn_login', false) == false) {
-                exports.LoginCheck(function(success) {
-                    if (!success) {
-                        loginpanel = $.jsPanel({
-                            id: "login-alert",
-                            headerTitle: '<i class="fa fa-exclamation-triangle"></i>Login Required',
-                            headerControls: {
-                                controls: 'closeonly',
-                                iconfont: 'jsglyph',
-                            },
-                            contentSize: w + " auto",
-                            paneltype: 'modal',
-                            content: required_login_content,
-                        });
+            /* Initial setup has been complete, now check the login itself */
+            exports.LoginCheck(function(success) {
+                if (!success) {
+                    loginpanel = $.jsPanel({
+                        id: "login-alert",
+                        headerTitle: '<i class="fa fa-exclamation-triangle"></i>Login Required',
+                        headerControls: {
+                            controls: 'closeonly',
+                            iconfont: 'jsglyph',
+                        },
+                        contentSize: w + " auto",
+                        paneltype: 'modal',
+                        content: required_login_content,
+                    });
 
-                        return true;
-                    } else {
-                        /* Otherwise we're all good, continue to loading the main UI via the callback */
-                        first_login_done_cb();
-                    }
-                });
-            }
+                    return true;
+                } else {
+                    /* Otherwise we're all good, continue to loading the main UI via the callback */
+                    first_login_done_cb();
+                }
+            });
         } else if (code != 200) {
             loginpanel = $.jsPanel({
                 id: "login-alert",
