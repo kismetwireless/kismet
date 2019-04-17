@@ -153,6 +153,7 @@ protected:
     kis_recursive_timed_mutex monitor_mutex;
 
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> monitor_endp;
+    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> user_monitor_endp;
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> timestamp_endp;
 
     std::shared_ptr<Devicetracker> devicetracker;

@@ -105,16 +105,7 @@ div.autosize {
 
 <script>
 
-// jquery onload complete
-$(function() {
-    // Set a global timeout
-    $.ajaxSetup({
-        timeout:5000,
-        xhrFields: {
-            withCredentials: true
-        }
-    });
-
+function load_main_ui() {
     // Don't let DT make alerts
     $.fn.dataTableExt.sErrMode = "console";
 
@@ -203,10 +194,23 @@ $(function() {
     // finalize the tabs
     kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'));
 
-    // Check the login
-    kismet_ui_base.FirstLoginCheck();
+    }); // when
+}
 
-}); // when
+// jquery onload complete
+$(function() {
+    // Set a global timeout
+    $.ajaxSetup({
+        timeout:5000,
+        xhrFields: {
+            withCredentials: true
+        }
+    });
+
+
+    kismet_ui_base.FirstLoginCheck(function() {
+        load_main_ui();
+    });
 
 }); // onload
 </script>

@@ -16,12 +16,12 @@ if (typeof(KISMET_URI_PREFIX) !== 'undefined')
 exports.load_complete = 0;
 
 /* Fetch the system user */
-$.get(local_uri_prefix + "system/status.json")
+$.get(local_uri_prefix + "system/user_status.json")
 .done(function(data) {
     exports.system_user = data['kismet.system.user'];
 })
 .fail(function() {
-    exports.system_user = "unknown";
+    exports.system_user = "[unknown]";
 });
 
 // Load our css
@@ -1806,89 +1806,145 @@ exports.LoginCheck = function(cb, user, pw) {
     });
 }
 
-exports.FirstLoginCheck = function() {
+exports.FirstLoginCheck = function(first_login_done_cb) {
     var loginpanel = null; 
+    var username_deferred = $.Deferred();
 
-    var warn_invalid_content = 
-        $('<div>', {
-            style: 'padding: 10px;'
+    $.get(local_uri_prefix + "system/user_status.json")
+        .done(function(data) {
+            username_deferred.resolve(data['kismet.system.user']);
+        })
+        .fail(function() {
+            username_deferred.resolve("[unknown]");
+        });
+
+    var username = "[incomplete]";
+    $.when(username_deferred).done(function(v) {
+
+    username = v;
+
+    var required_login_content = 
+    $('<div>', {
+        style: 'padding: 10px;'
+    })
+    .append(
+        $('<p>')
+        .html('Kismet requires a login to access data.')
+    )
+    .append(
+        $('<p>')
+        .html('Your login is stored in in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + username + ', and the login will be saved in <code>~' + username + '/.kismet/kismet_httpd.conf</code>.')
+    )
+    .append(
+        $('<form>', {
+            id: 'form'
         })
         .append(
-            $('<h3>', { }
+            $('<fieldset>', {
+                id: 'fs_login'
+            })
+            .append(
+                $('<span style="display: inline-block; width: 8em;">')
+                .html('User name: ')
             )
             .append(
-                $('<i>', {
-                    class: 'fa fa-exclamation-triangle',
-                    style: 'color: red; padding-right: 5px;'
+                $('<input>', {
+                    type: 'text',
+                    name: 'user',
+                    id: 'req_user'
                 })
             )
-            .append("Error")
-        )
-        .append(
-            $('<p>')
-            .html('Invalid admin login for the Kismet webserver.  To perform some functions (such as starting or stopping data sources, downloading captures, or changing server-side settings), you must be logged into Kismet.')
-        )
-        .append(
-            $('<p>')
-            .html('The kismet login is randomly generated the first time Kismet is launched, and is stored in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + exports.system_user + ', and the password can be found in <code>~' + exports.system_user + '/.kismet/kismet_httpd.conf</code>. If you are a guest on this server, you can continue to view much of the information without logging in but you will not be able to change configurations')
-        )
-        .append(
-            $('<form>', {
-                id: 'form'
-            })
+            .append(
+                $('<br>')
+            )
+            .append(
+                $('<span style="display: inline-block; width: 8em;">')
+                .html('Password: ')
+            )
+            .append(
+                $('<input>', {
+                    type: 'password',
+                    name: 'password',
+                    id: 'req_password'
+                })
+            )
             .append(
                 $('<div>', {
-                    style: 'float: right;',
+                    style: 'padding-top: 10px;'
                 })
                 .append(
-                    $('<input>', {
-                        type: 'checkbox',
-                        id: 'dontwarn',
-                        name: 'dontwarn',
-                        value: '',
+                    $('<button>', {
+                        class: 'k-wl-button-close',
+                        id: 'login_button',
                     })
+                    .text('Log in')
+                    .button()
                 )
                 .append(
-                    $('<label>', {
-                        for: 'dontwarn',
+                    $('<span>', {
+                        id: 'pwsuccessdiv',
+                        style: 'padding-left: 5px',
                     })
-                    .html('Don\'t warn again')
+                    .append(
+                        $('<i>', {
+                            id: 'pwsuccess',
+                            class: 'fa fa-refresh fa-spin',
+                        })
+                    )
+                    .append(
+                        $('<span>', {
+                            id: 'pwsuccesstext'
+                        })
+                    )
+                    .hide()
                 )
             )
         )
-        .append(
-            $('<div>', {
-                style: 'padding-top: 10px;'
-            })
-            .append(
-                $('<button>', {
-                    class: 'k-wl-button-close',
-                })
-                .text('Continue')
-                .button()
-                .on('click', function() {
-                    loginpanel.close();               
-                })
-            )
-            .append(
-                $('<button>', {
-                    class: 'k-wl-button-settings',
-                    style: 'position: absolute; right: 5px;',
-                })
-                .text('Settings')
-                .button()
-                .on('click', function() {
-                    loginpanel.close();               
-                    kismet_ui_settings.ShowSettings('base_login_password');
-                })
-            )
-        );
+    );
 
-    $('#dontwarn', content)
-        .checkboxradio()
-        .on('change', function() {
-            kismet.putStorage('kismet.base.warn_login', $(this).is(':checked'));
+    var login_checker_cb = function(content) {
+        var savebutton = $('#login_button', content);
+
+        var checkerdiv = $('#pwsuccessdiv', content);
+        var checker = $('#pwsuccess', checkerdiv);
+        var checkertext = $('#pwsuccesstext', checkerdiv);
+
+        checker.removeClass('fa-exclamation-circle');
+        checker.removeClass('fa-check-square');
+
+        checker.addClass('fa-spin');
+        checker.addClass('fa-refresh');
+        checkertext.text("  Checking...");
+
+        checkerdiv.show();
+
+        exports.LoginCheck(function(success) {
+            if (!success) {
+                checker.removeClass('fa-check-square');
+                checker.removeClass('fa-spin');
+                checker.removeClass('fa-refresh');
+                checker.addClass('fa-exclamation-circle');
+                checkertext.text("  Invalid login");
+            } else {
+                /* Save the login info */
+                kismet.putStorage('kismet.base.login.username', $('#req_user', content).val());
+                kismet.putStorage('kismet.base.login.password', $('#req_password', content).val());
+
+                loginpanel.close();
+
+                /* Call the primary callback */
+                first_login_done_cb();
+            }
+        }, $('#req_user', content).val(), $('#req_password', content).val());
+    };
+
+    $('#login_button', required_login_content)
+        .button()
+        .on('click', function() {
+            login_checker_cb(required_login_content);
         });
+
+    $('fs_login', required_login_content).controlgroup();
 
     var set_password_content = 
     $('<div>', {
@@ -1896,11 +1952,11 @@ exports.FirstLoginCheck = function() {
     })
     .append(
         $('<p>')
-        .html('To finish setting up Kismet, you need to configure a login.  This login is used for changing server settings, accessing sensitive information, adding datasources, and other privileged actions.')
+        .html('To finish setting up Kismet, you need to configure a login.')
     )
     .append(
         $('<p>')
-        .html('This login will be stored in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + exports.system_user + ', and the login will be saved in <code>~' + exports.system_user + '/.kismet/kismet_httpd.conf</code>.')
+        .html('This login will be stored in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + username + ', and the login will be saved in <code>~' + username + '/.kismet/kismet_httpd.conf</code>.')
     )
     .append(
         $('<form>', {
@@ -2075,6 +2131,10 @@ exports.FirstLoginCheck = function() {
 
             loginpanel.close();
 
+            /* Call the primary callback to load the UI */
+            first_login_done_cb();
+
+            /* Check for the first-time running */
             exports.FirstTimeCheck();
         });
 
@@ -2104,10 +2164,13 @@ exports.FirstLoginCheck = function() {
                             },
                             contentSize: w + " auto",
                             paneltype: 'modal',
-                            content: warn_invalid_content,
+                            content: required_login_content,
                         });
 
                         return true;
+                    } else {
+                        /* Otherwise we're all good, continue to loading the main UI via the callback */
+                        first_login_done_cb();
                     }
                 });
             }
@@ -2126,7 +2189,10 @@ exports.FirstLoginCheck = function() {
 
             return true;
         }
-    });
+   });
+
+   // When clause
+   });
 }
 
 exports.FirstTimeCheck = function() {

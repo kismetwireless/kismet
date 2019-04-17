@@ -105,6 +105,15 @@ Systemmonitor::Systemmonitor() :
     monitor_endp = 
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/system/status", false, 
                 status, &monitor_mutex);
+    user_monitor_endp =
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/system/user_status", false,
+            [this](void) -> std::shared_ptr<TrackerElement> {
+                auto use = std::make_shared<TrackerElementMap>();
+
+                use->insert(status->get_tracker_username());
+
+                return use;
+            });
     timestamp_endp = 
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/system/timestamp", false,
             [this](void) -> std::shared_ptr<TrackerElement> {
