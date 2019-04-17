@@ -1836,7 +1836,7 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
         .html('Your login is stored in in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + username + ', and the login will be saved in <code>~' + username + '/.kismet/kismet_httpd.conf</code>.')
     )
     .append(
-        $('<form>', {
+        $('<div>', {
             id: 'form'
         })
         .append(
@@ -1959,7 +1959,7 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
         .html('This login will be stored in <code>.kismet/kismet_httpd.conf</code> in the <i>home directory of the user who launched Kismet</i>;  This server is running as ' + username + ', and the login will be saved in <code>~' + username + '/.kismet/kismet_httpd.conf</code>.')
     )
     .append(
-        $('<form>', {
+        $('<div>', {
             id: 'form'
         })
         .append(
