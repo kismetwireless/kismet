@@ -758,7 +758,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
                 return true;
                 },
-                false,
                 [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
                 auto cl = std::make_shared<TrackerElementVector>();
 
@@ -820,7 +819,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
                 return true;
                 },
-                false,
                 [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
                 auto cl = std::make_shared<TrackerElementVector>();
 

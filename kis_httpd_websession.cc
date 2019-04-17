@@ -91,7 +91,8 @@ void Kis_Httpd_Websession::Deferred_Startup() {
 
     httpd->RegisterSessionHandler(websession);
 
-    Bind_Httpd_Server();
+    // Register as not requiring a login for these endpoints
+    httpd->RegisterUnauthHandler(this);
 
     activated = true;
 }

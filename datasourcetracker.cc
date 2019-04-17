@@ -317,19 +317,19 @@ Datasourcetracker::Datasourcetracker() :
                 TrackerElementFactory<TrackerElementVector>(), "Configured sources");
 
     all_sources_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources", false,
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources",
                 datasource_vec, &dst_lock);
 
     defaults_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/defaults", false,
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/defaults",
                 config_defaults, &dst_lock);
 
     types_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/types", false,
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/types", 
                 proto_vec, &dst_lock);
 
     list_interfaces_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/list_interfaces", true,
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/list_interfaces", 
                 [this]() -> std::shared_ptr<TrackerElement> {
                     // Locker for waiting for the list callback
                     auto cl = std::make_shared<conditional_locker<std::vector<SharedInterface> >>();

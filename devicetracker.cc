@@ -398,12 +398,12 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     // Initialize the view system
     view_vec = std::make_shared<TrackerElementVector>();
-    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/devices/views/all_views", false, 
+    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/devices/views/all_views", 
             view_vec, &view_mutex);
 
     // Unlocked endpoint, we dupe our map for searching
     multimac_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/devices/multimac/devices", false,
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/devices/multimac/devices", 
                 [this](std::ostream& stream, const std::string& uri, SharedStructured structured,
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
                 return multimac_endp_handler(stream, uri, structured, variable_cache);
@@ -436,7 +436,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     all_phys_endp = 
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
-                "/phy/all_phys", false,
+                "/phy/all_phys", 
                 [this]() -> std::shared_ptr<TrackerElement> {
                     return all_phys_endp_handler();
                 },

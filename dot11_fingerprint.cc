@@ -30,14 +30,14 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
         base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", false, 
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", 
                 fingerprint_map, &mutex);
 
     update_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
-                }, true, 
+                }, 
                 [this](std::ostream& stream, const std::vector<std::string>& path,
                     const std::string& uri, SharedStructured post_structured,
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
@@ -56,14 +56,14 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
         base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", false, 
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", 
                 fingerprint_map, &mutex);
 
     update_endp =
         std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
-                }, true, 
+                }, 
                 [this](std::ostream& stream, const std::vector<std::string>& path,
                     const std::string& uri, SharedStructured post_structured,
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {

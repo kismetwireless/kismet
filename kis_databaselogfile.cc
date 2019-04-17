@@ -160,7 +160,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     packet_drop_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", true,
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", 
                 [this](std::ostream& stream, const std::string& uri,
                     SharedStructured post_structured, 
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
@@ -168,7 +168,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
                 }, nullptr);
 
     make_poi_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/poi/create_poi", true,
+        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/poi/create_poi", 
                 [this](std::ostream& stream, const std::string& uri,
                     SharedStructured post_structured,
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
@@ -176,7 +176,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
                 });
 
     list_poi_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/poi/list_poi", true,
+        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/poi/list_poi", 
                 [this]() -> std::shared_ptr<TrackerElement> {
                     return list_poi_endp_handler();
                 });

@@ -44,7 +44,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
 
     self_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
-                url, false,
+                url, 
                 [this]() -> std::shared_ptr<TrackerElement> {
                     local_locker lock(&mutex);
                     return self_endp_handler();
@@ -53,7 +53,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     auto posturl = fmt::format("{}/set_default", base_uri);
     default_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
-                posturl, true,
+                posturl, 
                 [this](std::ostream& stream, const std::string& uri,
                     SharedStructured post_structured, 
                     Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
@@ -167,7 +167,6 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
 
                     return false;
                 },
-                true,
                 [this](std::ostream& stream, const std::vector<std::string>& path, 
                         const std::string& uri, SharedStructured post_structured, 
                         Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
@@ -210,7 +209,6 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
 
                     return false;
                 },
-                true,
                 [this](std::ostream& stream, const std::vector<std::string>& path,
                         const std::string& uri, SharedStructured post_structured,
                         Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
