@@ -317,7 +317,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
                 "         sudo service networking restart\n"
                 "         sudo /etc/init.d/networking restart\n"
                 "         or\n"
-                "         nmcli device set managed [device] true\n"
+                "         nmcli device set [device] managed true\n"
                 "\n");
 
         fprintf(stderr, "Kismet exiting.\n");
