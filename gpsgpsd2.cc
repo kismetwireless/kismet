@@ -204,6 +204,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                 "disconnecting and reconnecting.");
         tcpclient->Disconnect();
         set_int_device_connected(false);
+        return;
     }
 
     // Peek at all the data we have available
