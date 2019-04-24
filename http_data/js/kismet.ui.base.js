@@ -189,6 +189,18 @@ kismet_ui.AddDeviceColumn('column_time', {
     },
 });
 
+kismet_ui.AddDeviceColumn('column_first_time', {
+    sTitle: 'First Seen',
+    field: 'kismet.device.base.first_time',
+    description: 'First-seen time',
+    renderfunc: function(d, t, r, m) {
+        return exports.renderLastTime(d, t, r, m);
+    },
+    searchable: true,
+    visible: false,
+    orderable: true,
+});
+
 kismet_ui.AddDeviceColumn('column_datasize', {
     sTitle: 'Data',
     field: 'kismet.device.base.datasize',
