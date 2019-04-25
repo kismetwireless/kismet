@@ -214,7 +214,7 @@ int PipeClient::FlushRead() {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
-        while (handler->GetReadBufferAvailable()) {
+        while (handler->GetReadBufferAvailable() && read_fd > -1) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
                     handler->GetReadBufferAvailable());
 
@@ -254,13 +254,14 @@ int PipeClient::FlushRead() {
 void PipeClient::ClosePipes() {
     local_locker lock(&pipe_lock);
 
-    if (read_fd > -1)
+    if (read_fd > -1) {
         close(read_fd);
+        read_fd = -1;
+    }
 
-    if (write_fd > -1)
+    if (write_fd > -1) {
         close(write_fd);
-
-    read_fd = -1;
-    write_fd = -1;
+        write_fd = -1;
+    }
 }
 

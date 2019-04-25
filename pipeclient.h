@@ -64,7 +64,7 @@ protected:
     GlobalRegistry *globalreg;
     std::shared_ptr<BufferHandlerGeneric> handler;
 
-    int read_fd, write_fd;
+    std::atomic<int> read_fd, write_fd;
 };
 
 #endif

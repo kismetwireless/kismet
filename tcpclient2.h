@@ -57,10 +57,10 @@ protected:
     GlobalRegistry *globalreg;
     BufferHandlerGeneric *handler;
 
-    bool pending_connect;
-    bool connected;
+    std::atomic<bool> pending_connect;
+    std::atomic<bool> connected;
 
-    int cli_fd;
+    std::atomic<int> cli_fd;
     struct sockaddr_in client_sock, local_sock;
     struct hostent *client_host;
 

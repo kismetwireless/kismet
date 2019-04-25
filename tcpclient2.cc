@@ -140,7 +140,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
-    std::stringstream msg;
+    std::string msg;
 
     uint8_t *buf;
     size_t len;
@@ -158,14 +158,15 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             r = getsockopt(cli_fd, SOL_SOCKET, SO_ERROR, &e, &l);
 
             if (r < 0 || e != 0) {
-                _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
+                msg = fmt::format("Could not connect to TCP server {}:{} ({} / errno {})",
                         host, port, kis_strerror_r(errno), errno);
 
-                handler->BufferError(msg.str());
+                handler->BufferError(msg);
 
                 close(cli_fd);
                 connected = false;
                 pending_connect = false;
+
                 return 0;
             } else {
                 connected = true;
@@ -190,7 +191,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
-        while (handler->GetReadBufferAvailable() > 0) {
+        while (connected && handler->GetReadBufferAvailable() > 0) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
                     handler->GetReadBufferAvailable());
 
@@ -211,22 +212,22 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     break;
                 } else {
                     // Push the error upstream if we failed to read here
-                    msg << "TCP client error reading from " << host << ":" << port <<
-                        " - " << kis_strerror_r(errno);
+                    msg = fmt::format("TCP client error reading from {}:{} - {} (errno {})",
+                            host, port, kis_strerror_r(errno), errno);
 
                     // Dump the commit
                     handler->CommitReadBufferData(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->BufferError(msg);
 
                     Disconnect();
                     return 0;
                 }
             } else if (ret == 0) {
-                msg << "TCP client closing " << host << ":" << port <<
-                    " - connection closed by remote side.";
+                msg = fmt::format("TCP client closing connection to {}:{}, connection closed by remote",
+                        host, port);
                 // Dump the commit
                 handler->CommitReadBufferData(buf, 0);
-                handler->BufferError(msg.str());
+                handler->BufferError(msg);
 
                 Disconnect();
                 return 0;
@@ -244,7 +245,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
-    if (FD_ISSET(cli_fd, &in_wset)) {
+    if (connected && FD_ISSET(cli_fd, &in_wset)) {
         // Peek the entire data 
         len = handler->ZeroCopyPeekWriteBufferData((void **) &buf, 
                 handler->GetWriteBufferUsed());
@@ -256,20 +257,20 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 handler->PeekFreeWriteBufferData(buf);
                 return 0;
             } else {
-                msg << "TCP client error writing to " << host << ":" << port <<
-                    " - " << kis_strerror_r(errno);
+                msg = fmt::format("TCP client error writing to {}:{} - {} (errno {})",
+                    host, port, kis_strerror_r(errno), errno);
 
                 handler->PeekFreeWriteBufferData(buf);
-                handler->BufferError(msg.str());
+                handler->BufferError(msg);
 
                 Disconnect();
                 return 0;
             }
         } else if (ret == 0) {
-            msg << "TCP client closing " << host << ":" << port << 
-                " - connection closed by remote side.";
+            msg = fmt::format("TCP client connection to {}:{} closed by remote",
+                    host, port);
             handler->PeekFreeWriteBufferData(buf);
-            handler->BufferError(msg.str());
+            handler->BufferError(msg);
             Disconnect();
             return 0;
         } else {
