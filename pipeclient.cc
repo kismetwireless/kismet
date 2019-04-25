@@ -164,31 +164,38 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
-    if (write_fd > -1 && FD_ISSET(write_fd, &in_wset) && 
-            (len = handler->GetWriteBufferUsed()) > 0) {
-        // Peek the data into our buffer
-        ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+    if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
+        len = handler->GetWriteBufferUsed();
 
-        // fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
+        // Let the caller consider doing something with a full buffer
+        if (len == 0)
+            handler->TriggerWriteCallback(0);
 
-        if ((iret = write(write_fd, buf, ret)) < 0) {
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                msg << "Pipe client error writing - " << kis_strerror_r(errno);
+        if (len > 0) {
+            // Peek the data into our buffer
+            ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
 
+            // fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
+
+            if ((iret = write(write_fd, buf, ret)) < 0) {
+                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    msg << "Pipe client error writing - " << kis_strerror_r(errno);
+
+                    handler->PeekFreeWriteBufferData(buf);
+
+                    ClosePipes();
+                    // Push the error upstream
+                    handler->BufferError(msg.str());
+                    return 0;
+                }
+            } else {
+                // Consume whatever we managed to write
                 handler->PeekFreeWriteBufferData(buf);
-
-                ClosePipes();
-                // Push the error upstream
-                handler->BufferError(msg.str());
-                return 0;
+                handler->ConsumeWriteBufferData(iret);
             }
-        } else {
-            // Consume whatever we managed to write
-            handler->PeekFreeWriteBufferData(buf);
-            handler->ConsumeWriteBufferData(iret);
-        }
 
-        // delete[] buf;
+            // delete[] buf;
+        }
     }
 
     return 0;
