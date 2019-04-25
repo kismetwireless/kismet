@@ -183,6 +183,10 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         return 0;
 
     if (FD_ISSET(cli_fd, &in_rset)) {
+        // If we have pending data and the buffer is full, call the pending function immediately
+        if (handler->GetReadBufferAvailable() == 0)
+            handler->TriggerReadCallback(0);
+
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        

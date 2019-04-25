@@ -261,6 +261,10 @@ public:
     virtual bool CommitReadBufferData(void *in_ptr, size_t in_sz);
     virtual bool CommitWriteBufferData(void *in_ptr, size_t in_sz);
 
+    // Trigger callbacks directly
+    virtual void TriggerWriteCallback(size_t in_sz);
+    virtual void TriggerReadCallback(size_t in_sz);
+
     // Set interface callbacks to be called when we have data in the buffers
     virtual void SetReadBufferInterface(BufferInterface *in_interface);
     virtual void SetWriteBufferInterface(BufferInterface *in_interface);

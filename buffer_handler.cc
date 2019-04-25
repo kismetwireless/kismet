@@ -289,6 +289,22 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
     return -1;
 }
 
+void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
+    local_locker lock(&r_callback_locker);
+
+    if (wbuf_notify) {
+        wbuf_notify->BufferAvailable(in_sz);
+    }
+}
+
+void BufferHandlerGeneric::TriggerReadCallback(size_t in_sz) {
+    local_locker lock(&r_callback_locker);
+
+    if (rbuf_notify) {
+        rbuf_notify->BufferAvailable(in_sz);
+    }
+}
+
 bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
