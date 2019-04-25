@@ -90,14 +90,14 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
         if (errno == EINPROGRESS) {
             pending_connect = true;
         } else {
+            _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
+                    in_host, in_port, kis_strerror_r(errno), errno);
+
             close(cli_fd);
             cli_fd = -1;
 
             connected = false;
             pending_connect = false;
-
-            _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
-                    in_host, in_port, kis_strerror_r(errno), errno);
 
             // Send the error to any listeners
             handler->BufferError(msg.str());
@@ -159,7 +159,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
             if (r < 0 || e != 0) {
                 msg = fmt::format("Could not connect to TCP server {}:{} ({} / errno {})",
-                        host, port, kis_strerror_r(errno), errno);
+                        host, port, kis_strerror_r(e), e);
 
                 handler->BufferError(msg);
 
