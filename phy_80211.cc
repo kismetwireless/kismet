@@ -645,7 +645,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_fingerprint_devices", true)) {
         auto fingerprint_s = 
             Globalreg::globalreg->kismet_config->FetchOptDfl("dot11_beacon_ie_fingerprint",
-                    "0,1,3,45,48,50,61,74,127,221-00156D-00,221-0050F2-2,221-001018-2,221-506F9A-28");
+                    "0,1,45,48,50,61,74,127,221-00156D-00,221-0050F2-2,221-001018-2,221-506F9A-28");
         auto fingerprint_v = QuoteStrTokenize(fingerprint_s, ",");
 
         unsigned int t1, t2, t3;
@@ -656,11 +656,17 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 beacon_ie_fingerprint_list.push_back(tp);
             } else {
                 if (sscanf(i.c_str(), "%u", &t1) == 1) {
+                    if (t1 > 255) {
+                        _MSG_ERROR("Invalid IE tag number (>255) in dot11_beacon_ie_fingerprint, skipping.  This "
+                                "may cause errors in device fingerprinting.");
+                        continue;
+                    }
+
                     auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, 0, 0};
                     beacon_ie_fingerprint_list.push_back(tp);
                 } else {
                     _MSG_ERROR("Invalid IE tag entry in dot11_beacon_ie_fingerprint, skipping.  This "
-                            "may cause errors in device fingerpriting.");
+                            "may cause errors in device fingerprinting.");
                     continue;
                 }
             }
