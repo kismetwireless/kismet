@@ -915,8 +915,9 @@ std::string kis_strerror_r(int errnum) {
     char *d_errstr = new char[1024];
     std::string rs;
 
-    // Deal with the XSI vs GNU versioning & compilers complaining about returns
-#if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
+    // Deal with the XSI vs GNU versioning & compilers complaining about returns, osx handling, etc.
+    // XSI and GNU define it differently and it's a huge pain.
+#if defined(__APPLE__) || ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE)
     int r;
     r = strerror_r(errnum, d_errstr, 1024);
 
