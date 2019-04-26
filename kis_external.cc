@@ -522,7 +522,6 @@ void KisExternalHttpInterface::handle_packet_http_register(uint32_t in_seqno,
     
     exturi->uri = uri.uri();
     exturi->method = uri.method();
-    exturi->auth_req = uri.auth_required();
 
     // Add it to the map of valid URIs
     http_proxy_uri_map[exturi->method].push_back(exturi);
@@ -693,12 +692,6 @@ int KisExternalHttpInterface::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     for (auto e : m->second) {
         if (e->uri == std::string(url)) {
-            // Make sure we're logged in if we need to be
-            if (e->auth_req && !httpd->HasValidSession(connection)) {
-                connection->httpcode = 503;
-                return MHD_YES;
-            }
-
             // Make a session
             std::shared_ptr<KisExternalHttpSession> s(new KisExternalHttpSession());
             s->connection = connection;
@@ -759,12 +752,6 @@ int KisExternalHttpInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *conne
 
     for (auto e : m->second) {
         if (e->uri == std::string(connection->url)) {
-            // Make sure we're logged in if we need to be
-            if (e->auth_req && !httpd->HasValidSession(connection)) {
-                connection->httpcode = 503;
-                return MHD_YES;
-            }
-
             // Make a session
             std::shared_ptr<KisExternalHttpSession> s(new KisExternalHttpSession());
             s->connection = connection;

@@ -27,7 +27,7 @@ message HttpRegisterUri {
     required string method = 2;
     // Authentication - does the URI require authentication?  The proxy can 
     // handle this automatically.
-    required bool auth_required = 3;
+    optional bool obsolete_auth_required = 3;
 }
 
 // Sub-block of HTTP data, per-field
