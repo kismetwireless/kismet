@@ -921,7 +921,7 @@ std::string kis_strerror_r(int errnum) {
     int r;
     r = strerror_r(errnum, d_errstr, 1024);
 
-    rs = string(d_errstr);
+    rs = std::string(d_errstr);
     
     delete[] d_errstr;
     return rs;
