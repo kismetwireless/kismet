@@ -37,15 +37,200 @@ import threading
 import time
 import uuid
 import csv
+import numpy as np
+import math
 
-# Set a flag and throw an error out the protocol if modes is not available
 have_pymodes = False
-try:
-    import pyModeS as pms
-    have_pymodes = True
-except ImportError:
-    # Spam an error to the console and pick up an error later during open
-    print("Could not import pyModeS; please install it either from a system package or via pip")
+
+### THE NEXT CODE BLOCK IS FROM THE WORK OF myModeS AVAILABLE AT      ###
+###            https://pypi.org/project/pyModeS/                      ###
+### IT IS INCLUDED HERE IN THIS VERSION STRIPPED DOWN AND MODIFIED    ###
+### DUE TO UPSTEAM CHANGES IN THE ORIGINAL CODEBASE THAT ARENT NEEDED ###
+def hex2bin(hexstr):
+    """Convert a hexdecimal string to binary string, with zero fillings. """
+    num_of_bits = len(hexstr) * 4
+    binstr = bin(int(hexstr, 16))[2:].zfill(int(num_of_bits))
+    return binstr
+
+def bin2int(binstr):
+    """Convert a binary string to integer. """
+    return int(binstr, 2)
+
+def hex2int(hexstr):
+    """Convert a hexdecimal string to integer. """
+    return int(hexstr, 16)
+
+def bin2np(binstr):
+    """Convert a binary string to numpy array. """
+    return np.array([int(i) for i in binstr])
+
+def np2bin(npbin):
+    """Convert a binary numpy array to string. """
+    return np.array2string(npbin, separator='')[1:-1]
+
+def df(msg):
+    """Decode Downlink Format vaule, bits 1 to 5."""
+    msgbin = hex2bin(msg)
+    return min( bin2int(msgbin[0:5]) , 24 )
+
+def crc(msg, encode=False):
+    """Mode-S Cyclic Redundancy Check
+    Detect if bit error occurs in the Mode-S message
+    Args:
+        msg (string): 28 bytes hexadecimal message string
+        encode (bool): True to encode the date only and return the checksum
+    Returns:
+        string: message checksum, or partity bits (encoder)
+    """
+
+    # the polynominal generattor code for CRC [1111111111111010000001001]
+    generator = np.array([1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1])
+    ng = len(generator)
+
+    msgnpbin = bin2np(hex2bin(msg))
+
+    if encode:
+        msgnpbin[-24:] = [0] * 24
+
+    # loop all bits, except last 24 piraty bits
+    for i in range(len(msgnpbin)-24):
+        if msgnpbin[i] == 0:
+            continue
+
+        # perform XOR, when 1
+        msgnpbin[i:i+ng] = np.bitwise_xor(msgnpbin[i:i+ng], generator)
+
+    # last 24 bits
+    reminder = np2bin(msgnpbin[-24:])
+    return reminder
+
+def icao(msg):
+    """Calculate the ICAO address from an Mode-S message
+    with DF4, DF5, DF20, DF21
+    Args:
+        msg (String): 28 bytes hexadecimal message string
+    Returns:
+        String: ICAO address in 6 bytes hexadecimal string
+    """
+    DF = df(msg)
+
+    if DF in (11, 17, 18):
+        addr = msg[2:8]
+    elif DF in (0, 4, 5, 16, 20, 21):
+        c0 = bin2int(crc(msg, encode=True))
+        c1 = hex2int(msg[-6:])
+        addr = '%06X' % (c0 ^ c1)
+    else:
+        addr = None
+
+    return addr
+
+def typecode(msg):
+    """Type code of ADS-B message
+    Args:
+        msg (string): 28 bytes hexadecimal message string
+    Returns:
+        int: type code number
+    """
+    if df(msg) not in (17, 18):
+        return None
+
+    msgbin = hex2bin(msg)
+    return bin2int(msgbin[32:37])
+
+def data(msg):
+    """Return the data frame in the message, bytes 9 to 22"""
+    return msg[8:-6]
+
+def airborne_velocity(msg):
+    """Calculate the speed, track (or heading), and vertical rate
+
+    Args:
+        msg (string): 28 bytes hexadecimal message string
+
+    Returns:
+        (int, float, int, string): speed (kt), ground track or heading (degree),
+            rate of climb/descend (ft/min), and speed type
+            ('GS' for ground speed, 'AS' for airspeed)
+    """
+
+    if typecode(msg) != 19:
+        raise RuntimeError("%s: Not a airborne velocity message, expecting TC=19" % msg)
+
+    msgbin = hex2bin(msg)
+
+    subtype = bin2int(msgbin[37:40])
+
+    if bin2int(msgbin[46:56]) == 0 or bin2int(msgbin[57:67]) == 0:
+        return None
+
+    if subtype in (1, 2):
+        v_ew_sign = -1 if int(msgbin[45]) else 1
+        v_ew = bin2int(msgbin[46:56]) - 1       # east-west velocity
+
+        v_ns_sign = -1 if int(msgbin[56]) else 1
+        v_ns = bin2int(msgbin[57:67]) - 1       # north-south velocity
+
+
+        v_we = v_ew_sign * v_ew
+        v_sn = v_ns_sign * v_ns
+
+        spd = math.sqrt(v_sn*v_sn + v_we*v_we)  # unit in kts
+
+        trk = math.atan2(v_we, v_sn)
+        trk = math.degrees(trk)                 # convert to degrees
+        trk = trk if trk >= 0 else trk + 360    # no negative val
+
+        tag = 'GS'
+        trk_or_hdg = trk
+
+    else:
+        hdg = bin2int(msgbin[46:56]) / 1024.0 * 360.0
+        spd = bin2int(msgbin[57:67])
+
+        tag = 'AS'
+        trk_or_hdg = hdg
+
+    vr_sign = -1 if int(msgbin[68]) else 1
+    vr = (bin2int(msgbin[69:78]) - 1) * 64     # vertical rate, fpm
+    rocd = vr_sign * vr
+
+    return int(spd), round(trk_or_hdg, 1), int(rocd), tag
+
+def callsign(msg):
+    """Aircraft callsign
+
+    Args:
+        msg (string): 28 bytes hexadecimal message string
+
+    Returns:
+        string: callsign
+    """
+
+    if typecode(msg) < 1 or typecode(msg) > 4:
+        raise RuntimeError("%s: Not a identification message" % msg)
+
+    chars = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######'
+    msgbin = hex2bin(msg)
+    csbin = msgbin[40:96]
+
+    cs = ''
+    cs += chars[bin2int(csbin[0:6])]
+    cs += chars[bin2int(csbin[6:12])]
+    cs += chars[bin2int(csbin[12:18])]
+    cs += chars[bin2int(csbin[18:24])]
+    cs += chars[bin2int(csbin[24:30])]
+    cs += chars[bin2int(csbin[30:36])]
+    cs += chars[bin2int(csbin[36:42])]
+    cs += chars[bin2int(csbin[42:48])]
+
+    # clean string, remove spaces and marks, if any.
+    # cs = cs.replace('_', '')
+    cs = cs.replace('#', '')
+    return cs
+
+### END BLOCK ###
+
 
 import KismetCaptureRtladsb.kismetexternal
 
@@ -220,17 +405,17 @@ class KismetRtladsb(object):
 
             while True:
 		hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
-		if pms.crc(hex_data) == "000000000000000000000000":
+		if crc(hex_data) == "000000000000000000000000":
 		    for row in airplanes:
-		        if pms.adsb.icao(hex_data) == row[0]:
+		        if hex_data[2:8] == row[0]:
 			    msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
-		    if 1 <= pms.adsb.typecode(hex_data) <= 4:
-			msg = { "icao": pms.adsb.icao(hex_data), "callsign": pms.adsb.callsign(hex_data) }
-		    if 5 <= pms.adsb.typecode(hex_data) <= 8:
-			msg = { "icao": pms.adsb.icao(hex_data), "altitude": pms.adsb.altitude(hex_data) }
-		    if pms.adsb.typecode(hex_data) == 19:
-			airborneInfo = pms.adsb.airborne_velocity(hex_data)
-			msg = { "icao": pms.adsb.icao(hex_data), "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
+		    if 1 <= typecode(hex_data) <= 4:
+			msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
+		    if 5 <= typecode(hex_data) <= 8:
+			msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
+		    if typecode(hex_data) == 19:
+			airborneInfo = airborne_velocity(hex_data)
+			msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
 		    l = json.dumps(msg)
 
                     if not self.handle_json(l):
@@ -385,12 +570,6 @@ class KismetRtladsb(object):
         if not source[:8] == "rtladsb-":
             ret["success"] = False
             ret["message"] = "Could not parse which rtlsdr device to use"
-            return ret
-
-        global have_pymodes
-        if not have_pymodes:
-            ret["success"] = False
-            ret["message"] = "PyModeS not installed, install it via pip or your distribution"
             return ret
 
         global have_csv
