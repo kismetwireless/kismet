@@ -186,7 +186,15 @@ exports.GetDeviceColumns = function(showall = false) {
 
     // If we don't have an order saved
     if (order.length == 0) {
+        // Sort invisible columns to the end
         for (var i in DeviceColumns) {
+            if (!DeviceColumns[i].bVisible)
+                continue;
+            ret.push(DeviceColumns[i]);
+        }
+        for (var i in DeviceColumns) {
+            if (DeviceColumns[i].bVisible)
+                continue;
             ret.push(DeviceColumns[i]);
         }
         return ret;
@@ -214,7 +222,15 @@ exports.GetDeviceColumns = function(showall = false) {
 
     // If we didn't find anything, default to the normal behavior - something is wrong
     if (ret.length == 0) {
+        // Sort invisible columsn to the end
         for (var i in DeviceColumns) {
+            if (!DeviceColumns[i].bVisible)
+                continue;
+            ret.push(DeviceColumns[i]);
+        }
+        for (var i in DeviceColumns) {
+            if (DeviceColumns[i].bVisible)
+                continue;
             ret.push(DeviceColumns[i]);
         }
         return ret;
