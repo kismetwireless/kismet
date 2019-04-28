@@ -8,7 +8,7 @@ setup(name='KismetCaptureRtladsb',
       author='Russ Handorf / @dntlookbehindu',
       author_email='russell@handorf.com',
       url='https://www.handorf.com/',
-      install_requires=['protobuf', 'pyModeS'],
+      install_requires=['protobuf', 'numpy'],
       packages=find_packages(),
       scripts=['kismet_cap_sdr_rtladsb', 'kismet_cap_sdr_rtladsb_mqtt'],
      )

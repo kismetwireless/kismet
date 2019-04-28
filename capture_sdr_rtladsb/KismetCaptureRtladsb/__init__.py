@@ -40,8 +40,6 @@ import csv
 import numpy as np
 import math
 
-have_pymodes = False
-
 ### THE NEXT CODE BLOCK IS FROM THE WORK OF myModeS AVAILABLE AT      ###
 ###            https://pypi.org/project/pyModeS/                      ###
 ### IT IS INCLUDED HERE IN THIS VERSION STRIPPED DOWN AND MODIFIED    ###

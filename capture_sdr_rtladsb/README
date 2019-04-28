@@ -53,11 +53,9 @@ Kismet RTLADSB Support
     python_modules/ directory of Kismet (which will be installed
     automatically in most cases).
 
-    If there is a problem with compiling this plugin, you may need
-    to manually install an additional python module called pyModeS.
-    You can download it and install it from
-
-        https://github.com/junzis/pyModeS
+    The rtladsb support also requires the NumPy Python module; you can
+    typically get this as a package from your distribution (often 
+    python-numpy) or via pip.
 
     rtlsdr hardware will be automatically detected and shown in the
     Datasources window, or it can be configured as 'rtladsb-X',
