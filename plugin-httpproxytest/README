@@ -2,3 +2,9 @@ Kismet-HTTPPROXYTEST
 
 This plugin is a demo of the external tool / proxy framework
 
+
+Installing:
+
+$ sudo su
+# KIS_SRC_DIR=../ make install
+
