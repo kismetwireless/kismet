@@ -37,6 +37,14 @@
 #include "version.h"
 #include "kis_httpd_registry.h"
 
+void PluginRegistrationData::activate_external_http() {
+    // If we have a http proxy, instantiate and load it
+    if (get_plugin_http_external() != "") {
+        external_http = 
+            std::make_shared<ExternalHttpPluginHarness>(get_plugin_name(), get_plugin_http_external());
+    }
+}
+
 Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     LifetimeGlobal(),
     Kis_Net_Httpd_CPPStream_Handler() {
@@ -216,6 +224,16 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_so(s);
         }
 
+        if ((s = cf.FetchOpt("httpexternal")) != "") {
+            if (s.find("/") != std::string::npos) {
+                _MSG_ERROR("Found path in 'httpexternal=' in plugin manifest '{}', "
+                        "httpexternal= should define the binary name only.", manifest);
+                continue;
+            }
+
+            preg->set_plugin_http_external(s);
+        }
+
         if ((s = cf.FetchOpt("js")) != "") {
             if (s.find(",") == std::string::npos) {
                 _MSG("Found an invalid 'js=' in plugin manifest '" + manifest +
@@ -380,6 +398,9 @@ int Plugintracker::ActivatePlugins() {
                 continue;
             }
         }
+
+        // Activate external http if we have it
+        x->activate_external_http();
 
         // Alias the plugin directory
         httpd->RegisterStaticDir("/plugin/" + x->get_plugin_dirname() + "/",

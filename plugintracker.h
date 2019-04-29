@@ -103,9 +103,13 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 
+#include "configfile.h"
+#include "kis_external.h"
+#include "kis_net_microhttpd.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
+
+class ExternalHttpPluginHarness;
 
 // The registration object is created by the plugintracker and given to
 // a Kismet plugin; the plugin fills in the relevant information during
@@ -167,6 +171,7 @@ public:
     __Proxy(plugin_path, std::string, std::string, std::string, plugin_path);
 
     __Proxy(plugin_js, std::string, std::string, std::string, plugin_js);
+    __Proxy(plugin_http_external, std::string, std::string, std::string, plugin_http_external);
 
     void set_plugin_dlfile(void *in_dlfile) {
         dlfile = in_dlfile;
@@ -176,6 +181,8 @@ public:
         return dlfile;
     }
 
+    void activate_external_http();
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -184,10 +191,14 @@ protected:
         RegisterField("kismet.plugin.description", "plugin description", &plugin_description);
         RegisterField("kismet.plugin.author", "plugin author", &plugin_author);
         RegisterField("kismet.plugin.version", "plugin version", &plugin_version);
+
         RegisterField("kismet.plugin.shared_object", "plugin shared object filename", &plugin_so);
+        RegisterField("kismet.plugin.http_helper", "plugin http helper", &plugin_http_external);
+
         RegisterField("kismet.plugin.dirname", "plugin directory name", &plugin_dirname);
         RegisterField("kismet.plugin.path", "path to plugin content", &plugin_path);
         RegisterField("kismet.plugin.jsmodule", "Plugin javascript module", &plugin_js);
+
     }
 
     std::shared_ptr<TrackerElementString> plugin_name;
@@ -196,6 +207,8 @@ protected:
     std::shared_ptr<TrackerElementString> plugin_version;
 
     std::shared_ptr<TrackerElementString> plugin_so;
+    std::shared_ptr<TrackerElementString> plugin_http_external;
+
     std::shared_ptr<TrackerElementString> plugin_dirname;
     std::shared_ptr<TrackerElementString> plugin_path;
 
@@ -203,6 +216,7 @@ protected:
 
     void *dlfile;
 
+    std::shared_ptr<ExternalHttpPluginHarness> external_http;
 };
 typedef std::shared_ptr<PluginRegistrationData> SharedPluginData;
 
@@ -289,6 +303,49 @@ protected:
 
     // List of plugins before they're loaded
     std::vector<SharedPluginData> plugin_preload;
+};
+
+/* External plugin loader for plugins only using the external http interface; no need for them
+ * to implement a C++ component; this will get instantiated in the plugin finalization layer */
+class ExternalHttpPluginHarness : public KisExternalHttpInterface {
+public:
+    ExternalHttpPluginHarness(std::string plugin_name, std::string binary) : 
+        KisExternalHttpInterface() {
+
+        // Look for someone playing hijinks
+        if (binary.find("/") != std::string::npos) {
+            _MSG_FATAL("Invalid plugin binary {}; binary must not contain a path.", binary);
+            Globalreg::globalreg->fatal_condition = 1;
+            return;
+        }
+
+        external_binary = binary;
+
+        // Grow the IPC buffer
+        ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024*1024), (1024*1024)));
+        ringbuf_handler->SetReadBufferInterface(this);
+
+        ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
+
+        // Get the allowed paths for binaries and populate
+        auto bin_paths = Globalreg::globalreg->kismet_config->FetchOptVec("helper_binary_path");
+
+        if (bin_paths.size() == 0) {
+            _MSG_ERROR("No 'helper_binary_path' found in kismet.conf; make sure your config files are up "
+                    "to date.  Using the default binary path where Kismet was installed, instead.");
+            bin_paths.push_back("%B");
+        }
+
+        for (auto p : bin_paths) 
+            ipc_remote->add_path(Globalreg::globalreg->kismet_config->ExpandLogPath(p, "", "", 0, 1));
+
+        auto ret = ipc_remote->launch_kis_binary(external_binary, {});
+
+        if (ret < 0) {
+            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, binary);
+            return;
+        }
+    }
 };
 
 #endif
