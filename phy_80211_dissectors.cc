@@ -1578,7 +1578,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 return -1;
             }
                 
-            packinfo->channel = UIntToString((uint8_t) (ie_tag->tag_data()[0]));
+            packinfo->channel = fmt::format("{}", (uint8_t) (ie_tag->tag_data()[0]));
             continue;
         }
 
