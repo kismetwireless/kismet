@@ -8,3 +8,7 @@ Installing:
 $ sudo su
 # KIS_SRC_DIR=../ make install
 
+Requirements:
+This requires the KismetExternal python module, available at:
+$ git clone https://www.kismetwireless.net/git/python-kismet-db.git
+

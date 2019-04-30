@@ -45,16 +45,16 @@ class KismetProxyTest(object):
         self.kei.request_http_auth(self.handle_web_auth_token)
 
         # Add a URI handler; it doesn't need a login, and it returns HTML
-        self.kei.add_uri_handler("GET", "/proxytest/python.html", False, self.handle_web_python)
+        self.kei.add_uri_handler("GET", "/proxytest/python.html", self.handle_web_python)
 
         # Add a GET var test
-        self.kei.add_uri_handler("GET", "/proxytest/python_get.html", False, self.handle_web_python_get)
+        self.kei.add_uri_handler("GET", "/proxytest/python_get.html", self.handle_web_python_get)
 
         # Add a POST var test
-        self.kei.add_uri_handler("POST", "/proxytest/python_post.html", False, self.handle_web_python_post)
+        self.kei.add_uri_handler("POST", "/proxytest/python_post.html", self.handle_web_python_post)
 
         # Add a streaming handler
-        self.kei.add_uri_handler("GET", "/proxytest/stream.raw", False, self.handle_web_stream)
+        self.kei.add_uri_handler("GET", "/proxytest/stream.raw", self.handle_web_stream)
 
         self.kei.send_message("Hello from python!  This is sent over the IPC message bus.")
 
