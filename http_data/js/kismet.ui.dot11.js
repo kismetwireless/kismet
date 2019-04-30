@@ -679,13 +679,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.advertisedssid.ht_center_1",
                     title: "HT Freq",
                     help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded channel.",
-                    filterOnZero: true
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " (Channel " + (opts['value'] - 5000) / 5 + ")";
+                    },
                 },
                 {
                     field: "dot11.advertisedssid.ht_center_2",
                     title: "HT Freq2",
                     help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded secondary channel.  Secondary channels are only found on 802.11AC wave-2 80+80 gear.",
-                    filterOnZero: true
+                    filterOnZero: true,
+                    render: function(opts) {
+                        return opts['value'] + " (Channel " + (opts['value'] - 5000) / 5 + ")";
+                    },
                 },
                 {
                     field: "dot11.advertisedssid.beacon_info",
