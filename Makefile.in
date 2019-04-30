@@ -115,9 +115,6 @@ BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
-# Do we build and install the python modules?
-BUILD_PYTHON_MODULES = @BUILD_PYTHON_MODULES@
-
 LOGTOOL_KISMETDB_STRIP = log_tools/kismetdb_strip_packets
 
 LOGTOOL_KISMETDB_WIGLE = log_tools/kismetdb_to_wiglecsv
@@ -345,10 +342,6 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_NRF_MOUSEJACK)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_MOUSEJACK) $(BIN)/`basename $(CAPTURE_NRF_MOUSEJACK)`; \
-	fi;
-
-	@if test "$(BUILD_PYTHON_MODULES)"x = "1"x; then \
-		(cd python_modules && $(MAKE) install) \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \

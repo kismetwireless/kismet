@@ -13372,7 +13372,7 @@ printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then
 	echo "yes";
 else
-	echo "no (will not build Python modules and related support)";
+	echo "no (will not build Python based sources)";
 fi
 
 printf "       RTL-SDR RTL_433: "
