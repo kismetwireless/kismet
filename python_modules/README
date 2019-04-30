@@ -1,0 +1,8 @@
+Modules have moved to their own git repos; see the Kismet Download page for more links.
+
+```bash
+$ git clone https://github.com/kismetwireless/python-kismet-external.git
+$ git clone https://github.com/kismetwireless/python-kismet-db.git
+$ git clone https://github.com/kismetwireless/python-kismet-rest.git
+```
+
