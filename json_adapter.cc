@@ -235,15 +235,15 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
         case TrackerType::TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
             // Mac is quoted as a string value, mac only
-            stream << "\"" << mac.Mac2String() << "\"";
+            stream << "\"" << mac << "\"";
             break;
         case TrackerType::TrackerUuid:
             euuid = GetTrackerValue<uuid>(e);
             // UUID is quoted as a string value
-            stream << "\"" << euuid.UUID2String() << "\"";
+            stream << "\"" << euuid << "\"";
             break;
         case TrackerType::TrackerKey:
-            stream << "\"" << GetTrackerValue<device_key>(e).as_string() << "\"";
+            stream << "\"" << GetTrackerValue<device_key>(e) << "\"";
             break;
         case TrackerType::TrackerVector:
             stream << ppendl << indent << "[" << ppendl;
@@ -392,7 +392,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                 prepend_comma = true;
 
                 // Mac keys are strings and we push only the mac not the mask */
-                stream << indent << "\"" << i.first.Mac2String() << "\": ";
+                stream << indent << "\"" << i.first << "\": ";
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl;
@@ -599,15 +599,15 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
         case TrackerType::TrackerMac:
             mac = GetTrackerValue<mac_addr>(e);
             // Mac is quoted as a string value, mac only
-            stream << "\"" << mac.Mac2String() << "\"";
+            stream << "\"" << mac << "\"";
             break;
         case TrackerType::TrackerUuid:
             euuid = GetTrackerValue<uuid>(e);
             // UUID is quoted as a string value
-            stream << "\"" << euuid.UUID2String() << "\"";
+            stream << "\"" << euuid << "\"";
             break;
         case TrackerType::TrackerKey:
-            stream << "\"" << GetTrackerValue<device_key>(e).as_string() << "\"";
+            stream << "\"" << GetTrackerValue<device_key>(e) << "\"";
             break;
         case TrackerType::TrackerVector:
             stream << "[";
@@ -724,7 +724,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                 prepend_comma = true;
 
                 // Mac keys are strings and we push only the mac not the mask */
-                stream << "\"" << i.first.Mac2String() << "\": ";
+                stream << "\"" << i.first << "\": ";
                 StorageJsonAdapter::Pack(stream, i.second, name_map);
             }
             stream << "}";
