@@ -103,15 +103,15 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
 
     set_int_device_connected(false);
 
-    // Delete any existing serial interface before we parse options
-    if (tcphandler != NULL) {
-        delete tcphandler;
-        tcphandler = NULL;
-    }
-
+    // Delete any existing interface before we parse options
     if (tcpclient != NULL) {
         pollabletracker->RemovePollable(tcpclient);
         tcpclient.reset();
+    }
+
+    if (tcphandler != NULL) {
+        delete tcphandler;
+        tcphandler = NULL;
     }
 
     std::string proto_host;
