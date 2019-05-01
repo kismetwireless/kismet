@@ -123,11 +123,11 @@ protected:
 
     std::shared_ptr<TrackerElementVector> proto_vec;
 
-    // Vector of sources we're still waiting to return from probing
-    std::vector<SharedDatasource> probe_vec;
-
     // Vector of sources which are complete and waiting for cleanup
     std::vector<SharedDatasource> complete_vec;
+
+    // Vector of timer events to make sure are dead before we destruct
+    std::vector<int> cancel_timer_vec;
 
     // Prototype we found
     SharedDatasourceBuilder source_builder;

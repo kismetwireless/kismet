@@ -52,32 +52,37 @@ DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition,
 DST_DatasourceProbe::~DST_DatasourceProbe() {
     local_locker lock(&probe_lock);
 
-    // Cancel any probing sources and delete them
-    for (auto i = probe_vec.begin(); i != probe_vec.end(); ++i) {
-        (*i)->close_source();
-    }
+    // Cancel any timers
+    for (auto i : cancel_timer_vec)
+        timetracker->RemoveTimer(i);
+
+    // Cancel any existing transactions
+    for (auto i : ipc_probe_map)
+        i.second->close_source();
 }
 
 void DST_DatasourceProbe::cancel() {
     {
         local_locker lock(&probe_lock);
 
-        // fprintf(stderr, "debug - dstprobe cancelling search for %s\n", definition.c_str());
-
         cancelled = true;
+
+        // Cancel any timers
+        for (auto i : cancel_timer_vec)
+            timetracker->RemoveTimer(i);
 
         // Cancel any other competing probing sources; this may trigger the callbacks
         // which will call the completion function, but we'll ignore them because
         // we're already cancelled
-        for (auto i = ipc_probe_map.begin(); i != ipc_probe_map.end(); ++i) {
-            i->second->close_source();
-        }
+        for (auto i : ipc_probe_map)
+            i.second->close_source();
 
-        // We don't delete sources now because we might be inside the loop somehow
-        // and deleting references to ourselves
+        // Defer deleting sources until the probe map is cleared
     }
 
-    // Unlock just before we call the CB so that we're not callbacked inside a thread lock
+    // Unlock just before we call the CB so that we're not callbacked inside a thread lock;
+    // call back with whatever we found - if we got something, great, otherwise we callback a 
+    // nullptr
     if (probe_cb) 
         probe_cb(source_builder);
 }
@@ -91,11 +96,12 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
         std::string in_reason __attribute__((unused))) {
     local_locker lock(&probe_lock);
 
-    auto v = ipc_probe_map.find(in_transaction);
-
-    // If we're already in cancelled state these callbacks mean nothing, ignore them
+    // If we're already in cancelled state these callbacks mean nothing, ignore them, we're going
+    // to be torn down so we don't even need to find our transaction
     if (cancelled)
         return;
+
+    auto v = ipc_probe_map.find(in_transaction);
 
     if (v != ipc_probe_map.end()) {
         if (in_success) {
@@ -157,12 +163,12 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
        
         unsigned int transaction = ++transaction_id;
 
-        // Instantiate a local prober
+        // Instantiate a local prober datasource
         SharedDatasource pds = b->build_datasource(b);
 
         {
             local_locker lock(&probe_lock);
-            ipc_probe_map.insert(std::make_pair(transaction, pds));
+            ipc_probe_map[transaction] = pds;
             ncreated++;
         }
 
@@ -174,6 +180,9 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
                         cancel();
                         return 0;
                     });
+
+        // Log the cancellation timer
+        cancel_timer_vec.push_back(cancel_timer);
 
         pds->probe_interface(definition, transaction, 
                 [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
@@ -816,14 +825,13 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
         }
 
         if (!proto_found) {
-            std::stringstream ss;
-            ss << "Unable to find datasource for '" << type << "'.  Make sure "
-                "that any plugins required are loaded and that the capture "
-                "interface is available.";
+            auto ss = fmt::format("Unable to find datasource for '{}'.  Make sure that any "
+                    "required plugins are installed, that the capture interface is available, "
+                    "and that you installed all the Kismet helper packages.", type);
 
             if (in_cb != NULL) {
                 lock.unlock();
-                in_cb(false, ss.str(), NULL);
+                in_cb(false, ss, NULL);
                 lock.lock();
             }
 
@@ -862,35 +870,36 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
         auto i = probing_map.find(probeid);
 
         if (i != probing_map.end()) {
-            // fprintf(stderr, "debug - dst - calling callback\n");
-            std::stringstream ss;
-            if (builder == NULL) {
-                // fprintf(stderr, "debug - DST - callback with fail\n");
-
+            if (builder == nullptr) {
                 // We couldn't find a type, return an error to our initial open CB
-                ss << "Unable to find driver for '" << i->second->get_definition() << 
-                    "'.  Make sure that any plugins required are loaded.";
-                _MSG(ss.str(), MSGFLAG_ERROR);
+                auto ss = fmt::format("Unable to find driver for '{}'.  Make sure that any required plugins "
+                        "are loaded, the interface is available, and any required Kismet helper packages are "
+                        "installed.", i->second->get_definition());
+                _MSG(ss, MSGFLAG_ERROR);
                 lock.unlock();
-                in_cb(false, ss.str(), NULL);
+                in_cb(false, ss, NULL);
                 lock.lock();
             } else {
-                ss << "Found type '" << builder->get_source_type() << "' for '" <<
-                    i->second->get_definition() << "'";
-                _MSG(ss.str(), MSGFLAG_INFO);
+                // We got a builder
+                auto ss = fmt::format("Found type '{}' for '{}'", builder->get_source_type(), i->second->get_definition());
+                _MSG(ss, MSGFLAG_INFO);
 
-                // Initiate an open w/ a known builder
+                // Initiate an open w/ a known builder, associate the prototype definition with it
                 open_datasource(i->second->get_definition(), builder, in_cb);
             }
 
+            // Mark this object for completion when the callback triggers
             probing_complete_vec.push_back(i->second);
+
+            // Remove us from the active vec
             probing_map.erase(i);
+
+            // Schedule a cleanup 
             schedule_cleanup();
         } else {
             // fprintf(stderr, "debug - DST couldn't find response %u\n", probeid);
         }
     });
-
 
     return;
 }
