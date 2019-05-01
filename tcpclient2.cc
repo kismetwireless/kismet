@@ -93,7 +93,8 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
             _MSG_ERROR("Could not connect to TCP server {}:{} ({} / errno {})",
                     in_host, in_port, kis_strerror_r(errno), errno);
 
-            close(cli_fd);
+            if (cli_fd >= 0)
+                close(cli_fd);
             cli_fd = -1;
 
             connected = false;
@@ -163,7 +164,9 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                 handler->BufferError(msg);
 
-                close(cli_fd);
+                if (cli_fd >= 0)
+                    close(cli_fd);
+                cli_fd = -1;
                 connected = false;
                 pending_connect = false;
 
@@ -285,7 +288,8 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 void TcpClientV2::Disconnect() {
     if (pending_connect || connected) {
-        close(cli_fd);
+        if (cli_fd >= 0)
+            close(cli_fd);
     }
 
     cli_fd = -1;
