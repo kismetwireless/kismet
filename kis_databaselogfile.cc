@@ -483,7 +483,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
 
         "error INT, " // Packet was flagged as invalid
 
-        "tags TEXT", // Arbitrary packet tags
+        "tags TEXT" // Arbitrary packet tags
         ")";
 
     r = sqlite3_exec(db, sql.c_str(),
