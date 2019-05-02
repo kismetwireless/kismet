@@ -111,7 +111,7 @@ void GpsTracker::log_snapshot_gps() {
     if (dbf == NULL)
         return;
 
-    local_locker lock(&gpsmanager_mutex);
+    local_shared_locker lock(&gpsmanager_mutex);
 
     // Log each GPS
     for (auto d : *gps_instances_vec) {
@@ -214,7 +214,7 @@ std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
 }
 
 kis_gps_packinfo *GpsTracker::get_best_location() {
-    local_locker lock(&gpsmanager_mutex);
+    local_shared_locker lock(&gpsmanager_mutex);
 
     // Iterate 
     for (auto d : *gps_instances_vec) {
@@ -287,7 +287,7 @@ void GpsTracker::Httpd_CreateStreamResponse(
         size_t *upload_data_size __attribute__((unused)), 
         std::stringstream &stream) {
 
-    local_locker lock(&gpsmanager_mutex);
+    local_shared_locker lock(&gpsmanager_mutex);
 
     if (strcmp(method, "GET") != 0) {
         return;
@@ -302,24 +302,12 @@ void GpsTracker::Httpd_CreateStreamResponse(
     }
 
     if (stripped == "/gps/all_gps") {
-        if (!httpd->HasValidSession(connection)) {
-            stream << "Login required\n";
-            connection->httpcode = 401;
-            return;
-        }
-
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, 
                 gps_instances_vec, NULL);
         return;
     }
 
     if (stripped == "/gps/location") {
-        if (!httpd->HasValidSession(connection)) {
-            stream << "Login required\n";
-            connection->httpcode = 401;
-            return;
-        }
-
         kis_gps_packinfo *pi = get_best_location();
 
         auto loctrip =

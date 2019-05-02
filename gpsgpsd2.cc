@@ -50,21 +50,21 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
         error_reconnect_timer = 
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                     [this](int) -> int {
-                    local_locker l(&gps_mutex);
-                    if (get_device_connected()) 
+                    local_shared_locker l(&gps_mutex);
+
+                    if (tcpclient != nullptr && tcpclient->FetchConnected())
                         return 1;
 
                     open_gps(get_gps_definition());
-
                     return 1;
                     });
 
         data_timeout_timer =
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                     [this](int) -> int {
-                    local_locker l(&gps_mutex);
+                    local_shared_locker l(&gps_mutex);
 
-                    if (!get_device_connected())
+                    if (tcpclient == nullptr || (tcpclient != nullptr && !tcpclient->FetchConnected()))
                         return 1;
 
                     if (time(0) - last_data_time > 30) {
@@ -152,18 +152,21 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
     host = proto_host;
     port = proto_port;
 
-    _MSG_INFO("GPSGPSD connected to GPSD server on {}:{}", host, port);
-
     // Reset the time counter
     last_data_time = time(0);
 
-    set_int_device_connected(true);
+    // We're not connected until we get data
+    set_int_device_connected(0);
 
     return 1;
 }
 
 bool GPSGpsdV2::get_location_valid() {
-    local_locker lock(&gps_mutex);
+    local_shared_locker lock(&gps_mutex);
+
+    if (!get_device_connected()) {
+        return false;
+    }
 
     if (gps_location == NULL) {
         return false;
@@ -181,15 +184,6 @@ bool GPSGpsdV2::get_location_valid() {
     return true;
 }
 
-bool GPSGpsdV2::get_device_connected() {
-    local_locker lock(&gps_mutex);
-
-    if (tcpclient == NULL)
-        return false;
-
-    return tcpclient->FetchConnected();
-}
-
 void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     local_locker lock(&gps_mutex);
 
@@ -205,6 +199,17 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
         tcpclient->Disconnect();
         set_int_device_connected(false);
         return;
+    }
+
+    // Use data availability as the connected status since tcp poll is currently
+    // hidden from us
+    {
+        local_locker l(&gps_mutex);
+
+        if (!get_device_connected()) {
+            _MSG_INFO("GPSGPSD connected to GPSD server on {}:{}", host, port);
+            set_int_device_connected(true);
+        }
     }
 
     // Peek at all the data we have available

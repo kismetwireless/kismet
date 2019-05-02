@@ -46,7 +46,6 @@ public:
     virtual bool open_gps(std::string in_definition);
 
     virtual bool get_location_valid();
-    virtual bool get_device_connected();
 
 protected:
     std::shared_ptr<PollableTracker> pollabletracker;
