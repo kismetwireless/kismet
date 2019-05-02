@@ -126,6 +126,7 @@ char *mac80211_find_parent(const char *interface);
  * Channels are returned as Kismet channel definitions, as wifi channel strings; for
  * example:
  * Base channel:    6
+ * HT20 channel:    6HT20
  * HT40+ channel:   6HT40+
  * HT40- channel:   6HT40-
  * HT80 channel:    36HT80 (which automatically derives 80mhz control channel)
@@ -135,12 +136,21 @@ char *mac80211_find_parent(const char *interface);
  *
  * Caller is responsible for freeing returned chanlist with mac80211_free_chanlist(..)
  *
+ * If default_ht20 is true, then for any interface capable of ht20, all
+ * 20mhz channels will be returned as ht20 channels.  expand_ht20 will be
+ * ignored.
+ *
+ * If expand_ht20 is true (and default_ht20 is false), then for any interface
+ * capable of ht20, all 20mhz channels will be reported as both non-ht and ht20
+ * in the returned list.
+ *
  * Returns:
  * -1   Error
  *  0   Success
  *
  */
 int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
+        unsigned int default_ht20, unsigned int expand_ht20,
         char ***ret_chanlist, size_t *ret_chanlist_len);
 
 #endif

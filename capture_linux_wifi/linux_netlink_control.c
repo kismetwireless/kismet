@@ -416,6 +416,13 @@ struct nl80211_channel_block {
 
 
 #ifdef HAVE_LINUX_NETLINK
+/* Really ugly non-thread-safe (but we don't thread this ever) non-thread-safe way
+ * to pass HT20 behavior down into the callback builder, because we don't really 
+ * want to rewrite the whole thing into a multi-list pass 
+ */
+unsigned int glob_freqlist_default_ht20 = 0;
+unsigned int glob_freqlist_expand_ht20 = 0;
+
 static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
     struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
     struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
@@ -492,13 +499,33 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
 
-                    snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
+                    /* Default to HT20 if we support HT and are always using it, otherwise default to 
+                     * basic channels */
+                    if ((chanb->extended_flags & MAC80211_GET_HT) && glob_freqlist_default_ht20)
+                        snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
+                    else
+                        snprintf(channel_str, 32, "%u", mac80211_freq_to_chan(freq));
+
                     chan_list_new->channel = strdup(channel_str);
 
                     chan_list_new->next = NULL;
                     chanb->nfreqs++;
                     chanb->chan_list_last->next = chan_list_new;
                     chanb->chan_list_last = chan_list_new;
+
+                    /* If we support HT, and expand HT20 instead of default to it, add a HT20 channel */
+                    if ((chanb->extended_flags & MAC80211_GET_HT) && !glob_freqlist_default_ht20 &&
+                            glob_freqlist_expand_ht20) {
+
+                        chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
+                        snprintf(channel_str, 32, "%uHT20", mac80211_freq_to_chan(freq));
+                        chan_list_new->channel = strdup(channel_str);
+
+                        chan_list_new->next = NULL;
+                        chanb->nfreqs++;
+                        chanb->chan_list_last->next = chan_list_new;
+                        chanb->chan_list_last = chan_list_new;
+                    }
 
                     /* Look us up in the wifi_ht_channels list and add channels if we
                      * need to add HT capabilities.  We could convert this to a channel
@@ -591,6 +618,7 @@ static int nl80211_ack_cb(struct nl_msg *msg, void *arg) {
 #endif
 
 int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
+        unsigned int default_ht20, unsigned int expand_ht20,
         char ***ret_chan_list, size_t *ret_num_chans) {
     struct nl80211_channel_block cblock = {
         .phyname = NULL,
@@ -614,6 +642,10 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     struct nl_cb *cb;
     int err;
     struct nl_msg *msg;
+
+    /* Set the globals */
+    glob_freqlist_default_ht20 = default_ht20;
+    glob_freqlist_expand_ht20 = expand_ht20;
 
     cblock.extended_flags = extended_flags;
 

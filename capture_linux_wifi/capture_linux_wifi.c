@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -38,12 +38,16 @@
  *
  */
 
+#define _GNU_SOURCE
+
 #include <pcap.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <fcntl.h>
 
 #include <sched.h>
+
+#include <string.h>
 
 /* According to POSIX.1-2001, POSIX.1-2008 */
 #include <sys/select.h>
@@ -128,6 +132,7 @@ typedef struct {
  * XXW5         Channel/frequency XX, custom 5MHz channel
  * XXW10        Channel/frequency XX, custom 10MHz channel
  * XX           Channel/frequency XX, non-HT standard 20MHz channel
+ * XXHT20       Channel/frequency XX, explicitly HT20 20MHz channel
  * XXHT40+      Channel/frequency XX, HT40+ channel
  * XXHT40-      Channel/frequency XX, HT40- channel
  * XXVHT80      Channel/frequency XX, VHT 80MHz channel.  Upper pair automatically
@@ -324,52 +329,68 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     unsigned int ci;
     char errstr[STATUS_MAX];
 
-    /* Match HT40+ and HT40- */
-    r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
+    /* Match HT20 */
+    if (strcasestr(chanstr, "HT20") != NULL) {
+        r = sscanf(chanstr, "%uHT20", &parsechan);
 
-    if (r == 2) {
+        if (r == 1) {
+            ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+            memset(ret_localchan, 0, sizeof(local_channel_t));
+
+            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan);
+            (ret_localchan)->chan_type = NL80211_CHAN_HT20;
+
+            return ret_localchan;
+        }
+    }
+
+    /* Match HT40+ and HT40- */
+    if (strcasestr(chanstr, "HT40") != NULL) {
         ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
         memset(ret_localchan, 0, sizeof(local_channel_t));
 
-        (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan);
+        r = sscanf(chanstr, "%uHT40%c", &parsechan, &mod);
 
-        if (mod == '-') {
-            (ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
-            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_40;
-            (ret_localchan)->center_freq1 = (ret_localchan)->control_freq - 10;
+        if (r == 2) {
+            (ret_localchan)->control_freq = wifi_chan_to_freq(parsechan);
 
-            /* Search for the ht channel record */
-            for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
-                if (wifi_ht_channels[ci].chan == parsechan || 
-                        wifi_ht_channels[ci].freq == parsechan) {
+            if (mod == '-') {
+                (ret_localchan)->chan_type = NL80211_CHAN_HT40MINUS;
+                (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_40;
+                (ret_localchan)->center_freq1 = (ret_localchan)->control_freq - 10;
 
-                    if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40MINUS) == 0) {
-                        snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40- "
-                                "channel; this does not appear to be a valid channel "
-                                "for 40MHz operation.", parsechan);
-                        cf_send_message(caph, errstr, MSGFLAG_INFO);
+                /* Search for the ht channel record */
+                for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
+                    if (wifi_ht_channels[ci].chan == parsechan || 
+                            wifi_ht_channels[ci].freq == parsechan) {
+
+                        if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40MINUS) == 0) {
+                            snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40- "
+                                    "channel; this does not appear to be a valid channel "
+                                    "for 40MHz operation.", parsechan);
+                            cf_send_message(caph, errstr, MSGFLAG_INFO);
+                        }
+
                     }
-
                 }
-            }
-        } else if (mod == '+') {
-            (ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
-            (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_40;
-            (ret_localchan)->center_freq1 = (ret_localchan)->control_freq + 10;
+            } else if (mod == '+') {
+                (ret_localchan)->chan_type = NL80211_CHAN_HT40PLUS;
+                (ret_localchan)->chan_width = NL80211_CHAN_WIDTH_40;
+                (ret_localchan)->center_freq1 = (ret_localchan)->control_freq + 10;
 
-            /* Search for the ht channel record */
-            for (ci = 0; ci < sizeof(wifi_ht_channels) / 
-                    sizeof (wifi_channel); ci++) {
-                if (wifi_ht_channels[ci].chan == parsechan || 
-                        wifi_ht_channels[ci].freq == parsechan) {
+                /* Search for the ht channel record */
+                for (ci = 0; ci < sizeof(wifi_ht_channels) / 
+                        sizeof (wifi_channel); ci++) {
+                    if (wifi_ht_channels[ci].chan == parsechan || 
+                            wifi_ht_channels[ci].freq == parsechan) {
 
-                    if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40PLUS) == 0) {
-                        snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40+ "
-                                "channel; this does not appear to be a valid channel "
-                                "for 40MHz operation.", parsechan);
-                        cf_send_message(caph, errstr, MSGFLAG_INFO);
+                        if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40PLUS) == 0) {
+                            snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40+ "
+                                    "channel; this does not appear to be a valid channel "
+                                    "for 40MHz operation.", parsechan);
+                            cf_send_message(caph, errstr, MSGFLAG_INFO);
+                        }
                     }
-
                 }
             }
         } else {
@@ -381,7 +402,6 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
         return ret_localchan;
     }
-
 
     /* otherwise parse VHTXX, WXX, and VHTXX-YYY */
     r = sscanf(chanstr, "%u%15[^-]-%u", &parsechan, parsetype, &parse_center1);
@@ -505,6 +525,8 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
     /* Basic channel with no HT/VHT */
     if (chan->chan_type == 0 && chan->chan_width == 0) {
         snprintf(chanstr, STATUS_MAX, "%u", chan->control_freq);
+    } else if (chan->chan_type == NL80211_CHAN_HT20) {
+        snprintf(chanstr, STATUS_MAX, "%uHT20", chan->control_freq);
     } else if (chan->chan_type == NL80211_CHAN_HT40MINUS) {
         snprintf(chanstr, STATUS_MAX, "%uHT40-", chan->control_freq);
     } else if (chan->chan_type == NL80211_CHAN_HT40PLUS) {
@@ -543,6 +565,7 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
 }
 
 int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
+        unsigned int default_ht20, unsigned int expand_ht20,
         char ***chanlist, size_t *chanlist_sz) {
     local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     int ret;
@@ -558,7 +581,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         extended_flags += MAC80211_GET_VHT;
 
     /* Prefer mac80211 channel fetch */
-    ret = mac80211_get_chanlist(interface, extended_flags, msg, chanlist, chanlist_sz);
+    ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, chanlist, chanlist_sz);
 
     if (ret < 0) {
         ret = iwconfig_get_chanlist(interface, msg, &iw_chanlist, &chan_sz);
@@ -719,6 +742,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     uint8_t hwaddr[6];
     char driver[32] = "";
 
+    unsigned int default_ht_20 = 0;
+    unsigned int expand_ht_20 = 0;
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return 0;
@@ -782,8 +808,26 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         } 
     }
 
-    ret = populate_chanlist(caph, interface, errstr, &((*ret_interface)->channels),
-            &((*ret_interface)->channels_len));
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "default_ht20", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            default_ht_20 = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            default_ht_20 = 1;
+        }
+    }
+
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "expand_ht20", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            expand_ht_20 = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            expand_ht_20 = 1;
+        }
+    }
+
+    ret = populate_chanlist(caph, interface, errstr, default_ht_20, expand_ht_20, 
+            &((*ret_interface)->channels), &((*ret_interface)->channels_len));
 
     (*ret_interface)->hardware = strdup(driver);
 
@@ -841,6 +885,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char pcap_errstr[PCAP_ERRBUF_SIZE] = "";
 
     char ifnam[IFNAMSIZ];
+
+    unsigned int default_ht_20 = 0;
+    unsigned int expand_ht_20 = 0;
 
     *uuid = NULL;
     *dlt = 0;
@@ -999,16 +1046,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->interface);
         cf_send_warning(caph, errstr);
     } else if (strcmp(driver, "iwlwifi") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is an Intel "
-                "iwlwifi device; These have shown significant problems tuning to HT and VHT "
-                "channels leading to firmware crashes, disabling HT and VHT channels now. "
-                "You can override this with the source options htchannels=true and "
-                "vhtchannels=true", local_wifi->interface);
+        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like an Intel iwlwifi device; under "
+                "some driver and firmware versions these have shown significant problems tuning to "
+                "HT and VHT channels, with firmware and driver crashes.  Newer kernels seem to solve "
+                "this problem; if you're on an older version, set htchannels=false,vhtchannels=false "
+                "in your source definition.", local_wifi->interface);
         cf_send_warning(caph, errstr);
-        local_wifi->use_ht_channels = 0;
-        local_wifi->use_vht_channels = 0;
     }
-
 
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
      * respond to SIOCGIWMODE */
@@ -1486,7 +1530,25 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         } 
     }
 
-    ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, 
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "default_ht20", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            default_ht_20 = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            default_ht_20 = 1;
+        }
+    }
+
+    if ((placeholder_len =
+                cf_find_flag(&placeholder, "expand_ht20", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            expand_ht_20 = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            expand_ht_20 = 1;
+        }
+    }
+
+    ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, default_ht_20, expand_ht_20,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
         snprintf(msg, STATUS_MAX, "Could not get list of channels from capture "
