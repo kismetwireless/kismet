@@ -1,2 +1,0 @@
-Packaging based on the `fpm` tool; we build kismet normally then create our install
-tree and use FPM to create the packages
