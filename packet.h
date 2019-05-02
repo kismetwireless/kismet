@@ -100,6 +100,9 @@ public:
 		return content_vec[index];
     }
 
+    // Tags applied to the packet
+    std::vector<std::string> tag_vec;
+
 protected:
 	GlobalRegistry *globalreg;
 };
