@@ -1,7 +1,0 @@
-/usr/bin/kismet
-/usr/bin/kismet_cap_pcapfile
-/usr/bin/kismet_cap_linux_wifi
-/usr/bin/kismet_cap_linux_bluetooth
-/etc/kismet/kismet*.conf
-/usr/share/pkgconfig/kismet.pc
-/usr/share/kismet/httpd/*
