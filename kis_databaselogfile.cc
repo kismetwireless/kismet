@@ -504,7 +504,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         "packet_len, signal, "
         "datasource, "
         "dlt, packet, "
-        "error, flags) "
+        "error, tags) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
