@@ -2651,6 +2651,9 @@ std::shared_ptr<dot11_tracked_eapol>
         eapol->set_eapol_nonce_bytes(rsnkey->wpa_key_nonce());
         eapol->set_eapol_replay_counter(rsnkey->replay_counter());
 
+        // Set a packet tag for handshakes
+        in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
+
         // fprintf(stderr, "debug - eapol %u\n", eapol->get_eapol_msg_num());
 
         return eapol;
