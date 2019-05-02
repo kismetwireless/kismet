@@ -433,24 +433,6 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     }
 
     sql =
-        "INSERT INTO devices "
-        "(first_time, last_time, devkey, phyname, devmac, strongest_signal, "
-        "min_lat, min_lon, max_lat, max_lon, "
-        "avg_lat, avg_lon, "
-        "bytes_data, type, device) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
-    }
-
-
-    sql =
         "CREATE TABLE packets ("
 
         "ts_sec INT, " // Timestamps
@@ -497,27 +479,6 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     }
 
     sql =
-        "INSERT INTO packets "
-        "(ts_sec, ts_usec, phyname, "
-        "sourcemac, destmac, transmac, devkey, frequency, " 
-        "lat, lon, alt, speed, heading, "
-        "packet_len, signal, "
-        "datasource, "
-        "dlt, packet, "
-        "error, tags) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
-    }
-
-
-    sql =
         "CREATE TABLE data ("
 
         "ts_sec INT, " // Timestamps
@@ -548,25 +509,6 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
         Log_Close();
         return -1;
     }
-
-    sql =
-        "INSERT INTO data "
-        "(ts_sec, ts_usec, "
-        "phyname, devmac, "
-        "lat, lon, alt, speed, heading, "
-        "datasource, "
-        "type, json) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
-        return -1;
-    }
-
 
     sql =
         "CREATE TABLE datasources ("
@@ -669,6 +611,63 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     }
 
     Database_SetDBVersion(6);
+
+    // Prepare the statements we'll need later
+    //
+    sql =
+        "INSERT INTO devices "
+        "(first_time, last_time, devkey, phyname, devmac, strongest_signal, "
+        "min_lat, min_lon, max_lat, max_lon, "
+        "avg_lat, avg_lon, "
+        "bytes_data, type, device) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
+
+    sql =
+        "INSERT INTO packets "
+        "(ts_sec, ts_usec, phyname, "
+        "sourcemac, destmac, transmac, devkey, frequency, " 
+        "lat, lon, alt, speed, heading, "
+        "packet_len, signal, "
+        "datasource, "
+        "dlt, packet, "
+        "error, tags) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
+
+    sql =
+        "INSERT INTO data "
+        "(ts_sec, ts_usec, "
+        "phyname, devmac, "
+        "lat, lon, alt, speed, heading, "
+        "datasource, "
+        "type, json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
+
+    if (r != SQLITE_OK) {
+        _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
+                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+        Log_Close();
+        return -1;
+    }
 
     sql =
         "INSERT INTO datasources "
@@ -990,20 +989,17 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
 
         sqlite3_bind_int(packet_stmt, sql_pos++, in_pack->error);
 
-        // Convert the tag vec into a list of tags
         std::stringstream tagstream;
-        bool need_space = false;
+        bool space_needed = false;
 
         for (auto tag : in_pack->tag_vec) {
-            if (need_space)
+            if (space_needed)
                 tagstream << " ";
-            need_space = true;
-
+            space_needed = true;
             tagstream << tag;
         }
 
-        sqlite3_bind_text(packet_stmt, sql_pos++, 
-                tagstream.str().c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(packet_stmt, sql_pos++, tagstream.str().c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
             _MSG("KisDatabaseLogfile unable to insert packet in " +
