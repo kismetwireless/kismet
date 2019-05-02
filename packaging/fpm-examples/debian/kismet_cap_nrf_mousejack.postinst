@@ -1,0 +1,48 @@
+#!/bin/sh
+
+set -e
+
+# Copied from wireshark-common and modified
+
+. /usr/share/debconf/confmodule
+
+PROGRAM=kismet_cap_nrf_mousejack
+
+GROUP=kismet
+
+if ! dpkg-statoverride --list $PROGRAM > /dev/null; then
+    db_get kismet-common/install-setuid
+    if [ -e "$PROGRAM" ]; then
+	    if [ "$RET" = "false" ] ; then
+            echo "Kismet capture helpers are not being installed suid-root; this is less secure "
+            echo "because it means Kismet must be run as root at all times.  Strongly consider "
+            echo "installing as suid-root; for more informations see the 'Suid-Install' section of "
+            echo "the Kismet readme at https://www.kismetwireless.net/README-latest.html"
+	        chown root:root $PROGRAM
+	        chmod u=rwx,go=rx $PROGRAM
+	    else
+	        if ! addgroup --quiet --system $GROUP; then
+	            if ! getent group $GROUP > /dev/null; then
+                        db_input high kismet-common/addgroup-failed || true
+                        db_go
+                        exit 1
+                    fi
+	        fi
+	        chown root:$GROUP $PROGRAM
+	        if which setcap > /dev/null ; then
+                    chmod u=rwx,g=rx,o=r $PROGRAM
+                    if ! setcap cap_net_raw,cap_net_admin=eip $PROGRAM; then
+                        db_input high kismet-common/setcap-failed || true
+                        db_go
+
+	    	            chmod u=rwxs,g=rx,o=r $PROGRAM
+                    fi
+	        else
+                    chmod u=rwxs,g=rx,o=r $PROGRAM
+	        fi
+        fi
+    fi
+else
+    dpkg-statoverride --list $PROGRAM
+fi
+
