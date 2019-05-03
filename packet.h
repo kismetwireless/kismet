@@ -153,6 +153,14 @@ public:
 
     __ProxyTrackable(data, TrackerElementByteArray, data);
 
+    virtual void copy_packet(std::shared_ptr<kis_tracked_packet> in) {
+        set_ts_sec(in->get_ts_sec());
+        set_ts_usec(in->get_ts_usec());
+        set_dlt(in->get_dlt());
+        set_source(in->get_source());
+        set_data(in->get_data());
+    }
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
