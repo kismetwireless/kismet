@@ -82,6 +82,7 @@ void dot11_tracked_eapol::register_fields() {
     RegisterField("dot11.eapol.replay_counter", "eapol frame replay counter", &eapol_replay_counter);
     RegisterField("dot11.eapol.install", "eapol rsn key install", &eapol_install);
     RegisterField("dot11.eapol.nonce", "eapol rsn nonce", &eapol_nonce);
+    RegisterField("dot11.eapol.rsn_pmkid", "eapol pmkid", &eapol_rsn_pmkid);
     RegisterField("dot11.eapol.packet", "EAPOL handshake", &eapol_packet);
 }
 
@@ -2479,6 +2480,13 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
         local_locker bssid_locker(&(bssid_dev->device_mutex));
 
         auto bssid_vec(bssid_dot11->get_wpa_key_vec());
+
+        // Do we have a pmkid and need one?  set the pmkid packet.
+        if (bssid_dot11->get_pmkid_needed() && eapol->get_rsnpmkid_bytes().length() != 0) {
+            fmt::print(stderr, "Learning PMKID\n");
+            auto pmkid_packet = bssid_dot11->get_pmkid_packet();
+            pmkid_packet->copy_packet(eapol->get_eapol_packet());
+        }
 
         // Start doing something smart here about eliminating
         // records - we want to do our best to keep a 1, 2, 3, 4

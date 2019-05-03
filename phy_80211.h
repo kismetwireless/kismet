@@ -328,14 +328,12 @@ public:
     __Proxy(eapol_install, uint8_t, bool, bool, eapol_install);
 
     __ProxyTrackable(eapol_nonce, TrackerElementByteArray, eapol_nonce);
+    void set_eapol_nonce_bytes(const std::string& in_n) { eapol_nonce->set(in_n); }
+    std::string get_eapol_nonce_bytes() { return eapol_nonce->get(); }
 
-    void set_eapol_nonce_bytes(const std::string& in_n) {
-        eapol_nonce->set(in_n);
-    }
-
-    std::string get_eapol_nonce_bytes() {
-        return eapol_nonce->get();
-    }
+    __ProxyTrackable(eapol_rsn_pmkid, TrackerElementByteArray, eapol_rsn_pmkid);
+    void set_rsnpmkid_bytes(const std::string& in_n) { eapol_rsn_pmkid->set(in_n); }
+    std::string get_rsnpmkid_bytes() { return eapol_rsn_pmkid->get(); }
 
     __ProxyTrackable(eapol_packet, kis_tracked_packet, eapol_packet);
 
@@ -348,6 +346,7 @@ protected:
     std::shared_ptr<TrackerElementUInt8> eapol_msg_num;
     std::shared_ptr<TrackerElementUInt8> eapol_install;
     std::shared_ptr<TrackerElementByteArray> eapol_nonce;
+    std::shared_ptr<TrackerElementByteArray> eapol_rsn_pmkid;
 
     std::shared_ptr<kis_tracked_packet> eapol_packet;
     int eapol_packet_id;
@@ -1223,6 +1222,7 @@ public:
         last_adv_ie_csum = 0;
         last_bss_invalid = 0;
         bss_invalid_count = 0;
+        snapshot_next_beacon = false;
 
         register_fields();
         reserve_fields(NULL);
@@ -1234,6 +1234,7 @@ public:
         last_adv_ie_csum = 0;
         last_bss_invalid = 0;
         bss_invalid_count = 0;
+        snapshot_next_beacon = false;
 
         register_fields();
         reserve_fields(NULL);
@@ -1245,6 +1246,7 @@ public:
         last_adv_ie_csum = 0;
         last_bss_invalid = 0;
         bss_invalid_count = 0;
+        snapshot_next_beacon = false;
 
         register_fields();
         reserve_fields(e);
@@ -1342,6 +1344,9 @@ public:
         return std::make_shared<dot11_tracked_eapol>(wpa_key_entry_id);
     }
 
+    __ProxyDynamicTrackable(ssid_beacon_packet, kis_tracked_packet, ssid_beacon_packet, ssid_beacon_packet_id);
+    __ProxyDynamicTrackable(pmkid_packet, kis_tracked_packet, pmkid_packet, pmkid_packet_id);
+
     __Proxy(wpa_present_handshake, uint8_t, uint8_t, uint8_t, wpa_present_handshake);
 
     __ProxyTrackable(wpa_nonce_vec, TrackerElementVector, wpa_nonce_vec);
@@ -1377,6 +1382,10 @@ public:
     __Proxy(beacon_fingerprint, uint32_t, uint32_t, uint32_t, beacon_fingerprint);
     __Proxy(probe_fingerprint, uint32_t, uint32_t, uint32_t, probe_fingerprint);
     __Proxy(response_fingerprint, uint32_t, uint32_t, uint32_t, response_fingerprint);
+
+    bool get_snap_next_beacon() { return snapshot_next_beacon; }
+    void set_snap_next_beacon(bool b) { snapshot_next_beacon = b; }
+    bool get_pmkid_needed() { return pmkid_packet == nullptr; }
 
 protected:
 
@@ -1476,6 +1485,14 @@ protected:
                     TrackerElementFactory<dot11_tracked_nonce>(),
                     "WPA nonce exchange");
 
+        ssid_beacon_packet_id =
+            RegisterDynamicField("dot11.device.ssid_beacon_packet",
+                    "snapshotted beacon packet", &ssid_beacon_packet);
+
+        pmkid_packet_id =
+            RegisterDynamicField("dot11.device.pmkid_packet",
+                    "snapshotted RSN PMKID packet", &pmkid_packet);
+
         RegisterField("dot11.device.min_tx_power", "Minimum advertised TX power", &min_tx_power);
         RegisterField("dot11.device.max_tx_power", "Maximum advertised TX power", &max_tx_power);
 
@@ -1548,6 +1565,10 @@ protected:
         }
     }
 
+    // Do we need to snap the next beacon because we're trying to add a beacon
+    // record to eapol or pmkid?
+    std::atomic<bool> snapshot_next_beacon;
+
     std::shared_ptr<TrackerElementUInt64> type_set;
 
     std::shared_ptr<TrackerElementMacMap> client_map;
@@ -1600,6 +1621,12 @@ protected:
     std::shared_ptr<TrackerElementVector> wpa_anonce_vec;
     std::shared_ptr<TrackerElementUInt8> wpa_present_handshake;
     int wpa_nonce_entry_id;
+
+    std::shared_ptr<kis_tracked_packet> ssid_beacon_packet;
+    int ssid_beacon_packet_id;
+
+    std::shared_ptr<kis_tracked_packet> pmkid_packet;
+    int pmkid_packet_id;
 
     // Un-exposed internal tracking options
     uint32_t last_adv_ie_csum;

@@ -2673,6 +2673,9 @@ std::shared_ptr<dot11_tracked_eapol>
                             dot11_ie_221_rsn_pmkid pmkid;
                             pmkid.parse(vendor->vendor_tag_stream());
 
+                            // Log the pmkid for the decoders
+                            eapol->set_rsnpmkid_bytes(pmkid.pmkid());
+
                             // Tag the packet
                             in_pack->tag_vec.push_back("DOT11_RSNPMKID");
                         }
