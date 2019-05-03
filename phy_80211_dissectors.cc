@@ -64,6 +64,7 @@
 #include "dot11_parsers/dot11_ie_221_wfa_wpa.h"
 #include "dot11_parsers/dot11_ie_221_cisco_client_mfp.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
+#include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -2653,6 +2654,34 @@ std::shared_ptr<dot11_tracked_eapol>
 
         // Set a packet tag for handshakes
         in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
+
+        // Parse key data as an IE tag stream; do this in our own try/catch because we don't
+        // want to discard the entire packet if something went wrong in the pmkid parsing.
+        try {
+            if (rsnkey->wpa_key_data_len() != 0) {
+                std::shared_ptr<dot11_ie> ietags(new dot11_ie());
+                ietags->parse(rsnkey->wpa_key_data_stream());
+
+                for (auto ie_tag : *(ietags->tags())) {
+                    if (ie_tag->tag_num() == 221) {
+                        auto vendor = std::make_shared<dot11_ie_221_vendor>();
+                        ie_tag->tag_data_stream()->seek(0);
+                        vendor->parse(ie_tag->tag_data_stream());
+
+                        if (vendor->vendor_oui_int() == dot11_ie_221_rsn_pmkid::vendor_oui() &&
+                                vendor->vendor_oui_type() == dot11_ie_221_rsn_pmkid::rsnpmkid_subtype()) {
+                            dot11_ie_221_rsn_pmkid pmkid;
+                            pmkid.parse(vendor->vendor_tag_stream());
+
+                            // Tag the packet
+                            in_pack->tag_vec.push_back("DOT11_RSNPMKID");
+                        }
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            // Do nothing
+        }
 
         // fprintf(stderr, "debug - eapol %u\n", eapol->get_eapol_msg_num());
 
