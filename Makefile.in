@@ -7,6 +7,7 @@ CONFIGFILES = \
 	kismet_memory.conf \
 	kismet_storage.conf \
 	kismet_logging.conf \
+	kismet_filter.conf \
 	kismet_uav.conf \
 	kismet_80211.conf 
 
