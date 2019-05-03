@@ -1794,6 +1794,29 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         return;
     }
 
+    // If we're looking for the beacon, snapshot it
+    if (dot11info->subtype == packet_sub_beacon &&
+            dot11dev->get_snap_next_beacon()) {
+
+        // Grab the 80211 frame, if that doesn't exist, grab the link frame
+        kis_datachunk *chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
+
+        if (chunk == nullptr)
+            chunk = (kis_datachunk *) in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+
+        if (chunk != nullptr) {
+            auto beacon_packet = dot11dev->get_ssid_beacon_packet();
+
+            beacon_packet->set_ts_sec(in_pack->ts.tv_sec);
+            beacon_packet->set_ts_usec(in_pack->ts.tv_usec);
+
+            beacon_packet->set_dlt(chunk->dlt);
+            beacon_packet->set_source(chunk->source_id);
+
+            beacon_packet->get_data()->set(chunk->data, chunk->length);
+        }
+
+    }
 
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
@@ -2479,11 +2502,13 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
     {
         local_locker bssid_locker(&(bssid_dev->device_mutex));
 
+        // We want to start looking for the next advertised ssid
+        bssid_dot11->set_snap_next_beacon(true);
+
         auto bssid_vec(bssid_dot11->get_wpa_key_vec());
 
         // Do we have a pmkid and need one?  set the pmkid packet.
         if (bssid_dot11->get_pmkid_needed() && eapol->get_rsnpmkid_bytes().length() != 0) {
-            fmt::print(stderr, "Learning PMKID\n");
             auto pmkid_packet = bssid_dot11->get_pmkid_packet();
             pmkid_packet->copy_packet(eapol->get_eapol_packet());
         }

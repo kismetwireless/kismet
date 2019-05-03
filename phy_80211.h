@@ -1383,7 +1383,7 @@ public:
     __Proxy(probe_fingerprint, uint32_t, uint32_t, uint32_t, probe_fingerprint);
     __Proxy(response_fingerprint, uint32_t, uint32_t, uint32_t, response_fingerprint);
 
-    bool get_snap_next_beacon() { return snapshot_next_beacon; }
+    bool get_snap_next_beacon() { return snapshot_next_beacon && ssid_beacon_packet == nullptr; }
     void set_snap_next_beacon(bool b) { snapshot_next_beacon = b; }
     bool get_pmkid_needed() { return pmkid_packet == nullptr; }
 
