@@ -194,6 +194,10 @@ public:
                 return m_wpa_key_data;
             }
 
+            std::shared_ptr<kaitai::kstream> wpa_key_data_stream() const {
+                return m_wpa_key_data_stream;
+            }
+
             constexpr17 unsigned int key_info_descriptor_version() const {
                 return key_info() & 0x7;
             }
@@ -245,6 +249,7 @@ public:
             std::string m_wpa_key_mic;
             uint16_t m_wpa_key_data_len;
             std::string m_wpa_key_data;
+            std::shared_ptr<kaitai::kstream> m_wpa_key_data_stream;
         };
 
     };

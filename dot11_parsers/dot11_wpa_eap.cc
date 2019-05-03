@@ -59,6 +59,7 @@ void dot11_wpa_eap::dot1x_key::eapol_key_rsn::parse(std::shared_ptr<kaitai::kstr
     m_wpa_key_mic = p_io->read_bytes(16);
     m_wpa_key_data_len = p_io->read_u2be();
     m_wpa_key_data = p_io->read_bytes(wpa_key_data_len());
+    m_wpa_key_data_stream.reset(new kaitai::kstream(m_wpa_key_data));
 }
 
 void dot11_wpa_eap::dot1x_eap_packet::parse(std::shared_ptr<kaitai::kstream> p_io) {
