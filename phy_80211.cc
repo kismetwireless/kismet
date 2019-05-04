@@ -2856,6 +2856,7 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
 
         // we care about
         // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
+        // /phy/phy80211/by-key/[key]/pcap/[mac]-pmkid.pcap
         if (tokenurl.size() < 7)
             return false;
 
@@ -2875,13 +2876,17 @@ bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
         if (tokenurl[5] != "pcap")
             return false;
 
-        // Valid requested file?
-        if (tokenurl[6] != tokenurl[4] + "-handshake.pcap")
+        // Does it exist?
+        if (devicetracker->FetchDevice(key) == nullptr)
             return false;
 
-        // Does it exist?
-        if (devicetracker->FetchDevice(key) != nullptr)
+        // Valid requested file?
+        if (tokenurl[6] == tokenurl[4] + "-handshake.pcap")
             return true;
+
+        if (tokenurl[6] == tokenurl[4] + "-pmkid.pcap")
+            return true;
+
     }
 
     return false;
@@ -2909,6 +2914,13 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
         uint32_t caplen;
     } pkt_hdr;
 
+    std::vector<std::string> tokenurl = StrTokenize(connection->url, "/");
+
+    if (tokenurl.size() < 7) {
+        stream << "malformed query\n";
+        return;
+    }
+
     stream.write((const char *) &hdr, sizeof(hdr));
 
     if (dev != nullptr) {
@@ -2918,21 +2930,52 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
             dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
         if (dot11dev != nullptr) {
-            for (auto i : *(dot11dev->get_wpa_key_vec())) {
-                auto eapol =
-                    std::static_pointer_cast<dot11_tracked_eapol>(i);
+            /* Write the beacon */
+            if (dot11dev->get_beacon_packet_present()) {
+                auto packet = dot11dev->get_ssid_beacon_packet();
 
-                auto packet = eapol->get_eapol_packet();
-
-                // Make a pcap header
                 pkt_hdr.timeval_s = packet->get_ts_sec();
                 pkt_hdr.timeval_us = packet->get_ts_usec();
-                
+
                 pkt_hdr.len = packet->get_data()->length();
                 pkt_hdr.caplen = pkt_hdr.len;
 
                 stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
                 stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+            }
+
+            if (tokenurl[6] == tokenurl[4] + "-handshake.pcap") {
+                // Write all the handshakes
+                for (auto i : *(dot11dev->get_wpa_key_vec())) {
+                    auto eapol =
+                        std::static_pointer_cast<dot11_tracked_eapol>(i);
+
+                    auto packet = eapol->get_eapol_packet();
+
+                    // Make a pcap header
+                    pkt_hdr.timeval_s = packet->get_ts_sec();
+                    pkt_hdr.timeval_us = packet->get_ts_usec();
+
+                    pkt_hdr.len = packet->get_data()->length();
+                    pkt_hdr.caplen = pkt_hdr.len;
+
+                    stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+                    stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+                }
+            } else if (tokenurl[6] == tokenurl[4] + "-pmkid.pcap") {
+                // Write just the pmkid
+                if (dot11dev->get_pmkid_present()) {
+                    auto packet = dot11dev->get_pmkid_packet();
+
+                    pkt_hdr.timeval_s = packet->get_ts_sec();
+                    pkt_hdr.timeval_us = packet->get_ts_usec();
+
+                    pkt_hdr.len = packet->get_data()->length();
+                    pkt_hdr.caplen = pkt_hdr.len;
+
+                    stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+                    stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+                }
             }
         }
     }
@@ -2949,31 +2992,19 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
 
     std::vector<std::string> tokenurl = StrTokenize(url, "/");
 
+    // Most of this is sanity checked in the URL verifier, we just want to make sure
+    // things are still OK
+
     // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
-    if (tokenurl.size() < 7)
-        return;
-
-    if (tokenurl[1] != "phy")
-        return;
-
-    if (tokenurl[2] != "phy80211")
-        return;
-
-    if (tokenurl[3] != "by-key")
-        return;
-
-    device_key key(tokenurl[4]);
-    if (key.get_error()) {
-        stream << "invalid mac";
+    // /phy/phy80211/by-key/[key]/pcap/[mac]-pmkid.pcap
+    if (tokenurl.size() < 7) {
+        stream << "invalid query\n";
         return;
     }
 
-    if (tokenurl[5] != "pcap")
-        return;
-
-    // Valid requested file?
-    if (tokenurl[6] != tokenurl[4] + "-handshake.pcap") {
-        stream << "invalid file";
+    device_key key(tokenurl[4]);
+    if (key.get_error()) {
+        stream << "invalid query, invalid key";
         return;
     }
 
@@ -2981,17 +3012,11 @@ void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     auto dev = devicetracker->FetchDevice(key);
 
     if (dev == nullptr) {
-        stream << "unknown device";
+        stream << "invalid query, unknown device";
         return;
     }
 
-    // Validate the session and return a basic auth prompt
-    if (httpd->HasValidSession(connection, true)) {
-        GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
-    } else {
-        stream << "Login required";
-        return;
-    }
+    GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
 
     return;
 }

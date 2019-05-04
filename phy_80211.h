@@ -1385,7 +1385,10 @@ public:
 
     bool get_snap_next_beacon() { return snapshot_next_beacon && ssid_beacon_packet == nullptr; }
     void set_snap_next_beacon(bool b) { snapshot_next_beacon = b; }
+    bool get_beacon_packet_present() { return ssid_beacon_packet != nullptr; }
+
     bool get_pmkid_needed() { return pmkid_packet == nullptr; }
+    bool get_pmkid_present() { return pmkid_packet != nullptr; }
 
 protected:
 
