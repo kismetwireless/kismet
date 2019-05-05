@@ -567,22 +567,32 @@ void capture_thread(kis_capture_handler_t *caph) {
     packet_r = sqlite3_step(packet_stmt);
     data_r = sqlite3_step(data_stmt);
 
-    while (packet_r == SQLITE_ROW && data_r == SQLITE_ROW) {
+    while (packet_r == SQLITE_ROW || data_r == SQLITE_ROW) {
         lat = 0;
         lon = 0;
         alt = 0;
         speed = 0;
         heading = 0;
 
-        packet_ts_sec = sqlite3_column_int64(packet_stmt, 0);
-        packet_ts_usec = sqlite3_column_int64(packet_stmt, 1);
+        if (packet_r == SQLITE_ROW) {
+            packet_ts_sec = sqlite3_column_int64(packet_stmt, 0);
+            packet_ts_usec = sqlite3_column_int64(packet_stmt, 1);
+        } else {
+            packet_ts_sec = 0;
+            packet_ts_usec = 0;
+        }
 
-        data_ts_sec = sqlite3_column_int64(data_stmt, 0);
-        data_ts_usec = sqlite3_column_int64(data_stmt, 1);
+        if (data_r == SQLITE_ROW) {
+            data_ts_sec = sqlite3_column_int64(data_stmt, 0);
+            data_ts_usec = sqlite3_column_int64(data_stmt, 1);
+        } else {
+            data_ts_sec = 0;
+            data_ts_usec = 0;
+        }
 
         /* Merge the timelines of the two tables; if the packet comes first process it, 
          * otherwise process the data, and repeat */
-        if (packet_ts_sec < data_ts_sec ||
+        if (data_ts_sec == 0 || packet_ts_sec < data_ts_sec ||
                 (packet_ts_sec == data_ts_sec && packet_ts_usec < data_ts_usec)) {
             colno = 2;
 
