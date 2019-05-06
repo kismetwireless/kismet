@@ -636,7 +636,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "SSID",
                     render: function(opts) {
                         if (opts['value'] === '') {
-                            if (opts['base']['dot11.advertisedssid.owe_ssid'] === '') {
+                            if (opts['base']['dot11.advertisedssid.owe_ssid'] == 0 || opts['base']['dot11.advertisedssid.owe_ssid'].length != 0) {
                                 return "<i>Unknown</i>";
                             } else {
                                 return "<i>SSID advertised as OWE</i>";
