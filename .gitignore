@@ -1,5 +1,4 @@
 *.o
-
 *~
 
 # vim session
@@ -9,6 +8,8 @@
 # Test files
 callgrind*
 *.pcap
+*.pcapng
+*.kismet
 
 # Deps
 *.d
@@ -71,3 +72,10 @@ packaging/centos/el7/kismet-git.spec
 packaging/kismet.pc
 packaging/systemd/debug/kismet-debug.service
 packaging/systemd/kismet.service
+
+# vscode tests
+*.srctrlbm
+*.srctrldb
+*.srctrlprj
+.vscode/*
+
