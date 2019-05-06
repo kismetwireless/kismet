@@ -193,6 +193,21 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
+/* Highlight WPA RSN PMKID */
+kismet_ui.AddDeviceRowHighlight({
+    name: "RSN PMKID",
+    description: "Network contains a RSN PMKID packet",
+    priority: 10,
+    defaultcolor: "#F55",
+    defaultenable: true,
+    fields: [
+        'dot11.device/dot11.device.pmkid_packet'
+    ],
+    selector: function(data) {
+        return data['dot11.device.pmkid_packet'] != 0;
+    }
+});
+
 kismet_ui.AddDeviceRowHighlight({
     name: "Wi-Fi Device",
     description: "Highlight all Wi-Fi devices",
@@ -439,6 +454,29 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             key + '-handshake.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>' +
                             warning;
+                        return url;
+                    },
+                }
+                ]
+            },
+
+            {
+                field: "dot11.device/dot11.device.pmkid_packet",
+                id: "wpa_rsn_pmkid",
+                help: "Some access points disclose the RSN PMKID during the first part of the authentication process.  This can be used to attack the PSK via tools like Aircrack-NG or Hashcat.  If a RSN PMKID packet is seen, Kismet can provide a pcap file.",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                groupTitle: "RSN PMKID",
+
+                fields: [
+                {
+                    field: "pmkid_download",
+                    id: "pmkid_download",
+                    title: "PMKID PCAP",
+                    render: function(opts) {
+                        var key = opts['data']['kismet.device.base.key'];
+                        var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/' + key + '-pmkid.pcap">' +
+                            '<i class="fa fa-download"></i> Download Pcap File</a>'; 
                         return url;
                     },
                 }
