@@ -23,6 +23,9 @@ callgrind*
 # Autogen'd version
 version.c
 
+# Build
+*.tmp
+
 # Python compiled code
 *.pyc
 capture_*/*.egg-info/
