@@ -1629,14 +1629,23 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
         // IE 33 advertised txpower in probe req
         if (ie_tag->tag_num() == 33) {
-            packinfo->tx_power = std::make_shared<dot11_ie_33_power>();
-            packinfo->tx_power->parse(ie_tag->tag_data_stream());
+            try {
+                packinfo->tx_power = std::make_shared<dot11_ie_33_power>();
+                packinfo->tx_power->parse(ie_tag->tag_data_stream());
+            } catch (const std::exception& e) {
+                fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
+            }
+
         }
 
         // IE 36, advertised supported channels in probe req
         if (ie_tag->tag_num() == 36) {
-            packinfo->supported_channels = std::make_shared<dot11_ie_36_supported_channels>();
-            packinfo->supported_channels->parse(ie_tag->tag_data_stream());
+            try {
+                packinfo->supported_channels = std::make_shared<dot11_ie_36_supported_channels>();
+                packinfo->supported_channels->parse(ie_tag->tag_data_stream());
+            } catch (const std::exception& e) {
+                fmt::print(stderr, "debug  corrupt ie36 supported channels: {}\n", e.what());
+            }
         }
 
         if (ie_tag->tag_num() == 45) {
