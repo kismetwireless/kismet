@@ -417,7 +417,7 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(cons
         return ret;
 
     if (tv < 0)
-        ts = time(0) - tv;
+        ts = time(0) + tv;
     else
         ts = tv;
 
