@@ -279,8 +279,6 @@ Kis_Net_Httpd::Kis_Net_Httpd() {
 Kis_Net_Httpd::~Kis_Net_Httpd() {
     local_locker lock(&controller_mutex);
 
-    Globalreg::globalreg->RemoveGlobal("HTTPD_SERVER");
-
     // Wipe out all handlers
     handler_vec.erase(handler_vec.begin(), handler_vec.end());
 
@@ -297,6 +295,8 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
 #endif
 
     session_map.clear();
+
+    Globalreg::globalreg->RemoveGlobal("HTTPD_SERVER");
 }
 
 void Kis_Net_Httpd::RegisterSessionHandler(std::shared_ptr<Kis_Httpd_Websession> in_session) {
