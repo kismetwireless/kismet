@@ -1,7 +1,26 @@
 #include <kaitai/kaitaistream.h>
 
-#include <kis_endian.h>
-#include <kis_byteswap.h>
+#if defined(__APPLE__)
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
+#define bswap_16(x) OSSwapInt16(x)
+#define bswap_32(x) OSSwapInt32(x)
+#define bswap_64(x) OSSwapInt64(x)
+#define __BYTE_ORDER    BYTE_ORDER
+#define __BIG_ENDIAN    BIG_ENDIAN
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#elif defined(_MSC_VER) // !__APPLE__
+#include <stdlib.h>
+#define __LITTLE_ENDIAN     1234
+#define __BIG_ENDIAN        4321
+#define __BYTE_ORDER        __LITTLE_ENDIAN
+#define bswap_16(x) _byteswap_ushort(x)
+#define bswap_32(x) _byteswap_ulong(x)
+#define bswap_64(x) _byteswap_uint64(x)
+#else // !__APPLE__ or !_MSC_VER
+#include <endian.h>
+#include <byteswap.h>
+#endif
 
 #include <iostream>
 #include <vector>
@@ -39,6 +58,9 @@ void kaitai::kstream::exceptions_enable() const {
 // ========================================================================
 
 bool kaitai::kstream::is_eof() const {
+    if (m_bits_left > 0) {
+        return false;
+    }
     char t;
     m_io->exceptions(
         std::istream::badbit
@@ -64,9 +86,9 @@ uint64_t kaitai::kstream::pos() {
 }
 
 uint64_t kaitai::kstream::size() {
-    std::ifstream::pos_type cur_pos = m_io->tellg();
+    std::iostream::pos_type cur_pos = m_io->tellg();
     m_io->seekg(0, std::ios::end);
-    std::ifstream::pos_type len = m_io->tellg();
+    std::iostream::pos_type len = m_io->tellg();
     m_io->seekg(cur_pos);
     return len;
 }
@@ -322,16 +344,26 @@ uint64_t kaitai::kstream::get_mask_ones(int n) {
 // Byte arrays
 // ========================================================================
 
-std::string kaitai::kstream::read_bytes(ssize_t len) {
+std::string kaitai::kstream::read_bytes(std::streamsize len) {
     std::vector<char> result(len);
-    m_io->read(&result[0], len);
+
+    // NOTE: streamsize type is signed, negative values are only *supposed* to not be used.
+    // http://en.cppreference.com/w/cpp/io/streamsize
+    if (len < 0) {
+        throw std::runtime_error("read_bytes: requested a negative amount");
+    }
+
+    if (len > 0) {
+        m_io->read(&result[0], len);
+    }
+
     return std::string(result.begin(), result.end());
 }
 
 std::string kaitai::kstream::read_bytes_full() {
-    std::ifstream::pos_type p1 = m_io->tellg();
+    std::iostream::pos_type p1 = m_io->tellg();
     m_io->seekg(0, std::ios::end);
-    std::ifstream::pos_type p2 = m_io->tellg();
+    std::iostream::pos_type p2 = m_io->tellg();
     size_t len = p2 - p1;
 
     // Note: this requires a std::string to be backed with a
@@ -351,7 +383,7 @@ std::string kaitai::kstream::read_bytes_term(char term, bool include, bool consu
     if (m_io->eof()) {
         // encountered EOF
         if (eos_error) {
-            // throw exception here
+            throw std::runtime_error("read_bytes_term: encountered EOF");
         }
     } else {
         // encountered terminator
@@ -367,9 +399,8 @@ std::string kaitai::kstream::ensure_fixed_contents(std::string expected) {
     std::string actual = read_bytes(expected.length());
 
     if (actual != expected) {
-        std::cout << "Fixed contents mismatch!\n";
-        std::cout << actual << "\n";
-        std::cout << expected << "\n";
+        // NOTE: I think printing it outright is not best idea, it could contain non-ascii charactes like backspace and beeps and whatnot. It would be better to print hexlified version, and also to redirect it to stderr.
+        throw std::runtime_error("ensure_fixed_contents: actual data does not match expected data");
     }
 
     return actual;
@@ -378,7 +409,7 @@ std::string kaitai::kstream::ensure_fixed_contents(std::string expected) {
 std::string kaitai::kstream::bytes_strip_right(std::string src, char pad_byte) {
     std::size_t new_len = src.length();
 
-    while (src[new_len - 1] == pad_byte)
+    while (new_len > 0 && src[new_len - 1] == pad_byte)
         new_len--;
 
     return src.substr(0, new_len);
@@ -402,22 +433,22 @@ std::string kaitai::kstream::bytes_terminate(std::string src, char term, bool in
 // ========================================================================
 
 std::string kaitai::kstream::process_xor_one(std::string data, uint8_t key) {
-    int len = data.length();
+    size_t len = data.length();
     std::string result(len, ' ');
 
-    for (int i = 0; i < len; i++)
+    for (size_t i = 0; i < len; i++)
         result[i] = data[i] ^ key;
 
     return result;
 }
 
 std::string kaitai::kstream::process_xor_many(std::string data, std::string key) {
-    int len = data.length();
-    int kl = key.length();
+    size_t len = data.length();
+    size_t kl = key.length();
     std::string result(len, ' ');
 
-    int ki = 0;
-    for (int i = 0; i < len; i++) {
+    size_t ki = 0;
+    for (size_t i = 0; i < len; i++) {
         result[i] = data[i] ^ key[ki];
         ki++;
         if (ki >= kl)
@@ -428,18 +459,16 @@ std::string kaitai::kstream::process_xor_many(std::string data, std::string key)
 }
 
 std::string kaitai::kstream::process_rotate_left(std::string data, int amount) {
-    int len = data.length();
+    size_t len = data.length();
     std::string result(len, ' ');
 
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         uint8_t bits = data[i];
         result[i] = (bits << amount) | (bits >> (8 - amount));
     }
 
     return result;
 }
-
-#define KS_ZLIB
 
 #ifdef KS_ZLIB
 #include <zlib.h>
@@ -457,7 +486,7 @@ std::string kaitai::kstream::process_zlib(std::string data) {
 
     ret = inflateInit(&strm);
     if (ret != Z_OK)
-        throw std::runtime_error("zlib: inflateInit error");
+        throw std::runtime_error("process_zlib: inflateInit error");
 
     strm.next_in = src_ptr;
     strm.avail_in = data.length();
@@ -478,12 +507,12 @@ std::string kaitai::kstream::process_zlib(std::string data) {
 
     if (ret != Z_STREAM_END) {          // an error occurred that was not EOF
         std::ostringstream exc_msg;
-        exc_msg << "zlib: error #" << ret << "): " << strm.msg;
+        exc_msg << "process_zlib: error #" << ret << "): " << strm.msg;
         throw std::runtime_error(exc_msg.str());
     }
 
     if (inflateEnd(&strm) != Z_OK)
-        throw std::runtime_error("zlib: inflateEnd error");
+        throw std::runtime_error("process_zlib: inflateEnd error");
 
     return outstring;
 }
@@ -495,7 +524,7 @@ std::string kaitai::kstream::process_zlib(std::string data) {
 
 int kaitai::kstream::mod(int a, int b) {
     if (b <= 0)
-        throw std::invalid_argument("mod divisor <= 0");
+        throw std::invalid_argument("mod: divisor b <= 0");
     int r = a % b;
     if (r < 0)
         r += b;
@@ -504,16 +533,16 @@ int kaitai::kstream::mod(int a, int b) {
 
 #include <stdio.h>
 std::string kaitai::kstream::to_string(int val) {
-    // if int is 32 bits, "-2147483648" is longest string representation
+    // if int is 32 bits, "-2147483648" is the longest string representation
     //   => 11 chars + zero => 12 chars
-    // if int is 64 bits, "-9223372036854775808" is longest
+    // if int is 64 bits, "-9223372036854775808" is the longest
     //   => 20 chars + zero => 21 chars
     char buf[25];
     int got_len = snprintf(buf, sizeof(buf), "%d", val);
 
     // should never happen, but check nonetheless
     if (got_len > sizeof(buf))
-        throw std::invalid_argument("integer is longer than string buffer");
+        throw std::invalid_argument("to_string: integer is longer than string buffer");
 
     return std::string(buf);
 }
@@ -528,8 +557,6 @@ std::string kaitai::kstream::reverse(std::string val) {
 // ========================================================================
 // Other internal methods
 // ========================================================================
-
-#undef KS_STR_ENCODING_ICONV
 
 #ifndef KS_STR_DEFAULT_ENCODING
 #define KS_STR_DEFAULT_ENCODING "UTF-8"
@@ -546,9 +573,9 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
 
     if (cd == (iconv_t) -1) {
         if (errno == EINVAL) {
-            throw std::runtime_error("invalid encoding pair conversion requested");
+            throw std::runtime_error("bytes_to_str: invalid encoding pair conversion requested");
         } else {
-            throw std::runtime_error("error opening iconv");
+            throw std::runtime_error("bytes_to_str: error opening iconv");
         }
     }
 
@@ -580,7 +607,7 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
                 // it using "dst_used".
                 dst_ptr = &dst[dst_used];
             } else {
-                throw std::runtime_error("iconv error");
+                throw std::runtime_error("bytes_to_str: iconv error");
             }
         } else {
             // conversion successful
@@ -589,13 +616,16 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
         }
     }
 
-    if (iconv_close(cd) != 0)
-        throw std::runtime_error("iconv close error");
+    if (iconv_close(cd) != 0) {
+        throw std::runtime_error("bytes_to_str: iconv close error");
+    }
 
     return dst;
 }
-#else
+#elif defined(KS_STR_ENCODING_NONE)
 std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) {
     return src;
 }
+#else
+#error Need to decide how to handle strings: please define one of: KS_STR_ENCODING_ICONV, KS_STR_ENCODING_NONE
 #endif
