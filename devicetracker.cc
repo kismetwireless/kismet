@@ -1385,11 +1385,9 @@ int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) 
 }
 
 void Devicetracker::databaselog_write_devices() {
-    auto devs = std::make_shared<TrackerElementVector>();
-
     // Find anything that has changed
     auto fw = std::make_shared<devicetracker_function_worker>(
-            [this, devs] 
+            [this] 
                 (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                 if (d->get_mod_time() > last_database_logged) {
