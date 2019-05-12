@@ -1318,7 +1318,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
         ietags->parse(stream_ietags);
     } catch (const std::exception& e) {
-        fprintf(stderr, "debug - IE tags corrupt\n");
+        fmt::print(stderr, "debug - IE tag structure corrupt\n");
         packinfo->corrupt = 1;
         return -1;
     }
