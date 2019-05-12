@@ -2695,8 +2695,6 @@ std::shared_ptr<dot11_tracked_eapol>
             // Do nothing
         }
 
-        // fprintf(stderr, "debug - eapol %u\n", eapol->get_eapol_msg_num());
-
         return eapol;
     } catch (const std::exception& e) {
         // fprintf(stderr, "debug - eap exception %s\n", e.what());
