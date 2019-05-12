@@ -1405,7 +1405,7 @@ void Devicetracker::databaselog_write_devices() {
 }
 
 void Devicetracker::databaselog_write_devices(std::shared_ptr<TrackerElementVector> vec) {
-    auto dbf = Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>();
+    auto dbf = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
     
     if (dbf == NULL)
         return;
