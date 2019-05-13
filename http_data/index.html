@@ -194,6 +194,15 @@ function load_main_ui() {
     // finalize the tabs
     kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'));
 
+    // Try to scrape the server name
+    kismet_ui_base.FetchServerName(function(name) {
+        if (name.length > 0) {
+            $('#topbar_title').html("Kismet - " + name);
+            top.document.title = "Kismet - " + name;
+        }
+    
+    });
+
     }); // when
 }
 

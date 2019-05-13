@@ -2276,6 +2276,21 @@ exports.FirstTimeCheck = function() {
     return false;
 }
 
+// Keep trying to fetch the servername until we're able to
+var servername_tid = -1;
+exports.FetchServerName = function(cb) {
+    $.get(local_uri_prefix + "system/status.json")
+        .done(function (d) {
+            d = kismet.sanitizeObject(d);
+            cb(d['kismet.system.server_name']);
+        })
+        .fail(function () {
+            servername_tid = setTimeout(function () {
+                exports.Servername(cb);
+            }, 1000);
+        });
+}
+
 /* Highlight active devices */
 kismet_ui.AddDeviceRowHighlight({
     name: "Active",
