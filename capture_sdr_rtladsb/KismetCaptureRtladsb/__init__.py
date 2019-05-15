@@ -27,18 +27,19 @@ Additionally accepts:
 """
 
 import argparse
+import csv
 import ctypes
 from datetime import datetime
 import json
+import math
+import numpy as np
 import os
+import pkgutil
 import subprocess
 import sys
 import threading
 import time
 import uuid
-import csv
-import numpy as np
-import math
 
 ### THE NEXT CODE BLOCK IS FROM THE WORK OF myModeS AVAILABLE AT      ###
 ###            https://pypi.org/project/pyModeS/                      ###
@@ -232,21 +233,6 @@ def callsign(msg):
 
 import KismetCaptureRtladsb.kismetexternal
 
-have_csv = False
-try:
-    csv_path = os.path.join(os.environ["KISMET_ETC"],"kismet_aircraft_db.csv")
-    csv_file = csv.reader(open(csv_path, "r"), delimiter=",")
-    airplanes = []
-
-    for row in csv_file:
-        airplanes.append(row)
-
-    have_csv = True
-
-except:
-    # Spam an error to the console and pick up an error later during open
-    print("Couldn't find the airplane csv file. If this is a drone, set KISMET_ETC in your path")
-
 try:
     import paho.mqtt.client as mqtt
     has_mqtt = True
@@ -337,6 +323,13 @@ class KismetRtladsb(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
+        self.csv_data = pkgutil.get_data('KismetCaptureRtladsb', 'data/aircraft_db.csv')
+        self.csv_file = csv.reader(csv_data.splitlines(), delimiter=",")
+        self.airplanes = []
+
+        for row in self.csv_file:
+            self.airplanes.append(row)
+
         self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
@@ -404,7 +397,7 @@ class KismetRtladsb(object):
             while True:
 		hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
 		if crc(hex_data) == "000000000000000000000000":
-		    for row in airplanes:
+		    for row in self.airplanes:
 		        if hex_data[2:8] == row[0]:
 			    msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
 		    if 1 <= typecode(hex_data) <= 4:
