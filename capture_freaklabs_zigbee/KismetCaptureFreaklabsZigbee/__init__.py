@@ -48,7 +48,12 @@ import argparse
 from datetime import datetime
 import json
 import os
-import serial
+
+try:
+    import serial
+except ImportError:
+    raise ImportError("KismetCaptureFreaklabsZigbee requires python-serial, please install it!")
+
 import struct
 import subprocess
 import sys

@@ -10,9 +10,10 @@ import time
 
 try:
     import KismetCaptureFreaklabsZigbee
-except ImportError:
-    print("Could not import the KismetCaptureFreaklabsZigbee Python code; you need to install ")
-    print("the rest of the support code from Kismet.")
+except ImportError as e:
+    print("Could not import the KismetCaptureFreaklabsZigbee Python code; you are likely missing")
+    print("a Python dependency or the KismetCaptureFreaklabsZigbee python module is not installed:")
+    print(e)
     sys.exit(0)
 
 if __name__ == '__main__':
