@@ -13,8 +13,10 @@ import time
 
 try:
     import KismetCaptureRtladsb
-except ImportError:
-    print("Could not import the KismetCaptureRtladsb Python code; you need to install the rest of the rtladsb code from Kismet.")
+except ImportError as e:
+    print("Could not import the KismetCaptureRtladsb Python code; you are likely missing")
+    print("a Python dependency or the KismetCaptureRtladsb python module is not installed:")
+    print(e)
     sys.exit(0)
 
 if __name__ == '__main__':

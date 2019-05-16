@@ -32,7 +32,12 @@ import ctypes
 from datetime import datetime
 import json
 import math
-import numpy as np
+
+try:
+    import numpy as np
+except ImportError as e:
+    raise ImportError("KismetRtladsb requires numpy!")
+
 import os
 import pkgutil
 import subprocess
