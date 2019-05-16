@@ -47,6 +47,8 @@ TcpClientV2::~TcpClientV2() {
 }
 
 int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
+    local_locker l(&tcp_mutex);
+
     std::stringstream msg;
 
     if (connected) {
@@ -114,6 +116,8 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
 }
 
 int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    local_locker l(&tcp_mutex);
+
     // All we fill in is the descriptor for writing if we're still trying to
     // connect
     if (pending_connect) {
@@ -141,6 +145,8 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+    local_locker l(&tcp_mutex);
+    
     std::string msg;
 
     uint8_t *buf;
@@ -287,9 +293,12 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void TcpClientV2::Disconnect() {
+    local_locker l(&tcp_mutex);
+
     if (pending_connect || connected) {
         if (cli_fd >= 0)
             close(cli_fd);
+        cli_fd = -1;
     }
 
     cli_fd = -1;
@@ -298,6 +307,11 @@ void TcpClientV2::Disconnect() {
 }
 
 bool TcpClientV2::FetchConnected() {
-    return cli_fd > -1;
+    local_locker l(&tcp_mutex);
+
+    if (connected || pending_connect)
+        return true;
+
+    return false;
 }
 

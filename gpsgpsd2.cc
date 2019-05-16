@@ -73,7 +73,6 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
                        
                         tcpclient->Disconnect();
                         set_int_device_connected(false);
-                        open_gps(get_gps_definition());
                     }
 
                     return 1;
@@ -380,6 +379,10 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             } catch (std::exception& e) {
                 _MSG_ERROR("GPSGPSDv2 got an invalid JSON record from GPSD: '{}'", e.what());
+
+                tcpclient->Disconnect();
+                set_int_device_connected(false);
+
                 continue;
             }
         } else if (poll_mode == 0 && inptok[it] == "GPSD") {
@@ -461,21 +464,21 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                 continue;
             }
 
-            if (sscanf(pollvec[1].c_str(), "P=%lf %lf", 
+            if (pollvec[1].substr(0, 2) == "P=" && sscanf(pollvec[1].c_str(), "P=%lf %lf", 
                         &(new_location->lat), &(new_location->lon)) != 2) {
                 continue;
             }
 
-            if (sscanf(pollvec[4].c_str(), "M=%d", &(new_location->fix)) != 1) {
+            if (pollvec[4].substr(0, 2) == "M=" && sscanf(pollvec[4].c_str(), "M=%d", &(new_location->fix)) != 1) {
                 continue;
             }
 
-            if (sscanf(pollvec[2].c_str(), "A=%lf", &(new_location->alt)) != 1)
+            if (pollvec[2].substr(0, 2) == "A=" && sscanf(pollvec[2].c_str(), "A=%lf", &(new_location->alt)) != 1)
                 set_alt = false;
             else
                 set_alt = true;
 
-            if (sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1)
+            if (pollvec[3].substr(0, 2) == "V=" && sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1)
                 set_speed = false;
             else 
                 set_speed = true;
@@ -640,7 +643,9 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             continue;
 #endif
-        } 
+        } else {
+            continue;
+        }
     }
 
     // If we've gotten this far in the parser, we've gotten usable data, even if it's not
@@ -711,6 +716,12 @@ void GPSGpsdV2::BufferError(std::string in_error) {
             MSGFLAG_ERROR);
 
     set_int_device_connected(false);
+
+    // Delete any existing interface before we parse options
+    if (tcpclient != NULL) {
+        pollabletracker->RemovePollable(tcpclient);
+        tcpclient.reset();
+    }
 }
 
 

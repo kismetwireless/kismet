@@ -41,7 +41,7 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
 }
 
 KisGps::~KisGps() {
-    local_locker lock(&gps_mutex);
+
 }
 
 bool KisGps::open_gps(std::string in_definition) {

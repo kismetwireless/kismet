@@ -29,6 +29,7 @@
 #include "globalregistry.h"
 #include "buffer_handler.h"
 #include "pollable.h"
+#include "kis_mutex.h"
 
 // New TCP client code.
 //
@@ -56,6 +57,8 @@ public:
 protected:
     GlobalRegistry *globalreg;
     BufferHandlerGeneric *handler;
+
+    kis_recursive_timed_mutex tcp_mutex;
 
     std::atomic<bool> pending_connect;
     std::atomic<bool> connected;
