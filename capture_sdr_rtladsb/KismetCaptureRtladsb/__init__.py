@@ -324,7 +324,7 @@ class KismetRtladsb(object):
             print("Connecting to remote server {}".format(self.config.connect))
 
         self.csv_data = pkgutil.get_data('KismetCaptureRtladsb', 'data/aircraft_db.csv')
-        self.csv_file = csv.reader(csv_data.splitlines(), delimiter=",")
+        self.csv_file = csv.reader(self.csv_data.splitlines(), delimiter=",")
         self.airplanes = []
 
         for row in self.csv_file:
