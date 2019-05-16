@@ -4,7 +4,7 @@ MONITOR_BIN = kismet_cap_sdr_rtlamr
 MQTTMONITOR_BIN = kismet_cap_sdr_rtlamr_mqtt
 
 all: 
-	$(PYTHON2) ./setup.py build
+	$(PYTHON2) ./setup.py bdist
 
 install:
 	$(PYTHON2) ./setup.py install

@@ -3,7 +3,7 @@ include ../Makefile.inc
 MONITOR_BIN = kismet_cap_freaklabs_zigbee
 
 all: 
-	$(PYTHON2) ./setup.py build
+	$(PYTHON2) ./setup.py bdist
 
 install:
 	$(PYTHON2) ./setup.py install
