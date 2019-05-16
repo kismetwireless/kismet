@@ -568,12 +568,6 @@ class KismetRtladsb(object):
             ret["message"] = "Could not parse which rtlsdr device to use"
             return ret
 
-        global have_csv
-        if not have_csv:
-            ret["success"] = False
-            ret["message"] = "Could not find the kismet_aircraft_db.csv file, if running as a drone, be sure to set the KISMET_ETC variable."
-            return ret
-
         intnum = -1
 
         if source[8:] == "mqtt":
