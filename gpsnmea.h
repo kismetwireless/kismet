@@ -31,26 +31,22 @@
 
 // Generic NMEA parser for GPS
 
-class GPSNMEA : public KisGps, public BufferInterface {
+class GPSNMEA : public KisGps {
 public:
     GPSNMEA(SharedGpsBuilder in_builder) :
-        KisGps(in_builder) { 
-        nmeahandler = NULL;
-    }
+        KisGps(in_builder),
+        nmeahandler {nullptr},
+        nmeainterface {nullptr, nullptr} { }
 
-    virtual ~GPSNMEA() {
-        if (nmeahandler != NULL)
-            delete nmeahandler;
+    virtual ~GPSNMEA() { };
 
-        nmeaclient.reset();
-    };
+protected:
+    std::shared_ptr<BufferHandler<RingbufV2>> nmeahandler;
+    BufferInterfaceFunc nmeainterface;
 
     // BufferInterface API
     virtual void BufferAvailable(size_t in_amt);
-
-protected:
-    std::shared_ptr<Pollable> nmeaclient;
-    BufferHandler<RingbufV2> *nmeahandler;
+    virtual void BufferError(std::string in_err) = 0;
 
     // Have we ever seen data from the device?
     bool ever_seen_gps;

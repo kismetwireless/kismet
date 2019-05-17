@@ -30,18 +30,24 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
-    
-    serialclient = NULL;
 
     ever_seen_gps = false;
-
     last_heading_time = time(0);
+
+    nmeainterface = BufferInterfaceFunc(
+            [this](size_t in_avail) {
+                BufferAvailable(in_avail);
+            },
+            [this](std::string in_err) {
+                BufferError(in_err);
+            });
 
     pollabletracker =
         Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
     auto timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -57,9 +63,13 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
 GPSSerialV2::~GPSSerialV2() {
     local_locker lock(&gps_mutex);
 
-    pollabletracker->RemovePollable(serialclient);
+    if (serialclient != nullptr)
+        pollabletracker->RemovePollable(serialclient);
 
-    std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    if (nmeahandler != nullptr)
+        nmeahandler->RemoveReadBufferInterface();
+
+    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
     if (timetracker != nullptr)
         timetracker->RemoveTimer(error_reconnect_timer);
 }
@@ -72,16 +82,13 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
 
     set_int_device_connected(false);
 
-    // Delete any existing serial interface before we parse options
-    if (nmeahandler != NULL) {
-        delete nmeahandler;
-        nmeahandler = NULL;
+    if (serialclient != nullptr) {
+        serialclient->Close();
     }
 
-    if (serialclient != NULL) {
-        pollabletracker->RemovePollable(serialclient);
-        serialclient.reset();
-        nmeaclient.reset();
+    if (nmeahandler != nullptr) {
+        nmeahandler->ClearReadBuffer();
+        nmeahandler->ClearWriteBuffer();
     }
 
     std::string proto_device;
@@ -109,21 +116,23 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
                 "if your device uses a different speed.", MSGFLAG_INFO);
     }
 
-    // We never write to a serial gps so don't make a write buffer
-    nmeahandler = new BufferHandler<RingbufV2>(2048, 0);
-    // Set the read handler to us
-    nmeahandler->SetReadBufferInterface(this);
-    // Link it to a serial port
-    serialclient = std::make_shared<SerialClientV2>(Globalreg::globalreg, nmeahandler);
-    serialclient->OpenDevice(proto_device, proto_baud);
-    // Assign it to our nmea parent interface
-    nmeaclient = serialclient;
+    // Initial setup as needed
+    if (nmeahandler == nullptr) {
+        // We never write to a serial gps so don't make a write buffer
+        nmeahandler = std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
+        nmeahandler->SetReadBufferInterface(&nmeainterface);
+    }
 
-    pollabletracker->RegisterPollable(serialclient);
+    if (serialclient == nullptr) {
+        // Link it to a serial port
+        serialclient = std::make_shared<SerialClientV2>(Globalreg::globalreg, nmeahandler);
+        pollabletracker->RegisterPollable(serialclient);
+    }
 
     serial_device = proto_device;
     baud = proto_baud;
 
+    serialclient->OpenDevice(proto_device, proto_baud);
     set_int_device_connected(true);
 
     return 1;

@@ -249,6 +249,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     sigemptyset(&mask);
     sigemptyset(&oldmask);
     sigaddset(&mask, SIGCHLD);
+    sigaddset(&mask, SIGTERM);
 
     if (pollabletracker != nullptr) {
         time_t shutdown_target = time(0) + 2;
@@ -651,7 +652,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	Eventbus::create_eventbus();
 
     // We need to create the pollable system near the top of execution as well
-    std::shared_ptr<PollableTracker> pollabletracker(PollableTracker::create_pollabletracker(globalregistry));
+    auto pollabletracker(PollableTracker::create_pollabletracker());
 
     // Open, initial parse, and assign the config file
     if (configfilename == "") {
@@ -954,12 +955,16 @@ int main(int argc, char *argv[], char *envp[]) {
     sigemptyset(&mask);
     sigemptyset(&oldmask);
     sigaddset(&mask, SIGCHLD);
+    sigaddset(&mask, SIGTERM);
 
     // Core loop
     while (1) {
         if (globalregistry->spindown || globalregistry->fatal_condition) {
             break;
         }
+
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         max_fd = pollabletracker->MergePollableFds(&rset, &wset);
 
@@ -972,9 +977,6 @@ int main(int argc, char *argv[], char *envp[]) {
                 CatchShutdown(-1);
             }
         }
-
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         Globalreg::globalreg->timetracker->Tick();
 

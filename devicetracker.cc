@@ -952,6 +952,9 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
 void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
         std::shared_ptr<TrackerElementVector> vec, bool batch) {
 
+    if (vec == nullptr)
+        return;
+
     kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
            if (val == nullptr)
                return;

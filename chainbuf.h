@@ -99,7 +99,7 @@ protected:
     size_t used_sz;
     size_t total_sz;
 
-    bool free_read, free_commit;
+    std::atomic<bool> free_read, free_commit;
 
     size_t alloc_delta;
 

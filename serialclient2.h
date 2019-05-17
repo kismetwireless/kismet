@@ -40,7 +40,7 @@
 // for reading incoming data.
 class SerialClientV2 : public Pollable {
 public:
-    SerialClientV2(GlobalRegistry *in_globalreg, BufferHandlerGeneric *in_rbhandler);
+    SerialClientV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~SerialClientV2();
 
     // Open a serial port @ a given baud rate
@@ -55,7 +55,7 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    BufferHandlerGeneric *handler;
+    std::shared_ptr<BufferHandlerGeneric> handler;
 
     int device_fd;
 

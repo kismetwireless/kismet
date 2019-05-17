@@ -36,10 +36,9 @@ class BufferInterface;
 // Common minimal API for a buffer
 class CommonBuffer {
 public:
-    CommonBuffer() {
-        write_reserved = false;
-        peek_reserved = false;
-    }
+    CommonBuffer() :
+        write_reserved {false},
+        peek_reserved {false} { }
 
     virtual ~CommonBuffer() { };
 
@@ -143,12 +142,11 @@ public:
     virtual size_t consume(size_t in_sz) = 0;
 
 protected:
-    bool write_reserved;
-    bool peek_reserved;
+    std::atomic<bool> write_reserved;
+    std::atomic<bool> peek_reserved;
 
     // Additional mutex for protecting peek and write reservations across threads
     kis_recursive_timed_mutex peek_mutex, write_mutex;
-
 };
 
 // Common handler for a buffer, which allows a simple standardized interface
@@ -260,6 +258,14 @@ public:
     // Automatically triggers callbacks.
     virtual bool CommitReadBufferData(void *in_ptr, size_t in_sz);
     virtual bool CommitWriteBufferData(void *in_ptr, size_t in_sz);
+
+
+    // Clear a buffer
+    //
+    // Completely empties a buffer, possibly freeing any memory associated with it 
+    // if it's a dynamic buffer
+    virtual void ClearReadBuffer();
+    virtual void ClearWriteBuffer();
 
     // Trigger callbacks directly
     virtual void TriggerWriteCallback(size_t in_sz);
@@ -399,6 +405,30 @@ protected:
     bool write_handler;
 };
 
+class BufferInterfaceFunc : public BufferInterface {
+public:
+    BufferInterfaceFunc(std::function<void (size_t)> in_available_cb,
+            std::function<void (std::string)> in_error_cb) : 
+        BufferInterface(),
+        available_fn {in_available_cb},
+        error_fn {in_error_cb} { }
+
+    virtual ~BufferInterfaceFunc() { }
+
+    virtual void BufferAvailable(size_t in_amt) {
+        if (available_fn != nullptr)
+            available_fn(in_amt);
+    }
+
+    virtual void BufferError(std::string in_error) {
+        if (error_fn != nullptr)
+            error_fn(in_error);
+    }
+
+protected:
+    std::function<void (size_t)> available_fn;
+    std::function<void (std::string)> error_fn;
+};
 
 #endif
 

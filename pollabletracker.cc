@@ -17,9 +17,9 @@
 */
 
 #include "pollabletracker.h"
+#include "pollable.h"
 
-PollableTracker::PollableTracker(GlobalRegistry *in_globalreg) {
-    globalreg = in_globalreg;
+PollableTracker::PollableTracker() {
 
 }
 
@@ -51,15 +51,18 @@ void PollableTracker::Maintenance() {
             }
         }
     }
-    remove_vec.clear();
 
     for (auto i = add_vec.begin(); i != add_vec.end(); ++i) {
         pollable_vec.push_back(*i);
     }
+
+    remove_vec.clear();
     add_vec.clear();
 }
 
 int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
+    // Perform a maintenance run at the beginning; only the main thread select loop can ever call us
+    // so we don't lock any mutexes (outside of maintenance)
     Maintenance();
 
     int max_fd = 0;
@@ -67,9 +70,8 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     FD_ZERO(rset);
     FD_ZERO(wset);
 
-    for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
-        max_fd = (*i)->MergeSet(max_fd, rset, wset);
-    }
+    for (auto i : pollable_vec) 
+        max_fd = i->MergeSet(max_fd, rset, wset);
 
     return max_fd;
 }
@@ -78,10 +80,11 @@ int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     int r;
     int num = 0;
 
+    // Perform the maintenance check again to clear anything that got nuked during the merge stage
     Maintenance();
 
-    for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
-        r = (*i)->Poll(rset, wset);
+    for (auto i : pollable_vec) {
+        r = i->Poll(rset, wset);
 
         if (r >= 0)
             num++;

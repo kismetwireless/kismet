@@ -23,14 +23,14 @@
 #include "util.h"
 #include "ringbuf2.h"
 
-RingbufV2::RingbufV2(size_t in_sz) {
+RingbufV2::RingbufV2(size_t in_sz) :
+    buffer_sz {in_sz},
+    start_pos {0},
+    length {0},
+    free_peek {false} {
+
     buffer = new unsigned char[in_sz];
-
     memset(buffer, 0xAA, in_sz);
-
-    buffer_sz = in_sz;
-    start_pos = 0;
-    length = 0;
 
 #ifdef PROFILE_RINGBUFV2 
     zero_copy_w_bytes = 0;
@@ -40,8 +40,6 @@ RingbufV2::RingbufV2(size_t in_sz) {
     last_profile_bytes = 0;
 #endif
 
-    peek_reserved = false;
-    free_peek = false;
 }
 
 RingbufV2::~RingbufV2() {

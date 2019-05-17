@@ -354,6 +354,16 @@ bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     return s;
 }
 
+void BufferHandlerGeneric::ClearReadBuffer() {
+    if (read_buffer)
+        read_buffer->clear();
+}
+
+void BufferHandlerGeneric::ClearWriteBuffer() {
+    if (write_buffer)
+        write_buffer->clear();
+}
+
 void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface) {
     local_locker lock(&r_callback_locker);
 

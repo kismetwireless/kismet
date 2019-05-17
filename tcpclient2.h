@@ -41,7 +41,7 @@
 // interface for reading data coming in from the client.
 class TcpClientV2 : public Pollable {
 public:
-    TcpClientV2(GlobalRegistry *in_globalreg, BufferHandlerGeneric *in_rbhandler);
+    TcpClientV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~TcpClientV2();
 
     // Connect to a host, returns 0 if connection initiated and negative if fail
@@ -56,7 +56,7 @@ public:
 
 protected:
     GlobalRegistry *globalreg;
-    BufferHandlerGeneric *handler;
+    std::shared_ptr<BufferHandlerGeneric> handler;
 
     kis_recursive_timed_mutex tcp_mutex;
 

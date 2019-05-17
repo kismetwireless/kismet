@@ -34,14 +34,10 @@
 // This code uses the new buffer handler interface for communicating with a 
 // gpsd host over TCP
 
-class GPSGpsdV2 : public KisGps, public BufferInterface {
+class GPSGpsdV2 : public KisGps {
 public:
     GPSGpsdV2(SharedGpsBuilder in_builder);
     virtual ~GPSGpsdV2();
-
-    // BufferInterface API
-    virtual void BufferAvailable(size_t in_amt);
-    virtual void BufferError(std::string in_err);
 
     virtual bool open_gps(std::string in_definition);
 
@@ -51,7 +47,12 @@ protected:
     std::shared_ptr<PollableTracker> pollabletracker;
 
     std::shared_ptr<TcpClientV2> tcpclient;
-    BufferHandler<RingbufV2> *tcphandler;
+    std::shared_ptr<BufferHandler<RingbufV2>> tcphandler;
+    BufferInterfaceFunc tcpinterface;
+
+    // Called by our tcpinterface 
+    virtual void BufferAvailable(size_t in_amt);
+    virtual void BufferError(std::string in_err);
 
     // Device
     std::string host;

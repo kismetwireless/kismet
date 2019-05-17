@@ -37,9 +37,17 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 
     last_heading_time = time(0);
 
-    pollabletracker = Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
-    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    nmeainterface = BufferInterfaceFunc(
+            [this](size_t in_avail) {
+                BufferAvailable(in_avail);
+            },
+            [this](std::string in_err) {
+                BufferError(in_err);
+            });
 
+    pollabletracker = Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
+
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -55,7 +63,11 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 GPSTCP::~GPSTCP() {
     local_locker lock(&gps_mutex);
 
-    pollabletracker->RemovePollable(tcpclient);
+    if (tcpclient != nullptr)
+        pollabletracker->RemovePollable(tcpclient);
+
+    if (nmeahandler != nullptr)
+        nmeahandler->RemoveReadBufferInterface();
 
     std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
     if (timetracker != nullptr)
@@ -70,16 +82,13 @@ bool GPSTCP::open_gps(std::string in_opts) {
 
     set_int_device_connected(false);
 
-    // Delete any existing serial interface before we parse options
-    if (nmeahandler != NULL) {
-        delete nmeahandler;
-        nmeahandler = NULL;
+    if (tcpclient != nullptr) {
+        tcpclient->Disconnect();
     }
 
-    if (tcpclient != NULL) {
-        pollabletracker->RemovePollable(tcpclient);
-        tcpclient.reset();
-        nmeaclient.reset();
+    if (nmeahandler != nullptr) {
+        nmeahandler->ClearReadBuffer();
+        nmeahandler->ClearWriteBuffer();
     }
 
     std::string proto_name;
@@ -109,23 +118,25 @@ bool GPSTCP::open_gps(std::string in_opts) {
     }
 
 
-    // We never write to a serial gps so don't make a write buffer
-    nmeahandler = new BufferHandler<RingbufV2>(2048, 0);
-    // Set the read handler to us
-    nmeahandler->SetReadBufferInterface(this);
+    if (nmeahandler == nullptr) {
+        // We never write to a serial gps so don't make a write buffer
+        nmeahandler =  std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
+        nmeahandler->SetReadBufferInterface(&nmeainterface);
+    }
 
-    // Link to a tcp connection
-    tcpclient.reset(new TcpClientV2(Globalreg::globalreg, nmeahandler));
-    tcpclient->Connect(proto_host, proto_port);
-
-    // Register a pollable event
-    pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
+    if (tcpclient == nullptr) {
+        // Link to a tcp connection
+        tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, nmeahandler);
+        // Register a pollable event
+        pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
+    }
 
     host = proto_host;
     port = proto_port;
 
     _MSG_INFO("GPSTCP connecting to GPS NMEA server on {}:{}", host, port);
 
+    tcpclient->Connect(proto_host, proto_port);
     set_int_device_connected(true);
 
     return 1;

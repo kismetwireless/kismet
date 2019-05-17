@@ -27,65 +27,79 @@
 #include "timetracker.h"
 
 GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) : 
-    KisGps(in_builder) {
+    KisGps(in_builder),
+    tcpinterface {
+        [this](size_t in_amt) { 
+            BufferAvailable(in_amt);
+        },
+        [this](std::string in_err) {
+            BufferError(in_err);
+        }
+    } {
 
-        // Defer making buffers until open, because we might be used to make a 
-        // builder instance
+    // Defer making buffers until open, because we might be used to make a 
+    // builder instance
 
-        tcphandler = NULL;
+    tcphandler = NULL;
 
-        last_heading_time = time(0);
+    last_heading_time = time(0);
 
-        poll_mode = 0;
-        si_units = 0;
-        si_raw = 0;
+    poll_mode = 0;
+    si_units = 0;
+    si_raw = 0;
 
-        pollabletracker = 
-            Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
+    last_data_time = time(0);
 
-        last_data_time = time(0);
+    pollabletracker = 
+        Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
-        auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
-        error_reconnect_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
-                    [this](int) -> int {
-                    local_shared_locker l(&gps_mutex);
+    error_reconnect_timer = 
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+                [this](int) -> int {
+                local_shared_locker l(&gps_mutex);
 
-                    if (tcpclient != nullptr && tcpclient->FetchConnected())
-                        return 1;
+                if (tcpclient != nullptr && tcpclient->FetchConnected())
+                return 1;
 
-                    open_gps(get_gps_definition());
-                    return 1;
-                    });
+                open_gps(get_gps_definition());
+                return 1;
+                });
 
-        data_timeout_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
-                    [this](int) -> int {
-                    local_shared_locker l(&gps_mutex);
+    data_timeout_timer =
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+                [this](int) -> int {
+                local_shared_locker l(&gps_mutex);
 
-                    if (tcpclient == nullptr || (tcpclient != nullptr && !tcpclient->FetchConnected()))
-                        return 1;
+                if (tcpclient == nullptr || (tcpclient != nullptr && !tcpclient->FetchConnected()))
+                return 1;
 
-                    if (time(0) - last_data_time > 30) {
-                        _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
-                                "to GPSD server.");
-                       
-                        tcpclient->Disconnect();
-                        set_int_device_connected(false);
-                    }
+                if (time(0) - last_data_time > 30) {
+                _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
+                        "to GPSD server.");
 
-                    return 1;
-                    });
+                tcpclient->Disconnect();
+                set_int_device_connected(false);
+                }
 
-    }
+                return 1;
+                });
+
+}
 
 GPSGpsdV2::~GPSGpsdV2() {
     local_locker lock(&gps_mutex);
 
-    pollabletracker->RemovePollable(tcpclient);
+    if (tcpclient != nullptr)
+        pollabletracker->RemovePollable(tcpclient);
 
-    delete(tcphandler);
+    tcpclient.reset();
+
+    if (tcphandler != nullptr)
+        tcphandler->RemoveReadBufferInterface();
+
+    tcphandler.reset();
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
     if (timetracker != nullptr) {
@@ -102,15 +116,15 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
 
     set_int_device_connected(false);
 
-    // Delete any existing interface before we parse options
-    if (tcpclient != NULL) {
-        pollabletracker->RemovePollable(tcpclient);
-        tcpclient.reset();
+    // Disconnect the client if it still exists
+    if (tcpclient != nullptr) {
+        tcpclient->Disconnect();
     }
 
-    if (tcphandler != NULL) {
-        delete tcphandler;
-        tcphandler = NULL;
+    // Clear the buffers
+    if (tcphandler != nullptr) {
+        tcphandler->ClearReadBuffer();
+        tcphandler->ClearWriteBuffer();
     }
 
     std::string proto_host;
@@ -136,17 +150,20 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
                 "your gpsd is on a different port", MSGFLAG_INFO);
     }
 
-    // GPSD network connection writes data as well as reading, but most of it is
-    // inbound data
-    tcphandler = new BufferHandler<RingbufV2>(4096, 512);
-    // Set the read handler to us
-    tcphandler->SetReadBufferInterface(this);
-    // Link it to a tcp connection
-    tcpclient.reset(new TcpClientV2(Globalreg::globalreg, tcphandler));
-    tcpclient->Connect(proto_host, proto_port);
+    // Do the first time setup
+    if (tcphandler == nullptr) {
+        // GPSD network connection writes data as well as reading, but most of it is
+        // inbound data
+        tcphandler = std::make_shared<BufferHandler<RingbufV2>>(4096, 512);
+        // Set the read handler to our function interface
+        tcphandler->SetReadBufferInterface(&tcpinterface);
+    }
 
-    // Register a pollable event
-    pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
+    if (tcpclient == nullptr) {
+        // Link it to a tcp connection
+        tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, tcphandler);
+        pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
+    }
 
     host = proto_host;
     port = proto_port;
@@ -156,6 +173,9 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
 
     // We're not connected until we get data
     set_int_device_connected(0);
+
+    // Connect
+    tcpclient->Connect(proto_host, proto_port);
 
     return 1;
 }

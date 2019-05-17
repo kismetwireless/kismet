@@ -72,7 +72,7 @@ protected:
     size_t length;
 
     // Do we need to free our peeked or committed data?
-    bool free_peek, free_commit;
+    std::atomic<bool> free_peek, free_commit;
 
 #ifdef PROFILE_RINGBUFV2 
     size_t zero_copy_w_bytes, zero_copy_r_bytes, copy_w_bytes, copy_r_bytes, last_profile_bytes;

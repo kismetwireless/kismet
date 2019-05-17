@@ -31,12 +31,10 @@
 #include "pollabletracker.h"
 
 SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
-        BufferHandlerGeneric *in_rbhandler) {
-    globalreg = in_globalreg;
-    handler = in_rbhandler;
-
-    device_fd = -1;
-}
+        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+    globalreg {in_globalreg},
+    handler {in_rbhandler},
+    device_fd {-1} { }
 
 SerialClientV2::~SerialClientV2() {
     Close();

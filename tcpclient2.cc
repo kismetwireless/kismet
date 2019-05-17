@@ -31,19 +31,15 @@
 #include "pollabletracker.h"
 
 TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg, 
-        BufferHandlerGeneric *in_rbhandler) {
-    globalreg = in_globalreg;
-    handler = in_rbhandler;
-
-    cli_fd = -1;
-    connected = false;
-    pending_connect = false;
-}
+        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+    globalreg {in_globalreg},
+    handler {in_rbhandler},
+    pending_connect {false}, 
+    connected {false}, 
+    cli_fd {-1} { }
 
 TcpClientV2::~TcpClientV2() {
     Disconnect();
-    std::shared_ptr<PollableTracker> pollabletracker =
-        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
 }
 
 int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
