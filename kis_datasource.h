@@ -307,80 +307,80 @@ public:
 
     // Kismet-only variables can be set realtime, they have no capture-binary
     // equivalents and are only used for tracking purposes in the Kismet server
-    __Proxy(source_name, std::string, std::string, std::string, source_name);
-    __Proxy(source_uuid, uuid, uuid, uuid, source_uuid);
+    __ProxyM(source_name, std::string, std::string, std::string, source_name, source_mutex);
+    __ProxyM(source_uuid, uuid, uuid, uuid, source_uuid, source_mutex);
 
     // Source key is a checksum of the uuid for us to do fast indexing
-    __Proxy(source_key, uint32_t, uint32_t, uint32_t, source_key);
+    __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, source_mutex);
 
     // Prototype/driver definition
-    __ProxyTrackable(source_builder, KisDatasourceBuilder, source_builder);
+    __ProxyTrackableM(source_builder, KisDatasourceBuilder, source_builder, source_mutex);
 
     // Read-only access to the source state; this mirrors the state in the capture
     // binary. Set commands queue a command to the binary and then update as
     // they complete.
-    __ProxyGet(source_definition, std::string, std::string, source_definition);
-    __ProxyGet(source_interface, std::string, std::string, source_interface);
-    __ProxyGet(source_cap_interface, std::string, std::string, source_cap_interface);
-    __ProxyGet(source_hardware, std::string, std::string, source_hardware);
+    __ProxyGetM(source_definition, std::string, std::string, source_definition, source_mutex);
+    __ProxyGetM(source_interface, std::string, std::string, source_interface, source_mutex);
+    __ProxyGetM(source_cap_interface, std::string, std::string, source_cap_interface, source_mutex);
+    __ProxyGetM(source_hardware, std::string, std::string, source_hardware, source_mutex);
 
-    __ProxyGet(source_dlt, uint32_t, uint32_t, source_dlt);
+    __ProxyGetM(source_dlt, uint32_t, uint32_t, source_dlt, source_mutex);
 
-    __ProxyTrackable(source_channels_vec, TrackerElementVector, source_channels_vec);
+    __ProxyTrackableM(source_channels_vec, TrackerElementVector, source_channels_vec, source_mutex);
 
     // Any alert state passed from the driver we want to be able to consistently
     // report to the user
-    __ProxyGet(source_warning, std::string, std::string, source_warning);
+    __ProxyGetM(source_warning, std::string, std::string, source_warning, source_mutex);
 
-    __ProxyGet(source_hopping, uint8_t, bool, source_hopping);
-    __ProxyGet(source_channel, std::string, std::string, source_channel);
-    __ProxyGet(source_hop_rate, double, double, source_hop_rate);
-    __ProxyGet(source_split_hop, uint8_t, bool, source_hop_split);
-    __ProxyGet(source_hop_offset, uint32_t, uint32_t, source_hop_offset);
-    __ProxyGet(source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
-    __ProxyGet(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip);
-    __ProxyTrackable(source_hop_vec, TrackerElementVector, source_hop_vec);
+    __ProxyGetM(source_hopping, uint8_t, bool, source_hopping, source_mutex);
+    __ProxyGetM(source_channel, std::string, std::string, source_channel, source_mutex);
+    __ProxyGetM(source_hop_rate, double, double, source_hop_rate, source_mutex);
+    __ProxyGetM(source_split_hop, uint8_t, bool, source_hop_split, source_mutex);
+    __ProxyGetM(source_hop_offset, uint32_t, uint32_t, source_hop_offset, source_mutex);
+    __ProxyGetM(source_hop_shuffle, uint8_t, bool, source_hop_shuffle, source_mutex);
+    __ProxyGetM(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, source_mutex);
+    __ProxyTrackableM(source_hop_vec, TrackerElementVector, source_hop_vec, source_mutex);
 
-    __ProxyGet(source_running, uint8_t, bool, source_running);
+    __ProxyGetM(source_running, uint8_t, bool, source_running, source_mutex);
 
-    __ProxyGet(source_remote, uint8_t, bool, source_remote);
-    __ProxyGet(source_passive, uint8_t, bool, source_passive);
+    __ProxyGetM(source_remote, uint8_t, bool, source_remote, source_mutex);
+    __ProxyGetM(source_passive, uint8_t, bool, source_passive, source_mutex);
 
-    __Proxy(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets);
-    __ProxyIncDec(source_num_packets, uint64_t, uint64_t, source_num_packets);
+    __ProxyM(source_num_packets, uint64_t, uint64_t, uint64_t, source_num_packets, source_mutex);
+    __ProxyIncDecM(source_num_packets, uint64_t, uint64_t, source_num_packets, source_mutex);
 
-    __Proxy(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets);
-    __ProxyIncDec(source_num_error_packets, uint64_t, uint64_t, source_num_error_packets);
+    __ProxyM(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets, source_mutex);
+    __ProxyIncDecM(Msource_num_error_packets, uint64_t, uint64_t, source_num_error_packets, source_mutex);
 
-    __ProxyDynamicTrackable(source_packet_rrd, kis_tracked_minute_rrd<>, 
-            packet_rate_rrd, packet_rate_rrd_id);
+    __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_minute_rrd<>, 
+            packet_rate_rrd, packet_rate_rrd_id, source_mutex);
 
     // IPC binary name, if any
-    __ProxyGet(source_ipc_binary, std::string, std::string, source_ipc_binary);
+    __ProxyGetM(source_ipc_binary, std::string, std::string, source_ipc_binary, source_mutex);
     // IPC channel pid, if any
-    __ProxyGet(source_ipc_pid, int64_t, pid_t, source_ipc_pid);
+    __ProxyGetM(source_ipc_pid, int64_t, pid_t, source_ipc_pid, source_mutex);
 
     // Retry API - do we try to re-open when there's a problem?
-    __ProxyGet(source_error, uint8_t, bool, source_error);
-    __Proxy(source_retry, uint8_t, bool, bool, source_retry);
-    __ProxyGet(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
+    __ProxyGetM(source_error, uint8_t, bool, source_error, source_mutex);
+    __ProxyM(source_retry, uint8_t, bool, bool, source_retry, source_mutex);
+    __ProxyGetM(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts, source_mutex);
 
-    __Proxy(source_number, uint64_t, uint64_t, uint64_t, source_number);
+    __ProxyM(source_number, uint64_t, uint64_t, uint64_t, source_number, source_mutex);
 
-    __Proxy(source_paused, uint8_t, bool, bool, source_paused);
+    __ProxyM(source_paused, uint8_t, bool, bool, source_paused, source_mutex);
 
 
     // Random metadata
-    __Proxy(source_info_antenna_type, std::string, std::string, std::string, source_info_antenna_type);
-    __Proxy(source_info_antenna_gain, double, double, double, source_info_antenna_gain);
-    __Proxy(source_info_antenna_orientation, double, double, double, source_info_antenna_orientation);
-    __Proxy(source_info_antenna_beamwidth, double, double, double, source_info_antenna_beamwidth);
-    __Proxy(source_info_amp_type, std::string, std::string, std::string, source_info_amp_type);
-    __Proxy(source_info_amp_gain, double, double, double, source_info_amp_gain);
+    __ProxyM(source_info_antenna_type, std::string, std::string, std::string, source_info_antenna_type, source_mutex);
+    __ProxyM(source_info_antenna_gain, double, double, double, source_info_antenna_gain, source_mutex);
+    __ProxyM(source_info_antenna_orientation, double, double, double, source_info_antenna_orientation, source_mutex);
+    __ProxyM(source_info_antenna_beamwidth, double, double, double, source_info_antenna_beamwidth, source_mutex);
+    __ProxyM(source_info_amp_type, std::string, std::string, std::string, source_info_amp_type, source_mutex);
+    __ProxyM(source_info_amp_gain, double, double, double, source_info_amp_gain, source_mutex);
 
     // Overridden linktype
-    __ProxyPrivSplit(source_override_linktype, unsigned int, unsigned int, uint32_t, 
-            source_override_linktype);
+    __ProxyPrivSplitM(source_override_linktype, unsigned int, unsigned int, uint32_t, 
+            source_override_linktype, source_mutex);
 
     
     // Perform a checksum on a packet after it's decapsulated; this is always
@@ -396,7 +396,19 @@ public:
 
     // IPC error
     virtual void BufferError(std::string in_error) override;
+
+    virtual void pre_serialize() override {
+        local_eol_shared_locker l(&source_mutex);
+    }
+
+    virtual void post_serialize() override {
+        local_shared_unlocker ul(&source_mutex);
+    }
+
 protected:
+    // Mutex for manipulating source internals
+    kis_recursive_timed_mutex source_mutex;
+
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
     virtual void trigger_error(std::string in_reason) override;
@@ -522,23 +534,23 @@ protected:
     // given to us by the capture binary itself.  We use the ProxySet macros with
     // a modified function name so that we can easily set our tracker components
     // from the KV handlers
-    __ProxySet(int_source_definition, std::string, std::string, source_definition);
-    __ProxySet(int_source_interface, std::string, std::string, source_interface);
-    __ProxySet(int_source_cap_interface, std::string, std::string, source_cap_interface);
-    __ProxySet(int_source_hardware, std::string, std::string, source_hardware);
-    __ProxySet(int_source_dlt, uint32_t, uint32_t, source_dlt);
-    __ProxyTrackable(int_source_channels_vec, TrackerElementVector, source_channels_vec);
+    __ProxySetM(int_source_definition, std::string, std::string, source_definition, source_mutex);
+    __ProxySetM(int_source_interface, std::string, std::string, source_interface, source_mutex);
+    __ProxySetM(int_source_cap_interface, std::string, std::string, source_cap_interface, source_mutex);
+    __ProxySetM(int_source_hardware, std::string, std::string, source_hardware, source_mutex);
+    __ProxySetM(int_source_dlt, uint32_t, uint32_t, source_dlt, source_mutex);
+    __ProxyTrackableM(int_source_channels_vec, TrackerElementVector, source_channels_vec, source_mutex);
 
-    __ProxySet(int_source_warning, std::string, std::string, source_warning);
+    __ProxySetM(int_source_warning, std::string, std::string, source_warning, source_mutex);
 
-    __ProxySet(int_source_hopping, uint8_t, bool, source_hopping);
-    __ProxySet(int_source_channel, std::string, std::string, source_channel);
-    __ProxySet(int_source_hop_rate, double, double, source_hop_rate);
-    __ProxySet(int_source_hop_split, uint8_t, bool, source_hop_split);
-    __ProxySet(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle);
-    __ProxySet(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip);
-    __ProxySet(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset);
-    __ProxyTrackable(int_source_hop_vec, TrackerElementVector, source_hop_vec);
+    __ProxySetM(int_source_hopping, uint8_t, bool, source_hopping, source_mutex);
+    __ProxySetM(int_source_channel, std::string, std::string, source_channel, source_mutex);
+    __ProxySetM(int_source_hop_rate, double, double, source_hop_rate, source_mutex);
+    __ProxySetM(int_source_hop_split, uint8_t, bool, source_hop_split, source_mutex);
+    __ProxySetM(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle, source_mutex);
+    __ProxySetM(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, source_mutex);
+    __ProxySetM(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset, source_mutex);
+    __ProxyTrackableM(int_source_hop_vec, TrackerElementVector, source_hop_vec, source_mutex);
 
     // Prototype object which created us, defines our overall capabilities
     std::shared_ptr<KisDatasourceBuilder> source_builder;
@@ -608,27 +620,25 @@ protected:
     // Try to re-open sources in error automatically
     
     // Are we in error state?
-    __ProxySet(int_source_error, uint8_t, bool, source_error);
+    __ProxySetM(int_source_error, uint8_t, bool, source_error, source_mutex);
     std::shared_ptr<TrackerElementUInt8> source_error;
 
     // Why are we in error state?
-    __ProxySet(int_source_error_reason, std::string, std::string, source_error_reason);
+    __ProxySetM(int_source_error_reason, std::string, std::string, source_error_reason, source_mutex);
     std::shared_ptr<TrackerElementString> source_error_reason;
 
     // Do we want to try to re-open automatically?
-    __ProxySet(int_source_retry, uint8_t, bool, source_retry);
+    __ProxySetM(int_source_retry, uint8_t, bool, source_retry, source_mutex);
     std::shared_ptr<TrackerElementUInt8> source_retry;
 
     // How many consecutive errors have we had?
-    __ProxySet(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
-    __ProxyIncDec(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts);
+    __ProxySetM(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts, source_mutex);
+    __ProxyIncDecM(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts, source_mutex);
     std::shared_ptr<TrackerElementUInt32> source_retry_attempts;
 
     // How many total errors?
-    __ProxySet(int_source_total_retry_attempts, uint32_t, uint32_t, 
-            source_total_retry_attempts);
-    __ProxyIncDec(int_source_total_retry_attempts, uint32_t, uint32_t, 
-            source_total_retry_attempts);
+    __ProxySetM(int_source_total_retry_attempts, uint32_t, uint32_t, source_total_retry_attempts, source_mutex);
+    __ProxyIncDecM(int_source_total_retry_attempts, uint32_t, uint32_t, source_total_retry_attempts, source_mutex);
     std::shared_ptr<TrackerElementUInt32> source_total_retry_attempts;
 
     // Timer ID for trying to recover from an error
@@ -657,19 +667,19 @@ protected:
     // Do we clobber the remote timestamp?
     bool clobber_timestamp;
 
-    __ProxySet(int_source_remote, uint8_t, bool, source_remote);
+    __ProxySetM(int_source_remote, uint8_t, bool, source_remote, source_mutex);
     std::shared_ptr<TrackerElementUInt8> source_remote;
 
-    __ProxySet(int_source_passive, uint8_t, bool, source_passive);
+    __ProxySetM(int_source_passive, uint8_t, bool, source_passive, source_mutex);
     std::shared_ptr<TrackerElementUInt8> source_passive;
 
-    __ProxySet(int_source_running, uint8_t, bool, source_running);
+    __ProxySetM(int_source_running, uint8_t, bool, source_running, source_mutex);
     std::shared_ptr<TrackerElementUInt8> source_running;
 
-    __ProxySet(int_source_ipc_binary, std::string, std::string, source_ipc_binary);
+    __ProxySetM(int_source_ipc_binary, std::string, std::string, source_ipc_binary, source_mutex);
     std::shared_ptr<TrackerElementString> source_ipc_binary;
 
-    __ProxySet(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid);
+    __ProxySetM(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid, source_mutex);
     std::shared_ptr<TrackerElementInt64> source_ipc_pid;
 
 
