@@ -40,9 +40,6 @@ public:
     GPSSerialV2(SharedGpsBuilder in_builder);
     virtual ~GPSSerialV2();
 
-    // BufferInterface API - buffer available implemented in gpsnmea
-    virtual void BufferError(std::string error);
-
     virtual bool open_gps(std::string in_opts);
 
     virtual bool get_location_valid();
@@ -53,8 +50,10 @@ protected:
     time_t error_reconnect_timer;
 
     std::shared_ptr<PollableTracker> pollabletracker;
-    
     std::shared_ptr<SerialClientV2> serialclient;
+
+    // BufferInterface API - buffer available implemented in gpsnmea
+    virtual void BufferError(std::string error);
 
     // Device
     std::string serial_device;
