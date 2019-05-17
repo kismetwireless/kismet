@@ -13,10 +13,10 @@ import threading
 
 # Pretty-print the failure
 try:
-    import KismetExternal
+    import kismetexternal
 except ImportError:
-    print("ERROR:  Kismet external Python tools require the KismetExternal python ")
-    print("        library; you can find it in python_tools/KismetExternal")
+    print("ERROR:  Kismet external Python tools require the kismetexternal python ")
+    print("        library; you can find it in the kismetexternal git or via pip")
     sys.exit(1)
 
 class KismetProxyTest(object):
