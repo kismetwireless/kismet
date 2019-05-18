@@ -309,6 +309,47 @@ protected:
     std::atomic<bool> hold_lock;
 };
 
+// RAII-style scoped locker, but only locks on demand, not creation, with shared mutex
+class local_shared_demand_locker {
+public:
+    local_shared_demand_locker(kis_recursive_timed_mutex *in) : 
+        cpplock(in),
+        hold_lock(false) { }
+
+    void unlock() {
+        if (!hold_lock)
+            return;
+
+        hold_lock = false;
+        cpplock->unlock();
+    }
+
+    void lock() {
+        if (hold_lock)
+            throw(std::runtime_error("possible deadlock - shared_demand_locker locking while "
+                        "already holding a lock"));
+
+        hold_lock = true;
+
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock->lock_shared();
+#else
+        if (!cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+
+    ~local_shared_demand_locker() {
+        unlock();
+    }
+
+protected:
+    kis_recursive_timed_mutex *cpplock;
+    std::atomic<bool> hold_lock;
+};
+
 // Act as a scoped locker on a mutex that never expires; used for performing
 // end-of-life mutex maintenance
 class local_eol_locker {
