@@ -352,7 +352,7 @@ Datasourcetracker::Datasourcetracker() :
                         });
 
                     // Block until the list cmd unlocks us
-                    std::vector<SharedInterface> iflist = cl->block_until();
+                    auto iflist = cl->block_until();
 
                     auto iv = std::make_shared<TrackerElementVector>();
 
@@ -366,8 +366,6 @@ Datasourcetracker::Datasourcetracker() :
 }
 
 Datasourcetracker::~Datasourcetracker() {
-    local_locker lock(&dst_lock);
-
     Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
 
     if (completion_cleanup_id >= 0)
@@ -378,18 +376,16 @@ Datasourcetracker::~Datasourcetracker() {
         databaselog_write_datasources();
     }
 
-    for (auto i = probing_map.begin(); i != probing_map.end(); ++i) {
-        i->second->cancel();
-    }
+    for (auto i : probing_map)
+        i.second->cancel();
 
-    for (auto i = listing_map.begin(); i != listing_map.end(); ++i) {
-        i->second->cancel();
-    }
-
-    datasource_vec.reset();
+    for (auto i : listing_map)
+        i.second->cancel();
 }
 
 void Datasourcetracker::databaselog_write_datasources() {
+    local_shared_locker l(&dst_lock);
+
     if (!database_log_enabled)
         return;
 
@@ -740,8 +736,6 @@ bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
         SharedDatasource kds = std::static_pointer_cast<KisDatasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) {
-            std::stringstream ss;
-
             _MSG_INFO("Closing source '{}'", kds->get_source_name());
 
             // Close it
