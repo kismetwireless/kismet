@@ -443,13 +443,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     Database_Open("");
     Database_UpgradeDB();
 
-    Bind_Httpd_Server();
-
     new_datasource_evt_id = 
         eventbus->register_listener("NEW_DATASOURCE",
             [this](std::shared_ptr<EventbusEvent> evt) {
                 HandleNewDatasourceEvent(evt);
             });
+
+    Bind_Httpd_Server();
 }
 
 Devicetracker::~Devicetracker() {
