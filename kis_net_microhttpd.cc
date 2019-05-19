@@ -568,21 +568,23 @@ void Kis_Net_Httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Htt
 }
 
 void Kis_Net_Httpd::WriteSessions() {
-    local_locker lock(&session_mutex);
-
     if (!store_sessions)
         return;
 
     std::vector<std::string> sessions;
     std::stringstream str;
 
-    for (auto i : session_map) {
-        str.str("");
+    {
+        local_locker lock(&session_mutex);
 
-        str << i.second->sessionid << "," << i.second->session_created << "," <<
-            i.second->session_seen << "," << i.second->session_lifetime;
+        for (auto i : session_map) {
+            str.str("");
 
-        sessions.push_back(str.str());
+            str << i.second->sessionid << "," << i.second->session_created << "," <<
+                i.second->session_seen << "," << i.second->session_lifetime;
+
+            sessions.push_back(str.str());
+        }
     }
 
     session_db->SetOptVec("session", sessions, true);
