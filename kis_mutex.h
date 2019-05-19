@@ -30,21 +30,23 @@
 
 #include "config.h"
 
-#include <mutex>
-#include <chrono>
 #include <atomic>
+#include <chrono>
+#include <map>
+#include <mutex>
 #include <thread>
 
 #ifdef HAVE_CXX14
 #include <shared_mutex>
 #endif
 
+
 #include <pthread.h>
 
 #include "fmt.h"
 
 // Seconds a lock is allowed to be held before throwing a timeout error
-#define KIS_THREAD_DEADLOCK_TIMEOUT     15
+#define KIS_THREAD_DEADLOCK_TIMEOUT     5
 
 // Optionally force the custom c++ workaround mutex
 #define ALWAYS_USE_KISMET_MUTEX         0
@@ -103,96 +105,191 @@ private:
 class kis_recursive_timed_mutex {
 public:
     kis_recursive_timed_mutex() :
-        owner {std::this_thread::get_id()},
-        owner_count {0} { }
+        owner {std::thread::id()},
+        owner_count {0},
+        shared_owner_count {0} { }
 
+    // Write operation; allow recursion through the owner TID, but do not
+    // allow a write lock if ANY thread holds a RO lock
     bool try_lock_for(const std::chrono::seconds& d) {
-        if (owner_count > 0 && std::this_thread::get_id() == owner) {
-            owner_count++;
-        } else {
-            if (!mutex.try_lock_for(d)) {
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
-                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        // Must wait for shared locks to release before we can acquire a write lock
+        if (shared_owner_count) {
+            // This will be unlocked when the shared count hits 0
+            if (mutex.try_lock_for(d) == false) {
+                throw(std::runtime_error(fmt::format("deadlock: mutex not available within {}", 
+                                KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
 
+            // Set the owner & count
             owner = std::this_thread::get_id();
             owner_count = 1;
+
+            return true;
         }
+
+        // If we're already the owner, increment the recursion counter
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
+            // Increment the write lock count and we're done
+            owner_count++;
+            return true;
+        }
+
+        // Attempt to acquire and continue
+        if (mutex.try_lock_for(d) == false) {
+            throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+
+        // Acquire the owner write lock
+        owner = std::this_thread::get_id();
+        owner_count = 1;
 
         return true;
     }
 
     bool try_lock_shared_for(const std::chrono::seconds& d) {
-        if (owner_count > 0 && std::this_thread::get_id() == owner) {
-            owner_count++;
-        } else {
-#if HAVE_CXX14
-            if (!mutex.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex not available within "
+        if (owner_count > 0) {
+            // Acquire a RO lock as if it were a RW lock if the thread is the owner
+            if (std::this_thread::get_id() == owner) {
+                owner_count++;
+                return true;
+            }
+
+            // If we have any other writer lock, we must block until it's gone; the RW 
+            // count hitting 0 will unlock us
+            if (mutex.try_lock_for(d) == false) {
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
                                 "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
-#else
-            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex not available within "
-                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
-            }
-#endif
-            owner = std::this_thread::get_id();
-            owner_count = 1;
+
+            // We now own the lock, increment RO
+            shared_owner_count++;
+            return true;
         }
+
+        // If nobody owns it...
+        if (shared_owner_count == 0) {
+            // Grab the lock
+            if (mutex.try_lock_for(d) == false) {
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
+        }
+
+        // Increment the RO usage count
+        shared_owner_count++;
 
         return true;
     }
 
     void lock() {
-        if (owner_count > 0 && std::this_thread::get_id() == owner) {
-            owner_count++;
-        } else {
+        // Must wait for shared locks to release before we can acquire a write lock
+        if (shared_owner_count) {
+            // This will be unlocked when the shared count hits 0
             mutex.lock();
+
+            // Set the owner & count
             owner = std::this_thread::get_id();
             owner_count = 1;
+
+            return;
         }
+
+        // If we're already the owner, increment the recursion counter
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
+            // Increment the write lock count and we're done
+            owner_count++;
+            return;
+        }
+
+        // Attempt to acquire and continue
+        mutex.lock();
+        owner = std::this_thread::get_id();
+        owner_count = 1;
+
+        return;
     }
 
     void lock_shared() {
-        if (owner_count > 0 && std::this_thread::get_id() == owner) {
-            owner_count++;
-        } else {
-#if HAVE_CXX14
-            mutex.lock_shared();
-#else
+        if (owner_count > 0) {
+            // Acquire a RO lock as if it were a RW lock if the thread is the owner
+            if (std::this_thread::get_id() == owner) {
+                owner_count++;
+                return;
+            }
+
+            // If we have any other writer lock, we must block until it's gone; the RW 
+            // count hitting 0 will unlock us
             mutex.lock();
-#endif
-            owner = std::this_thread::get_id();
-            owner_count = 1;
+
+            // We now own the lock, increment RO
+            shared_owner_count++;
+            return;
         }
+
+        if (shared_owner_count == 0) {
+            // Grab the lock
+            mutex.lock();
+        }
+
+        // Increment the RO usage count
+        shared_owner_count++;
+
+        return;
     }
 
     void unlock() {
-        if (--owner_count <= 0) {
-            owner = std::thread::id();
-            owner_count = 0;
-            mutex.unlock();
+        if (owner_count > 0) {
+            // Write lock has expired, unlock mutex
+            if (--owner_count == 0) {
+                owner = std::thread::id();
+                mutex.unlock();
+            }
+
+            return;
+        } else {
+            throw std::runtime_error("Mutex got a write-unlock when no write lock held");
         }
     }
 
     void unlock_shared() {
-        if (--owner_count <= 0) {
-            owner = std::thread::id();
-            owner_count = 0;
+        if (owner_count > 0) {
+            // Unlock a RO held by the RW thread as a RW
+            if (std::this_thread::get_id() == owner) {
+                if (owner_count > 0) {
+                    // Write lock has expired, unlock mutex
+                    if (--owner_count == 0) {
+                        owner = std::thread::id();
+                        owner_count = 0;
+                        mutex.unlock();
+                    }
 
-#if HAVE_CXX14
-            mutex.unlock_shared();
-#else
-            mutex.unlock();
-#endif
+                    return;
+                } else {
+                    throw std::runtime_error("Mutex got a shared unlock by a write-unlock owner when no write lock held");
+                }
+            }
+
+            throw std::runtime_error("Mutex got a shared-unlock when a write lock held");
+        }
+
+        if (shared_owner_count > 0) {
+            // Decrement RO lock count
+            if (--shared_owner_count == 0) {
+                // Release the lock if we've hit 0
+                mutex.unlock();
+                return;
+            }
         }
     }
 
-
 private:
-    std::thread::id owner;
-    unsigned int owner_count;
+    // Recursive write lock
+    std::atomic<std::thread::id> owner;
+    std::atomic<unsigned int> owner_count;
+
+    // RO shared locks
+    std::atomic<unsigned int> shared_owner_count;
 
 // Use std::recursive_timed_mutex components when we can, unless we're forcing pthread mode; base it
 // on the GCC versions to detect broken compilers
@@ -200,10 +297,8 @@ private:
     (!defined(__clang__) && defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || \
         (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9)))
     kis_recursive_pthread_timed_mutex mutex;
-#elif HAVE_CXX14
-    std::shared_timed_mutex mutex;
 #else
-    std::mutex mutex;
+    std::timed_mutex mutex;
 #endif
 };
 
@@ -333,7 +428,7 @@ public:
             return;
 
         hold_lock = false;
-        cpplock->unlock();
+        cpplock->unlock_shared();
     }
 
     void lock() {
@@ -428,7 +523,7 @@ public:
         cpplock{in} { }
 
     ~local_shared_unlocker() {
-        cpplock.unlock();
+        cpplock.unlock_shared();
     }
 
 protected:
