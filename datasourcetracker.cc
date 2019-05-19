@@ -327,7 +327,11 @@ Datasourcetracker::Datasourcetracker() :
 
     all_sources_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources",
-                datasource_vec, &dst_lock);
+                [this]() -> std::shared_ptr<TrackerElement> {
+                    local_shared_locker sl(&dst_lock);
+                    auto serial_vec = std::make_shared<TrackerElementVector>(datasource_vec);
+                    return serial_vec;
+                });
 
     defaults_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/defaults",
