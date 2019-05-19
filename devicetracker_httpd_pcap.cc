@@ -27,9 +27,6 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
     if (strcmp(method, "GET") == 0) {
         // /devices/by-key/[key]/pcap/[key].pcapng
        
-        auto devicetracker =
-            Globalreg::FetchGlobalAs<Devicetracker>("DEVICETRACKER");
-
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
         if (tokenurl.size() < 6)
             return false;
@@ -76,9 +73,6 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
     // /devices/by-key/[key]/pcap/[key].pcapng
-
-    auto devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>("DEVICETRACKER");
 
     std::vector<std::string> tokenurl = StrTokenize(url, "/");
     if (tokenurl.size() < 6)

@@ -29,6 +29,9 @@
 class Devicetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
 public:
     Devicetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() {
+        devicetracker = 
+            Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+
         Bind_Httpd_Server();
     }
 
@@ -49,6 +52,9 @@ public:
     virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
         return 0;
     }
+
+protected:
+    std::shared_ptr<Devicetracker> devicetracker;
     
 };
 
