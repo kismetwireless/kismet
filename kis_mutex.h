@@ -110,7 +110,11 @@ public:
         if (owner_count > 0 && std::this_thread::get_id() == owner) {
             owner_count++;
         } else {
-            mutex.try_lock_for(d);
+            if (!mutex.try_lock_for(d)) {
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
+
             owner = std::this_thread::get_id();
             owner_count = 1;
         }
@@ -123,9 +127,15 @@ public:
             owner_count++;
         } else {
 #if HAVE_CXX14
-            mutex.try_lock_shared_for(d);
+            if (!mutex.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
 #else
-            mutex.try_lock_for(d);
+            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
 #endif
             owner = std::this_thread::get_id();
             owner_count = 1;
