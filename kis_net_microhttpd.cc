@@ -663,7 +663,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     }
 
     {
-        local_locker conclock(&(kishttpd->controller_mutex));
+        local_shared_locker conclock(&(kishttpd->controller_mutex));
 
         /* Look for a handler that can process this; first we look for handlers which
          * don't require auth */
@@ -878,7 +878,7 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
     if (surl[surl.length() - 1] == '/')
         surl += "index.html";
 
-    local_locker lock(&(kishttpd->controller_mutex));
+    local_shared_locker lock(&(kishttpd->controller_mutex));
 
     for (auto sd : kishttpd->static_dir_vec) {
         if (strlen(url) < sd.prefix.size())
