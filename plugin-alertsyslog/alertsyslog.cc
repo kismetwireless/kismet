@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -38,7 +38,7 @@
 #include <alertracker.h>
 #include <version.h>
 
-GlobalRegistry *globalreg = NULL;
+int pack_comp_alert;
 
 int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 	kis_alert_component *alrtinfo = NULL;
@@ -47,7 +47,7 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 		return 0;
 
 	// Grab the alerts
-	alrtinfo = (kis_alert_component *) in_pack->fetch(_PCM(PACK_COMP_ALERT));
+	alrtinfo = (kis_alert_component *) in_pack->fetch(pack_comp_alert);
 
 	if (alrtinfo == NULL)
 		return 0;
@@ -69,15 +69,16 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
     // We can't use the templated FetchGlobalAs here because the template object code
     // won't exist in the server object
-    shared_ptr<Packetchain> packetchain =
-        static_pointer_cast<Packetchain>(in_globalreg->FetchGlobal(string("PACKETCHAIN")));
-    shared_ptr<void> pcv = in_globalreg->FetchGlobal(string("PACKETCHAIN"));
+    std::shared_ptr<Packetchain> packetchain =
+        std::static_pointer_cast<Packetchain>(in_globalreg->FetchGlobal(std::string("PACKETCHAIN")));
 
     if (packetchain == NULL) {
         _MSG("Unable to register syslog plugin, packetchain was unavailable",
                 MSGFLAG_ERROR);
         return -1;
     }
+
+    pack_comp_alert = packetchain->RegisterPacketComponent("alert");
 
     openlog(in_globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
 
