@@ -754,6 +754,7 @@ protected:
     std::vector<static_dir> static_dir_vec;
 
     kis_recursive_timed_mutex controller_mutex;
+    kis_recursive_timed_mutex session_mutex;
 
     // Handle the requests and dispatch to controllers
     static int http_request_handler(void *cls, struct MHD_Connection *connection,

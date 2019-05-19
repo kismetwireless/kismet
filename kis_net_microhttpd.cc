@@ -270,15 +270,13 @@ Kis_Net_Httpd::Kis_Net_Httpd() {
                     continue;
 
                 // Don't use AddSession because we don't want to trigger a write, yet
-                session_map.emplace(sess->sessionid, sess);
+                session_map[sess->sessionid] = sess;
             }
         }
     }
 }
 
 Kis_Net_Httpd::~Kis_Net_Httpd() {
-    local_locker lock(&controller_mutex);
-
     // Wipe out all handlers
     handler_vec.erase(handler_vec.begin(), handler_vec.end());
 
@@ -300,6 +298,7 @@ Kis_Net_Httpd::~Kis_Net_Httpd() {
 }
 
 void Kis_Net_Httpd::RegisterSessionHandler(std::shared_ptr<Kis_Httpd_Websession> in_session) {
+    local_locker l(&controller_mutex);
     websession = in_session;
 }
 
@@ -362,7 +361,7 @@ std::string Kis_Net_Httpd::StripSuffix(std::string url) {
 
 void Kis_Net_Httpd::RegisterMimeType(std::string suffix, std::string mimetype) {
     local_locker lock(&controller_mutex);
-    mime_type_map.emplace(StrLower(suffix), mimetype);
+    mime_type_map[StrLower(suffix)] = mimetype;
 }
 
 void Kis_Net_Httpd::RegisterStaticDir(std::string in_prefix, std::string in_path) {
@@ -541,14 +540,14 @@ void Kis_Net_Httpd::MHD_Panic(void *cls, const char *file __attribute__((unused)
 }
 
 void Kis_Net_Httpd::AddSession(std::shared_ptr<Kis_Net_Httpd_Session> in_session) {
-    local_locker lock(&controller_mutex);
+    local_locker lock(&session_mutex);
 
-    session_map.emplace(in_session->sessionid, in_session);
+    session_map[in_session->sessionid] = in_session;
     WriteSessions();
 }
 
 void Kis_Net_Httpd::DelSession(std::string in_key) {
-    local_locker lock(&controller_mutex);
+    local_locker lock(&session_mutex);
 
     auto i = session_map.find(in_key);
 
@@ -560,7 +559,7 @@ void Kis_Net_Httpd::DelSession(std::string in_key) {
 }
 
 void Kis_Net_Httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session> >::iterator in_itr) {
-    local_locker lock(&controller_mutex);
+    local_locker lock(&session_mutex);
 
     if (in_itr != session_map.end()) {
         session_map.erase(in_itr);
@@ -569,7 +568,7 @@ void Kis_Net_Httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Htt
 }
 
 void Kis_Net_Httpd::WriteSessions() {
-    local_locker lock(&controller_mutex);
+    local_locker lock(&session_mutex);
 
     if (!store_sessions)
         return;
@@ -614,17 +613,21 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
+        local_shared_demand_locker csl(&kishttpd->session_mutex);
+
         auto si = kishttpd->session_map.find(cookieval);
 
         if (si != kishttpd->session_map.end()) {
             // Delete if the session has expired and don't assign as a session
             if (si->second->session_lifetime != 0 &&
                     si->second->session_seen + si->second->session_lifetime < time(0)) {
+                csl.unlock();
                 kishttpd->DelSession(si);
             } else {
                 // Update the last seen, assign as the current session
                 s = si->second;
                 s->session_seen = time(0);
+                csl.unlock();
             }
         }
     } 
@@ -1172,8 +1175,7 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
 }
 
 
-bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
-        bool send_invalid) {
+bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool send_invalid) {
     if (connection->session != NULL)
         return true;
 
@@ -1184,10 +1186,10 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
+        local_shared_demand_locker csl(&session_mutex);
+
         auto si = session_map.find(cookieval);
-
         if (si != session_map.end()) {
-
             s = si->second;
 
             // Does the session never expire?
@@ -1201,8 +1203,9 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection,
                 connection->session = s;
                 return true;
             } else {
-                DelSession(si);
                 connection->session = NULL;
+                csl.unlock();
+                DelSession(si);
             }
         }
     }
@@ -1280,7 +1283,7 @@ Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection,
         }
     }
 
-    s.reset(new Kis_Net_Httpd_Session());
+    s = std::make_shared<Kis_Net_Httpd_Session>();
     s->sessionid = cookie.str();
     s->session_created = time(0);
     s->session_seen = s->session_created;
