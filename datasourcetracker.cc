@@ -388,8 +388,6 @@ Datasourcetracker::~Datasourcetracker() {
 }
 
 void Datasourcetracker::databaselog_write_datasources() {
-    local_shared_locker l(&dst_lock);
-
     if (!database_log_enabled)
         return;
 
@@ -399,8 +397,15 @@ void Datasourcetracker::databaselog_write_datasources() {
     if (dbf == NULL)
         return;
 
-    // Fire off a database log
-    dbf->log_datasources(datasource_vec);
+    // Fire off a database log, using a copy of the datasource vec
+    std::shared_ptr<TrackerElementVector> v;
+
+    {
+        local_shared_locker l(&dst_lock);
+        v = std::make_shared<TrackerElementVector>(datasource_vec);
+    }
+
+    dbf->log_datasources(v);
 }
 
 std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
