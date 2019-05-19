@@ -52,7 +52,6 @@
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
 #include "structured.h"
-#include "devicetracker_httpd_pcap.h"
 #include "devicetracker_view.h"
 #include "devicetracker_workers.h"
 #include "kis_database.h"
@@ -410,8 +409,6 @@ protected:
     std::map<int, Kis_Phy_Handler *> phy_handler_map;
 
     kis_recursive_timed_mutex devicelist_mutex;
-
-    std::shared_ptr<Devicetracker_Httpd_Pcap> httpd_pcap;
 
     // Timestamp of the last time we wrote the device list, if we're storing state
     std::atomic<time_t> last_devicelist_saved;

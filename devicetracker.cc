@@ -70,9 +70,6 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     // create a vector
     immutable_tracked_vec = std::make_shared<TrackerElementVector>();
 
-    // Create the pcap httpd
-    httpd_pcap = std::make_shared<Devicetracker_Httpd_Pcap>();
-
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
