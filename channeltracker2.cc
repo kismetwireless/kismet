@@ -50,7 +50,7 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    std::shared_ptr<Timetracker> timetracker =
+    timetracker =
         Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
     timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
@@ -186,9 +186,7 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
-    if (timetracker != nullptr)
-        timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+    timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
     return 1;
 }

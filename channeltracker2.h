@@ -175,6 +175,7 @@ protected:
     kis_recursive_timed_mutex lock;
 
     std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<Timetracker> timetracker;
 
     // Packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);
