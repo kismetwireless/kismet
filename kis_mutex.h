@@ -105,7 +105,7 @@ public:
         owner_count(-1) { }
 
     bool try_lock_for(const std::chrono::seconds& d) {
-        if (std::this_thread::get_id() == owner) {
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
             owner_count++;
         } else {
             mutex.try_lock_for(d);
@@ -117,7 +117,7 @@ public:
     }
 
     bool try_lock_shared_for(const std::chrono::seconds& d) {
-        if (std::this_thread::get_id() == owner) {
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
             owner_count++;
         } else {
 #if HAVE_CXX14
@@ -133,7 +133,7 @@ public:
     }
 
     void lock() {
-        if (std::this_thread::get_id() == owner) {
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
             owner_count++;
         } else {
             mutex.lock();
@@ -143,7 +143,7 @@ public:
     }
 
     void lock_shared() {
-        if (std::this_thread::get_id() == owner) {
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
             owner_count++;
         } else {
 #if HAVE_CXX14
@@ -180,7 +180,7 @@ public:
 
 private:
     std::thread::id owner;
-    std::atomic<int> owner_count;
+    unsigned int owner_count;
 
 // Use std::recursive_timed_mutex components when we can, unless we're forcing pthread mode; base it
 // on the GCC versions to detect broken compilers
