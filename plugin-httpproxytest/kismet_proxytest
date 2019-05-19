@@ -37,7 +37,7 @@ class KismetProxyTest(object):
             sys.exit(1)
 
         # Initialize our external interface
-        self.kei = KismetExternal.ExternalInterface(self.results.infd, self.results.outfd)
+        self.kei = kismetexternal.ExternalInterface(self.results.infd, self.results.outfd)
 
         # External tools can request a HTTP authentication token; this can be used as the
         # 'KISMET' session cookie to perform administrative actions against the Kismet
