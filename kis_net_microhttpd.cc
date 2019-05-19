@@ -1405,7 +1405,7 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHan
             cl->lock();
         }
 
-        if (cl->block_until())
+        if (cl->block_for_ms(std::chrono::milliseconds(500)))
             return;
     }
 }
