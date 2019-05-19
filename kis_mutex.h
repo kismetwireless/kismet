@@ -102,7 +102,7 @@ private:
 class kis_recursive_timed_mutex {
 public:
     kis_recursive_timed_mutex() :
-        owner_count(-1) { }
+        owner_count(0) { }
 
     bool try_lock_for(const std::chrono::seconds& d) {
         if (owner_count > 0 && std::this_thread::get_id() == owner) {
