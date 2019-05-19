@@ -199,7 +199,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
         }
 
-        handler_map.emplace(accept_fd, con_handler);
+        handler_map[accept_fd] = con_handler;
 
         NewConnection(con_handler);
     }
@@ -325,16 +325,16 @@ void TcpServerV2::KillConnection(int in_fd) {
     auto i = handler_map.find(in_fd);
 
     if (i != handler_map.end()) {
-        kill_map.emplace(i->first, i->second);
+        kill_map[i->first] = i->second;
         i->second->BufferError("TCP connection closed");
     }
 }
 
 void TcpServerV2::KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler) {
-    for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        if (i->second == in_handler) {
-            kill_map.emplace(i->first, i->second);
-            i->second->BufferError("TCP connection closed");
+    for (auto i : handler_map) {
+        if (i.second == in_handler) {
+            kill_map[i.first] = i.second;
+            i.second->BufferError("TCP connection closed");
             return;
         }
     }
