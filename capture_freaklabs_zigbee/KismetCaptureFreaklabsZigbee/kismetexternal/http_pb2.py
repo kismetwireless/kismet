@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='http.proto',
   package='KismetExternalHttp',
   syntax='proto2',
-  serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x16\n\x14HttpAuthTokenRequest\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"E\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x15\n\rauth_required\x18\x03 \x02(\x08\"5\n\x13SubHttpVariableData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"z\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12>\n\rvariable_data\x18\x04 \x03(\x0b\x32\'.KismetExternalHttp.SubHttpVariableData\"#\n\x11HttpRequestCancel\x12\x0e\n\x06req_id\x18\x01 \x02(\r\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
+  serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x16\n\x14HttpAuthTokenRequest\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"N\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x1e\n\x16obsolete_auth_required\x18\x03 \x01(\x08\"5\n\x13SubHttpVariableData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"z\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12>\n\rvariable_data\x18\x04 \x03(\x0b\x32\'.KismetExternalHttp.SubHttpVariableData\"#\n\x11HttpRequestCancel\x12\x0e\n\x06req_id\x18\x01 \x02(\r\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
@@ -103,8 +103,8 @@ _HTTPREGISTERURI = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       options=None),
     _descriptor.FieldDescriptor(
-      name='auth_required', full_name='KismetExternalHttp.HttpRegisterUri.auth_required', index=2,
-      number=3, type=8, cpp_type=7, label=2,
+      name='obsolete_auth_required', full_name='KismetExternalHttp.HttpRegisterUri.obsolete_auth_required', index=2,
+      number=3, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -122,7 +122,7 @@ _HTTPREGISTERURI = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=90,
-  serialized_end=159,
+  serialized_end=168,
 )
 
 
@@ -159,8 +159,8 @@ _SUBHTTPVARIABLEDATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=161,
-  serialized_end=214,
+  serialized_start=170,
+  serialized_end=223,
 )
 
 
@@ -211,8 +211,8 @@ _HTTPREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=216,
-  serialized_end=338,
+  serialized_start=225,
+  serialized_end=347,
 )
 
 
@@ -242,8 +242,8 @@ _HTTPREQUESTCANCEL = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=340,
-  serialized_end=375,
+  serialized_start=349,
+  serialized_end=384,
 )
 
 
@@ -280,8 +280,8 @@ _SUBHTTPHEADER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=377,
-  serialized_end=425,
+  serialized_start=386,
+  serialized_end=434,
 )
 
 
@@ -339,8 +339,8 @@ _HTTPRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=428,
-  serialized_end=578,
+  serialized_start=437,
+  serialized_end=587,
 )
 
 _HTTPREQUEST.fields_by_name['variable_data'].message_type = _SUBHTTPVARIABLEDATA
