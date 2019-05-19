@@ -38,7 +38,7 @@ import threading
 import time
 import uuid
 
-from . import kismetexternal
+import KismetCaptureRtl433.kismetexternal
 
 try:
     import paho.mqtt.client as mqtt
