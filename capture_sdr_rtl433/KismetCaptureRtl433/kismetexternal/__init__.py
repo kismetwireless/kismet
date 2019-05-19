@@ -26,7 +26,7 @@ from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.05.00"
+__version__ = "2019.05.01"
 
 class ExternalInterface(object):
     """ 
@@ -120,6 +120,7 @@ class ExternalInterface(object):
 
         :return: uint32 adler32 checksum
         """
+
         if len(data) < 4:
             return 0
 
@@ -127,14 +128,25 @@ class ExternalInterface(object):
         s2 = 0
 
         last_i = 0
-        for i in range(0, len(data) - 4, 4):
-            s2 += 4 * (s1 + data[i]) + 3 * data[i + 1] + 2 * data[i + 2] + data[i + 3]
-            s1 += data[i + 0] + data[i + 1] + data[i + 2] + data[i + 3]
-            last_i = i + 4
 
-        for i in range(last_i, len(data)):
-            s1 += data[i]
-            s2 += s1
+        if type(data) == type(""):
+            for i in range(0, len(data) - 4, 4):
+                s2 += 4 * (s1 + ord(data[i])) + 3 * ord(data[i + 1]) + 2 * ord(data[i + 2]) + ord(data[i + 3])
+                s1 += ord(data[i + 0]) + ord(data[i + 1]) + ord(data[i + 2]) + ord(data[i + 3])
+                last_i = i + 4
+
+            for i in range(last_i, len(data)):
+                s1 += ord(data[i])
+                s2 += s1
+        else:
+            for i in range(0, len(data) - 4, 4):
+                s2 += 4 * (s1 + data[i]) + 3 * data[i + 1] + 2 * data[i + 2] + data[i + 3]
+                s1 += data[i + 0] + data[i + 1] + data[i + 2] + data[i + 3]
+                last_i = i + 4
+
+            for i in range(last_i, len(data)):
+                s1 += data[i]
+                s2 += s1
 
         return ((s1 & 0xFFFF) + (s2 << 16)) & 0xFFFFFFFF
 
@@ -537,7 +549,7 @@ class Datasource(ExternalInterface):
 
         :return: UUID string
         """
-        driverhex = "{:02X}".format(ExternalInterface.adler32(driver))
+        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver)))
         return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
 
     def set_listinterfaces_cb(self, cb):
