@@ -235,8 +235,7 @@ def callsign(msg):
 
 ### END BLOCK ###
 
-
-import KismetCaptureRtladsb.kismetexternal
+from . import kismetexternal
 
 try:
     import paho.mqtt.client as mqtt

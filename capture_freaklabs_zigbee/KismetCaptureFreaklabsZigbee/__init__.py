@@ -61,7 +61,7 @@ import threading
 import time
 import uuid
 
-import KismetCaptureFreaklabsZigbee.kismetexternal
+from . import kismetexternal
 
 LINKTYPE_IEEE802_15_4_NOFCS = 230
 LINKTYPE_IEEE802_15_4 = 195

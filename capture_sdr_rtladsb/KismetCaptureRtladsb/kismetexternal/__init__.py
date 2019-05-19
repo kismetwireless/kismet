@@ -22,9 +22,11 @@ import struct
 import threading
 import time
 
-import kismet_pb2
-import http_pb2
-import datasource_pb2
+from . import kismet_pb2
+from . import http_pb2
+from . import datasource_pb2
+
+__version__ = "2019.05.00"
 
 class ExternalInterface(object):
     """ 
@@ -49,6 +51,8 @@ class ExternalInterface(object):
         self.cmdnum = 0
         self.iothread = None
 
+        self.debug = False
+
         if self.infd is not None and self.infd >= 0 and self.outfd is not None and self.outfd >= 0:
             fl = fcntl.fcntl(infd, fcntl.F_GETFL)
             fcntl.fcntl(infd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
@@ -60,8 +64,8 @@ class ExternalInterface(object):
         else:
             raise RuntimeError("Expected descriptor pair or remote connection")
 
-        self.wbuffer = ""
-        self.rbuffer = ""
+        self.wbuffer = bytearray()
+        self.rbuffer = bytearray()
 
         self.bufferlock = threading.RLock()
 
@@ -123,14 +127,13 @@ class ExternalInterface(object):
         s2 = 0
 
         last_i = 0
-
         for i in range(0, len(data) - 4, 4):
-            s2 += 4 * (s1 + ord(data[i])) + 3 * ord(data[i + 1]) + 2 * ord(data[i + 2]) + ord(data[i + 3])
-            s1 += ord(data[i + 0]) + ord(data[i + 1]) + ord(data[i + 2]) + ord(data[i + 3])
+            s2 += 4 * (s1 + data[i]) + 3 * data[i + 1] + 2 * data[i + 2] + data[i + 3]
+            s1 += data[i + 0] + data[i + 1] + data[i + 2] + data[i + 3]
             last_i = i + 4
 
         for i in range(last_i, len(data)):
-            s1 += ord(data[i])
+            s1 += data[i]
             s2 += s1
 
         return ((s1 & 0xFFFF) + (s2 << 16)) & 0xFFFFFFFF
@@ -203,7 +206,7 @@ class ExternalInterface(object):
                         if not readdata:
                             raise BufferError("Input connection closed")
 
-                        self.rbuffer = self.rbuffer + readdata
+                        self.rbuffer.extend(readdata)
                         self.__recv_packet()
                     except IOError as e:
                         if not e.errno == errno.EWOULDBLOCK:
@@ -241,6 +244,9 @@ class ExternalInterface(object):
 
         cmd = kismet_pb2.Command()
         cmd.ParseFromString(content)
+
+        if self.debug:
+            print("KISMETEXTERNAL - CMD {}".format(cmd.command))
 
         if cmd.command in self.handlers:
             self.handlers[cmd.command](cmd.seqno, cmd.content)
@@ -285,7 +291,7 @@ class ExternalInterface(object):
         """
         self.handlers[command] = handler
 
-    def add_uri_handler(self, method, uri, auth, handler):
+    def add_uri_handler(self, method, uri, handler):
         """
         Register a URI handler with Kismet; this will be called whenever that URI is 
         triggered on the Kismet REST interface.  A URI should be a complete path, and
@@ -293,7 +299,6 @@ class ExternalInterface(object):
 
         :param method: HTTP method (GET or POST)
         :param uri: Full URI
-        :param auth: User login/authentication required?  (Bool)
         :param handler: Handler function, called with http_pb2.HttpRequest object)
         :return: None
         """
@@ -307,7 +312,6 @@ class ExternalInterface(object):
         reguri = http_pb2.HttpRegisterUri()
         reguri.method = method
         reguri.uri = uri
-        reguri.auth_required = auth
 
         self.write_ext_packet("HTTPREGISTERURI", reguri)
 
@@ -353,16 +357,17 @@ class ExternalInterface(object):
         :return: None
         """
         signature = 0xDECAFBAD
-        serial = kedata.SerializeToString()
+        serial = bytearray(kedata.SerializeToString())
+
         checksum = ExternalInterface.adler32(serial)
         length = len(serial)
 
-        packet = struct.pack("!III", signature, checksum, length)
+        packet = bytearray(struct.pack("!III", signature, checksum, length))
 
         self.bufferlock.acquire()
         try:
-            self.wbuffer += packet
-            self.wbuffer += serial
+            self.wbuffer.extend(packet)
+            self.wbuffer.extend(serial)
         finally:
             self.bufferlock.release()
 
