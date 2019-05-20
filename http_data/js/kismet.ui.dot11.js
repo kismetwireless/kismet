@@ -621,7 +621,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     var lastowessid = opts['value'][opts['index']]['dot11.advertisedssid.owe_ssid'];
 
                     if (lastssid === '') {
-                        if (lastowessid !== '') {
+                        if ('dot11.advertisedssid.owe_ssid' in opts['value'][opts['index']] && lastowessid !== '') {
                             return "SSID: " + lastowessid + "  <i>(OWE)</i>";
                         }
 
