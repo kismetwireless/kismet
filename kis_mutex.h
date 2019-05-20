@@ -116,8 +116,7 @@ public:
         if (shared_owner_count) {
             // This will be unlocked when the shared count hits 0
             if (mutex.try_lock_for(d) == false) {
-                throw(std::runtime_error(fmt::format("deadlock: mutex not available within {}", 
-                                KIS_THREAD_DEADLOCK_TIMEOUT)));
+                throw(std::runtime_error(fmt::format("deadlock: mutex not available within {} (shared held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
 
             // Set the owner & count
@@ -136,8 +135,7 @@ public:
 
         // Attempt to acquire and continue
         if (mutex.try_lock_for(d) == false) {
-            throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
-                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (claiming write)", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 
         // Acquire the owner write lock
@@ -158,8 +156,7 @@ public:
             // If we have any other writer lock, we must block until it's gone; the RW 
             // count hitting 0 will unlock us
             if (mutex.try_lock_for(d) == false) {
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
-                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (write held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
 
             // We now own the lock, increment RO
@@ -171,8 +168,7 @@ public:
         if (shared_owner_count == 0) {
             // Grab the lock
             if (mutex.try_lock_for(d) == false) {
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within "
-                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (claiming shared)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
         }
 
