@@ -32,7 +32,7 @@
     
         $ docker create -p 2501:2501 -p 3501:3501 --name kismet --privileged kismet-git
         $ docker cp custom_kismet_site.conf kismet:/usr/local/etc/kismet_site.conf
-        $ docker run kismet
+        $ docker run kismet-git
     
     You can then assign interfaces to it using the included script,
     assign_wifi_to_docker.sh:
