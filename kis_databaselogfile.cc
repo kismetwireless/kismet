@@ -754,9 +754,15 @@ void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
     sqlite3_bind_int64(msg_stmt, spos++, time(0));
 
     if (gpstracker != nullptr) {
-        auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
-        sqlite3_bind_double(msg_stmt, spos++, loc->lat);
-        sqlite3_bind_double(msg_stmt, spos++, loc->lon);
+        auto loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+
+        if (loc != nullptr && loc->fix >= 2) {
+            sqlite3_bind_double(msg_stmt, spos++, loc->lat);
+            sqlite3_bind_double(msg_stmt, spos++, loc->lon);
+        } else {
+            sqlite3_bind_double(msg_stmt, spos++, 0);
+            sqlite3_bind_double(msg_stmt, spos++, 0);
+        }
     } else {
         sqlite3_bind_double(msg_stmt, spos++, 0);
         sqlite3_bind_double(msg_stmt, spos++, 0);
@@ -1209,9 +1215,15 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         sqlite3_bind_double(snapshot_stmt, 4, gps->lon);
     } else {
         if (gpstracker != nullptr) {
-            auto loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
-            sqlite3_bind_double(snapshot_stmt, 3, loc->lat);
-            sqlite3_bind_double(snapshot_stmt, 4, loc->lon);
+            auto loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+
+            if (loc != nullptr && loc->fix >= 2) {
+                sqlite3_bind_double(snapshot_stmt, 3, loc->lat);
+                sqlite3_bind_double(snapshot_stmt, 4, loc->lon);
+            } else {
+                sqlite3_bind_int(snapshot_stmt, 3, 0);
+                sqlite3_bind_int(snapshot_stmt, 4, 0);
+            }
         } else {
             sqlite3_bind_int(snapshot_stmt, 3, 0);
             sqlite3_bind_int(snapshot_stmt, 4, 0);
@@ -1684,7 +1696,7 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
     std::shared_ptr<kis_gps_packinfo> loc;
 
     if (gpstracker != nullptr) 
-        loc = std::make_shared<kis_gps_packinfo>(gpstracker->get_best_location());
+        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
 
     log_snapshot(loc.get(), tv, "POI", poi_data);
 
