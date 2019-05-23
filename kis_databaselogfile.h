@@ -199,6 +199,22 @@ protected:
     unsigned int packet_timeout;
     int packet_timeout_timer;
 
+    // Device time limit
+    unsigned int device_timeout;
+    int device_timeout_timer;
+
+    // Snapshot time limit
+    unsigned int snapshot_timeout;
+    int snapshot_timeout_timer;
+
+    // Message time limit
+    unsigned int message_timeout;
+    int message_timeout_timer;
+
+    // Alert time limit
+    unsigned int alert_timeout;
+    int alert_timeout_timer;
+
     // Packet clearing API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
