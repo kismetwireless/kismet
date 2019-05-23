@@ -173,7 +173,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
                     [this](int) -> int {
 
                     auto pkt_delete = 
-                        fmt::format("DELETE FROM devices WHERE ts_sec < {}",
+                        fmt::format("DELETE FROM devices WHERE last_time < {}",
                                 time(0) - device_timeout);
 
                     sqlite3_exec(db, pkt_delete.c_str(), NULL, NULL, NULL);
