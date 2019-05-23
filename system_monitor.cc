@@ -31,6 +31,7 @@
 
 #include "battery.h"
 #include "entrytracker.h"
+#include "eventbus.h"
 #include "fmt.h"
 #include "globalregistry.h"
 #include "json_adapter.h"
@@ -43,6 +44,7 @@ Systemmonitor::Systemmonitor() :
     LifetimeGlobal() {
 
     devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+    eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     status = std::make_shared<tracked_system_status>();
 
@@ -161,6 +163,28 @@ Systemmonitor::Systemmonitor() :
         kismetdb_log_timer = -1;
     }
 
+    // Always drop a SYSTEM snapshot as soon as the log opens
+    logopen_evt_id = 
+        eventbus->register_listener(KisDatabaseLogfile::EventDblogOpened::log_type(),
+            [this](std::shared_ptr<EventbusEvent> evt) {
+                auto kismetdb = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
+
+                if (kismetdb == nullptr)
+                    return;
+
+                struct timeval tv;
+                gettimeofday(&tv, nullptr);
+
+                std::stringstream js;
+
+                {
+                    local_locker l(&monitor_mutex);
+                    Globalreg::globalreg->entrytracker->Serialize("json", js, status, NULL);
+                }
+
+                kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
+            });
+
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -173,6 +197,8 @@ Systemmonitor::~Systemmonitor() {
         timetracker->RemoveTimer(timer_id);
         timetracker->RemoveTimer(kismetdb_log_timer);
     }
+
+    eventbus->remove_listener(logopen_evt_id);
 }
 
 void tracked_system_status::register_fields() {

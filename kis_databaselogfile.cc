@@ -306,6 +306,10 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
             return 1;
         });
 
+    // Post that we've got the logfile ready
+    auto eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+    eventbus->publish(std::make_shared<EventDblogOpened>());
+
     return true;
 }
 
