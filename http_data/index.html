@@ -18,7 +18,7 @@
 <script src="js/jquery.dataTables.min.js"></script>
 <script src="js/dataTables.scroller.min.js"></script>
 <script src="js/dataTables.scrollResize.js"></script>
-<script src="js/dataTables.pageResize.js"></script>
+<script src="js/dataTables.pageResize.min.js"></script>
 <script src="js/dataTables.colReorder.min.js"></script>
 <script src="js/dataTables.responsive.min.js"></script>
 
@@ -144,7 +144,7 @@ function load_main_ui() {
     // this?  sure is annoying.
     kismet.LoadDynamicIncludes(function() {
 
-    kismet_ui.CreateDeviceTable($('#devices'));
+    kismet_ui.CreateDeviceTable($('#devices'), $('#devices_count'));
 
     kismet_ui_iconbar.AddIconbarItem({
         id: 'login',
@@ -224,6 +224,17 @@ $(function() {
 }); // onload
 </script>
 
+<style>
+#resize_wrapper {
+    position: relative;
+    box-sizing: border-box;
+    height: calc(100% - 20px);
+    padding: 0.5em 0.5em 1.5em 0.5em;
+    border-radius: 0.5em;
+    background-color: #f9f9f9;
+}
+</style>
+
 </head>
 <body>
     <div id="mainholder">
@@ -253,7 +264,10 @@ $(function() {
             -->
 
             <div class="ui-layout-center" id="main_center">
-                <table id="devices" class="stripe hover" cell-spacing="0" width="100%"></table>
+                <div id="resize_wrapper">
+                <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
+                </div>
+                <div id="devices_count" style="padding-bottom: 10px;"></div>
             </div>
 
             <div class="ui-layout-south">

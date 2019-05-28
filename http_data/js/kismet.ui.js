@@ -733,10 +733,10 @@ function CancelDeviceSummary() {
 var devicetableElement = null;
 
 /* Create the device table */
-exports.CreateDeviceTable = function(element) {
+exports.CreateDeviceTable = function(element, statuselement) {
     devicetableElement = element;
 
-    var dt = exports.InitializeDeviceTable(element);
+    var dt = exports.InitializeDeviceTable(element, statuselement);
 
     // Set an onclick handler to spawn the device details dialog
     $('tbody', element).on('click', 'tr', function () {
@@ -773,7 +773,7 @@ exports.CreateDeviceTable = function(element) {
     ScheduleDeviceSummary();
 }
 
-exports.InitializeDeviceTable = function(element) {
+exports.InitializeDeviceTable = function(element, statuselement) {
     /* Make the fields list json and set the wrapper object to aData to make the DT happy */
     var cols = exports.GetDeviceColumns();
     var colmap = exports.GetDeviceColumnMap(cols);
@@ -788,15 +788,28 @@ exports.InitializeDeviceTable = function(element) {
     var postdata = "json=" + JSON.stringify(json);
 
     element
-        .on('xhr.dt', function ( e, settings, json, xhr ) {
+        .on('xhr.dt', function (e, settings, json, xhr) {
             json = kismet.sanitizeObject(json);
+
+            if (json['recordsFiltered'] != json['recordsTotal'])
+                statuselement.html(json['recordsTotal'] + " devices (" + json['recordsFiltered'] + " shown after filter)");
+            else
+                statuselement.html(json['recordsTotal'] + " devices");
         } )
         .DataTable( {
+
+        destroy: true,
+
         scrollResize: true,
         scrollY: 200,
-        serverSide: true,
 
-        dom: 'fti',
+        serverSide: true,
+        processing: true,
+
+        dom: 'ft',
+
+        deferRender: true,
+        lengthChange: false,
 
         scroller: {
             loadingIndicator: true,
@@ -812,8 +825,6 @@ exports.InitializeDeviceTable = function(element) {
             timeout: 5000,
         },
 
-        "deferRender": true,
-
         // Get our dynamic columns
         columns: cols,
 
@@ -828,6 +839,8 @@ exports.InitializeDeviceTable = function(element) {
         // Opportunistic draw on new rows
         drawCallback: function( settings ) {
             var dt = this.api();
+
+            console.log(dt.rows().length);
 
             dt.rows({
                 page: 'current'
@@ -875,13 +888,15 @@ exports.InitializeDeviceTable = function(element) {
     return device_dt;
 }
 
+exports.ResizeDeviceTable = function(element) {
+    // console.log(element.height());
+    // exports.ResetDeviceTable(element);
+}
+
 exports.ResetDeviceTable = function(element) {
     devicetableElement = element;
 
     CancelDeviceSummary();
-
-    element.DataTable().destroy();
-    element.empty();
 
     exports.InitializeDeviceTable(element);
 
