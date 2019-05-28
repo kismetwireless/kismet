@@ -16,11 +16,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* 
- * Simple tool to clean up a kismetdb log file, duplicate it, and strip the packet
- * content, in preparation to uploading to a site like wigle.
- */
-
 #include "config.h"
 
 #include <map>
@@ -66,9 +61,7 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
 }
 
 void print_help(char *argv) {
-    printf("Kismetdb to WigleCSV\n");
-    printf("A simple tool for converting the packet data from a KismetDB log file to\n"
-           "the CSV format used by Wigle\n");
+    printf("Kismetdb statistics\n");
     printf("Usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
