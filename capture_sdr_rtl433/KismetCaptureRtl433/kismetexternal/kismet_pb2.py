@@ -7,7 +7,6 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf import descriptor_pb2
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -19,9 +18,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='kismet.proto',
   package='KismetExternal',
   syntax='proto2',
+  serialized_options=None,
   serialized_pb=_b('\n\x0ckismet.proto\x12\x0eKismetExternal\":\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x02(\t\x12\r\n\x05seqno\x18\x02 \x02(\r\x12\x0f\n\x07\x63ontent\x18\x03 \x02(\x0c\"\xa1\x01\n\rMsgbusMessage\x12:\n\x07msgtype\x18\x01 \x02(\x0e\x32).KismetExternal.MsgbusMessage.MessageType\x12\x0f\n\x07msgtext\x18\x02 \x02(\t\"C\n\x0bMessageType\x12\t\n\x05\x44\x45\x42UG\x10\x01\x12\x08\n\x04INFO\x10\x02\x12\t\n\x05\x45RROR\x10\x04\x12\t\n\x05\x41LERT\x10\x08\x12\t\n\x05\x46\x41TAL\x10\x10\"\x06\n\x04Ping\"\x1a\n\x04Pong\x12\x12\n\nping_seqno\x18\x01 \x02(\r\"\"\n\x10\x45xternalShutdown\x12\x0e\n\x06reason\x18\x01 \x02(\t\"#\n\x0eSystemRegister\x12\x11\n\tsubsystem\x18\x01 \x02(\t')
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 
@@ -33,27 +32,27 @@ _MSGBUSMESSAGE_MESSAGETYPE = _descriptor.EnumDescriptor(
   values=[
     _descriptor.EnumValueDescriptor(
       name='DEBUG', index=0, number=1,
-      options=None,
+      serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
       name='INFO', index=1, number=2,
-      options=None,
+      serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
       name='ERROR', index=2, number=4,
-      options=None,
+      serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
       name='ALERT', index=3, number=8,
-      options=None,
+      serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
       name='FATAL', index=4, number=16,
-      options=None,
+      serialized_options=None,
       type=None),
   ],
   containing_type=None,
-  options=None,
+  serialized_options=None,
   serialized_start=187,
   serialized_end=254,
 )
@@ -73,28 +72,28 @@ _COMMAND = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='seqno', full_name='KismetExternal.Command.seqno', index=1,
       number=2, type=13, cpp_type=3, label=2,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='content', full_name='KismetExternal.Command.content', index=2,
       number=3, type=12, cpp_type=9, label=2,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -118,14 +117,14 @@ _MSGBUSMESSAGE = _descriptor.Descriptor(
       has_default_value=False, default_value=1,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='msgtext', full_name='KismetExternal.MsgbusMessage.msgtext', index=1,
       number=2, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -133,7 +132,7 @@ _MSGBUSMESSAGE = _descriptor.Descriptor(
   enum_types=[
     _MSGBUSMESSAGE_MESSAGETYPE,
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -157,7 +156,7 @@ _PING = _descriptor.Descriptor(
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -181,14 +180,14 @@ _PONG = _descriptor.Descriptor(
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -212,14 +211,14 @@ _EXTERNALSHUTDOWN = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -243,14 +242,14 @@ _SYSTEMREGISTER = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -268,6 +267,7 @@ DESCRIPTOR.message_types_by_name['Ping'] = _PING
 DESCRIPTOR.message_types_by_name['Pong'] = _PONG
 DESCRIPTOR.message_types_by_name['ExternalShutdown'] = _EXTERNALSHUTDOWN
 DESCRIPTOR.message_types_by_name['SystemRegister'] = _SYSTEMREGISTER
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Command = _reflection.GeneratedProtocolMessageType('Command', (_message.Message,), dict(
   DESCRIPTOR = _COMMAND,

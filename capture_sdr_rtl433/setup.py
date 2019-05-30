@@ -8,7 +8,7 @@ setup(name='KismetCaptureRtl433',
       author='Mike Kershaw / Dragorn',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
-      install_requires=['protobuf >= 3.0.0'],
+      install_requires=['protobuf'],
       packages=find_packages(),
       scripts=['kismet_cap_sdr_rtl433', 'kismet_cap_sdr_rtl433_mqtt'],
      )

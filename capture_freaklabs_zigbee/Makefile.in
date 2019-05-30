@@ -3,6 +3,10 @@ include ../Makefile.inc
 MONITOR_BIN = kismet_cap_freaklabs_zigbee
 
 all: 
+	( cd KismetCaptureFreaklabsZigbee/kismetexternal; \
+	  $(PROTOCBIN) -I ../../../protobuf_definitions --python_out=. ../../../protobuf_definitions/*.proto; \
+	  sed -i -E 's/^import.*_pb2/from . \0/' *_pb2.py ; \
+	)
 	$(PYTHON2) ./setup.py bdist
 
 install:

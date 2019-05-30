@@ -8,7 +8,7 @@ setup(name='KismetCaptureRtlamr',
       author='Russ Handorf / @dntlookbehindu',
       author_email='russell@handorf.com',
       url='https://www.handorf.com/',
-      install_requires=['protobuf >=3.0.0'],
+      install_requires=['protobuf'],
       packages=find_packages(),
       scripts=['kismet_cap_sdr_rtlamr', 'kismet_cap_sdr_rtlamr_mqtt'],
      )
