@@ -8,7 +8,7 @@ setup(name='KismetCaptureRtladsb',
       author='Russ Handorf / @dntlookbehindu',
       author_email='russell@handorf.com',
       url='https://www.handorf.com/',
-      install_requires=['numpy', 'protobuf >= 3.0.0'],
+      install_requires=['numpy', 'protobuf'],
       packages=find_packages(),
       scripts=['kismet_cap_sdr_rtladsb', 'kismet_cap_sdr_rtladsb_mqtt'],
       # data_files=[('share/kismet_rtladsb', ['data/aircraft_db.csv'])]

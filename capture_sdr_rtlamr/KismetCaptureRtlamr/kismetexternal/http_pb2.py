@@ -7,7 +7,6 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf import descriptor_pb2
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -19,9 +18,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='http.proto',
   package='KismetExternalHttp',
   syntax='proto2',
+  serialized_options=None,
   serialized_pb=_b('\n\nhttp.proto\x12\x12KismetExternalHttp\"\x16\n\x14HttpAuthTokenRequest\"\x1e\n\rHttpAuthToken\x12\r\n\x05token\x18\x01 \x02(\t\"N\n\x0fHttpRegisterUri\x12\x0b\n\x03uri\x18\x01 \x02(\t\x12\x0e\n\x06method\x18\x02 \x02(\t\x12\x1e\n\x16obsolete_auth_required\x18\x03 \x01(\x08\"5\n\x13SubHttpVariableData\x12\r\n\x05\x66ield\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"z\n\x0bHttpRequest\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x0b\n\x03uri\x18\x02 \x02(\t\x12\x0e\n\x06method\x18\x03 \x02(\t\x12>\n\rvariable_data\x18\x04 \x03(\x0b\x32\'.KismetExternalHttp.SubHttpVariableData\"#\n\x11HttpRequestCancel\x12\x0e\n\x06req_id\x18\x01 \x02(\r\"0\n\rSubHttpHeader\x12\x0e\n\x06header\x18\x01 \x02(\t\x12\x0f\n\x07\x63ontent\x18\x02 \x02(\t\"\x96\x01\n\x0cHttpResponse\x12\x0e\n\x06req_id\x18\x01 \x02(\r\x12\x39\n\x0eheader_content\x18\x02 \x03(\x0b\x32!.KismetExternalHttp.SubHttpHeader\x12\x0f\n\x07\x63ontent\x18\x03 \x01(\x0c\x12\x12\n\nresultcode\x18\x04 \x01(\r\x12\x16\n\x0e\x63lose_response\x18\x05 \x01(\x08')
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 
@@ -39,7 +38,7 @@ _HTTPAUTHTOKENREQUEST = _descriptor.Descriptor(
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -63,14 +62,14 @@ _HTTPAUTHTOKEN = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -94,28 +93,28 @@ _HTTPREGISTERURI = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='method', full_name='KismetExternalHttp.HttpRegisterUri.method', index=1,
       number=2, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='obsolete_auth_required', full_name='KismetExternalHttp.HttpRegisterUri.obsolete_auth_required', index=2,
       number=3, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -139,21 +138,21 @@ _SUBHTTPVARIABLEDATA = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='content', full_name='KismetExternalHttp.SubHttpVariableData.content', index=1,
       number=2, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -177,35 +176,35 @@ _HTTPREQUEST = _descriptor.Descriptor(
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='uri', full_name='KismetExternalHttp.HttpRequest.uri', index=1,
       number=2, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='method', full_name='KismetExternalHttp.HttpRequest.method', index=2,
       number=3, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='variable_data', full_name='KismetExternalHttp.HttpRequest.variable_data', index=3,
       number=4, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -229,14 +228,14 @@ _HTTPREQUESTCANCEL = _descriptor.Descriptor(
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -260,21 +259,21 @@ _SUBHTTPHEADER = _descriptor.Descriptor(
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='content', full_name='KismetExternalHttp.SubHttpHeader.content', index=1,
       number=2, type=9, cpp_type=9, label=2,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -298,42 +297,42 @@ _HTTPRESPONSE = _descriptor.Descriptor(
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='header_content', full_name='KismetExternalHttp.HttpResponse.header_content', index=1,
       number=2, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='content', full_name='KismetExternalHttp.HttpResponse.content', index=2,
       number=3, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='resultcode', full_name='KismetExternalHttp.HttpResponse.resultcode', index=3,
       number=4, type=13, cpp_type=3, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='close_response', full_name='KismetExternalHttp.HttpResponse.close_response', index=4,
       number=5, type=8, cpp_type=7, label=1,
       has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      options=None),
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
   nested_types=[],
   enum_types=[
   ],
-  options=None,
+  serialized_options=None,
   is_extendable=False,
   syntax='proto2',
   extension_ranges=[],
@@ -353,6 +352,7 @@ DESCRIPTOR.message_types_by_name['HttpRequest'] = _HTTPREQUEST
 DESCRIPTOR.message_types_by_name['HttpRequestCancel'] = _HTTPREQUESTCANCEL
 DESCRIPTOR.message_types_by_name['SubHttpHeader'] = _SUBHTTPHEADER
 DESCRIPTOR.message_types_by_name['HttpResponse'] = _HTTPRESPONSE
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 HttpAuthTokenRequest = _reflection.GeneratedProtocolMessageType('HttpAuthTokenRequest', (_message.Message,), dict(
   DESCRIPTOR = _HTTPAUTHTOKENREQUEST,

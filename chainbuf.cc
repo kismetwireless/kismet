@@ -47,7 +47,7 @@ Chainbuf::Chainbuf(size_t in_chunk, size_t pre_allocate) {
 Chainbuf::~Chainbuf() {
     local_locker lock(&write_mutex);
 
-    // fprintf(stderr, "debug - freeing chainbuf, total size %lu chunks %lu, largest allocation delta %lu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
+    // fprintf(stderr, "debug - freeing chainbuf, total size %zu chunks %zu, largest allocation delta %zu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
 
     clear();
 }
@@ -201,7 +201,7 @@ ssize_t Chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
     }
 
     if (read_buf == NULL) {
-        fprintf(stderr, "read in null at block %u used %lu\n", read_block, used());
+        fprintf(stderr, "read in null at block %u used %zu\n", read_block, used());
         throw std::runtime_error("chainbuf advanced into null readbuf");
     }
 
@@ -267,7 +267,7 @@ size_t Chainbuf::consume(size_t in_sz) {
         // Jump the read offset
         read_offt += rd_sz;
 
-        // fprintf(stderr, "debug - chainbuf - consumed, read_offt %lu\n", read_offt);
+        // fprintf(stderr, "debug - chainbuf - consumed, read_offt %zu\n", read_offt);
 
         // We've jumped to the next block...
         if (read_offt >= chunk_sz) {
@@ -297,7 +297,7 @@ size_t Chainbuf::consume(size_t in_sz) {
 
     }
 
-    // fprintf(stderr, "debug - chainbuf - consumed %lu used %lu\n", consumed_sz, used_sz);
+    // fprintf(stderr, "debug - chainbuf - consumed %zu used %zu\n", consumed_sz, used_sz);
     used_sz -= consumed_sz;
     return consumed_sz;
 }

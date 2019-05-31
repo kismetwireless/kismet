@@ -19,14 +19,22 @@ import os
 import select
 import socket
 import struct
+import sys
 import threading
 import time
+
+import google.protobuf
+
+if not '__version__' in dir(google.protobuf) and sys.version_info > (3, 0):
+    print("It looks like you have Python3 but a very old protobuf library, these are ")
+    print("not compatible; please update to python-protobuf >= 3.0.0")
+    sys.exit(1)
 
 from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.05.01"
+__version__ = "2019.05.02"
 
 class ExternalInterface(object):
     """ 
@@ -128,6 +136,7 @@ class ExternalInterface(object):
 
         last_i = 0
 
+	# Handle both str and bytearray for when we checksum the name of devices
         if type(data) == type(""):
             for i in range(0, len(data) - 4, 4):
                 s2 += 4 * (s1 + ord(data[i])) + 3 * ord(data[i + 1]) + 2 * ord(data[i + 2]) + ord(data[i + 3])
@@ -146,6 +155,7 @@ class ExternalInterface(object):
             for i in range(last_i, len(data)):
                 s1 += data[i]
                 s2 += s1
+
 
         return ((s1 & 0xFFFF) + (s2 << 16)) & 0xFFFFFFFF
 
@@ -252,6 +262,10 @@ class ExternalInterface(object):
         if not calc_csum == checksum:
             print(content.encode('hex'))
             raise BufferError("Invalid checksum in packet header {} vs {}".format(calc_csum, checksum))
+
+        # Kluge around old protobuf still found on Ubuntu 16.04
+        if not '__version__' in dir(google.protobuf):
+            content = str(content)
 
         cmd = kismet_pb2.Command()
         cmd.ParseFromString(content)
