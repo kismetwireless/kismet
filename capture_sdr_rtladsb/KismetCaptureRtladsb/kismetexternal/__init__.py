@@ -265,7 +265,7 @@ class ExternalInterface(object):
 
         # Kluge around old protobuf still found on Ubuntu 16.04
         if not '__version__' in dir(google.protobuf):
-            cmd = str(cmd)
+            content = str(content)
 
         cmd = kismet_pb2.Command()
         cmd.ParseFromString(content)
