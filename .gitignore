@@ -86,3 +86,6 @@ packaging/systemd/kismet.service
 *.srctrlprj
 .vscode/*
 
+# Packages
+*.deb
+
