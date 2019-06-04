@@ -462,10 +462,10 @@ protected:
 
     void AddSession(std::shared_ptr<Kis_Net_Httpd_Session> in_session);
     void DelSession(std::string in_key);
-    void DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session> >::iterator in_itr);
+    void DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session>>::iterator in_itr);
     void WriteSessions();
 
-    std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session> > session_map;
+    std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session>> session_map;
 
     bool store_sessions;
     std::string sessiondb_file;

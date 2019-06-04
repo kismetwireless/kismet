@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -147,7 +147,9 @@ bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
 
     user = MHD_basic_auth_get_username_password(connection, &pass);
 
-    if (user == nullptr || pass == nullptr || conf_username != user || conf_password != pass) {
+	constant_time_string_compare_ne compare;
+
+    if (user == nullptr || pass == nullptr ||  compare(conf_username, user) || compare(conf_password, pass)) {
         if (user != nullptr) {
             free(user);
         }
