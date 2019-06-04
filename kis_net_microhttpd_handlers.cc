@@ -128,129 +128,6 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
     return MHD_YES;
 }
 
-
-bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool send_invalid) {
-    if (connection->session != NULL)
-        return true;
-
-    std::shared_ptr<Kis_Net_Httpd_Session> s;
-    const char *cookieval;
-
-    cookieval = MHD_lookup_connection_value(connection->connection,
-            MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
-
-    if (cookieval != NULL) {
-        local_shared_demand_locker csl(&session_mutex);
-
-        auto si = session_map.find(cookieval);
-        if (si != session_map.end()) {
-            s = si->second;
-
-            // Does the session never expire?
-            if (s->session_lifetime == 0) {
-                connection->session = s;
-                return true;
-            }
-
-            // Is the session still valid?
-            if (time(0) < s->session_created + s->session_lifetime) {
-                connection->session = s;
-                return true;
-            } else {
-                connection->session = NULL;
-                csl.unlock();
-                DelSession(si);
-            }
-        }
-    }
-
-    // If we got here, we either don't have a session, or the session isn't valid.
-    if (websession != NULL && websession->validate_login(connection->connection)) {
-        CreateSession(connection, NULL, session_timeout);
-        return true;
-    }
-
-    // If we got here it's invalid.  Do we automatically send an invalidation 
-    // response?
-    if (send_invalid) {
-        auto fourohone = fmt::format("<h1>401 - Access denied</h1>Login required to access this resource.\n");
-
-        connection->response = 
-            MHD_create_response_from_buffer(fourohone.length(),
-                    (void *) fourohone.c_str(), MHD_RESPMEM_MUST_COPY);
-
-        // Queue a 401 fail instead of a basic auth fail so we don't cause a bunch of prompting in the browser
-        // Make sure this doesn't actually break anything...
-        MHD_queue_response(connection->connection, 401, connection->response);
-
-        // MHD_queue_basic_auth_fail_response(connection->connection, "Kismet", connection->response);
-    }
-
-    return false;
-}
-
-std::shared_ptr<Kis_Net_Httpd_Session> 
-Kis_Net_Httpd::CreateSession(Kis_Net_Httpd_Connection *connection, 
-        struct MHD_Response *response, time_t in_lifetime) {
-    
-    std::shared_ptr<Kis_Net_Httpd_Session> s;
-
-    // Use 128 bits of entropy to make a session key
-
-    char rdata[16];
-    FILE *urandom;
-
-    if ((urandom = fopen("/dev/urandom", "rb")) == NULL) {
-        _MSG("Failed to open /dev/urandom to create a HTTPD session, unable to "
-                "assign a sessionid, not creating session", MSGFLAG_ERROR);
-        return NULL;
-    }
-
-    if (fread(rdata, 16, 1, urandom) != 1) {
-        _MSG("Failed to read entropy from /dev/urandom to create a HTTPD session, "
-                "unable to assign a sessionid, not creating session", MSGFLAG_ERROR);
-        fclose(urandom);
-        return NULL;
-    }
-    fclose(urandom);
-
-    std::stringstream cookiestr;
-    std::stringstream cookie;
-    
-    cookiestr << KIS_SESSION_COOKIE << "=";
-
-    for (unsigned int x = 0; x < 16; x++) {
-        cookie << std::uppercase << std::setfill('0') << std::setw(2) 
-            << std::hex << (int) (rdata[x] & 0xFF);
-    }
-
-    cookiestr << cookie.str();
-
-    cookiestr << "; Path=/";
-
-    if (response != NULL) {
-        if (MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                    cookiestr.str().c_str()) == MHD_NO) {
-            _MSG("Failed to add session cookie to response header, unable to create "
-                    "a session", MSGFLAG_ERROR);
-            return NULL;
-        }
-    }
-
-    s = std::make_shared<Kis_Net_Httpd_Session>();
-    s->sessionid = cookie.str();
-    s->session_created = time(0);
-    s->session_seen = s->session_created;
-    s->session_lifetime = in_lifetime;
-
-    if (connection != NULL)
-        connection->session = s;
-
-    AddSession(s);
-
-    return s;
-}
-
 bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path, 
         const char *method) {
 
@@ -263,7 +140,6 @@ bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path,
 
     return false;
 }
-
 
 void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
