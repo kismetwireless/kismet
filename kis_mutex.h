@@ -114,16 +114,21 @@ public:
     // Write operation; allow recursion through the owner TID, but do not
     // allow a write lock if ANY thread holds a RO lock
     bool try_lock_for(const std::chrono::seconds& d) {
+        state_mutex.lock();
         // Must wait for shared locks to release before we can acquire a write lock
         if (shared_owner_count) {
             // This will be unlocked when the shared count hits 0
+            state_mutex.unlock();
             if (mutex.try_lock_for(d) == false) {
                 throw(std::runtime_error(fmt::format("deadlock: mutex not available within {} (shared held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
+            state_mutex.lock();
 
             // Set the owner & count
             owner = std::this_thread::get_id();
             owner_count = 1;
+
+            state_mutex.unlock();
 
             return true;
         }
@@ -132,63 +137,79 @@ public:
         if (owner_count > 0 && std::this_thread::get_id() == owner) {
             // Increment the write lock count and we're done
             owner_count++;
+            state_mutex.unlock();
             return true;
         }
 
         // Attempt to acquire and continue
+        state_mutex.unlock();
         if (mutex.try_lock_for(d) == false) {
             throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (claiming write)", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
+        state_mutex.lock();
 
         // Acquire the owner write lock
         owner = std::this_thread::get_id();
         owner_count = 1;
 
+        state_mutex.unlock();
         return true;
     }
 
     bool try_lock_shared_for(const std::chrono::seconds& d) {
+        state_mutex.lock();
         if (owner_count > 0) {
             // Acquire a RO lock as if it were a RW lock if the thread is the owner
             if (std::this_thread::get_id() == owner) {
                 owner_count++;
+                state_mutex.unlock();
                 return true;
             }
 
             // If we have any other writer lock, we must block until it's gone; the RW 
             // count hitting 0 will unlock us
+            state_mutex.unlock();
             if (mutex.try_lock_for(d) == false) {
                 throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (write held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
 
             // We now own the lock, increment RO
+            state_mutex.lock();
             shared_owner_count++;
+            state_mutex.unlock();
             return true;
         }
 
         // If nobody owns it...
         if (shared_owner_count == 0) {
             // Grab the lock
+            state_mutex.unlock();
             if (mutex.try_lock_for(d) == false) {
                 throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (claiming shared)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
+            state_mutex.lock();
         }
 
         // Increment the RO usage count
         shared_owner_count++;
 
+        state_mutex.unlock();
         return true;
     }
 
     void lock() {
+        state_mutex.lock();
         // Must wait for shared locks to release before we can acquire a write lock
         if (shared_owner_count) {
+            state_mutex.unlock();
             // This will be unlocked when the shared count hits 0
             mutex.lock();
 
+            state_mutex.lock();
             // Set the owner & count
             owner = std::this_thread::get_id();
             owner_count = 1;
+            state_mutex.unlock();
 
             return;
         }
@@ -197,46 +218,65 @@ public:
         if (owner_count > 0 && std::this_thread::get_id() == owner) {
             // Increment the write lock count and we're done
             owner_count++;
+            state_mutex.unlock();
             return;
         }
 
-        // Attempt to acquire and continue
+        // Attempt to acquire and continue; this blocks
+        state_mutex.unlock();
+
         mutex.lock();
+        state_mutex.lock();
         owner = std::this_thread::get_id();
         owner_count = 1;
+
+        state_mutex.unlock();
 
         return;
     }
 
     void lock_shared() {
+        state_mutex.lock();
+
+        // If the lock has a rw hold
         if (owner_count > 0) {
-            // Acquire a RO lock as if it were a RW lock if the thread is the owner
+            // If it's held by the same thread as trying to lock it, treat it as a rw recursive lock
             if (std::this_thread::get_id() == owner) {
                 owner_count++;
+                state_mutex.unlock();
                 return;
             }
 
             // If we have any other writer lock, we must block until it's gone; the RW 
             // count hitting 0 will unlock us
+            state_mutex.unlock();
+
             mutex.lock();
 
+            state_mutex.lock();
             // We now own the lock, increment RO
             shared_owner_count++;
+            state_mutex.unlock();
             return;
         }
 
         if (shared_owner_count == 0) {
+            state_mutex.unlock();
             // Grab the lock
             mutex.lock();
+
+            state_mutex.lock();
         }
 
         // Increment the RO usage count
         shared_owner_count++;
 
+        state_mutex.unlock();
         return;
     }
 
     void unlock() {
+        state_mutex.lock();
         if (owner_count > 0) {
             // Write lock has expired, unlock mutex
             if (--owner_count == 0) {
@@ -244,30 +284,38 @@ public:
                 mutex.unlock();
             }
 
+            state_mutex.unlock();
             return;
         } else {
+
+            state_mutex.unlock();
             throw std::runtime_error("Mutex got a write-unlock when no write lock held");
         }
     }
 
     void unlock_shared() {
+        state_mutex.lock();
+        // If it's a RW thread
         if (owner_count > 0) {
-            // Unlock a RO held by the RW thread as a RW
+            // If the shared unlock is coming from the rw owner, treat it like a rw lock
             if (std::this_thread::get_id() == owner) {
                 if (owner_count > 0) {
                     // Write lock has expired, unlock mutex
                     if (--owner_count == 0) {
                         owner = std::thread::id();
-                        owner_count = 0;
                         mutex.unlock();
                     }
 
+                    state_mutex.unlock();
                     return;
                 } else {
+                    state_mutex.unlock();
                     throw std::runtime_error("Mutex got a shared unlock by a write-unlock owner when no write lock held");
                 }
             }
 
+            // Otherwise we can't do a shared unlock while a write lock is held
+            state_mutex.unlock();
             throw std::runtime_error("Mutex got a shared-unlock when a write lock held");
         }
 
@@ -276,18 +324,24 @@ public:
             if (--shared_owner_count == 0) {
                 // Release the lock if we've hit 0
                 mutex.unlock();
+                state_mutex.unlock();
                 return;
             }
         }
+
+        // Otherwise nothing else to do here
+        state_mutex.unlock();
     }
 
 private:
     // Recursive write lock
-    std::atomic<std::thread::id> owner;
-    std::atomic<unsigned int> owner_count;
+    std::thread::id owner;
+    unsigned int owner_count;
 
     // RO shared locks
-    std::atomic<unsigned int> shared_owner_count;
+    unsigned int shared_owner_count;
+
+    std::mutex state_mutex;
 
 // Use std::recursive_timed_mutex components when we can, unless we're forcing pthread mode; base it
 // on the GCC versions to detect broken compilers
