@@ -381,9 +381,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         aux->generator_thread =
             std::thread([this, &launch_promise, aux, httpd, connection, url_copy, 
                     method_copy, upload_data_copy] {
-                // fmt::print(stderr, "generator thread starting for url {}\n", url_copy);
-
-                // Unlock the http thread as soon as we've spawned it
+                // Unlock the http thread as soon as we've spawned the generator here
                 launch_promise.set_value(1);
 
                 // Callbacks can do two things - either run forever until their data is
@@ -419,7 +417,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 });
 
         // Don't make the response until we're sure the populating service thread has started up
-        launch_future.get();
+        launch_future.wait();
 
         connection->response = 
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
