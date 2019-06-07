@@ -171,9 +171,11 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                     handler->PeekFreeWriteBufferData(buf);
 
-                    ClosePipes();
                     // Push the error upstream
                     handler->BufferError(msg.str());
+
+                    ClosePipes();
+
                     return 0;
                 }
             } else {
