@@ -365,8 +365,8 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
 
         // Set up a locker to make sure the thread is up and running; this keeps us from
         // processing the stream contents until that thread is up and doing something.
-        conditional_locker<int> aux_startup_cl;
-        aux_startup_cl.lock();
+        auto aux_startup_cl = std::make_shared<conditional_locker<int>>();
+        aux_startup_cl->lock();
 
         // Run it in its own thread and set up the connection streaming object; we MUST pass
         // the aux as a direct pointer because the microhttpd backend can delete the 
@@ -379,12 +379,12 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
         auto upload_data_copy = std::string(upload_data, *upload_data_size);
 
         aux->generator_thread =
-            std::thread([this, &aux_startup_cl, aux, httpd, connection, url_copy, 
+            std::thread([this, aux_startup_cl, aux, httpd, connection, url_copy, 
                     method_copy, upload_data_copy] {
                 // fmt::print(stderr, "generator thread starting for url {}\n", url_copy);
 
                 // Unlock the http thread as soon as we've spawned it
-                aux_startup_cl.unlock(1);
+                aux_startup_cl->unlock(1);
 
                 // Callbacks can do two things - either run forever until their data is
                 // done being generated, or spawn their own processing systems that write
@@ -420,7 +420,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
 
         // We unlock when the generator thread has started
         // fmt::print(stderr, "blocking until generator\n");
-        aux_startup_cl.block_until();
+        aux_startup_cl->block_until();
         // fmt::print(stderr, "unblocked from generator\n");
 
         connection->response = 
