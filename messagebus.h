@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -104,7 +105,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    kis_recursive_timed_mutex msg_mutex;
+    kis_recursive_timed_mutex handler_mutex;
 
     typedef struct {
         MessageClient *client;
@@ -112,6 +113,24 @@ protected:
     } busclient;
 
     std::vector<MessageBus::busclient *> subscribers;
+
+    class message {
+    public:
+        message(const std::string& in_msg, int in_flags) :
+            msg {in_msg},
+            flags {in_flags} { }
+
+        std::string msg;
+        int flags;
+    }; 
+
+    // Event pool and handler thread
+    kis_recursive_timed_mutex msg_mutex;
+    std::queue<std::shared_ptr<message>> msg_queue;
+    std::thread msg_dispatch_t;
+    conditional_locker<int> msg_cl;
+    std::atomic<bool> shutdown;
+    void msg_queue_dispatcher();
 };
 
 

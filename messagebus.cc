@@ -34,10 +34,21 @@ void StdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
 
 MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
+
+    shutdown = false;
+
+    msg_cl.lock();
+
+    msg_dispatch_t =
+        std::thread([this]() {
+                thread_set_process_name("kismet [msgbus]", msg_dispatch_t);
+                msg_queue_dispatcher();
+            });
 }
 
 MessageBus::~MessageBus() {
-    local_locker lock(&msg_mutex);
+    msg_cl.unlock(0);
+    msg_dispatch_t.join();
 
     globalreg->RemoveGlobal("MESSAGEBUS");
     globalreg->messagebus = NULL;
@@ -46,16 +57,56 @@ MessageBus::~MessageBus() {
 void MessageBus::InjectMessage(std::string in_msg, int in_flags) {
     local_locker lock(&msg_mutex);
 
-    for (unsigned int x = 0; x < subscribers.size(); x++) {
-        if (subscribers[x]->mask & in_flags)
-            subscribers[x]->client->ProcessMessage(in_msg, in_flags);
-    }
+    auto msg = std::make_shared<MessageBus::message>(in_msg, in_flags);
+
+    msg_queue.push(msg);
+    msg_cl.unlock(1);
 
     return;
 }
 
+void MessageBus::msg_queue_dispatcher() {
+    local_demand_locker l(&msg_mutex);
+
+    while (1) {
+        if (shutdown)
+            return;
+
+        // Lock while we examine the queue
+        l.lock();
+
+        if (msg_queue.size() > 0) {
+            auto e = msg_queue.front();
+            msg_queue.pop();
+
+            // Lock handlers and unlock message queue
+            {
+                l.unlock();
+                local_shared_locker hl(&handler_mutex);
+
+                for (auto sub : subscribers) {
+                    if (sub->mask & e->flags) 
+                        sub->client->ProcessMessage(e->msg, e->flags);
+                }
+            }
+
+            // Loop for more events
+            continue;
+        }
+
+        // Reset the lock
+        msg_cl.lock();
+      
+        // Unlock our hold on the system
+        l.unlock();
+
+        // Wait until new events
+        msg_cl.block_until();
+    }
+}
+
 void MessageBus::RegisterClient(MessageClient *in_subscriber, int in_mask) {
-    local_locker lock(&msg_mutex);
+    local_locker lock(&handler_mutex);
 
     busclient *bc = new busclient;
 
@@ -68,7 +119,7 @@ void MessageBus::RegisterClient(MessageClient *in_subscriber, int in_mask) {
 }
 
 void MessageBus::RemoveClient(MessageClient *in_unsubscriber) {
-    local_locker lock(&msg_mutex);
+    local_locker lock(&handler_mutex);
 
     for (unsigned int x = 0; x < subscribers.size(); x++) {
         if (subscribers[x]->client == in_unsubscriber) {
