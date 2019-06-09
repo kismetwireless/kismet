@@ -229,8 +229,6 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     // Use data availability as the connected status since tcp poll is currently
     // hidden from us
     {
-        local_locker l(&gps_mutex);
-
         if (!get_device_connected()) {
             _MSG_INFO("GPSGPSD connected to GPSD server on {}:{}", host, port);
             set_int_device_connected(true);
@@ -738,9 +736,6 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 void GPSGpsdV2::BufferError(std::string in_error) {
     local_locker lock(&gps_mutex);
 
-    _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
-            MSGFLAG_ERROR);
-
     set_int_device_connected(false);
 
     // Delete any existing interface before we parse options
@@ -748,6 +743,10 @@ void GPSGpsdV2::BufferError(std::string in_error) {
         pollabletracker->RemovePollable(tcpclient);
         tcpclient.reset();
     }
+
+    _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
+            MSGFLAG_ERROR);
+
 }
 
 
