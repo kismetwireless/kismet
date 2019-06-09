@@ -8,7 +8,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -46,7 +46,9 @@
 #include "fmt.h"
 
 // Seconds a lock is allowed to be held before throwing a timeout error
-#define KIS_THREAD_DEADLOCK_TIMEOUT     5
+// Tuning this is a balance between slower systems or systems swapping heavily, 
+// and faulting more quickly.
+#define KIS_THREAD_DEADLOCK_TIMEOUT     15
 
 // Optionally force the custom c++ workaround mutex
 #define ALWAYS_USE_KISMET_MUTEX         0
