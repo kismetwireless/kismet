@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -450,6 +450,19 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             });
 
     Bind_Httpd_Server();
+
+    auto all_view =
+        std::make_shared<DevicetrackerView>("all", 
+                "All devices",
+                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
+                    return true;
+                },
+                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
+                    return true;
+                });
+    add_view(all_view);
+
+    httpd->RegisterAlias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
 
 Devicetracker::~Devicetracker() {
