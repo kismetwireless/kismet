@@ -368,6 +368,10 @@ public:
     // Register a static files directory (used for system, home, and plugin data)
     void RegisterStaticDir(std::string in_url_prefix, std::string in_path);
 
+    // Fixed alias/rewrites
+    void RegisterAlias(const std::string& in_alias, const std::string& in_dest);
+    void RemoveAlias(const std::string& in_alias);
+
     // Interrogate the session handler and figure out if this connection has a
     // valid session; optionally sends basic auth failure automatically
     bool HasValidSession(Kis_Net_Httpd_Connection *connection, bool send_reject = true);
@@ -425,6 +429,8 @@ protected:
     bool running;
 
     std::map<std::string, std::string> mime_type_map;
+
+    std::map<std::string, std::string> alias_rewrite_map;
 
     class static_dir {
     public:
