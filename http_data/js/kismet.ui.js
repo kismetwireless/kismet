@@ -817,7 +817,7 @@ exports.InitializeDeviceTable = function(element, statuselement) {
 
         // Create a complex post to get our summary fields only
         ajax: {
-            url: "devices/summary/devices.json",
+            url: "devices/views/all/devices.json",
             data: {
                 json: JSON.stringify(json)
             },
