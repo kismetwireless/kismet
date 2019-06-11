@@ -215,18 +215,6 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 }
 
                 return false;
-            } else if (tokenurl[2] == "by-phy") {
-                if (tokenurl.size() < 5)
-                    return false;
-
-                if (!Httpd_CanSerialize(tokenurl[4]))
-                    return false;
-
-                auto p = FetchPhyHandlerByName(tokenurl[3]);
-                if (p != NULL)
-                    return true;
-
-                return false;
             }
         }
     }
@@ -718,86 +706,6 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;
-                }
-
-                // Final devices being simplified and sent out
-                auto outdevs = std::make_shared<TrackerElementVector>();
-
-                for (const auto& rei : *regexdevs) {
-                    auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
-                    local_shared_locker lock(&rd->device_mutex);
-
-                    outdevs->push_back(SummarizeSingleTrackerElement(rd, summary_vec, rename_map));
-                }
-
-                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
-                        outdevs, rename_map);
-                return MHD_YES;
-            
-            } else if (tokenurl[2] == "by-phy") {
-                // We don't lock the device list since we use workers
-                if (tokenurl.size() < 5) {
-                    stream << "Invalid request";
-                    concls->httpcode = 400;
-                    return MHD_YES;
-                }
-
-                auto phy = FetchPhyHandlerByName(tokenurl[3]);
-
-                if (phy == NULL) {
-                    stream << "Invalid request";
-                    concls->httpcode = 400;
-                    return MHD_YES;
-                }
-
-                // Rename cache generated during simplification
-                auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
-
-                // List of devices that pass the timestamp filter
-                std::shared_ptr<TrackerElementVector> timedevs;
-
-                // Devices that pass the phy filter
-                std::shared_ptr<TrackerElementVector> phydevs;
-
-                //  List of devices that pass the regex filter
-                std::shared_ptr<TrackerElementVector> regexdevs;
-
-                // Filter by time first, it's fast
-                auto tw = std::make_shared<devicetracker_function_worker>(
-                        [post_ts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
-
-                        if (d->get_last_time() <= post_ts)
-                            return false;
-
-                        return true;
-                        }, nullptr);
-
-                auto pw = std::make_shared<devicetracker_function_worker>(
-                        [phydevs, phy](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
-                        if (d->get_phyname() != phy->FetchPhyName())
-                            return false;
-
-                        return true;
-                        }, nullptr);
-
-                if (post_ts != 0) {
-                    // time-match then phy-match then pass to regex
-                    MatchOnReadonlyDevices(tw);
-                    timedevs = tw->GetMatchedDevices();
-                    MatchOnReadonlyDevices(pw, timedevs);
-                    phydevs = pw->GetMatchedDevices();
-                }  else {
-                    // Phy match only
-                    MatchOnReadonlyDevices(pw);
-                    phydevs = pw->GetMatchedDevices();
-                }
-
-                if (regexdata != NULL) {
-                    auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnReadonlyDevices(worker, phydevs);
-                    regexdevs = worker->GetMatchedDevices();
-                } else {
-                    regexdevs = phydevs;
                 }
 
                 // Final devices being simplified and sent out
