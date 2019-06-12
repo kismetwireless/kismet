@@ -972,14 +972,9 @@ std::string hexstr_to_binstr(const char *hs) {
 }
 
 #if defined(SYS_LINUX)
-void thread_set_process_name(const std::string& name, pthread_t *thread) { 
-    pthread_setname_np(*thread, name.c_str());
-}
-
-void thread_set_process_name(const std::string& name, std::thread& thread) {
-    pthread_setname_np(thread.native_handle(), name.c_str());
+void thread_set_process_name(const std::string& name) { 
+    pthread_setname_np(pthread_self(), name.c_str());
 }
 #else
-void thread_set_process_name(const std::string& name, pthread_t *thread) { }
-void thread_set_process_name(const std::string& name, std::thread& thread) { }
+void thread_set_process_name(const std::string& name) { }
 #endif
