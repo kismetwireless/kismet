@@ -41,7 +41,7 @@ MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
 
     msg_dispatch_t =
         std::thread([this]() {
-                thread_set_process_name("kismet [msgbus]", msg_dispatch_t);
+                thread_set_process_name("msgbus");
                 msg_queue_dispatcher();
             });
 }

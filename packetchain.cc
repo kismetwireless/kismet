@@ -68,11 +68,9 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
 
     for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
         packet_threads.push_back(std::thread([this]() { 
+            thread_set_process_name("packethandler");
             packet_queue_processor();
         }));
-
-        thread_set_process_name(fmt::format("kismet [packetchain {}/{}]", 
-                    i, std::thread::hardware_concurrency()), packet_threads.back());
     }
 }
 
