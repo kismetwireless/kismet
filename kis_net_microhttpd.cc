@@ -772,8 +772,14 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     
     Kis_Net_Httpd_Handler *handler = NULL;
 
-    // Look for the URI prefix
+    // Collapse multiple slashes
     std::string url(in_url);
+
+    size_t spos;
+    while ((spos = url.find("//")) != std::string::npos)
+        url = url.replace(spos, 2, "/");
+
+    // Look for the URI prefix
     auto uri_prefix_len = kishttpd->uri_prefix.length();
 
     if (uri_prefix_len > 0 && url.substr(0, uri_prefix_len) == kishttpd->uri_prefix) {
