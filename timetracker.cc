@@ -18,6 +18,9 @@
 
 #include "config.h"
 
+#include <chrono>
+#include <thread>
+
 #include <sys/time.h>
 
 #include "timetracker.h"
@@ -29,10 +32,20 @@ Timetracker::Timetracker() {
 
     Globalreg::globalreg->start_time = time(0);
 	gettimeofday(&(Globalreg::globalreg->timestamp), NULL);
+
+    shutdown = false;
+    time_dispatch_t =
+        std::thread([this]() {
+                thread_set_process_name("timers");
+                time_dispatcher();
+            });
+
 }
 
 Timetracker::~Timetracker() {
-    local_locker lock(&time_mutex);
+    shutdown = true;
+
+    time_dispatch_t.join();
 
     Globalreg::globalreg->RemoveGlobal("TIMETRACKER");
     Globalreg::globalreg->timetracker = NULL;
@@ -43,96 +56,102 @@ Timetracker::~Timetracker() {
         delete x->second;
 }
 
-int Timetracker::Tick() {
-    local_demand_locker lock(&time_mutex);
+void Timetracker::time_dispatcher() {
+    while (!shutdown) {
+        local_demand_locker lock(&time_mutex);
 
-    // Handle scheduled events
-    struct timeval cur_tm;
-    gettimeofday(&cur_tm, NULL);
-    Globalreg::globalreg->timestamp.tv_sec = cur_tm.tv_sec;
-    Globalreg::globalreg->timestamp.tv_usec = cur_tm.tv_usec;
+        // Calculate the next tick
+        auto start = std::chrono::system_clock::now();
+        auto end = start + std::chrono::milliseconds(1000 / SERVER_TIMESLICES_SEC);
 
-    // Sort and duplicate the vector to a safe list; we have to re-sort 
-    // timers from recurring events
-    lock.lock();
+        // Handle scheduled events
+        struct timeval cur_tm;
+        gettimeofday(&cur_tm, NULL);
+        Globalreg::globalreg->timestamp.tv_sec = cur_tm.tv_sec;
+        Globalreg::globalreg->timestamp.tv_usec = cur_tm.tv_usec;
 
-    if (timer_sort_required)
-        stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+        // Sort and duplicate the vector to a safe list; we have to re-sort 
+        // timers from recurring events
+        lock.lock();
 
-    timer_sort_required = false;
+        if (timer_sort_required)
+            stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
 
-    auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
-    lock.unlock();
-    // Sort the timers
+        timer_sort_required = false;
 
-    for (auto evt : action_timers) {
-        // If we're pending cancellation, throw us out
-        if (evt->timer_cancelled) {
-            local_locker rl(&removed_id_mutex);
-            removed_timer_ids.push_back(evt->timer_id);
-            continue;
-        }
+        auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
+        lock.unlock();
+        // Sort the timers
 
-        // We're into the future, bail
-        if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
-            ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
-            break;
-		}
-
-        // Call the function with the given parameters
-        int ret = 0;
-        if (evt->callback != NULL) {
-            ret = (*evt->callback)(evt, evt->callback_parm, Globalreg::globalreg);
-        } else if (evt->event != NULL) {
-            ret = evt->event->timetracker_event(evt->timer_id);
-        } else if (evt->event_func != NULL) {
-            ret = evt->event_func(evt->timer_id);
-        }
-
-        if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
-            evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-            evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-            evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
-            evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
-				((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
-
-            if (evt->trigger_tm.tv_usec >= 999999L) {
-                evt->trigger_tm.tv_sec++;
-                evt->trigger_tm.tv_usec %= 1000000L;
+        for (auto evt : action_timers) {
+            // If we're pending cancellation, throw us out
+            if (evt->timer_cancelled) {
+                local_locker rl(&removed_id_mutex);
+                removed_timer_ids.push_back(evt->timer_id);
+                continue;
             }
 
-            timer_sort_required = true;
-        } else {
-            local_locker rl(&removed_id_mutex);
-            removed_timer_ids.push_back(evt->timer_id);
-            continue;
-        }
-    }
+            // We're into the future, bail
+            if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
+                    ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && (cur_tm.tv_usec < evt->trigger_tm.tv_usec))) {
+                break;
+            }
 
-    {
-        // Actually remove the timers under dual lock
-        local_locker l(&time_mutex);
-        local_locker rl(&removed_id_mutex);
-        for (auto x : removed_timer_ids) {
-            auto itr = timer_map.find(x);
+            // Call the function with the given parameters
+            int ret = 0;
+            if (evt->callback != NULL) {
+                ret = (*evt->callback)(evt, evt->callback_parm, Globalreg::globalreg);
+            } else if (evt->event != NULL) {
+                ret = evt->event->timetracker_event(evt->timer_id);
+            } else if (evt->event_func != NULL) {
+                ret = evt->event_func(evt->timer_id);
+            }
 
-            if (itr != timer_map.end()) {
-                for (auto sorted_itr = sorted_timers.begin(); sorted_itr != sorted_timers.end(); ++sorted_itr) {
-                    if ((*sorted_itr)->timer_id == x) {
-                        sorted_timers.erase(sorted_itr);
-                        break;
-                    }
+            if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
+                evt->schedule_tm.tv_sec = cur_tm.tv_sec;
+                evt->schedule_tm.tv_usec = cur_tm.tv_usec;
+                evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / SERVER_TIMESLICES_SEC);
+                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+                    ((evt->timeslices % SERVER_TIMESLICES_SEC) * (1000000L / SERVER_TIMESLICES_SEC));
+
+                if (evt->trigger_tm.tv_usec >= 999999L) {
+                    evt->trigger_tm.tv_sec++;
+                    evt->trigger_tm.tv_usec %= 1000000L;
                 }
 
-                delete itr->second;
-                timer_map.erase(itr);
+                timer_sort_required = true;
+            } else {
+                local_locker rl(&removed_id_mutex);
+                removed_timer_ids.push_back(evt->timer_id);
+                continue;
             }
         }
 
-        removed_timer_ids.clear();
-    }
+        {
+            // Actually remove the timers under dual lock
+            local_locker l(&time_mutex);
+            local_locker rl(&removed_id_mutex);
+            for (auto x : removed_timer_ids) {
+                auto itr = timer_map.find(x);
 
-    return 1;
+                if (itr != timer_map.end()) {
+                    for (auto sorted_itr = sorted_timers.begin(); sorted_itr != sorted_timers.end(); ++sorted_itr) {
+                        if ((*sorted_itr)->timer_id == x) {
+                            sorted_timers.erase(sorted_itr);
+                            break;
+                        }
+                    }
+
+                    delete itr->second;
+                    timer_map.erase(itr);
+                }
+            }
+
+            removed_timer_ids.clear();
+        }
+
+        std::this_thread::sleep_until(end);
+    }
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,

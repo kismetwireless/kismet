@@ -101,9 +101,6 @@ private:
 public:
     virtual ~Timetracker();
 
-    // Tick and handle timers
-    int Tick();
-
     // Register an optionally recurring timer.  Slices are 1/100th of a second,
     // the smallest linux can slice without getting into weird calls.
     int RegisterTimer(int in_timeslices, struct timeval *in_trigger,
@@ -123,6 +120,8 @@ public:
 protected:
     kis_recursive_timed_mutex time_mutex;
 
+    void time_dispatcher(void);
+
     // Do we have to re-sort the list of timers?
     std::atomic<bool> timer_sort_required;
 
@@ -134,6 +133,9 @@ protected:
 
     kis_recursive_timed_mutex removed_id_mutex;
     std::vector<int> removed_timer_ids;
+
+    std::thread time_dispatch_t;
+    std::atomic<bool> shutdown;
 };
 
 class TimetrackerEvent {

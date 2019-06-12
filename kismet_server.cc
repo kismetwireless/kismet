@@ -983,8 +983,6 @@ int main(int argc, char *argv[], char *envp[]) {
             }
         }
 
-        Globalreg::globalreg->timetracker->Tick();
-
         pollabletracker->ProcessPollableSelect(rset, wset);
 
         sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
