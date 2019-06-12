@@ -47,6 +47,7 @@ MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
 }
 
 MessageBus::~MessageBus() {
+    shutdown = true;
     msg_cl.unlock(0);
     msg_dispatch_t.join();
 
