@@ -24,7 +24,6 @@ PollableTracker::PollableTracker() {
 }
 
 PollableTracker::~PollableTracker() {
-    local_locker lock(&pollable_mutex);
 
 }
 
@@ -83,6 +82,7 @@ int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     // Perform the maintenance check again to clear anything that got nuked during the merge stage
     Maintenance();
 
+    local_locker lock(&pollable_mutex);
     for (auto i : pollable_vec) {
         r = i->Poll(rset, wset);
 
