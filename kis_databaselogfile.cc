@@ -384,7 +384,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
             sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 
             // Flush the filesystem
-            sync();
+            // sync();
 
             sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
