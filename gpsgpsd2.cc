@@ -95,8 +95,6 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
-    local_locker lock(&gps_mutex);
-
     if (tcpclient != nullptr)
         pollabletracker->RemovePollable(tcpclient);
 

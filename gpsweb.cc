@@ -30,7 +30,9 @@ GPSWeb::GPSWeb(SharedGpsBuilder in_builder) :
     last_heading_time = 0;
 }
 
-GPSWeb::~GPSWeb() { }
+GPSWeb::~GPSWeb() {
+
+}
 
 bool GPSWeb::open_gps(std::string in_opts) {
     local_locker lock(&gps_mutex);

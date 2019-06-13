@@ -72,8 +72,6 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
 }
 
 KisDatasource::~KisDatasource() {
-    local_locker lock(&ext_mutex);
-
     // Cancel any timer
     if (error_timer_id > 0) {
         timetracker->RemoveTimer(error_timer_id);

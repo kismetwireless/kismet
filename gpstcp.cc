@@ -61,8 +61,6 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 }
 
 GPSTCP::~GPSTCP() {
-    local_locker lock(&gps_mutex);
-
     if (tcpclient != nullptr)
         pollabletracker->RemovePollable(tcpclient);
 

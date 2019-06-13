@@ -44,8 +44,6 @@ KisExternalInterface::KisExternalInterface() :
 }
 
 KisExternalInterface::~KisExternalInterface() {
-    local_locker el(&ext_mutex);
-
     timetracker->RemoveTimer(ping_timer_id);
 
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
