@@ -151,7 +151,7 @@ void Timetracker::time_dispatcher() {
         }
 
         if (std::chrono::system_clock::now() >= end) {
-            fmt::print("debug - timetracker missed time slot by {} ms",
+            fmt::print("debug - timetracker missed time slot by {} ms\n",
                     std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - end).count());
         }
 
