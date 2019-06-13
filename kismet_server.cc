@@ -252,48 +252,8 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     sigaddset(&mask, SIGCHLD);
     sigaddset(&mask, SIGTERM);
 
-    if (pollabletracker != nullptr) {
-        time_t shutdown_target = time(0) + 2;
-        int max_fd = 0;
-        fd_set rset, wset;
-        struct timeval tm;
-
-        while (1) {
-            FD_ZERO(&rset);
-            FD_ZERO(&wset);
-
-            if (globalregistry->fatal_condition) {
-                break;
-            }
-
-            if (time(0) >= shutdown_target) {
-                break;
-            }
-
-            // Collect all the pollable descriptors
-            max_fd = pollabletracker->MergePollableFds(&rset, &wset);
-
-            tm.tv_sec = 0;
-            tm.tv_usec = 100000;
-
-            if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-                if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                    break;
-                }
-            }
-
-            // Block signals while doing io loops */
-            sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-            pollabletracker->ProcessPollableSelect(rset, wset);
-
-            sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-
-            if (globalregistry->fatal_condition) {
-                break;
-            }
-        }
-    }
+    if (pollabletracker != nullptr)
+        pollabletracker->Selectloop(true);
 
     // Be noisy
     if (globalregistry->fatal_condition) {
@@ -571,10 +531,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Set up usage functions
     globalregistry->RegisterUsageFunc(Devicetracker::usage);
-
-    int max_fd = 0;
-    fd_set rset, wset;
-    struct timeval tm;
 
     const int nlwc = globalregistry->getopt_long_num++;
     const int dwc = globalregistry->getopt_long_num++;
@@ -970,53 +926,7 @@ int main(int argc, char *argv[], char *envp[]) {
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>()->StartHttpd();
 
-    sigset_t mask, oldmask;
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-    sigaddset(&mask, SIGCHLD);
-    sigaddset(&mask, SIGTERM);
-
-    // Have we had consecutive errors?
-    int consec_badfd = 0;
-
-    // Core loop
-    while (1) {
-        if (globalregistry->spindown || globalregistry->fatal_condition) {
-            break;
-        }
-
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
-
-        tm.tv_sec = 0;
-        tm.tv_usec = 100000;
-
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                if (errno == EBADF) {
-                    consec_badfd++;
-
-                    if (consec_badfd > 20) 
-                        throw std::runtime_error(fmt::format("select() > 20 consecutive badfd errors, latest {} {}",
-                                    errno, strerror(errno)));
-                } else {
-                    throw std::runtime_error(fmt::format("select() failed: {} {}", errno, strerror(errno)));
-                }
-            }
-        }
-
-        consec_badfd = 0;
-
-        pollabletracker->ProcessPollableSelect(rset, wset);
-
-        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-
-        if (Globalreg::globalreg->fatal_condition || Globalreg::globalreg->spindown) {
-            break;
-        }
-    }
+    pollabletracker->Selectloop(false);
 
     SpindownKismet(pollabletracker);
 }
