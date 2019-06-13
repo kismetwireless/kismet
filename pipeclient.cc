@@ -74,7 +74,7 @@ int PipeClient::OpenPipes(int rpipe, int wpipe) {
 bool PipeClient::FetchConnected() {
     local_shared_locker lock(&pipe_lock);
 
-    return read_fd > -1 || write_fd > -1;
+    return handler == nullptr || read_fd > -1 || write_fd > -1;
 }
 
 int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
@@ -111,7 +111,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     ssize_t ret, iret;
     size_t avail;
 
-    if (read_fd > -1 && FD_ISSET(read_fd, &in_rset)) {
+    if (read_fd > -1 && FD_ISSET(read_fd, &in_rset) && handler != nullptr) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
