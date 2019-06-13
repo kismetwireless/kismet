@@ -150,6 +150,12 @@ void Timetracker::time_dispatcher() {
             removed_timer_ids.clear();
         }
 
+        if (std::chrono::system_clock::now() >= end) {
+            fmt::print("debug - timetracker missed time slot by {} ms",
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - end).count());
+        }
+
+
         std::this_thread::sleep_until(end);
     }
 }
