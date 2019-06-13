@@ -242,6 +242,8 @@ public:
     std::string servername;
 	struct timeval timestamp;
 
+    std::string etc_dir;
+    std::string data_dir;
     std::string homepath;
 
     std::string logname;

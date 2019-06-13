@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -46,6 +46,9 @@ GlobalRegistry::GlobalRegistry() {
 	kismet_config = NULL;
 	builtindissector = NULL;
 	manufdb = NULL;
+
+    etc_dir = std::string(SYSCONF_LOC);
+    data_dir = std::string(DATA_LOC);
 
 	start_time = 0;
 

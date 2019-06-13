@@ -388,6 +388,12 @@ int Usage(char *argv) {
            "     --no-plugins             Do not load plugins\n"
            "     --homedir <path>         Use an alternate path as the home \n"
            "                               directory instead of the user entry\n"
+           "     --confdir <path>         Use an alternate path as the base \n"
+           "                               config directory instead of the default \n"
+           "                               set at compile time\n"
+           "     --datadir <path>         Use an alternate path as the data\n"
+           "                               directory instead of the default set at \n"
+           "                               compile time.\n"
            );
 
     LogTracker::Usage(argv);
@@ -574,6 +580,8 @@ int main(int argc, char *argv[], char *envp[]) {
     const int dwc = globalregistry->getopt_long_num++;
     const int npwc = globalregistry->getopt_long_num++;
     const int hdwc = globalregistry->getopt_long_num++;
+    const int cdwc = globalregistry->getopt_long_num++;
+    const int ddwc = globalregistry->getopt_long_num++;
 
     // Standard getopt parse run
     static struct option main_longopt[] = {
@@ -585,6 +593,8 @@ int main(int argc, char *argv[], char *envp[]) {
         { "daemonize", no_argument, 0, dwc },
         { "no-plugins", no_argument, 0, npwc },
         { "homedir", required_argument, 0, hdwc },
+        { "confdir", required_argument, 0, cdwc },
+        { "datadir", required_argument, 0, ddwc },
         { 0, 0, 0, 0 }
     };
 
@@ -620,6 +630,10 @@ int main(int argc, char *argv[], char *envp[]) {
             plugins = 0;
         } else if (r == hdwc) {
             globalregistry->homepath = std::string(optarg);
+        } else if (r == cdwc) {
+            globalregistry->etc_dir = std::string(optarg);
+        } else if (r == ddwc) {
+            globalregistry->data_dir = std::string(optarg);
         }
     }
 

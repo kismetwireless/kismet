@@ -484,9 +484,9 @@ std::string ConfigFile::ExpandLogPath(const std::string& path, const std::string
 
             logtemplate.insert(nl, pfx);
         } else if (op == 'S') {
-            logtemplate.insert(nl, DATA_LOC);
+            logtemplate.insert(nl, Globalreg::globalreg->data_dir);
         } else if (op == 'E') {
-            logtemplate.insert(nl, SYSCONF_LOC);
+            logtemplate.insert(nl, Globalreg::globalreg->etc_dir);
         } else if (op == 'B') {
             logtemplate.insert(nl, BIN_LOC);
         }
