@@ -281,13 +281,13 @@ void KisExternalInterface::close_external() {
 
     timetracker->RemoveTimer(ping_timer_id);
 
-    if (ringbuf_handler != NULL) {
+    if (ringbuf_handler != nullptr) {
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
         ringbuf_handler.reset();
     }
 
-    if (ipc_remote != NULL) 
+    if (ipc_remote != nullptr) 
         ipc_remote->soft_kill();
 
     // Remove the IPC remote reference
