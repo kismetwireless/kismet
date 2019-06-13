@@ -111,16 +111,12 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     ssize_t ret, iret;
     size_t avail;
 
-    // fprintf(stderr, "debug - pipeclient - poll rfd %d wfd %d\n", read_fd, write_fd);
-
     if (read_fd > -1 && FD_ISSET(read_fd, &in_rset)) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
         while ((avail = handler->GetReadBufferAvailable())) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, avail);
-
-            // fprintf(stderr, "debug - read buffer available reserved %lu\n", len);
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -136,7 +132,6 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                     ClosePipes();
 
-                    // fprintf(stderr, "debug - pipeclient - returning from poll\n");
                     return 0;
                 } else {
                     // Jump out of read loop
@@ -145,7 +140,6 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                 }
             } else {
                 // Insert into buffer
-                // fprintf(stderr, "debug - pipeclient committing %lu\n", ret);
                 iret = handler->CommitReadBufferData(buf, ret);
 
                 if (!iret) {
@@ -155,8 +149,6 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                     return 0;
                 }
             }
-
-            // delete[] buf;
         }
     }
 
