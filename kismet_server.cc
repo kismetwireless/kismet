@@ -976,6 +976,9 @@ int main(int argc, char *argv[], char *envp[]) {
     sigaddset(&mask, SIGCHLD);
     sigaddset(&mask, SIGTERM);
 
+    // Have we had consecutive errors?
+    int consec_badfd = 0;
+
     // Core loop
     while (1) {
         if (globalregistry->spindown || globalregistry->fatal_condition) {
@@ -992,10 +995,19 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                fmt::print(stderr, "Main select loop failed: {} {}", errno, strerror(errno));
-                CatchShutdown(-1);
+                if (errno == EBADF) {
+                    consec_badfd++;
+
+                    if (consec_badfd > 20) 
+                        throw std::runtime_error(fmt::format("select() > 20 consecutive badfd errors, latest {} {}",
+                                    errno, strerror(errno)));
+                } else {
+                    throw std::runtime_error(fmt::format("select() failed: {} {}", errno, strerror(errno)));
+                }
             }
         }
+
+        consec_badfd = 0;
 
         pollabletracker->ProcessPollableSelect(rset, wset);
 
