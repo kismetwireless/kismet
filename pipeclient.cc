@@ -242,7 +242,7 @@ int PipeClient::FlushRead() {
 void PipeClient::ClosePipes() {
     local_locker lock(&pipe_lock);
 
-    handler.reset();
+    // handler.reset();
 
     if (read_fd > -1) {
         close(read_fd);
