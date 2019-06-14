@@ -113,9 +113,6 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     size_t avail;
 
     if (read_fd > -1 && FD_ISSET(read_fd, &in_rset) && handler != nullptr) {
-        // Lock the entire buffer for an atomic series of ops
-        BufferHandlerGenericLocker bhgl(handler);
-
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
         while ((avail = handler->GetReadBufferAvailable())) {
@@ -156,9 +153,6 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     }
 
     if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
-        // Lock an atomic series of ops
-        BufferHandlerGenericLocker bhgl(handler);
-
         len = handler->GetWriteBufferUsed();
 
         // Let the caller consider doing something with a full buffer
@@ -205,9 +199,6 @@ int PipeClient::FlushRead() {
     ssize_t ret, iret;
 
     if (read_fd > -1 && handler != nullptr) {
-        // Allocate the biggest buffer we can fit in the ring, read as much
-        // as we can at once.
-       
         while (handler->GetReadBufferAvailable() && read_fd > -1) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
                     handler->GetReadBufferAvailable());
