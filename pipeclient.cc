@@ -37,15 +37,13 @@ PipeClient::PipeClient(GlobalRegistry *in_globalreg,
 
     read_fd = -1;
     write_fd = -1;
+
+    // printf("%p pipeclient mutex %p\n", this, &pipe_lock);
 }
 
 PipeClient::~PipeClient() {
+    // printf("~pipeclient %p\n", this);
     ClosePipes();
-
-    std::shared_ptr<PollableTracker> pollabletracker =
-        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-
-    handler.reset();
 }
 
 int PipeClient::OpenPipes(int rpipe, int wpipe) {
@@ -80,6 +78,9 @@ bool PipeClient::FetchConnected() {
 int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker lock(&pipe_lock);
 
+    if (handler == nullptr)
+        return in_max_fd;
+
     int max_fd = in_max_fd;
 
     // If we have data waiting to be written, fill it in
@@ -112,9 +113,11 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     size_t avail;
 
     if (read_fd > -1 && FD_ISSET(read_fd, &in_rset) && handler != nullptr) {
+        // Lock the entire buffer for an atomic series of ops
+        BufferHandlerGenericLocker bhgl(handler);
+
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
-       
         while ((avail = handler->GetReadBufferAvailable())) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, avail);
 
@@ -153,6 +156,9 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     }
 
     if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
+        // Lock an atomic series of ops
+        BufferHandlerGenericLocker bhgl(handler);
+
         len = handler->GetWriteBufferUsed();
 
         // Let the caller consider doing something with a full buffer
@@ -240,10 +246,13 @@ int PipeClient::FlushRead() {
 }
 
 void PipeClient::ClosePipes() {
+    // printf("%p looking for pipe lock lock %p\n", this, &pipe_lock);
     local_locker lock(&pipe_lock);
+    // printf("%p got pipe lock\n", this);
 
-    // handler.reset();
+    handler.reset();
 
+    // printf("%p closing\n", this);
     if (read_fd > -1) {
         close(read_fd);
         read_fd = -1;
@@ -253,5 +262,7 @@ void PipeClient::ClosePipes() {
         close(write_fd);
         write_fd = -1;
     }
+
+    // printf("%p closed\n", this);
 }
 

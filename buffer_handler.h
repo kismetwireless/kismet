@@ -164,6 +164,8 @@ protected:
 // to the ring buffers.  The buffer handler then automatically calls bound 
 // handlers for read/write events.
 //
+class BufferHandlerGenericLocker;
+
 class BufferHandlerGeneric {
 public:
     BufferHandlerGeneric();
@@ -300,6 +302,8 @@ public:
     // a shutdown of the line connections
     virtual void SetProtocolErrorCb(std::function<void (void)> in_cb);
 
+    friend class BufferHandlerGenericLocker;
+
 protected:
     // Generic buffers
     CommonBuffer *read_buffer;
@@ -315,6 +319,16 @@ protected:
 
     std::function<void (size_t)> readbuf_drain_cb;
     std::function<void (size_t)> writebuf_drain_cb;
+};
+
+// RAII locker of a generic buffer to handle atomic operations of size/read and size/write
+class BufferHandlerGenericLocker {
+public:
+    BufferHandlerGenericLocker(std::shared_ptr<BufferHandlerGeneric> buffer) :
+        bl {&buffer->handler_locker} { }
+
+protected:
+    local_locker bl;
 };
 
 template<class B> 

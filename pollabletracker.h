@@ -68,7 +68,7 @@ public:
     void Selectloop(bool spindown_loop);
 
 protected:
-    kis_recursive_timed_mutex pollable_mutex;
+    kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
 
     std::vector<std::shared_ptr<Pollable>> pollable_vec;
     std::vector<std::shared_ptr<Pollable>> add_vec;

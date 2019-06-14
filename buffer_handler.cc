@@ -441,7 +441,7 @@ void BufferHandlerGeneric::SetProtocolErrorCb(std::function<void (void)> in_cb) 
 }
 
 void BufferHandlerGeneric::ProtocolError() {
-    local_locker lock(&handler_locker);
+    // local_locker lock(&handler_locker);
 
     if (protoerror_cb != NULL)
         protoerror_cb();

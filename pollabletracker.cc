@@ -83,13 +83,13 @@ void PollableTracker::Selectloop(bool spindown_mode) {
 
         Maintenance();
 
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
+        tm.tv_sec = 0;
+        tm.tv_usec = 100000;
 
         max_fd = MergePollableFds(&rset, &wset);
 
-        tm.tv_sec = 0;
-        tm.tv_usec = 100000;
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -107,7 +107,9 @@ void PollableTracker::Selectloop(bool spindown_mode) {
 
         consec_badfd = 0;
 
+        // Run maintenance again so we don't gather purged records after the select()
         Maintenance();
+
         ProcessPollableSelect(rset, wset);
 
         sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
@@ -115,8 +117,6 @@ void PollableTracker::Selectloop(bool spindown_mode) {
 }
 
 int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
-    local_locker l(&pollable_mutex);
-
     int max_fd = 0;
 
     FD_ZERO(rset);
@@ -129,8 +129,6 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
 }
 
 int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
-    local_locker l(&pollable_mutex);
-
     int r;
     int num = 0;
 

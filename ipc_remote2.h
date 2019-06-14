@@ -166,9 +166,12 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    std::vector<std::shared_ptr<IPCRemoteV2> > process_vec;
+    std::vector<std::shared_ptr<IPCRemoteV2>> process_vec;
+    std::vector<std::shared_ptr<IPCRemoteV2>> cleanup_vec;
 
-    int timer_id;
+    int timer_id, cleanup_timer_id;
+
+    void schedule_cleanup();
 };
 
 #endif

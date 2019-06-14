@@ -30,7 +30,9 @@
 #include "pollabletracker.h"
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) {
+        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+        tracker_free {false},
+        child_pid {0} {
 
     globalreg = in_globalreg;
 
@@ -47,28 +49,31 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
                 "IPC binaries.", MSGFLAG_ERROR);
     }
 
+    tracker_free = false;
+
     ipchandler->SetProtocolErrorCb([this]() {
-        local_locker lock(&ipc_locker);
-        // fprintf(stderr, "debug - ipchandler got protocol error, shutting down pid %u\n", child_pid);
+        // Don't lock while calling an error handler
+        // local_locker lock(&ipc_locker);
+        // printf("ipcr2  protocolerrorcb calling close_ipc\n");
 
         close_ipc();
+        // printf("ipcr2 protocolerrorcb close_ipc done\n");
     });
 
-    child_pid = -1;
-    tracker_free = false;
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
-    local_locker lock(&ipc_locker);
+    // printf("~ipcremote %p %d\n", this, child_pid);
+    ipchandler->SetProtocolErrorCb([]() { });
 
     // fprintf(stderr, "debug - ~ipcremote %d\n", child_pid);
     if (ipchandler != NULL)
         ipchandler->BufferError("IPC process has closed");
 
-    remotehandler->remove_ipc(this);
-
     hard_kill();
-    child_pid = -1;
+    child_pid = 0;
+
+    remotehandler->remove_ipc(this);
 }
 
 void IPCRemoteV2::add_path(std::string in_path) {
@@ -96,11 +101,18 @@ std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
 }
 
 void IPCRemoteV2::close_ipc() {
-    // Remove the IPC entry first, we already are shutting down; let the ipc
-    // catcher reap the signal normally, we just don't need to know about it.
-    remotehandler->remove_ipc(this);
+    local_locker lock(&ipc_locker);
 
+    if (remotehandler != nullptr) {
+        // printf("ipcr2 close_ipc removing ipc\n");
+        // Remove the IPC entry first, we already are shutting down; let the ipc
+        // catcher reap the signal normally, we just don't need to know about it.
+        remotehandler->remove_ipc(this);
+    }
+
+    // printf("ipcr2 close_ipc hard_kill()\n");
     hard_kill();
+    // printf("ipcr2 close_ipc done\n");
 }
 
 int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
@@ -417,9 +429,11 @@ void IPCRemoteV2::set_tracker_free(bool in_free) {
 }
 
 int IPCRemoteV2::soft_kill() {
+    // printf("debug - %p softkill %d\n", this, child_pid);
     local_locker lock(&ipc_locker);
 
     if (pipeclient != NULL) {
+        // printf("debug - %p softkill removing %p\n", this, pipeclient.get());
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
     }
@@ -431,16 +445,27 @@ int IPCRemoteV2::soft_kill() {
 }
 
 int IPCRemoteV2::hard_kill() {
+    // printf("debug - %p hardkill %u\n", this, child_pid);
+
+    // printf("%p hard_kill locking ipc\n", this);
     local_locker lock(&ipc_locker);
+    // printf("%p hard kill got ipc\n", this);
 
     if (pipeclient != NULL) {
+        // printf("%p hardkill removing pollable %p\n", this, pipeclient.get());
         pollabletracker->RemovePollable(pipeclient);
+        // printf("%p hardkill closing pipes %p\n", this, pipeclient.get());
         pipeclient->ClosePipes();
+        // printf("%p closed pipes\n", this);
     }
 
-    if (child_pid <= 0)
+    if (child_pid <= 0) {
+        // printf("%p hardkill no child pid\n", this);
         return -1;
+    }
 
+
+    // printf("%p returning kill\n", this);
     return kill(child_pid, SIGKILL);
 }
 
@@ -466,14 +491,14 @@ IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
 
     timer_id = 
         globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
+    cleanup_timer_id = -1;
 }
 
 IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
-    local_locker lock(&ipc_locker);
-
     globalreg->RemoveGlobal("IPCHANDLER");
 
     globalreg->timetracker->RemoveTimer(timer_id);
+    globalreg->timetracker->RemoveTimer(cleanup_timer_id);
 }
 
 void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
@@ -496,12 +521,33 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remo
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x].get() == in_remote) {
             ret = process_vec[x];
+            cleanup_vec.push_back(ret);
             process_vec.erase(process_vec.begin() + x);
             break;
         }
     }
 
+    schedule_cleanup();
+
     return ret;
+}
+
+void IPCRemoteV2Tracker::schedule_cleanup() {
+    if (cleanup_timer_id > 0)
+        return;
+
+    cleanup_timer_id = 
+        Globalreg::globalreg->timetracker->RegisterTimer(1, NULL, 0, 
+                [this] (int) -> int {
+                    // printf("ipctracker cleanup triggered\n");
+                    local_locker lock(&ipc_locker);
+
+                    cleanup_vec.clear();
+
+                    cleanup_timer_id = 0;
+                    return 0;
+                });
+
 }
 
 std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
@@ -512,10 +558,13 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x]->get_pid() == in_pid) {
             ret = process_vec[x];
+            cleanup_vec.push_back(ret);
             process_vec.erase(process_vec.begin() + x);
             break;
         }
     }
+
+    schedule_cleanup();
 
     return ret;
 }

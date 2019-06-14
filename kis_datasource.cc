@@ -73,15 +73,8 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
 
 KisDatasource::~KisDatasource() {
     // Cancel any timer
-    if (error_timer_id > 0) {
-        timetracker->RemoveTimer(error_timer_id);
-        error_timer_id = -1;
-    }
-
-    if (ping_timer_id > 0) {
-        timetracker->RemoveTimer(ping_timer_id);
-        error_timer_id = -1;
-    }
+    timetracker->RemoveTimer(error_timer_id);
+    timetracker->RemoveTimer(ping_timer_id);
 
     cancel_all_commands("source deleted");
 
