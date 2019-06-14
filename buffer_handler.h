@@ -321,16 +321,6 @@ protected:
     std::function<void (size_t)> writebuf_drain_cb;
 };
 
-// RAII locker of a generic buffer to handle atomic operations of size/read and size/write
-class BufferHandlerGenericLocker {
-public:
-    BufferHandlerGenericLocker(std::shared_ptr<BufferHandlerGeneric> buffer) :
-        bl {&buffer->handler_locker} { }
-
-protected:
-    local_locker bl;
-};
-
 template<class B> 
 class BufferHandler : public BufferHandlerGeneric {
 public:
