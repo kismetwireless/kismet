@@ -67,13 +67,6 @@ public:
     // Perform a select loop; blocks until polling exits
     void Selectloop(bool spindown_loop);
 
-protected:
-    kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
-
-    std::vector<std::shared_ptr<Pollable>> pollable_vec;
-    std::vector<std::shared_ptr<Pollable>> add_vec;
-    std::vector<std::shared_ptr<Pollable>> remove_vec;
-
     // Perform a cleanup of any operations, like adding a pollable to the list or removing it
     void Maintenance();
 
@@ -90,6 +83,13 @@ protected:
     // 0+   Number of pollable items processed
     // -1   Error
     int ProcessPollableSelect(fd_set rset, fd_set wset);
+
+protected:
+    kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
+
+    std::vector<std::shared_ptr<Pollable>> pollable_vec;
+    std::vector<std::shared_ptr<Pollable>> add_vec;
+    std::vector<std::shared_ptr<Pollable>> remove_vec;
 
 };
 

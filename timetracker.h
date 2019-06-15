@@ -117,6 +117,8 @@ public:
     // Remove a timer that's going to execute
     int RemoveTimer(int timer_id);
 
+    void Tick();
+
 protected:
     kis_recursive_timed_mutex time_mutex;
 

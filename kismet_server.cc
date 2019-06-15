@@ -703,7 +703,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Make the timetracker
-    Timetracker::create_timetracker();
+    auto timetracker = Timetracker::create_timetracker();
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
@@ -926,7 +926,58 @@ int main(int argc, char *argv[], char *envp[]) {
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>()->StartHttpd();
 
-    pollabletracker->Selectloop(false);
+    sigset_t mask, oldmask;
+    sigemptyset(&mask);
+    sigemptyset(&oldmask);
+    sigaddset(&mask, SIGCHLD);
+    sigaddset(&mask, SIGTERM);
+
+    int max_fd;
+    fd_set rset, wset;
+    struct timeval tm;
+    int consec_badfd = 0;
+
+    // Core loop
+    while (1) {
+        if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
+            break;
+
+        pollabletracker->Maintenance();
+
+        tm.tv_sec = 0;
+        tm.tv_usec = 100000;
+
+        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
+
+        // Block signals while doing io loops */
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
+        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                if (errno == EBADF) {
+                    consec_badfd++;
+
+                    if (consec_badfd > 20) 
+                        throw std::runtime_error(fmt::format("select() > 20 consecutive badfd errors, latest {} {}",
+                                    errno, strerror(errno)));
+                } else {
+                    throw std::runtime_error(fmt::format("select() failed: {} {}", errno, strerror(errno)));
+                }
+            }
+        }
+
+        consec_badfd = 0;
+
+        // Run maintenance again so we don't gather purged records after the select()
+        pollabletracker->Maintenance();
+
+        pollabletracker->ProcessPollableSelect(rset, wset);
+
+        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
+
+        // Tick the timetracker
+        timetracker->Tick();
+    }
 
     SpindownKismet(pollabletracker);
 }
