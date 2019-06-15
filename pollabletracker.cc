@@ -117,8 +117,6 @@ void PollableTracker::Selectloop(bool spindown_mode) {
 }
 
 int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
-    local_locker l(&pollable_mutex);
-
     int max_fd = 0;
 
     FD_ZERO(rset);
@@ -131,8 +129,6 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
 }
 
 int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
-    local_locker l(&pollable_mutex);
-
     int r;
     int num = 0;
 
