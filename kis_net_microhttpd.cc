@@ -1029,8 +1029,10 @@ int Kis_Net_Httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
 
     std::string surl(url);
 
-    // Append index.html to directory requests
-    if (surl[surl.length() - 1] == '/')
+    // Kluge URL
+    if (surl.length() == 0)
+        surl = "/index.html";
+    else if (surl[surl.length() - 1] == '/')
         surl += "index.html";
 
     local_shared_locker lock(&(kishttpd->controller_mutex));
