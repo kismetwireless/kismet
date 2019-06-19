@@ -52,9 +52,9 @@ KisExternalInterface::~KisExternalInterface() {
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != NULL) {
-        ringbuf_handler->SetMutex(nullptr);
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
+        ringbuf_handler->SetMutex(nullptr);
     }
 }
 
@@ -89,7 +89,10 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     BufferError(in_error);
 }
 
-void KisExternalInterface::BufferAvailable(size_t in_amt __attribute__((unused))) {
+void KisExternalInterface::BufferAvailable(size_t in_amt) {
+    if (in_amt == 0)
+        return;
+
     local_locker lock(&ext_mutex);
 
     kismet_external_frame_t *frame;
