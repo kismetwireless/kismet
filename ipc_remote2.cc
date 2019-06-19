@@ -435,7 +435,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
 }
 
 pid_t IPCRemoteV2::get_pid() {
-    local_locker lock(ipc_mutex);
+    local_shared_locker lock(ipc_mutex);
     return child_pid;
 }
 
@@ -703,6 +703,8 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
 }
 
 int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
+    local_locker l(&ipc_mutex);
+
     std::stringstream str;
     std::shared_ptr<IPCRemoteV2> dead_remote;
 
