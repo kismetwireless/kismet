@@ -192,7 +192,7 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
     {
         // Lock just the callback handler because the callback
         // needs to interact with us
-        local_locker lock(&r_callback_mutex);
+        local_shared_locker lock(&r_callback_mutex);
 
         if (ret != in_sz)
             rbuf_notify->BufferError("insufficient space in buffer");
@@ -295,7 +295,7 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
 }
 
 void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
-    local_locker lock(&r_callback_mutex);
+    local_shared_locker lock(&w_callback_mutex);
 
     if (wbuf_notify) {
         wbuf_notify->BufferAvailable(in_sz);
@@ -303,7 +303,7 @@ void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
 }
 
 void BufferHandlerGeneric::TriggerReadCallback(size_t in_sz) {
-    local_locker lock(&r_callback_mutex);
+    local_shared_locker lock(&r_callback_mutex);
 
     if (rbuf_notify) {
         rbuf_notify->BufferAvailable(in_sz);
@@ -322,7 +322,7 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     }
 
     {
-        local_locker lock(&r_callback_mutex);
+        local_shared_locker lock(&r_callback_mutex);
 
         if (rbuf_notify) {
             if (!s)
@@ -346,7 +346,7 @@ bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     }
 
     {
-        local_locker lock(&w_callback_mutex);
+        local_shared_locker lock(&w_callback_mutex);
 
         if (wbuf_notify) {
             if (!s)
