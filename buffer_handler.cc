@@ -432,14 +432,14 @@ void BufferHandlerGeneric::BufferError(std::string in_error) {
 }
 
 void BufferHandlerGeneric::ReadBufferError(std::string in_error) {
-    local_locker lock(&r_callback_mutex);
+    local_shared_locker lock(&r_callback_mutex);
 
     if (rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
 void BufferHandlerGeneric::WriteBufferError(std::string in_error) {
-    local_locker lock(&w_callback_mutex);
+    local_shared_locker lock(&w_callback_mutex);
 
     if (wbuf_notify)
         wbuf_notify->BufferError(in_error);
@@ -453,6 +453,7 @@ void BufferHandlerGeneric::SetProtocolErrorCb(std::function<void (void)> in_cb) 
 
 void BufferHandlerGeneric::ProtocolError() {
     // local_locker lock(handler_mutex);
+    local_shared_locker lock(handler_mutex);
 
     if (protoerror_cb != NULL)
         protoerror_cb();
