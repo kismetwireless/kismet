@@ -45,8 +45,19 @@ Timetracker::Timetracker() {
 
 }
 
+void Timetracker::SpawnTimetrackerThread() {
+    time_dispatch_t =
+        std::thread([this]() {
+                thread_set_process_name("timers");
+                time_dispatcher();
+            });
+}
+
 Timetracker::~Timetracker() {
     shutdown = true;
+
+    if (time_dispatch_t.joinable())
+        time_dispatch_t.join();
 
     // time_dispatch_t.join();
 

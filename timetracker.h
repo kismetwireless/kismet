@@ -119,6 +119,8 @@ public:
 
     void Tick();
 
+    void SpawnTimetrackerThread();
+
 protected:
     kis_recursive_timed_mutex time_mutex;
 
