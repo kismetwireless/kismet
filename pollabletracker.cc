@@ -36,15 +36,15 @@ void PollableTracker::RegisterPollable(std::shared_ptr<Pollable> in_pollable) {
 void PollableTracker::RemovePollable(std::shared_ptr<Pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
-    remove_vec.push_back(in_pollable);
+    remove_map[in_pollable] = 1;
 }
 
 void PollableTracker::Maintenance() {
     local_locker lock(&pollable_mutex);
 
-    for (auto r = remove_vec.begin(); r != remove_vec.end(); ++r) {
+    for (auto r : remove_map) {
         for (auto i = pollable_vec.begin(); i != pollable_vec.end(); ++i) {
-            if (*r == *i) {
+            if (r.first == *i) {
                 pollable_vec.erase(i);
                 break;
             }
@@ -55,7 +55,7 @@ void PollableTracker::Maintenance() {
         pollable_vec.push_back(*i);
     }
 
-    remove_vec.clear();
+    remove_map.clear();
     add_vec.clear();
 }
 
@@ -81,10 +81,10 @@ void PollableTracker::Selectloop(bool spindown_mode) {
         if ((!spindown_mode && Globalreg::globalreg->spindown) || Globalreg::globalreg->fatal_condition) 
             break;
 
-        Maintenance();
-
         tm.tv_sec = 0;
         tm.tv_usec = 100000;
+
+        Maintenance();
 
         max_fd = MergePollableFds(&rset, &wset);
 
@@ -99,6 +99,8 @@ void PollableTracker::Selectloop(bool spindown_mode) {
                     if (consec_badfd > 20) 
                         throw std::runtime_error(fmt::format("select() > 20 consecutive badfd errors, latest {} {}",
                                     errno, strerror(errno)));
+
+                    continue;
                 } else {
                     throw std::runtime_error(fmt::format("select() failed: {} {}", errno, strerror(errno)));
                 }
@@ -122,8 +124,17 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     FD_ZERO(rset);
     FD_ZERO(wset);
 
-    for (auto i : pollable_vec) 
-        max_fd = i->MergeSet(max_fd, rset, wset);
+    for (auto i : pollable_vec) {
+        bool to_rem = false;
+
+        {
+            local_locker l(&pollable_mutex);
+            to_rem = remove_map.find(i) != remove_map.end();
+        }
+        
+        if (!to_rem)
+            max_fd = i->MergeSet(max_fd, rset, wset);
+    }
 
     return max_fd;
 }
@@ -133,7 +144,17 @@ int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     int num = 0;
 
     for (auto i : pollable_vec) {
-        r = i->Poll(rset, wset);
+        bool to_rem = false;
+
+        {
+            local_locker l(&pollable_mutex);
+            to_rem = remove_map.find(i) != remove_map.end();
+        }
+        
+        if (!to_rem)
+            r = i->Poll(rset, wset);
+        else
+            r = -1;
 
         if (r >= 0)
             num++;

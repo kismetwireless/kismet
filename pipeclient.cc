@@ -92,7 +92,7 @@ bool PipeClient::FetchConnected() {
 }
 
 int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-    local_shared_locker lock(pipe_mutex);
+    local_locker lock(pipe_mutex);
 
     if (handler == nullptr)
         return in_max_fd;

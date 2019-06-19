@@ -1033,7 +1033,7 @@ void Datasourcetracker::schedule_cleanup() {
         return;
 
     completion_cleanup_id = 
-        timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
+        timetracker->RegisterTimer(2, NULL, 0, [this] (int) -> int {
             local_locker lock(&dst_lock);
 
             completion_cleanup_id = -1;

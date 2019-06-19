@@ -531,7 +531,7 @@ void IPCRemoteV2Tracker::schedule_cleanup() {
         return;
 
     cleanup_timer_id = 
-        Globalreg::globalreg->timetracker->RegisterTimer(1, NULL, 0, 
+        Globalreg::globalreg->timetracker->RegisterTimer(2, NULL, 0, 
                 [this] (int) -> int {
                     local_locker lock(&ipc_mutex);
 

@@ -89,7 +89,7 @@ protected:
 
     std::vector<std::shared_ptr<Pollable>> pollable_vec;
     std::vector<std::shared_ptr<Pollable>> add_vec;
-    std::vector<std::shared_ptr<Pollable>> remove_vec;
+    std::map<std::shared_ptr<Pollable>, int> remove_map;
 
 };
 
