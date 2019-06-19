@@ -386,13 +386,18 @@ void KisDatasource::close_source() {
     }
 
     if (ringbuf_handler != NULL) {
+        ringbuf_handler->SetMutex(nullptr);
         ringbuf_handler->RemoveReadBufferInterface();
         send_shutdown("closing source");
     }
 
     if (ipc_remote != NULL) {
+        ipc_remote->SetMutex(nullptr);
         ipc_remote->soft_kill();
     }
+
+    ipc_remote.reset();
+    ringbuf_handler.reset();
 
     quiet_errors = true;
 

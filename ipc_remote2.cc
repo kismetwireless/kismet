@@ -37,27 +37,17 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
         child_pid {0} {
 
     pollabletracker =
-        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
-
-    ipchandler = in_rbhandler;
+        Globalreg::FetchMandatoryGlobalAs<PollableTracker>();
 
     remotehandler = 
-        std::static_pointer_cast<IPCRemoteV2Tracker>(globalreg->FetchGlobal("IPCHANDLER"));
-
-    if (remotehandler == NULL) {
-        _MSG("IPCRemoteV2 called before IPCRemoteV2Tracker instantiated, cannot track "
-                "IPC binaries.", MSGFLAG_ERROR);
-    }
+        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>();
 
     tracker_free = false;
 
-    ipchandler->SetProtocolErrorCb([this]() {
-        // Don't lock while calling an error handler
-        // local_locker lock(&ipc_locker);
-        // printf("ipcr2  protocolerrorcb calling close_ipc\n");
+    ipchandler = in_rbhandler;
 
+    ipchandler->SetProtocolErrorCb([this]() {
         close_ipc();
-        // printf("ipcr2 protocolerrorcb close_ipc done\n");
     });
 
 }
@@ -71,12 +61,16 @@ void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
         ipc_mutex = &local_ipc_mutex;
 
     if (pipeclient != nullptr)
-        pipeclient->SetMutex(nullptr);
+        pipeclient->SetMutex(in_parent);
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
     if (pipeclient != nullptr) {
         pipeclient->SetMutex(nullptr);
+    }
+
+    if (pipeclient != nullptr) {
+        pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
     }
 
@@ -116,17 +110,11 @@ std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
 void IPCRemoteV2::close_ipc() {
     local_locker lock(ipc_mutex);
 
-    // printf("ipcr2 close_ipc hard_kill()\n");
-    hard_kill();
-    // printf("ipcr2 close_ipc done\n");
-    //
     if (remotehandler != nullptr) {
-        // printf("ipcr2 close_ipc removing ipc\n");
-        // Remove the IPC entry first, we already are shutting down; let the ipc
-        // catcher reap the signal normally, we just don't need to know about it.
         remotehandler->remove_ipc(this);
     }
 
+    hard_kill();
 }
 
 int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
@@ -144,10 +132,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     struct stat buf;
     char **cmdarg;
     std::stringstream arg;
-
-    if (pipeclient != NULL) {
-        soft_kill();
-    }
 
     if (stat(cmdpath.c_str(), &buf) < 0) {
         _MSG("IPC could not find binary '" + cmdpath + "'", MSGFLAG_ERROR);
@@ -288,18 +272,24 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     // Parent process
    
     // fprintf(stderr, "debug - ipcremote2 creating pipeclient\n");
+    
+    
+    // Close the remote side of the pipes from the parent, they're open in the child
+    close(inpipepair[0]);
+    close(outpipepair[1]);
+
+    if (pipeclient != NULL) {
+        soft_kill();
+        pipeclient->SetMutex(nullptr);
+    }
 
     pipeclient.reset(new PipeClient(globalreg, ipchandler));
     pipeclient->SetMutex(ipc_mutex);
 
-    pollabletracker->RegisterPollable(pipeclient);
-
     // Read from the child write pair, write to the child read pair
     pipeclient->OpenPipes(outpipepair[0], inpipepair[1]);
 
-    // Close the remote side of the pipes from the parent, they're open in the child
-    close(inpipepair[0]);
-    close(outpipepair[1]);
+    pollabletracker->RegisterPollable(pipeclient);
 
     binary_path = cmdpath;
     binary_args = args;
@@ -445,11 +435,9 @@ void IPCRemoteV2::set_tracker_free(bool in_free) {
 }
 
 int IPCRemoteV2::soft_kill() {
-    // printf("debug - %p softkill %d\n", this, child_pid);
     local_locker lock(ipc_mutex);
 
     if (pipeclient != NULL) {
-        // printf("debug - %p softkill removing %p\n", this, pipeclient.get());
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
     }
@@ -461,27 +449,17 @@ int IPCRemoteV2::soft_kill() {
 }
 
 int IPCRemoteV2::hard_kill() {
-    // printf("debug - %p hardkill %u\n", this, child_pid);
-
-    // printf("%p hard_kill locking ipc\n", this);
     local_locker lock(ipc_mutex);
-    // printf("%p hard kill got ipc\n", this);
 
     if (pipeclient != NULL) {
-        // printf("%p hardkill removing pollable %p\n", this, pipeclient.get());
         pollabletracker->RemovePollable(pipeclient);
-        // printf("%p hardkill closing pipes %p\n", this, pipeclient.get());
         pipeclient->ClosePipes();
-        // printf("%p closed pipes\n", this);
     }
 
     if (child_pid <= 0) {
-        // printf("%p hardkill no child pid\n", this);
         return -1;
     }
 
-
-    // printf("%p returning kill\n", this);
     return kill(child_pid, SIGKILL);
 }
 
@@ -555,7 +533,6 @@ void IPCRemoteV2Tracker::schedule_cleanup() {
     cleanup_timer_id = 
         Globalreg::globalreg->timetracker->RegisterTimer(1, NULL, 0, 
                 [this] (int) -> int {
-                    // printf("ipctracker cleanup triggered\n");
                     local_locker lock(&ipc_mutex);
 
                     cleanup_vec.clear();

@@ -218,8 +218,6 @@ DST_DatasourceList::~DST_DatasourceList() {
     for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
         (*i)->close_source();
     }
-
-    local_locker lock(&list_lock);
 }
 
 void DST_DatasourceList::cancel() {

@@ -71,6 +71,7 @@ void KisExternalInterface::connect_buffer(std::shared_ptr<BufferHandlerGeneric> 
     local_locker lock(&ext_mutex);
 
     if (ringbuf_handler != NULL && ringbuf_handler != in_ringbuf) {
+        ringbuf_handler->SetMutex(nullptr);
         ringbuf_handler.reset();
     }
 
@@ -84,16 +85,29 @@ void KisExternalInterface::trigger_error(std::string in_error) {
 
     timetracker->RemoveTimer(ping_timer_id);
 
+    if (ipc_remote != nullptr) {
+        ipc_remote->SetMutex(nullptr);
+    }
+
+    if (ringbuf_handler != nullptr) {
+        ringbuf_handler->SetMutex(nullptr);
+    }
+
+    if (ipc_remote != nullptr) {
+        ipc_remote->close_ipc();
+    }
+
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != NULL) {
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
-        ringbuf_handler.reset();
     }
 
     // Remove the IPC remote reference
+    printf("external %p removing ipc remotes during trigger_error\n", this);
     ipc_remote.reset();
+    ringbuf_handler.reset();
 
     BufferError(in_error);
 }
@@ -242,6 +256,7 @@ bool KisExternalInterface::check_ipc(const std::string& in_binary) {
 
 bool KisExternalInterface::run_ipc() {
     local_demand_locker l(&ext_mutex);
+    l.lock();
 
     std::stringstream ss;
 
@@ -251,8 +266,25 @@ bool KisExternalInterface::run_ipc() {
         return false;
     }
 
+    if (ipc_remote != nullptr) {
+        ipc_remote->SetMutex(nullptr);
+    }
+
+    if (ringbuf_handler != nullptr) {
+        ringbuf_handler->SetMutex(nullptr);
+    }
+
+    if (ipc_remote != nullptr) {
+        ipc_remote->soft_kill();
+    }
+
+    if (ringbuf_handler != nullptr) {
+        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->ProtocolError();
+    }
+
     // Make a new handler and new ipc.  Give a generous buffer.
-    ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024 * 1024), (1024 * 1024)));
+    ringbuf_handler = std::make_shared<BufferHandler<RingbufV2>>((1024 * 1024), (1024 * 1024));
     ringbuf_handler->SetMutex(&ext_mutex);
     ringbuf_handler->SetReadBufferInterface(this);
 
@@ -300,17 +332,26 @@ void KisExternalInterface::close_external() {
 
     timetracker->RemoveTimer(ping_timer_id);
 
+    // Transfer the remote handler back to its own internal mutex
+    if (ipc_remote != nullptr) {
+        ipc_remote->SetMutex(nullptr);
+    }
+
+    if (ringbuf_handler != nullptr) {
+        ringbuf_handler->SetMutex(nullptr);
+    }
+
+    if (ipc_remote != nullptr) {
+        ipc_remote->soft_kill();
+    }
+
     if (ringbuf_handler != nullptr) {
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
-        ringbuf_handler.reset();
     }
 
-    if (ipc_remote != nullptr) 
-        ipc_remote->soft_kill();
-
-    // Remove the IPC remote reference
     ipc_remote.reset();
+    ringbuf_handler.reset();
 }
 
 unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::Command> c) {

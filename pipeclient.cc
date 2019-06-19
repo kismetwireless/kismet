@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -39,6 +39,8 @@ PipeClient::PipeClient(GlobalRegistry *in_globalreg,
     write_fd {-1} { }
 
 PipeClient::~PipeClient() {
+    local_locker l(pipe_mutex);
+
     // printf("~pipeclient %p\n", this);
     if (read_fd > -1) {
         close(read_fd);
@@ -90,7 +92,7 @@ bool PipeClient::FetchConnected() {
 }
 
 int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-    local_locker lock(pipe_mutex);
+    local_shared_locker lock(pipe_mutex);
 
     if (handler == nullptr)
         return in_max_fd;
