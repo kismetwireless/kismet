@@ -75,17 +75,17 @@ void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
-    // printf("~ipcremote %p %d\n", this, child_pid);
-    ipchandler->SetProtocolErrorCb([]() { });
-
-    // fprintf(stderr, "debug - ~ipcremote %d\n", child_pid);
-    if (ipchandler != NULL)
+    if (ipchandler != NULL) {
+        ipchandler->SetProtocolErrorCb([]() { });
         ipchandler->BufferError("IPC process has closed");
+    }
+
+    if (pipeclient != nullptr) {
+        pipeclient->SetMutex(nullptr);
+    }
 
     hard_kill();
     child_pid = 0;
-
-    // remotehandler->remove_ipc(this);
 }
 
 void IPCRemoteV2::add_path(std::string in_path) {

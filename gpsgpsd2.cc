@@ -96,15 +96,15 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
 
 GPSGpsdV2::~GPSGpsdV2() {
     if (tcpclient != nullptr) {
-        tcpclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(tcpclient);
+        tcpclient->SetMutex(nullptr);
     }
 
     tcpclient.reset();
 
     if (tcphandler != nullptr) {
-        tcphandler->SetMutex(nullptr);
         tcphandler->RemoveReadBufferInterface();
+        tcphandler->SetMutex(nullptr);
     }
 
     tcphandler.reset();

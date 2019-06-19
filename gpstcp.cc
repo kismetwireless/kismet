@@ -62,13 +62,13 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 
 GPSTCP::~GPSTCP() {
     if (tcpclient != nullptr) {
-        tcpclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(tcpclient);
+        tcpclient->SetMutex(nullptr);
     }
 
     if (nmeahandler != nullptr) {
-        nmeahandler->SetMutex(nullptr);
         nmeahandler->RemoveReadBufferInterface();
+        nmeahandler->SetMutex(nullptr);
     }
 
     std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");

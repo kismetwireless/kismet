@@ -62,13 +62,13 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
 
 GPSSerialV2::~GPSSerialV2() {
     if (serialclient != nullptr) {
-        serialclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(serialclient);
+        serialclient->SetMutex(nullptr);
     }
 
     if (nmeahandler != nullptr) {
-        nmeahandler->SetMutex(nullptr);
         nmeahandler->RemoveReadBufferInterface();
+        nmeahandler->SetMutex(nullptr);
     }
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
