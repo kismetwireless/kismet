@@ -51,12 +51,19 @@ KisExternalInterface::~KisExternalInterface() {
         ipc_remote->SetMutex(nullptr);
     }
 
+    if (ringbuf_handler != nullptr) {
+        ringbuf_handler->SetMutex(nullptr);
+    }
+
+    if (ipc_remote != nullptr) {
+        ipc_remote->close_ipc();
+    }
+
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != nullptr) {
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
-        ringbuf_handler->SetMutex(nullptr);
     }
 }
 
