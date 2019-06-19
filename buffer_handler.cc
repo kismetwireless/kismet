@@ -43,7 +43,11 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
 
 void BufferHandlerGeneric::SetMutex(kis_recursive_timed_mutex *in_parent) {
     local_locker l(handler_mutex);
-    handler_mutex = in_parent;
+
+    if (in_parent != nullptr)
+        handler_mutex = in_parent;
+    else
+        handler_mutex = &local_handler_mutex;
 }
 
 ssize_t BufferHandlerGeneric::GetReadBufferSize() {

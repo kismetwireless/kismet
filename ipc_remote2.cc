@@ -64,7 +64,14 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
 void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
     local_locker l(ipc_mutex);
-    ipc_mutex = in_parent;
+
+    if (in_parent != nullptr)
+        ipc_mutex = in_parent;
+    else
+        ipc_mutex = &local_ipc_mutex;
+
+    if (pipeclient != nullptr)
+        pipeclient->SetMutex(ipc_mutex);
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
@@ -78,7 +85,7 @@ IPCRemoteV2::~IPCRemoteV2() {
     hard_kill();
     child_pid = 0;
 
-    remotehandler->remove_ipc(this);
+    // remotehandler->remove_ipc(this);
 }
 
 void IPCRemoteV2::add_path(std::string in_path) {
@@ -108,6 +115,10 @@ std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
 void IPCRemoteV2::close_ipc() {
     local_locker lock(ipc_mutex);
 
+    // printf("ipcr2 close_ipc hard_kill()\n");
+    hard_kill();
+    // printf("ipcr2 close_ipc done\n");
+    //
     if (remotehandler != nullptr) {
         // printf("ipcr2 close_ipc removing ipc\n");
         // Remove the IPC entry first, we already are shutting down; let the ipc
@@ -115,9 +126,6 @@ void IPCRemoteV2::close_ipc() {
         remotehandler->remove_ipc(this);
     }
 
-    // printf("ipcr2 close_ipc hard_kill()\n");
-    hard_kill();
-    // printf("ipcr2 close_ipc done\n");
 }
 
 int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
@@ -281,6 +289,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     // fprintf(stderr, "debug - ipcremote2 creating pipeclient\n");
 
     pipeclient.reset(new PipeClient(globalreg, ipchandler));
+    pipeclient->SetMutex(ipc_mutex);
 
     pollabletracker->RegisterPollable(pipeclient);
 
@@ -403,6 +412,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     close(outpipepair[0]);
 
     pipeclient.reset(new PipeClient(globalreg, ipchandler));
+    pipeclient->SetMutex(ipc_mutex);
 
     pollabletracker->RegisterPollable(pipeclient);
 

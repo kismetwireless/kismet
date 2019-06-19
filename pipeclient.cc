@@ -43,13 +43,24 @@ PipeClient::PipeClient(GlobalRegistry *in_globalreg,
 
 PipeClient::~PipeClient() {
     // printf("~pipeclient %p\n", this);
-    ClosePipes();
+    if (read_fd > -1) {
+        close(read_fd);
+        read_fd = -1;
+    }
+
+    if (write_fd > -1) {
+        close(write_fd);
+        write_fd = -1;
+    }
 }
 
 void PipeClient::SetMutex(kis_recursive_timed_mutex *in_parent) {
     local_locker l(pipe_mutex);
 
-    pipe_mutex = in_parent;
+    if (in_parent != nullptr)
+        pipe_mutex = in_parent;
+    else
+        pipe_mutex = &local_pipe_mutex;
 }
 
 int PipeClient::OpenPipes(int rpipe, int wpipe) {

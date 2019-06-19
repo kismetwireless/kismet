@@ -45,7 +45,11 @@ TcpClientV2::~TcpClientV2() {
 
 void TcpClientV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
     local_locker l(tcp_mutex);
-    tcp_mutex = in_parent;
+
+    if (in_parent != nullptr)
+        tcp_mutex = in_parent;
+    else
+        tcp_mutex = &local_tcp_mutex;
 }
 
 int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {

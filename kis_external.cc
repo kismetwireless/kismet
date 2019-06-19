@@ -46,22 +46,16 @@ KisExternalInterface::KisExternalInterface() :
 KisExternalInterface::~KisExternalInterface() {
     timetracker->RemoveTimer(ping_timer_id);
 
+    // Transfer the remote handler back to its own internal mutex
+    ipc_remote->SetMutex(nullptr);
+
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != NULL) {
-        // printf("~kei removing interface\n");
+        ringbuf_handler->SetMutex(nullptr);
         ringbuf_handler->RemoveReadBufferInterface();
-        // printf("~kei raising error\n");
         ringbuf_handler->ProtocolError();
     }
-
-    // Remove the IPC remote reference FIRST to close out the pipes before 
-    // we touch the buffer
-    // printf("~kei resetting ipc\n");
-    ipc_remote.reset();
-    // printf("~kei done resetting ipc\n");
-
-    // printf("ending kei\n");
 }
 
 void KisExternalInterface::connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf) {
