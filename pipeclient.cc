@@ -31,15 +31,12 @@
 #include "pollabletracker.h"
 
 PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) {
-    globalreg = in_globalreg;
-    handler = in_rbhandler;
-
-    read_fd = -1;
-    write_fd = -1;
-
-    pipe_mutex = &local_pipe_mutex;
-}
+        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+    globalreg {Globalreg::globalreg},
+    pipe_mutex {&local_pipe_mutex},
+    handler {in_rbhandler},
+    read_fd {-1},
+    write_fd {-1} { }
 
 PipeClient::~PipeClient() {
     // printf("~pipeclient %p\n", this);

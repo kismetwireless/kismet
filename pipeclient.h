@@ -61,10 +61,11 @@ public:
     bool FetchConnected();
 
 protected:
+    GlobalRegistry *globalreg;
+
     kis_recursive_timed_mutex *pipe_mutex;
     kis_recursive_timed_mutex local_pipe_mutex;
 
-    GlobalRegistry *globalreg;
     std::shared_ptr<BufferHandlerGeneric> handler;
 
     std::atomic<int> read_fd, write_fd;
