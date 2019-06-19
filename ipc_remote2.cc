@@ -71,7 +71,7 @@ void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
         ipc_mutex = &local_ipc_mutex;
 
     if (pipeclient != nullptr)
-        pipeclient->SetMutex(ipc_mutex);
+        pipeclient->SetMutex(nullptr);
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
