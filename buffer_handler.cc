@@ -23,18 +23,16 @@
 #include "util.h"
 #include "buffer_handler.h"
 
-BufferHandlerGeneric::BufferHandlerGeneric() {
-    read_buffer = nullptr;
-    write_buffer = nullptr; 
-
-    rbuf_notify = nullptr;
-    wbuf_notify = nullptr;
-
-    rbuf_notify_avail = false;
-    wbuf_notify_avail = false;
-
-    handler_mutex = &local_handler_mutex;
-}
+BufferHandlerGeneric::BufferHandlerGeneric() :
+    read_buffer {nullptr},
+    write_buffer {nullptr},
+    wbuf_notify_avail {false},
+    rbuf_notify_avail {false},
+    handler_mutex {&local_handler_mutex},
+    wbuf_drain_avail {false},
+    rbuf_drain_avail {false},
+    writebuf_drain_cb {nullptr},
+    readbuf_drain_cb {nullptr} { }
 
 BufferHandlerGeneric::~BufferHandlerGeneric() {
     if (read_buffer)
