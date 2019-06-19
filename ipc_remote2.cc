@@ -75,13 +75,14 @@ void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
+    if (pipeclient != nullptr) {
+        pipeclient->SetMutex(nullptr);
+        pipeclient->ClosePipes();
+    }
+
     if (ipchandler != NULL) {
         ipchandler->SetProtocolErrorCb([]() { });
         ipchandler->BufferError("IPC process has closed");
-    }
-
-    if (pipeclient != nullptr) {
-        pipeclient->SetMutex(nullptr);
     }
 
     hard_kill();
