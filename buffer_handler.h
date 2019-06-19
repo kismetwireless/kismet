@@ -310,17 +310,20 @@ protected:
     CommonBuffer *read_buffer;
     CommonBuffer *write_buffer;
 
-    // Interfaces we notify when there has been activity on a buffer
+    // Interfaces we notify when there has been activity on a buffer; use atomic booleans
+    // to indicate if the function is available
+    std::atomic<bool> wbuf_notify_avail, rbuf_notify_avail;
     BufferInterface *wbuf_notify;
     BufferInterface *rbuf_notify;
 
     kis_recursive_timed_mutex *handler_mutex;
-    kis_recursive_timed_mutex local_handler_mutex, r_callback_mutex, w_callback_mutex;
+    kis_recursive_timed_mutex local_handler_mutex;
 
     std::function<void (void)> protoerror_cb;
 
-    std::function<void (size_t)> readbuf_drain_cb;
+    std::atomic<bool> wbuf_drain_avail, rbuf_drain_avail;
     std::function<void (size_t)> writebuf_drain_cb;
+    std::function<void (size_t)> readbuf_drain_cb;
 };
 
 template<class B> 

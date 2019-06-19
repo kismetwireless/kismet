@@ -24,11 +24,14 @@
 #include "buffer_handler.h"
 
 BufferHandlerGeneric::BufferHandlerGeneric() {
-    read_buffer = NULL;
-    write_buffer = NULL;
+    read_buffer = nullptr;
+    write_buffer = nullptr; 
 
-    rbuf_notify = NULL;
-    wbuf_notify = NULL;
+    rbuf_notify = nullptr;
+    wbuf_notify = nullptr;
+
+    rbuf_notify_avail = false;
+    wbuf_notify_avail = false;
 
     handler_mutex = &local_handler_mutex;
 }
@@ -146,7 +149,7 @@ size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
     if (read_buffer) {
         sz = read_buffer->consume(in_sz);
 
-        if (readbuf_drain_cb != NULL) {
+        if (rbuf_drain_avail && readbuf_drain_cb) {
             readbuf_drain_cb(sz);
         }
     }
@@ -160,7 +163,7 @@ size_t BufferHandlerGeneric::ConsumeWriteBufferData(size_t in_sz) {
     if (write_buffer) {
         sz = write_buffer->consume(in_sz);
 
-        if (writebuf_drain_cb != NULL) {
+        if (wbuf_drain_avail && writebuf_drain_cb) {
             writebuf_drain_cb(sz);
         }
     }
@@ -189,16 +192,10 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
 
     }
 
-    {
-        // Lock just the callback handler because the callback
-        // needs to interact with us
-        local_shared_locker lock(&r_callback_mutex);
-
+    if (rbuf_notify_avail && rbuf_notify) {
         if (ret != in_sz)
             rbuf_notify->BufferError("insufficient space in buffer");
-
-        if (rbuf_notify)
-            rbuf_notify->BufferAvailable(ret);
+        rbuf_notify->BufferAvailable(ret);
     }
 
     return ret;
@@ -239,16 +236,11 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool
         ret = write_buffer->write((unsigned char *) in_ptr, in_sz);
     }
 
-    {
-        // Lock just the callback handler because the callback
-        // needs to interact with us
-        local_locker lock(&w_callback_mutex);
-
-        if (ret != in_sz && wbuf_notify)
+    if (wbuf_notify_avail && wbuf_notify) {
+        if (ret != in_sz)
             wbuf_notify->BufferError("insufficient space in buffer");
 
-        if (wbuf_notify)
-            wbuf_notify->BufferAvailable(ret);
+        wbuf_notify->BufferAvailable(ret);
     }
 
     return ret;
@@ -295,17 +287,13 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
 }
 
 void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
-    local_shared_locker lock(&w_callback_mutex);
-
-    if (wbuf_notify) {
+    if (wbuf_notify_avail && wbuf_notify) {
         wbuf_notify->BufferAvailable(in_sz);
     }
 }
 
 void BufferHandlerGeneric::TriggerReadCallback(size_t in_sz) {
-    local_shared_locker lock(&r_callback_mutex);
-
-    if (rbuf_notify) {
+    if (rbuf_notify_avail && rbuf_notify) {
         rbuf_notify->BufferAvailable(in_sz);
     }
 }
@@ -321,15 +309,11 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
         }
     }
 
-    {
-        local_shared_locker lock(&r_callback_mutex);
-
-        if (rbuf_notify) {
-            if (!s)
-                rbuf_notify->BufferError("error committing to read buffer");
-            else
-                rbuf_notify->BufferAvailable(in_sz);
-        }
+    if (rbuf_notify_avail && rbuf_notify) {
+        if (!s)
+            rbuf_notify->BufferError("error committing to read buffer");
+        else
+            rbuf_notify->BufferAvailable(in_sz);
     }
 
     return s;
@@ -345,15 +329,11 @@ bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
         }
     }
 
-    {
-        local_shared_locker lock(&w_callback_mutex);
-
-        if (wbuf_notify) {
-            if (!s)
-                wbuf_notify->BufferError("error committing to write buffer");
-            else
-                wbuf_notify->BufferAvailable(in_sz);
-        }
+    if (wbuf_notify_avail && wbuf_notify) {
+        if (!s)
+            wbuf_notify->BufferError("error committing to write buffer");
+        else
+            wbuf_notify->BufferAvailable(in_sz);
     }
 
     return s;
@@ -370,21 +350,19 @@ void BufferHandlerGeneric::ClearWriteBuffer() {
 }
 
 void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface) {
-    local_locker lock(&r_callback_mutex);
-
+    rbuf_notify_avail = false;
     rbuf_notify = in_interface;
+    rbuf_notify_avail = true;
 
     size_t pending = GetReadBufferUsed();
-
     if (pending)
         rbuf_notify->BufferAvailable(pending);
-
 }
 
 void BufferHandlerGeneric::SetWriteBufferInterface(BufferInterface *in_interface) {
-    local_locker lock(&w_callback_mutex);
-
+    wbuf_notify_avail = false;
     wbuf_notify = in_interface;
+    wbuf_notify_avail = true;
 
     size_t pending = GetWriteBufferUsed();
 
@@ -393,37 +371,35 @@ void BufferHandlerGeneric::SetWriteBufferInterface(BufferInterface *in_interface
 }
 
 void BufferHandlerGeneric::RemoveReadBufferInterface() {
-    local_locker lock(&r_callback_mutex);
-
-    rbuf_notify = NULL;
+    rbuf_notify_avail = false;
+    rbuf_notify = nullptr;
 }
 
 void BufferHandlerGeneric::RemoveWriteBufferInterface() {
-    local_locker lock(&w_callback_mutex);
-
-    wbuf_notify = NULL;
+    wbuf_notify_avail = false;
+    wbuf_notify = nullptr;
 }
 
 void BufferHandlerGeneric::SetReadBufferDrainCb(std::function<void (size_t)> in_cb) {
-    local_locker lock(&r_callback_mutex);
-
+    rbuf_drain_avail = false;
     readbuf_drain_cb = in_cb;
+    rbuf_drain_avail = true;
 }
 
 void BufferHandlerGeneric::SetWriteBufferDrainCb(std::function<void (size_t)> in_cb) {
-    local_locker lock(&w_callback_mutex);
-
+    wbuf_drain_avail = false;
     writebuf_drain_cb = in_cb;
+    wbuf_drain_avail = true;
 }
 
 void BufferHandlerGeneric::RemoveReadBufferDrainCb() {
-    local_locker lock(&r_callback_mutex);
-    readbuf_drain_cb = NULL;
+    rbuf_drain_avail = false;
+    readbuf_drain_cb = nullptr;
 }
 
 void BufferHandlerGeneric::RemoveWriteBufferDrainCb() {
-    local_locker lock(&w_callback_mutex);
-    writebuf_drain_cb = NULL;
+    wbuf_drain_avail = false;
+    writebuf_drain_cb = nullptr; 
 }
 
 void BufferHandlerGeneric::BufferError(std::string in_error) {
@@ -432,16 +408,12 @@ void BufferHandlerGeneric::BufferError(std::string in_error) {
 }
 
 void BufferHandlerGeneric::ReadBufferError(std::string in_error) {
-    local_shared_locker lock(&r_callback_mutex);
-
-    if (rbuf_notify)
+    if (rbuf_notify_avail && rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
 void BufferHandlerGeneric::WriteBufferError(std::string in_error) {
-    local_shared_locker lock(&w_callback_mutex);
-
-    if (wbuf_notify)
+    if (wbuf_notify_avail && wbuf_notify)
         wbuf_notify->BufferError(in_error);
 }
 
