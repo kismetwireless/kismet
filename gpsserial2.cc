@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -61,13 +61,15 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
 }
 
 GPSSerialV2::~GPSSerialV2() {
-    local_locker lock(&gps_mutex);
-
-    if (serialclient != nullptr)
+    if (serialclient != nullptr) {
+        serialclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(serialclient);
+    }
 
-    if (nmeahandler != nullptr)
+    if (nmeahandler != nullptr) {
+        nmeahandler->SetMutex(nullptr);
         nmeahandler->RemoveReadBufferInterface();
+    }
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
     if (timetracker != nullptr)
@@ -120,12 +122,14 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
         nmeahandler = std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
+        nmeahandler->SetMutex(&gps_mutex);
         nmeahandler->SetReadBufferInterface(&nmeainterface);
     }
 
     if (serialclient == nullptr) {
         // Link it to a serial port
         serialclient = std::make_shared<SerialClientV2>(Globalreg::globalreg, nmeahandler);
+        serialclient->SetMutex(&gps_mutex);
         pollabletracker->RegisterPollable(serialclient);
     }
 
@@ -139,7 +143,7 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
 }
 
 bool GPSSerialV2::get_location_valid() {
-    local_locker lock(&gps_mutex);
+    local_shared_locker lock(&gps_mutex);
 
     if (gps_location == NULL) {
         return false;
@@ -159,7 +163,7 @@ bool GPSSerialV2::get_location_valid() {
 }
 
 bool GPSSerialV2::get_device_connected() {
-    local_locker lock(&gps_mutex);
+    local_shared_locker lock(&gps_mutex);
 
     if (serialclient == NULL)
         return false;

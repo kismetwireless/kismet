@@ -85,8 +85,8 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
                     _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
                             "to GPSD server.");
 
-                tcpclient->Disconnect();
-                set_int_device_connected(false);
+                    tcpclient->Disconnect();
+                    set_int_device_connected(false);
                 }
 
                 return 1;
@@ -95,13 +95,17 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
 }
 
 GPSGpsdV2::~GPSGpsdV2() {
-    if (tcpclient != nullptr)
+    if (tcpclient != nullptr) {
+        tcpclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(tcpclient);
+    }
 
     tcpclient.reset();
 
-    if (tcphandler != nullptr)
+    if (tcphandler != nullptr) {
+        tcphandler->SetMutex(nullptr);
         tcphandler->RemoveReadBufferInterface();
+    }
 
     tcphandler.reset();
 
@@ -159,13 +163,14 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
         // GPSD network connection writes data as well as reading, but most of it is
         // inbound data
         tcphandler = std::make_shared<BufferHandler<RingbufV2>>(4096, 512);
-        // Set the read handler to our function interface
+        tcphandler->SetMutex(&gps_mutex);
         tcphandler->SetReadBufferInterface(&tcpinterface);
     }
 
     if (tcpclient == nullptr) {
         // Link it to a tcp connection
         tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, tcphandler);
+        tcpclient->SetMutex(&gps_mutex);
         pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
     }
 
@@ -738,6 +743,7 @@ void GPSGpsdV2::BufferError(std::string in_error) {
 
     // Delete any existing interface before we parse options
     if (tcpclient != NULL) {
+        tcpclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(tcpclient);
         tcpclient.reset();
     }

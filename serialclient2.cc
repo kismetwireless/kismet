@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -33,17 +33,26 @@
 SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {in_globalreg},
+    serial_mutex {&local_serial_mutex},
     handler {in_rbhandler},
     device_fd {-1} { }
 
 SerialClientV2::~SerialClientV2() {
     Close();
+}
 
-    std::shared_ptr<PollableTracker> pollabletracker =
-        std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
+void SerialClientV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
+    local_locker l(serial_mutex);
+
+    if (in_parent != nullptr)
+        serial_mutex = in_parent;
+    else
+        serial_mutex = &local_serial_mutex;
 }
 
 int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
+    local_locker l(serial_mutex);
+
     std::stringstream msg;
 
     if (device_fd > -1) {
@@ -114,10 +123,14 @@ int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
 }
 
 bool SerialClientV2::FetchConnected() {
+    local_shared_locker ls(serial_mutex);
+
     return device_fd > -1;
 }
 
 int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    local_locker l(serial_mutex);
+
     if (device_fd < 0)
         return in_max_fd;
 
@@ -136,6 +149,8 @@ int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) 
 }
 
 int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+    local_locker l(serial_mutex);
+
     std::stringstream msg;
 
     uint8_t *buf;
@@ -224,6 +239,8 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void SerialClientV2::Close() {
+    local_locker l(serial_mutex);
+
     if (device_fd > -1) {
         close(device_fd);
     }

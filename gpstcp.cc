@@ -61,11 +61,15 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 }
 
 GPSTCP::~GPSTCP() {
-    if (tcpclient != nullptr)
+    if (tcpclient != nullptr) {
+        tcpclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(tcpclient);
+    }
 
-    if (nmeahandler != nullptr)
+    if (nmeahandler != nullptr) {
+        nmeahandler->SetMutex(nullptr);
         nmeahandler->RemoveReadBufferInterface();
+    }
 
     std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
     if (timetracker != nullptr)
@@ -119,13 +123,14 @@ bool GPSTCP::open_gps(std::string in_opts) {
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
         nmeahandler =  std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
+        nmeahandler->SetMutex(&gps_mutex);
         nmeahandler->SetReadBufferInterface(&nmeainterface);
     }
 
     if (tcpclient == nullptr) {
         // Link to a tcp connection
         tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, nmeahandler);
-        // Register a pollable event
+        tcpclient->SetMutex(&gps_mutex);
         pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
     }
 
@@ -141,7 +146,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
 }
 
 bool GPSTCP::get_location_valid() {
-    local_locker lock(&gps_mutex);
+    local_shared_locker lock(&gps_mutex);
 
     if (gps_location == NULL) {
         return false;
@@ -161,7 +166,7 @@ bool GPSTCP::get_location_valid() {
 }
 
 bool GPSTCP::get_device_connected() {
-    local_locker lock(&gps_mutex);
+    local_shared_locker lock(&gps_mutex);
 
     if (tcpclient == NULL)
         return false;
