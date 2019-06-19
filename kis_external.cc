@@ -72,6 +72,7 @@ void KisExternalInterface::connect_buffer(std::shared_ptr<BufferHandlerGeneric> 
     }
 
     ringbuf_handler = in_ringbuf;
+    ringbuf_handler->SetMutex(&ext_mutex);
     ringbuf_handler->SetReadBufferInterface(this);
 }
 
@@ -246,9 +247,11 @@ bool KisExternalInterface::run_ipc() {
 
     // Make a new handler and new ipc.  Give a generous buffer.
     ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024 * 1024), (1024 * 1024)));
+    ringbuf_handler->SetMutex(&ext_mutex);
     ringbuf_handler->SetReadBufferInterface(this);
 
     ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
+    ipc_remote->SetMutex(&ext_mutex);
 
     // Get allowed paths for binaries
     std::vector<std::string> bin_paths = 

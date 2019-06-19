@@ -31,10 +31,10 @@
 
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+        globalreg {Globalreg::globalreg},
+        ipc_mutex {&local_ipc_mutex},
         tracker_free {false},
         child_pid {0} {
-
-    globalreg = in_globalreg;
 
     pollabletracker =
         std::static_pointer_cast<PollableTracker>(globalreg->FetchGlobal("POLLABLETRACKER"));
@@ -62,6 +62,11 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
 }
 
+void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
+    local_locker l(ipc_mutex);
+    ipc_mutex = in_parent;
+}
+
 IPCRemoteV2::~IPCRemoteV2() {
     // printf("~ipcremote %p %d\n", this, child_pid);
     ipchandler->SetProtocolErrorCb([]() { });
@@ -77,12 +82,12 @@ IPCRemoteV2::~IPCRemoteV2() {
 }
 
 void IPCRemoteV2::add_path(std::string in_path) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
     path_vec.push_back(in_path);
 }
 
 std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
 
     for (unsigned int x = 0; x < path_vec.size(); x++) {
         std::stringstream path;
@@ -101,7 +106,7 @@ std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
 }
 
 void IPCRemoteV2::close_ipc() {
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
 
     if (remotehandler != nullptr) {
         // printf("ipcr2 close_ipc removing ipc\n");
@@ -178,7 +183,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     // We can't use a local_locker here because we can't let it unlock
     // inside the child thread, because the mutex doesn't survive across
     // forking
-    local_eol_locker ilock(&ipc_locker);
+    local_eol_locker ilock(ipc_mutex);
 
     // 'in' to the spawned process, write to the server process, 
     // [1] belongs to us, [0] to them
@@ -190,7 +195,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
 #ifdef HAVE_PIPE2
     if (pipe2(inpipepair, O_NONBLOCK) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
@@ -198,13 +203,13 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 #else
     if (pipe(inpipepair) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
         return -1;
     }
     fcntl(inpipepair[0], F_SETFL, fcntl(inpipepair[0], F_GETFL, 0) | O_NONBLOCK);
@@ -214,7 +219,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
         return -1;
     }
     fcntl(outpipepair[0], F_SETFL, fcntl(outpipepair[0], F_GETFL, 0) | O_NONBLOCK);
@@ -234,7 +239,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
 
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
       
@@ -290,7 +295,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     binary_args = args;
 
     {
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
     }
 
     // Unmask the child signal now that we're done
@@ -332,7 +337,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     // We can't use a local_locker here because we can't let it unlock
     // inside the child thread, because the mutex doesn't survive across
     // forking
-    local_eol_locker elock(&ipc_locker);
+    local_eol_locker elock(ipc_mutex);
 
     // 'in' to the spawned process, [0] belongs to us, [1] to them
     int inpipepair[2];
@@ -341,7 +346,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
 
     if (pipe(inpipepair) < 0) {
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
@@ -349,7 +354,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
         _MSG("IPC could not create pipe", MSGFLAG_ERROR);
         close(inpipepair[0]);
         close(inpipepair[1]);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
@@ -365,7 +370,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
 
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
         
@@ -409,7 +414,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     binary_args = args;
 
     {
-        local_unlocker ulock(&ipc_locker);
+        local_unlocker ulock(ipc_mutex);
     }
 
     // Unmask the child signal now that we're done
@@ -419,18 +424,18 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
 }
 
 pid_t IPCRemoteV2::get_pid() {
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
     return child_pid;
 }
 
 void IPCRemoteV2::set_tracker_free(bool in_free) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
     tracker_free = in_free;
 }
 
 int IPCRemoteV2::soft_kill() {
     // printf("debug - %p softkill %d\n", this, child_pid);
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
 
     if (pipeclient != NULL) {
         // printf("debug - %p softkill removing %p\n", this, pipeclient.get());
@@ -448,7 +453,7 @@ int IPCRemoteV2::hard_kill() {
     // printf("debug - %p hardkill %u\n", this, child_pid);
 
     // printf("%p hard_kill locking ipc\n", this);
-    local_locker lock(&ipc_locker);
+    local_locker lock(ipc_mutex);
     // printf("%p hard kill got ipc\n", this);
 
     if (pipeclient != NULL) {
@@ -502,7 +507,7 @@ IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
 }
 
 void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(&ipc_mutex);
 
     for (auto r : process_vec) {
         if (r == in_remote) {
@@ -514,7 +519,7 @@ void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
 }
 
 std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(&ipc_mutex);
 
     std::shared_ptr<IPCRemoteV2> ret;
 
@@ -540,7 +545,7 @@ void IPCRemoteV2Tracker::schedule_cleanup() {
         Globalreg::globalreg->timetracker->RegisterTimer(1, NULL, 0, 
                 [this] (int) -> int {
                     // printf("ipctracker cleanup triggered\n");
-                    local_locker lock(&ipc_locker);
+                    local_locker lock(&ipc_mutex);
 
                     cleanup_vec.clear();
 
@@ -551,7 +556,7 @@ void IPCRemoteV2Tracker::schedule_cleanup() {
 }
 
 std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(&ipc_mutex);
 
     std::shared_ptr<IPCRemoteV2> ret;
 
@@ -570,7 +575,7 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
 }
 
 void IPCRemoteV2Tracker::kill_all_ipc(bool in_hardkill) {
-    local_locker lock(&ipc_locker);
+    local_locker lock(&ipc_mutex);
 
     // Leave everything in the vec until we properly reap it, we might
     // need to go back and kill it again
@@ -630,7 +635,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
     bool vector_empty = true;
 
     {
-        local_locker lock(&ipc_locker);
+        local_locker lock(&ipc_mutex);
         if (process_vec.size() > 0)
             vector_empty = false;
     }
@@ -673,7 +678,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
     }
 
     {
-        local_locker lock(&ipc_locker);
+        local_locker lock(&ipc_mutex);
         if (process_vec.size() > 0)
             vector_empty = false;
     }

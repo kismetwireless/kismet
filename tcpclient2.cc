@@ -32,8 +32,9 @@
 
 TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
-    globalreg {in_globalreg},
+    globalreg {Globalreg::globalreg},
     handler {in_rbhandler},
+    tcp_mutex {&local_tcp_mutex} ,
     pending_connect {false}, 
     connected {false}, 
     cli_fd {-1} { }
@@ -42,8 +43,13 @@ TcpClientV2::~TcpClientV2() {
     Disconnect();
 }
 
+void TcpClientV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
+    local_locker l(tcp_mutex);
+    tcp_mutex = in_parent;
+}
+
 int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
-    local_locker l(&tcp_mutex);
+    local_locker l(tcp_mutex);
 
     std::stringstream msg;
 
@@ -112,7 +118,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
 }
 
 int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-    local_locker l(&tcp_mutex);
+    local_locker l(tcp_mutex);
 
     // All we fill in is the descriptor for writing if we're still trying to
     // connect
@@ -141,7 +147,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
-    local_locker l(&tcp_mutex);
+    local_locker l(tcp_mutex);
     
     std::string msg;
 
@@ -289,7 +295,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void TcpClientV2::Disconnect() {
-    local_locker l(&tcp_mutex);
+    local_locker l(tcp_mutex);
 
     if (pending_connect || connected) {
         if (cli_fd >= 0)
@@ -303,7 +309,7 @@ void TcpClientV2::Disconnect() {
 }
 
 bool TcpClientV2::FetchConnected() {
-    local_locker l(&tcp_mutex);
+    local_locker l(tcp_mutex);
 
     if (connected || pending_connect)
         return true;

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -169,8 +169,9 @@ class BufferHandlerGenericLocker;
 class BufferHandlerGeneric {
 public:
     BufferHandlerGeneric();
-
     virtual ~BufferHandlerGeneric();
+
+    virtual void SetMutex(kis_recursive_timed_mutex *in_parent);
 
     // Basic size ops
     virtual ssize_t GetReadBufferSize();
@@ -313,7 +314,8 @@ protected:
     BufferInterface *wbuf_notify;
     BufferInterface *rbuf_notify;
 
-    kis_recursive_timed_mutex handler_locker, r_callback_locker, w_callback_locker;
+    kis_recursive_timed_mutex *handler_mutex;
+    kis_recursive_timed_mutex local_handler_mutex, r_callback_mutex, w_callback_mutex;
 
     std::function<void (void)> protoerror_cb;
 

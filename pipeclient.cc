@@ -38,7 +38,7 @@ PipeClient::PipeClient(GlobalRegistry *in_globalreg,
     read_fd = -1;
     write_fd = -1;
 
-    // printf("%p pipeclient mutex %p\n", this, &pipe_lock);
+    pipe_mutex = &local_pipe_mutex;
 }
 
 PipeClient::~PipeClient() {
@@ -46,8 +46,14 @@ PipeClient::~PipeClient() {
     ClosePipes();
 }
 
+void PipeClient::SetMutex(kis_recursive_timed_mutex *in_parent) {
+    local_locker l(pipe_mutex);
+
+    pipe_mutex = in_parent;
+}
+
 int PipeClient::OpenPipes(int rpipe, int wpipe) {
-    local_locker lock(&pipe_lock);
+    local_locker lock(pipe_mutex);
 
     if (read_fd > -1 || write_fd > -1) {
         _MSG("Pipe client asked to bind to pipes but already connected to a "
@@ -70,13 +76,13 @@ int PipeClient::OpenPipes(int rpipe, int wpipe) {
 }
 
 bool PipeClient::FetchConnected() {
-    local_shared_locker lock(&pipe_lock);
+    local_shared_locker lock(pipe_mutex);
 
     return handler == nullptr || read_fd > -1 || write_fd > -1;
 }
 
 int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-    local_locker lock(&pipe_lock);
+    local_locker lock(pipe_mutex);
 
     if (handler == nullptr)
         return in_max_fd;
@@ -103,7 +109,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
-    local_locker lock(&pipe_lock);
+    local_locker lock(pipe_mutex);
 
     std::stringstream msg;
 
@@ -192,7 +198,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 int PipeClient::FlushRead() {
-    local_locker lock(&pipe_lock);
+    local_locker lock(pipe_mutex);
 
     std::stringstream msg;
 
@@ -240,10 +246,8 @@ int PipeClient::FlushRead() {
 
 void PipeClient::ClosePipes() {
     // printf("%p looking for pipe lock lock %p\n", this, &pipe_lock);
-    local_locker lock(&pipe_lock);
+    local_locker lock(pipe_mutex);
     // printf("%p got pipe lock\n", this);
-
-    handler.reset();
 
     // printf("%p closing\n", this);
     if (read_fd > -1) {

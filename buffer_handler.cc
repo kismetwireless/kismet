@@ -29,6 +29,8 @@ BufferHandlerGeneric::BufferHandlerGeneric() {
 
     rbuf_notify = NULL;
     wbuf_notify = NULL;
+
+    handler_mutex = &local_handler_mutex;
 }
 
 BufferHandlerGeneric::~BufferHandlerGeneric() {
@@ -37,6 +39,11 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
 
     if (write_buffer)
         delete write_buffer;
+}
+
+void BufferHandlerGeneric::SetMutex(kis_recursive_timed_mutex *in_parent) {
+    local_locker l(handler_mutex);
+    handler_mutex = in_parent;
 }
 
 ssize_t BufferHandlerGeneric::GetReadBufferSize() {
@@ -163,7 +170,7 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
     size_t ret;
 
     {
-        local_locker hlock(&handler_locker);
+        local_locker hlock(handler_mutex);
 
         if (!read_buffer)
             return 0;
@@ -181,7 +188,7 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
     {
         // Lock just the callback handler because the callback
         // needs to interact with us
-        local_locker lock(&r_callback_locker);
+        local_locker lock(&r_callback_mutex);
 
         if (ret != in_sz)
             rbuf_notify->BufferError("insufficient space in buffer");
@@ -210,7 +217,7 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool
     size_t ret;
 
     {
-        local_locker hlock(&handler_locker);
+        local_locker hlock(handler_mutex);
 
         if (!write_buffer) {
             if (wbuf_notify)
@@ -231,7 +238,7 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool
     {
         // Lock just the callback handler because the callback
         // needs to interact with us
-        local_locker lock(&w_callback_locker);
+        local_locker lock(&w_callback_mutex);
 
         if (ret != in_sz && wbuf_notify)
             wbuf_notify->BufferError("insufficient space in buffer");
@@ -244,7 +251,7 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool
 }
 
 ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz) {
-    local_locker hlock(&handler_locker);
+    local_locker hlock(handler_mutex);
 
     if (read_buffer != NULL) {
         return read_buffer->reserve((unsigned char **) in_ptr, in_sz);
@@ -254,7 +261,7 @@ ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz)
 }
 
 ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
-    local_locker hlock(&handler_locker);
+    local_locker hlock(handler_mutex);
 
     if (write_buffer != NULL) {
         return write_buffer->reserve((unsigned char **) in_ptr, in_sz);
@@ -264,7 +271,7 @@ ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_t in_sz) {
-    local_locker hlock(&handler_locker);
+    local_locker hlock(handler_mutex);
 
     if (read_buffer != NULL) {
         return read_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
@@ -274,7 +281,7 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_
 }
 
 ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size_t in_sz) {
-    local_locker hlock(&handler_locker);
+    local_locker hlock(handler_mutex);
 
     if (write_buffer != NULL) {
         return write_buffer->zero_copy_reserve((unsigned char **) in_ptr, in_sz);
@@ -284,7 +291,7 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
 }
 
 void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
 
     if (wbuf_notify) {
         wbuf_notify->BufferAvailable(in_sz);
@@ -292,7 +299,7 @@ void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
 }
 
 void BufferHandlerGeneric::TriggerReadCallback(size_t in_sz) {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
 
     if (rbuf_notify) {
         rbuf_notify->BufferAvailable(in_sz);
@@ -303,7 +310,7 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
     {
-        local_locker hlock(&handler_locker);
+        local_locker hlock(handler_mutex);
 
         if (read_buffer != NULL) {
             s = read_buffer->commit((unsigned char *) in_ptr, in_sz);
@@ -311,7 +318,7 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     }
 
     {
-        local_locker lock(&r_callback_locker);
+        local_locker lock(&r_callback_mutex);
 
         if (rbuf_notify) {
             if (!s)
@@ -328,14 +335,14 @@ bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
     {
-        local_locker hlock(&handler_locker);
+        local_locker hlock(handler_mutex);
         if (write_buffer != NULL) {
             s = write_buffer->commit((unsigned char *) in_ptr, in_sz);
         }
     }
 
     {
-        local_locker lock(&w_callback_locker);
+        local_locker lock(&w_callback_mutex);
 
         if (wbuf_notify) {
             if (!s)
@@ -359,7 +366,7 @@ void BufferHandlerGeneric::ClearWriteBuffer() {
 }
 
 void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface) {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
 
     rbuf_notify = in_interface;
 
@@ -371,7 +378,7 @@ void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface)
 }
 
 void BufferHandlerGeneric::SetWriteBufferInterface(BufferInterface *in_interface) {
-    local_locker lock(&w_callback_locker);
+    local_locker lock(&w_callback_mutex);
 
     wbuf_notify = in_interface;
 
@@ -382,36 +389,36 @@ void BufferHandlerGeneric::SetWriteBufferInterface(BufferInterface *in_interface
 }
 
 void BufferHandlerGeneric::RemoveReadBufferInterface() {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
 
     rbuf_notify = NULL;
 }
 
 void BufferHandlerGeneric::RemoveWriteBufferInterface() {
-    local_locker lock(&w_callback_locker);
+    local_locker lock(&w_callback_mutex);
 
     wbuf_notify = NULL;
 }
 
 void BufferHandlerGeneric::SetReadBufferDrainCb(std::function<void (size_t)> in_cb) {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
 
     readbuf_drain_cb = in_cb;
 }
 
 void BufferHandlerGeneric::SetWriteBufferDrainCb(std::function<void (size_t)> in_cb) {
-    local_locker lock(&w_callback_locker);
+    local_locker lock(&w_callback_mutex);
 
     writebuf_drain_cb = in_cb;
 }
 
 void BufferHandlerGeneric::RemoveReadBufferDrainCb() {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
     readbuf_drain_cb = NULL;
 }
 
 void BufferHandlerGeneric::RemoveWriteBufferDrainCb() {
-    local_locker lock(&w_callback_locker);
+    local_locker lock(&w_callback_mutex);
     writebuf_drain_cb = NULL;
 }
 
@@ -421,27 +428,27 @@ void BufferHandlerGeneric::BufferError(std::string in_error) {
 }
 
 void BufferHandlerGeneric::ReadBufferError(std::string in_error) {
-    local_locker lock(&r_callback_locker);
+    local_locker lock(&r_callback_mutex);
 
     if (rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
 void BufferHandlerGeneric::WriteBufferError(std::string in_error) {
-    local_locker lock(&w_callback_locker);
+    local_locker lock(&w_callback_mutex);
 
     if (wbuf_notify)
         wbuf_notify->BufferError(in_error);
 }
 
 void BufferHandlerGeneric::SetProtocolErrorCb(std::function<void (void)> in_cb) {
-    local_locker lock(&handler_locker);
+    local_locker lock(handler_mutex);
 
     protoerror_cb = in_cb;
 }
 
 void BufferHandlerGeneric::ProtocolError() {
-    // local_locker lock(&handler_locker);
+    // local_locker lock(handler_mutex);
 
     if (protoerror_cb != NULL)
         protoerror_cb();
