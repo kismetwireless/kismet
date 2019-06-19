@@ -47,11 +47,13 @@ KisExternalInterface::~KisExternalInterface() {
     timetracker->RemoveTimer(ping_timer_id);
 
     // Transfer the remote handler back to its own internal mutex
-    ipc_remote->SetMutex(nullptr);
+    if (ipc_remote != nullptr) {
+        ipc_remote->SetMutex(nullptr);
+    }
 
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
-    if (ringbuf_handler != NULL) {
+    if (ringbuf_handler != nullptr) {
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
         ringbuf_handler->SetMutex(nullptr);
