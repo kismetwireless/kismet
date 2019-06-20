@@ -67,7 +67,6 @@ void IPCRemoteV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent)
 IPCRemoteV2::~IPCRemoteV2() {
     if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
-        pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
     }
 
@@ -276,7 +275,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     close(outpipepair[1]);
 
     if (pipeclient != NULL) {
-        pipeclient->SetMutex(nullptr);
         soft_kill();
     }
 
@@ -318,7 +316,6 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     std::stringstream arg;
 
     if (pipeclient != NULL) {
-        pipeclient->SetMutex(nullptr);
         soft_kill();
     }
 
@@ -437,7 +434,6 @@ int IPCRemoteV2::soft_kill() {
 
     if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
-        pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
     }
 
@@ -452,7 +448,6 @@ int IPCRemoteV2::hard_kill() {
 
     if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
-        pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
     }
 
