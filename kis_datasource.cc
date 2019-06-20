@@ -379,13 +379,13 @@ void KisDatasource::close_source() {
         ping_timer_id = -1;
     }
 
-    if (ringbuf_handler != NULL) {
+    if (ringbuf_handler != nullptr) {
         ringbuf_handler->SetMutex(nullptr);
         ringbuf_handler->RemoveReadBufferInterface();
         send_shutdown("closing source");
     }
 
-    if (ipc_remote != NULL) {
+    if (ipc_remote != nullptr) {
         ipc_remote->SetMutex(nullptr);
         ipc_remote->soft_kill();
     }

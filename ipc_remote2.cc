@@ -66,11 +66,8 @@ void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
 
 IPCRemoteV2::~IPCRemoteV2() {
     if (pipeclient != nullptr) {
-        pipeclient->SetMutex(nullptr);
-    }
-
-    if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
+        pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
     }
 
@@ -438,8 +435,8 @@ int IPCRemoteV2::soft_kill() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != NULL) {
-        pipeclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(pipeclient);
+        pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
     }
 
@@ -453,8 +450,8 @@ int IPCRemoteV2::hard_kill() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != NULL) {
-        pipeclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(pipeclient);
+        pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
     }
 
