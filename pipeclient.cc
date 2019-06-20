@@ -33,7 +33,7 @@
 PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {Globalreg::globalreg},
-    pipe_mutex {&local_pipe_mutex},
+    pipe_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     handler {in_rbhandler},
     read_fd {-1},
     write_fd {-1} { }
@@ -53,13 +53,13 @@ PipeClient::~PipeClient() {
     }
 }
 
-void PipeClient::SetMutex(kis_recursive_timed_mutex *in_parent) {
+void PipeClient::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(pipe_mutex);
 
     if (in_parent != nullptr)
         pipe_mutex = in_parent;
     else
-        pipe_mutex = &local_pipe_mutex;
+        pipe_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
 int PipeClient::OpenPipes(int rpipe, int wpipe) {

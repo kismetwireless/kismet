@@ -50,8 +50,6 @@ DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition,
 }
 
 DST_DatasourceProbe::~DST_DatasourceProbe() {
-    local_locker lock(&probe_lock);
-
     // Cancel any timers
     for (auto i : cancel_timer_vec)
         timetracker->RemoveTimer(i);
@@ -1034,13 +1032,24 @@ void Datasourcetracker::schedule_cleanup() {
 
     completion_cleanup_id = 
         timetracker->RegisterTimer(2, NULL, 0, [this] (int) -> int {
-            local_locker lock(&dst_lock);
+            local_demand_locker lock(&dst_lock);
+           
+            lock.lock();
+            auto d_pcv = probing_complete_vec;
+            auto d_lcv = listing_complete_vec;
+            auto d_bsv = broken_source_vec;
 
             completion_cleanup_id = -1;
 
             probing_complete_vec.clear();
             listing_complete_vec.clear();
             broken_source_vec.clear();
+            lock.unlock();
+
+            // Actually purge them outside of lockdown
+            d_pcv.clear();
+            d_lcv.clear();
+            d_bsv.clear();
 
             return 0;
         });
@@ -2035,7 +2044,7 @@ void dst_incoming_remote::kill() {
 }
 
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(&ext_mutex);
+    local_locker lock(ext_mutex);
 
     KismetDatasource::NewSource c;
 

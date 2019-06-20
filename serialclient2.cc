@@ -33,7 +33,7 @@
 SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {in_globalreg},
-    serial_mutex {&local_serial_mutex},
+    serial_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     handler {in_rbhandler},
     device_fd {-1} { }
 
@@ -41,13 +41,13 @@ SerialClientV2::~SerialClientV2() {
     Close();
 }
 
-void SerialClientV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
+void SerialClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(serial_mutex);
 
     if (in_parent != nullptr)
         serial_mutex = in_parent;
     else
-        serial_mutex = &local_serial_mutex;
+        serial_mutex = std::make_shared<kis_recursive_timed_mutex>(); 
 }
 
 int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {

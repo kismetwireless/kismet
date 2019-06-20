@@ -35,7 +35,7 @@ GPSWeb::~GPSWeb() {
 }
 
 bool GPSWeb::open_gps(std::string in_opts) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     if (!KisGps::open_gps(in_opts)) {
         return false;
@@ -49,7 +49,7 @@ bool GPSWeb::open_gps(std::string in_opts) {
 }
 
 bool GPSWeb::get_location_valid() {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     if (gps_location == NULL) {
         return false;

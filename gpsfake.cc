@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -27,7 +27,7 @@ GPSFake::GPSFake(SharedGpsBuilder in_builder) :
 GPSFake::~GPSFake() { }
 
 bool GPSFake::open_gps(std::string in_opts) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     if (!KisGps::open_gps(in_opts)) {
         return false;
@@ -85,7 +85,7 @@ bool GPSFake::open_gps(std::string in_opts) {
 }
 
 kis_gps_packinfo *GPSFake::get_location() {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     gettimeofday(&(gps_location->tv), NULL);
 
@@ -93,7 +93,7 @@ kis_gps_packinfo *GPSFake::get_location() {
 }
 
 kis_gps_packinfo *GPSFake::get_last_location() {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     gettimeofday(&(gps_last_location->tv), NULL);
 

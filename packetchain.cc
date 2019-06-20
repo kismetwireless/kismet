@@ -216,13 +216,9 @@ void Packetchain::packet_queue_processor() {
     local_demand_locker queue_lock(&(packetqueue_mutex));
     local_demand_locker chain_lock(&(packetchain_mutex));
 
-    while (1) {
+    while (!packetchain_shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
         queue_lock.lock();
 
-        // Are we shutting down?
-        if (packetchain_shutdown)
-            return;
-      
         if (packet_queue.size() != 0) {
             // Get the next packet
             packet = packet_queue.front();

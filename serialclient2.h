@@ -43,7 +43,7 @@ public:
     SerialClientV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~SerialClientV2();
 
-    virtual void SetMutex(kis_recursive_timed_mutex *in_parent);
+    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Open a serial port @ a given baud rate
     int OpenDevice(std::string in_device, unsigned int in_baud);
@@ -58,8 +58,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    kis_recursive_timed_mutex *serial_mutex;
-    kis_recursive_timed_mutex local_serial_mutex;
+    std::shared_ptr<kis_recursive_timed_mutex> serial_mutex;
 
     std::shared_ptr<BufferHandlerGeneric> handler;
 

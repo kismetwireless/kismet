@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -34,7 +34,7 @@ TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     handler {in_rbhandler},
-    tcp_mutex {&local_tcp_mutex} ,
+    tcp_mutex {std::make_shared<kis_recursive_timed_mutex>()} ,
     pending_connect {false}, 
     connected {false}, 
     cli_fd {-1} { }
@@ -43,13 +43,13 @@ TcpClientV2::~TcpClientV2() {
     Disconnect();
 }
 
-void TcpClientV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
+void TcpClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(tcp_mutex);
 
     if (in_parent != nullptr)
         tcp_mutex = in_parent;
     else
-        tcp_mutex = &local_tcp_mutex;
+        tcp_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
 int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {

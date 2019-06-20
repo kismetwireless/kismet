@@ -59,7 +59,7 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
                 {
-                    local_shared_locker l(&gps_mutex);
+                    local_shared_locker l(gps_mutex);
 
                     if (tcpclient != nullptr && tcpclient->FetchConnected())
                         return 1;
@@ -75,7 +75,7 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
                 [this](int) -> int {
 
                 {
-                    local_shared_locker l(&gps_mutex);
+                    local_shared_locker l(gps_mutex);
 
                     if (tcpclient == nullptr || (tcpclient != nullptr && !tcpclient->FetchConnected()))
                         return 1;
@@ -97,14 +97,12 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
 GPSGpsdV2::~GPSGpsdV2() {
     if (tcpclient != nullptr) {
         pollabletracker->RemovePollable(tcpclient);
-        tcpclient->SetMutex(nullptr);
     }
 
     tcpclient.reset();
 
     if (tcphandler != nullptr) {
         tcphandler->RemoveReadBufferInterface();
-        tcphandler->SetMutex(nullptr);
     }
 
     tcphandler.reset();
@@ -117,7 +115,7 @@ GPSGpsdV2::~GPSGpsdV2() {
 }
 
 bool GPSGpsdV2::open_gps(std::string in_opts) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     if (!KisGps::open_gps(in_opts))
         return false;
@@ -163,14 +161,14 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
         // GPSD network connection writes data as well as reading, but most of it is
         // inbound data
         tcphandler = std::make_shared<BufferHandler<RingbufV2>>(4096, 512);
-        tcphandler->SetMutex(&gps_mutex);
+        tcphandler->SetMutex(gps_mutex);
         tcphandler->SetReadBufferInterface(&tcpinterface);
     }
 
     if (tcpclient == nullptr) {
         // Link it to a tcp connection
         tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, tcphandler);
-        tcpclient->SetMutex(&gps_mutex);
+        tcpclient->SetMutex(gps_mutex);
         pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
     }
 
@@ -190,7 +188,7 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
 }
 
 bool GPSGpsdV2::get_location_valid() {
-    local_shared_locker lock(&gps_mutex);
+    local_shared_locker lock(gps_mutex);
 
     if (!get_device_connected()) {
         return false;
@@ -213,7 +211,7 @@ bool GPSGpsdV2::get_location_valid() {
 }
 
 void GPSGpsdV2::BufferAvailable(size_t in_amt) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     size_t buf_sz;
     char *buf;
@@ -737,13 +735,12 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 }
 
 void GPSGpsdV2::BufferError(std::string in_error) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     set_int_device_connected(false);
 
     // Delete any existing interface before we parse options
     if (tcpclient != NULL) {
-        tcpclient->SetMutex(nullptr);
         pollabletracker->RemovePollable(tcpclient);
         tcpclient.reset();
     }

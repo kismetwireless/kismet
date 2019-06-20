@@ -25,6 +25,8 @@
 KisGps::KisGps(SharedGpsBuilder in_builder) : 
     tracker_component() {
 
+    gps_mutex = std::make_shared<kis_recursive_timed_mutex>();
+
     register_fields();
     reserve_fields(NULL);
 
@@ -45,7 +47,7 @@ KisGps::~KisGps() {
 }
 
 bool KisGps::open_gps(std::string in_definition) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     set_int_device_connected(false);
     set_int_gps_definition(in_definition);

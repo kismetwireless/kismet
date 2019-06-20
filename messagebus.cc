@@ -69,10 +69,7 @@ void MessageBus::InjectMessage(std::string in_msg, int in_flags) {
 void MessageBus::msg_queue_dispatcher() {
     local_demand_locker l(&msg_mutex);
 
-    while (1) {
-        if (shutdown)
-            return;
-
+    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
         // Lock while we examine the queue
         l.lock();
 

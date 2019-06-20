@@ -63,12 +63,10 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
 GPSSerialV2::~GPSSerialV2() {
     if (serialclient != nullptr) {
         pollabletracker->RemovePollable(serialclient);
-        serialclient->SetMutex(nullptr);
     }
 
     if (nmeahandler != nullptr) {
         nmeahandler->RemoveReadBufferInterface();
-        nmeahandler->SetMutex(nullptr);
     }
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
@@ -77,7 +75,7 @@ GPSSerialV2::~GPSSerialV2() {
 }
 
 bool GPSSerialV2::open_gps(std::string in_opts) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     if (!KisGps::open_gps(in_opts))
         return false;
@@ -122,14 +120,14 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
         nmeahandler = std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
-        nmeahandler->SetMutex(&gps_mutex);
+        nmeahandler->SetMutex(gps_mutex);
         nmeahandler->SetReadBufferInterface(&nmeainterface);
     }
 
     if (serialclient == nullptr) {
         // Link it to a serial port
         serialclient = std::make_shared<SerialClientV2>(Globalreg::globalreg, nmeahandler);
-        serialclient->SetMutex(&gps_mutex);
+        serialclient->SetMutex(gps_mutex);
         pollabletracker->RegisterPollable(serialclient);
     }
 
@@ -143,7 +141,7 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
 }
 
 bool GPSSerialV2::get_location_valid() {
-    local_shared_locker lock(&gps_mutex);
+    local_shared_locker lock(gps_mutex);
 
     if (gps_location == NULL) {
         return false;
@@ -163,7 +161,7 @@ bool GPSSerialV2::get_location_valid() {
 }
 
 bool GPSSerialV2::get_device_connected() {
-    local_shared_locker lock(&gps_mutex);
+    local_shared_locker lock(gps_mutex);
 
     if (serialclient == NULL)
         return false;
@@ -172,7 +170,7 @@ bool GPSSerialV2::get_device_connected() {
 }
 
 void GPSSerialV2::BufferError(std::string in_error) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a serial error: " + in_error,
             MSGFLAG_ERROR);

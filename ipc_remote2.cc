@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -32,7 +32,7 @@
 IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
         globalreg {Globalreg::globalreg},
-        ipc_mutex {&local_ipc_mutex},
+        ipc_mutex {std::make_shared<kis_recursive_timed_mutex>()},
         tracker_free {false},
         child_pid {0} {
 
@@ -52,13 +52,13 @@ IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg,
 
 }
 
-void IPCRemoteV2::SetMutex(kis_recursive_timed_mutex *in_parent) {
+void IPCRemoteV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(ipc_mutex);
 
     if (in_parent != nullptr)
         ipc_mutex = in_parent;
     else
-        ipc_mutex = &local_ipc_mutex;
+        ipc_mutex = std::make_shared<kis_recursive_timed_mutex>();
 
     if (pipeclient != nullptr)
         pipeclient->SetMutex(in_parent);
@@ -276,8 +276,8 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     close(outpipepair[1]);
 
     if (pipeclient != NULL) {
-        soft_kill();
         pipeclient->SetMutex(nullptr);
+        soft_kill();
     }
 
     pipeclient.reset(new PipeClient(globalreg, ipchandler));
@@ -318,6 +318,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     std::stringstream arg;
 
     if (pipeclient != NULL) {
+        pipeclient->SetMutex(nullptr);
         soft_kill();
     }
 
@@ -422,7 +423,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
 }
 
 pid_t IPCRemoteV2::get_pid() {
-    local_shared_locker lock(ipc_mutex);
+    local_locker lock(ipc_mutex);
     return child_pid;
 }
 
@@ -434,7 +435,7 @@ void IPCRemoteV2::set_tracker_free(bool in_free) {
 int IPCRemoteV2::soft_kill() {
     local_locker lock(ipc_mutex);
 
-    if (pipeclient != NULL) {
+    if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
@@ -449,7 +450,7 @@ int IPCRemoteV2::soft_kill() {
 int IPCRemoteV2::hard_kill() {
     local_locker lock(ipc_mutex);
 
-    if (pipeclient != NULL) {
+    if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->SetMutex(nullptr);
         pipeclient->ClosePipes();
@@ -606,13 +607,13 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
             killed_remote = remove_ipc(caught_pid);
 
             // TODO decide if we're going to delete the IPC handler too
-            if (killed_remote != NULL) {
+            if (killed_remote != nullptr) {
                 killed_remote->notify_killed(WEXITSTATUS(pid_status)); 
             }
         } else {
             // Sleep if we haven't caught anything, otherwise spin to catch all
             // pending processes
-            usleep(1000);
+            usleep(100);
         }
 
         if (time(0) - start_time > in_soft_delay)
@@ -702,7 +703,7 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
 
         // printf("dead remote %p\n", dead_remote.get());
 
-        if (dead_remote != NULL) {
+        if (dead_remote != nullptr) {
             dead_remote->notify_killed(0);
             dead_remote->close_ipc();
 

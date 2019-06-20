@@ -171,7 +171,7 @@ public:
     BufferHandlerGeneric();
     virtual ~BufferHandlerGeneric();
 
-    virtual void SetMutex(kis_recursive_timed_mutex *in_parent);
+    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Basic size ops
     virtual ssize_t GetReadBufferSize();
@@ -316,8 +316,7 @@ protected:
     BufferInterface *wbuf_notify;
     BufferInterface *rbuf_notify;
 
-    kis_recursive_timed_mutex *handler_mutex;
-    kis_recursive_timed_mutex local_handler_mutex;
+    std::shared_ptr<kis_recursive_timed_mutex> handler_mutex;
 
     std::function<void (void)> protoerror_cb;
 

@@ -45,7 +45,7 @@ public:
     PipeClient(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~PipeClient();
 
-    virtual void SetMutex(kis_recursive_timed_mutex *in_parent);
+    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Bind to a r/w pair of pipes
     int OpenPipes(int rpipe, int wpipe);
@@ -63,8 +63,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    kis_recursive_timed_mutex *pipe_mutex;
-    kis_recursive_timed_mutex local_pipe_mutex;
+    std::shared_ptr<kis_recursive_timed_mutex> pipe_mutex;
 
     std::shared_ptr<BufferHandlerGeneric> handler;
 

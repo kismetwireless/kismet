@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -50,7 +50,7 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
 
     // If we're paused, throw away this packet
     {
-        local_locker lock(&ext_mutex);
+        local_locker lock(ext_mutex);
 
         if (get_source_paused())
             return;

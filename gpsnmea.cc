@@ -26,7 +26,7 @@
 #include "pollabletracker.h"
 
 void GPSNMEA::BufferAvailable(size_t in_amt) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     size_t buf_sz;
     char *buf;

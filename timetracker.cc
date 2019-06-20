@@ -161,7 +161,7 @@ void Timetracker::Tick() {
 }
 
 void Timetracker::time_dispatcher() {
-    while (!shutdown) {
+    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
         local_demand_locker lock(&time_mutex);
 
         // Calculate the next tick

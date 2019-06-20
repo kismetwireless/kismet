@@ -28,7 +28,7 @@ BufferHandlerGeneric::BufferHandlerGeneric() :
     write_buffer {nullptr},
     wbuf_notify_avail {false},
     rbuf_notify_avail {false},
-    handler_mutex {&local_handler_mutex},
+    handler_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     wbuf_drain_avail {false},
     rbuf_drain_avail {false},
     writebuf_drain_cb {nullptr},
@@ -42,13 +42,13 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
         delete write_buffer;
 }
 
-void BufferHandlerGeneric::SetMutex(kis_recursive_timed_mutex *in_parent) {
+void BufferHandlerGeneric::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(handler_mutex);
 
     if (in_parent != nullptr)
         handler_mutex = in_parent;
     else
-        handler_mutex = &local_handler_mutex;
+        handler_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
 ssize_t BufferHandlerGeneric::GetReadBufferSize() {
@@ -422,8 +422,8 @@ void BufferHandlerGeneric::SetProtocolErrorCb(std::function<void (void)> in_cb) 
 }
 
 void BufferHandlerGeneric::ProtocolError() {
-    // local_locker lock(handler_mutex);
-    local_shared_locker lock(handler_mutex);
+    // Use a write locker because future things may need RW access, too
+    local_locker lock(handler_mutex);
 
     if (protoerror_cb != NULL)
         protoerror_cb();

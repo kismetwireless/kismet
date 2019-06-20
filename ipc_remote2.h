@@ -53,7 +53,7 @@ public:
     IPCRemoteV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~IPCRemoteV2();
 
-    virtual void SetMutex(kis_recursive_timed_mutex *in_parent);
+    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Add paths to look for binary in.  Paths are searched in the order
     // they are added
@@ -96,8 +96,7 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
-    kis_recursive_timed_mutex *ipc_mutex;
-    kis_recursive_timed_mutex local_ipc_mutex;
+    std::shared_ptr<kis_recursive_timed_mutex> ipc_mutex;
 
     std::shared_ptr<IPCRemoteV2Tracker> remotehandler;
     std::shared_ptr<PollableTracker> pollabletracker;

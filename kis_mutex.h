@@ -33,6 +33,7 @@
 #include <atomic>
 #include <chrono>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <thread>
 
@@ -117,11 +118,13 @@ public:
         state_mutex.lock();
         // Must wait for shared locks to release before we can acquire a write lock
         if (shared_owner_count) {
-            // This will be unlocked when the shared count hits 0
             state_mutex.unlock();
+
+            // This will be unlocked when the shared count hits 0 so sit trying to lock it again
             if (mutex.try_lock_for(d) == false) {
                 throw(std::runtime_error(fmt::format("deadlock: mutex not available within {} (shared held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
             }
+
             state_mutex.lock();
 
             // Set the owner & count
@@ -159,7 +162,7 @@ public:
     bool try_lock_shared_for(const std::chrono::seconds& d) {
         state_mutex.lock();
         if (owner_count > 0) {
-            // Acquire a RO lock as if it were a RW lock if the thread is the owner
+            // Allow a RO lock as if it were a RW lock if the thread is the owner
             if (std::this_thread::get_id() == owner) {
                 owner_count++;
                 state_mutex.unlock();
@@ -363,8 +366,9 @@ private:
 class local_locker {
 public:
     local_locker(kis_recursive_timed_mutex *in) : 
-        cpplock(in),
-        hold_lock(true) {
+        cpplock {in},
+        s_cpplock {nullptr},
+        hold_lock {true} {
 
         if (in == nullptr)
             throw(std::runtime_error("threading failure: mutex is null"));
@@ -379,20 +383,48 @@ public:
 #endif
     }
 
+    local_locker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        cpplock {nullptr},
+        s_cpplock {in},
+        hold_lock {true} {
+
+        if (in == nullptr)
+            throw(std::runtime_error("threading failure: mutex is null"));
+
+#ifdef DISABLE_MUTEX_TIMEOUT
+        s_cpplock->lock();
+#else
+        if (!s_cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+
+    }
+
     local_locker() = delete;
 
     void unlock() {
         hold_lock = false;
-        cpplock->unlock();
+
+        if (cpplock)
+            cpplock->unlock();
+        if (s_cpplock)
+            s_cpplock->unlock();
     }
 
     ~local_locker() {
-        if (hold_lock)
-            cpplock->unlock();
+        if (hold_lock) {
+            if (cpplock)
+                cpplock->unlock();
+            if (s_cpplock)
+                s_cpplock->unlock();
+        }
     }
 
 protected:
     kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
     std::atomic<bool> hold_lock;
 };
 
@@ -401,8 +433,9 @@ protected:
 class local_shared_locker {
 public:
     local_shared_locker(kis_recursive_timed_mutex *in) : 
-        cpplock(in),
-        hold_lock(true) {
+        hold_lock {true},
+        cpplock {in},
+        s_cpplock {nullptr} {
 
         if (in == nullptr)
             throw(std::runtime_error("threading failure: mutex is null"));
@@ -417,21 +450,47 @@ public:
 #endif
     }
 
+    local_shared_locker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        hold_lock {true},
+        cpplock {nullptr},
+        s_cpplock {in} {
+
+        if (in == nullptr)
+            throw(std::runtime_error("threading failure: mutex is null"));
+
+#ifdef DISABLE_MUTEX_TIMEOUT
+        s_cpplock->shared_lock();
+#else
+        if (!s_cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+
     local_shared_locker() = delete;
 
     void unlock() {
         hold_lock = false;
-        cpplock->unlock_shared();
+        if (cpplock)
+            cpplock->unlock_shared();
+        if (s_cpplock)
+            s_cpplock->unlock_shared();
     }
 
     ~local_shared_locker() {
-        if (hold_lock)
-            cpplock->unlock_shared();
+        if (hold_lock) {
+            if (cpplock)
+                cpplock->unlock_shared();
+            if (s_cpplock)
+                s_cpplock->unlock_shared();
+        }
     }
 
 protected:
-    kis_recursive_timed_mutex *cpplock;
     std::atomic<bool> hold_lock;
+    kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
 };
 
 
@@ -439,15 +498,25 @@ protected:
 class local_demand_locker {
 public:
     local_demand_locker(kis_recursive_timed_mutex *in) : 
-        cpplock(in),
-        hold_lock(false) { }
+        hold_lock {false},
+        cpplock {in},
+        s_cpplock {nullptr} { }
+
+    local_demand_locker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        hold_lock {false},
+        cpplock {nullptr},
+        s_cpplock {in} { }
 
     void unlock() {
         if (!hold_lock)
             return;
 
         hold_lock = false;
-        cpplock->unlock();
+
+        if (cpplock)
+            cpplock->unlock();
+        if (s_cpplock)
+            s_cpplock->unlock();
     }
 
     void lock() {
@@ -458,12 +527,23 @@ public:
         hold_lock = true;
 
 #ifdef DISABLE_MUTEX_TIMEOUT
-        cpplock->lock();
+        if (cpplock)
+            cpplock->lock();
+        else if (s_cpplock)
+            s_cpplock->lock();
 #else
-        if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
-                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        if (cpplock) {
+            if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
+        } else if (s_cpplock) {
+            if (!s_cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
         }
+
 #endif
     }
 
@@ -472,23 +552,34 @@ public:
     }
 
 protected:
-    kis_recursive_timed_mutex *cpplock;
     std::atomic<bool> hold_lock;
+    kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
 };
 
 // RAII-style scoped locker, but only locks on demand, not creation, with shared mutex
 class local_shared_demand_locker {
 public:
     local_shared_demand_locker(kis_recursive_timed_mutex *in) : 
-        cpplock(in),
-        hold_lock(false) { } 
+        hold_lock {false},
+        cpplock {in},
+        s_cpplock {nullptr} { }
+
+    local_shared_demand_locker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        hold_lock {false},
+        cpplock {nullptr},
+        s_cpplock {in} { }
 
     void unlock() {
         if (!hold_lock)
             return;
 
         hold_lock = false;
-        cpplock->unlock_shared();
+
+        if (cpplock)
+            cpplock->unlock_shared();
+        if (s_cpplock)
+            s_cpplock->unlock_shared();
     }
 
     void lock() {
@@ -499,11 +590,21 @@ public:
         hold_lock = true;
 
 #ifdef DISABLE_MUTEX_TIMEOUT
-        cpplock->lock_shared();
+        if (cpplock)
+            cpplock->lock_shared();
+        else if (s_cpplock)
+            s_cpplock->lock_shared();
 #else
-        if (!cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
-            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
-                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        if (cpplock) {
+            if (!cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
+        } else if (s_cpplock) {
+            if (!s_cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+                throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                                "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+            }
         }
 #endif
     }
@@ -513,8 +614,9 @@ public:
     }
 
 protected:
-    kis_recursive_timed_mutex *cpplock;
     std::atomic<bool> hold_lock;
+    kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
 };
 
 // Act as a scoped locker on a mutex that never expires; used for performing
@@ -522,6 +624,17 @@ protected:
 class local_eol_locker {
 public:
     local_eol_locker(kis_recursive_timed_mutex *in) {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        in->lock();
+#else
+        if (!in->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+        }
+#endif
+    }
+
+    local_eol_locker(std::shared_ptr<kis_recursive_timed_mutex> in) {
 #ifdef DISABLE_MUTEX_TIMEOUT
         in->lock();
 #else
@@ -548,11 +661,11 @@ public:
 #endif
     }
 
-    local_eol_shared_locker(kis_recursive_timed_mutex& in) {
+    local_eol_shared_locker(std::shared_ptr<kis_recursive_timed_mutex> in) {
 #ifdef DISABLE_MUTEX_TIMEOUT
         in->lock_shared();
 #else
-        if (!in.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+        if (!in->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
             throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
                             "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
@@ -564,33 +677,54 @@ public:
 // when it leaves scope
 class local_unlocker {
 public:
-    local_unlocker(kis_recursive_timed_mutex *in) : cpplock(in) {
+    local_unlocker(kis_recursive_timed_mutex *in) : 
+        cpplock {in},
+        s_cpplock {nullptr} {
+
+        if (in == nullptr)
+            throw(std::runtime_error("threading failure: mutex is null"));
+    }
+
+    local_unlocker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        cpplock {nullptr},
+        s_cpplock {in} {
+
         if (in == nullptr)
             throw(std::runtime_error("threading failure: mutex is null"));
     }
 
     ~local_unlocker() {
-        cpplock->unlock();
+        if (cpplock)
+            cpplock->unlock();
+        if (s_cpplock)
+            s_cpplock->unlock();
     }
 
 protected:
     kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
 };
 
 class local_shared_unlocker {
 public:
     local_shared_unlocker(kis_recursive_timed_mutex *in) : 
-        cpplock{*in} { }
+        cpplock {in},
+        s_cpplock {nullptr} { }
 
-    local_shared_unlocker(kis_recursive_timed_mutex& in) :
-        cpplock{in} { }
+    local_shared_unlocker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        cpplock {nullptr},
+        s_cpplock {in} { }
 
     ~local_shared_unlocker() {
-        cpplock.unlock_shared();
+        if (cpplock)
+            cpplock->unlock_shared();
+        if (s_cpplock)
+            s_cpplock->unlock_shared();
     }
 
 protected:
-    kis_recursive_timed_mutex& cpplock;
+    kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
 };
 
 #endif

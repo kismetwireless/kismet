@@ -246,12 +246,6 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     if (daemonize == 0)
         fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 
-    sigset_t mask, oldmask;
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-    sigaddset(&mask, SIGCHLD);
-    sigaddset(&mask, SIGTERM);
-
     if (pollabletracker != nullptr)
         pollabletracker->Selectloop(true);
 
@@ -286,8 +280,6 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     }
 
     globalregistry->DeleteLifetimeGlobals();
-
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     exit(globalregistry->fatal_condition ? 1 : 0);
 }

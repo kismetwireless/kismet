@@ -63,12 +63,10 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 GPSTCP::~GPSTCP() {
     if (tcpclient != nullptr) {
         pollabletracker->RemovePollable(tcpclient);
-        tcpclient->SetMutex(nullptr);
     }
 
     if (nmeahandler != nullptr) {
         nmeahandler->RemoveReadBufferInterface();
-        nmeahandler->SetMutex(nullptr);
     }
 
     std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
@@ -77,7 +75,7 @@ GPSTCP::~GPSTCP() {
 }
 
 bool GPSTCP::open_gps(std::string in_opts) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     if (!KisGps::open_gps(in_opts))
         return false;
@@ -123,14 +121,14 @@ bool GPSTCP::open_gps(std::string in_opts) {
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
         nmeahandler =  std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
-        nmeahandler->SetMutex(&gps_mutex);
+        nmeahandler->SetMutex(gps_mutex);
         nmeahandler->SetReadBufferInterface(&nmeainterface);
     }
 
     if (tcpclient == nullptr) {
         // Link to a tcp connection
         tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, nmeahandler);
-        tcpclient->SetMutex(&gps_mutex);
+        tcpclient->SetMutex(gps_mutex);
         pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
     }
 
@@ -146,7 +144,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
 }
 
 bool GPSTCP::get_location_valid() {
-    local_shared_locker lock(&gps_mutex);
+    local_shared_locker lock(gps_mutex);
 
     if (gps_location == NULL) {
         return false;
@@ -166,7 +164,7 @@ bool GPSTCP::get_location_valid() {
 }
 
 bool GPSTCP::get_device_connected() {
-    local_shared_locker lock(&gps_mutex);
+    local_shared_locker lock(gps_mutex);
 
     if (tcpclient == NULL)
         return false;
@@ -175,7 +173,7 @@ bool GPSTCP::get_device_connected() {
 }
 
 void GPSTCP::BufferError(std::string in_error) {
-    local_locker lock(&gps_mutex);
+    local_locker lock(gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
             MSGFLAG_ERROR);

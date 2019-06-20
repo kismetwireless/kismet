@@ -109,7 +109,7 @@ protected:
     unsigned int send_pong(uint32_t ping_seqno);
     unsigned int send_shutdown(std::string reason);
 
-    kis_recursive_timed_mutex ext_mutex;
+    std::shared_ptr<kis_recursive_timed_mutex> ext_mutex;
 
     // Communications API.  We implement a buffer interface and listen to the
     // incoming read buffer, we're agnostic if it's a network or IPC buffer.

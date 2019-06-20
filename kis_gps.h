@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -143,7 +143,8 @@ public:
     static double GpsEarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
 protected:
-    kis_recursive_timed_mutex gps_mutex;
+    // We share mutexes down to the driver engines so we use a shared
+    std::shared_ptr<kis_recursive_timed_mutex> gps_mutex;
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;
