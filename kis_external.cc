@@ -70,7 +70,7 @@ KisExternalInterface::~KisExternalInterface() {
 void KisExternalInterface::connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf) {
     local_locker lock(&ext_mutex);
 
-    if (ringbuf_handler != NULL && ringbuf_handler != in_ringbuf) {
+    if (ringbuf_handler != nullptr && ringbuf_handler != in_ringbuf) {
         ringbuf_handler->SetMutex(nullptr);
         ringbuf_handler.reset();
     }
@@ -99,13 +99,12 @@ void KisExternalInterface::trigger_error(std::string in_error) {
 
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
-    if (ringbuf_handler != NULL) {
+    if (ringbuf_handler != nullptr) {
         ringbuf_handler->RemoveReadBufferInterface();
         ringbuf_handler->ProtocolError();
     }
 
     // Remove the IPC remote reference
-    printf("external %p removing ipc remotes during trigger_error\n", this);
     ipc_remote.reset();
     ringbuf_handler.reset();
 

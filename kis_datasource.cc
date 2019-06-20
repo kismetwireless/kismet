@@ -374,12 +374,6 @@ void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ring
 void KisDatasource::close_source() {
     local_locker lock(&ext_mutex);
 
-    if (get_source_error())
-        return;
-
-    if (!get_source_running())
-        return;
-
     if (ping_timer_id > 0) {
         timetracker->RemoveTimer(ping_timer_id);
         ping_timer_id = -1;
@@ -400,6 +394,12 @@ void KisDatasource::close_source() {
     ringbuf_handler.reset();
 
     quiet_errors = true;
+
+    if (get_source_error())
+        return;
+
+    if (!get_source_running())
+        return;
 
     cancel_all_commands("Closing source");
 

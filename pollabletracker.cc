@@ -125,15 +125,7 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     FD_ZERO(wset);
 
     for (auto i : pollable_vec) {
-        bool to_rem = false;
-
-        {
-            local_locker l(&pollable_mutex);
-            to_rem = remove_map.find(i) != remove_map.end();
-        }
-        
-        if (!to_rem)
-            max_fd = i->MergeSet(max_fd, rset, wset);
+        max_fd = i->MergeSet(max_fd, rset, wset);
     }
 
     return max_fd;
@@ -144,17 +136,7 @@ int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     int num = 0;
 
     for (auto i : pollable_vec) {
-        bool to_rem = false;
-
-        {
-            local_locker l(&pollable_mutex);
-            to_rem = remove_map.find(i) != remove_map.end();
-        }
-        
-        if (!to_rem)
-            r = i->Poll(rset, wset);
-        else
-            r = -1;
+        r = i->Poll(rset, wset);
 
         if (r >= 0)
             num++;
