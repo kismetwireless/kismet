@@ -97,17 +97,14 @@ void RingbufV2::clear() {
 }
 
 ssize_t RingbufV2::size() {
-    local_locker lock(&write_mutex);
     return buffer_sz;
 }
 
 size_t RingbufV2::used() {
-    local_locker lock(&write_mutex);
     return length;
 }
 
 ssize_t RingbufV2::available() {
-    local_locker lock(&write_mutex);
     return buffer_sz - length;
 }
 
