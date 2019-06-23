@@ -19,6 +19,8 @@
 #ifndef __RINGBUF2_H__
 #define __RINGBUF2_H__
 
+#include "config.h"
+
 #include <stdint.h>
 #include <unistd.h>
 #include <pthread.h>

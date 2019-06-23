@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -26,7 +28,12 @@
 #ifdef SYS_LINUX
 #include <sys/mman.h>
 #include <sys/types.h>
-#include <linux/memfd.h>
+
+#define __NR_memfd_create 319
+int memfd_create(const char *name, unsigned int flags) {
+    return syscall(__NR_memfd_create, name, flags);
+}
+
 #endif
 
 RingbufV2::RingbufV2(size_t in_sz) :
@@ -308,12 +315,8 @@ size_t RingbufV2::consume(size_t in_sz) {
 
         return opsize;
     } else {
-        // Split into chunks
-        size_t chunk_a = buffer_sz - start_pos;
-        size_t chunk_b = opsize - chunk_a;
-
         // Loop the ring buffer and mark read
-        start_pos = chunk_b;
+        start_pos = (start_pos + opsize) % buffer_sz;
         length -= opsize;
 
         return opsize;
@@ -355,6 +358,7 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
 #ifdef SYS_LINUX
     if (data != NULL)
         memcpy(buffer + copy_start, data, in_sz);
+
     length += in_sz;
 
     return in_sz;

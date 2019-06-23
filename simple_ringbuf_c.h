@@ -22,6 +22,8 @@
 #ifndef __RINGBUF_C_H__
 #define __RINGBUF_C_H__
 
+#include "config.h"
+
 #include <stdint.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -32,6 +34,9 @@ struct kis_simple_ringbuf {
     size_t buffer_sz;
     size_t start_pos; /* Where reading starts from */
     size_t length; /* Amount of data in the buffer */
+
+    int mid_peek, mid_commit; /* Are we in a peek or reserve? */
+    int free_peek, free_commit; /* Do we need to free the peek or reserved buffers */
 
 #ifdef SYS_LINUX
     void *mmap_region0;
@@ -75,6 +80,26 @@ size_t kis_simple_ringbuf_size(kis_simple_ringbuf_t *ringbuf);
 size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf, 
         void *data, size_t length);
 
+/* Reserve a writeable chunk, striving to make it a zero-copy operation.  Only
+ * one chunk may be reserved at a time.  A reserved chunk must be written 
+ * with kis_simple_ringbuf_commit or discard with kis_simple_ringbuf_reserve_free
+ *
+ * Returns amount available.  Returns 0 if that amount cannot be reserved because
+ * the buffer is full.
+ */
+size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, size_t size);
+
+/* Commit a previously reserved chunk.  Commits the specified number of bytes.
+ *
+ * Returns the amount committed.
+ */
+size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size_t size);
+
+/* Free a previously reserved chunk without committing it.
+ */
+void kis_simple_ringbuf_reserve_free(kis_simple_ringbuf_t *ringbuf, void *data);
+
+
 /* Copies data into provided buffer.  Advances ringbuf, clearing consumed data.
  *
  * If requested amount is not available, reads amount available and returns.
@@ -92,6 +117,20 @@ size_t kis_simple_ringbuf_read(kis_simple_ringbuf_t *ringbuf, void *ptr, size_t 
  * Returns amount copied
  */
 size_t kis_simple_ringbuf_peek(kis_simple_ringbuf_t *ringbuf, void *ptr, size_t size);
+
+/* Peeks at data, using a zero-copy method if possible.  Does NOT advance ringbuf
+ * or consume data.
+ *
+ * Peeked data MUST BE 'returned' via kis_simple_ringbuf_peek_free.
+ *
+ * Returns amount peeked.
+ */
+size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, size_t size);
+
+/* Frees peeked zc data.  Must be called after peeking.
+ *
+ */
+void kis_simple_ringbuf_peek_free(kis_simple_ringbuf_t *ringbuf, void *ptr);
 
 #endif
 

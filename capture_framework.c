@@ -683,7 +683,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     opterr = 0;
     option_idx = 0;
 
-    char parse_hname[512];
+    char parse_hname[513];
     unsigned int parse_port;
 
     int retry = 1;
@@ -1186,15 +1186,12 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
     kismet_external_frame_t *external_frame;
 
-    /* Buffer of just the packet header, fixed size */
-    uint8_t hdr_buf[sizeof(kismet_external_frame_t)];
-
     /* Buffer of entire frame, dynamic */
     uint8_t *frame_buf;
 
     /* Incoming size */
     uint32_t packet_sz;
-    uint32_t total_sz;
+    uint32_t total_sz = 0;
 
     /* Incoming checksum */
     uint32_t data_checksum;
@@ -1220,12 +1217,12 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return 0;
     }
 
-    if (kis_simple_ringbuf_peek(caph->in_ringbuf, hdr_buf, 
+    if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf, 
                 sizeof(kismet_external_frame_t)) != sizeof(kismet_external_frame_t)) {
         return 0;
     }
 
-    external_frame = (kismet_external_frame_t *) hdr_buf;
+    external_frame = (kismet_external_frame_t *) frame_buf;
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -1246,23 +1243,17 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         return 0;
     }
 
-    /* We've got enough to read it all; allocate the buffer and read it in */
-    frame_buf = (uint8_t *) malloc(total_sz);
+    /* Free the peek of the frame header */
+    kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
 
-    if (frame_buf == NULL) {
-        fprintf(stderr, "FATAL:  Could not allocate read buffer\n");
-        return -1;
-    }
+    /* We've got enough to read it all; try to zc the buffer */
 
     /* Peek our ring buffer */
-    if (kis_simple_ringbuf_peek(caph->in_ringbuf, frame_buf, total_sz) != total_sz) {
+    if (kis_simple_ringbuf_peek_zc(caph->in_ringbuf, (void **) &frame_buf, total_sz) != total_sz) {
         fprintf(stderr, "FATAL: Failed to read packet from ringbuf\n");
         free(frame_buf);
         return -1;
     }
-
-    /* Clear it out from the buffer */
-    kis_simple_ringbuf_read(caph->in_ringbuf, NULL, total_sz);
 
     external_frame = (kismet_external_frame_t *) frame_buf;
 
@@ -1612,9 +1603,13 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     
 
 finish:
+    kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
+
+    /* Clear it out from the buffer */
+    kis_simple_ringbuf_read(caph->in_ringbuf, NULL, total_sz);
+
     pthread_mutex_unlock(&(caph->handler_lock));
     kismet_external__command__free_unpacked(kds_cmd, NULL);
-    free(frame_buf);
 
     return cbret;
 }
