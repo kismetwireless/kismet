@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -23,14 +23,54 @@
 #include "util.h"
 #include "ringbuf2.h"
 
+#ifdef SYS_LINUX
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <linux/memfd.h>
+#endif
+
 RingbufV2::RingbufV2(size_t in_sz) :
     buffer_sz {in_sz},
     start_pos {0},
     length {0},
     free_peek {false} {
 
+#ifdef SYS_LINUX
+
+    // Initialize the buffer as an anonymous FD and dual-map it into ram; we may also
+    // have to massage the buffer size to match the page size.
+    auto page_sz = getpagesize(); 
+
+    // We need to mmap a multiple of the page size
+    if (buffer_sz % page_sz) {
+        if (buffer_sz < page_sz) {
+            // Zoom desired size to page size if less
+            buffer_sz = page_sz;
+        } else {
+            // Map a multiple which is larger than the current page sz
+            buffer_sz = page_sz * ((buffer_sz / page_sz) + 1);
+        }
+    }
+    
+    auto memfd_name = fmt::format("ringbuf{}", (void *) this); 
+    mmap_fd = memfd_create(memfd_name.c_str(), 0);
+
+    ftruncate(mmap_fd, buffer_sz);
+
+    // Make the raw mmap buffer
+    buffer = (unsigned char *) mmap(NULL, buffer_sz * 2, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    // Double-map the buffer into the memory space
+    mmap_region0 = mmap(buffer, buffer_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mmap_fd, 0);
+    mmap_region1 = mmap(buffer + buffer_sz, buffer_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mmap_fd, 0);
+
+#else
+
+    // Initialize the buffer as a fixed object
     buffer = new unsigned char[in_sz];
     memset(buffer, 0xAA, in_sz);
+
+#endif
 
 #ifdef PROFILE_RINGBUFV2 
     zero_copy_w_bytes = 0;
@@ -46,8 +86,17 @@ RingbufV2::~RingbufV2() {
 #ifdef PROFILE_RINGBUFV2
     profile();
 #endif
-    
+   
+#ifdef SYS_LINUX
+    // Drop the mmaps
+    munmap(mmap_region1, buffer_sz);
+    munmap(mmap_region0, buffer_sz);
+    munmap(buffer, buffer_sz * 2);
+    close(mmap_fd);
+#else
     delete[] buffer;
+#endif
+
 }
 
 #ifdef PROFILE_RINGBUFV2
@@ -128,6 +177,21 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
         return 0;
     }
 
+#ifdef SYSLINUX
+    // mmapped buffers in linux can always do zero-copy
+    free_peek = false;
+    *ptr = buffer + start_pos;
+
+#ifdef PROFILE_RINGBUFV2
+    zero_copy_r_bytes += opsize;
+    last_profile_bytes += opsize;
+    if (last_profile_bytes > (1024*1024))
+        profile();
+#endif
+
+    return opsize;
+
+#else
     if (start_pos + opsize < buffer_sz) {
         // Can we read contiguously? if so we can do a zero-copy peek
         free_peek = false;
@@ -163,6 +227,8 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
 #endif
         return opsize;
     }
+#endif
+
 }
 
 ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
@@ -182,16 +248,19 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     if (opsize == 0)
         return 0;
 
+#ifndef SYS_LINUX
     // Trim to only the part of the buffer we can point to directly
     if (start_pos + opsize > buffer_sz) {
         opsize = buffer_sz - start_pos;
     }
+#endif
 
 #ifdef PROFILE_RINGBUFV2
     zero_copy_r_bytes += opsize;
     last_profile_bytes += opsize;
     if (last_profile_bytes > (1024*1024))
         profile();
+
 #endif
 
     *ptr = (buffer + start_pos);
@@ -283,17 +352,20 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;
 
-    if (copy_start + in_sz < buffer_sz) {
-        // fprintf(stderr, "debug - ringbuf2 write len %lu copy_start %lu start pos %lu length %lu buffer %lu\n", in_sz, copy_start, start_pos, length, buffer_sz);
+#ifdef SYS_LINUX
+    if (data != NULL)
+        memcpy(buffer + copy_start, data, in_sz);
+    length += in_sz;
 
+    return in_sz;
+#else
+    if (copy_start + in_sz < buffer_sz) {
         if (data != NULL)
             memcpy(buffer + copy_start, data, in_sz);
         length += in_sz;
 
         return in_sz;
     } else {
-        // fprintf(stderr, "debug - ringbuf2 split write len %lu copy_start %lu start pos %lu length %lu buffer %lu\n", in_sz, copy_start, start_pos, length, buffer_sz);
-
         // Compute the two chunks
         size_t chunk_a = buffer_sz - copy_start;
         size_t chunk_b = in_sz - chunk_a;
@@ -307,7 +379,8 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
         length += in_sz;
 
         return in_sz;
-    }
+#endif
+
 
     return 0;
 }
@@ -331,9 +404,14 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
 
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;
-
     write_reserved = true;
 
+#ifdef SYS_LINUX
+    free_commit = false;
+    *data = buffer + copy_start;
+
+    return in_sz;
+#else
     if (copy_start + in_sz < buffer_sz) {
         free_commit = false;
         *data = buffer + copy_start;
@@ -347,6 +425,8 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
 
         return in_sz;
     }
+#endif
+
 }
 
 ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
@@ -369,6 +449,9 @@ ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
     // Always return at the start of the buffer
     *data = buffer + copy_start;
 
+#ifdef SYS_LINUX
+    return in_sz;
+#else
     // If we're requesting a block contiguous with the buffer, return the
     // requested size, otherwise return the size of the remaining contiguous
     // space
@@ -377,6 +460,7 @@ ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
     } else {
         return (buffer_sz - copy_start);
     }
+#endif
 
 }
 
@@ -390,6 +474,16 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
     // Unlock the write state
     write_reserved = false;
 
+#ifdef SYS_LINUX
+        if (in_sz == 0)
+            return true;
+
+        ssize_t written = write(NULL, in_sz);
+        if (written < 0)
+            return false;
+
+        return (size_t) written == in_sz;
+#else
     // If we have allocated an interstitial buffer, we need copy the data over and delete
     // the temp buffer
     if (free_commit) {
@@ -398,8 +492,6 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
         if (in_sz == 0)
             return true;
 
-        // fprintf(stderr, "debug - writing copied buffer %lu\n", in_sz);
-
         ssize_t written = write(data, in_sz);
 
         delete[] data;
@@ -407,31 +499,19 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
         if (written < 0)
             return false;
 
-#if 0
-        if (!((size_t) written == in_sz)) {
-            fprintf(stderr, "debug - ringbuf2 - copied %ld wanted %lu\n", written, in_sz);
-        }
-#endif
-
         return (size_t) written == in_sz;
     } else {
         if (in_sz == 0)
             return true;
 
-        // fprintf(stderr, "debug - finalizing zerocopy buffer %lu\n", in_sz);
-
         ssize_t written = write(NULL, in_sz);
         if (written < 0)
             return false;
 
-#if 0
-        if (!((size_t) written == in_sz)) {
-            fprintf(stderr, "debug - ringbuf2 - zero copied %ld wanted %lu\n", written, in_sz);
-        }
-#endif
-
         return (size_t) written == in_sz;
     }
+#endif
+
 }
 
 

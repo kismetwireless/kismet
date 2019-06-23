@@ -22,7 +22,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <pthread.h>
+
 #include <mutex>
+
 #include "buffer_handler.h"
 
 // #define PROFILE_RINGBUFV2   1
@@ -64,6 +66,13 @@ public:
 
 protected:
     unsigned char *buffer;
+#ifdef SYS_LINUX
+    void *mmap_region0;
+    void *mmap_region1;
+
+    int mmap_fd;
+#endif
+
     // Total size
     std::atomic<size_t> buffer_sz;
     // Where reads start

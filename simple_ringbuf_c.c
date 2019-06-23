@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -24,6 +24,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef SYS_LINUX
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <linux/memfd.h>
+#endif
+
 #include "simple_ringbuf_c.h"
 
 /* Allocate a ring buffer
@@ -32,18 +38,52 @@
  */
 kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
     kis_simple_ringbuf_t *rb;
+#ifdef SYS_LINUX
+    char tmpfname[256];
+#endif
 
     rb = (kis_simple_ringbuf_t *) malloc(sizeof(kis_simple_ringbuf_t));
 
     if (rb == NULL)
         return NULL;
 
+#ifdef SYS_LINUX
+    /* Initialize the buffer as an anonymous FD and dual-map it into RAM; we may
+     * need to massage the buffer size to match the system page size */
+
+    int page_sz = getpagesize(); 
+
+    /* We need to mmap a multiple of the page size */
+    if (size % page_sz) {
+        if (size < page_sz) {
+            /* Zoom desired size to page size if less */
+            size = page_sz;
+        } else {
+            /* Map a multiple which is larger than the current page sz */
+            size = page_size * ((size / page_sz) + 1);
+        }
+    }
+
+    snprintf(tmpfname, 256, "ringbuf%p", (void *) rb);
+    mmap_fd = memfd_create(tmpfname, 0);
+
+    ftruncate(mmap_fd, size);
+
+    /* Make the mmap buffer */
+    rb->buffer = (unsigned char *) mmap(NULL, size * 2, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    /* Double-map the buffer into the memory space */
+    rb->mmap_region0 = mmap(rb->buffer, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mmap_fd, 0);
+    rb->mmap_region1 = mmap(rb->buffer + size, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mmap_fd, 0);
+
+#else
     rb->buffer = (uint8_t *) malloc(size);
 
     if (rb->buffer == NULL) {
         free(rb);
         return NULL;
     }
+#endif
 
     rb->buffer_sz = size;
     rb->start_pos = 0;
@@ -55,7 +95,14 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
 /* Destroy a ring buffer
  */
 void kis_simple_ringbuf_free(kis_simple_ringbuf_t *ringbuf) {
+#ifdef SYS_LINUX
+    munmap(ringbuf->mmap_region1, ringbuf->buffer_sz);
+    munmap(ringbuf->mmap_region0, ringbuf->buffer_sz);
+    munmap(ringbuf->buffer, ringbuf->buffer_sz * 2);
+    close(rinbuf->mmap_fd);
+#else
     free(ringbuf->buffer);
+#endif
     free(ringbuf);
 }
 
@@ -95,10 +142,16 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
     if (kis_simple_ringbuf_available(ringbuf) < length)
         return 0;
 
-    /* Does the write op fit w/out looping? */
     copy_start = 
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
+#ifdef SYS_LINUX
+    memcpy(ringbuf->buffer + copy_start, data, length);
+    ringbuf->length += length;
+
+    return length;
+#else
+    /* Does the write op fit w/out looping? */
     if (copy_start + length < ringbuf->buffer_sz) {
         memcpy(ringbuf->buffer + copy_start, data, length);
         ringbuf->length += length;
@@ -117,6 +170,7 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
 
         return length;
     }
+#endif
 
     return 0;
 }
@@ -140,6 +194,18 @@ size_t kis_simple_ringbuf_read(kis_simple_ringbuf_t *ringbuf, void *ptr,
     if (opsize > size)
         opsize = size;
 
+#ifdef SYS_LINUX
+    size_t chunk_a = ringbuf->buffer_sz - ringbuf->start_pos;
+    size_t chunk_b = opsize - chunk_a;
+
+    if (ptr != NULL)
+        memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
+
+    ringbuf->start_pos = chunk_b;
+    ringbuf->length -= opsize;
+
+    return opsize;
+#else
     /* Simple contiguous read */
     if (ringbuf->start_pos + opsize < ringbuf->buffer_sz) {
         if (ptr != NULL)
@@ -164,6 +230,7 @@ size_t kis_simple_ringbuf_read(kis_simple_ringbuf_t *ringbuf, void *ptr,
 
         return opsize;
     }
+#endif
 
     return 0;
 }
@@ -189,6 +256,10 @@ size_t kis_simple_ringbuf_peek(kis_simple_ringbuf_t *ringbuf, void *ptr,
     if (opsize > size)
         opsize = size;
 
+#ifdef SYS_LINUX
+    memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
+    return opsize;
+#else
     /* Simple contiguous read */
     if (ringbuf->start_pos + opsize < ringbuf->buffer_sz) {
         memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
@@ -204,6 +275,7 @@ size_t kis_simple_ringbuf_peek(kis_simple_ringbuf_t *ringbuf, void *ptr,
 
         return opsize;
     }
+#endif
 
     return 0;
 }

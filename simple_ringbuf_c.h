@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -32,6 +32,13 @@ struct kis_simple_ringbuf {
     size_t buffer_sz;
     size_t start_pos; /* Where reading starts from */
     size_t length; /* Amount of data in the buffer */
+
+#ifdef SYS_LINUX
+    void *mmap_region0;
+    void *mmap_region1;
+
+    int mmap_fd;
+#endif
 };
 typedef struct kis_simple_ringbuf kis_simple_ringbuf_t;
 
