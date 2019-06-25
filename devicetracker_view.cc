@@ -703,7 +703,6 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
 
     // Summarize into the output element
     for (auto i = si; i != ei; ++i) {
-        auto simple = SharedTrackerElement{};
         output_devices_elem->push_back(SummarizeSingleTrackerElement(*i, summary_vec, rename_map));
     }
 
