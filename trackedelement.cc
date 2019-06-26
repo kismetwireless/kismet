@@ -1055,6 +1055,9 @@ std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerEleme
 
     auto ret_elem = std::make_shared<TrackerElementMap>();
 
+    if (in == nullptr)
+        return ret_elem;
+
     // Poke the pre-serialization function to update anything that needs updating before
     // we create the new meta-object
     in->pre_serialize();
@@ -1065,7 +1068,6 @@ std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerEleme
     }
 
     unsigned int fn = 0;
-    ret_elem = std::make_shared<TrackerElementMap>();
 
     for (auto si = in_summarization.begin(); si != in_summarization.end(); ++si) {
         fn++;
