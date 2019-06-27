@@ -157,3 +157,8 @@ div.k-b-s-plugin-content {
 div.viewselector {
     float: left;
 }
+
+.selectoroverflow {
+    height: 200px;
+}
+
