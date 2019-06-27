@@ -572,7 +572,7 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
         if (k == phy_view_map.end()) {
             auto phy_view = 
                 std::make_shared<DevicetrackerView>(fmt::format("phy-{}", strongphy->FetchPhyName()),
-                        fmt::format("Devices of phy type {}", strongphy->FetchPhyName()),
+                        fmt::format("{} devices", strongphy->FetchPhyName()),
                         std::vector<std::string>{"phy", strongphy->FetchPhyName()},
                         [phy_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_phyid() == phy_id;
