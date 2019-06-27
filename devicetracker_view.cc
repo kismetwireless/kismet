@@ -677,9 +677,9 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Update the end
     length_elem->set(ei - si);
 
-    // Do a partial fast-sort
+    // Unfortunately we need to do a stable sort to get a consistent display
     if (in_order_column_num >= 0 && order_field.size() > 0) {
-        kismet__partial_sort(si, ei, next_work_vec->end(),
+        kismet__stable_sort(next_work_vec->begin(), next_work_vec->end(),
                 [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
                 SharedTrackerElement fa;
                 SharedTrackerElement fb;
