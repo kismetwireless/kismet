@@ -151,6 +151,8 @@ exports.CryptToHumanReadable = function(cryptset) {
     return ret.join(" ");
 };
 
+kismet_ui.AddDeviceView("Wi-Fi Access Points", "phydot11_accesspoints", -10000, "Wi-Fi");
+
 kismet_ui.AddChannelList("IEEE802.11", "Wi-Fi (802.11)", function(in_freq) {
     if (in_freq == 0)
         return "n/a";

@@ -153,3 +153,7 @@ b.k-b-s-plugin-title {
 div.k-b-s-plugin-content {
     padding-left: 25px;
 }
+
+div.viewselector {
+    float: left;
+}

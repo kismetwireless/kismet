@@ -32,6 +32,98 @@ exports.last_timestamp = 0;
 // Set panels to close on escape system-wide
 jsPanel.closeOnEscape = true;
 
+var DeviceViews = [
+    {
+        name: "All devices",
+        view: "all",
+        priority: -100000,
+        group: "none"
+    }
+]
+
+/* Add a view option that the user can pick for the main device table;
+ * view is expected to be a component of the /devices/views/ api
+ */
+exports.AddDeviceView = function(name, view, priority, group = 'none') {
+    DeviceViews.push({name: name, view: view, priority: priority, group: group});
+}
+
+exports.BuildDeviceView = function(element) {
+    var grouped_views = [];
+
+    // Pre-sort the array so that as we build our nested stuff we do it in order
+    DeviceViews.sort(function(a, b) {
+        if (a.priority < b.priority)
+            return -1;
+        if (b.priority > a.priority)
+            return 1;
+
+        return 0;
+    });
+
+    // This isn't efficient but happens rarely, so who cares
+    for (var i in DeviceViews) {
+        if (DeviceViews[i]['group'] == 'none') {
+            // If there's no group, immediately add it to the grouped view
+            grouped_views.push(DeviceViews[i]);
+        } else {
+            // Otherwise look for the group already in the view
+            var existing_g = -1;
+            for (var g in grouped_views) {
+                if (Array.isArray(grouped_views[g])) {
+                    if (grouped_views[g][0]['group'] == DevicesViews[i]['group']) {
+                        existing_g = g;
+                        break;
+                    }
+                }
+            }
+
+            // Make a new sub-array if we don't exist, otherwise append to the existing array
+            if (existing_g == -1) {
+                grouped_views.push([DeviceViews[i]]);
+            } else {
+                grouped_views[existing_g].push(DeviceViews[i]);
+            }
+        }
+    }
+
+    var selector = 
+        $('<select>', {
+            name: 'devices_views_select',
+            id: 'devices_views_select'
+        });
+
+    for (var i in grouped_views) {
+        if (!Array.isArray(grouped_views[i])) {
+            selector.append(
+                $('<option>', {
+                    value: grouped_views[i]['uri']
+                }).html(grouped_views[i]['name'])
+            );
+        } else {
+            var optgroup =
+                $('<optgroup>', {
+                    label: grouped_views[i][0]['group']
+                });
+
+            for (var og in grouped_views[i]) {
+                optgroup.append(
+                    $('<option>', {
+                        value: grouped_views[i][og]['uri']
+                    }).html(grouped_views[i][og]['name'])
+                );
+            }
+
+            selector.append(optgroup);
+        }
+    }
+
+
+    element.empty().append(selector);
+
+    selector.selectmenu();
+}
+
 // List of datatable columns we have available
 var DeviceColumns = new Array();
 
@@ -806,7 +898,7 @@ exports.InitializeDeviceTable = function(element, statuselement) {
         serverSide: true,
         processing: true,
 
-        dom: 'ft',
+        dom: '<"viewselector">ft',
 
         deferRender: true,
         lengthChange: false,
@@ -840,8 +932,6 @@ exports.InitializeDeviceTable = function(element, statuselement) {
         drawCallback: function( settings ) {
             var dt = this.api();
 
-            console.log(dt.rows().length);
-
             dt.rows({
                 page: 'current'
             }).every(function(rowIdx, tableLoop, rowLoop) {
@@ -874,6 +964,9 @@ exports.InitializeDeviceTable = function(element, statuselement) {
 
     var device_dt = element.DataTable();
     // var dt_base_height = element.height();
+    
+    // $('div.viewselector').html("View picker");
+    exports.BuildDeviceView($('div.viewselector'));
 
     // Restore the order
     var saved_order = kismet.getStorage('kismet.base.devicetable.order', "");
