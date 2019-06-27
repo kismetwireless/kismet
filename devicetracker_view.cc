@@ -582,8 +582,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
                 }
             }
 
-            if (in_window_len > 200) 
-                in_window_len = 200;
+            if (in_window_len > 500) 
+                in_window_len = 500;
 
             // Set the window elements for datatables
             length_elem->set(in_window_len);
@@ -631,8 +631,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
 
         // Do the work and copy the vector
         auto ts_vec = doReadonlyDeviceWork(worker, next_work_vec);
-        next_work_vec = ts_vec;
-        // next_work_vec->set(ts_vec->begin(), ts_vec->end());
+        next_work_vec->set(ts_vec->begin(), ts_vec->end());
     }
 
     // Apply a string filter
@@ -640,8 +639,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
         auto worker =
             DevicetrackerViewStringmatchWorker(search_term, search_paths);
         auto s_vec = doReadonlyDeviceWork(worker, next_work_vec);
-        next_work_vec = s_vec;
-        // next_work_vec->set(s_vec->begin(), s_vec->end());
+        next_work_vec->set(s_vec->begin(), s_vec->end());
     }
 
     // Apply a regex filter
