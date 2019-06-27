@@ -32,6 +32,8 @@ exports.last_timestamp = 0;
 // Set panels to close on escape system-wide
 jsPanel.closeOnEscape = true;
 
+var device_dt = null;
+
 var DeviceViews = [
     {
         name: "All devices",
@@ -97,7 +99,7 @@ exports.BuildDeviceView = function(element) {
         if (!Array.isArray(grouped_views[i])) {
             selector.append(
                 $('<option>', {
-                    value: grouped_views[i]['uri']
+                    value: grouped_views[i]['view']
                 }).html(grouped_views[i]['name'])
             );
         } else {
@@ -109,7 +111,7 @@ exports.BuildDeviceView = function(element) {
             for (var og in grouped_views[i]) {
                 optgroup.append(
                     $('<option>', {
-                        value: grouped_views[i][og]['uri']
+                        value: grouped_views[i][og]['view']
                     }).html(grouped_views[i][og]['name'])
                 );
             }
@@ -118,6 +120,11 @@ exports.BuildDeviceView = function(element) {
         }
     }
 
+    selector.on("selectmenuselect", function(evt, elem) {
+        if (device_dt != null) {
+            device_dt.ajax.url("devices/views/" + elem.item.value + "/devices.json");
+        }
+    });
 
     element.empty().append(selector);
 
@@ -962,7 +969,7 @@ exports.InitializeDeviceTable = function(element, statuselement) {
 
     });
 
-    var device_dt = element.DataTable();
+    device_dt = element.DataTable();
     // var dt_base_height = element.height();
     
     // $('div.viewselector').html("View picker");
