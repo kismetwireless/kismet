@@ -40,7 +40,13 @@ var DeviceViews = [
         view: "all",
         priority: -100000,
         group: "none"
-    }
+    },
+    {
+        name: "Broken",
+        view: "broken",
+        priority: 0,
+        group: "none"
+    },
 ]
 
 /* Add a view option that the user can pick for the main device table;
@@ -50,7 +56,7 @@ exports.AddDeviceView = function(name, view, priority, group = 'none') {
     DeviceViews.push({name: name, view: view, priority: priority, group: group});
 }
 
-exports.BuildDeviceView = function(element) {
+exports.BuildDeviceViewSelector = function(element) {
     var grouped_views = [];
 
     // Pre-sort the array so that as we build our nested stuff we do it in order
@@ -925,6 +931,14 @@ exports.InitializeDeviceTable = function(element, statuselement) {
             data: {
                 json: JSON.stringify(json)
             },
+            error: function(jqxhr, status, error) {
+                // Catch missing views and reset
+                if (jqxhr.status == 404) {
+                    device_dt.ajax.url("devices/views/all/devices.json");
+                    kismet.putStorage('kismet.ui.deviceview.selected', 'all');
+                    exports.BuildDeviceViewSelector($('div.viewselector'));
+                }
+            },
             method: "POST",
             timeout: 5000,
         },
@@ -978,7 +992,7 @@ exports.InitializeDeviceTable = function(element, statuselement) {
     // var dt_base_height = element.height();
     
     // $('div.viewselector').html("View picker");
-    exports.BuildDeviceView($('div.viewselector'));
+    exports.BuildDeviceViewSelector($('div.viewselector'));
 
     // Restore the order
     var saved_order = kismet.getStorage('kismet.base.devicetable.order', "");
