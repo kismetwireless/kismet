@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -126,6 +126,33 @@ public:
     }
 
     virtual ~DevicetrackerViewStringmatchWorker() { }
+
+    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+
+protected:
+    std::string query;
+    std::vector<std::vector<int>> fieldpaths;
+
+    uint64_t mac_query_term;
+    unsigned int mac_query_term_len;
+};
+
+// Generic string search for any string-like value (and a few more complex values, like MAC addresses).
+// Searches multiple fields for a given string
+class DevicetrackerViewICaseStringmatchWorker : public DevicetrackerViewWorker {
+public:
+    // Match a given string against a list of resovled field paths
+    DevicetrackerViewICaseStringmatchWorker(const std::string& in_query,
+            const std::vector<std::vector<int>>& in_paths);
+    DevicetrackerViewICaseStringmatchWorker(const DevicetrackerViewICaseStringmatchWorker& w) {
+        query = w.query;
+        fieldpaths = w.fieldpaths;
+        mac_query_term = w.mac_query_term;
+        mac_query_term_len = w.mac_query_term_len;
+        matched = w.matched;
+    }
+
+    virtual ~DevicetrackerViewICaseStringmatchWorker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 

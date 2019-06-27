@@ -637,7 +637,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Apply a string filter
     if (search_term.length() > 0 && search_paths.size() > 0) {
         auto worker =
-            DevicetrackerViewStringmatchWorker(search_term, search_paths);
+            DevicetrackerViewICaseStringmatchWorker(search_term, search_paths);
         auto s_vec = doReadonlyDeviceWork(worker, next_work_vec);
         next_work_vec->set(s_vec->begin(), s_vec->end());
     }
