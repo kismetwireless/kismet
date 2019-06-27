@@ -435,9 +435,6 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(cons
 unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream, 
         const std::string& uri, SharedStructured structured,
         std::map<std::string, std::shared_ptr<std::stringstream>>& postvars) {
-    // The device worker creates an immutable copy of the device list under its own RO mutex,
-    // so we don't have to lock here.
-
     // Summarization vector based on simplification part of shared data
     auto summary_vec = std::vector<SharedElementSummary>{};
 
@@ -617,7 +614,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
     // size of the original vector for windowed ops.
     {
-        local_locker l(&mutex);
+        local_shared_locker l(&mutex);
+
         next_work_vec->set(device_list->begin(), device_list->end());
         total_sz_elem->set(next_work_vec->size());
     }
@@ -633,7 +631,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
 
         // Do the work and copy the vector
         auto ts_vec = doReadonlyDeviceWork(worker, next_work_vec);
-        next_work_vec->set(ts_vec->begin(), ts_vec->end());
+        next_work_vec = ts_vec;
+        // next_work_vec->set(ts_vec->begin(), ts_vec->end());
     }
 
     // Apply a string filter
@@ -641,7 +640,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
         auto worker =
             DevicetrackerViewStringmatchWorker(search_term, search_paths);
         auto s_vec = doReadonlyDeviceWork(worker, next_work_vec);
-        next_work_vec->set(s_vec->begin(), s_vec->end());
+        next_work_vec = s_vec;
+        // next_work_vec->set(s_vec->begin(), s_vec->end());
     }
 
     // Apply a regex filter
@@ -650,7 +650,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
             auto worker = 
                 DevicetrackerViewRegexWorker(regex);
             auto r_vec = doReadonlyDeviceWork(worker, next_work_vec);
-            next_work_vec->set(r_vec->begin(), r_vec->end());
+            next_work_vec = r_vec;
+            // next_work_vec->set(r_vec->begin(), r_vec->end());
         } catch (const std::exception& e) {
             stream << "Invalid regex: " << e.what() << "\n";
             return 400;
@@ -667,13 +668,13 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Update the start
     start_elem->set(in_window_start);
 
-    auto si = next_work_vec->begin() + in_window_start;
-    auto ei = next_work_vec->begin();
+    TrackerElementVector::iterator si = std::next(next_work_vec->begin(), in_window_start);
+    TrackerElementVector::iterator ei;
 
     if (in_window_len + in_window_start >= next_work_vec->size() || in_window_len == 0)
         ei = next_work_vec->end();
     else
-        ei = ei + in_window_len;
+        ei = std::next(next_work_vec->begin(), in_window_start + in_window_len);
 
     // Update the end
     length_elem->set(ei - si);
