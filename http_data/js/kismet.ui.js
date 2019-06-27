@@ -120,7 +120,12 @@ exports.BuildDeviceView = function(element) {
         }
     }
 
+    var selected_option = kismet.getStorage('kismet.ui.deviceview.selected', 'all');
+    $('option[value="' + selected_option + '"]', selector).prop("selected", "selected");
+
     selector.on("selectmenuselect", function(evt, elem) {
+        kismet.putStorage('kismet.ui.deviceview.selected', elem.item.value);
+
         if (device_dt != null) {
             device_dt.ajax.url("devices/views/" + elem.item.value + "/devices.json");
         }
@@ -916,7 +921,7 @@ exports.InitializeDeviceTable = function(element, statuselement) {
 
         // Create a complex post to get our summary fields only
         ajax: {
-            url: "devices/views/all/devices.json",
+            url: "devices/views/" + kismet.getStorage('kismet.ui.deviceview.selected', 'all') + "/devices.json",
             data: {
                 json: JSON.stringify(json)
             },
