@@ -97,6 +97,9 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     devicetracker =
         Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
+    eventbus =
+        Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+
 	// Initialize the crc tables
 	crc32_init_table_80211(Globalreg::globalreg->crc32_table);
 
@@ -2432,6 +2435,9 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
         }
 
         bssid_dot11->set_wpa_present_handshake(keymask);
+
+        eventbus->publish(std::make_shared<EventDot11WPAHandshake>(bssid_dev, bssid_dot11));
+
     }
 
     {
