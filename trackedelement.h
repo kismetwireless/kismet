@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -36,15 +36,6 @@
 #include "kis_mutex.h"
 #include "macaddr.h"
 #include "uuid.h"
-
-// Set this to 0 to disable type safety; this stops Kismet from validating that the
-// tracked element validates properly against the requested type; this will definitely
-// lead to segfaults if the element does not.
-//
-// On the flip side, validating the type is one of the most commonly called 
-// functions, and if this presents a problem, turning off type checking can cull 
-// a large percentage of the function calls
-#define TE_TYPE_SAFETY  1
 
 class EntryTracker;
 class TrackerElement;

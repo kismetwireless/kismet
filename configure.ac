@@ -290,6 +290,21 @@ else
 fi
 AC_SUBST(ALLTARGETS)
 
+want_te_typesafety=yes
+AC_ARG_ENABLE([element-typesafety],
+    AS_HELP_STRING([--disable-element-typesafety], [Disable runtime type safety of the tracked element system]),
+    [case "${enableval}" in
+      no) want_te_typesafety=no ;;
+      *)  want_te_typesafety=yes ;;
+  esac],
+  [want_te_typesafety=yes]
+)
+if test "$want_te_typesafety"x == "yes"x; then
+    AC_DEFINE(TE_TYPE_SAFETY, 1, Enforce runtime type safety)
+else
+    AC_DEFINE(TE_TYPE_SAFETY, 0, Do not enforce runtime type safety)
+fi
+
 want_python=yes
 AC_ARG_ENABLE([python-tools],
     AS_HELP_STRING([--disable-python-tools], [Disable building Python modules and Python-only data sources]),
