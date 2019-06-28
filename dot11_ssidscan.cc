@@ -52,25 +52,15 @@ Dot11_SsidScan::Dot11_SsidScan() {
                 TrackerElementFactory<TrackerElementVectorString>(),
                 "Target SSID regexes");
 
-    hopping_datasources_uuids =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.hopping_ds_uuids",
+    ssidscan_datasources_uuids =
+        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.datasources",
                 TrackerElementFactory<TrackerElementVector>(),
-                "Hopping datasource pool (UUIDs)");
+                "Usable datasource pool (UUIDs)");
 
-    locking_datasources_uuids =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.locking_ds_uuids",
+    ssidscan_datasources =
+        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.datasources",
                 TrackerElementFactory<TrackerElementVector>(),
-                "Locking datasource pool (UUIDs)");
-
-    hopping_datasources =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.locking_ds",
-                TrackerElementFactory<TrackerElementVector>(),
-                "Hopping datasource pool");
-
-    locking_datasources =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.hopping_ds",
-                TrackerElementFactory<TrackerElementVector>(),
-                "Locking datasource pool");
+                "Active datasource pool");
 
     ignore_after_handshake =
         entrytracker->RegisterAndGetFieldAs<TrackerElementUInt8>("dot11.ssidscan.ignore_after_handshake",
@@ -99,31 +89,25 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     auto config = Globalreg::globalreg->kismet_config;
 
-    set_ssidscan_enabled(config->FetchOptBoolean("dot11_ssidscan_enabled", false));
+    ssidscan_enabled->set(config->FetchOptBoolean("dot11_ssidscan_enabled", false));
 
     for (auto s : config->FetchOptVec("dot11_ssidscan_ssid")) {
         target_ssids->push_back(s);
     }
 
-    for (auto hu : config->FetchOptVec("dot11_ssidscan_hop_datasource")) {
+    for (auto hu : config->FetchOptVec("dot11_ssidscan_datasource")) {
         auto hu_uuid = 
             std::make_shared<TrackerElementUUID>(uuid(hu));
-        hopping_datasources_uuids->push_back(hu_uuid);
+        ssidscan_datasources->push_back(hu_uuid);
     }
 
-    for (auto lu : config->FetchOptVec("dot11_ssidscan_lock_datasource")) {
-        auto lu_uuid = 
-            std::make_shared<TrackerElementUUID>(uuid(lu));
-        locking_datasources_uuids->push_back(lu_uuid);
-    }
+    ignore_after_handshake->set(config->FetchOptBoolean("dot11_ssidscan_ignore_after_handshake", true));
 
-    set_ignore_after_handshake(config->FetchOptBoolean("dot11_ssidscan_ignore_after_handshake", true));
+    initial_log_filters->set(config->FetchOptBoolean("dot11_ssidscan_block_logging", false));
+    filter_logs->set(config->FetchOptBoolean("dot11_ssidscan_dynamic_logging", true));
 
-    set_initial_log_filters(config->FetchOptBoolean("dot11_ssidscan_block_logging", false));
-    set_filter_logs(config->FetchOptBoolean("dot11_ssidscan_dynamic_logging", true));
-
-    set_min_scan_seconds(config->FetchOptUInt("dot11_ssidscan_minimum_hop", 30));
-    set_max_contend_cap_seconds(config->FetchOptUInt("dot11_ssidscan_maximum_lock", 30));
+    min_scan_seconds->set(config->FetchOptUInt("dot11_ssidscan_minimum_hop", 30));
+    max_contend_cap_seconds->set(config->FetchOptUInt("dot11_ssidscan_maximum_lock", 30));
 
     dot11_ssidscan_status_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/phy/phy80211/ssidscan/status", true,
@@ -132,8 +116,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
                     retmap->insert(ssidscan_enabled);
                     retmap->insert(target_ssids);
-                    retmap->insert(hopping_datasources_uuids);
-                    retmap->insert(locking_datasources_uuids);
+                    retmap->insert(ssidscan_datasources_uuids);
                     retmap->insert(ignore_after_handshake);
                     retmap->insert(initial_log_filters);
                     retmap->insert(filter_logs);
@@ -192,8 +175,8 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
         if (post_structured->hasKey("ssidscan_enabled")) {
             auto enabled = post_structured->getKeyAsBool("ssidscan_enabled");
 
-            if (enabled != get_ssidscan_enabled()) {
-                set_ssidscan_enabled(enabled);
+            if (enabled != ssidscan_enabled->get()) {
+                ssidscan_enabled->set(enabled);
 
                 if (enabled) {
                     _MSG_INFO("Enabling ssidscan module, this will change the behavior of datasources and logs.");
@@ -208,19 +191,19 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
         }
 
         if (post_structured->hasKey("ignore_after_handshake"))
-            set_ignore_after_handshake(post_structured->getKeyAsBool("ignore_after_handshake"));
+            ignore_after_handshake->set(post_structured->getKeyAsBool("ignore_after_handshake"));
 
         if (post_structured->hasKey("max_capture_seconds")) 
-            set_max_contend_cap_seconds(post_structured->getKeyAsNumber("max_capture_seconds"));
+            max_contend_cap_seconds->set(post_structured->getKeyAsNumber("max_capture_seconds"));
 
         if (post_structured->hasKey("min_scan_seconds")) 
-            set_min_scan_seconds(post_structured->getKeyAsNumber("min_scan_seconds"));
+            min_scan_seconds->set(post_structured->getKeyAsNumber("min_scan_seconds"));
 
         if (post_structured->hasKey("restrict_log_filters")) {
             auto enabled = post_structured->getKeyAsBool("restrict_log_filters");
 
-            if (enabled != get_filter_logs()) {
-                set_filter_logs(enabled);
+            if (enabled != filter_logs->get()) {
+                filter_logs->set(enabled);
 
                 // TODO set filters for all existing devices
             } 

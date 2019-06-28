@@ -101,13 +101,6 @@ public:
     virtual ~Dot11_SsidScan();
 
 protected:
-    __Proxy(ssidscan_enabled, uint8_t, bool, bool, ssidscan_enabled);
-    __Proxy(ignore_after_handshake, uint8_t, bool, bool, ignore_after_handshake);
-    __Proxy(max_contend_cap_seconds, uint32_t, uint32_t, uint32_t, max_contend_cap_seconds);
-    __Proxy(min_scan_seconds, uint32_t, uint32_t, uint32_t, min_scan_seconds);
-    __Proxy(initial_log_filters, uint8_t, bool, bool, initial_log_filters);
-    __Proxy(filter_logs, uint8_t, bool, bool, filter_logs);
-
     kis_recursive_timed_mutex mutex;
 
     // Are we active at all?
@@ -116,12 +109,9 @@ protected:
     // Target SSIDs
     std::shared_ptr<TrackerElementVectorString> target_ssids;
 
-    // Pool of sources (if multiple are available)
-    std::shared_ptr<TrackerElementVector> hopping_datasources_uuids;
-    std::shared_ptr<TrackerElementVector> locking_datasources_uuids;
-
-    std::shared_ptr<TrackerElementVector> hopping_datasources;
-    std::shared_ptr<TrackerElementVector> locking_datasources;
+    // Datasources we use; wanted UUIDs and actual sources
+    std::shared_ptr<TrackerElementVector> ssidscan_datasources_uuid;
+    std::shared_ptr<TrackerElementVector> ssidscan_datasources;
 
     // Do we ignore a target bssid after we think we got a handshake?
     std::shared_ptr<TrackerElementUInt8> ignore_after_handshake;
