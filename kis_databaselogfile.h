@@ -147,9 +147,9 @@ public:
     // Eventbus event we inject when the log is opened
     class EventDblogOpened : public EventbusEvent {
     public:
-        static std::string log_type() { return "KISMETDB_LOG_OPEN"; }
+        static std::string Event() { return "KISMETDB_LOG_OPEN"; }
         EventDblogOpened() :
-            EventbusEvent("KISMETDB_LOG_OPEN") { }
+            EventbusEvent(Event()) { }
         virtual ~EventDblogOpened() {}
     };
 

@@ -125,8 +125,10 @@ public:
     // Eventbus event we inject when a new phy is added
     class EventNewPhy : public EventbusEvent {
     public:
+        static std::string Event() { return "NEW_PHY"; }
+
         EventNewPhy(Kis_Phy_Handler *handler) :
-            EventbusEvent("NEW_PHY"),
+            EventbusEvent(Event()),
             phy{handler} { }
         virtual ~EventNewPhy() {}
 

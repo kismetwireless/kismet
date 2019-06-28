@@ -373,8 +373,9 @@ public:
     // Eventbus event we inject when a new ds is added
     class EventNewDatasource : public EventbusEvent {
     public:
+        static std::string Event() { return "NEW_DATASOURCE"; }
         EventNewDatasource(std::shared_ptr<KisDatasource> source) :
-            EventbusEvent("NEW_DATASOURCE"),
+            EventbusEvent(Event()),
             datasource{source} { }
         virtual ~EventNewDatasource() {}
 
