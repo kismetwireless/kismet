@@ -685,9 +685,14 @@ void Datasourcetracker::Deferred_Shutdown() {
 }
 
 void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
-    local_locker lock(&dst_lock);
+    std::shared_ptr<TrackerElementVector> immutable_copy;
 
-    for (auto kds : *datasource_vec) {
+    {
+        local_locker lock(&dst_lock);
+        immutable_copy = std::make_shared<TrackerElementVector>(datasource_vec);
+    }
+
+    for (auto kds : *immutable_copy) {
         in_worker->handle_datasource(std::static_pointer_cast<KisDatasource>(kds));
     }
 
@@ -1102,11 +1107,12 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
 
+        auto dup_definition(in_definition);
+
         // Generate a detached thread for joining the ring buffer; it acts as a blocking
         // wait for the buffer to be filled
-        incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, 
-                    in_definition]  {
-                    merge_target_device->connect_remote(in_handler, in_definition, NULL);
+        incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, dup_definition]  {
+                    merge_target_device->connect_remote(in_handler, dup_definition, NULL);
                     calculate_source_hopping(merge_target_device);
                 }));
 

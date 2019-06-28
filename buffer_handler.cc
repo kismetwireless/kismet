@@ -43,6 +43,9 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
 }
 
 void BufferHandlerGeneric::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+    if (in_parent != nullptr && in_parent == handler_mutex)
+        return;
+
     local_locker l(handler_mutex);
 
     if (in_parent != nullptr)
