@@ -19,6 +19,7 @@ callgrind*
 *.pb.h
 *.pb-c.c
 *.pb-c.h
+*_pb2.py
 
 # Autogen'd version
 version.c
