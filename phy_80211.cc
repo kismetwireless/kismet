@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -66,160 +66,160 @@
 
 // Convert the beacon interval to # of packets per second
 unsigned int Ieee80211Interval2NSecs(int in_interval) {
-	double interval_per_sec;
+    double interval_per_sec;
 
-	interval_per_sec = (double) in_interval * 1024 / 1000000;
-	
-	return (unsigned int) ceil(1.0f / interval_per_sec);
+    interval_per_sec = (double) in_interval * 1024 / 1000000;
+
+    return (unsigned int) ceil(1.0f / interval_per_sec);
 }
 
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
+    return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
 }
 
 int phydot11_packethook_dot11(CHAINCALL_PARMS) {
-	return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
+    return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
 Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) : 
-	Kis_Phy_Handler(in_globalreg, in_phyid),
+    Kis_Phy_Handler(in_globalreg, in_phyid),
     Kis_Net_Httpd_CPPStream_Handler() {
 
-    alertracker =
-        Globalreg::FetchMandatoryGlobalAs<Alertracker>();
+        alertracker =
+            Globalreg::FetchMandatoryGlobalAs<Alertracker>();
 
-    packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        packetchain =
+            Globalreg::FetchMandatoryGlobalAs<Packetchain>();
 
-    timetracker =
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+        timetracker =
+            Globalreg::FetchMandatoryGlobalAs<Timetracker>();
 
-    devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        devicetracker =
+            Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
 
-    eventbus =
-        Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+        eventbus =
+            Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
-	// Initialize the crc tables
-	crc32_init_table_80211(Globalreg::globalreg->crc32_table);
+        // Initialize the crc tables
+        crc32_init_table_80211(Globalreg::globalreg->crc32_table);
 
-    SetPhyName("IEEE802.11");
+        SetPhyName("IEEE802.11");
 
-    dot11_device_entry_id =
-        Globalreg::globalreg->entrytracker->RegisterField("dot11.device",
-                TrackerElementFactory<dot11_tracked_device>(),
-                "IEEE802.11 device");
+        dot11_device_entry_id =
+            Globalreg::globalreg->entrytracker->RegisterField("dot11.device",
+                    TrackerElementFactory<dot11_tracked_device>(),
+                    "IEEE802.11 device");
 
-	// Packet classifier - makes basic records plus dot11 data
-	packetchain->RegisterHandler(&CommonClassifierDot11, this,
-            CHAINPOS_CLASSIFIER, -100);
-	packetchain->RegisterHandler(&phydot11_packethook_wep, this,
-            CHAINPOS_DECRYPT, -100);
-	packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
-            CHAINPOS_LLCDISSECT, -100);
+        // Packet classifier - makes basic records plus dot11 data
+        packetchain->RegisterHandler(&CommonClassifierDot11, this,
+                CHAINPOS_CLASSIFIER, -100);
+        packetchain->RegisterHandler(&phydot11_packethook_wep, this,
+                CHAINPOS_DECRYPT, -100);
+        packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
+                CHAINPOS_LLCDISSECT, -100);
 
-	// If we haven't registered packet components yet, do so.  We have to
-	// co-exist with the old tracker core for some time
-	pack_comp_80211 =
-		packetchain->RegisterPacketComponent("PHY80211");
+        // If we haven't registered packet components yet, do so.  We have to
+        // co-exist with the old tracker core for some time
+        pack_comp_80211 =
+            packetchain->RegisterPacketComponent("PHY80211");
 
-	pack_comp_basicdata = 
-		packetchain->RegisterPacketComponent("BASICDATA");
+        pack_comp_basicdata = 
+            packetchain->RegisterPacketComponent("BASICDATA");
 
-	pack_comp_mangleframe = 
-		packetchain->RegisterPacketComponent("MANGLEDATA");
+        pack_comp_mangleframe = 
+            packetchain->RegisterPacketComponent("MANGLEDATA");
 
-	pack_comp_checksum =
-		packetchain->RegisterPacketComponent("CHECKSUM");
+        pack_comp_checksum =
+            packetchain->RegisterPacketComponent("CHECKSUM");
 
-	pack_comp_linkframe = 
-		packetchain->RegisterPacketComponent("LINKFRAME");
+        pack_comp_linkframe = 
+            packetchain->RegisterPacketComponent("LINKFRAME");
 
-	pack_comp_decap =
-		packetchain->RegisterPacketComponent("DECAP");
+        pack_comp_decap =
+            packetchain->RegisterPacketComponent("DECAP");
 
-	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+        pack_comp_common = 
+            packetchain->RegisterPacketComponent("COMMON");
 
-	pack_comp_datapayload =
-		packetchain->RegisterPacketComponent("DATAPAYLOAD");
+        pack_comp_datapayload =
+            packetchain->RegisterPacketComponent("DATAPAYLOAD");
 
-	pack_comp_gps =
-		packetchain->RegisterPacketComponent("GPS");
+        pack_comp_gps =
+            packetchain->RegisterPacketComponent("GPS");
 
-    pack_comp_l1info =
-        packetchain->RegisterPacketComponent("RADIODATA");
+        pack_comp_l1info =
+            packetchain->RegisterPacketComponent("RADIODATA");
 
-    ssid_regex_vec =
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("phy80211.ssid_alerts", 
-                TrackerElementFactory<TrackerElementVector>(),
-                "Regex SSID alert configuration");
+        ssid_regex_vec =
+            Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("phy80211.ssid_alerts", 
+                    TrackerElementFactory<TrackerElementVector>(),
+                    "Regex SSID alert configuration");
 
-    ssid_regex_vec_element_id =
-        Globalreg::globalreg->entrytracker->RegisterField("phy80211.ssid_alert", 
-                TrackerElementFactory<dot11_tracked_ssid_alert>(),
-                "ssid alert");
+        ssid_regex_vec_element_id =
+            Globalreg::globalreg->entrytracker->RegisterField("phy80211.ssid_alert", 
+                    TrackerElementFactory<dot11_tracked_ssid_alert>(),
+                    "ssid alert");
 
-	// Register the dissector alerts
-	alert_netstumbler_ref = 
-		alertracker->ActivateConfiguredAlert("NETSTUMBLER", 
-                "Netstumbler (and similar older Windows tools) may generate unique "
-                "beacons which can be used to identify these tools in use.  These "
-                "tools and the cards which generate these frames are uncommon.",
-                phyid);
-	alert_nullproberesp_ref =
-		alertracker->ActivateConfiguredAlert("NULLPROBERESP", 
-                "A probe response with a SSID length of 0 can be used to crash the "
-                "firmware in specific older Orinoco cards.  These cards are "
-                "unlikely to be in use in modern systems.",
-                phyid);
-	alert_lucenttest_ref =
-		alertracker->ActivateConfiguredAlert("LUCENTTEST", 
-                "Specific Lucent Orinoco test tools generate identifiable frames, "
-                "which can indicate these tools are in use.  These tools and the "
-                "cards which generate these frames are uncommon.",
-                phyid);
-	alert_msfbcomssid_ref =
-		alertracker->ActivateConfiguredAlert("MSFBCOMSSID", 
-                "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
-                "are vulnerable to overflow exploits.  The Metasploit framework "
-                "can attack these vulnerabilities.  These drivers are unlikely to "
-                "be found in modern systems, but seeing these malformed frames "
-                "indicates an attempted attack is occurring.",
-                phyid);
-	alert_msfdlinkrate_ref =
-		alertracker->ActivateConfiguredAlert("MSFDLINKRATE", 
-                "Old versions of the D-Link Windows drivers are vulnerable to "
-                "malformed rate fields.  The Metasploit framework can attack these "
-                "vulnerabilities.  These drivers are unlikely to be found in "
+        // Register the dissector alerts
+        alert_netstumbler_ref = 
+            alertracker->ActivateConfiguredAlert("NETSTUMBLER", 
+                    "Netstumbler (and similar older Windows tools) may generate unique "
+                    "beacons which can be used to identify these tools in use.  These "
+                    "tools and the cards which generate these frames are uncommon.",
+                    phyid);
+        alert_nullproberesp_ref =
+            alertracker->ActivateConfiguredAlert("NULLPROBERESP", 
+                    "A probe response with a SSID length of 0 can be used to crash the "
+                    "firmware in specific older Orinoco cards.  These cards are "
+                    "unlikely to be in use in modern systems.",
+                    phyid);
+        alert_lucenttest_ref =
+            alertracker->ActivateConfiguredAlert("LUCENTTEST", 
+                    "Specific Lucent Orinoco test tools generate identifiable frames, "
+                    "which can indicate these tools are in use.  These tools and the "
+                    "cards which generate these frames are uncommon.",
+                    phyid);
+        alert_msfbcomssid_ref =
+            alertracker->ActivateConfiguredAlert("MSFBCOMSSID", 
+                    "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
+                    "are vulnerable to overflow exploits.  The Metasploit framework "
+                    "can attack these vulnerabilities.  These drivers are unlikely to "
+                    "be found in modern systems, but seeing these malformed frames "
+                    "indicates an attempted attack is occurring.",
+                    phyid);
+        alert_msfdlinkrate_ref =
+            alertracker->ActivateConfiguredAlert("MSFDLINKRATE", 
+                    "Old versions of the D-Link Windows drivers are vulnerable to "
+                    "malformed rate fields.  The Metasploit framework can attack these "
+                    "vulnerabilities.  These drivers are unlikely to be found in "
+                    "modern systems, but seeing these malformed frames indicates an "
+                    "attempted attack is occurring.",
+                    phyid);
+        alert_msfnetgearbeacon_ref =
+            alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", 
+                    "Old versions of the Netgear windows drivers are vulnerable to "
+                    "malformed beacons.  The Metasploit framework can attack these "
+                    "vulnerabilities.  These drivers are unlikely to be found in "
                 "modern systems, but seeing these malformed frames indicates an "
                 "attempted attack is occurring.",
                 phyid);
-	alert_msfnetgearbeacon_ref =
-		alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", 
-                "Old versions of the Netgear windows drivers are vulnerable to "
-                "malformed beacons.  The Metasploit framework can attack these "
-                "vulnerabilities.  These drivers are unlikely to be found in "
-                "modern systems, but seeing these malformed frames indicates an "
-                "attempted attack is occurring.",
-                phyid);
-	alert_longssid_ref =
-		alertracker->ActivateConfiguredAlert("LONGSSID", 
+    alert_longssid_ref =
+        alertracker->ActivateConfiguredAlert("LONGSSID", 
                 "The Wi-Fi standard allows for 32 characters in a SSID. "
                 "Historically, some drivers have had vulnerabilities related to "
                 "invalid over-long SSID fields.  Seeing these frames indicates that "
                 "significant corruption or an attempted attack is occurring.",
                 phyid);
-	alert_disconinvalid_ref =
-		alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", 
+    alert_disconinvalid_ref =
+        alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", 
                 "The 802.11 specification defines reason codes for disconnect "
                 "and deauthentication events.  Historically, various drivers "
                 "have been reported to improperly handle invalid reason codes.  "
                 "An invalid reason code indicates an improperly behaving device or "
                 "an attempted attack.",
                 phyid);
-	alert_deauthinvalid_ref =
-		alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", 
+    alert_deauthinvalid_ref =
+        alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", 
                 "The 802.11 specification defines reason codes for disconnect "
                 "and deauthentication events.  Historically, various drivers "
                 "have been reported to improperly handle invalid reason codes.  "
@@ -233,13 +233,13 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "using the Broadpwn attack",
                 phyid);
 #if 0
-	alert_dhcpclient_ref =
-		alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
+    alert_dhcpclient_ref =
+        alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
 #endif
 
-	// Register the tracker alerts
-	alert_chan_ref =
-		alertracker->ActivateConfiguredAlert("CHANCHANGE", 
+    // Register the tracker alerts
+    alert_chan_ref =
+        alertracker->ActivateConfiguredAlert("CHANCHANGE", 
                 "An access point has changed channel.  This may occur on "
                 "enterprise equipment or on personal equipment with automatic "
                 "channel selection, but may also indicate a spoofed or "
@@ -385,15 +385,15 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     signal_too_loud_threshold = 
         Globalreg::globalreg->kismet_config->FetchOptInt("dot11_max_signal", -10);
 
-	// Do we process the whole data packet?
+    // Do we process the whole data packet?
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
-		Globalreg::globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
-		_MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
-			 "of data packets entirely", MSGFLAG_INFO);
-		dissect_data = 0;
-	} else {
-		dissect_data = 1;
-	}
+            Globalreg::globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
+        _MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
+                "of data packets entirely", MSGFLAG_INFO);
+        dissect_data = 0;
+    } else {
+        dissect_data = 1;
+    }
 
     // Do we process phy and control frames?  They seem to be the glitchiest
     // on many cards including the ath9k which is otherwise excellent
@@ -1603,40 +1603,40 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 }
 
 void Kis_80211_Phy::SetStringExtract(int in_extr) {
-	if (in_extr == 0 && dissect_strings == 2) {
-		_MSG("SetStringExtract(): String dissection cannot be disabled because "
-			 "it is required by another active component.", MSGFLAG_ERROR);
-		return;
-	}
+    if (in_extr == 0 && dissect_strings == 2) {
+        _MSG("SetStringExtract(): String dissection cannot be disabled because "
+                "it is required by another active component.", MSGFLAG_ERROR);
+        return;
+    }
 
-	// If we're setting the extract here, we have to turn it on for all BSSIDs
-	dissect_strings = in_extr;
-	dissect_all_strings = in_extr;
+    // If we're setting the extract here, we have to turn it on for all BSSIDs
+    dissect_strings = in_extr;
+    dissect_all_strings = in_extr;
 }
 
 void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
-							  int temp) {
-	if (len > WEPKEY_MAX)
-		return;
+        int temp) {
+    if (len > WEPKEY_MAX)
+        return;
 
     dot11_wep_key *winfo = new dot11_wep_key;
 
-	winfo->decrypted = 0;
-	winfo->failed = 0;
+    winfo->decrypted = 0;
+    winfo->failed = 0;
     winfo->bssid = bssid;
-	winfo->fragile = temp;
+    winfo->fragile = temp;
     winfo->len = len;
 
     memcpy(winfo->key, key, len);
 
     // Replace exiting ones
-	if (wepkeys.find(winfo->bssid) != wepkeys.end()) {
-		delete wepkeys[winfo->bssid];
-		wepkeys[winfo->bssid] = winfo;
-		return;
-	}
+    if (wepkeys.find(winfo->bssid) != wepkeys.end()) {
+        delete wepkeys[winfo->bssid];
+        wepkeys[winfo->bssid] = winfo;
+        return;
+    }
 
-	wepkeys.insert(std::make_pair(winfo->bssid, winfo));
+    wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
 void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
@@ -2590,19 +2590,19 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
 }
 
 std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
-	std::string ret;
+    std::string ret;
 
-	if (cryptset == crypt_none)
-		return "none";
+    if (cryptset == crypt_none)
+        return "none";
 
-	if (cryptset == crypt_unknown)
-		return "unknown";
+    if (cryptset == crypt_unknown)
+        return "unknown";
 
-	if (cryptset & crypt_wps)
-		ret = "WPS";
+    if (cryptset & crypt_wps)
+        ret = "WPS";
 
-	if ((cryptset & crypt_protectmask) == crypt_wep)
-		return StringAppend(ret, "WEP");
+    if ((cryptset & crypt_protectmask) == crypt_wep)
+        return StringAppend(ret, "WEP");
 
     if (cryptset & crypt_wpa_owe)
         return "OWE";
@@ -2615,73 +2615,73 @@ std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
     if (cryptset & crypt_version_wpa3)
         WPAVER = "WPA3";
 
-	if (cryptset & crypt_wpa)
-		ret = StringAppend(ret, WPAVER);
+    if (cryptset & crypt_wpa)
+        ret = StringAppend(ret, WPAVER);
 
-	if (cryptset & crypt_psk)
-		ret = StringAppend(ret, fmt::format("{}-PSK", WPAVER));
+    if (cryptset & crypt_psk)
+        ret = StringAppend(ret, fmt::format("{}-PSK", WPAVER));
 
     if (cryptset & crypt_sae)
         ret = StringAppend(ret, fmt::format("{}-SAE", WPAVER));
 
-	if (cryptset & crypt_eap)
-		ret = StringAppend(ret, "EAP");
+    if (cryptset & crypt_eap)
+        ret = StringAppend(ret, "EAP");
 
-	if (cryptset & crypt_peap)
-		ret = StringAppend(ret, fmt::format("{}-PEAP", WPAVER));
-	if (cryptset & crypt_leap)
-		ret = StringAppend(ret, fmt::format("{}-LEAP", WPAVER));
-	if (cryptset & crypt_ttls)
-		ret = StringAppend(ret, fmt::format("{}-TTLS", WPAVER));
-	if (cryptset & crypt_tls)
-		ret = StringAppend(ret, fmt::format("{}-TLS", WPAVER));
+    if (cryptset & crypt_peap)
+        ret = StringAppend(ret, fmt::format("{}-PEAP", WPAVER));
+    if (cryptset & crypt_leap)
+        ret = StringAppend(ret, fmt::format("{}-LEAP", WPAVER));
+    if (cryptset & crypt_ttls)
+        ret = StringAppend(ret, fmt::format("{}-TTLS", WPAVER));
+    if (cryptset & crypt_tls)
+        ret = StringAppend(ret, fmt::format("{}-TLS", WPAVER));
 
-	if (cryptset & crypt_wpa_migmode)
-		ret = StringAppend(ret, "WPA-MIGRATION");
+    if (cryptset & crypt_wpa_migmode)
+        ret = StringAppend(ret, "WPA-MIGRATION");
 
-	if (cryptset & crypt_wep40)
-		ret = StringAppend(ret, "WEP40");
-	if (cryptset & crypt_wep104)
-		ret = StringAppend(ret, "WEP104");
-	if (cryptset & crypt_tkip)
-		ret = StringAppend(ret, "TKIP");
-	if (cryptset & crypt_aes_ocb)
-		ret = StringAppend(ret, "AES-OCB");
-	if (cryptset & crypt_aes_ccm)
-		ret = StringAppend(ret, "AES-CCMP");
+    if (cryptset & crypt_wep40)
+        ret = StringAppend(ret, "WEP40");
+    if (cryptset & crypt_wep104)
+        ret = StringAppend(ret, "WEP104");
+    if (cryptset & crypt_tkip)
+        ret = StringAppend(ret, "TKIP");
+    if (cryptset & crypt_aes_ocb)
+        ret = StringAppend(ret, "AES-OCB");
+    if (cryptset & crypt_aes_ccm)
+        ret = StringAppend(ret, "AES-CCMP");
 
-	if (cryptset & crypt_layer3)
-		ret = StringAppend(ret, "Layer 3");
+    if (cryptset & crypt_layer3)
+        ret = StringAppend(ret, "Layer 3");
 
-	if (cryptset & crypt_isakmp)
-		ret = StringAppend(ret, "ISA KMP");
+    if (cryptset & crypt_isakmp)
+        ret = StringAppend(ret, "ISA KMP");
 
-	if (cryptset & crypt_pptp)
-		ret = StringAppend(ret, "PPTP");
+    if (cryptset & crypt_pptp)
+        ret = StringAppend(ret, "PPTP");
 
-	if (cryptset & crypt_fortress)
-		ret = StringAppend(ret, "Fortress");
+    if (cryptset & crypt_fortress)
+        ret = StringAppend(ret, "Fortress");
 
-	if (cryptset & crypt_keyguard)
-		ret = StringAppend(ret, "Keyguard");
+    if (cryptset & crypt_keyguard)
+        ret = StringAppend(ret, "Keyguard");
 
-	if (cryptset & crypt_unknown_protected)
-		ret = StringAppend(ret, "L3/Unknown");
+    if (cryptset & crypt_unknown_protected)
+        ret = StringAppend(ret, "L3/Unknown");
 
-	if (cryptset & crypt_unknown_nonwep)
-		ret = StringAppend(ret, "Non-WEP/Unknown");
+    if (cryptset & crypt_unknown_nonwep)
+        ret = StringAppend(ret, "Non-WEP/Unknown");
 
-	return ret;
+    return ret;
 }
 
 std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
-	std::string ret;
+    std::string ret;
 
-	if (cryptset == crypt_none)
-		return "Open";
+    if (cryptset == crypt_none)
+        return "Open";
 
-	if (cryptset == crypt_unknown)
-		return "Unknown";
+    if (cryptset == crypt_unknown)
+        return "Unknown";
 
     if (cryptset == crypt_wpa_owe)
         return "Open (OWE)";
@@ -2697,7 +2697,7 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
     if (cryptset & crypt_version_wpa3)
         WPAVER = "WPA3";
 
-	if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
+    if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_psk) && (cryptset & crypt_sae))
         return fmt::format("WPA3-TRANSITION");
 
     if ((cryptset & crypt_version_wpa3) && (cryptset & crypt_sae))
@@ -2706,31 +2706,31 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
     if (cryptset & crypt_psk)
         return fmt::format("{}-PSK", WPAVER);
 
-	if (cryptset & crypt_peap)
-		return fmt::format("{}-PEAP", WPAVER);
-	if (cryptset & crypt_leap)
-		return fmt::format("{}-LEAP", WPAVER);
-	if (cryptset & crypt_ttls)
-		return fmt::format("{}-TTLS", WPAVER);
-	if (cryptset & crypt_tls)
-		return fmt::format("{}-TLS", WPAVER);
+    if (cryptset & crypt_peap)
+        return fmt::format("{}-PEAP", WPAVER);
+    if (cryptset & crypt_leap)
+        return fmt::format("{}-LEAP", WPAVER);
+    if (cryptset & crypt_ttls)
+        return fmt::format("{}-TTLS", WPAVER);
+    if (cryptset & crypt_tls)
+        return fmt::format("{}-TLS", WPAVER);
 
-	if (cryptset & crypt_wep40)
+    if (cryptset & crypt_wep40)
         return "WEP40";
 
-	if (cryptset & crypt_wep104)
+    if (cryptset & crypt_wep104)
         return "WEP104";
 
-	if (cryptset & crypt_tkip)
+    if (cryptset & crypt_tkip)
         return fmt::format("{}-TKIP", WPAVER);
 
-	if (cryptset & crypt_aes_ocb)
+    if (cryptset & crypt_aes_ocb)
         return fmt::format("{}-OCB", WPAVER);
 
-	if (cryptset & crypt_aes_ccm)
+    if (cryptset & crypt_aes_ccm)
         return fmt::format("{}-CCMP", WPAVER);
 
-	if (cryptset & crypt_wpa)
+    if (cryptset & crypt_wpa)
         return WPAVER;
 
     if (cryptset & crypt_wep)
@@ -2738,8 +2738,6 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
 
     return "Other";
 }
-
-
 
 bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
