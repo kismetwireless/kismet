@@ -149,6 +149,7 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(De
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker,
         std::shared_ptr<TrackerElementVector> devices) {
     auto ret = std::make_shared<TrackerElementVector>();
+    ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
     kismet__for_each(devices->begin(), devices->end(),
@@ -180,6 +181,7 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
 std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
         std::shared_ptr<TrackerElementVector> devices) {
     auto ret = std::make_shared<TrackerElementVector>();
+    ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
     kismet__for_each(devices->begin(), devices->end(),
