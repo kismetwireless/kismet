@@ -46,16 +46,16 @@ RingbufV2::RingbufV2(size_t in_sz) :
 
     // Initialize the buffer as an anonymous FD and dual-map it into ram; we may also
     // have to massage the buffer size to match the page size.
-    auto page_sz = getpagesize(); 
+    long page_sz = sysconf(_SC_PAGESIZE);
 
     // We need to mmap a multiple of the page size
     if (buffer_sz % page_sz) {
-        if (buffer_sz < page_sz) {
+        if (buffer_sz < (size_t) page_sz) {
             // Zoom desired size to page size if less
             buffer_sz = page_sz;
         } else {
             // Map a multiple which is larger than the current page sz
-            buffer_sz = page_sz * ((buffer_sz / page_sz) + 1);
+            buffer_sz = page_sz * ceil((double) buffer_sz / (double) page_sz);
         }
     }
     
