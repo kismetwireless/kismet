@@ -27,14 +27,14 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
 #include <sys/mman.h>
 #include <sys/types.h>
 #endif
 
 #include "simple_ringbuf_c.h"
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
 #define __NR_memfd_create 319
 int memfd_create(const char *name, unsigned int flags) {
     return syscall(__NR_memfd_create, name, flags);
@@ -47,7 +47,7 @@ int memfd_create(const char *name, unsigned int flags) {
  */
 kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
     kis_simple_ringbuf_t *rb;
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     char tmpfname[256];
 #endif
 
@@ -56,7 +56,7 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
     if (rb == NULL)
         return NULL;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     /* Initialize the buffer as an anonymous FD and dual-map it into RAM; we may
      * need to massage the buffer size to match the system page size */
 
@@ -108,7 +108,7 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
 /* Destroy a ring buffer
  */
 void kis_simple_ringbuf_free(kis_simple_ringbuf_t *ringbuf) {
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     munmap(ringbuf->mmap_region1, ringbuf->buffer_sz);
     munmap(ringbuf->mmap_region0, ringbuf->buffer_sz);
     munmap(ringbuf->buffer, ringbuf->buffer_sz * 2);
@@ -158,7 +158,7 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
     copy_start = 
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     memcpy(ringbuf->buffer + copy_start, data, length);
     ringbuf->length += length;
 
@@ -202,7 +202,7 @@ size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, si
     copy_start = 
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     ringbuf->mid_commit = 1;
     ringbuf->free_commit = 0;
     *data = ringbuf->buffer + copy_start;
@@ -238,7 +238,7 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
         return 0;
     }
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     ringbuf->mid_commit = 0;
     ringbuf->length += size;
     return size;
@@ -310,7 +310,7 @@ size_t kis_simple_ringbuf_read(kis_simple_ringbuf_t *ringbuf, void *ptr,
     if (opsize > size)
         opsize = size;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     if (ptr != NULL)
         memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
 
@@ -369,7 +369,7 @@ size_t kis_simple_ringbuf_peek(kis_simple_ringbuf_t *ringbuf, void *ptr,
     if (opsize > size)
         opsize = size;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     memcpy(ptr, ringbuf->buffer + ringbuf->start_pos, opsize);
     return opsize;
 #else
@@ -410,7 +410,7 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
     if (opsize > size)
         opsize = size;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     ringbuf->mid_peek = 1;
     ringbuf->free_peek = 0;
     *ptr = ringbuf->buffer + ringbuf->start_pos;

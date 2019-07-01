@@ -25,7 +25,7 @@
 #include "util.h"
 #include "ringbuf2.h"
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
 #include <sys/mman.h>
 #include <sys/types.h>
 
@@ -42,7 +42,7 @@ RingbufV2::RingbufV2(size_t in_sz) :
     length {0},
     free_peek {false} {
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
 
     // Initialize the buffer as an anonymous FD and dual-map it into ram; we may also
     // have to massage the buffer size to match the page size.
@@ -94,7 +94,7 @@ RingbufV2::~RingbufV2() {
     profile();
 #endif
    
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     // Drop the mmaps
     munmap(mmap_region1, buffer_sz);
     munmap(mmap_region0, buffer_sz);
@@ -257,7 +257,7 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     if (opsize == 0)
         return 0;
 
-#ifndef SYS_LINUX
+#ifndef USE_MMAP_RBUF
     // Trim to only the part of the buffer we can point to directly
     if (start_pos + opsize > buffer_sz) {
         opsize = buffer_sz - start_pos;
@@ -357,7 +357,7 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     if (data != NULL)
         memcpy(buffer + copy_start, data, in_sz);
 
@@ -415,7 +415,7 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
     copy_start = (start_pos + length) % buffer_sz;
     write_reserved = true;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     free_commit = false;
     *data = buffer + copy_start;
 
@@ -464,7 +464,7 @@ ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
     // Always return at the start of the buffer
     *data = buffer + copy_start;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     return in_sz;
 #else
     // If we're requesting a block contiguous with the buffer, return the
@@ -489,7 +489,7 @@ bool RingbufV2::commit(unsigned char *data, size_t in_sz) {
     // Unlock the write state
     write_reserved = false;
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
         if (in_sz == 0)
             return true;
 

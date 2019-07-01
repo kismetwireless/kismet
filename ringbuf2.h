@@ -29,6 +29,10 @@
 
 #include "buffer_handler.h"
 
+#ifdef SYS_LINUX
+// #define USE_MMAP_RBUF
+#endif
+
 // #define PROFILE_RINGBUFV2   1
 
 // A better ringbuffer implementation that will replace the old ringbuffer in 
@@ -68,7 +72,7 @@ public:
 
 protected:
     unsigned char *buffer;
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     void *mmap_region0;
     void *mmap_region1;
 

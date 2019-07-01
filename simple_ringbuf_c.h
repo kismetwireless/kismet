@@ -29,6 +29,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef SYS_LINUX
+// #define USE_MMAP_RBUF
+#endif
+
 struct kis_simple_ringbuf {
     uint8_t *buffer;
     size_t buffer_sz;
@@ -38,7 +42,7 @@ struct kis_simple_ringbuf {
     int mid_peek, mid_commit; /* Are we in a peek or reserve? */
     int free_peek, free_commit; /* Do we need to free the peek or reserved buffers */
 
-#ifdef SYS_LINUX
+#ifdef USE_MMAP_RBUF
     void *mmap_region0;
     void *mmap_region1;
 
