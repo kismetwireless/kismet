@@ -111,7 +111,7 @@ protected:
 
     std::vector<std::string> path_vec;
 
-    pid_t child_pid;
+    std::atomic<pid_t> child_pid;
 
     std::string FindBinaryPath(std::string in_cmd);
 

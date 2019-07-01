@@ -420,7 +420,6 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
 }
 
 pid_t IPCRemoteV2::get_pid() {
-    local_locker lock(ipc_mutex);
     return child_pid;
 }
 
