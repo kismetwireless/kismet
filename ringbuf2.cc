@@ -168,6 +168,7 @@ ssize_t RingbufV2::peek(unsigned char **ptr, size_t in_sz) {
     local_eol_locker peeklock(&write_mutex);
 
     if (peek_reserved) {
+        peeklock.unlock();
         throw std::runtime_error("ringbuf v2 peek already locked");
     }
 
@@ -242,6 +243,7 @@ ssize_t RingbufV2::zero_copy_peek(unsigned char **ptr, size_t in_sz) {
     local_eol_locker peeklock(&write_mutex);
 
     if (peek_reserved) {
+        peeklock.unlock();
         throw std::runtime_error("ringbuf v2 peek already locked");
     }
 
@@ -397,13 +399,15 @@ ssize_t RingbufV2::reserve(unsigned char **data, size_t in_sz) {
         throw std::runtime_error("ringbuf v2 write already locked");
     }
 
-    if (in_sz == 0)
+    if (in_sz == 0) {
+        writelock.unlock();
         return 0;
+    }
 
     size_t copy_start;
 
     if (available() < (ssize_t) in_sz) {
-        // fprintf(stderr, "debug - ringbuf2 - insufficient space in buffer for %lu\n", in_sz);
+        writelock.unlock();
         return 0;
     }
 
@@ -441,12 +445,18 @@ ssize_t RingbufV2::zero_copy_reserve(unsigned char **data, size_t in_sz) {
         throw std::runtime_error("ringbuf v2 write already locked");
     }
 
-    write_reserved = true;
-    free_commit = false;
-
-    if (in_sz == 0) {
+    if (available() < (ssize_t) in_sz) {
+        writelock.unlock();
         return 0;
     }
+
+    if (in_sz == 0) {
+        writelock.unlock();
+        return 0;
+    }
+
+    write_reserved = true;
+    free_commit = false;
 
     size_t copy_start;
     copy_start = (start_pos + length) % buffer_sz;

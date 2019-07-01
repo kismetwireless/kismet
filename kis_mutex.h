@@ -623,29 +623,44 @@ protected:
 // end-of-life mutex maintenance
 class local_eol_locker {
 public:
-    local_eol_locker(kis_recursive_timed_mutex *in) {
+    local_eol_locker(kis_recursive_timed_mutex *in) :
+        cpplock {in},
+        s_cpplock {nullptr} {
 #ifdef DISABLE_MUTEX_TIMEOUT
-        in->lock();
+        cpplock->lock();
 #else
-        if (!in->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+        if (!cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
             throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
                             "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 #endif
     }
 
-    local_eol_locker(std::shared_ptr<kis_recursive_timed_mutex> in) {
+    local_eol_locker(std::shared_ptr<kis_recursive_timed_mutex> in) :
+        cpplock {nullptr},
+        s_cpplock {in} {
 #ifdef DISABLE_MUTEX_TIMEOUT
-        in->lock();
+        s_cpplock->lock();
 #else
-        if (!in->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
+        if (!s_cpplock->try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
             throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
                             "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
         }
 #endif
+    }
+
+    void unlock() {
+        if (cpplock)
+            cpplock->unlock();
+        if (s_cpplock)
+            s_cpplock->unlock();
     }
 
     ~local_eol_locker() { }
+
+protected:
+    kis_recursive_timed_mutex *cpplock;
+    std::shared_ptr<kis_recursive_timed_mutex> s_cpplock;
 };
 
 class local_eol_shared_locker {
