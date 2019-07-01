@@ -60,16 +60,16 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
     /* Initialize the buffer as an anonymous FD and dual-map it into RAM; we may
      * need to massage the buffer size to match the system page size */
 
-    int page_sz = getpagesize(); 
+    long page_sz = sysconf(_SC_PAGESIZE);
 
     /* We need to mmap a multiple of the page size */
     if (size % page_sz) {
-        if (size < page_sz) {
+        if (size < (size_t) page_sz) {
             /* Zoom desired size to page size if less */
             size = page_sz;
         } else {
             /* Map a multiple which is larger than the current page sz */
-            size = page_sz * ((size / page_sz) + 1);
+            size = page_sz * ceil((double) size / (double) page_sz);
         }
     }
 
@@ -83,7 +83,20 @@ kis_simple_ringbuf_t *kis_simple_ringbuf_create(size_t size) {
 
     /* Double-map the buffer into the memory space */
     rb->mmap_region0 = mmap(rb->buffer, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, rb->mmap_fd, 0);
+
+    if (rb->mmap_region0 == MAP_FAILED) {
+        fprintf(stderr, "FATAL:  Failed to mmap ringbuf region0: %s\n", strerror(errno));
+        free(rb);
+        return NULL;
+    }
+
     rb->mmap_region1 = mmap(rb->buffer + size, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, rb->mmap_fd, 0);
+
+    if (rb->mmap_region1 == MAP_FAILED) {
+        fprintf(stderr, "FATAL:  Failed to mmap ringbuf region1: %s\n", strerror(errno));
+        free(rb);
+        return NULL;
+    }
 
 #else
     rb->buffer = (uint8_t *) malloc(size);

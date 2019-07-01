@@ -69,7 +69,14 @@ RingbufV2::RingbufV2(size_t in_sz) :
 
     // Double-map the buffer into the memory space
     mmap_region0 = mmap(buffer, buffer_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mmap_fd, 0);
+
+    if (mmap_region0 == MAP_FAILED)
+        throw std::runtime_error(fmt::format("ringbuf v2 mapping region0 failed: {}", kis_strerror_r(errno));
+
     mmap_region1 = mmap(buffer + buffer_sz, buffer_sz, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mmap_fd, 0);
+
+    if (mmap_region1 == MAP_FAILED)
+        throw std::runtime_error(fmt::format("ringbuf v2 mapping region0 failed: {}", kis_strerror_r(errno));
 
 #else
 
@@ -96,8 +103,11 @@ RingbufV2::~RingbufV2() {
    
 #ifdef USE_MMAP_RBUF
     // Drop the mmaps
-    munmap(mmap_region1, buffer_sz);
-    munmap(mmap_region0, buffer_sz);
+    if (mmap_region1 != nullptr && mmap_region1 != MAP_FAILED)
+        munmap(mmap_region1, buffer_sz);
+
+    if (mmap_region0 != nullptr && mmap_region0 != MAP_FAILED)
+        munmap(mmap_region0, buffer_sz);
     munmap(buffer, buffer_sz * 2);
     close(mmap_fd);
 #else
