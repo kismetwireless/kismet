@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -19,6 +19,7 @@
 #include "config.h"
 
 #ifdef HAVE_LIBPCAP
+#ifdef HAVE_PPI
 
 #include <errno.h>
 
@@ -467,5 +468,6 @@ int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
     return 1;
 }
 
+#endif /* have ppi */
 #endif /* have_libpcap */
 

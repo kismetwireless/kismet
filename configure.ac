@@ -640,8 +640,6 @@ else
 fi
 AC_SUBST(instgrp)
 
-termcontrol="none";
-    
 # We need microhttpd if we're building kismet_server
 if test "$caponly" == 0; then
     HAVE_LIBMICROHTTPD=0
@@ -886,30 +884,33 @@ AC_ARG_ENABLE(pcre,
 	[wantpcre=yes]
 )
 
-if test "$wantpcre" = "yes"; then
-	# Check for pcre
-	pcrel=no
-	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
-
-	if test "$pcrel" != "yes"; then
-		AC_MSG_WARN(Failed to find libpcre)
-		wantpcre=no
-	fi
-
-	if test "$wantpcre" = "yes"; then
-	pcreh=no
-	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
-
-	if test "$pcreh" != "yes"; then
-		AC_MSG_WARN(Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages)
-		wantpcre=no
-	fi
-	fi # wantpcre
-
-	if test "$wantpcre" = "yes"; then
-	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
-	LIBS="$LIBS -lpcre"
-	fi # pcre
+# Dont' check pcre if we're only building datasources
+if test "$caponly" == 0; then
+    if test "$wantpcre" = "yes"; then
+    	# Check for pcre
+    	pcrel=no
+    	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
+    
+    	if test "$pcrel" != "yes"; then
+    		AC_MSG_WARN(Failed to find libpcre)
+    		wantpcre=no
+    	fi
+    
+    	if test "$wantpcre" = "yes"; then
+    	pcreh=no
+    	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
+    
+    	if test "$pcreh" != "yes"; then
+    		AC_MSG_WARN(Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages)
+    		wantpcre=no
+    	fi
+    	fi # wantpcre
+    
+    	if test "$wantpcre" = "yes"; then
+    	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
+    	LIBS="$LIBS -lpcre"
+    	fi # pcre
+    fi
 fi
 
 # Don't check for sqlite3 if we're only building datasources
@@ -954,122 +955,81 @@ AC_ARG_ENABLE(prelude,
   fi
 ],[wantprelude=no])
 
-AC_ARG_ENABLE(pcap,
-    AS_HELP_STRING([--disable-pcap], [Disable libpcap support and most data sources]),
-	[case "${enableval}" in
-	  no) wantpcap=no ;;
-	   *) wantpcap=yes ;;
-	 esac],
-	[wantpcap=yes]
-)
-AC_SUBST(wantpcap)
 
-if test "$wantpcap" = yes; then
-	foundsyspcap=no
+foundsyspcap=no
 
-	if test "$cygwin" = yes; then
-		pcaplib="wpcap";
-	else
-		pcaplib="pcap";
-	fi
-
-	AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
-	    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
-	    AC_MSG_WARN(Compiling without libpcap support.))
-
-	if test "$foundsyspcap" = yes; then
-	## if we don't have a pcap.h, do a search for pcap/pcap.h
-	AC_CHECK_HEADER([pcap.h],
-		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-	    if test "$foundsyspcaph" != yes; then
-			AC_CHECK_HEADER([pcap/pcap.h],
-			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-			AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
-	    fi
-	# Look for the new PCAP stuff
-	AC_CHECK_LIB([pcap], [pcap_setnonblock],
-	    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
-	    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
-
-	if test "$cygwin" != yes; then
-	AC_CHECK_LIB([${pcaplib}], [pcap_get_selectable_fd],
-		AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
-		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
-	else
-	AC_CHECK_LIB([${pcaplib}], [pcap_fileno],
-		AC_DEFINE(HAVE_PCAP_FILENO, 1, pcapfileno-capable libwpcap),
-		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
-	fi
-
-	# Look for PPI support in pcap
-	AC_MSG_CHECKING([for PPI support in libpcap])
-	OCFL="$CFLAGS"
-	CFLAGS="-Werror $CFLAGS"
-	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-			#include <stdio.h>
-			#include <pcap.h>
-			]], [[
-			return DLT_PPI==DLT_PPI;
-			]])],[haveppi=yes],[haveppi=no])
-	CFLAGS="$OCFL"
-	if test "$haveppi" = "yes"; then
-		AC_MSG_RESULT([yes])
-		AC_DEFINE(HAVE_PPI, 1, libpcap supports PPI)
-	else
-		AC_MSG_RESULT([no])
-	fi
-
-	pcaplnk="-l${pcaplib}"
-	AC_SUBST(pcaplnk)
-	pcap="yes"
-
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
-    BUILD_CAPTURE_PCAPFILE=1
-
-    BUILD_CAPTURE_LINUX_WIFI=0
-    if test "$linux" = "yes"; then
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
-        BUILD_CAPTURE_LINUX_WIFI=1
-    fi
-
-	fi
+if test "$cygwin" = yes; then
+	pcaplib="wpcap";
+else
+	pcaplib="pcap";
 fi
 
-if test "$wantpcap" = "yes" -a "$pcap" != "yes"; then
+AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
+    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
+    AC_MSG_ERROR(Libpcap required for proper operation))
+
+if test "$foundsyspcap" = yes; then
+## if we don't have a pcap.h, do a search for pcap/pcap.h
+AC_CHECK_HEADER([pcap.h],
+	AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+    if test "$foundsyspcaph" != yes; then
+		AC_CHECK_HEADER([pcap/pcap.h],
+		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+    fi
+# Look for the new PCAP stuff
+AC_CHECK_LIB([pcap], [pcap_setnonblock],
+    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
+    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
+
+if test "$cygwin" != yes; then
+AC_CHECK_LIB([${pcaplib}], [pcap_get_selectable_fd],
+	AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
+	AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
+else
+AC_CHECK_LIB([${pcaplib}], [pcap_fileno],
+	AC_DEFINE(HAVE_PCAP_FILENO, 1, pcapfileno-capable libwpcap),
+	AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
+fi
+
+# Look for PPI support in pcap
+AC_MSG_CHECKING([for PPI support in libpcap])
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#include <pcap.h>
+		]], [[
+		return DLT_PPI==DLT_PPI;
+		]])],[haveppi=yes],[haveppi=no])
+CFLAGS="$OCFL"
+if test "$haveppi" = "yes"; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE(HAVE_PPI, 1, libpcap supports PPI)
+else
+	AC_MSG_RESULT([no])
+    AC_MSG_ERROR([found libpcap and pcap.h but unable to compile with PPI support.  Make sure you have a current version of libpcap."])
+fi
+
+pcaplnk="-l${pcaplib}"
+AC_SUBST(pcaplnk)
+pcap="yes"
+
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+BUILD_CAPTURE_PCAPFILE=1
+
+BUILD_CAPTURE_LINUX_WIFI=0
+if test "$linux" = "yes"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+    BUILD_CAPTURE_LINUX_WIFI=1
+fi
+
+fi
+
+if test "$pcap" != "yes"; then
 	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled.)
 fi
-
-if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
-    AC_MSG_WARN(Compiling without libpcap support.  Most capture sources will be disabled, this is almost certainly not what you want..)
-fi
 AC_SUBST(pcap)
-
-if test "$pcap" = "no" -a "$want_airpcap" = "yes"; then
-	AC_MSG_WARN([*** Disabling AirPcap, libpcap not enabled ***]);
-	want_airpcap=no;
-fi
-
-airpcaplib=""
-if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
-	foundairpcap=no
-	AC_CHECK_LIB([airpcap], [AirpcapSetLinkType],
-	    AC_DEFINE(HAVE_LIBAIRPCAP, 1, libairpcap win32 control lib) foundairpcap=yes,
-	    AC_MSG_WARN(Compiling without airpcap support.))
-
-	if test "$foundairpcap" = yes; then
-	## if we don't have a pcap.h, do a search for pcap/pcap.h
-	AC_CHECK_HEADER([airpcap.h],
-		AC_DEFINE(HAVE_AIRPCAP_H, 1, libairpcap header) foundairpcaph=yes)
-	fi
-
-	if test "$foundairpcap" != "yes" -o "$foundairpcaph" != "yes"; then
-		AC_MSG_WARN(Compiling without airpcap support)
-	else
-		airpcap="yes"
-        airpcaplib = "-lairpcap"
-	fi
-fi
-AC_SUBST(airpcaplib)
 
 AC_ARG_WITH(python2,
         [  --with-python2[=PATH]     Custom location of python2 interpreter],
@@ -1562,26 +1522,6 @@ if test "$wantpcre" = "yes"; then
 else
 	echo "no"
 fi
-printf "          pcap capture: "
-if test "$pcap" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-printf "       airpcap control: "
-if test "$airpcap" = "yes"; then
-	echo "yes"
-elif test "$cygwin" != "yes"; then
-	echo "n/a (only Cygwin/Win32)"
-else
-	echo "no"
-fi
-printf "        PPI log format: "
-if test "$haveppi" = "yes"; then
-	echo "yes"
-else
-	echo "no - PPI logging unavailable, upgrade libpcap"
-fi
 printf "LibCapability (enhanced\n"
 printf "   privilege dropping): "
 if test "$havecap" = "yes"; then
@@ -1649,14 +1589,14 @@ else
 	echo "no (python modules are disabled)";
 fi
 
-printf "       RTL-SDR RTLAMR: "
+printf "        RTL-SDR RTLAMR: "
 if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
         echo "yes";
 else
         echo "no (python modules are disabled)";
 fi
 
-printf "      RTL-SDR RTLADSB: "
+printf "       RTL-SDR RTLADSB: "
 if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
         echo "yes";
 else

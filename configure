@@ -673,10 +673,8 @@ PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
 PYTHON2
-airpcaplib
 pcap
 pcaplnk
-wantpcap
 LIBPRELUDE_CONFIG_PREFIX
 LIBPRELUDE_PREFIX
 LIBPRELUDE_LIBS
@@ -783,7 +781,6 @@ with_pcreheaders
 enable_pcre
 enable_prelude
 with_libprelude_prefix
-enable_pcap
 with_python2
 with_protoc
 with_protocc
@@ -1462,7 +1459,6 @@ Optional Features:
   --disable-linuxwext     Disable Linux wireless extensions
   --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
-  --disable-pcap          Disable libpcap support and most data sources
   --disable-libnm         Disable libnm networkmanager support
   --disable-libusb        Disable libUSB support and any libUSB based data
                           sources
@@ -9403,8 +9399,6 @@ $as_echo "yes" >&6; }
 fi
 
 
-termcontrol="none";
-
 # We need microhttpd if we're building kismet_server
 if test "$caponly" == 0; then
     HAVE_LIBMICROHTTPD=0
@@ -10001,10 +9995,12 @@ else
 fi
 
 
-if test "$wantpcre" = "yes"; then
-	# Check for pcre
-	pcrel=no
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcre_compile in -lpcre" >&5
+# Dont' check pcre if we're only building datasources
+if test "$caponly" == 0; then
+    if test "$wantpcre" = "yes"; then
+    	# Check for pcre
+    	pcrel=no
+    	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcre_compile in -lpcre" >&5
 $as_echo_n "checking for pcre_compile in -lpcre... " >&6; }
 if ${ac_cv_lib_pcre_pcre_compile+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -10047,15 +10043,15 @@ else
 fi
 
 
-	if test "$pcrel" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libpcre" >&5
+    	if test "$pcrel" != "yes"; then
+    		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find libpcre" >&5
 $as_echo "$as_me: WARNING: Failed to find libpcre" >&2;}
-		wantpcre=no
-	fi
+    		wantpcre=no
+    	fi
 
-	if test "$wantpcre" = "yes"; then
-	pcreh=no
-	ac_fn_cxx_check_header_mongrel "$LINENO" "pcre.h" "ac_cv_header_pcre_h" "$ac_includes_default"
+    	if test "$wantpcre" = "yes"; then
+    	pcreh=no
+    	ac_fn_cxx_check_header_mongrel "$LINENO" "pcre.h" "ac_cv_header_pcre_h" "$ac_includes_default"
 if test "x$ac_cv_header_pcre_h" = xyes; then :
   pcreh=yes
 else
@@ -10064,19 +10060,20 @@ fi
 
 
 
-	if test "$pcreh" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&5
+    	if test "$pcreh" != "yes"; then
+    		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&5
 $as_echo "$as_me: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&2;}
-		wantpcre=no
-	fi
-	fi # wantpcre
+    		wantpcre=no
+    	fi
+    	fi # wantpcre
 
-	if test "$wantpcre" = "yes"; then
+    	if test "$wantpcre" = "yes"; then
 
 $as_echo "#define HAVE_LIBPCRE 1" >>confdefs.h
 
-	LIBS="$LIBS -lpcre"
-	fi # pcre
+    	LIBS="$LIBS -lpcre"
+    	fi # pcre
+    fi
 fi
 
 # Don't check for sqlite3 if we're only building datasources
@@ -10421,29 +10418,16 @@ else
 fi
 
 
-# Check whether --enable-pcap was given.
-if test "${enable_pcap+set}" = set; then :
-  enableval=$enable_pcap; case "${enableval}" in
-	  no) wantpcap=no ;;
-	   *) wantpcap=yes ;;
-	 esac
-else
-  wantpcap=yes
 
+foundsyspcap=no
+
+if test "$cygwin" = yes; then
+	pcaplib="wpcap";
+else
+	pcaplib="pcap";
 fi
 
-
-
-if test "$wantpcap" = yes; then
-	foundsyspcap=no
-
-	if test "$cygwin" = yes; then
-		pcaplib="wpcap";
-	else
-		pcaplib="pcap";
-	fi
-
-	as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_open_live" | $as_tr_sh`
+as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_open_live" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_open_live in -l${pcaplib}" >&5
 $as_echo_n "checking for pcap_open_live in -l${pcaplib}... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
@@ -10486,14 +10470,13 @@ if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
 $as_echo "#define HAVE_LIBPCAP 1" >>confdefs.h
  foundsyspcap=yes
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiling without libpcap support." >&5
-$as_echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
+  as_fn_error $? "Libpcap required for proper operation" "$LINENO" 5
 fi
 
 
-	if test "$foundsyspcap" = yes; then
-	## if we don't have a pcap.h, do a search for pcap/pcap.h
-	ac_fn_cxx_check_header_mongrel "$LINENO" "pcap.h" "ac_cv_header_pcap_h" "$ac_includes_default"
+if test "$foundsyspcap" = yes; then
+## if we don't have a pcap.h, do a search for pcap/pcap.h
+ac_fn_cxx_check_header_mongrel "$LINENO" "pcap.h" "ac_cv_header_pcap_h" "$ac_includes_default"
 if test "x$ac_cv_header_pcap_h" = xyes; then :
 
 $as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
@@ -10501,8 +10484,8 @@ $as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
 fi
 
 
-	    if test "$foundsyspcaph" != yes; then
-			ac_fn_cxx_check_header_mongrel "$LINENO" "pcap/pcap.h" "ac_cv_header_pcap_pcap_h" "$ac_includes_default"
+    if test "$foundsyspcaph" != yes; then
+		ac_fn_cxx_check_header_mongrel "$LINENO" "pcap/pcap.h" "ac_cv_header_pcap_pcap_h" "$ac_includes_default"
 if test "x$ac_cv_header_pcap_pcap_h" = xyes; then :
 
 $as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
@@ -10514,9 +10497,9 @@ else
 fi
 
 
-	    fi
-	# Look for the new PCAP stuff
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_setnonblock in -lpcap" >&5
+    fi
+# Look for the new PCAP stuff
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_setnonblock in -lpcap" >&5
 $as_echo_n "checking for pcap_setnonblock in -lpcap... " >&6; }
 if ${ac_cv_lib_pcap_pcap_setnonblock+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -10562,8 +10545,8 @@ $as_echo "$as_me: WARNING: *** You don't appear to have a version of libpcap whi
 fi
 
 
-	if test "$cygwin" != yes; then
-	as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_get_selectable_fd" | $as_tr_sh`
+if test "$cygwin" != yes; then
+as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_get_selectable_fd" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_get_selectable_fd in -l${pcaplib}" >&5
 $as_echo_n "checking for pcap_get_selectable_fd in -l${pcaplib}... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
@@ -10609,8 +10592,8 @@ else
   as_fn_error $? "installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap" "$LINENO" 5
 fi
 
-	else
-	as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_fileno" | $as_tr_sh`
+else
+as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_fileno" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_fileno in -l${pcaplib}" >&5
 $as_echo_n "checking for pcap_fileno in -l${pcaplib}... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
@@ -10656,24 +10639,24 @@ else
   as_fn_error $? "installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap" "$LINENO" 5
 fi
 
-	fi
+fi
 
-	# Look for PPI support in pcap
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PPI support in libpcap" >&5
+# Look for PPI support in pcap
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PPI support in libpcap" >&5
 $as_echo_n "checking for PPI support in libpcap... " >&6; }
-	OCFL="$CFLAGS"
-	CFLAGS="-Werror $CFLAGS"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-			#include <stdio.h>
-			#include <pcap.h>
+		#include <stdio.h>
+		#include <pcap.h>
 
 int
 main ()
 {
 
-			return DLT_PPI==DLT_PPI;
+		return DLT_PPI==DLT_PPI;
 
   ;
   return 0;
@@ -10686,118 +10669,36 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-	CFLAGS="$OCFL"
-	if test "$haveppi" = "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+CFLAGS="$OCFL"
+if test "$haveppi" = "yes"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_PPI 1" >>confdefs.h
 
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	fi
-
-	pcaplnk="-l${pcaplib}"
-
-	pcap="yes"
-
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
-    BUILD_CAPTURE_PCAPFILE=1
-
-    BUILD_CAPTURE_LINUX_WIFI=0
-    if test "$linux" = "yes"; then
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
-        BUILD_CAPTURE_LINUX_WIFI=1
-    fi
-
-	fi
+    as_fn_error $? "found libpcap and pcap.h but unable to compile with PPI support.  Make sure you have a current version of libpcap.\"" "$LINENO" 5
 fi
 
-if test "$wantpcap" = "yes" -a "$pcap" != "yes"; then
+pcaplnk="-l${pcaplib}"
+
+pcap="yes"
+
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+BUILD_CAPTURE_PCAPFILE=1
+
+BUILD_CAPTURE_LINUX_WIFI=0
+if test "$linux" = "yes"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+    BUILD_CAPTURE_LINUX_WIFI=1
+fi
+
+fi
+
+if test "$pcap" != "yes"; then
 	as_fn_error $? "Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled." "$LINENO" 5
-fi
-
-if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiling without libpcap support.  Most capture sources will be disabled" >&5
-$as_echo "$as_me: WARNING: Compiling without libpcap support.  Most capture sources will be disabled" >&2;}
-fi
-
-
-if test "$pcap" = "no" -a "$want_airpcap" = "yes"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&5
-$as_echo "$as_me: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&2;};
-	want_airpcap=no;
-fi
-
-airpcaplib=""
-if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
-	foundairpcap=no
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for AirpcapSetLinkType in -lairpcap" >&5
-$as_echo_n "checking for AirpcapSetLinkType in -lairpcap... " >&6; }
-if ${ac_cv_lib_airpcap_AirpcapSetLinkType+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lairpcap  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char AirpcapSetLinkType ();
-int
-main ()
-{
-return AirpcapSetLinkType ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_airpcap_AirpcapSetLinkType=yes
-else
-  ac_cv_lib_airpcap_AirpcapSetLinkType=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_airpcap_AirpcapSetLinkType" >&5
-$as_echo "$ac_cv_lib_airpcap_AirpcapSetLinkType" >&6; }
-if test "x$ac_cv_lib_airpcap_AirpcapSetLinkType" = xyes; then :
-
-$as_echo "#define HAVE_LIBAIRPCAP 1" >>confdefs.h
- foundairpcap=yes
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiling without airpcap support." >&5
-$as_echo "$as_me: WARNING: Compiling without airpcap support." >&2;}
-fi
-
-
-	if test "$foundairpcap" = yes; then
-	## if we don't have a pcap.h, do a search for pcap/pcap.h
-	ac_fn_cxx_check_header_mongrel "$LINENO" "airpcap.h" "ac_cv_header_airpcap_h" "$ac_includes_default"
-if test "x$ac_cv_header_airpcap_h" = xyes; then :
-
-$as_echo "#define HAVE_AIRPCAP_H 1" >>confdefs.h
- foundairpcaph=yes
-fi
-
-
-	fi
-
-	if test "$foundairpcap" != "yes" -o "$foundairpcaph" != "yes"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Compiling without airpcap support" >&5
-$as_echo "$as_me: WARNING: Compiling without airpcap support" >&2;}
-	else
-		airpcap="yes"
-        airpcaplib = "-lairpcap"
-	fi
 fi
 
 
@@ -13613,26 +13514,6 @@ if test "$wantpcre" = "yes"; then
 else
 	echo "no"
 fi
-printf "          pcap capture: "
-if test "$pcap" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-printf "       airpcap control: "
-if test "$airpcap" = "yes"; then
-	echo "yes"
-elif test "$cygwin" != "yes"; then
-	echo "n/a (only Cygwin/Win32)"
-else
-	echo "no"
-fi
-printf "        PPI log format: "
-if test "$haveppi" = "yes"; then
-	echo "yes"
-else
-	echo "no - PPI logging unavailable, upgrade libpcap"
-fi
 printf "LibCapability (enhanced\n"
 printf "   privilege dropping): "
 if test "$havecap" = "yes"; then
@@ -13700,14 +13581,14 @@ else
 	echo "no (python modules are disabled)";
 fi
 
-printf "       RTL-SDR RTLAMR: "
+printf "        RTL-SDR RTLAMR: "
 if test "$BUILD_CAPTURE_SDR_RTLAMR" = 1; then
         echo "yes";
 else
         echo "no (python modules are disabled)";
 fi
 
-printf "      RTL-SDR RTLADSB: "
+printf "       RTL-SDR RTLADSB: "
 if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
         echo "yes";
 else
