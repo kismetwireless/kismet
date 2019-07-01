@@ -691,31 +691,14 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
         pid_t caught_pid = globalreg->sigchild_vec[x];
 
-        // fprintf(stderr, "debug - sigchild - %u\n", caught_pid);
-
+        // Find the IPC record for this remote
         dead_remote = remove_ipc(caught_pid);
 
-        // printf("dead remote %p\n", dead_remote.get());
-
+        // Kill it
         if (dead_remote != nullptr) {
             dead_remote->notify_killed(0);
             dead_remote->close_ipc();
-
-            if (dead_remote->get_tracker_free()) {
-                str.str("");
-                str << "Deleting tracked IPC for " << dead_remote->get_pid();
-                _MSG(str.str(), MSGFLAG_INFO);
-            }
-        } else {
-            /* We don't care, and having initiated a shutdown we'll already have
-             * removed the source.
-             *
-            str << "IPC child pid " << caught_pid << " exited with status " <<
-                WEXITSTATUS(pid_status) << " but was not tracked";
-            _MSG(str.str(), MSGFLAG_INFO);
-            */
         }
-
     }
 
     globalreg->sigchild_vec_pos = 0;
