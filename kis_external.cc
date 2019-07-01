@@ -230,8 +230,7 @@ bool KisExternalInterface::check_ipc(const std::string& in_binary) {
 }
 
 bool KisExternalInterface::run_ipc() {
-    local_demand_locker l(ext_mutex);
-    l.lock();
+    local_locker l(ext_mutex);
 
     std::stringstream ss;
 
@@ -282,13 +281,13 @@ bool KisExternalInterface::run_ipc() {
         return false;
     }
 
-    // Unlock ourselves before submitting to the IPC system so that we cant' get
-    // caught in a timing loop
-    l.unlock();
-
-    auto remotehandler = 
-        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>("IPCHANDLER");
-    remotehandler->add_ipc(ipc_remote);
+    // Add to the IPC as its own thread because we might have a cascading lock
+    auto remote_add_t = std::thread([this]() {
+        auto remotehandler = 
+            Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>("IPCHANDLER");
+        remotehandler->add_ipc(ipc_remote);
+    });
+    remote_add_t.detach();
 
     return true;
 }
