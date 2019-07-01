@@ -383,6 +383,7 @@ ssize_t RingbufV2::write(unsigned char *data, size_t in_sz) {
         length += in_sz;
 
         return in_sz;
+    }
 #endif
 
 
