@@ -105,7 +105,7 @@ class KismetRtl433(object):
             sys.exit(0)
 
         if not self.config.source == None:
-            (source, options) = kismetexteral.Datasource.parse_definition(self.config.source)
+            (source, options) = kismetexternal.Datasource.parse_definition(self.config.source)
 
             if source == None:
                 print("Could not parse the --source option; this should be a standard Kismet source definition.")
