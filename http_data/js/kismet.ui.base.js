@@ -33,6 +33,33 @@ $('<link>')
         href: local_uri_prefix + 'css/kismet.ui.base.css'
     });
 
+/* Call from index to set the required ajax parameters universally */
+exports.ConfigureAjax = function() {
+    $.ajaxSetup({
+        beforeSend: function (xhr) {
+            var user = kismet.getStorage('kismet.base.login.username', 'kismet');
+            var pw =  kismet.getStorage('kismet.base.login.password', '');
+
+            xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
+        },
+
+        /*
+        dataFilter: function(data, type) {
+            try {
+                var json = JSON.parse(data);
+                var sjson = kismet.sanitizeObject(json);
+                console.log(JSON.stringify(sjson));
+                return JSON.stringify(sjson);
+            } catch {
+                return data;
+            }
+        },
+        */
+    });
+}
+
+exports.ConfigureAjax();
+
 /* Define some callback functions for the table */
 
 exports.renderLastTime = function(data, type, row, meta) {
@@ -977,6 +1004,7 @@ function memorydisplay_refresh() {
 
     $.get(local_uri_prefix + "system/status.json")
     .done(function(data) {
+        console.log(data);
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
         var rrddata = 'kismet.common.rrd.hour_vec';
