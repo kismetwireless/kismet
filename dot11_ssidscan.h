@@ -110,7 +110,7 @@ protected:
     std::shared_ptr<TrackerElementVectorString> target_ssids;
 
     // Datasources we use; wanted UUIDs and actual sources
-    std::shared_ptr<TrackerElementVector> ssidscan_datasources_uuid;
+    std::shared_ptr<TrackerElementVector> ssidscan_datasources_uuids;
     std::shared_ptr<TrackerElementVector> ssidscan_datasources;
 
     // Do we ignore a target bssid after we think we got a handshake?
@@ -152,6 +152,12 @@ protected:
     int hopping_mode_end_timer;
     int capture_mode_end_timer;
 
+    struct source_timers {
+        time_t end_hop_time;
+        time_t end_dwell_time;
+    };
+    std::map<int, source_timers> source_id_timer_map;
+
     // Eventbus subscription for new datasources
     std::shared_ptr<Eventbus> eventbus;
     unsigned long eventbus_id;
@@ -174,6 +180,7 @@ protected:
 
     bool enable_ssidscan();
     bool disable_ssidscan();
+
 
 };
 

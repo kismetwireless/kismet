@@ -176,16 +176,12 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
             auto enabled = post_structured->getKeyAsBool("ssidscan_enabled");
 
             if (enabled != ssidscan_enabled->get()) {
-                ssidscan_enabled->set(enabled);
-
                 if (enabled) {
                     _MSG_INFO("Enabling ssidscan module, this will change the behavior of datasources and logs.");
-
-                    // TODO enable code
+                    enable_ssidscan();
                 } else {
                     _MSG_INFO("Disabling ssidscan module, data sources may remain in unexpected states.");
-
-                    // TODO disable code 
+                    disable_ssidscan();
                 }
             }
         }
@@ -219,12 +215,18 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
 }
 
 bool Dot11_SsidScan::enable_ssidscan() {
+    local_locker l(&mutex);
+
+    ssidscan_enabled->set(true);
 
 
     return false;
 }
 
 bool Dot11_SsidScan::disable_ssidscan() {
+    local_locker l(&mutex);
+
+    ssidscan_enabled->set(true);
 
     return false;
 }
