@@ -313,7 +313,8 @@ void CatchChild(int sig) {
     pid = waitpid(-1, &status, WNOHANG | WUNTRACED);
 
     while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-        fprintf(stderr, "debug - reaped %d\n", pid);
+        ;
+        // fprintf(stderr, "debug - reaped %d\n", pid);
     }
 
 #if 0
