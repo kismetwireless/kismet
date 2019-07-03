@@ -302,11 +302,11 @@ public:
         value = in;
     }
 
-    inline bool operator<(const TrackerElementCoreScalar<P>& rhs) {
+    inline bool operator<(const TrackerElementCoreScalar<P>& rhs) const {
         return value < rhs.value;
     }
 
-    inline bool operator<(const std::shared_ptr<TrackerElement> rhs) {
+    inline bool operator<(const std::shared_ptr<TrackerElement> rhs) const {
         if (get_type() != rhs->get_type())
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
@@ -635,27 +635,27 @@ public:
         return value == rhs.value;
     }
 
-    inline bool operator==(const N& rhs) {
+    inline bool operator==(const N& rhs) const {
         return value != rhs;
     }
 
-    inline bool operator!=(const TrackerElementCoreNumeric<N>& rhs) { 
+    inline bool operator!=(const TrackerElementCoreNumeric<N>& rhs) const { 
         return !(value == rhs.value); 
     }
 
-    inline bool operator!=(const N& rhs) {
+    inline bool operator!=(const N& rhs) const {
         return value != rhs;
     }
 
-    inline bool operator<=(const TrackerElementCoreNumeric<N>& rhs) {
+    inline bool operator<=(const TrackerElementCoreNumeric<N>& rhs) const {
         return value <= rhs.value;
     }
 
-    inline bool operator<=(const N& rhs) {
+    inline bool operator<=(const N& rhs) const {
         return value <= rhs;
     }
 
-    inline bool operator<(const TrackerElementCoreNumeric<N>& rhs) {
+    inline bool operator<(const TrackerElementCoreNumeric<N>& rhs) const {
         return value < rhs.value;
     }
 
@@ -663,7 +663,7 @@ public:
         return value < rhs;
     }
 
-    inline bool operator>=(const TrackerElementCoreNumeric<N>& rhs) {
+    inline bool operator>=(const TrackerElementCoreNumeric<N>& rhs) const {
         return value >= rhs.value;
     }
 
@@ -671,11 +671,11 @@ public:
         return value >= rhs;
     }
 
-    inline bool operator>(const TrackerElementCoreNumeric<N>& rhs) {
+    inline bool operator>(const TrackerElementCoreNumeric<N>& rhs) const {
         return value > rhs.value;
     }
 
-    inline bool operator>(const N& rhs) {
+    inline bool operator>(const N& rhs) const {
         return value  > rhs;
     }
 
