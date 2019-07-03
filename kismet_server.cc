@@ -310,12 +310,20 @@ void CatchChild(int sig) {
 
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
+    pid = waitpid(-1, &status, WNOHANG | WUNTRACED);
+
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+        fprintf(stderr, "debug - reaped %d\n", pid);
+    }
+
+#if 0
     // Only process signals if we have room to
     if (globalregistry->sigchild_vec_pos < 1024) {
         while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
             globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
         }
     }
+#endif
 
     sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 }
