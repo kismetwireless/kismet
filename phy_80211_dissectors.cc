@@ -375,7 +375,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
     // We always have addr0 even on phy
     addr0 = &(chunk->data[4]);
-    // We may have addr2
+
+    // We may have addr1
     if (chunk->length >= 16)
         addr1 = &(chunk->data[10]);
 
@@ -541,6 +542,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         return 0;
     }
 
+    // We must have room for addr0..2 in 24 bytes
     addr1 = &(chunk->data[10]);
     addr2 = &(chunk->data[16]);
     sequence = (wireless_fragseq *) &(chunk->data[22]);
