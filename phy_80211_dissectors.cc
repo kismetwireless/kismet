@@ -535,7 +535,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
     // Anything from this point on can't be less than 24 bytes since we need
     // a full 802.11 header, so throw it out
-    // Flat-out dump if it's not big enough to be 80211.
     if (chunk->length < 24) {
         packinfo->corrupt = 1;
         in_pack->insert(pack_comp_80211, packinfo);
@@ -545,6 +544,8 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
     addr1 = &(chunk->data[10]);
     addr2 = &(chunk->data[16]);
     sequence = (wireless_fragseq *) &(chunk->data[22]);
+
+    // addr3 goes up to byte 30 so before we can use it, make sure we know we've got the data
     addr3 = &(chunk->data[24]);
 
     packinfo->sequence_number = sequence->sequence;
@@ -680,12 +681,24 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
 
             packinfo->mgt_reason_code = rcode;
         } else if (fc->subtype == 13) {
+            if (chunk->length < 30) {
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
             packinfo->subtype = packet_sub_action;
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
         } else if (fc->subtype == 14) {
+            if (chunk->length < 30) {
+                packinfo->corrupt = 1;
+                in_pack->insert(pack_comp_80211, packinfo);
+                return 0;
+            }
+
             packinfo->subtype = packet_sub_action_noack;
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
@@ -775,7 +788,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             // If we're not long enough to have the fixparm and look like a normal
             // mgt header, bail.
             if (chunk->length < 36) {
-                fprintf(stderr, "debug - chunk too short for management\n");
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -975,7 +987,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         case distrib_unknown:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
-                fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -991,7 +1002,6 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
             packinfo->header_offset += 30;
             break;
         default:
-            fprintf(stderr, "debug - corrupt distrib %d\n", packinfo->distrib);
             packinfo->corrupt = 1;
             in_pack->insert(pack_comp_80211, packinfo);
             return 0;
