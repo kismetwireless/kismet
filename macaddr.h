@@ -127,7 +127,7 @@ struct mac_addr {
         string2long(in);
     }
 
-    mac_addr(const std::string in) {
+    mac_addr(const std::string& in) {
         string2long(in.c_str());
     }
 
@@ -136,7 +136,7 @@ struct mac_addr {
         longmask{(uint64_t) -1},
         error{0} { }
 
-    mac_addr(uint8_t *in, unsigned int len) {
+    mac_addr(const uint8_t *in, unsigned int len) {
         error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
@@ -159,7 +159,7 @@ struct mac_addr {
     }
 
     // slash-style byte count mask
-    mac_addr(uint8_t *in, unsigned int len, unsigned int mask) {
+    mac_addr(const uint8_t *in, unsigned int len, unsigned int mask) {
         error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
@@ -173,7 +173,7 @@ struct mac_addr {
 
     // Convert a string to a positional search fragment, places fragent
     // in ret_term and length of fragment in ret_len
-    inline static bool PrepareSearchTerm(std::string s, uint64_t &ret_term, unsigned int &ret_len) {
+    inline static bool PrepareSearchTerm(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
         short unsigned int byte;
         int nbyte = 0;
         const char *in = s.c_str();
@@ -217,7 +217,7 @@ struct mac_addr {
     }
 
     // Match against a partial MAC address, prepared with PrepareSearchTerm
-    bool PartialSearch(uint64_t in_term, unsigned int in_len) {
+    bool PartialSearch(uint64_t in_term, unsigned int in_len) const {
         unsigned char *rt = (uint8_t *) &in_term;
         unsigned char *rlm = (uint8_t *) &longmac;
 
