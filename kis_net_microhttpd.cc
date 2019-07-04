@@ -563,7 +563,7 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool s
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        local_shared_demand_locker csl(&session_mutex);
+        local_locker csl(&session_mutex);
 
         auto si = session_map.find(cookieval);
         if (si != session_map.end()) {
@@ -581,7 +581,6 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool s
                 return true;
             } else {
                 connection->session = NULL;
-                csl.unlock();
                 DelSession(si);
             }
         }
@@ -751,7 +750,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        local_shared_demand_locker csl(&kishttpd->session_mutex);
+        local_locker csl(&kishttpd->session_mutex);
 
         auto si = kishttpd->session_map.find(cookieval);
 
@@ -759,13 +758,11 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             // Delete if the session has expired and don't assign as a session
             if (si->second->session_lifetime != 0 &&
                     si->second->session_seen + si->second->session_lifetime < time(0)) {
-                csl.unlock();
                 kishttpd->DelSession(si);
             } else {
                 // Update the last seen, assign as the current session
                 s = si->second;
                 s->session_seen = time(0);
-                csl.unlock();
             }
         }
     } 
