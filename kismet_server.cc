@@ -779,7 +779,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Create the packet chain
-    Packetchain::create_packetchain(globalregistry);
+    Packetchain::create_packetchain();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);

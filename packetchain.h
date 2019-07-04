@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -94,11 +94,11 @@ class Packetchain : public LifetimeGlobal {
 public:
     static std::string global_name() { return "PACKETCHAIN"; }
 
-    static std::shared_ptr<Packetchain> create_packetchain(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Packetchain> mon(new Packetchain(in_globalreg));
-        in_globalreg->packetchain = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<Packetchain> create_packetchain() {
+        std::shared_ptr<Packetchain> mon(new Packetchain());
+        Globalreg::globalreg->packetchain = mon.get();
+        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
+        Globalreg::globalreg->InsertGlobal(global_name(), mon);
         return mon;
     }
 
@@ -106,8 +106,6 @@ private:
     Packetchain();
 
 public:
-    Packetchain(GlobalRegistry *in_globalreg);
-
     virtual ~Packetchain();
 
     int RegisterPacketComponent(std::string in_component);
@@ -138,8 +136,6 @@ public:
 	int RemoveHandler(int in_id, int in_chain);
 
 protected:
-    GlobalRegistry *globalreg;
-
     void packet_queue_processor();
 
     // Common function for both insertion methods
