@@ -132,7 +132,7 @@ public:
         Kis_Net_Httpd_Handler() { }
     virtual ~Kis_Net_Httpd_CPPStream_Handler() { };
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -142,23 +142,23 @@ public:
     virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 
     virtual int Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection, 
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 };
 
 // Fallback handler to report that we can't serve static files
 class Kis_Net_Httpd_No_Files_Handler : public Kis_Net_Httpd_CPPStream_Handler {
 public:
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
+            size_t *upload_data_size, std::stringstream &stream) override;
 };
 
 // A buffer-based stream handler which will continually stream output from
@@ -177,14 +177,14 @@ public:
     virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
     virtual int Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection, 
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 
     // Can this handler process this request?
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
 
     // Called as a connection is being set up; responsible for populating
     //
@@ -207,7 +207,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
+    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con) override = 0;
 
     // Called by microhttpd during servicing a connecting; cls is a 
     // kis_net_httpd_buffer_stream_aux which contains all our references to
@@ -231,7 +231,7 @@ public:
     Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
 
 protected:
-    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
+    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() override {
         return std::static_pointer_cast<BufferHandlerGeneric>(std::shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
     }
 };
@@ -241,7 +241,7 @@ public:
     Kis_Net_Httpd_Chain_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
 
 protected:
-    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
+    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() override {
         // Allocate a buffer directly, in a multiple of the max output size for the webserver
         // buffer
         return std::static_pointer_cast<BufferHandlerGeneric>(std::shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
@@ -295,7 +295,7 @@ public:
     }
 
     // RBI interface to notify when data is in the buffer
-    virtual void BufferAvailable(size_t in_amt);
+    virtual void BufferAvailable(size_t in_amt) override;
 
     // Let the httpd callback pull the rb handler out
     std::shared_ptr<BufferHandlerGeneric> get_rbhandler() { return ringbuf_handler; }
@@ -342,6 +342,22 @@ public:
     // prior to flagging it complete
     std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> sync_cb;
     
+};
+
+// Websocket handler to handle an upgrade and handshake on a ws:// URI and then
+// create a pollable object
+class Kis_Net_Httpd_Websocket_Handler : public Kis_Net_Httpd_Handler {
+public:
+    Kis_Net_Httpd_Websocket_Handler() : Kis_Net_Httpd_Handler() { }
+    virtual ~Kis_Net_Httpd_Websocket_Handler();
+
+    virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
+            Kis_Net_Httpd_Connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    // Can this handler process this request?
+    virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
 };
 
 
