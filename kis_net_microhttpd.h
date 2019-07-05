@@ -469,6 +469,9 @@ protected:
     void AddSession(std::shared_ptr<Kis_Net_Httpd_Session> in_session);
     void DelSession(std::string in_key);
     void DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session>>::iterator in_itr);
+    // Find a valid session; will return a session or nullptr if no session key is found, or if the
+    // session is found but expired.
+    std::shared_ptr<Kis_Net_Httpd_Session> FindSession(const std::string& in_session_key);
     void WriteSessions();
 
     std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session>> session_map;

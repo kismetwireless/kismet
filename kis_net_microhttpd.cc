@@ -562,28 +562,9 @@ bool Kis_Net_Httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool s
     cookieval = MHD_lookup_connection_value(connection->connection,
             MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
-    if (cookieval != NULL) {
-        local_locker csl(&session_mutex);
-
-        auto si = session_map.find(cookieval);
-        if (si != session_map.end()) {
-            s = si->second;
-
-            // Does the session never expire?
-            if (s->session_lifetime == 0) {
-                connection->session = s;
-                return true;
-            }
-
-            // Is the session still valid?
-            if (time(0) < s->session_created + s->session_lifetime) {
-                connection->session = s;
-                return true;
-            } else {
-                connection->session = NULL;
-                DelSession(si);
-            }
-        }
+    if (cookieval != nullptr) {
+        if (FindSession(cookieval) != nullptr)
+            return true;
     }
 
     // If we got here, we either don't have a session, or the session isn't valid.
@@ -690,7 +671,6 @@ void Kis_Net_Httpd::DelSession(std::string in_key) {
         session_map.erase(i);
         WriteSessions();
     }
-
 }
 
 void Kis_Net_Httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session> >::iterator in_itr) {
@@ -701,6 +681,26 @@ void Kis_Net_Httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Htt
         WriteSessions();
     }
 }
+
+std::shared_ptr<Kis_Net_Httpd_Session> Kis_Net_Httpd::FindSession(const std::string& in_session_tok) {
+    local_locker lock(&session_mutex);
+
+    auto si = session_map.find(in_session_tok);
+
+    if (si != session_map.end()) {
+        // Delete if the session has expired and don't assign as a session
+        if (si->second->session_lifetime != 0 &&
+                si->second->session_seen + si->second->session_lifetime < time(0)) {
+            DelSession(si);
+            return nullptr;
+        } else {
+            return si->second;
+        }
+    }
+
+    return nullptr;
+}
+
 
 void Kis_Net_Httpd::WriteSessions() {
     if (!store_sessions)
@@ -750,20 +750,10 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
-        local_locker csl(&kishttpd->session_mutex);
+        s = kishttpd->FindSession(cookieval);
 
-        auto si = kishttpd->session_map.find(cookieval);
-
-        if (si != kishttpd->session_map.end()) {
-            // Delete if the session has expired and don't assign as a session
-            if (si->second->session_lifetime != 0 &&
-                    si->second->session_seen + si->second->session_lifetime < time(0)) {
-                kishttpd->DelSession(si);
-            } else {
-                // Update the last seen, assign as the current session
-                s = si->second;
-                s->session_seen = time(0);
-            }
+        if (s != nullptr) {
+            s->session_seen = time(0);
         }
     } 
     
