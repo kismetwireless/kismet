@@ -39,6 +39,10 @@
 #include "globalregistry.h"
 #include "trackedcomponent.h"
 
+#include "dot11_parsers/dot11_ie.h"
+#include "dot11_parsers/dot11_ie_221_vendor.h"
+#include "dot11_parsers/dot11_ie_255_ext_tag.h"
+
 class dot11_tracked_eapol : public tracker_component {
 public:
     dot11_tracked_eapol() :
@@ -306,6 +310,64 @@ protected:
     std::shared_ptr<TrackerElementUInt32> startchan;
     std::shared_ptr<TrackerElementUInt32> numchan;
     std::shared_ptr<TrackerElementInt32> txpower;
+};
+
+class dot11_tracked_ietag : public tracker_component {
+public:
+    dot11_tracked_ietag() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_tracked_ietag(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    dot11_tracked_ietag(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return Adler32Checksum("dot11_tracked_ietag");
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    __Proxy(unique_Tag_id, uint32_t, uint32_t, uint32_t, unique_tag_id);
+    __Proxy(tag_number, uint8_t, uint8_t, uint8_t, tag_number);
+    __Proxy(tag_oui, uint32_t, uint32_t, uint32_t, tag_oui);
+    __Proxy(tag_oui_manuf, std::string, std::string, std::string, tag_oui_manuf);
+    __Proxy(tag_vendor_or_sub, uint8_t, uint8_t, uint8_t, tag_vendor_or_sub);
+    __Proxy(complete_tag_data, std::string, std::string, std::string, complete_tag_data);
+
+    void set_from_tag(std::shared_ptr<dot11_ie> ie);
+    void set_from_tag(std::shared_ptr<dot11_ie_221_vendor> ie);
+    void set_from_tag(std::shared_ptr<dot11_ie_255_ext> ie);
+
+protected:
+    virtual void register_fields() override;
+
+    std::shared_ptr<TrackerElementUInt32> unique_tag_id;
+    std::shared_ptr<TrackerElementUInt8> tag_number;
+    std::shared_ptr<TrackerElementUInt32> tag_oui;
+    std::shared_ptr<TrackerElementString> tag_oui_manuf;
+    std::shared_ptr<TrackerElementUInt8> tag_vendor_or_sub;
+    std::shared_ptr<TrackerElementByteArray> complete_tag_data;
 };
 
 class dot11_probed_ssid : public tracker_component {

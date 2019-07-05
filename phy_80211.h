@@ -59,23 +59,6 @@
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 
-/*
- * 802.11 PHY handlers
- * Uses new devicetracker code
- *
- * Re-implements networktracker, packetdissectors
- * Ultimately all 802.11 related code will live here, such as alerts, etc.
- *
- * 802.11 data represents multiple tiers of data:
- *  - Device (could be client or AP)
- *      - AP
- *          - SSIDs (possibly multiple per BSSID)
- *          - AP Client
- *      - Client
- *          - SSIDs client has probed or connected to
- *          - BSSIDs of devices client has been observed joining/communicating
- */
-
 #define PHY80211_MAC_LEN	6
 // Dot11 SSID max len
 #define DOT11_PROTO_SSID_LEN	32
