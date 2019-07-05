@@ -452,6 +452,8 @@ void signal_thread_handler() {
     sigset_t childmask, oldmask;
     pid_t pid;
 
+    thread_set_process_name("sigcatcher");
+
     sigemptyset(&childmask);
     sigemptyset(&oldmask);
 
