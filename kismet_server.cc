@@ -511,6 +511,10 @@ void signal_thread_handler() {
                 break;
         }
     }
+
+    Globalreg::globalreg->fatal_condition = true;
+    Globalreg::globalreg->spindown = true;
+    Globalreg::globalreg->complete = true;
 }
 
 int main(int argc, char *argv[], char *envp[]) {
