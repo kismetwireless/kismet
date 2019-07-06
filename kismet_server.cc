@@ -292,51 +292,6 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     exit(globalregistry->fatal_condition ? 1 : 0);
 }
 
-
-// Catch our interrupt
-void CatchShutdown(int sig) {
-    if (sig == 0) {
-        kill(getpid(), SIGTERM);
-        return;
-    }
-
-    globalregistry->spindown = 1;
-
-    return;
-}
-
-void CatchChild(int sig) {
-    int status;
-    pid_t pid;
-
-    sigset_t mask, oldmask;
-
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&mask, SIGCHLD);
-
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-    pid = waitpid(-1, &status, WNOHANG | WUNTRACED);
-
-    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-        ;
-        // fprintf(stderr, "debug - reaped %d\n", pid);
-    }
-
-#if 0
-    // Only process signals if we have room to
-    if (globalregistry->sigchild_vec_pos < 1024) {
-        while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-            globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
-        }
-    }
-#endif
-
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-}
-
 int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
     printf("Nearly all of these options are run-time overrides for values in the\n"
@@ -577,16 +532,6 @@ int main(int argc, char *argv[], char *envp[]) {
         signal(SIGSEGV, SegVHandler);
         */
     }
-
-#if 0
-    // Old signal handling
-    signal(SIGINT, CatchShutdown);
-    signal(SIGTERM, CatchShutdown);
-    signal(SIGHUP, CatchShutdown);
-    signal(SIGQUIT, CatchShutdown);
-    signal(SIGCHLD, CatchChild);
-    signal(SIGPIPE, SIG_IGN);
-#endif
 
     // Build the globalregistry
     Globalreg::globalreg = new GlobalRegistry;
