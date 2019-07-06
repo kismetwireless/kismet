@@ -597,7 +597,12 @@ int main(int argc, char *argv[], char *envp[]) {
     // to deal with them
     sigemptyset(&core_signal_mask);
 
-    sigaddset(&core_signal_mask, SIGINT);
+    // Don't mask int and quit if we're in debug mode
+    if (!debug_mode) {
+        sigaddset(&core_signal_mask, SIGINT);
+        sigaddset(&core_signal_mask, SIGQUIT);
+    }
+    
     sigaddset(&core_signal_mask, SIGTERM);
     sigaddset(&core_signal_mask, SIGHUP);
     sigaddset(&core_signal_mask, SIGQUIT);
