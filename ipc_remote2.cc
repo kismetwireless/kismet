@@ -183,13 +183,13 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
 
 #ifdef HAVE_PIPE2
     if (pipe2(inpipepair, O_NONBLOCK) < 0) {
-        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
     if (pipe2(outpipepair, O_NONBLOCK) < 0) {
-        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         close(inpipepair[0]);
         close(inpipepair[1]);
         local_unlocker ulock(ipc_mutex);
@@ -197,7 +197,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     }
 #else
     if (pipe(inpipepair) < 0) {
-        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         local_unlocker ulock(ipc_mutex);
         return -1;
     }
@@ -205,7 +205,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     fcntl(inpipepair[1], F_SETFL, fcntl(inpipepair[1], F_GETFL, 0) | O_NONBLOCK);
 
     if (pipe(outpipepair) < 0) {
-        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         close(inpipepair[0]);
         close(inpipepair[1]);
         local_unlocker ulock(ipc_mutex);
@@ -227,7 +227,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     if ((child_pid = fork()) < 0) {
-        _MSG("IPC could not fork()", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
         local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
