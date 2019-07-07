@@ -188,6 +188,10 @@ std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str,
 // of the token, no abc"def ghi"
 std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::string& in_split);
 
+// Find a complete token w/in a string
+bool FindToken(const std::string& str, const std::string& needle, const std::string& split);
+bool FindToken(const std::string& str, const std::string& needle, const std::list<char>& splits);
+
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 
 std::string InLineWrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);

@@ -307,6 +307,55 @@ std::vector<std::string> StrTokenize(std::string& in_str, const std::list<char>&
     return ret;
 }
 
+bool FindToken(const std::string& str, const std::string& needle, const std::string& split) {
+    for (size_t b = 0; b != str.length(); ) {
+        auto e = str.find(split, b);
+
+        if (e == std::string::npos) {
+            if (str.substr(b, e - b) == needle)
+                return true;
+
+            b = e + 1;
+            continue;
+        }
+
+        if (str.substr(b, str.length()) == needle)
+            return true;
+
+        break;
+    }
+
+    return false;
+}
+
+bool FindToken(std::string& str, const std::string& needle, const std::list<char>& splits) {
+    auto multi_find = 
+        [](const std::string::iterator& b, const std::string::iterator& e, const std::list<char>& s) -> std::string::iterator {
+            return std::find_if(b, e, 
+                    [s](char i) -> bool {
+                        return std::find(s.begin(), s.end(), i) != s.end();
+                    });
+    };
+
+    for (auto b = str.begin(); b != str.end(); ) {
+        auto e = multi_find(b, str.end(), splits);
+
+        if (e != str.end()) {
+            if (str.substr(b - str.begin(), e - b) == needle)
+                return true;
+            b = e + 1;
+            continue;
+        }
+
+        if (str.substr(b - str.begin(), str.length()) == needle)
+            return true;
+
+        break;
+    }
+
+    return false;
+}
+
 std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, bool in_first) {
     std::ostringstream ostr;
 
