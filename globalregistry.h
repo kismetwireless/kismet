@@ -203,13 +203,16 @@ public:
 	
     // Fatal terminate condition, as soon as we detect this in the main code we
     // should initiate a shutdown
-    std::atomic<int> fatal_condition;
+    std::atomic<bool> fatal_condition;
 	// Are we in "spindown" mode, where we're giving components a little time
 	// to clean up their business with pollables and shut down
-    std::atomic<int> spindown;
+    std::atomic<bool> spindown;
+    // We're done; shut down; service threads should also use this as a final, absolute
+    // termination clause
+    std::atomic<bool> complete;
 
-	// Did we receive a SIGWINCH that hasn't been dealt with yet?
-	bool winch;
+    // Signal service thread that gets cleaned up at exit
+    std::thread signal_service_thread;
     
     MessageBus *messagebus;
 

@@ -60,12 +60,6 @@ void PollableTracker::Maintenance() {
 }
 
 void PollableTracker::Selectloop(bool spindown_mode) {
-    sigset_t mask, oldmask;
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-    sigaddset(&mask, SIGCHLD);
-    sigaddset(&mask, SIGTERM);
-
     int max_fd;
     fd_set rset, wset;
     struct timeval tm;
@@ -78,7 +72,9 @@ void PollableTracker::Selectloop(bool spindown_mode) {
         if (spindown_mode && time(0) > shutdown_time)
             break;
 
-        if ((!spindown_mode && Globalreg::globalreg->spindown) || Globalreg::globalreg->fatal_condition) 
+        if ((!spindown_mode && Globalreg::globalreg->spindown) || 
+                Globalreg::globalreg->fatal_condition ||
+                Globalreg::globalreg->complete) 
             break;
 
         tm.tv_sec = 0;
@@ -87,9 +83,6 @@ void PollableTracker::Selectloop(bool spindown_mode) {
         Maintenance();
 
         max_fd = MergePollableFds(&rset, &wset);
-
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -113,8 +106,6 @@ void PollableTracker::Selectloop(bool spindown_mode) {
         Maintenance();
 
         ProcessPollableSelect(rset, wset);
-
-        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
     }
 }
 

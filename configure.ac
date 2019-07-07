@@ -456,6 +456,25 @@ if test "$stdint" = "no"; then
 	fi
 fi
 
+# How do we do strerror?
+AC_MSG_CHECKING([for strerror_r() return])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+        #include <string.h>
+        ], [
+            int r;
+
+            r = strerror_r(1, (char *) NULL, 0);
+            return 0;
+        ])],[strerror_r_int=yes], [strerror_r_int=no])
+
+if test "$strerror_r_int" = "yes"; then
+    AC_MSG_RESULT([int])
+    AC_DEFINE(STRERROR_R_T, [int], [strerror_r return type])
+else
+    AC_MSG_RESULT([char *])
+    AC_DEFINE(STRERROR_R_T, [char *], [strerror_r return type])
+fi
+
 # How does accept() work on this system?
 AC_MSG_CHECKING([for accept() addrlen type])
 OCFL="$CFLAGS"

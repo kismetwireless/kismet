@@ -8719,6 +8719,49 @@ $as_echo "failed" >&6; }
 	fi
 fi
 
+# How do we do strerror?
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for strerror_r() return" >&5
+$as_echo_n "checking for strerror_r() return... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <string.h>
+
+int
+main ()
+{
+
+            int r;
+
+            r = strerror_r(1, (char *) NULL, 0);
+            return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  strerror_r_int=yes
+else
+  strerror_r_int=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+if test "$strerror_r_int" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: int" >&5
+$as_echo "int" >&6; }
+
+$as_echo "#define STRERROR_R_T int" >>confdefs.h
+
+else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: char *" >&5
+$as_echo "char *" >&6; }
+
+$as_echo "#define STRERROR_R_T char *" >>confdefs.h
+
+fi
+
 # How does accept() work on this system?
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for accept() addrlen type" >&5
 $as_echo_n "checking for accept() addrlen type... " >&6; }

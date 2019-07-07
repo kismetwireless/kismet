@@ -915,25 +915,13 @@ std::string kis_strerror_r(int errnum) {
     char *d_errstr = new char[1024];
     std::string rs;
 
-    // Deal with the XSI vs GNU versioning & compilers complaining about returns, osx handling, etc.
-    // XSI and GNU define it differently and it's a huge pain.
-#if defined(__APPLE__) || ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE)
-    int r;
+    STRERROR_R_T r;
     r = strerror_r(errnum, d_errstr, 1024);
 
     rs = std::string(d_errstr);
     
     delete[] d_errstr;
     return rs;
-#else
-    char *r;
-
-    r = strerror_r(errnum, d_errstr, 1024);
-    rs = std::string(r);
-
-    delete[] d_errstr;
-    return rs;
-#endif
 }
 
 double ts_to_double(struct timeval ts) {

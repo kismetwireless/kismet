@@ -281,52 +281,15 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
 
     globalregistry->DeleteLifetimeGlobals();
 
+    globalregistry->complete = true;
+
+    // Send a kick to unlock our service thread
+    kill(getpid(), SIGTERM);
+
+    if (globalregistry->signal_service_thread.joinable())
+        globalregistry->signal_service_thread.join();
+
     exit(globalregistry->fatal_condition ? 1 : 0);
-}
-
-
-// Catch our interrupt
-void CatchShutdown(int sig) {
-    if (sig == 0) {
-        kill(getpid(), SIGTERM);
-        return;
-    }
-
-    globalregistry->spindown = 1;
-
-    return;
-}
-
-void CatchChild(int sig) {
-    int status;
-    pid_t pid;
-
-    sigset_t mask, oldmask;
-
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&mask, SIGCHLD);
-
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-    pid = waitpid(-1, &status, WNOHANG | WUNTRACED);
-
-    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-        ;
-        // fprintf(stderr, "debug - reaped %d\n", pid);
-    }
-
-#if 0
-    // Only process signals if we have room to
-    if (globalregistry->sigchild_vec_pos < 1024) {
-        while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-            globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
-        }
-    }
-#endif
-
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 }
 
 int Usage(char *argv) {
@@ -368,6 +331,7 @@ int Usage(char *argv) {
     exit(1);
 }
 
+// Libbackward termination handler
 void TerminationHandler() {
     signal(SIGKILL, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
@@ -393,17 +357,6 @@ void TerminationHandler() {
 #endif
 
     std::abort();
-}
-
-void SegVHandler(int sig __attribute__((unused))) {
-    signal(SIGKILL, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGINT, SIG_DFL);
-    signal(SIGABRT, SIG_DFL);
-    signal(SIGCHLD, SIG_DFL);
-    signal(SIGSEGV, SIG_DFL);
-
-    exit(-11);
 }
 
 // Load a UUID
@@ -443,6 +396,80 @@ void Load_Kismet_UUID(GlobalRegistry *globalreg) {
     _MSG_INFO("Setting server UUID {}", confuuid.UUID2String());
     globalreg->server_uuid = confuuid;
     globalreg->server_uuid_hash = Adler32Checksum((const char *) confuuid.uuid_block, 16);
+}
+
+static sigset_t core_signal_mask;
+void signal_thread_handler() {
+    int sig_caught;
+    int r;
+    int status;
+
+    sigset_t childmask, oldmask;
+    pid_t pid;
+
+    thread_set_process_name("sigcatcher");
+
+    sigemptyset(&childmask);
+    sigemptyset(&oldmask);
+
+    sigaddset(&childmask, SIGCHLD);
+
+    while (!Globalreg::globalreg->complete) {
+        r = sigwait(&core_signal_mask, &sig_caught);
+
+        if (r != 0) {
+            fprintf(stderr, "ERROR - Failure waiting for signal in signal service thread: %s\n", strerror(errno));
+            Globalreg::globalreg->fatal_condition = true;
+            Globalreg::globalreg->spindown = true;
+            break;
+        }
+
+        switch (sig_caught) {
+            case SIGSEGV:
+                // Print termination if we can and bail
+                TerminationHandler();
+                exit(-11);
+                break;
+
+            case SIGINT:
+            case SIGTERM:
+            case SIGHUP:
+            case SIGQUIT:
+                // All of these are indicators it's time to shut down
+                Globalreg::globalreg->spindown = true;
+                break;
+
+            case SIGPIPE:
+                // We ignore sigpipes
+                break;
+
+            case SIGCHLD:
+                // We just reap child processes
+                pthread_sigmask(SIG_BLOCK, &childmask, &oldmask);
+
+                while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+                    ;
+                }
+
+#if 0
+                // Only process signals if we have room to
+                if (globalregistry->sigchild_vec_pos < 1024) {
+                    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+                        globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
+                    }
+                }
+#endif
+
+
+                pthread_sigmask(SIG_SETMASK, &oldmask, nullptr);
+
+                break;
+        }
+    }
+
+    Globalreg::globalreg->fatal_condition = true;
+    Globalreg::globalreg->spindown = true;
+    Globalreg::globalreg->complete = true;
 }
 
 int main(int argc, char *argv[], char *envp[]) {
@@ -506,17 +533,33 @@ int main(int argc, char *argv[], char *envp[]) {
         */
     }
 
-    signal(SIGINT, CatchShutdown);
-    signal(SIGTERM, CatchShutdown);
-    signal(SIGHUP, CatchShutdown);
-    signal(SIGQUIT, CatchShutdown);
-    signal(SIGCHLD, CatchChild);
-    signal(SIGPIPE, SIG_IGN);
-
     // Build the globalregistry
     Globalreg::globalreg = new GlobalRegistry;
     globalregistry = Globalreg::globalreg;
     globalreg = globalregistry;
+
+    // Block all signals across all threads, then set up a signal handling service thread
+    // to deal with them
+    sigemptyset(&core_signal_mask);
+
+    // Don't mask int and quit if we're in debug mode
+    if (!debug_mode) {
+        sigaddset(&core_signal_mask, SIGINT);
+        sigaddset(&core_signal_mask, SIGQUIT);
+    }
+    
+    sigaddset(&core_signal_mask, SIGTERM);
+    sigaddset(&core_signal_mask, SIGHUP);
+    sigaddset(&core_signal_mask, SIGQUIT);
+    sigaddset(&core_signal_mask, SIGCHLD);
+    sigaddset(&core_signal_mask, SIGSEGV);
+    sigaddset(&core_signal_mask, SIGPIPE);
+
+    // Set thread mask for all new threads
+    pthread_sigmask(SIG_BLOCK, &core_signal_mask, nullptr);
+
+    // Launch signal catching thread that bypasses the block
+    Globalreg::globalreg->signal_service_thread = std::thread(signal_thread_handler);
 
     // Fill in base globalreg elements
     globalregistry->version_major = VERSION_MAJOR;
@@ -927,66 +970,9 @@ int main(int argc, char *argv[], char *envp[]) {
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>()->StartHttpd();
 
-#if 0
-    sigset_t mask, oldmask;
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-    sigaddset(&mask, SIGCHLD);
-    sigaddset(&mask, SIGTERM);
-
-    int max_fd;
-    fd_set rset, wset;
-    struct timeval tm;
-    int consec_badfd = 0;
-
-    // Core loop
-    while (1) {
-        if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
-            break;
-
-        pollabletracker->Maintenance();
-
-        tm.tv_sec = 0;
-        tm.tv_usec = 100000;
-
-        max_fd = pollabletracker->MergePollableFds(&rset, &wset);
-
-        // Block signals while doing io loops */
-        sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
-                if (errno == EBADF) {
-                    consec_badfd++;
-
-                    if (consec_badfd > 20) 
-                        throw std::runtime_error(fmt::format("select() > 20 consecutive badfd errors, latest {} {}",
-                                    errno, strerror(errno)));
-                } else {
-                    throw std::runtime_error(fmt::format("select() failed: {} {}", errno, strerror(errno)));
-                }
-            }
-        }
-
-        consec_badfd = 0;
-
-        // Run maintenance again so we don't gather purged records after the select()
-        pollabletracker->Maintenance();
-
-        pollabletracker->ProcessPollableSelect(rset, wset);
-
-        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
-
-        // Tick the timetracker
-        timetracker->Tick();
-    }
-#endif
-
-#if 1
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->SpawnTimetrackerThread();
     pollabletracker->Selectloop(false);
-#endif
 
     SpindownKismet(pollabletracker);
 }

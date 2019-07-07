@@ -43,7 +43,10 @@ Eventbus::~Eventbus() {
 void Eventbus::event_queue_dispatcher() {
     local_demand_locker l(&mutex);
 
-    while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
+    while (!shutdown && 
+            !Globalreg::globalreg->spindown && 
+            !Globalreg::globalreg->fatal_condition &&
+            !Globalreg::globalreg->complete) {
         // Lock while we examine the queue
         l.lock();
 
