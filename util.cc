@@ -280,6 +280,33 @@ std::vector<std::string> StrTokenize(const std::string& in_str, const std::strin
     return ret;
 }
 
+std::vector<std::string> StrTokenize(std::string& in_str, const std::list<char>& in_split) {
+    auto ret = std::vector<std::string>{};
+
+    auto multi_find = 
+        [](const std::string::iterator& b, const std::string::iterator& e, const std::list<char>& s) -> std::string::iterator {
+            return std::find_if(b, e, 
+                    [s](char i) -> bool {
+                        return std::find(s.begin(), s.end(), i) != s.end();
+                    });
+    };
+
+    for (auto b = in_str.begin(); b != in_str.end(); ) {
+        auto e = multi_find(b, in_str.end(), in_split);
+
+        if (e != in_str.end()) {
+            ret.push_back(in_str.substr(b - in_str.begin(), e - b));
+            b = ++e;
+            continue;
+        }
+
+        ret.push_back(in_str.substr(b - in_str.begin(), in_str.length()));
+        break;
+    }
+
+    return ret;
+}
+
 std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, bool in_first) {
     std::ostringstream ostr;
 

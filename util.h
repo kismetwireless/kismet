@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -161,8 +161,9 @@ std::string StringAppend(const std::string& s, const std::string& a, const std::
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
-std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, 
-        int return_partial = 1);
+std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, int return_partial = 1);
+std::vector<std::string> StrTokenize(std::string& in_str, const std::list<char>& in_split);
+
 std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, 
         bool in_first = false);
 
