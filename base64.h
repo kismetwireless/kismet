@@ -28,17 +28,18 @@
  * Needed to handle b64 encoded post data for the webserver
  */
 
-class Base64 {
-public:
+namespace Base64 {
     /* Decode a string; return raw data if it was valid */
-    static std::string decode(std::string in_str);
+    std::string decode(const std::string& in_str);
 
     // Convert 4 6-bit b64 characters into 3 8-bit standard bytes.
     // In and out must be able to hold the appropriate amount of data.
-    static void decodeblock(unsigned char *in, unsigned char *out);
+    void decodeblock(unsigned char *in, unsigned char *out);
 
-protected:
-    const static char b64_values[];
+    // Encode a string to base64
+    std::string encode(const std::string& in_str);
+
+    extern const char b64_values[];
 };
 
 #endif

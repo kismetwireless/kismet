@@ -32,7 +32,7 @@ void Base64::decodeblock(unsigned char *in, unsigned char *out) {
     out[3] = 0;
 }
 
-std::string Base64::decode(std::string in_str) {
+std::string Base64::decode(const std::string& in_str) {
     std::string out;
     unsigned char obuf[4], ibuf[4];
     int phase, c;
@@ -78,5 +78,32 @@ std::string Base64::decode(std::string in_str) {
     }
 
     return out;
+}
+
+std::string Base64::encode(const std::string& in_str) {
+    std::stringstream ss;
+    size_t pos;
+
+    for (pos = 0; pos < in_str.length(); pos += 3) {
+        ss << b64_values[in_str[pos] >> 2];
+
+        if (pos + 1 < in_str.length()) {
+            ss << b64_values[((in_str[pos] & 0x03) << 4) | ((in_str[pos + 1] & 0xf0) >> 4)];
+        } else {
+            ss << b64_values[((in_str[pos] & 0x03) << 4)];
+        }
+
+        if (pos + 2 < in_str.length()) {
+            ss << b64_values[((in_str[pos + 1] & 0x0f) << 2) | ((in_str[pos + 2] & 0xc0) >> 6)];
+            ss << b64_values[in_str[pos + 2] & 0x3f];
+        } else if (pos + 1 < in_str.length()) {
+            ss << b64_values[((in_str[pos + 1] & 0x0f) << 2)];
+            ss << '=';
+        } else {
+            ss << "==";
+        }
+    }
+
+    return ss.str();
 }
 
