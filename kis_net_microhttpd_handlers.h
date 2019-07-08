@@ -358,6 +358,11 @@ public:
 
     // Can this handler process this request?
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
+
+protected:
+    bool Httpd_Websocket_Upgrade(Kis_Net_Httpd_Connection *connection);
+
+    std::vector<std::string> ws_protocols;
 };
 
 
