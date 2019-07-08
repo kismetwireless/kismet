@@ -190,7 +190,7 @@ std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::
 
 // Find a complete token w/in a string
 bool FindToken(const std::string& str, const std::string& needle, const std::string& split);
-bool FindToken(const std::string& str, const std::string& needle, const std::list<char>& splits);
+bool FindToken(std::string str, std::string needle, std::list<char> splits);
 
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 

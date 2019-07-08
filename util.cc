@@ -328,7 +328,7 @@ bool FindToken(const std::string& str, const std::string& needle, const std::str
     return false;
 }
 
-bool FindToken(std::string& str, const std::string& needle, const std::list<char>& splits) {
+bool FindToken(std::string str, std::string needle, std::list<char> splits) {
     auto multi_find = 
         [](const std::string::iterator& b, const std::string::iterator& e, const std::list<char>& s) -> std::string::iterator {
             return std::find_if(b, e, 
