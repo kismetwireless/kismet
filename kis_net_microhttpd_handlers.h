@@ -344,27 +344,5 @@ public:
     
 };
 
-// Websocket handler to handle an upgrade and handshake on a ws:// URI and then
-// create a pollable object
-class Kis_Net_Httpd_Websocket_Handler : public Kis_Net_Httpd_Handler {
-public:
-    Kis_Net_Httpd_Websocket_Handler() : Kis_Net_Httpd_Handler() { }
-    virtual ~Kis_Net_Httpd_Websocket_Handler();
-
-    virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override;
-
-    // Can this handler process this request?
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
-
-protected:
-    bool Httpd_Websocket_Upgrade(Kis_Net_Httpd_Connection *connection);
-
-    std::vector<std::string> ws_protocols;
-};
-
-
 #endif
 
