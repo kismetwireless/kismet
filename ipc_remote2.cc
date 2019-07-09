@@ -105,9 +105,18 @@ std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
 void IPCRemoteV2::close_ipc() {
     local_locker lock(ipc_mutex);
 
-    if (remotehandler != nullptr) {
-        remotehandler->remove_ipc(get_pid());
+    if (pipeclient != nullptr) {
+        pollabletracker->RemovePollable(pipeclient);
+        pipeclient->ClosePipes();
     }
+
+    if (ipchandler != nullptr) {
+        ipchandler->SetProtocolErrorCb([]() { });
+        ipchandler->BufferError("IPC process has closed");
+    }
+
+    pipeclient.reset();
+    ipchandler.reset();
 
     hard_kill();
 }
@@ -685,6 +694,7 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
 
     globalreg->sigchild_vec_pos = 0;
 
+    fmt::print(stderr, "debug - process vec size {}\n", process_vec.size());
     for (auto p : process_vec) {
         int pid_status;
         pid_t caught_pid;
