@@ -694,7 +694,7 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
 
     globalreg->sigchild_vec_pos = 0;
 
-    fmt::print(stderr, "debug - process vec size {}\n", process_vec.size());
+    // fmt::print(stderr, "debug - process vec size {}\n", process_vec.size());
     for (auto p : process_vec) {
         int pid_status;
         pid_t caught_pid;
