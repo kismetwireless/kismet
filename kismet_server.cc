@@ -434,18 +434,13 @@ void signal_thread_handler() {
             case SIGCHLD:
                 // Reap any child processes
                 while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-                    ;
-                }
-
-#if 0
-                // Previously we would try to kill child procs explicitly but the pipe closing
-                // should notify us of that
-                if (globalregistry->sigchild_vec_pos < 1024) {
-                    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-                        globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
+                    if (globalregistry->sigchild_vec_pos < 1024) {
+                        while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+                            unsigned int pos = globalregistry->sigchild_vec_pos++;
+                            globalregistry->sigchild_vec[pos] = pid;
+                        }
                     }
                 }
-#endif
 
                 break;
         }
