@@ -76,7 +76,6 @@ IPCRemoteV2::~IPCRemoteV2() {
     }
 
     hard_kill();
-    child_pid = 0;
 }
 
 void IPCRemoteV2::add_path(std::string in_path) {
@@ -107,7 +106,7 @@ void IPCRemoteV2::close_ipc() {
     local_locker lock(ipc_mutex);
 
     if (remotehandler != nullptr) {
-        remotehandler->remove_ipc(this);
+        remotehandler->remove_ipc(get_pid());
     }
 
     hard_kill();
@@ -455,7 +454,6 @@ void IPCRemoteV2::notify_killed(int in_exit) {
         ipchandler->BufferError(ss.str());
     }
 
-    child_pid = 0;
     close_ipc();
 }
 
@@ -477,13 +475,26 @@ IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
 void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
     local_locker lock(&ipc_mutex);
 
+    if (in_remote == nullptr) {
+        // fmt::print(stderr, "debug - tried to add null remote\n");
+        return;
+    }
+
+    if (in_remote->get_pid() <= 0) {
+        // fmt::print(stderr, "debug - tried to add ipc proc w/ no pid\n");
+        return;
+    }
+
     for (auto r : process_vec) {
-        if (r == in_remote) {
+        if (r->get_pid() == in_remote->get_pid()) {
+            // fmt::print(stderr, "debug - ipc tried to add process {} but already extant\n");
             return;
         }
     }
 
     process_vec.push_back(in_remote);
+
+    // fmt::print(stderr, "debug - + ipc {} process vec {}\n", in_remote->get_pid(), process_vec.size());
 }
 
 std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
@@ -494,12 +505,14 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remo
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x].get() == in_remote) {
             ret = process_vec[x];
+            // fmt::print(stderr, "debug - ipc removing by ptr pid {}\n", ret->get_pid());
             cleanup_vec.push_back(ret);
             process_vec.erase(process_vec.begin() + x);
             break;
         }
     }
 
+    // fmt::print(stderr, "debug - ipc schedule cleanup process vec {}\n", process_vec.size());
     schedule_cleanup();
 
     return ret;
@@ -513,9 +526,7 @@ void IPCRemoteV2Tracker::schedule_cleanup() {
         Globalreg::globalreg->timetracker->RegisterTimer(2, NULL, 0, 
                 [this] (int) -> int {
                     local_locker lock(&ipc_mutex);
-
                     cleanup_vec.clear();
-
                     cleanup_timer_id = 0;
                     return 0;
                 });
@@ -530,12 +541,14 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x]->get_pid() == in_pid) {
             ret = process_vec[x];
+            // fmt::print(stderr, "debug - ipc removing by pid {}\n", ret->get_pid());
             cleanup_vec.push_back(ret);
             process_vec.erase(process_vec.begin() + x);
             break;
         }
     }
 
+    // fmt::print(stderr, "debug - ipc schedule cleanup process vec {}\n", process_vec.size());
     schedule_cleanup();
 
     return ret;
@@ -658,6 +671,8 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
         pid_t caught_pid = globalreg->sigchild_vec[x];
 
+        // fmt::print(stderr, "debug - harvesting dead pid {}\n", caught_pid);
+
         // Find the IPC record for this remote
         dead_remote = remove_ipc(caught_pid);
 
@@ -669,6 +684,31 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     }
 
     globalreg->sigchild_vec_pos = 0;
+
+    for (auto p : process_vec) {
+        int pid_status;
+        pid_t caught_pid;
+      
+        if (p == nullptr)
+            continue;
+
+        // fmt::print(stderr, "PROC {}\n", p->get_pid());
+        
+        caught_pid = waitpid(p->get_pid(), &pid_status, WNOHANG | WUNTRACED);
+
+        if (caught_pid < 0) {
+            // fmt::print(stderr, "debug - looks like we missed pid {} somehow, removing\n", p->get_pid());
+
+            // Find the IPC record for this remote
+            dead_remote = remove_ipc(p->get_pid());
+
+            // Kill it
+            if (dead_remote != nullptr) {
+                dead_remote->notify_killed(0);
+                dead_remote->close_ipc();
+            }
+        }
+    }
 
     return 1;
 }
