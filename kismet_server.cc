@@ -223,9 +223,6 @@ int packnum = 0, localdropnum = 0;
 GlobalRegistry *globalregistry = NULL;
 
 void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
-    // Eat the child signal handler
-    signal(SIGCHLD, SIG_DFL);
-
     // Shut down the webserver first
     auto httpd = Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
     if (httpd != NULL)
@@ -403,16 +400,7 @@ void signal_thread_handler() {
     int sig_caught;
     int r;
     int status;
-
-    sigset_t childmask, oldmask;
     pid_t pid;
-
-    thread_set_process_name("sigcatcher");
-
-    sigemptyset(&childmask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&childmask, SIGCHLD);
 
     while (!Globalreg::globalreg->complete) {
         r = sigwait(&core_signal_mask, &sig_caught);
@@ -444,24 +432,20 @@ void signal_thread_handler() {
                 break;
 
             case SIGCHLD:
-                // We just reap child processes
-                pthread_sigmask(SIG_BLOCK, &childmask, &oldmask);
-
+                // Reap any child processes
                 while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
                     ;
                 }
 
 #if 0
-                // Only process signals if we have room to
+                // Previously we would try to kill child procs explicitly but the pipe closing
+                // should notify us of that
                 if (globalregistry->sigchild_vec_pos < 1024) {
                     while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
                         globalregistry->sigchild_vec[globalregistry->sigchild_vec_pos++] = pid;
                     }
                 }
 #endif
-
-
-                pthread_sigmask(SIG_SETMASK, &oldmask, nullptr);
 
                 break;
         }

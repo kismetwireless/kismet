@@ -215,16 +215,8 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     fcntl(outpipepair[1], F_SETFL, fcntl(outpipepair[1], F_GETFL, 0) | O_NONBLOCK);
 
 #endif
-    
-    // Mask sigchild until we're done and it's in the list
-    sigset_t mask, oldmask;
 
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&mask, SIGCHLD);
-
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
+    // We don't need to do signal masking because we run a dedicated signal handling thread
 
     if ((child_pid = fork()) < 0) {
         _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
@@ -253,9 +245,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
         // Close the unused half of the pairs on the child
         close(inpipepair[1]);
         close(outpipepair[0]);
-
-        // Un-mask the child signals
-        sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
         // fprintf(stderr, "debug - ipcremote2 - exec %s\n", cmdarg[0]);
         execvp(cmdarg[0], cmdarg);
@@ -292,9 +281,6 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     {
         local_unlocker ulock(ipc_mutex);
     }
-
-    // Unmask the child signal now that we're done
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     return 1;
 }
@@ -353,15 +339,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
         return -1;
     }
 
-    // Mask sigchild until we're done and it's in the list
-    sigset_t mask, oldmask;
-
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&mask, SIGCHLD);
-
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
+    // We don't do signal masking because we run a dedicated signal handling thread
 
     if ((child_pid = fork()) < 0) {
         _MSG("IPC could not fork()", MSGFLAG_ERROR);
@@ -412,9 +390,6 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     {
         local_unlocker ulock(ipc_mutex);
     }
-
-    // Unmask the child signal now that we're done
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     return 1;
 }
@@ -581,13 +556,6 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
     // use our own timer, but that's a hassle and this only happens during
     // shutdown.  We do a spin on waitpid instead.
 
-    sigset_t mask, oldmask;
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&mask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
     while (1) {
         int pid_status;
         pid_t caught_pid;
@@ -665,8 +633,6 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
             vector_empty = false;
     }
 
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
-
     if (vector_empty)
         return 0;
 
@@ -678,15 +644,6 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
 
     std::stringstream str;
     std::shared_ptr<IPCRemoteV2> dead_remote;
-
-    // Turn off sigchild while we process the list
-    sigset_t mask, oldmask;
-
-    sigemptyset(&mask);
-    sigemptyset(&oldmask);
-
-    sigaddset(&mask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
         pid_t caught_pid = globalreg->sigchild_vec[x];
@@ -702,8 +659,6 @@ int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) 
     }
 
     globalreg->sigchild_vec_pos = 0;
-
-    sigprocmask(SIG_UNBLOCK, &mask, &oldmask);
 
     return 1;
 }
