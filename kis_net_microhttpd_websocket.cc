@@ -26,6 +26,10 @@ Kis_Net_Httpd_Websocket_Pollable::Kis_Net_Httpd_Websocket_Pollable() :
     socket {-1},
     urh {nullptr} { }
 
+Kis_Net_Httpd_Websocket_Pollable::~Kis_Net_Httpd_Websocket_Pollable() {
+    Disconnect();
+}
+
 void Kis_Net_Httpd_Websocket_Pollable::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(websocket_mutex);
 
