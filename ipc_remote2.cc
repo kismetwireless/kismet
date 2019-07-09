@@ -117,7 +117,7 @@ int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> arg
     std::string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
-        _MSG("IPC could not find binary '" + cmd + "'", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not find binary '{}'", cmd);
         return -1;
     }
 
@@ -130,7 +130,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     std::stringstream arg;
 
     if (stat(cmdpath.c_str(), &buf) < 0) {
-        _MSG("IPC could not find binary '" + cmdpath + "'", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not find binary '{}", cmdpath);
         return -1;
     }
 
@@ -158,11 +158,11 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
                 }
 
                 if (!group_ok) {
-                    _MSG("IPC cannot run binary '" + cmdpath + "', Kismet was installed "
+                    _MSG_ERROR("IPC cannot run binary '{}', Kismet was installed "
                             "setgid and you are not in that group. If you recently added your "
                             "user to the kismet group, you will need to log out and back in to "
                             "activate it.  You can check your groups with the 'groups' command.",
-                            MSGFLAG_ERROR);
+                            cmdpath);
                     return -1;
                 }
             }
@@ -223,6 +223,11 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
         local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
+
+        // Unblock all signals in the child so nothing carries over from the parent fork
+        sigset_t unblock_mask;
+        sigfillset(&unblock_mask);
+        pthread_sigmask(SIG_UNBLOCK, &unblock_mask, nullptr);
       
         // argv[0], "--in-fd" "--out-fd" ... NULL
         cmdarg = new char*[args.size() + 4];
@@ -289,7 +294,7 @@ int IPCRemoteV2::launch_standard_binary(std::string cmd, std::vector<std::string
     std::string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
-        _MSG("IPC could not find binary '" + cmd + "'", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not find binary '{}'", cmd);
         return -1;
     }
 
@@ -306,12 +311,12 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     }
 
     if (stat(cmdpath.c_str(), &buf) < 0) {
-        _MSG("IPC could not find binary '" + cmdpath + "'", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not find binary '{}'", cmdpath);
         return -1;
     }
 
     if (!(buf.st_mode & S_IXUSR)) {
-        _MSG("IPC could not find binary '" + cmdpath + "'", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not find binary '{}'", cmdpath);
         return -1;
     }
 
@@ -326,13 +331,13 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     int outpipepair[2];
 
     if (pipe(inpipepair) < 0) {
-        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
     if (pipe(outpipepair) < 0) {
-        _MSG("IPC could not create pipe", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         close(inpipepair[0]);
         close(inpipepair[1]);
         local_unlocker ulock(ipc_mutex);
@@ -342,11 +347,16 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     // We don't do signal masking because we run a dedicated signal handling thread
 
     if ((child_pid = fork()) < 0) {
-        _MSG("IPC could not fork()", MSGFLAG_ERROR);
+        _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
         local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
         
+        // Unblock all signals in the child so nothing carries over from the parent fork
+        sigset_t unblock_mask;
+        sigfillset(&unblock_mask);
+        pthread_sigmask(SIG_UNBLOCK, &unblock_mask, nullptr);
+
         // argv[0], "--in-fd" "--out-fd" ... NULL
         cmdarg = new char*[args.size() + 1];
         cmdarg[0] = strdup(cmdpath.c_str());
