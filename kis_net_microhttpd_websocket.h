@@ -22,6 +22,32 @@
 #include "config.h"
 #include "kis_net_microhttpd.h"
 #include "kis_net_microhttpd_handlers.h"
+#include "pollable.h"
+
+class Kis_Net_Httpd_Websocket_Pollable : public Pollable {
+public:
+    Kis_Net_Httpd_Websocket_Pollable();
+    virtual ~Kis_Net_Httpd_Websocket_Pollable();
+
+    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+
+    virtual void SetHandler(std::shared_ptr<BufferHandlerGeneric> in_handler);
+    virtual void SetConnection(MHD_socket in_socket, struct MHD_UpgradeResponseHandle *in_urh);
+
+    void Disconnect();
+
+    // Pollable interface
+    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) override;
+    virtual int Poll(fd_set& in_rset, fd_set& in_wset) override;
+
+protected:
+    std::shared_ptr<BufferHandlerGeneric> handler;
+
+    std::shared_ptr<kis_recursive_timed_mutex> websocket_mutex;
+
+    MHD_socket socket;
+    MHD_UpgradeResponseHandle *urh;
+};
 
 // Websocket handler to handle an upgrade and handshake on a ws:// URI and then
 // create a pollable object
