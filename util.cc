@@ -280,7 +280,7 @@ std::vector<std::string> StrTokenize(const std::string& in_str, const std::strin
     return ret;
 }
 
-std::vector<std::string> StrTokenize(std::string& in_str, const std::list<char>& in_split) {
+std::vector<std::string> StrTokenize(std::string in_str, const std::list<char>& in_split) {
     auto ret = std::vector<std::string>{};
 
     auto multi_find = 

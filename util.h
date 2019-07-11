@@ -162,7 +162,7 @@ int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, int return_partial = 1);
-std::vector<std::string> StrTokenize(std::string& in_str, const std::list<char>& in_split);
+std::vector<std::string> StrTokenize(std::string in_str, const std::list<char>& in_split);
 
 std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, 
         bool in_first = false);
