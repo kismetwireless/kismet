@@ -49,6 +49,20 @@ protected:
     MHD_UpgradeResponseHandle *urh;
 };
 
+// Control state for a websocket, contains the pollable socket, original connection,
+// matched protocol, and so on
+class Kis_Net_Httpd_Websocket_State {
+public:
+    Kis_Net_Httpd_Websocket_State() :
+        ws_pollable {nullptr},
+        ws_mhd_urh {nullptr},
+        ws_socket {-1} { }
+
+    std::shared_ptr<Kis_Net_Httpd_Websocket_Pollable> ws_pollable;
+    MHD_UpgradeResponseHandle *ws_mhd_urh;
+    MHD_socket ws_socket;
+};
+
 // Websocket handler to handle an upgrade and handshake on a ws:// URI and then
 // create a pollable object
 class Kis_Net_Httpd_Websocket_Handler : public Kis_Net_Httpd_Handler {
@@ -65,7 +79,8 @@ public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
 
 protected:
-    // Perform a websocket upgrade (returning true) to the connection, or fail to upgrade,
+    // Perform a websocket upgrade (returning true) to the connection; 
+    // If the upgrade fails, the connection is errored out and , or fail to upgrade,
     // push the error to the connection, and return false
     bool Httpd_Websocket_Upgrade(Kis_Net_Httpd_Connection *connection);
 

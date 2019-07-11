@@ -18,7 +18,10 @@
 
 #include "config.h"
 
+#include "base64.h"
 #include "kis_net_microhttpd_websocket.h"
+#include "sha1.h"
+#include "util.h"
 
 Kis_Net_Httpd_Websocket_Pollable::Kis_Net_Httpd_Websocket_Pollable() :
     handler {nullptr},
@@ -144,30 +147,71 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
         return false;
     }
 
+    // If there's a protocol, see if we support it; otherwise error
     protocols_hdr = MHD_lookup_connection_value(conn->connection, MHD_HEADER_KIND, "Sec-WebSocket-Protocol");
-    if (protocols_hdr == nullptr) {
-        std::string err = "Expected WebSocket protocol header\n";
-        auto response = MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
-        MHD_queue_response(conn->connection, 400, response);
-        MHD_destroy_response(response);
-        return false;
-    }
+    auto ws_proto_matched = false;
+    auto ws_proto = std::string();
 
-    bool ws_proto_matched = false;
-    for (auto p : ws_protocols) {
-        if (p == protocols_hdr) {
-            ws_proto_matched = true;
-            break;
+    if (protocols_hdr != nullptr) {
+        auto req_protocols = StrTokenize(std::string(protocols_hdr), std::list<char>{' ', ',', '\t'});
+        for (auto p : ws_protocols) {
+            for (auto rp : req_protocols) {
+                if (p == rp) {
+                    ws_proto_matched = true;
+                    ws_proto = rp;
+                    break;
+                }
+
+                if (ws_proto_matched)
+                    break;
+            }
+        }
+
+        if (ws_proto_matched == false && ws_protocols.size() != 0) {
+            std::string err = "Unsupported websocket protocol\n";
+            auto response = MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
+            MHD_queue_response(conn->connection, 400, response);
+            MHD_destroy_response(response);
+            return false;
         }
     }
 
-    if (ws_proto_matched == false && ws_protocols.size() != 0) {
-        std::string err = "Unsupported websocket protocol\n";
-        auto response = MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
-        MHD_queue_response(conn->connection, 400, response);
-        MHD_destroy_response(response);
-        return false;
+    auto ws_state = Kis_Net_Httpd_Websocket_State();
+
+    auto response = MHD_create_response_for_upgrade(
+            [](void *cls,
+                struct MHD_Connection *connection,
+                void *con_cls,
+                const char *extra_in,
+                size_t extra_in_size,
+                MHD_socket sock,
+                struct MHD_UpgradeResponseHandle *urh) -> void {
+                    auto ws_state = static_cast<Kis_Net_Httpd_Websocket_State *>(cls);
+
+                    // Grab the state on completion
+                    ws_state->ws_mhd_urh = urh;
+                    ws_state->ws_socket = sock;
+
+            }, (void *) &ws_state);
+
+    // Magic universal guid
+    std::string magic_guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+    // Response key is b64(sha1(supplied key (b64) + magic guid))
+    SHA1 sha1;
+    sha1.update(std::string(key_hdr) + magic_guid);
+
+    auto accept_b64 = Base64::encode(sha1.final());
+
+    MHD_add_response_header(response, "Sec-WebSocket-Accept", accept_b64.c_str());
+
+    if (ws_proto_matched) {
+        MHD_add_response_header(response, "Sec-WebSocket-Protocol", ws_proto.c_str());
     }
+
+    MHD_add_response_header(response, MHD_HTTP_HEADER_UPGRADE, "websocket");
+    MHD_queue_response(conn->connection, MHD_HTTP_SWITCHING_PROTOCOLS, response);
+    MHD_destroy_response(response);
 
     return false;
 }
