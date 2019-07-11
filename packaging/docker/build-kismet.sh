@@ -2,10 +2,13 @@
 
 set -e
 
+# Comment out if you don't have the RAM to build across all cores
+NPROCS="-j $(nproc)"
+
 cd /opt
-git clone https://www.kismetwireless.net/git/kismet.git /opt/kismet-2018.git
-cd /opt/kismet-2018.git
+git clone https://www.kismetwireless.net/git/kismet.git /opt/kismet.git
+cd /opt/kismet.git
 ./configure
-make
+make ${NPROCS}
 make suidinstall
 make forceconfigs

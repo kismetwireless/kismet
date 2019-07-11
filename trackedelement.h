@@ -276,10 +276,12 @@ public:
     TrackerElementCoreScalar() = delete;
 
     TrackerElementCoreScalar(TrackerType t) :
-        TrackerElement(t) { }
+        TrackerElement(t),
+        value() { }
 
     TrackerElementCoreScalar(TrackerType t, int id) :
-        TrackerElement(t, id) { }
+        TrackerElement(t, id),
+        value() { }
 
     TrackerElementCoreScalar(TrackerType t, int id, const P& v) :
         TrackerElement(t, id),
