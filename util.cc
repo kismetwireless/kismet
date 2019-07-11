@@ -920,7 +920,7 @@ std::string kis_strerror_r(int errnum) {
     STRERROR_R_T r;
     r = strerror_r(errnum, d_errstr, 1024);
 
-    if (strlen(r) == 0)
+    if (strlen(d_errstr) == 0)
         rs = fmt::format("Unknown error: {}", errnum);
     else
         rs = std::string(d_errstr, 1024);
