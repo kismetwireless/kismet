@@ -556,8 +556,14 @@ int main(int argc, char *argv[]) {
         } 
         cached->last_time_sec = ts;
 
-        if (phy == "IEEE802.11")
+        auto reporttype = "";
+        if (phy == "IEEE802.11") {
             channel = FrequencyToWifiChannel(channel);
+            reporttype = "WIFI";
+        }
+        if (phy == "Bluetooth") {
+            reporttype = "BT";
+        }
 
         // printf("MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,AltitudeMeters,AccuracyMeters,Type\n");
 
@@ -569,7 +575,7 @@ int main(int argc, char *argv[]) {
                 (int) channel,
                 signal,
                 lat, lon, alt,
-                "WIFI");
+                reporttype);
 
         n_saved++;
     }
@@ -601,4 +607,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
