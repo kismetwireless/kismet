@@ -177,6 +177,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
     }
 
     auto ws_state = new Kis_Net_Httpd_Websocket_State();
+    ws_state->connect_cb = ws_establish_cb;
 
     auto response = MHD_create_response_for_upgrade(
             [](void *cls,

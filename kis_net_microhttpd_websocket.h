@@ -87,6 +87,7 @@ protected:
     bool Httpd_Websocket_Upgrade(Kis_Net_Httpd_Connection *connection);
 
     std::vector<std::string> ws_protocols;
+    std::function<void (Kis_Net_Httpd_Websocket_State *)> ws_establish_cb;
 };
 
 #endif /* ifndef KIS_NET_MICROHTTPD_WEBSOCKET_H */
