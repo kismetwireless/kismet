@@ -58,6 +58,8 @@ public:
         ws_mhd_urh {nullptr},
         ws_socket {-1} { }
 
+    std::function<void (Kis_Net_Httpd_Websocket_State *)> connect_cb;
+
     std::shared_ptr<Kis_Net_Httpd_Websocket_Pollable> ws_pollable;
     MHD_UpgradeResponseHandle *ws_mhd_urh;
     MHD_socket ws_socket;

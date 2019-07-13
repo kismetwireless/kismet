@@ -176,7 +176,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
         }
     }
 
-    auto ws_state = Kis_Net_Httpd_Websocket_State();
+    auto ws_state = new Kis_Net_Httpd_Websocket_State();
 
     auto response = MHD_create_response_for_upgrade(
             [](void *cls,
@@ -191,8 +191,14 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
                     // Grab the state on completion
                     ws_state->ws_mhd_urh = urh;
                     ws_state->ws_socket = sock;
+                    ws_state->ws_pollable = std::make_shared<Kis_Net_Httpd_Websocket_Pollable>();
+                    ws_state->ws_pollable->SetConnection(sock, urh);
 
-            }, (void *) &ws_state);
+                    // Callback
+                    if (ws_state->connect_cb)
+                        ws_state->connect_cb(ws_state);
+
+            }, (void *) ws_state);
 
     // Magic universal guid
     std::string magic_guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
