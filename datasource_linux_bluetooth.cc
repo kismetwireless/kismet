@@ -18,8 +18,8 @@
 
 #include "config.h"
 
-#include "kis_datasource.h"
 #include "datasource_linux_bluetooth.h"
+#include "json_adapter.h"
 #include "phy_bluetooth.h"
 #include "protobuf_cpp/linuxbluetooth.pb.h"
 
@@ -31,6 +31,7 @@ KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(SharedDatasourceBuilder
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 
     pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
+    pack_comp_meta = packetchain->RegisterPacketComponent("METABLOB");
 }
 
 bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
@@ -104,6 +105,29 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
 
     for (auto u : report.btdevice().uuid_list()) 
         bpi->service_uuid_vec.push_back(uuid(u));
+
+    // Forge a metablob until we transition the capture protocols
+    std::stringstream fake_json;
+    fake_json << "{";
+    fake_json << "\"bt_address\":\"" << bpi->address << "\",";
+    fake_json << "\"bt_name\":\"" << JsonAdapter::SanitizeString(bpi->name) << "\",";
+    fake_json << "\"txpower\":" << bpi->txpower << ",";
+    fake_json << "\"type\":" << bpi->type << ",";
+    fake_json << "\"uuid_list\": [";
+
+    bool need_comma = false;
+    for (auto u : bpi->service_uuid_vec) {
+        fake_json << "\"" << u << "\"";
+        if (need_comma) 
+            fake_json << ",";
+        need_comma = true;
+    }
+
+    fake_json << "]";
+    fake_json << "}";
+
+    auto metablob = new packet_metablob("LINUXBLUETOOTH", fake_json.str());
+    packet->insert(pack_comp_meta, metablob);
    
     packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
     datasrcinfo->ref_source = this;
