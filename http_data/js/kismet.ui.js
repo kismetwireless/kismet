@@ -966,6 +966,11 @@ exports.InitializeDeviceTable = function(element) {
         datatable: true,
     };
 
+    if ($.fn.dataTable.isDataTable(element)) {
+        element.DataTable().destroy();
+        element.empty();
+    }
+
     element
         .on('xhr.dt', function (e, settings, json, xhr) {
             json = kismet.sanitizeObject(json);
@@ -1082,8 +1087,6 @@ exports.ResizeDeviceTable = function(element) {
 }
 
 exports.ResetDeviceTable = function(element) {
-    devicetableElement = element;
-
     CancelDeviceSummary();
 
     exports.InitializeDeviceTable(element);
