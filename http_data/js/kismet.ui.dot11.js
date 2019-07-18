@@ -242,7 +242,7 @@ kismet_ui.AddDeviceColumn('wifi_last_bssid', {
 kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
     sTitle: 'Uptime',
     field: 'dot11.device/dot11.device.bss_timestamp',
-    description: 'Estimated device update (from BSS timestamp)',
+    description: 'Estimated device uptime (from BSS timestamp)',
     width: '5em;',
     sortable: true,
     searchable: true,
