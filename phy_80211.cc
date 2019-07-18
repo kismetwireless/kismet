@@ -1051,7 +1051,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         bssid_dot11->bss_invalid_count++;
                     }
 
-                    if (diff > 5000000L && bssid_dot11->bss_invalid_count > 5) {
+                    if (diff > 60000000L && bssid_dot11->bss_invalid_count > 5) {
                         d11phy->alertracker->RaiseAlert(d11phy->alert_bssts_ref,
                                 in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
