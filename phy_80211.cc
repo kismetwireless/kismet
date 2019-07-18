@@ -1038,9 +1038,9 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     diff = dot11info->timestamp - bsts;
                 }
 
-                long bss_ts_wobble_s = 10;
+                uint64_t bss_ts_wobble_s = 10;
 
-                if (bssid_dev->get_last_time() < in_pack->ts.tv_sec - bss_ts_wobble_s) {
+                if ((uint64_t) bssid_dev->get_last_time() < in_pack->ts.tv_sec - bss_ts_wobble_s) {
                     if (bssid_dot11->last_bss_invalid == 0) {
                         bssid_dot11->last_bss_invalid = time(0);
                         bssid_dot11->bss_invalid_count = 1;
