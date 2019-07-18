@@ -1028,18 +1028,19 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             // Look at the BSS TS
             if (dot11info->subtype == packet_sub_beacon && dot11info->distrib != distrib_adhoc) {
                 auto bsts = bssid_dot11->get_bss_timestamp();
+                bssid_dot11->set_bss_timestamp(dot11info->timestamp);
 
-                if (bsts == 0) {
-                    bssid_dot11->set_bss_timestamp(dot11info->timestamp);
+                uint64_t diff = 0;
+
+                if (dot11info->timestamp < bsts) {
+                    diff = bsts - dot11info->timestamp;
                 } else {
-                    uint64_t diff = 0;
+                    diff = dot11info->timestamp - bsts;
+                }
 
-                    if (dot11info->timestamp < bsts) {
-                        diff = bsts - dot11info->timestamp;
-                    } else {
-                        diff = dot11info->timestamp - bsts;
-                    }
+                long bss_ts_wobble_s = 10;
 
+                if (bssid_dev->get_last_time() < in_pack->ts.tv_sec - bss_ts_wobble_s) {
                     if (bssid_dot11->last_bss_invalid == 0) {
                         bssid_dot11->last_bss_invalid = time(0);
                         bssid_dot11->bss_invalid_count = 1;
@@ -1051,7 +1052,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         bssid_dot11->bss_invalid_count++;
                     }
 
-                    if (diff > 60000000L && bssid_dot11->bss_invalid_count > 5) {
+                    if (diff > bss_ts_wobble_s * 1000000L && bssid_dot11->bss_invalid_count > 5) {
                         d11phy->alertracker->RaiseAlert(d11phy->alert_bssts_ref,
                                 in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
