@@ -8,10 +8,10 @@ all:
 	  $(PROTOCBIN) -I ../../../protobuf_definitions --python_out=. ../../../protobuf_definitions/*.proto; \
 	  sed -i -E 's/^import.*_pb2/from . \0/' *_pb2.py ; \
 	)
-	$(PYTHON2) ./setup.py bdist
+	$(PYTHON) ./setup.py bdist
 
 install:
-	$(PYTHON2) ./setup.py install
+	$(PYTHON) ./setup.py install
 	# These are now part of the setup.py install
 	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) aircraft_db.csv $(ETC)/kismet_aircraft_db.csv
 	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
@@ -21,5 +21,5 @@ protobuf:
 	$(PROTOCBIN) -I ../protobuf_definitions --python_out=./KismetCaptureRtladsb ../protobuf_definitions/*.proto
 
 clean:
-	@-$(PYTHON2) ./setup.py clean
+	@-$(PYTHON) ./setup.py clean
 

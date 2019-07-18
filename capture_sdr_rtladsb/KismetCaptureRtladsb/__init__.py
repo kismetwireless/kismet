@@ -328,7 +328,7 @@ class KismetRtladsb(object):
             print("Connecting to remote server {}".format(self.config.connect))
 
         self.csv_data = pkgutil.get_data('KismetCaptureRtladsb', 'data/aircraft_db.csv')
-        self.csv_file = csv.reader(self.csv_data.splitlines(), delimiter=",")
+        self.csv_file = csv.reader(self.csv_data.decode('utf-8').splitlines(), delimiter=",")
         self.airplanes = []
 
         for row in self.csv_file:
@@ -385,11 +385,11 @@ class KismetRtladsb(object):
 
         if self.opts['device'] is not None:
             cmd.append('-d')
-	    cmd.append("{}".format(self.opts['device']))
+            cmd.append("{}".format(self.opts['device']))
 
         if self.opts['gain'] is not None:
             cmd.append('-g')
-	    cmd.append("{}".format(self.opts['gain']))
+            cmd.append("{}".format(self.opts['gain']))
 
         seen_any_valid = False
         failed_once = False
@@ -399,19 +399,19 @@ class KismetRtladsb(object):
             self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
             while True:
-		hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
-		if crc(hex_data) == "000000000000000000000000":
-		    for row in self.airplanes:
-		        if hex_data[2:8] == row[0]:
-			    msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
-		    if 1 <= typecode(hex_data) <= 4:
-			msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
-		    if 5 <= typecode(hex_data) <= 8:
-			msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
-		    if typecode(hex_data) == 19:
-			airborneInfo = airborne_velocity(hex_data)
-			msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
-		    l = json.dumps(msg)
+                hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
+                if crc(hex_data) == "000000000000000000000000":
+                    for row in self.airplanes:
+                        if hex_data[2:8] == row[0]:
+                            msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
+                    if 1 <= typecode(hex_data) <= 4:
+                        msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
+                    if 5 <= typecode(hex_data) <= 8:
+                        msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
+                    if typecode(hex_data) == 19:
+                        airborneInfo = airborne_velocity(hex_data)
+                        msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
+                    l = json.dumps(msg)
 
                     if not self.handle_json(l):
                         raise RuntimeError('could not process response from rtladsb')

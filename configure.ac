@@ -315,6 +315,27 @@ AC_ARG_ENABLE([python-tools],
 	[want_python=yes]
 )
 
+PYTHON=python3
+PYTHON_VERSION=3
+AC_ARG_ENABLE([python2],
+    AS_HELP_STRING([--enable-python2], [Force building with python2 instead of the modern python3]),
+	[case "${enableval}" in
+	  yes) PYTHON_INTERPRETER=python2;
+           PYTHON_VERSION=2 ;;
+	 esac],
+	[]
+)
+
+AC_ARG_WITH([python-interpreter],
+    AS_HELP_STRING([--with-python-interpreter=PATH], [Custom location of python2 interpreter if not in normal PATH]))
+
+AS_IF([test "x$with_python_interpreter" != "x"],
+    [
+        PYTHON=$with_python2
+    ], 
+    []
+)
+
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
     BUILD_CAPTURE_SDR_RTL433=0
@@ -323,13 +344,20 @@ if test "$want_python"x == "no"x; then
     BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
     AC_MSG_WARN([Disabling Python and Python-related tools])
 else
-    AC_PYTHON_MODULE(setuptools)
+    if test "$PYTHON_VERSION" == 3; then
+        AC_PYTHON3_MODULE(setuptools)
+    else
+        AC_PYTHON_MODULE(setuptools)
+    fi
+
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
         AC_MSG_ERROR([Missing python2-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python2-setuptools])
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
 fi
+AC_SUBST(PYTHON)
+AC_SUBST(PYTHON_VERSION)
 AC_SUBST(BUILD_PYTHON_MODULES)
 
 # HAVE_LIBHACKRF=0
@@ -1050,17 +1078,6 @@ if test "$pcap" != "yes"; then
 fi
 AC_SUBST(pcap)
 
-AC_ARG_WITH(python2,
-        [  --with-python2[=PATH]     Custom location of python2 interpreter],
-        [ ])
-if test x"$with_python2" != "x"; then
-    PYTHON2=$with_python2
-else
-    PYTHON2=python2
-fi
-
-AC_SUBST(PYTHON2)
-
 PKG_PROG_PKG_CONFIG
 
 if test "$caponly" = 0; then
@@ -1587,7 +1604,7 @@ else
 	echo "no (will not be able to track Bluetooth on Linux)";
 fi
 
-printf "         nRF MOuseJack: "
+printf "         nRF MouseJack: "
 if test "$BUILD_CAPTURE_NRF_MOUSEJACK" = 1; then
 	echo "yes";
 else
@@ -1600,6 +1617,9 @@ if test "$BUILD_PYTHON_MODULES" = 1; then
 else
 	echo "no (will not build Python based sources)";
 fi
+
+printf "    Python interpreter: "
+echo $PYTHON
 
 printf "       RTL-SDR RTL_433: "
 if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
@@ -1700,6 +1720,13 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
     echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
+fi
+
+if test "$PYTHON_VERSION" != 3; then
+    echo
+    echo "*** WARNING ***"
+    echo "Building for python2; you may need to provide your own python packages of some "
+    echo "modules like numpy, which now require python3."
 fi
 
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
