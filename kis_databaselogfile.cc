@@ -971,8 +971,9 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
 }
 
 int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
-    if (!db_enabled)
+    if (!db_enabled) {
         return 0;
+    }
 
     std::string phystring;
     std::string macstring;
@@ -982,8 +983,9 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     std::string sourceuuidstring;
     double frequency;
 
-    if (packet_mac_filter->filter_packet(in_pack))
+    if (packet_mac_filter->filter_packet(in_pack)) {
         return 0;
+    }
 
     kis_datachunk *chunk = 
         (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);

@@ -128,7 +128,7 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
 
     auto metablob = new packet_metablob("LINUXBLUETOOTH", fake_json.str());
     packet->insert(pack_comp_meta, metablob);
-   
+
     packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
     datasrcinfo->ref_source = this;
 
