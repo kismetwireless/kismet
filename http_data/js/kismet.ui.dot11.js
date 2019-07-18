@@ -239,6 +239,18 @@ kismet_ui.AddDeviceColumn('wifi_last_bssid', {
     searchable: true
 });
 
+kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
+    sTitle: 'Uptime',
+    field: 'dot11.device/dot11.device.bss_timestamp',
+    description: 'Estimated device update (from BSS timestamp)',
+    sortable: true,
+    searchable: true,
+    visible: false, // Off by default
+    renderfunc: function(d, t, r, m) {
+        return kismet_ui_base.renderUsecTime(d, t, r, m);
+    },
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
@@ -270,6 +282,34 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     return opts['value'];
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
+            },
+            {
+                field: "dot11.device/dot11.device.bss_timestamp",
+                title: "Uptime",
+                render: function(opts) {
+                    if (opts['value'] == 0)
+                        return "<i>n/a</i>";
+
+                    var data_sec = opts['value'] / 1000000;
+
+                    var days = Math.floor(data_sec / 86400);
+                    var hours = Math.floor((data_sec / 3600) % 24);
+                    var minutes = Math.floor((data_sec / 60) % 60);
+                    var seconds = Math.floor(data_sec % 60);
+
+                    var ret = "";
+
+                    if (days > 0)
+                        ret = ret + days + "d ";
+                    if (hours > 0 || days > 0)
+                        ret = ret + hours + "h ";
+                    if (minutes > 0 || hours > 0 || days > 0)
+                        ret = ret + minutes + "m ";
+                    ret = ret + seconds + "s";
+
+                    return ret;
+                },
+                help: "Access points contain a high-precision timestamp which can be used to estimate how long the access point has been running.  Typically access points start this value at zero on boot, but it may be set to an arbitrary number and is not always accurate.",
             },
 
             {
