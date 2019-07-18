@@ -351,7 +351,7 @@ else
     fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        AC_MSG_ERROR([Missing python2-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python2-setuptools])
+        AC_MSG_ERROR([Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version])
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
