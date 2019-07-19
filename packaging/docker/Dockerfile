@@ -1,5 +1,8 @@
 FROM ubuntu:bionic
 
+COPY build-kismet.sh /opt/build-kismet.sh
+COPY kismet_site.conf /usr/local/etc/kismet_site.conf
+
 RUN apt-get update && apt-get install -y \
 	sudo \
 	build-essential \
@@ -19,22 +22,18 @@ RUN apt-get update && apt-get install -y \
 	protobuf-compiler \
 	protobuf-c-compiler \
 	libsensors4-dev \
-	python \
-	python-setuptools \
-	python-protobuf \
-	python-sqlite \
-	python-requests \
-    python-usb \
-    python-numpy \
-    python-dev \
+	python3 \
+	python3-setuptools \
+	python3-protobuf \
+    python3-usb \
+    python3-numpy \
+    python3-dev \
+	python3-pip \
+    python3-serial \
 	librtlsdr0 \
-	libusb-1.0-0-dev \
-	python-pip 
+	libusb-1.0-0-dev 
 
-COPY build-kismet.sh /opt/build-kismet.sh
 RUN /bin/bash /opt/build-kismet.sh
-
-COPY kismet_site.conf /usr/local/etc/kismet_site.conf
 
 EXPOSE 2501
 EXPOSE 3501
