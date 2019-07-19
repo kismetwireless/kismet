@@ -321,17 +321,18 @@ AC_ARG_ENABLE([python2],
     AS_HELP_STRING([--enable-python2], [Force building with python2 instead of the modern python3]),
 	[case "${enableval}" in
 	  yes) PYTHON_INTERPRETER=python2;
+           PYTHON=python2 ;
            PYTHON_VERSION=2 ;;
 	 esac],
 	[]
 )
 
 AC_ARG_WITH([python-interpreter],
-    AS_HELP_STRING([--with-python-interpreter=PATH], [Custom location of python2 interpreter if not in normal PATH]))
+    AS_HELP_STRING([--with-python-interpreter=PATH], [Custom location of python interpreter if not in normal PATH]))
 
 AS_IF([test "x$with_python_interpreter" != "x"],
     [
-        PYTHON=$with_python2
+        PYTHON=$with_python_interpreter
     ], 
     []
 )

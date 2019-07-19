@@ -1475,7 +1475,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-python-interpreter=PATH
-                          Custom location of python2 interpreter if not in
+                          Custom location of python interpreter if not in
                           normal PATH
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
@@ -8415,6 +8415,7 @@ PYTHON_VERSION=3
 if test "${enable_python2+set}" = set; then :
   enableval=$enable_python2; case "${enableval}" in
 	  yes) PYTHON_INTERPRETER=python2;
+           PYTHON=python2 ;
            PYTHON_VERSION=2 ;;
 	 esac
 fi
@@ -8429,7 +8430,7 @@ fi
 
 if test "x$with_python_interpreter" != "x"; then :
 
-        PYTHON=$with_python2
+        PYTHON=$with_python_interpreter
 
 fi
 
