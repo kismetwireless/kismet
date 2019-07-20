@@ -192,7 +192,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
     std::ios::fmtflags fflags;
 
-    bool as_vector;
+    bool as_vector, as_key_vector;
 
     switch (e->get_type()) {
         case TrackerType::TrackerString:
@@ -309,8 +309,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerMap:
             as_vector = std::static_pointer_cast<TrackerElementMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementMap>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -324,26 +325,26 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                bool named = false;
-
-                if (name_map != NULL) {
-                    TrackerElementSerializer::rename_map::iterator nmi = name_map->find(i.second);
-                    if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
-                        tname = nmi->second->rename;
-                        named = true;
-                    }
-                }
-
-                if (!named) {
-                    if (i.second == NULL) {
-                        tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
-                    } else {
-                        if ((tname = i.second->get_local_name()) == "")
-                            tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
-                    }
-                }
-
                 if (!as_vector) {
+                    bool named = false;
+
+                    if (name_map != NULL) {
+                        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(i.second);
+                        if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
+                            tname = nmi->second->rename;
+                            named = true;
+                        }
+                    }
+
+                    if (!named) {
+                        if (i.second == NULL) {
+                            tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
+                        } else {
+                            if ((tname = i.second->get_local_name()) == "")
+                                tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
+                        }
+                    }
+
                     tname = SanitizeString(tname);
 
                     if (prettyprint) {
@@ -361,12 +362,14 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << tname << "\": ";
                 }
 
-                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                }
 
                 stream << ppendl << ppendl;
             }
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
@@ -374,8 +377,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerIntMap:
             as_vector = std::static_pointer_cast<TrackerElementIntMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementIntMap>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -394,12 +398,14 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << i.first << "\": ";
                 }
 
-                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                }
 
                 stream << ppendl;
             }
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
@@ -407,8 +413,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerMacMap:
             as_vector = std::static_pointer_cast<TrackerElementMacMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementMacMap>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -427,12 +434,14 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << i.first << "\": ";
                 }
 
-                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                }
 
                 stream << ppendl;
             }
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
@@ -440,8 +449,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerStringMap:
             as_vector = std::static_pointer_cast<TrackerElementStringMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementStringMap>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -459,12 +469,14 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << JsonAdapter::SanitizeString(i.first) << "\": ";
                 }
 
-                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                }
 
                 stream << ppendl;
             }
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
@@ -472,8 +484,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerDoubleMap:
             as_vector = std::static_pointer_cast<TrackerElementDoubleMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementDoubleMap>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -492,12 +505,14 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << std::fixed << i.first << "\": ";
                 }
 
-                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                }
 
                 stream << ppendl;
             }
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
@@ -505,8 +520,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerHashkeyMap:
             as_vector = std::static_pointer_cast<TrackerElementHashkeyMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementHashkeyMap>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -520,17 +536,19 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                if (as_vector) {
+                if (!as_vector) {
                     // Double keys are handled as strings in json
                     stream << indent << "\"" << std::fixed << i.first << "\": ";
                 }
 
-                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
+                }
 
                 stream << ppendl;
             }
     
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
@@ -538,8 +556,9 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
         case TrackerType::TrackerDoubleMapDouble:
             as_vector = std::static_pointer_cast<TrackerElementDoubleMapDouble>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementDoubleMapDouble>(e)->as_key_vector();
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
             else
                 stream << ppendl << indent << "{" << ppendl;
@@ -555,18 +574,27 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << std::fixed << i.first << "\": ";
                 }
 
-                stream << i.second;
+                if (!as_key_vector) {
+                    stream << i.second;
+                }
+
                 stream << ppendl;
             }
 
-            if (as_vector)
+            if (as_vector || as_key_vector)
                 stream << indent << "]";
             else
                 stream << indent << "}";
 
             break;
         case TrackerType::TrackerKeyMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementDeviceKeyMap>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<TrackerElementDeviceKeyMap>(e)->as_key_vector();
+
+            if (as_vector || as_key_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementDeviceKeyMap>(e))) {
@@ -577,13 +605,25 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Keymap keys are handled as strings
-                stream << indent << "\"" << i.first << "\": ";
-                JsonAdapter::Pack(stream,i.second, name_map, prettyprint, depth + 1);
+                if (!as_vector) {
+                    // Keymap keys are handled as strings
+                    stream << indent << "\"" << i.first << "\": ";
+                }
+
+                if (!as_key_vector) {
+                    JsonAdapter::Pack(stream,i.second, name_map, prettyprint, depth + 1);
+                }
+
                 stream << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector || as_key_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
+
         case TrackerType::TrackerByteArray:
             bytes = std::static_pointer_cast<TrackerElementByteArray>(e)->get();
             bytes_c = bytes.data();

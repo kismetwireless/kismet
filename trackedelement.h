@@ -1135,18 +1135,29 @@ public:
 
     TrackerElementCoreMap(TrackerType t) : 
         TrackerElement(t),
-        present_vector(false) { }
+        present_vector(false),
+        present_key_vector(false) { }
 
     TrackerElementCoreMap(TrackerType t, int id) :
         TrackerElement(t, id),
-        present_vector(false) { }
+        present_vector(false),
+        present_key_vector(false) { }
 
-    // Optionally present as a vector when serializing
+    // Optionally present as a vector of content when serializing
     void set_as_vector(const bool in_v) {
         present_vector = in_v;
     }
 
     bool as_vector() const {
+        return present_vector;
+    }
+
+    // Optionally present as a vector of keys when serializing
+    void set_as_key_vector(const bool in_v) {
+        present_key_vector = in_v;
+    }
+
+    bool as_key_vector() const {
         return present_vector;
     }
 
@@ -1245,7 +1256,7 @@ public:
 
 protected:
     map_t map;
-    bool present_vector;
+    bool present_vector, present_key_vector;
 };
 
 // Dictionary / map-by-id
