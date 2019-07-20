@@ -474,6 +474,8 @@ void kis_tracked_device_base::register_fields() {
 void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     tracker_component::reserve_fields(e);
 
+    seenby_map->set_as_vector(true);
+
     if (e != NULL) {
         // If we're inheriting, it's our responsibility to kick submaps with
         // complex types as well; since they're not themselves complex objects
