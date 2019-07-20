@@ -1134,10 +1134,21 @@ public:
     TrackerElementCoreMap() = delete;
 
     TrackerElementCoreMap(TrackerType t) : 
-        TrackerElement(t) { }
+        TrackerElement(t),
+        present_vector(false) { }
 
     TrackerElementCoreMap(TrackerType t, int id) :
-        TrackerElement(t, id) { }
+        TrackerElement(t, id),
+        present_vector(false) { }
+
+    // Optionally present as a vector when serializing
+    void set_as_vector(const bool in_v) {
+        present_vector = in_v;
+    }
+
+    bool as_vector() const {
+        return present_vector;
+    }
 
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a map from a string"));
@@ -1234,6 +1245,7 @@ public:
 
 protected:
     map_t map;
+    bool present_vector;
 };
 
 // Dictionary / map-by-id

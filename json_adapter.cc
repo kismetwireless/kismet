@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -192,6 +192,8 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
     std::ios::fmtflags fflags;
 
+    bool as_vector;
+
     switch (e->get_type()) {
         case TrackerType::TrackerString:
             stream << "\"" << SanitizeString(GetTrackerValue<std::string>(e)) << "\"";
@@ -306,7 +308,12 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             stream << indent << "]";
             break;
         case TrackerType::TrackerMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementMap>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementMap>(e))) {
@@ -336,31 +343,42 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     }
                 }
 
-                tname = SanitizeString(tname);
+                if (!as_vector) {
+                    tname = SanitizeString(tname);
 
-                if (prettyprint) {
-                    stream << indent << "\"description." << tname << "\": ";
-                    stream << "\"";
-                    if (i.second != nullptr) {
-                        stream << SanitizeString(i.second->get_type_as_string());
-                        stream << ", ";
+                    if (prettyprint) {
+                        stream << indent << "\"description." << tname << "\": ";
+                        stream << "\"";
+                        if (i.second != nullptr) {
+                            stream << SanitizeString(i.second->get_type_as_string());
+                            stream << ", ";
+                        }
+                        stream << SanitizeString(Globalreg::globalreg->entrytracker->GetFieldDescription(i.first));
+                        stream << "\",";
+                        stream << ppendl;
                     }
-                    stream << SanitizeString(Globalreg::globalreg->entrytracker->GetFieldDescription(i.first));
-                    stream << "\",";
-                    stream << ppendl;
-                }
 
-                stream << indent << "\"" << tname << "\": ";
+                    stream << indent << "\"" << tname << "\": ";
+                }
 
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
 
             break;
         case TrackerType::TrackerIntMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementIntMap>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementIntMap>(e))) {
@@ -371,16 +389,29 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Integer dictionary keys in json are still quoted as strings
-                stream << indent << "\"" << i.first << "\": ";
+                if (!as_vector) {
+                    // Integer dictionary keys in json are still quoted as strings
+                    stream << indent << "\"" << i.first << "\": ";
+                }
+
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
         case TrackerType::TrackerMacMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementMacMap>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementMacMap>(e))) {
@@ -391,16 +422,29 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Mac keys are strings and we push only the mac not the mask */
-                stream << indent << "\"" << i.first << "\": ";
+                if (!as_vector) {
+                    // Mac keys are strings and we push only the mac not the mask */
+                    stream << indent << "\"" << i.first << "\": ";
+                }
+
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
         case TrackerType::TrackerStringMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementStringMap>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementStringMap>(e))) {
@@ -411,15 +455,28 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                stream << indent << "\"" << JsonAdapter::SanitizeString(i.first) << "\": ";
+                if (!as_vector) {
+                    stream << indent << "\"" << JsonAdapter::SanitizeString(i.first) << "\": ";
+                }
+
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
         case TrackerType::TrackerDoubleMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementDoubleMap>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementDoubleMap>(e))) {
@@ -430,16 +487,29 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Double keys are handled as strings in json
-                stream << indent << "\"" << std::fixed << i.first << "\": ";
+                if (!as_vector) {
+                    // Double keys are handled as strings in json
+                    stream << indent << "\"" << std::fixed << i.first << "\": ";
+                }
+
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
         case TrackerType::TrackerHashkeyMap:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementHashkeyMap>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementHashkeyMap>(e))) {
@@ -450,16 +520,29 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Double keys are handled as strings in json
-                stream << indent << "\"" << std::fixed << i.first << "\": ";
+                if (as_vector) {
+                    // Double keys are handled as strings in json
+                    stream << indent << "\"" << std::fixed << i.first << "\": ";
+                }
+
                 JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl;
             }
-            stream << indent << "}";
+    
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
         case TrackerType::TrackerDoubleMapDouble:
-            stream << ppendl << indent << "{" << ppendl;
+            as_vector = std::static_pointer_cast<TrackerElementDoubleMapDouble>(e)->as_vector();
+
+            if (as_vector)
+                stream << ppendl << indent << "[" << ppendl;
+            else
+                stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementDoubleMapDouble>(e))) {
@@ -467,12 +550,20 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Double keys are handled as strings in json
-                stream << indent << "\"" << std::fixed << i.first << "\": ";
+                if (!as_vector) {
+                    // Double keys are handled as strings in json
+                    stream << indent << "\"" << std::fixed << i.first << "\": ";
+                }
+
                 stream << i.second;
                 stream << ppendl;
             }
-            stream << indent << "}";
+
+            if (as_vector)
+                stream << indent << "]";
+            else
+                stream << indent << "}";
+
             break;
         case TrackerType::TrackerKeyMap:
             stream << ppendl << indent << "{" << ppendl;
