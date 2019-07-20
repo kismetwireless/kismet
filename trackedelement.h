@@ -1158,7 +1158,7 @@ public:
     }
 
     bool as_key_vector() const {
-        return present_vector;
+        return present_key_vector;
     }
 
     virtual void coercive_set(const std::string& in_str) override {
