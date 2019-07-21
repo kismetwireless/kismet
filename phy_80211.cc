@@ -587,7 +587,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // access-point view
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_view_accesspoints", true)) {
-        auto ap_view = 
+        ap_view = 
             std::make_shared<DevicetrackerView>("phydot11_accesspoints", 
                     "IEEE802.11 Access Points",
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
@@ -617,6 +617,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     return false;
                     });
         devicetracker->add_view(ap_view);
+
+        bss_ts_group_usec = Globalreg::globalreg->kismet_config->FetchOptULong("dot11_related_bss_window", 5'000'000);
+    } else {
+        _MSG_INFO("Phy80211 access point views are turned off; this will prevent matching related devices by timestamp "
+                "and other features.");
     }
 
     // Register js module for UI
@@ -1031,6 +1036,36 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 bssid_dot11->set_bss_timestamp(dot11info->timestamp);
 
                 uint64_t diff = 0;
+
+                // If we have a new device, look for related devices; use the apview to search other APs
+                if (dot11info->new_device && d11phy->ap_view != nullptr) {
+                    auto bss_worker = 
+                        DevicetrackerViewFunctionWorker([dot11info, d11phy](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            auto bssid_dot11 =
+                                dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+
+                            auto bsts = bssid_dot11->get_bss_timestamp();
+                            uint64_t diff;
+
+                            if (dot11info->timestamp < bsts)
+                                diff = bsts - dot11info->timestamp;
+                            else
+                                diff = dot11info->timestamp - bsts;
+
+                            return diff < d11phy->bss_ts_group_usec;
+                        });
+                    d11phy->ap_view->doReadonlyDeviceWork(bss_worker);
+
+                    // Set a bidirectional relationship
+                    for (auto ri : *(bss_worker.getMatchedDevices())) {
+                        auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+
+                        // fmt::print("debug - {} related to {}\n", bssid_dev->get_key(), rdev->get_key());
+
+                        bssid_dev->add_related_device("dot11_bssts_similar", rdev->get_key());
+                        rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
+                    }
+                }
 
                 if (dot11info->timestamp < bsts) {
                     diff = bsts - dot11info->timestamp;
