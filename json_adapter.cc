@@ -386,7 +386,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementIntMap>(e))) {
-                if (i.second == NULL)
+                if (i.second == nullptr && !as_key_vector)
                     continue;
 
                 if (prepend_comma)
@@ -422,7 +422,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementMacMap>(e))) {
-                if (i.second == NULL)
+                if (i.second == nullptr && !as_key_vector)
                     continue;
 
                 if (prepend_comma)
@@ -458,7 +458,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementStringMap>(e))) {
-                if (i.second == NULL)
+                if (i.second == nullptr && !as_key_vector)
                     continue;
 
                 if (prepend_comma)
@@ -493,7 +493,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementDoubleMap>(e))) {
-                if (i.second == NULL)
+                if (i.second == nullptr && !as_key_vector)
                     continue;
 
                 if (prepend_comma)
@@ -529,7 +529,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementHashkeyMap>(e))) {
-                if (i.second == NULL)
+                if (i.second == nullptr && !as_key_vector)
                     continue;
 
                 if (prepend_comma)
@@ -567,6 +567,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             for (auto i : *(std::static_pointer_cast<TrackerElementDoubleMapDouble>(e))) {
                 if (prepend_comma)
                     stream << ",";
+
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -598,7 +599,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<TrackerElementDeviceKeyMap>(e))) {
-                if (i.second == NULL)
+                if (i.second == nullptr && !as_key_vector)
                     continue;
 
                 if (prepend_comma)
