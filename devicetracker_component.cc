@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -469,10 +469,19 @@ void kis_tracked_device_base::register_fields() {
 
     RegisterField("kismet.device.base.server_uuid", 
             "UUID of server which saw this device", &server_uuid);
+
+    RegisterField("kismet.device.base.related_devices",
+            "Related devices, organized by relationship", &related_devices_map);
+
+    related_device_group_id =
+        RegisterField("kismet.device.base.related_group", 
+                TrackerElementFactory<TrackerElementDeviceKeyMap>(), "Related devices, by key");
 }
 
 void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     tracker_component::reserve_fields(e);
+
+    seenby_map->set_as_vector(true);
 
     if (e != NULL) {
         // If we're inheriting, it's our responsibility to kick submaps with
@@ -487,3 +496,18 @@ void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> 
         }
     }
 }
+
+void kis_tracked_device_base::add_related_device(const std::string& in_relationship, const device_key in_key) {
+    auto related_group_i = related_devices_map->find(in_relationship);
+
+    if (related_group_i == related_devices_map->end()) {
+        auto related_group = std::make_shared<TrackerElementDeviceKeyMap>(related_device_group_id);
+        related_group->set_as_key_vector(true);
+        related_group->insert(in_key, nullptr);
+        related_devices_map->insert(in_relationship, related_group);
+    } else {
+        auto related_group = std::static_pointer_cast<TrackerElementDeviceKeyMap>(related_group_i->second);
+        related_group->insert(in_key, nullptr);
+    }
+}
+

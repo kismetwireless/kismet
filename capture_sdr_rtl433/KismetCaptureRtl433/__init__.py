@@ -454,5 +454,3 @@ class KismetRtl433(object):
             return False
 
         return True
-
-

@@ -971,8 +971,9 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
 }
 
 int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
-    if (!db_enabled)
+    if (!db_enabled) {
         return 0;
+    }
 
     std::string phystring;
     std::string macstring;
@@ -982,8 +983,9 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     std::string sourceuuidstring;
     double frequency;
 
-    if (packet_mac_filter->filter_packet(in_pack))
+    if (packet_mac_filter->filter_packet(in_pack)) {
         return 0;
+    }
 
     kis_datachunk *chunk = 
         (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
@@ -1033,7 +1035,8 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         sourceuuidstring = "00000000-0000-0000-0000-000000000000";
     }
 
-    {
+    // Log into the PACKET table if we're a loggable packet (ie, have a link frame)
+    if (chunk != nullptr) {
         local_locker dblock(&ds_mutex);
         sqlite3_reset(packet_stmt);
 
@@ -1063,13 +1066,9 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
             sqlite3_bind_double(packet_stmt, sql_pos++, 0);
         }
 
-        if (chunk != NULL) {
-            sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length);
-        } else {
-            sqlite3_bind_int(packet_stmt, sql_pos++, 0);
-        }
+        sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length);
 
-        if (radioinfo != NULL) {
+        if (radioinfo != nullptr) {
             sqlite3_bind_int(packet_stmt, sql_pos++, radioinfo->signal_dbm);
         } else {
             sqlite3_bind_int(packet_stmt, sql_pos++, 0);
@@ -1078,13 +1077,8 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         sqlite3_bind_text(packet_stmt, sql_pos++, sourceuuidstring.c_str(), 
                 sourceuuidstring.length(), SQLITE_TRANSIENT);
 
-        if (chunk != NULL) {
-            sqlite3_bind_int(packet_stmt, sql_pos++, chunk->dlt);
-            sqlite3_bind_blob(packet_stmt, sql_pos++, (const char *) chunk->data, chunk->length, 0);
-        } else {
-            sqlite3_bind_int(packet_stmt, sql_pos++, -1);
-            sqlite3_bind_text(packet_stmt, sql_pos++, "", 0, SQLITE_TRANSIENT);
-        }
+        sqlite3_bind_int(packet_stmt, sql_pos++, chunk->dlt);
+        sqlite3_bind_blob(packet_stmt, sql_pos++, (const char *) chunk->data, chunk->length, 0);
 
         sqlite3_bind_int(packet_stmt, sql_pos++, in_pack->error);
 
@@ -1108,15 +1102,16 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         }
     }
 
-    // If the packet has a metablob record, log that
-    if (metablob != NULL) {
+    // If the packet has a metablob record, log that; if the packet ONLY has meta data we should only get a 'data'
+    // record; if the packet has both, we'll get both a 'packet' and a 'data' record.
+    if (metablob != nullptr) {
         mac_addr smac("00:00:00:00:00:00");
         uuid puuid;
 
-        if (commoninfo != NULL)
+        if (commoninfo != nullptr)
             smac = commoninfo->source;
 
-        if (datasrc != NULL) 
+        if (datasrc != nullptr) 
             puuid = datasrc->ref_source->get_source_uuid();
 
         log_data(gpsdata, in_pack->ts, phystring, smac, puuid,

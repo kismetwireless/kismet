@@ -96,6 +96,30 @@ exports.renderPackets = function(data, type, row, meta) {
     return "<i>Preparing graph</i>";
 }
 
+exports.renderUsecTime = function(data, type, row, meta) {
+    if (data == 0)
+        return "<i>n/a</i>";
+
+    var data_sec = data / 1000000;
+
+    var days = Math.floor(data_sec / 86400);
+    var hours = Math.floor((data_sec / 3600) % 24);
+    var minutes = Math.floor((data_sec / 60) % 60);
+    var seconds = Math.floor(data_sec % 60);
+
+    var ret = "";
+
+    if (days > 0)
+        ret = ret + days + "d ";
+    if (hours > 0 || days > 0)
+        ret = ret + hours + "h ";
+    if (minutes > 0 || hours > 0 || days > 0)
+        ret = ret + minutes + "m ";
+    ret = ret + seconds + "s";
+
+    return ret;
+}
+
 exports.drawPackets = function(dyncolumn, table, row) {
     // Find the column
     var rid = table.column(dyncolumn.name + ':name').index();

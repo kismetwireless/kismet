@@ -672,7 +672,6 @@ protobuf_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
-PYTHON2
 pcap
 pcaplnk
 LIBPRELUDE_CONFIG_PREFIX
@@ -689,6 +688,8 @@ LIBMLIB
 PTHREAD_LIBS
 PTHREAD_CFLAGS
 BUILD_PYTHON_MODULES
+PYTHON_VERSION
+PYTHON
 ALLTARGETS
 EGREP
 GREP
@@ -772,7 +773,10 @@ ac_user_opts='
 enable_option_checking
 enable_capture_tools_only
 enable_element_typesafety
+enable_protobuflite
 enable_python_tools
+enable_python2
+with_python_interpreter
 enable_largefile
 enable_mutextimeout
 with_linuxheaders
@@ -781,7 +785,6 @@ with_pcreheaders
 enable_pcre
 enable_prelude
 with_libprelude_prefix
-with_python2
 with_protoc
 with_protocc
 enable_libnm
@@ -1451,8 +1454,12 @@ Optional Features:
   --disable-element-typesafety
                           Disable runtime type safety of the tracked element
                           system
+  --enable-protobuflite   Force building with protobuf-lite instead of full
+                          protobuf
   --disable-python-tools  Disable building Python modules and Python-only data
                           sources
+  --enable-python2        Force building with python2 instead of the modern
+                          python3
   --disable-largefile     omit support for large files
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
                           caution
@@ -1470,11 +1477,13 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-python-interpreter=PATH
+                          Custom location of python interpreter if not in
+                          normal PATH
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-pcreheaders=DIR      Custom location of the PCRE library headers
   --with-libprelude-prefix=PFX
                           Prefix where libprelude is installed (optional)
-  --with-python2=PATH     Custom location of python2 interpreter
   --with-protoc=PATH     Custom location of the protoc protobuf compiler
   --with-protocc=PATH     Custom location of the protoc protobuf compiler
   --with-netlink-tiny                       Force libnl-tiny
@@ -8390,6 +8399,16 @@ $as_echo "#define TE_TYPE_SAFETY 0" >>confdefs.h
 
 fi
 
+PROTOBUF=protobuf
+# Check whether --enable-protobuflite was given.
+if test "${enable_protobuflite+set}" = set; then :
+  enableval=$enable_protobuflite; case "${enableval}" in
+	 yes) PROTOBUF=protobuf-lite ;;
+	   *)  ;;
+	 esac
+fi
+
+
 want_python=yes
 # Check whether --enable-python-tools was given.
 if test "${enable_python_tools+set}" = set; then :
@@ -8403,6 +8422,31 @@ else
 fi
 
 
+PYTHON=python3
+PYTHON_VERSION=3
+# Check whether --enable-python2 was given.
+if test "${enable_python2+set}" = set; then :
+  enableval=$enable_python2; case "${enableval}" in
+	  yes) PYTHON_INTERPRETER=python2;
+           PYTHON=python2 ;
+           PYTHON_VERSION=2 ;;
+	 esac
+fi
+
+
+
+# Check whether --with-python-interpreter was given.
+if test "${with_python_interpreter+set}" = set; then :
+  withval=$with_python_interpreter;
+fi
+
+
+if test "x$with_python_interpreter" != "x"; then :
+
+        PYTHON=$with_python_interpreter
+
+fi
+
 if test "$want_python"x == "no"x; then
     BUILD_PYTHON_MODULES=0
     BUILD_CAPTURE_SDR_RTL433=0
@@ -8412,6 +8456,29 @@ if test "$want_python"x == "no"x; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling Python and Python-related tools" >&5
 $as_echo "$as_me: WARNING: Disabling Python and Python-related tools" >&2;}
 else
+    if test "$PYTHON_VERSION" == 3; then
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python3 module: setuptools" >&5
+$as_echo_n "checking python3 module: setuptools... " >&6; }
+	python3 -c "import setuptools" 2>/dev/null
+	if test $? -eq 0;
+	then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		eval HAVE_PYMOD_SETUPTOOLS=yes
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		eval HAVE_PYMOD_SETUPTOOLS=no
+		#
+		if test -n ""
+		then
+			as_fn_error $? "failed to find required module setuptools" "$LINENO" 5
+			exit 1
+		fi
+	fi
+
+    else
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python module: setuptools" >&5
 $as_echo_n "checking python module: setuptools... " >&6; }
@@ -8433,12 +8500,16 @@ $as_echo "no" >&6; }
 		fi
 	fi
 
+    fi
+
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
-        as_fn_error $? "Missing python2-setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python2-setuptools" "$LINENO" 5
+        as_fn_error $? "Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version" "$LINENO" 5
     else
         DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
     fi
 fi
+
+
 
 
 # HAVE_LIBHACKRF=0
@@ -10746,20 +10817,6 @@ fi
 
 
 
-# Check whether --with-python2 was given.
-if test "${with_python2+set}" = set; then :
-  withval=$with_python2;
-fi
-
-if test x"$with_python2" != "x"; then
-    PYTHON2=$with_python2
-else
-    PYTHON2=python2
-fi
-
-
-
-
 
 
 
@@ -10891,12 +10948,12 @@ if test -n "$protobuf_CFLAGS"; then
     pkg_cv_protobuf_CFLAGS="$protobuf_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"protobuf\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "protobuf") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"\${PROTOBUF}\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "${PROTOBUF}") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_protobuf_CFLAGS=`$PKG_CONFIG --cflags "protobuf" 2>/dev/null`
+  pkg_cv_protobuf_CFLAGS=`$PKG_CONFIG --cflags "${PROTOBUF}" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -10908,12 +10965,12 @@ if test -n "$protobuf_LIBS"; then
     pkg_cv_protobuf_LIBS="$protobuf_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"protobuf\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "protobuf") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"\${PROTOBUF}\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "${PROTOBUF}") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_protobuf_LIBS=`$PKG_CONFIG --libs "protobuf" 2>/dev/null`
+  pkg_cv_protobuf_LIBS=`$PKG_CONFIG --libs "${PROTOBUF}" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -10934,14 +10991,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        protobuf_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "protobuf" 2>&1`
+	        protobuf_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "${PROTOBUF}" 2>&1`
         else
-	        protobuf_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "protobuf" 2>&1`
+	        protobuf_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "${PROTOBUF}" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$protobuf_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (protobuf) were not met:
+	as_fn_error $? "Package requirements (${PROTOBUF}) were not met:
 
 $protobuf_PKG_ERRORS
 
@@ -11030,8 +11087,8 @@ fi
         PROTOCBIN=$with_protoc
     fi
 
-    PROTOLIBS=`pkg-config --libs protobuf`
-    PROTOCFLAGS=`pkg-config --cflags protobuf`
+    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
+    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
@@ -11918,7 +11975,6 @@ fi
 
 if test "x$want_usb" != "xno"; then :
 
-    # We only *require* protobuf for C++
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb" >&5
@@ -13533,6 +13589,7 @@ echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
+echo "      Protobuf Library: $PROTOBUF"
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
 printf "          Setuid group: "
@@ -13603,7 +13660,7 @@ else
 	echo "no (will not be able to track Bluetooth on Linux)";
 fi
 
-printf "         nRF MOuseJack: "
+printf "         nRF MouseJack: "
 if test "$BUILD_CAPTURE_NRF_MOUSEJACK" = 1; then
 	echo "yes";
 else
@@ -13616,6 +13673,9 @@ if test "$BUILD_PYTHON_MODULES" = 1; then
 else
 	echo "no (will not build Python based sources)";
 fi
+
+printf "    Python interpreter: "
+echo $PYTHON
 
 printf "       RTL-SDR RTL_433: "
 if test "$BUILD_CAPTURE_SDR_RTL433" = 1; then
@@ -13716,6 +13776,13 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
     echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
+fi
+
+if test "$PYTHON_VERSION" != 3; then
+    echo
+    echo "*** WARNING ***"
+    echo "Building for python2; you may need to provide your own python packages of some "
+    echo "modules like numpy, which now require python3."
 fi
 
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
