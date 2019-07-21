@@ -1376,7 +1376,6 @@ AC_ARG_ENABLE([libusb],
 )
 
 AS_IF([test "x$want_usb" != "xno"], [
-    # We only *require* protobuf for C++
     PKG_CHECK_MODULES([libusb], [libusb-1.0], have_libusb_pkg=yes)
 
     if test x"$have_libusb_pkg" != "xyes"; then
