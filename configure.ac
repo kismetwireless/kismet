@@ -305,6 +305,16 @@ else
     AC_DEFINE(TE_TYPE_SAFETY, 0, Do not enforce runtime type safety)
 fi
 
+PROTOBUF=protobuf
+AC_ARG_ENABLE([protobuflite],
+    AS_HELP_STRING([--enable-protobuflite], [Force building with protobuf-lite instead of full protobuf]),
+	[case "${enableval}" in
+	 yes) PROTOBUF=protobuf-lite ;;
+	   *)  ;;
+	 esac],
+	[]
+)
+
 want_python=yes
 AC_ARG_ENABLE([python-tools],
     AS_HELP_STRING([--disable-python-tools], [Disable building Python modules and Python-only data sources]),
@@ -1083,7 +1093,7 @@ PKG_PROG_PKG_CONFIG
 
 if test "$caponly" = 0; then
     # We only *require* protobuf for C++
-    PKG_CHECK_MODULES([protobuf], [protobuf], have_protobuf_pkg=yes)
+    PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
     if test x"$have_protobuf_pkg" != "xyes"; then
         AC_MSG_ERROR([missing google libprotobuf])
     fi
@@ -1102,8 +1112,8 @@ if test "$caponly" = 0; then
         PROTOCBIN=$with_protoc
     fi
     
-    PROTOLIBS=`pkg-config --libs protobuf`
-    PROTOCFLAGS=`pkg-config --cflags protobuf`
+    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
+    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
@@ -1534,6 +1544,7 @@ echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
+echo "      Protobuf Library: $PROTOBUF"
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
 printf "          Setuid group: "

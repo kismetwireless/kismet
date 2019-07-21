@@ -773,6 +773,7 @@ ac_user_opts='
 enable_option_checking
 enable_capture_tools_only
 enable_element_typesafety
+enable_protobuflite
 enable_python_tools
 enable_python2
 with_python_interpreter
@@ -1453,6 +1454,8 @@ Optional Features:
   --disable-element-typesafety
                           Disable runtime type safety of the tracked element
                           system
+  --enable-protobuflite   Force building with protobuf-lite instead of full
+                          protobuf
   --disable-python-tools  Disable building Python modules and Python-only data
                           sources
   --enable-python2        Force building with python2 instead of the modern
@@ -8396,6 +8399,16 @@ $as_echo "#define TE_TYPE_SAFETY 0" >>confdefs.h
 
 fi
 
+PROTOBUF=protobuf
+# Check whether --enable-protobuflite was given.
+if test "${enable_protobuflite+set}" = set; then :
+  enableval=$enable_protobuflite; case "${enableval}" in
+	 yes) PROTOBUF=protobuf-lite ;;
+	   *)  ;;
+	 esac
+fi
+
+
 want_python=yes
 # Check whether --enable-python-tools was given.
 if test "${enable_python_tools+set}" = set; then :
@@ -10935,12 +10948,12 @@ if test -n "$protobuf_CFLAGS"; then
     pkg_cv_protobuf_CFLAGS="$protobuf_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"protobuf\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "protobuf") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"\${PROTOBUF}\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "${PROTOBUF}") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_protobuf_CFLAGS=`$PKG_CONFIG --cflags "protobuf" 2>/dev/null`
+  pkg_cv_protobuf_CFLAGS=`$PKG_CONFIG --cflags "${PROTOBUF}" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -10952,12 +10965,12 @@ if test -n "$protobuf_LIBS"; then
     pkg_cv_protobuf_LIBS="$protobuf_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"protobuf\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "protobuf") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"\${PROTOBUF}\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "${PROTOBUF}") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_protobuf_LIBS=`$PKG_CONFIG --libs "protobuf" 2>/dev/null`
+  pkg_cv_protobuf_LIBS=`$PKG_CONFIG --libs "${PROTOBUF}" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -10978,14 +10991,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        protobuf_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "protobuf" 2>&1`
+	        protobuf_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "${PROTOBUF}" 2>&1`
         else
-	        protobuf_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "protobuf" 2>&1`
+	        protobuf_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "${PROTOBUF}" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$protobuf_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (protobuf) were not met:
+	as_fn_error $? "Package requirements (${PROTOBUF}) were not met:
 
 $protobuf_PKG_ERRORS
 
@@ -11074,8 +11087,8 @@ fi
         PROTOCBIN=$with_protoc
     fi
 
-    PROTOLIBS=`pkg-config --libs protobuf`
-    PROTOCFLAGS=`pkg-config --cflags protobuf`
+    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
+    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
     # Enable the C++ targets
     PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
@@ -11962,7 +11975,6 @@ fi
 
 if test "x$want_usb" != "xno"; then :
 
-    # We only *require* protobuf for C++
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb" >&5
@@ -13577,6 +13589,7 @@ echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
 echo "           C++ Library: $foundcxxl"
+echo "      Protobuf Library: $PROTOBUF"
 echo "   Installing as group: $instgrp"
 echo "       Installing into: $prefix"
 printf "          Setuid group: "
