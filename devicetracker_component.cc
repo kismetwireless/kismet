@@ -504,6 +504,7 @@ void kis_tracked_device_base::add_related_device(const std::string& in_relations
         auto related_group = std::make_shared<TrackerElementDeviceKeyMap>(related_device_group_id);
         related_group->set_as_key_vector(true);
         related_group->insert(in_key, nullptr);
+        related_devices_map->insert(in_relationship, related_group);
     } else {
         auto related_group = std::static_pointer_cast<TrackerElementDeviceKeyMap>(related_group_i->second);
         related_group->insert(in_key, nullptr);
