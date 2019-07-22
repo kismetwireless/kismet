@@ -79,11 +79,18 @@ class KismetRtl433(object):
                 self.rtllib = ctypes.CDLL("librtlsdr.so.0")
 
                 self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+
                 self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
                 self.rtl_get_device_name.argtypes = [ctypes.c_int]
                 self.rtl_get_device_name.restype = ctypes.c_char_p
+
                 self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
                 self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+
+                self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
+                self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
+                self.rtl_get_index_by_serial.restype = ctypes.c_int
+
                 self.have_librtl = True
             except OSError:
                 self.have_librtl = False
@@ -163,7 +170,7 @@ class KismetRtl433(object):
         s = bytearray(usb_serial)
 
         # Return tuple
-        return (m.decode('ascii'), p.decode('ascii'), s.decode('ascii'))
+        return (m.partition(b'\0')[0].decode('UTF-8'), p.partition(b'\0')[0].decode('UTF-8'), s.partition(b'\0')[0].decode('UTF-8'))
 
     def check_rtl_bin(self):
         try:
@@ -269,8 +276,17 @@ class KismetRtl433(object):
 
         if self.rtllib != None:
             for i in range(0, self.rtl_get_device_count()):
+                (manuf, product, serial) = self.get_rtl_usb_info(i)
+
+                dev_index = i
+
+                # Block out empty serial numbers, and serial numbers like '1'; it might be total garbage,
+                # if so, just use the index
+                if len(serial) > 3:
+                    dev_index = serial
+
                 intf = kismetexternal.datasource_pb2.SubInterface()
-                intf.interface = "rtl433-{}".format(i)
+                intf.interface = "rtl433-{}".format(dev_index)
                 intf.flags = ""
                 intf.hardware = self.rtl_get_device_name(i)
                 interfaces.append(intf)
@@ -328,12 +344,33 @@ class KismetRtl433(object):
             if not self.check_rtl_bin():
                 return None
 
-            try:
-                intnum = int(source[7:])
-            except ValueError:
-                return None
+            # Device selector could be integer position, or it could be a serial number
+            devselector = source[7:]
+            found_interface = False
+            intnum = -1
 
-            if intnum >= self.rtl_get_device_count():
+            # Try to find the device as an index
+            try:
+                intnum = int(devselector)
+
+                # Abort if we're not w/in the range
+                if intnum >= self.rtl_get_device_count():
+                    raise ValueError("n/a")
+
+                # Otherwise we've found a device
+                found_interface = True
+
+            # Do nothing with exceptions; they just mean we need to look at it like a 
+            # serial number
+            except ValueError:
+                pass
+
+            # Try it as a serial number
+            if not found_interface:
+                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+            # We've failed as both a serial and as an index, give up
+            if intnum < 0:
                 return None
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
@@ -382,16 +419,35 @@ class KismetRtl433(object):
                 ret['message'] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
                 return ret
 
-            try:
-                intnum = int(source[7:])
-            except ValueError:
-                ret['success'] = False
-                ret['message'] = "Could not parse rtl device"
-                return ret
+            # Device selector could be integer position, or it could be a serial number
+            devselector = source[7:]
+            found_interface = False
+            intnum = -1
 
-            if intnum >= self.rtl_get_device_count():
+            # Try to find the device as an index
+            try:
+                intnum = int(devselector)
+
+                # Abort if we're not w/in the range
+                if intnum >= self.rtl_get_device_count():
+                    raise ValueError("n/a")
+
+                # Otherwise we've found a device
+                found_interface = True
+
+            # Do nothing with exceptions; they just mean we need to look at it like a 
+            # serial number
+            except ValueError:
+                pass
+
+            # Try it as a serial number
+            if not found_interface:
+                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+            # We've failed as both a serial and as an index, give up
+            if intnum < 0:
                 ret['success'] = False
-                ret['message'] = "Could not find rtl-sdr device {}".format(intnum)
+                ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
                 return ret
 
             if 'channel' in options:
@@ -423,8 +479,6 @@ class KismetRtl433(object):
         return ret
 
     def datasource_configure(self, seqno, config):
-        #print(config)
-
         return {"success": True}
 
     def handle_json(self, injson):
@@ -445,11 +499,9 @@ class KismetRtl433(object):
 
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
-            print(e)
             self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtl_433")
             return False
         except Exception as e:
-            print(e)
             self.kismet.send_datasource_error_report(message = "Could not process output of rtl_433")
             return False
 
