@@ -618,7 +618,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     });
         devicetracker->add_view(ap_view);
 
-        bss_ts_group_usec = Globalreg::globalreg->kismet_config->FetchOptULong("dot11_related_bss_window", 5'000'000);
+        bss_ts_group_usec = Globalreg::globalreg->kismet_config->FetchOptULong("dot11_related_bss_window", 10'000'000);
     } else {
         _MSG_INFO("Phy80211 access point views are turned off; this will prevent matching related devices by timestamp "
                 "and other features.");
@@ -1035,23 +1035,37 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 auto bsts = bssid_dot11->get_bss_timestamp();
                 bssid_dot11->set_bss_timestamp(dot11info->timestamp);
 
-                uint64_t diff = 0;
-
                 // If we have a new device, look for related devices; use the apview to search other APs
-                if (dot11info->new_device && d11phy->ap_view != nullptr) {
+                if ((bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
                     auto bss_worker = 
-                        DevicetrackerViewFunctionWorker([dot11info, d11phy](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                        DevicetrackerViewFunctionWorker([in_pack, dot11info, d11phy, bssid_dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             auto bssid_dot11 =
                                 dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
 
+                            if (bssid_dot11 == nullptr)
+                                return false;
+
+                            if (dev->get_key() == bssid_dev->get_key())
+                                return false;
+
                             auto bsts = bssid_dot11->get_bss_timestamp();
+                            auto last_time = dev->get_last_time();
+
+                            // Guesstimate the time shift from the last time we saw the AP to now, at
+                            // second precision
+                            if (last_time < in_pack->ts.tv_sec)
+                                bsts += (in_pack->ts.tv_sec - last_time) * 1'000'000;
+                            else
+                                bsts -= (last_time - in_pack->ts.tv_sec) * 1'000'000;
+
                             uint64_t diff;
 
                             if (dot11info->timestamp < bsts)
                                 diff = bsts - dot11info->timestamp;
                             else
                                 diff = dot11info->timestamp - bsts;
-
+                            
+                            // fmt::print("debug - looking at bssts for {} vs {} ... {} {} diff {}\n", bssid_dev->get_macaddr(), dev->get_macaddr(), bsts, dot11info->timestamp, diff);
                             return diff < d11phy->bss_ts_group_usec;
                         });
                     d11phy->ap_view->doReadonlyDeviceWork(bss_worker);
@@ -1066,6 +1080,8 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
                     }
                 }
+
+                uint64_t diff = 0;
 
                 if (dot11info->timestamp < bsts) {
                     diff = bsts - dot11info->timestamp;
