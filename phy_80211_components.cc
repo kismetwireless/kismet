@@ -17,6 +17,11 @@
    */
 
 #include "config.h"
+#include "dot11_parsers/dot11_ie.h"
+#include "dot11_parsers/dot11_ie_150_vendor.h"
+#include "dot11_parsers/dot11_ie_221_vendor.h"
+#include "dot11_parsers/dot11_ie_255_ext_tag.h"
+#include "manuf.h"
 #include "phy_80211.h"
 #include "phy_80211_components.h"
 
@@ -274,7 +279,30 @@ void dot11_advertised_ssid::register_fields() {
             "Cisco client management frame protection", &cisco_client_mfp);
 
     RegisterField("dot11.advertisedssid.ie_tag_list",
-            "802.11 IE tag list in beacon", &ie_tag_list);
+            "802.11 IE tag list in last beacon", &ie_tag_list);
+
+    ie_tag_content_id =
+        RegisterDynamicField("dot11.advertisedssid.ie_tag_content",
+                "802.11 IE tag content of last beacon", &ie_tag_content);
+    ie_tag_content_element_id =
+        RegisterField("dot11.advertisedssid.ie_tag_content_entry",
+                TrackerElementFactory<dot11_tracked_ietag>(),
+                "802.11 IE tag content");
+}
+
+void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags) {
+    auto tagmap = get_ie_tag_content();
+
+    tagmap->clear();
+
+    if (tags == nullptr)
+        return;
+
+    for (auto t : *(tags->tags())) {
+        auto tag = std::make_shared<dot11_tracked_ietag>(ie_tag_content_element_id);
+        tag->set_from_tag(t);
+        tagmap->insert(tag->get_unique_tag_id(), tag);
+    }
 }
 
 void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_entry> vec) {
@@ -288,3 +316,90 @@ void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_ent
         ri->set_txpower(x.txpower);
     }
 }
+
+void dot11_tracked_ietag::register_fields() {
+    RegisterField("dot11.ietag.uniqueid",
+        "Unique hash of IE tag number and sub-tag numbers", &unique_tag_id);
+    
+    RegisterField("dot11.ietag.number",
+        "IE tag number", &tag_number);
+
+    RegisterField("dot11.ietag.oui",
+        "IE tag OUI (if present)", &tag_oui);
+
+    RegisterField("dot11.ietag.oui_manuf",
+        "IE tag OUI manufacturer (if present)", &tag_oui_manuf);
+
+    RegisterField("dot11.ietag.subtag",
+        "IE manufacturer tag number or sub-tag number (if present)", &tag_vendor_or_sub);
+
+    RegisterField("dot11.ietag.data",
+        "Complete IE tag data", &complete_tag_data);
+}
+
+void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> tag) {
+    set_tag_number(tag->tag_num());
+    set_complete_tag_data(tag->tag_data());
+
+    if (tag->tag_num() == 150) {
+        try {
+            tag->tag_data_stream()->seek(0);
+
+            dot11_ie_150_vendor tag150;
+            tag150.parse(tag->tag_data_stream());
+
+            set_tag_oui(tag150.vendor_oui_int());
+
+            auto resolved_manuf = Globalreg::globalreg->manufdb->LookupOUI(tag150.vendor_oui_int());
+            set_tag_oui_manuf(resolved_manuf->get());
+
+            set_tag_vendor_or_sub(tag150.vendor_oui_type());
+
+            set_unique_tag_id(Adler32Checksum(fmt::format("{}{}{}", tag->tag_num(), tag150.vendor_oui_int(), tag150.vendor_oui_type())));
+
+            return;
+        } catch (const std::exception& e) {
+            // Do nothing; fall through to setting the tag num
+            ;
+        }
+    } else if (tag->tag_num() == 221) {
+        try {
+            tag->tag_data_stream()->seek(0);
+
+            dot11_ie_221_vendor tag221;
+            tag221.parse(tag->tag_data_stream());
+
+            set_tag_oui(tag221.vendor_oui_int());
+
+            auto resolved_manuf = Globalreg::globalreg->manufdb->LookupOUI(tag221.vendor_oui_int());
+            set_tag_oui_manuf(resolved_manuf->get());
+
+            set_tag_vendor_or_sub(tag221.vendor_oui_type());
+
+            set_unique_tag_id(Adler32Checksum(fmt::format("{}{}{}", tag->tag_num(), tag221.vendor_oui_int(), tag221.vendor_oui_type())));
+
+            return; 
+        } catch (const std::exception& e) {
+            // Do nothing; fall through to setting the tag num
+            ;
+        }
+    } else if (tag->tag_num() == 255) {
+        try {
+            tag->tag_data_stream()->seek(0);
+
+            dot11_ie_255_ext tag255;
+            tag255.parse(tag->tag_data_stream());
+
+            set_tag_vendor_or_sub(tag255.subtag_num());
+            
+            set_unique_tag_id(Adler32Checksum(fmt::format("{}{}", tag->tag_num(), tag255.subtag_num())));
+            return;
+        } catch (const std::exception& e) {
+            // Do nothing; fall through to setting the tag num
+            ;
+        }
+    }
+
+    set_unique_tag_id(tag->tag_num());
+}
+

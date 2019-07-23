@@ -591,6 +591,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         }
     }
 
+    keep_ie_tags_per_bssid = 
+        Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_keep_ietags", false);
+    if (keep_ie_tags_per_bssid)
+        _MSG_INFO("Keeping a copy of advertised IE tags for each SSID; this can use more CPU and RAM.");
+
     // access-point view
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_view_accesspoints", true)) {
         ap_view = 
@@ -1876,6 +1881,10 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     ssid->get_ie_tag_list()->clear();
     for (auto ti : taglist) 
         ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
+
+    // If we snapshot the ie tags, do so
+    if (keep_ie_tags_per_bssid)
+        ssid->set_ietag_content_from_packet(dot11info->ie_tags);
 
     // Update the base device records
     dot11dev->set_last_beaconed_ssid(ssid->get_ssid());

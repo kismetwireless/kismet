@@ -348,16 +348,14 @@ public:
         return std::move(dup);
     }
 
-    __Proxy(unique_Tag_id, uint32_t, uint32_t, uint32_t, unique_tag_id);
+    __Proxy(unique_tag_id, uint32_t, uint32_t, uint32_t, unique_tag_id);
     __Proxy(tag_number, uint8_t, uint8_t, uint8_t, tag_number);
     __Proxy(tag_oui, uint32_t, uint32_t, uint32_t, tag_oui);
     __Proxy(tag_oui_manuf, std::string, std::string, std::string, tag_oui_manuf);
     __Proxy(tag_vendor_or_sub, uint8_t, uint8_t, uint8_t, tag_vendor_or_sub);
     __Proxy(complete_tag_data, std::string, std::string, std::string, complete_tag_data);
 
-    void set_from_tag(std::shared_ptr<dot11_ie> ie);
-    void set_from_tag(std::shared_ptr<dot11_ie_221_vendor> ie);
-    void set_from_tag(std::shared_ptr<dot11_ie_255_ext> ie);
+    void set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> ie);
 
 protected:
     virtual void register_fields() override;
@@ -588,6 +586,10 @@ public:
 
     __ProxyTrackable(ie_tag_list, TrackerElementVectorDouble, ie_tag_list);
 
+    __ProxyDynamicTrackable(ie_tag_content, TrackerElementIntMap, ie_tag_content, ie_tag_content_id);
+
+    void set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags);
+
 protected:
     virtual void register_fields() override;
 
@@ -691,6 +693,11 @@ protected:
 
     // IE tags present, and order
     std::shared_ptr<TrackerElementVectorDouble> ie_tag_list;
+
+    // IE tag contents
+    std::shared_ptr<TrackerElementIntMap> ie_tag_content;
+    int ie_tag_content_id;
+    int ie_tag_content_element_id;
 };
 
 /* dot11 client

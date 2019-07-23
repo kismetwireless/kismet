@@ -534,6 +534,9 @@ protected:
 
     // bssts time for grouping, in usec
     uint64_t bss_ts_group_usec;
+
+    // Do we store the last beaconed tags in the ssid record?
+    bool keep_ie_tags_per_bssid;
 };
 
 #endif
