@@ -1268,6 +1268,8 @@ std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_pa
     for (auto ie_tag : *(packinfo->ie_tags->tags())) {
         if (ie_tag->tag_num() == 150) {
             try {
+                ie_tag->tag_data_stream()->seek(0);
+
                 std::shared_ptr<dot11_ie_150_vendor> vendor(new dot11_ie_150_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
 
@@ -1277,6 +1279,8 @@ std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_pa
             }
         } else if (ie_tag->tag_num() == 221) {
             try {
+                ie_tag->tag_data_stream()->seek(0);
+
                 std::shared_ptr<dot11_ie_221_vendor> vendor(new dot11_ie_221_vendor());
                 vendor->parse(ie_tag->tag_data_stream());
 
