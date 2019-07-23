@@ -38,37 +38,40 @@
 #include "trackedelement.h"
 
 class Manuf {
-    public:
-        Manuf();
+public:
+    Manuf();
 
-        void IndexOUI();
+    void IndexOUI();
 
-        std::shared_ptr<TrackerElementString> LookupOUI(mac_addr in_mac);
+    std::shared_ptr<TrackerElementString> LookupOUI(mac_addr in_mac);
+    std::shared_ptr<TrackerElementString> LookupOUI(uint32_t in_oui);
 
-        std::shared_ptr<TrackerElementString> MakeManuf(const std::string& in_manuf);
+    std::shared_ptr<TrackerElementString> MakeManuf(const std::string& in_manuf);
 
-        struct index_pos {
-            uint32_t oui;
-            fpos_t pos;
-        };
+    struct index_pos {
+        uint32_t oui;
+        fpos_t pos;
+    };
 
-        struct manuf_data {
-            uint32_t oui;
-            std::shared_ptr<TrackerElementString> manuf;
-        }; 
+    struct manuf_data {
+        uint32_t oui;
+        std::shared_ptr<TrackerElementString> manuf;
+    }; 
 
-        bool IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf);
+    bool IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf);
 
-    protected:
-        std::vector<index_pos> index_vec;
+protected:
+    kis_recursive_timed_mutex mutex;
 
-        std::map<uint32_t, manuf_data> oui_map;
+    std::vector<index_pos> index_vec;
 
-        FILE *mfile;
+    std::map<uint32_t, manuf_data> oui_map;
 
-        // IDs for manufacturer objects
-        int manuf_id;
-        std::shared_ptr<TrackerElementString> unknown_manuf;
+    FILE *mfile;
+
+    // IDs for manufacturer objects
+    int manuf_id;
+    std::shared_ptr<TrackerElementString> unknown_manuf;
 };
 
 #endif

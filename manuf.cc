@@ -74,6 +74,8 @@ void Manuf::IndexOUI() {
     short int m[3];
     uint32_t last_oui = 0;
 
+    local_locker l(&mutex);
+
     if (mfile == NULL)
         return;
 
@@ -135,72 +137,170 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
     if (mfile == NULL)
         return unknown_manuf;
 
-    // Use the cache first
-    if (oui_map.find(soui) != oui_map.end()) {
-        return oui_map[soui].manuf;
-    }
+    {
+        local_shared_locker sl(&mutex);
 
-    for (unsigned int x = 0; x < index_vec.size(); x++) {
-        if (soui > index_vec[x].oui) {
-            matched = x;
-            continue;
+        // Use the cache first
+        if (oui_map.find(soui) != oui_map.end()) {
+            return oui_map[soui].manuf;
         }
 
-        break;
-    }
-
-    // Cache unknown to save us effort in the future
-    if (matched < 0) {
-        manuf_data md;
-        md.oui = soui;
-        md.manuf = unknown_manuf;
-        oui_map[soui] = md;
-
-        return md.manuf;
-    }
-
-    // Jump backwards one index in the matching unless we're in the first block
-    if (matched > 0)
-        matched -= 1;
-
-    fsetpos(mfile, &(index_vec[matched].pos));
-
-    while (!feof(mfile)) {
-        if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
-            break;
-
-        if (strlen(buf) < 10)
-            continue;
-
-        // Trim \n
-        auto mlen = strlen(buf + 9) - 1;
-
-        if (mlen == 0)
-            continue;
-
-
-        if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
-
-            // Log a position at the previous pos - which is the line before
-            // this one, so we're inclusive
-            toui = mac_addr::OUI(m);
-
-            if (toui == soui) {
-                manuf_data md;
-                md.oui = soui;
-
-                md.manuf = std::make_shared<TrackerElementString>(manuf_id);
-                md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
-                oui_map[soui] = md;
-                return md.manuf;
+        for (unsigned int x = 0; x < index_vec.size(); x++) {
+            if (soui > index_vec[x].oui) {
+                matched = x;
+                continue;
             }
 
-            if (toui > soui) {
-                manuf_data md;
-                md.oui = soui;
-                md.manuf = unknown_manuf;
-                oui_map[soui] = md;
-                return md.manuf;
+            break;
+        }
+
+        // Cache unknown to save us effort in the future
+        if (matched < 0) {
+            manuf_data md;
+            md.oui = soui;
+            md.manuf = unknown_manuf;
+            oui_map[soui] = md;
+
+            return md.manuf;
+        }
+
+        // Jump backwards one index in the matching unless we're in the first block
+        if (matched > 0)
+            matched -= 1;
+    }
+
+    {
+        local_locker l(&mutex);
+
+        fsetpos(mfile, &(index_vec[matched].pos));
+
+        while (!feof(mfile)) {
+            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+                break;
+
+            if (strlen(buf) < 10)
+                continue;
+
+            // Trim \n
+            auto mlen = strlen(buf + 9) - 1;
+
+            if (mlen == 0)
+                continue;
+
+
+            if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
+
+                // Log a position at the previous pos - which is the line before
+                // this one, so we're inclusive
+                toui = mac_addr::OUI(m);
+
+                if (toui == soui) {
+                    manuf_data md;
+                    md.oui = soui;
+
+                    md.manuf = std::make_shared<TrackerElementString>(manuf_id);
+                    md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
+
+                if (toui > soui) {
+                    manuf_data md;
+                    md.oui = soui;
+                    md.manuf = unknown_manuf;
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
+            }
+        }
+    }
+
+    return unknown_manuf;
+}
+
+std::shared_ptr<TrackerElementString> Manuf::LookupOUI(uint32_t in_oui) {
+    uint32_t soui = in_oui, toui;
+    int matched = -1;
+    char buf[1024];
+    short int m[3];
+
+    if (mfile == NULL)
+        return unknown_manuf;
+
+    {
+        local_shared_locker sl(&mutex);
+
+        // Use the cache first
+        if (oui_map.find(soui) != oui_map.end()) {
+            return oui_map[soui].manuf;
+        }
+
+        for (unsigned int x = 0; x < index_vec.size(); x++) {
+            if (soui > index_vec[x].oui) {
+                matched = x;
+                continue;
+            }
+
+            break;
+        }
+
+        // Cache unknown to save us effort in the future
+        if (matched < 0) {
+            manuf_data md;
+            md.oui = soui;
+            md.manuf = unknown_manuf;
+            oui_map[soui] = md;
+
+            return md.manuf;
+        }
+
+        // Jump backwards one index in the matching unless we're in the first block
+        if (matched > 0)
+            matched -= 1;
+    }
+
+    {
+        local_locker l(&mutex); 
+
+        fsetpos(mfile, &(index_vec[matched].pos));
+
+        while (!feof(mfile)) {
+            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+                break;
+
+            if (strlen(buf) < 10)
+                continue;
+
+            // Trim \n
+            auto mlen = strlen(buf + 9) - 1;
+
+            if (mlen == 0)
+                continue;
+
+
+            if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
+
+                // Log a position at the previous pos - which is the line before
+                // this one, so we're inclusive
+                toui = mac_addr::OUI(m);
+
+                if (toui == soui) {
+                    manuf_data md;
+                    md.oui = soui;
+
+                    md.manuf = std::make_shared<TrackerElementString>(manuf_id);
+                    md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
+
+                if (toui > soui) {
+                    manuf_data md;
+                    md.oui = soui;
+                    md.manuf = unknown_manuf;
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
             }
         }
     }
