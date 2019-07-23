@@ -362,9 +362,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     stream << indent << "\"" << tname << "\": ";
                 }
 
-                if (!as_key_vector) {
-                    JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
-                }
+                JsonAdapter::Pack(stream, i.second, name_map, prettyprint, depth + 1);
 
                 stream << ppendl << ppendl;
             }
@@ -395,7 +393,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
                 if (!as_vector) {
                     // Integer dictionary keys in json are still quoted as strings
-                    stream << indent << "\"" << i.first << "\": ";
+                    stream << indent << "\"" << i.first << "\"";
+
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {
@@ -431,7 +432,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
                 if (!as_vector) {
                     // Mac keys are strings and we push only the mac not the mask */
-                    stream << indent << "\"" << i.first << "\": ";
+                    stream << indent << "\"" << i.first << "\"";
+                    
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {
@@ -466,7 +470,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                 prepend_comma = true;
 
                 if (!as_vector) {
-                    stream << indent << "\"" << JsonAdapter::SanitizeString(i.first) << "\": ";
+                    stream << indent << "\"" << JsonAdapter::SanitizeString(i.first) << "\"";
+
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {
@@ -502,7 +509,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    stream << indent << "\"" << std::fixed << i.first << "\": ";
+                    stream << indent << "\"" << std::fixed << i.first << "\"";
+
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {
@@ -538,7 +548,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    stream << indent << "\"" << std::fixed << i.first << "\": ";
+                    stream << indent << "\"" << std::fixed << i.first << "\"";
+
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {
@@ -572,7 +585,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    stream << indent << "\"" << std::fixed << i.first << "\": ";
+                    stream << indent << "\"" << std::fixed << i.first << "\"";
+
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {
@@ -608,7 +624,10 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
                 if (!as_vector) {
                     // Keymap keys are handled as strings
-                    stream << indent << "\"" << i.first << "\": ";
+                    stream << indent << "\"" << i.first << "\"";
+
+                    if (!as_key_vector)
+                        stream << ": ";
                 }
 
                 if (!as_key_vector) {

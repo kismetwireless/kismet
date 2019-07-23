@@ -59,6 +59,12 @@ Kismet RTLAMR Support
 
         source=rtlamr-0:name=some_sdr
 
+    If your radio reports a usable serial number, it will be shown as 
+    'rtlamr-serialnumber', for instance, 'rtlamr-117459392'.  If your
+    radio does not have a usable serial number (many do not), it will 
+    show as the radio index, for instance, 'rtlamr-0'.  You may be able
+    to add a serial number via rtl_eeprom.
+
 - GOTCHAS -
 
     If, for whatever reason, the rtl dongle goes through a reset
