@@ -290,9 +290,8 @@ public:
             state_mutex.unlock();
             return;
         } else {
-
             state_mutex.unlock();
-            throw std::runtime_error("Mutex got a write-unlock when no write lock held");
+            // throw std::runtime_error("Mutex got a write-unlock when no write lock held");
         }
     }
 
@@ -313,13 +312,13 @@ public:
                     return;
                 } else {
                     state_mutex.unlock();
-                    throw std::runtime_error("Mutex got a shared unlock by a write-unlock owner when no write lock held");
+                    // throw std::runtime_error("Mutex got a shared unlock by a write-unlock owner when no write lock held");
                 }
             }
 
             // Otherwise we can't do a shared unlock while a write lock is held
             state_mutex.unlock();
-            throw std::runtime_error("Mutex got a shared-unlock when a write lock held");
+            // throw std::runtime_error("Mutex got a shared-unlock when a write lock held");
         }
 
         if (shared_owner_count > 0) {

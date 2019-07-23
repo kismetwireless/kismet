@@ -357,8 +357,7 @@ public:
     __ProxyIncDec(rx_packets, uint64_t, uint64_t, rx_packets);
 
     __Proxy(tx_packets, uint64_t, uint64_t, uint64_t, tx_packets);
-    __ProxyIncDec(tx_packets, uint64_t, uint64_t, tx_packets);
-
+    __ProxyIncDec(tx_packets, uint64_t, uint64_t, tx_packets)
     __Proxy(llc_packets, uint64_t, uint64_t, uint64_t, llc_packets);
     __ProxyIncDec(llc_packets, uint64_t, uint64_t, llc_packets);
 
@@ -420,6 +419,9 @@ public:
     __ProxyTrackable(tag_map, TrackerElementStringMap, tag_map);
 
     __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
+
+    __ProxyTrackable(related_devices_map, TrackerElementStringMap, related_devices_map);
+    void add_related_device(const std::string& in_relationship, const device_key in_key);
 
     // Non-exported internal counter used for structured sorting
     uint64_t get_kis_internal_id() {
@@ -568,6 +570,11 @@ protected:
 
     // Non-exported local value for seenby content
     int seenby_val_id;
+
+    // Related devices, keyed by strings.  Each related device group is then a key map
+    // presented as a vector
+    std::shared_ptr<TrackerElementStringMap> related_devices_map;
+    int related_device_group_id;
 };
 
 // Packinfo references

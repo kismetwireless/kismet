@@ -2,6 +2,8 @@ syntax = "proto2";
 
 package KismetExternalHttp;
 
+option optimize_for = LITE_RUNTIME;
+
 // Request an auth token be sent in a HttpAuthToken frame
 message HttpAuthTokenRequest {
 

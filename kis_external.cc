@@ -281,13 +281,9 @@ bool KisExternalInterface::run_ipc() {
         return false;
     }
 
-    // Add to the IPC as its own thread because we might have a cascading lock
-    auto remote_add_t = std::thread([this]() {
-        auto remotehandler = 
-            Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>("IPCHANDLER");
-        remotehandler->add_ipc(ipc_remote);
-    });
-    remote_add_t.detach();
+    auto remotehandler = 
+        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>("IPCHANDLER");
+    remotehandler->add_ipc(ipc_remote);
 
     return true;
 }

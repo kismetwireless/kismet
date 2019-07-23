@@ -911,10 +911,11 @@ function CancelDeviceSummary() {
 var devicetableElement = null;
 
 /* Create the device table */
-exports.CreateDeviceTable = function(element, statuselement) {
+exports.CreateDeviceTable = function(element) {
     devicetableElement = element;
+    var statuselement = $('#' + element.attr('id') + '_status');
 
-    var dt = exports.InitializeDeviceTable(element, statuselement);
+    var dt = exports.InitializeDeviceTable(element);
 
     // Set an onclick handler to spawn the device details dialog
     $('tbody', element).on('click', 'tr', function () {
@@ -951,11 +952,12 @@ exports.CreateDeviceTable = function(element, statuselement) {
     ScheduleDeviceSummary();
 }
 
-exports.InitializeDeviceTable = function(element, statuselement) {
+exports.InitializeDeviceTable = function(element) {
+    var statuselement = $('#' + element.attr('id') + '_status');
+
     /* Make the fields list json and set the wrapper object to aData to make the DT happy */
     var cols = exports.GetDeviceColumns();
     var colmap = exports.GetDeviceColumnMap(cols);
-
     var fields = exports.GetDeviceFields();
 
     var json = {
@@ -963,7 +965,11 @@ exports.InitializeDeviceTable = function(element, statuselement) {
         colmap: colmap,
         datatable: true,
     };
-    var postdata = "json=" + JSON.stringify(json);
+
+    if ($.fn.dataTable.isDataTable(element)) {
+        element.DataTable().destroy();
+        element.empty();
+    }
 
     element
         .on('xhr.dt', function (e, settings, json, xhr) {
@@ -1081,8 +1087,6 @@ exports.ResizeDeviceTable = function(element) {
 }
 
 exports.ResetDeviceTable = function(element) {
-    devicetableElement = element;
-
     CancelDeviceSummary();
 
     exports.InitializeDeviceTable(element);

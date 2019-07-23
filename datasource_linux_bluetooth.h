@@ -39,7 +39,7 @@ protected:
   
     virtual void handle_packet_linuxbtdevice(uint32_t in_seqno, std::string in_content);
 
-    int pack_comp_btdevice;
+    int pack_comp_btdevice, pack_comp_meta;
 };
 
 

@@ -210,7 +210,10 @@ void Packetchain::packet_queue_processor() {
     local_demand_locker queue_lock(&(packetqueue_mutex));
     local_demand_locker chain_lock(&(packetchain_mutex));
 
-    while (!packetchain_shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
+    while (!packetchain_shutdown && 
+            !Globalreg::globalreg->spindown && 
+            !Globalreg::globalreg->fatal_condition &&
+            !Globalreg::globalreg->complete) {
         queue_lock.lock();
 
         if (packet_queue.size() != 0) {

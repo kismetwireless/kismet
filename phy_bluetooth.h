@@ -156,7 +156,7 @@ protected:
 	int dev_comp_bluetooth, dev_comp_common;
 
 	// Packet components
-	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info;
+	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta;
 };
 
 #endif

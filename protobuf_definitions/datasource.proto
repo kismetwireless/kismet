@@ -4,6 +4,8 @@ import "kismet.proto";
 
 package KismetDatasource;
 
+option optimize_for = LITE_RUNTIME;
+
 // Multiple channels
 message SubChannels {
     repeated string channels = 1;

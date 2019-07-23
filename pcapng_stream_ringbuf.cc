@@ -565,6 +565,9 @@ Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
 }
 
 void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
+    // Force a lock here to ensure that the stream processor is done when we revoke it
+    local_locker l(&packet_mutex);
+
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
     Pcap_Stream_Ringbuf::stop_stream(in_reason);
 }

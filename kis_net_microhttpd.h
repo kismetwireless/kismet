@@ -121,6 +121,9 @@ public:
     // URL
     std::string url;
 
+    // URL component considered for mime typing
+    std::string mime_url;
+
     // Post processor struct
     struct MHD_PostProcessor *postprocessor;
 

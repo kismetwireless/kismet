@@ -275,11 +275,18 @@ class KismetRtladsb(object):
                 self.rtllib = ctypes.CDLL("librtlsdr.so.0")
 
                 self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+
                 self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
                 self.rtl_get_device_name.argtypes = [ctypes.c_int]
                 self.rtl_get_device_name.restype = ctypes.c_char_p
+
                 self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
                 self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+
+                self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
+                self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
+                self.rtl_get_index_by_serial.restype = ctypes.c_int
+
                 self.have_librtl = True
             except OSError:
                 self.have_librtl = False
@@ -328,7 +335,7 @@ class KismetRtladsb(object):
             print("Connecting to remote server {}".format(self.config.connect))
 
         self.csv_data = pkgutil.get_data('KismetCaptureRtladsb', 'data/aircraft_db.csv')
-        self.csv_file = csv.reader(self.csv_data.splitlines(), delimiter=",")
+        self.csv_file = csv.reader(self.csv_data.decode('utf-8').splitlines(), delimiter=",")
         self.airplanes = []
 
         for row in self.csv_file:
@@ -366,7 +373,7 @@ class KismetRtladsb(object):
         s = bytearray(usb_serial)
 
         # Return tuple
-        return (m.decode('ascii'), p.decode('ascii'), s.decode('ascii'))
+        return (m.partition(b'\0')[0].decode('UTF-8'), p.partition(b'\0')[0].decode('UTF-8'), s.partition(b'\0')[0].decode('UTF-8'))
 
     def check_rtl_bin(self):
         try:
@@ -385,11 +392,11 @@ class KismetRtladsb(object):
 
         if self.opts['device'] is not None:
             cmd.append('-d')
-	    cmd.append("{}".format(self.opts['device']))
+            cmd.append("{}".format(self.opts['device']))
 
         if self.opts['gain'] is not None:
             cmd.append('-g')
-	    cmd.append("{}".format(self.opts['gain']))
+            cmd.append("{}".format(self.opts['gain']))
 
         seen_any_valid = False
         failed_once = False
@@ -399,19 +406,19 @@ class KismetRtladsb(object):
             self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
             while True:
-		hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
-		if crc(hex_data) == "000000000000000000000000":
-		    for row in self.airplanes:
-		        if hex_data[2:8] == row[0]:
-			    msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
-		    if 1 <= typecode(hex_data) <= 4:
-			msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
-		    if 5 <= typecode(hex_data) <= 8:
-			msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
-		    if typecode(hex_data) == 19:
-			airborneInfo = airborne_velocity(hex_data)
-			msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
-		    l = json.dumps(msg)
+                hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
+                if crc(hex_data) == "000000000000000000000000":
+                    for row in self.airplanes:
+                        if hex_data[2:8] == row[0]:
+                            msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
+                    if 1 <= typecode(hex_data) <= 4:
+                        msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
+                    if 5 <= typecode(hex_data) <= 8:
+                        msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
+                    if typecode(hex_data) == 19:
+                        airborneInfo = airborne_velocity(hex_data)
+                        msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
+                    l = json.dumps(msg)
 
                     if not self.handle_json(l):
                         raise RuntimeError('could not process response from rtladsb')
@@ -480,8 +487,17 @@ class KismetRtladsb(object):
 
         if self.rtllib != None:
             for i in range(0, self.rtl_get_device_count()):
+                (manuf, product, serial) = self.get_rtl_usb_info(i)
+
+                dev_index = i
+
+                # Block out empty serial numbers, and serial numbers like '1'; it might be total garbage,
+                # if so, just use the index
+                if len(serial) > 3:
+                    dev_index = serial
+
                 intf = kismetexternal.datasource_pb2.SubInterface()
-                intf.interface = "rtladsb-{}".format(i)
+                intf.interface = "rtladsb-{}".format(dev_index)
                 intf.flags = ""
                 intf.hardware = self.rtl_get_device_name(i)
                 interfaces.append(intf)
@@ -539,12 +555,33 @@ class KismetRtladsb(object):
             if not self.check_rtl_bin():
                 return None
 
-            try:
-                intnum = int(source[8:])
-            except ValueError:
-                return None
+            # Device selector could be integer position, or it could be a serial number
+            devselector = source[8:]
+            found_interface = False
+            intnum = -1
 
-            if intnum >= self.rtl_get_device_count():
+            # Try to find the device as an index
+            try:
+                intnum = int(devselector)
+
+                # Abort if we're not w/in the range
+                if intnum >= self.rtl_get_device_count():
+                    raise ValueError("n/a")
+
+                # Otherwise we've found a device
+                found_interface = True
+
+            # Do nothing with exceptions; they just mean we need to look at it like a 
+            # serial number
+            except ValueError:
+                pass
+
+            # Try it as a serial number
+            if not found_interface:
+                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+            # We've failed as both a serial and as an index, give up
+            if intnum < 0:
                 return None
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
@@ -592,16 +629,35 @@ class KismetRtladsb(object):
                 ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
                 return ret
 
-            try:
-                intnum = int(source[8:])
-            except ValueError:
-                ret["success"] = False
-                ret["message"] = "Could not parse rtl device"
-                return ret
+            # Device selector could be integer position, or it could be a serial number
+            devselector = source[8:]
+            found_interface = False
+            intnum = -1
 
-            if intnum >= self.rtl_get_device_count():
-                ret["success"] = False
-                ret["message"] = "Could not find rtl-sdr device {}".format(intnum)
+            # Try to find the device as an index
+            try:
+                intnum = int(devselector)
+
+                # Abort if we're not w/in the range
+                if intnum >= self.rtl_get_device_count():
+                    raise ValueError("n/a")
+
+                # Otherwise we've found a device
+                found_interface = True
+
+            # Do nothing with exceptions; they just mean we need to look at it like a 
+            # serial number
+            except ValueError:
+                pass
+
+            # Try it as a serial number
+            if not found_interface:
+                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+            # We've failed as both a serial and as an index, give up
+            if intnum < 0:
+                ret['success'] = False
+                ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
                 return ret
 
             if 'channel' in options:
@@ -655,11 +711,9 @@ class KismetRtladsb(object):
 
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
-            print(e)
             self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtladsb")
             return False
         except Exception as e:
-            print(e)
             self.kismet.send_datasource_error_report(message = "Could not process output of rtladsb")
             return False
 

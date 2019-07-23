@@ -26,10 +26,9 @@
 GlobalRegistry *Globalreg::globalreg = NULL;
 
 GlobalRegistry::GlobalRegistry() { 
-	fatal_condition = 0;
-	spindown = 0;
-
-	winch = false;
+	fatal_condition = false;
+	spindown = false;
+    complete = false;
 
 	argc = 0;
 	argv = NULL;

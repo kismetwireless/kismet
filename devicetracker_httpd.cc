@@ -336,6 +336,9 @@ int Devicetracker::Httpd_CreateStreamResponse(
                         return MHD_YES;
                     } 
 
+                    // Set the mime component of the url
+                    connection->mime_url = tokenurl[4];
+
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
                     return MHD_YES;
                 }

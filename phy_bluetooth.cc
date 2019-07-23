@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -60,6 +60,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid)
     pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
 	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
+    pack_comp_meta = packetchain->RegisterPacketComponent("METABLOB");
 
     // Register js module for UI
     auto httpregistry = 

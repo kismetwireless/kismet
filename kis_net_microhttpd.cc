@@ -1164,7 +1164,13 @@ void Kis_Net_Httpd::AppendStandardHeaders(Kis_Net_Httpd *httpd,
     strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
     MHD_add_response_header(connection->response, "Last-Modified", lastmod);
 
-    std::string suffix = GetSuffix(url);
+    std::string suffix;
+
+    if (connection->mime_url != "")
+        suffix = GetSuffix(connection->mime_url);
+    else
+        suffix = GetSuffix(connection->url);
+
     std::string mime = httpd->GetMimeType(suffix);
 
     if (mime != "") {

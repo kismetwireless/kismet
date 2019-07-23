@@ -5,6 +5,8 @@ import "datasource.proto";
 
 package KismetLinuxBluetooth;
 
+option optimize_for = LITE_RUNTIME;
+
 // DEPRECATED:  This is being moved to the newer data report format into the json field
 // for direct logging
 

@@ -562,7 +562,7 @@ class Datasource(ExternalInterface):
 
         :return: UUID string
         """
-        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver)))
+        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver, 'ascii')))
         return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
 
     def set_listinterfaces_cb(self, cb):

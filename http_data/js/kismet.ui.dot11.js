@@ -239,10 +239,27 @@ kismet_ui.AddDeviceColumn('wifi_last_bssid', {
     searchable: true
 });
 
+kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
+    sTitle: 'Uptime',
+    field: 'dot11.device/dot11.device.bss_timestamp',
+    description: 'Estimated device uptime (from BSS timestamp)',
+    width: '5em;',
+    sortable: true,
+    searchable: true,
+    visible: false, // Off by default
+    renderfunc: function(d, t, r, m) {
+        return kismet_ui_base.renderUsecTime(d, t, r, m);
+    },
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
-        return (data['kismet.device.base.phyname'] === "IEEE802.11");
+        try {
+            return (data['kismet.device.base.phyname'] === "IEEE802.11");
+        } catch {
+            return false;
+        }
     },
     draw: function(data, target) {
         target.devicedata(data, {
@@ -270,6 +287,34 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     return opts['value'];
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
+            },
+            {
+                field: "dot11.device/dot11.device.bss_timestamp",
+                title: "Uptime",
+                render: function(opts) {
+                    if (opts['value'] == 0)
+                        return "<i>n/a</i>";
+
+                    var data_sec = opts['value'] / 1000000;
+
+                    var days = Math.floor(data_sec / 86400);
+                    var hours = Math.floor((data_sec / 3600) % 24);
+                    var minutes = Math.floor((data_sec / 60) % 60);
+                    var seconds = Math.floor(data_sec % 60);
+
+                    var ret = "";
+
+                    if (days > 0)
+                        ret = ret + days + "d ";
+                    if (hours > 0 || days > 0)
+                        ret = ret + hours + "h ";
+                    if (minutes > 0 || hours > 0 || days > 0)
+                        ret = ret + minutes + "m ";
+                    ret = ret + seconds + "s";
+
+                    return ret;
+                },
+                help: "Access points contain a high-precision timestamp which can be used to estimate how long the access point has been running.  Typically access points start this value at zero on boot, but it may be set to an arbitrary number and is not always accurate.",
             },
 
             {
@@ -379,16 +424,21 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 id: "dot11_extras",
                 help: "Some devices advertise additional information about capabilities via additional tag fields when joining a network.",
                 filter: function(opts) {
-                    if (opts['data']['dot11.device']['dot11.device.min_tx_power'] != 0)
-                        return true;
+                    try {
+                        if (opts['data']['dot11.device']['dot11.device.min_tx_power'] != 0)
+                            return true;
 
-                    if (opts['data']['dot11.device']['dot11.device.max_tx_power'] != 0)
-                        return true;
+                        if (opts['data']['dot11.device']['dot11.device.max_tx_power'] != 0)
+                            return true;
 
-                    if (opts['data']['dot11.device']['dot11.device.supported_channels'].length > 0)
-                        return true;
+                        if (opts['data']['dot11.device']['dot11.device.supported_channels'].length > 0)
+                            return true;
 
-                    return false;
+                        return false;
+                    } catch {
+                        return false;
+                    }
+                    
                 },
                 groupTitle: "Additional Capabilities",
                 fields: [
@@ -409,10 +459,18 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Supported Channels",
                     help: "Some devices advertise the 5GHz channels they support while joining a network.  Supported 2.4GHz channels are not included in this list.  This data is in the IE 36 field.  This data can be manipulated by hostile devices, but can be informational for normal deices.",
                     filter: function(opts) {
-                        return (opts['data']['dot11.device']['dot11.device.supported_channels'].length);
+                        try {
+                            return (opts['data']['dot11.device']['dot11.device.supported_channels'].length);
+                        } catch {
+                            return false;
+                        }
                     },
-                    render: function(opts) {
-                        return opts['data']['dot11.device']['dot11.device.supported_channels'].join(',');
+                    render: function(opts) { 
+                        try {
+                            return opts['data']['dot11.device']['dot11.device.supported_channels'].join(',');
+                        } catch {
+                            return "<i>n/a</i>";
+                        }
                     }
                 },
                 ],
@@ -423,7 +481,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 id: "wpa_handshake",
                 help: "When a client joins a WPA network, it performs a &quot;handshake&quot; of four packets to establish the connection and the unique per-session key.  To decrypt WPA or derive the PSK, at least two specific packets of this handshake are required.  Kismet provides a simplified pcap file of the handshake packets seen, which can be used with other tools to derive the PSK or decrypt the packet stream.",
                 filter: function(opts) {
-                    return (opts['data']['dot11.device']['dot11.device.wpa_handshake_list'].length);
+                    try {
+                        return (opts['data']['dot11.device']['dot11.device.wpa_handshake_list'].length);
+                    } catch {
+                        return false;
+                    }
                 },
                 groupTitle: "WPA Key Exchange",
 
@@ -490,7 +552,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: "dot11.device/dot11.device.probed_ssid_map",
                 id: "probed_ssid_header",
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
                 title: '<b class="k_padding_title">Probed SSIDs</b>',
                 help: "Wi-Fi clients will send out probe requests for networks they are trying to join.  Probe requests can either be broadcast requests, requesting any network in the area respond, or specific requests, requesting a single SSID the client has used previously.  Different clients may behave differently, and modern clients will typically only send generic broadcast probes.",
@@ -501,7 +567,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 id: "probed_ssid",
 
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
 
                 groupIterate: true,
@@ -603,7 +673,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: "dot11.device/dot11.device.advertised_ssid_map",
                 id: "advertised_ssid_header",
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
                 title: '<b class="k_padding_title">Advertised SSIDs</b>',
                 help: "A single BSSID may advertise multiple SSIDs, either changing its network name over time or combining multiple SSIDs into a single BSSID radio address.  Most modern Wi-Fi access points which support multiple SSIDs will generate a dynamic MAC address for each SSID.",
@@ -614,7 +688,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 id: "advertised_ssid",
 
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
 
                 groupIterate: true,
@@ -744,8 +822,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Connected Stations",
                     help: "Access points which provide 802.11e / QBSS report the number of stations observed on the channel as part of the channel quality of service.",
                     filter: function(opts) {
-                        console.log(opts);
-                        return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
+                        try {
+                            return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
+                        } catch {
+                            return false;
+                        }
                     }
                 },
                 {
@@ -756,7 +837,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         return opts['value'].toFixed(2) + '%';
                     },
                     filter: function(opts) {
-                        return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
+                        try {
+                            return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
+                        } catch {
+                            return false;
+                        }
                     }
                 },
                 {
@@ -847,12 +932,85 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             },
 
             {
-                // Filler title
+                field: "dot11_bssts_similar",
+                id: "bssts_similar_header",
+                help: "Wi-Fi access points advertise a high-precision timestamp in beacons.  Multiple devices with extremely similar timestamps are typically part of the same physical access point advertising multiple BSSIDs.",
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_bssts_similar']).length >= 1);
+                    } catch {
+                        return false;
+                    }
+                },
+                title: '<b class="k_padding_title">Shared Hardware</b>'
+            },
+
+            {
+                field: "kismet.device.base.related_devices/dot11_bssts_similar",
+                id: "bssts_similar",
+
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_bssts_similar']).length >= 1);
+                    } catch {
+                        return false;
+                    }
+                },
+
+                groupIterate: true,
+                iterateTitle: function(opts) {
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    if (key != 0) {
+                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#bssts_similar" href="#">Shared with ' + opts['data'] + '</a>';
+                    }
+
+                    return '<a class="expander collapsed" data-expander-target="#bssts_similar" href="#">Shared with ' + opts['data'] + '</a>';
+                },
+                draw: function(opts) {
+                    var tb = $('.expander', opts['container']).simpleexpand();
+
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    var alink = $('a#' + key, opts['container']);
+                    $.get(local_uri_prefix + "devices/by-key/" + key +
+                            "/device.json/dot11.device")
+                    .done(function(data) {
+                        data = kismet.sanitizeObject(data);
+
+                        var ssid = data['dot11.device.last_beaconed_ssid'];
+                        var mac = data['dot11.device.last_bssid'];
+
+                        if (ssid == "")
+                            ssid = "<i>n/a</i>";
+
+                        alink.html("Related to " + mac + " (" + ssid + ")");
+                    });
+                },
+
+                fields: [
+                {
+                    field: "dot11.client.bssid_key",
+                    title: "Access Point",
+                    render: function(opts) {
+                        if (opts['key'] === '') {
+                            return "<i>No records for access point</i>";
+                        } else {
+                            return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['base'] + '\')">View AP Details</a>';
+                        }
+                    }
+                },
+                ]
+            },
+
+            {
                 field: "dot11.device/dot11.device.client_map",
                 id: "client_behavior_header",
                 help: "A Wi-Fi device may be a client of multiple networks over time, but can only be actively associated with a single access point at once.  Clients typically are able to roam between access points with the same name (SSID).",
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
                 title: '<b class="k_padding_title">Wi-Fi Client Behavior</b>'
             },
@@ -862,7 +1020,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 id: "client_behavior",
 
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
 
                 groupIterate: true,
@@ -1051,7 +1213,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: "dot11.device/dot11.device.associated_client_map",
                 id: "client_list_header",
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
                 title: '<b class="k_padding_title">Associated Clients</b>',
                 help: "An access point typically will have clients associated with it.  These client devices can either be wireless devices connected to the access point, or they can be bridged, wired devices on the network the access point is connected to.",
@@ -1062,7 +1228,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 id: "client_list",
 
                 filter: function(opts) {
-                    return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
+                    } catch {
+                        return false;
+                    }
                 },
 
                 groupIterate: true,

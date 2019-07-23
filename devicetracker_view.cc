@@ -577,10 +577,23 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
                     in_order_direction = 0;
 
                 // Resolve the path, we only allow the first one
-                auto column_index_vec = column_index->second->getStringVec();
-                if (column_index_vec.size() >= 1) {
-                    auto summary = TrackerElementSummary{column_index_vec[0]};
-                    order_field = summary.resolved_path;
+                auto index_array = column_index->second->getStructuredArray();
+                if (index_array.size() > 0) {
+                    if (index_array[0]->isArray()) {
+                        // We only allow the first field, but make sure we're not a nested array
+                        auto index_sub_array = index_array[0]->getStringVec();
+                        if (index_sub_array.size() > 0) {
+                            auto summary = TrackerElementSummary{index_sub_array[0]};
+                            order_field = summary.resolved_path;
+                        }
+                    } else {
+                        // Otherwise get the first array
+                        auto column_index_vec = column_index->second->getStringVec();
+                        if (column_index_vec.size() >= 1) {
+                            auto summary = TrackerElementSummary{column_index_vec[0]};
+                            order_field = summary.resolved_path;
+                        }
+                    }
                 }
             }
 

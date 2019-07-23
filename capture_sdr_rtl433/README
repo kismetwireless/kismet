@@ -68,3 +68,9 @@ Kismet RTL433 Support
 
         source=rtl433-0:name=some_sdr
 
+    If your radio reports a usable serial number, it will be shown as 
+    'rtl433-serialnumber', for instance, 'rtl433-117459392'.  If your
+    radio does not have a usable serial number (many do not), it will 
+    show as the radio index, for instance, 'rtl433-0'.  You may be able
+    to add a serial number via rtl_eeprom.
+

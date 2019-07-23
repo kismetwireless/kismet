@@ -587,7 +587,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // access-point view
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_view_accesspoints", true)) {
-        auto ap_view = 
+        ap_view = 
             std::make_shared<DevicetrackerView>("phydot11_accesspoints", 
                     "IEEE802.11 Access Points",
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
@@ -617,6 +617,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     return false;
                     });
         devicetracker->add_view(ap_view);
+
+        bss_ts_group_usec = Globalreg::globalreg->kismet_config->FetchOptULong("dot11_related_bss_window", 10'000'000);
+    } else {
+        _MSG_INFO("Phy80211 access point views are turned off; this will prevent matching related devices by timestamp "
+                "and other features.");
     }
 
     // Register js module for UI
@@ -1025,6 +1030,92 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 }
             }
 
+            // Look at the BSS TS
+            if (dot11info->subtype == packet_sub_beacon && dot11info->distrib != distrib_adhoc) {
+                auto bsts = bssid_dot11->get_bss_timestamp();
+                bssid_dot11->set_bss_timestamp(dot11info->timestamp);
+
+                // If we have a new device, look for related devices; use the apview to search other APs
+                if ((bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
+                    auto bss_worker = 
+                        DevicetrackerViewFunctionWorker([in_pack, dot11info, d11phy, bssid_dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            auto bssid_dot11 =
+                                dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+
+                            if (bssid_dot11 == nullptr)
+                                return false;
+
+                            if (dev->get_key() == bssid_dev->get_key())
+                                return false;
+
+                            auto bsts = bssid_dot11->get_bss_timestamp();
+                            auto last_time = dev->get_last_time();
+
+                            // Guesstimate the time shift from the last time we saw the AP to now, at
+                            // second precision
+                            if (last_time < in_pack->ts.tv_sec)
+                                bsts += (in_pack->ts.tv_sec - last_time) * 1'000'000;
+                            else
+                                bsts -= (last_time - in_pack->ts.tv_sec) * 1'000'000;
+
+                            uint64_t diff;
+
+                            if (dot11info->timestamp < bsts)
+                                diff = bsts - dot11info->timestamp;
+                            else
+                                diff = dot11info->timestamp - bsts;
+                            
+                            // fmt::print("debug - looking at bssts for {} vs {} ... {} {} diff {}\n", bssid_dev->get_macaddr(), dev->get_macaddr(), bsts, dot11info->timestamp, diff);
+                            return diff < d11phy->bss_ts_group_usec;
+                        });
+                    d11phy->ap_view->doReadonlyDeviceWork(bss_worker);
+
+                    // Set a bidirectional relationship
+                    for (auto ri : *(bss_worker.getMatchedDevices())) {
+                        auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+
+                        // fmt::print("debug - {} related to {}\n", bssid_dev->get_key(), rdev->get_key());
+
+                        bssid_dev->add_related_device("dot11_bssts_similar", rdev->get_key());
+                        rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
+                    }
+                }
+
+                uint64_t diff = 0;
+
+                if (dot11info->timestamp < bsts) {
+                    diff = bsts - dot11info->timestamp;
+                } else {
+                    diff = dot11info->timestamp - bsts;
+                }
+
+                uint64_t bss_ts_wobble_s = 10;
+
+                if ((uint64_t) bssid_dev->get_last_time() < in_pack->ts.tv_sec - bss_ts_wobble_s) {
+                    if (bssid_dot11->last_bss_invalid == 0) {
+                        bssid_dot11->last_bss_invalid = time(0);
+                        bssid_dot11->bss_invalid_count = 1;
+                    } else if (bssid_dot11->last_bss_invalid - time(0) > 5) {
+                        bssid_dot11->last_bss_invalid = time(0);
+                        bssid_dot11->bss_invalid_count = 1;
+                    } else {
+                        bssid_dot11->last_bss_invalid = time(0);
+                        bssid_dot11->bss_invalid_count++;
+                    }
+
+                    if (diff > bss_ts_wobble_s * 1000000L && bssid_dot11->bss_invalid_count > 5) {
+                        d11phy->alertracker->RaiseAlert(d11phy->alert_bssts_ref,
+                                in_pack,
+                                dot11info->bssid_mac, dot11info->source_mac,
+                                dot11info->dest_mac, dot11info->other_mac,
+                                dot11info->channel,
+                                fmt::format("Network {} BSS timestamp fluctuating.  This may indicate "
+                                    "an 'evil twin' style attack where the BSSID of a legitimate AP "
+                                    "is being spoofed.", bssid_dev->get_macaddr()));
+                    }
+                }
+            }
+
             // Detect if we're an adhoc bssid
             if (dot11info->ibss) {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
@@ -1317,47 +1408,6 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             if (dot11info->retry) {
                 bssid_dot11->inc_num_retries(1);
                 bssid_dot11->inc_datasize_retry(dot11info->datasize);
-            }
-
-            // Look at the BSS TS
-            if (dot11info->type == packet_management && dot11info->subtype == packet_sub_beacon &&
-                    dot11info->distrib != distrib_adhoc) {
-                auto bsts = bssid_dot11->get_bss_timestamp();
-
-                if (bsts == 0) {
-                    bssid_dot11->set_bss_timestamp(dot11info->timestamp);
-                } else {
-                    uint64_t diff = 0;
-
-                    if (dot11info->timestamp < bsts) {
-                        diff = bsts - dot11info->timestamp;
-                    } else {
-                        diff = dot11info->timestamp - bsts;
-                    }
-
-                    if (bssid_dot11->last_bss_invalid == 0) {
-                        bssid_dot11->last_bss_invalid = time(0);
-                        bssid_dot11->bss_invalid_count = 1;
-                    } else if (bssid_dot11->last_bss_invalid - time(0) > 5) {
-                        bssid_dot11->last_bss_invalid = time(0);
-                        bssid_dot11->bss_invalid_count = 1;
-                    } else {
-                        bssid_dot11->last_bss_invalid = time(0);
-                        bssid_dot11->bss_invalid_count++;
-                    }
-
-                    if (diff > 5000000L && bssid_dot11->bss_invalid_count > 5) {
-                        d11phy->alertracker->RaiseAlert(d11phy->alert_bssts_ref,
-                                in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel,
-                                fmt::format("Network {} BSS timestamp fluctuating.  This may indicate "
-                                    "an 'evil twin' style attack where the BSSID of a legitimate AP "
-                                    "is being spoofed.", bssid_dev->get_macaddr()));
-                    }
-                }
-
             }
 
         }
