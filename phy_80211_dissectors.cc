@@ -1226,44 +1226,46 @@ std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_pa
         dot11_packinfo *packinfo) {
     auto ret = std::vector<ie_tag_tuple>{};
 
-    // If we can't have IE tags at all
-    if (packinfo->type != packet_management || !(
-                packinfo->subtype == packet_sub_beacon ||
-                packinfo->subtype == packet_sub_probe_req ||
-                packinfo->subtype == packet_sub_probe_resp ||
-                packinfo->subtype == packet_sub_association_req ||
-                packinfo->subtype == packet_sub_reassociation_req)) 
-        return ret;
+    if (packinfo->ie_tags == nullptr) {
+        // If we can't have IE tags at all
+        if (packinfo->type != packet_management || !(
+                    packinfo->subtype == packet_sub_beacon ||
+                    packinfo->subtype == packet_sub_probe_req ||
+                    packinfo->subtype == packet_sub_probe_resp ||
+                    packinfo->subtype == packet_sub_association_req ||
+                    packinfo->subtype == packet_sub_reassociation_req)) 
+            return ret;
 
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+        kis_datachunk *chunk = 
+            (kis_datachunk *) in_pack->fetch(pack_comp_decap);
 
-    // If we can't grab an 802.11 chunk, grab the raw link frame
-    if (chunk == NULL) {
-        chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
+        // If we can't grab an 802.11 chunk, grab the raw link frame
         if (chunk == NULL) {
+            chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
+            if (chunk == NULL) {
+                return ret;
+            }
+        }
+
+        // If we don't have a dot11 frame, throw it away
+        if (chunk->dlt != KDLT_IEEE802_11)
+            return ret;
+
+        membuf tags_membuf((char *) &(chunk->data[packinfo->header_offset]), 
+                (char *) &(chunk->data[chunk->length]));
+        std::istream istream_ietags(&tags_membuf);
+
+        packinfo->ie_tags = std::make_shared<dot11_ie>();
+
+        try {
+            std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
+            packinfo->ie_tags->parse(stream_ietags);
+        } catch (const std::exception& e) {
             return ret;
         }
     }
 
-    // If we don't have a dot11 frame, throw it away
-    if (chunk->dlt != KDLT_IEEE802_11)
-        return ret;
-
-    membuf tags_membuf((char *) &(chunk->data[packinfo->header_offset]), 
-            (char *) &(chunk->data[chunk->length]));
-    std::istream istream_ietags(&tags_membuf);
-
-    std::shared_ptr<dot11_ie> ietags(new dot11_ie());
-
-    try {
-        std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
-        ietags->parse(stream_ietags);
-    } catch (const std::exception& e) {
-        return ret;
-    }
-
-    for (auto ie_tag : *(ietags->tags())) {
+    for (auto ie_tag : *(packinfo->ie_tags->tags())) {
         if (ie_tag->tag_num() == 150) {
             try {
                 std::shared_ptr<dot11_ie_150_vendor> vendor(new dot11_ie_150_vendor());
@@ -1315,19 +1317,21 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
 
-    membuf tags_membuf((char *) &(chunk->data[packinfo->header_offset]), 
-            (char *) &(chunk->data[chunk->length]));
-    std::istream istream_ietags(&tags_membuf);
+    if (packinfo->ie_tags == nullptr) {
+        membuf tags_membuf((char *) &(chunk->data[packinfo->header_offset]), 
+                (char *) &(chunk->data[chunk->length]));
+        std::istream istream_ietags(&tags_membuf);
 
-    std::shared_ptr<dot11_ie> ietags(new dot11_ie());
+        packinfo->ie_tags = std::make_shared<dot11_ie>();
 
-    try {
-        std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
-        ietags->parse(stream_ietags);
-    } catch (const std::exception& e) {
-        fmt::print(stderr, "debug - IE tag structure corrupt\n");
-        packinfo->corrupt = 1;
-        return -1;
+        try {
+            std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
+            packinfo->ie_tags->parse(stream_ietags);
+        } catch (const std::exception& e) {
+            fmt::print(stderr, "debug - IE tag structure corrupt\n");
+            packinfo->corrupt = 1;
+            return -1;
+        }
     }
 
     kis_common_info *common = 
@@ -1340,7 +1344,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
     bool seen_mcsrates = false;
     unsigned int wmmtspec_responses = 0;
 
-    for (auto ie_tag : *(ietags->tags())) {
+    for (auto ie_tag : *(packinfo->ie_tags->tags())) {
         auto hash = std::hash<std::string>{};
 
         if (ie_tag->tag_num() == 150) {

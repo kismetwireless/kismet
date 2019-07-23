@@ -225,6 +225,9 @@ class dot11_packinfo : public packet_component {
         // Tupled hash map
         std::multimap<std::tuple<uint8_t, uint32_t, uint8_t>, size_t> ietag_hash_map;
 
+        // Parsed IE tags, if we've parsed them
+        std::shared_ptr<dot11_ie> ie_tags;
+
         std::string dot11d_country;
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 
