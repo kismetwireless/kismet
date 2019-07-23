@@ -195,7 +195,8 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
                     ws_state->ws_pollable = std::make_shared<Kis_Net_Httpd_Websocket_Pollable>();
                     ws_state->ws_pollable->SetConnection(sock, urh);
 
-                    // Callback
+                    // Callback; this should be responsible for registering the pollable,
+                    // linking it to a buffer handler, and so on
                     if (ws_state->connect_cb)
                         ws_state->connect_cb(ws_state);
 
@@ -220,6 +221,6 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
     MHD_queue_response(conn->connection, MHD_HTTP_SWITCHING_PROTOCOLS, response);
     MHD_destroy_response(response);
 
-    return false;
+    return true;
 }
 
