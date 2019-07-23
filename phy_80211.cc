@@ -379,7 +379,13 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
         alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
                 "Access points transmit a high-precision millisecond timestamp to "
                 "coordinate power saving and other time-sensitive events.  Out-of-sequence "
-                "timestamps may indicating spoofing or an 'evil twin' style attack.");
+                "timestamps may indicate spoofing or an 'evil twin' style attack.");
+    alert_probechan_ref =
+        alertracker->ActivateConfiguredAlert("PROBECHAN",
+                "Probe responses may include the Wi-Fi channel; this ought to be "
+                "identical to the channel advertised in the beacon.  Incorrect channels "
+                "in the probe response may indicate a spoofing or 'evil twin' style attack, "
+                "but can also be indicative of a misbehaving access point or repeater.");
 
     // Threshold
     signal_too_loud_threshold = 
@@ -2046,19 +2052,32 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
     if (ssid->get_channel().length() > 0 &&
             ssid->get_channel() != dot11info->channel && dot11info->channel != "0") {
-        std::string al = "IEEE80211 Access Point BSSID " +
-            basedev->get_macaddr().Mac2String() + " SSID \"" +
-            ssid->get_ssid() + "\" changed advertised channel from " +
-            ssid->get_channel() + " to " + 
-            dot11info->channel + " which may "
-            "indicate AP spoofing/impersonation";
 
-        alertracker->RaiseAlert(alert_chan_ref, in_pack, 
-                dot11info->bssid_mac, dot11info->source_mac, 
-                dot11info->dest_mac, dot11info->other_mac, 
-                dot11info->channel, al);
+        if (dot11info->subtype == packet_sub_beacon) {
+            auto al = 
+                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
+                        "from {} to {}, which may indicate spoofing or impersonation.  This may also be a "
+                        "normal event where the AP seeks a less congested channel.",
+                        basedev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(), dot11info->channel);
 
-        ssid->set_channel(dot11info->channel); 
+            alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, al);
+
+            ssid->set_channel(dot11info->channel); 
+        } else if (dot11info->subtype == packet_sub_probe_resp) {
+            auto al =
+                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" sent a probe response with "
+                        "channel {} while advertising channel {}.  This may indicate spoofing or "
+                        "impersonation, or may indicate a misconfigured or misbehaving access "
+                        "point or repeater.",
+                        basedev->get_macaddr(), ssid->get_ssid(), dot11info->channel, ssid->get_channel());
+            alertracker->RaiseAlert(alert_probechan_ref, in_pack,
+                    dot11info->bssid_mac, dot11info->source_mac, 
+                    dot11info->dest_mac, dot11info->other_mac, 
+                    dot11info->channel, al);
+        }
     }
 
     // Only process dot11 from beacons

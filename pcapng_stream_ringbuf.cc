@@ -537,6 +537,10 @@ void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
     if (target_datachunk == NULL)
         return;
 
+    // Only write DLTs that make sense
+    if (target_datachunk->dlt <= 0)
+        return;
+
     pcapng_write_packet(in_packet, target_datachunk);
 
     log_packets++;
