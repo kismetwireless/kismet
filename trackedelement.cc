@@ -487,7 +487,7 @@ template<> device_key GetTrackerValue(const SharedTrackerElement& e) {
 
 template<> void SetTrackerValue(const SharedTrackerElement& e, const std::string& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerString);
+    e->enforce_type(TrackerType::TrackerString, TrackerType::TrackerByteArray);
 #endif
     std::static_pointer_cast<TrackerElementString>(e)->set(v);
 }

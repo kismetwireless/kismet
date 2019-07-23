@@ -241,16 +241,23 @@ public:
     static TrackerType typestring_to_type(const std::string& s);
     static std::string type_to_typestring(TrackerType t);
 
-    void enforce_type(TrackerType t) {
+    TrackerType enforce_type(TrackerType t) {
         if (get_type() != t) 
             throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
                         "as a {}", tracked_id, type_to_string(get_type()), type_to_string(t)));
+
+        return t;
     }
 
-    static void enforce_type(TrackerType t1, TrackerType t2) {
-        if (t1 != t2)
-            throw std::runtime_error(fmt::format("invalid trackedlement access, cannot use a {} "
-                        "as a {}", type_to_string(t1), type_to_string(t2)));
+    TrackerType enforce_type(TrackerType t1, TrackerType t2) {
+        if (get_type() == t1)
+            return t1;
+        
+        if (get_type() == t2)
+            return t2;
+
+        throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
+                    "as a {} or {}", tracked_id, type_to_string(get_type()), type_to_string(t1), type_to_string(t2)));
     }
 
 protected:
@@ -339,11 +346,20 @@ public:
     TrackerElementString() :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerString) { }
 
+    TrackerElementString(TrackerType t) :
+        TrackerElementCoreScalar<std::string>(TrackerType::TrackerString) { }
+
+    TrackerElementString(TrackerType t, int id) :
+        TrackerElementCoreScalar<std::string>(t, id) { }
+
     TrackerElementString(int id) :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerString, id) { }
 
     TrackerElementString(int id, const std::string& s) :
         TrackerElementCoreScalar<std::string>(TrackerType::TrackerString, id, s) { }
+
+    TrackerElementString(TrackerType t, int id, const std::string& s) :
+        TrackerElementCoreScalar<std::string>(t, id, s) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerString;
@@ -368,33 +384,25 @@ public:
     using TrackerElementCoreScalar<std::string>::less_than;
     inline bool less_than(const TrackerElementString& rhs) const;
 
+    size_t length() {
+        return value.length();
+    }
+
 };
 
-class TrackerElementByteArray : public TrackerElementCoreScalar<std::string> {
+class TrackerElementByteArray : public TrackerElementString {
 public:
     TrackerElementByteArray() :
-        TrackerElementCoreScalar<std::string>(TrackerType::TrackerByteArray) { }
+        TrackerElementString(TrackerType::TrackerByteArray) { }
 
     TrackerElementByteArray(int id) :
-        TrackerElementCoreScalar<std::string>(TrackerType::TrackerByteArray, id) { }
+        TrackerElementString(TrackerType::TrackerByteArray, id) { }
 
     TrackerElementByteArray(int id, const std::string& s) :
-        TrackerElementCoreScalar<std::string>(TrackerType::TrackerString, id, s) { }
+        TrackerElementString(TrackerType::TrackerByteArray, id, s) { }
 
     static TrackerType static_type() {
         return TrackerType::TrackerByteArray;
-    }
-
-    virtual void coercive_set(const std::string& in_str) override {
-        value = in_str;
-    }
-
-    virtual void coercive_set(double in_num) override {
-        throw(std::runtime_error("Cannot coercive_set a bytearray from a numeric"));
-    }
-
-    virtual void coercive_set(const SharedTrackerElement& e) override {
-        throw(std::runtime_error("Cannot coercive_set a bytearray from an element"));
     }
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
