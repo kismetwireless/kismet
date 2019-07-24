@@ -52,7 +52,6 @@
  *
  * Packet chain progression
  * GENESIS
- *   --> genesis_chain
  * 
  * (arbitrary fill-in by whomever generated the packet before injection)
  * 
@@ -71,10 +70,8 @@
  * LOGGING
  * 
  * DESTROY
- *   --> destroy_chain
  */
 
-#define CHAINPOS_GENESIS        1
 #define CHAINPOS_POSTCAP        2
 #define CHAINPOS_LLCDISSECT     3
 #define CHAINPOS_DECRYPT        4
@@ -82,7 +79,6 @@
 #define CHAINPOS_CLASSIFIER     6
 #define CHAINPOS_TRACKER		7
 #define CHAINPOS_LOGGING        8
-#define CHAINPOS_DESTROY        9
 
 #define CHAINCALL_PARMS GlobalRegistry *globalreg __attribute__ ((unused)), \
     void *auxdata __attribute__ ((unused)), \
@@ -136,7 +132,7 @@ public:
 	int RemoveHandler(int in_id, int in_chain);
 
 protected:
-    void packet_queue_processor();
+    void packet_queue_processor(int slot_number);
 
     // Common function for both insertion methods
     int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
@@ -148,11 +144,6 @@ protected:
     std::map<std::string, int> component_str_map;
     std::map<int, std::string> component_id_map;
 
-    // These two chains get called after a packet is generated and
-    // before the final destruction, respectively
-    std::vector<Packetchain::pc_link *> genesis_chain;
-    std::vector<Packetchain::pc_link *> destruction_chain;
-
     // Core chain components
     std::vector<Packetchain::pc_link *> postcap_chain;
     std::vector<Packetchain::pc_link *> llcdissect_chain;
@@ -162,15 +153,32 @@ protected:
 	std::vector<Packetchain::pc_link *> tracker_chain;
     std::vector<Packetchain::pc_link *> logging_chain;
 
-    // Whole packet-chain mutex
-    kis_recursive_timed_mutex packetchain_mutex;
+    // Packet component mutex
+    kis_recursive_timed_mutex packetcomp_mutex;
 
     std::vector<std::thread> packet_threads;
 
-    kis_recursive_timed_mutex packetqueue_mutex;
+    std::mutex packetqueue_cv_mutex;
+    std::condition_variable packetqueue_cv;
+
     conditional_locker<int> packet_condition;
     std::queue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
+
+    // Synchronization lock between threads and packet chain so we can make sure
+    // we've locked every thread down before changing the packetchain handlers
+    kis_recursive_timed_mutex packet_chain_sync_mutex;
+
+    std::atomic<bool> packet_chain_pause;
+
+    // Vector of conditional locks to force sync of all the threads when necessary
+    std::vector<conditional_locker<int> *> packet_thread_cls;
+
+    // Locker for the handler threads to wait on to resume them all
+    conditional_locker<unsigned int> packet_chain_pause_cl;
+
+    // Synchronize and lock the service threads, returns when done
+    int sync_service_threads(std::function<int (void)> fn);
 
     // Warning and discard levels for packet queue being full
     unsigned int packet_queue_warning, packet_queue_drop;

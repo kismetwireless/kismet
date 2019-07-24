@@ -117,7 +117,7 @@ protected:
     // Map kismet internal interface ID to log interface ID
     std::map<unsigned int, unsigned int> datasource_id_map;
 
-    kis_recursive_timed_mutex packet_mutex;
+    std::shared_ptr<kis_recursive_timed_mutex> packet_mutex;
 
     // Optional blocking operations until the required space is available in the buffer
     bool block_for_buffer;

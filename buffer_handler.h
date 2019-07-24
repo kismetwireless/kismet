@@ -257,11 +257,8 @@ public:
     
 
     // Commit a pending reserved data block to the buffer
-    //
-    // Automatically triggers callbacks.
     virtual bool CommitReadBufferData(void *in_ptr, size_t in_sz);
     virtual bool CommitWriteBufferData(void *in_ptr, size_t in_sz);
-
 
     // Clear a buffer
     //

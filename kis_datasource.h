@@ -365,7 +365,7 @@ public:
     __ProxyMS(source_retry, uint8_t, bool, bool, source_retry, ext_mutex);
     __ProxyGetMS(source_retry_attempts, uint32_t, uint32_t, source_retry_attempts, ext_mutex);
 
-    __ProxyMS(source_number, uint64_t, uint64_t, uint64_t, source_number, ext_mutex);
+    __Proxy(source_number, uint64_t, uint64_t, uint64_t, source_number);
 
     __ProxyMS(source_paused, uint8_t, bool, bool, source_paused, ext_mutex);
 

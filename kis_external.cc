@@ -91,7 +91,8 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
     if (in_amt == 0)
         return;
 
-    local_locker lock(ext_mutex);
+    local_demand_locker lock(ext_mutex);
+    lock.lock();
 
     kismet_external_frame_t *frame;
     uint32_t frame_sz, data_sz;
@@ -189,6 +190,9 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         // frame size because we could have peeked a much larger buffer
         ringbuf_handler->PeekFreeReadBufferData(frame);
         ringbuf_handler->ConsumeReadBufferData(frame_sz);
+
+        // Unlock before processing, individual commands will lock as needed
+        lock.unlock();
 
         // Dispatch the received command
         dispatch_rx_packet(cmd);

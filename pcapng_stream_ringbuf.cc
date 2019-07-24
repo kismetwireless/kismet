@@ -30,6 +30,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
     handler {in_handler},
     accept_cb {accept_filter},
     selector_cb {data_selector},
+    packet_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     block_for_buffer {block_for_buffer},
     locker_required_bytes {0} {
 
@@ -53,7 +54,6 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
     // Write the initial headers
     if (pcapng_make_shb("", "", "Kismet") < 0)
         return;
-
 }
 
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
@@ -89,9 +89,6 @@ int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
 void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
     // Unlock the conditional with an error
     buffer_available_locker.unlock(-1);
-
-    // Trigger an error in the handler
-    handler->ProtocolError();
 }
 
 ssize_t Pcap_Stream_Ringbuf::buffer_available() {
@@ -330,7 +327,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
 
 int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
         struct timeval *in_tv, std::vector<data_block> in_blocks) {
-    local_locker lg(&packet_mutex);
+    local_locker lg(packet_mutex);
 
     uint8_t *retbuf;
 
@@ -474,7 +471,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 }
 
 int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
-    local_locker lg(&packet_mutex);
+    local_locker lg(packet_mutex);
 
     SharedDatasource kis_datasource;
 
@@ -564,15 +561,18 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg,
 }
 
 Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
-    handler->ProtocolError();
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+    handler->ProtocolError();
 }
 
 void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
-    // Force a lock here to ensure that the stream processor is done when we revoke it
-    local_locker l(&packet_mutex);
+    // We have to spawn a thread to deal with this because we're inside the locking
+    // chain of the buffer handler when we get a stream stop event, sometimes
+    std::thread t([this]() {
+            packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+            });
 
-    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
     Pcap_Stream_Ringbuf::stop_stream(in_reason);
+    t.join();
 }
 

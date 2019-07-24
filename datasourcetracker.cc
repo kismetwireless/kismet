@@ -1879,31 +1879,28 @@ int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *http
 
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
-        if (!httpd->HasValidSession(connection)) {
-            connection->httpcode = 503;
-            return MHD_YES;
-        }
-
         // At this point we're logged in and have an aux pointer for the
         // ringbuf aux; We can create our pcap ringbuf stream and attach it.
         // We need to close down the pcapringbuf during teardown.
-        
+       
         Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
             (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
        
         auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
-        saux->set_aux(psrb, 
-            [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
-                streamtracker->remove_streamer(psrb->get_stream_id());
-                if (aux->aux != NULL) {
-                    delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
-                }
-            });
-
         streamtracker->register_streamer(psrb, "all_sources.pcapng",
                 "pcapng", "httpd", "pcapng of all packets on all sources");
+
+        auto id = psrb->get_stream_id();
+
+        saux->set_aux(psrb, 
+            [id, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                streamtracker->remove_streamer(id);
+                if (aux->aux != NULL) {
+                    delete (Pcap_Stream_Packetchain *) (aux->aux);
+                }
+            });
 
         return MHD_NO;
     }

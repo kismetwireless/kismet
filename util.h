@@ -322,6 +322,26 @@ public:
         cv.notify_all();
     }
 
+    void unlock_one(t in_data) {
+        {
+            std::lock_guard<std::mutex> lk(m);
+
+            locked = false;
+            data = in_data;
+        }
+        cv.notify_one();
+    }
+
+    void unlock_one() {
+        {
+            std::lock_guard<std::mutex> lk(m);
+
+            locked = false;
+        }
+
+        cv.notify_one();
+    }
+
 protected:
     std::mutex m;
     std::condition_variable cv;

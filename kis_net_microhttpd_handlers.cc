@@ -201,12 +201,12 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
     // Get out of the lock and flag an error so we end
     in_error = true;
 
-    cl->unlock(0);
-
     if (ringbuf_handler) {
         ringbuf_handler->RemoveWriteBufferInterface();
         ringbuf_handler->SetProtocolErrorCb(NULL);
     }
+
+    cl->unlock(0);
 }
 
 void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute__((unused))) {
@@ -320,20 +320,15 @@ static void free_buffer_aux_callback(void *cls) {
     unsigned char *zbuf;
 
     while (aux->get_in_error() == false) {
-        aux->block_until_data(rbh);
+        // aux->block_until_data(rbh);
 
         read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
 
-        if (read_sz == 0) {
-            rbh->PeekFreeWriteBufferData(zbuf);
-
-            if (aux->get_in_error()) {
-                break;
-            }
-        }
-
         rbh->PeekFreeWriteBufferData(zbuf);
         rbh->ConsumeWriteBufferData(read_sz);
+
+        if (read_sz == 0)
+            break;
     }
 
     aux->get_buffer_event_mutex()->unlock();
@@ -341,7 +336,7 @@ static void free_buffer_aux_callback(void *cls) {
     // Get the thread that's generating data
     aux->generator_thread.join();
 
-    if (aux->free_aux_cb != NULL) {
+    if (aux->free_aux_cb != nullptr) {
         aux->free_aux_cb(aux);
     }
 
