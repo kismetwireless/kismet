@@ -877,7 +877,7 @@ void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
     }
 }
 
-int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_devices) {
+int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
     // We avoid using external mutexes here and try to let sqlite3 handle its own
     // internal locking state; we don't want a huge device list write to block packet
     // writes for instance
@@ -892,78 +892,74 @@ int KisDatabaseLogfile::log_devices(std::shared_ptr<TrackerElementVector> in_dev
     std::string typestring;
     std::string keystring;
 
-    for (auto i : *in_devices) {
-        if (i == NULL)
-            continue;
+    if (d == nullptr)
+        return 0;
 
-        auto d = std::static_pointer_cast<kis_tracked_device_base>(i);
+    if (device_mac_filter->filter(d->get_macaddr(), d->get_phyid()))
+        return 0;
 
-        if (device_mac_filter->filter(d->get_macaddr(), d->get_phyid()))
-            continue;
+    phystring = d->get_phyname();
+    macstring = d->get_macaddr().Mac2String();
+    typestring = d->get_type_string();
+    keystring = d->get_key().as_string();
 
-        phystring = d->get_phyname();
-        macstring = d->get_macaddr().Mac2String();
-        typestring = d->get_type_string();
-        keystring = d->get_key().as_string();
+    int spos = 1;
 
-        int spos = 1;
+    std::stringstream sstr;
 
-        std::stringstream sstr;
+    // Serialize the device
+    JsonAdapter::Pack(sstr, d, NULL);
+    std::string streamstring = sstr.str();
 
-        // Serialize the device
-        JsonAdapter::Pack(sstr, d, NULL);
-        std::string streamstring = sstr.str();
+    {
+        local_locker dblock(&ds_mutex);
+        sqlite3_reset(device_stmt);
 
-        {
-            local_locker dblock(&ds_mutex);
-            sqlite3_reset(device_stmt);
+        sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
+        sqlite3_bind_int64(device_stmt, spos++, d->get_last_time());
+        sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), 
+                keystring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), 
+                phystring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), 
+                macstring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
 
-            sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
-            sqlite3_bind_int64(device_stmt, spos++, d->get_last_time());
-            sqlite3_bind_text(device_stmt, spos++, keystring.c_str(), 
-                    keystring.length(), SQLITE_TRANSIENT);
-            sqlite3_bind_text(device_stmt, spos++, phystring.c_str(), 
-                    phystring.length(), SQLITE_TRANSIENT);
-            sqlite3_bind_text(device_stmt, spos++, macstring.c_str(), 
-                    macstring.length(), SQLITE_TRANSIENT);
-            sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
+        if (d->get_tracker_location() != NULL) {
+            sqlite3_bind_double(device_stmt, spos++, 
+                    d->get_location()->get_min_loc()->get_lat());
+            sqlite3_bind_double(device_stmt, spos++,
+                    d->get_location()->get_min_loc()->get_lon());
+            sqlite3_bind_double(device_stmt, spos++,
+                    d->get_location()->get_max_loc()->get_lat());
+            sqlite3_bind_double(device_stmt, spos++,
+                    d->get_location()->get_max_loc()->get_lon());
+            sqlite3_bind_double(device_stmt, spos++,
+                    d->get_location()->get_avg_loc()->get_lat());
+            sqlite3_bind_double(device_stmt, spos++,
+                    d->get_location()->get_avg_loc()->get_lon());
+        } else {
+            // Empty location
+            sqlite3_bind_double(device_stmt, spos++, 0);
+            sqlite3_bind_double(device_stmt, spos++, 0);
+            sqlite3_bind_double(device_stmt, spos++, 0);
+            sqlite3_bind_double(device_stmt, spos++, 0);
+            sqlite3_bind_double(device_stmt, spos++, 0);
+            sqlite3_bind_double(device_stmt, spos++, 0);
+        }
 
-            if (d->get_tracker_location() != NULL) {
-                sqlite3_bind_double(device_stmt, spos++, 
-                        d->get_location()->get_min_loc()->get_lat());
-                sqlite3_bind_double(device_stmt, spos++,
-                        d->get_location()->get_min_loc()->get_lon());
-                sqlite3_bind_double(device_stmt, spos++,
-                        d->get_location()->get_max_loc()->get_lat());
-                sqlite3_bind_double(device_stmt, spos++,
-                        d->get_location()->get_max_loc()->get_lon());
-                sqlite3_bind_double(device_stmt, spos++,
-                        d->get_location()->get_avg_loc()->get_lat());
-                sqlite3_bind_double(device_stmt, spos++,
-                        d->get_location()->get_avg_loc()->get_lon());
-            } else {
-                // Empty location
-                sqlite3_bind_double(device_stmt, spos++, 0);
-                sqlite3_bind_double(device_stmt, spos++, 0);
-                sqlite3_bind_double(device_stmt, spos++, 0);
-                sqlite3_bind_double(device_stmt, spos++, 0);
-                sqlite3_bind_double(device_stmt, spos++, 0);
-                sqlite3_bind_double(device_stmt, spos++, 0);
-            }
+        sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
+        sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), 
+                typestring.length(), SQLITE_TRANSIENT);
 
-            sqlite3_bind_int64(device_stmt, spos++, d->get_datasize());
-            sqlite3_bind_text(device_stmt, spos++, typestring.c_str(), 
-                    typestring.length(), SQLITE_TRANSIENT);
+        sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(), 
+                streamstring.length(), SQLITE_TRANSIENT);
 
-            sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(), 
-                    streamstring.length(), SQLITE_TRANSIENT);
-
-            if (sqlite3_step(device_stmt) != SQLITE_DONE) {
-                _MSG("KisDatabaseLogfile unable to insert device in " +
-                        ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-                Log_Close();
-                return -1;
-            }
+        if (sqlite3_step(device_stmt) != SQLITE_DONE) {
+            _MSG("KisDatabaseLogfile unable to insert device in " +
+                    ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
+            Log_Close();
+            return -1;
         }
     }
 

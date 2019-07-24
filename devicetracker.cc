@@ -1398,33 +1398,21 @@ int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) 
 }
 
 void Devicetracker::databaselog_write_devices() {
-    // Find anything that has changed
-    auto fw = std::make_shared<devicetracker_function_worker>(
-            [this] 
-                (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
-
-                if (d->get_mod_time() > last_database_logged) {
-                    return true;
-                }
-
-                return false;
-        }, nullptr);
-
-    MatchOnReadonlyDevices(fw);
-
-    last_database_logged = time(0);
-
-    databaselog_write_devices(fw->GetMatchedDevices());
-}
-
-void Devicetracker::databaselog_write_devices(std::shared_ptr<TrackerElementVector> vec) {
     auto dbf = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
     
-    if (dbf == NULL)
+    if (dbf == nullptr)
         return;
 
-    // Fire off a database log
-    dbf->log_devices(vec);
+    auto worker = 
+        std::make_shared<devicetracker_function_worker>([this, dbf](Devicetracker *, std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            if (dev->get_mod_time() >= last_database_logged) {
+                dbf->log_device(dev);
+            }
+
+            return false;
+        }, nullptr);
+
+    MatchOnReadonlyDevices(worker);
 }
 
 int Devicetracker::load_devices() {
