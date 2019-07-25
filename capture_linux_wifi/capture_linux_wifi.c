@@ -68,6 +68,8 @@
 
 #include <stdbool.h>
 
+#include <time.h>
+
 #include "../config.h"
 
 #ifdef HAVE_LIBNM
@@ -120,6 +122,9 @@ typedef struct {
 
     /* Do we hold a link to nexmon? */
     struct nexmon_t *nexmon;
+
+    /* Do we spam verbose errors, like long channel set intervals? */
+    int verbose_diagnostics;
 } local_wifi_t;
 
 /* Linux Wi-Fi Channels:
@@ -173,6 +178,24 @@ typedef struct {
     unsigned int center_freq1;
     unsigned int center_freq2;
 } local_channel_t;
+
+/* Measure timing, returns in ns */
+struct timespec ns_measure_timer_start() {
+    struct timespec ret;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ret);
+    return ret;
+}
+
+long ns_measure_timer_stop(struct timespec start) {
+    struct timespec end;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
+
+    long diff =
+        (start.tv_sec - end.tv_sec) * (long) 1e9 +
+        (end.tv_nsec - start.tv_nsec);
+
+    return diff;
+}
 
 unsigned int wifi_chan_to_freq(unsigned int in_chan) {
     /* 802.11 channels to frequency; if it looks like a frequency, return as
@@ -624,13 +647,28 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     char errstr[STATUS_MAX];
     char chanstr[STATUS_MAX];
 
+    struct timespec chanset_start_tm;
+    long time_diff;
+
     if (privchan == NULL) {
         return 0;
     }
 
+    chanset_start_tm = ns_measure_timer_start();
+
     if (!local_wifi->use_mac80211_channels) {
-        if ((r = iwconfig_set_channel(local_wifi->interface, 
-                        channel->control_freq, errstr)) < 0) {
+        r = iwconfig_set_channel(local_wifi->interface, 
+                channel->control_freq, errstr);
+        time_diff = ns_measure_timer_stop(chanset_start_tm);
+
+        if (local_wifi->verbose_diagnostics && time_diff > (long) 1e8) {
+            local_channel_to_str(channel, chanstr);
+            snprintf(msg, STATUS_MAX, "Setting channel %s took longer than 100000uS; this is not "
+                    "an error but may indicate kernel or bus contention.", chanstr);
+            cf_send_message(caph, msg, MSGFLAG_ERROR);
+        }
+
+        if (r < 0) {
             /* Sometimes tuning a channel fails; this is only a problem if we fail
              * to tune a channel a bunch of times.  Spit out a tuning error at first;
              * if we continually fail, if we have a seqno we're part of a CONFIGURE
@@ -641,11 +679,13 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
              * immediately.
              *
              * */
-            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
-                local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
-                        "and continuing (%s)", chanstr, errstr);
-                cf_send_message(caph, msg, MSGFLAG_ERROR);
+            if (local_wifi->seq_channel_failure < 10) {
+                if (seqno == 0 && local_wifi->verbose_diagnostics) {
+                    local_channel_to_str(channel, chanstr);
+                    snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
+                            "and continuing (%s)", chanstr, errstr);
+                    cf_send_message(caph, msg, MSGFLAG_ERROR);
+                }
                 return 0;
             } else {
                 local_channel_to_str(channel, chanstr);
@@ -692,17 +732,29 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                     channel->control_freq, channel->chan_type, errstr);
         } 
 
+        time_diff = ns_measure_timer_stop(chanset_start_tm);
+
+        if (local_wifi->verbose_diagnostics && time_diff > (long) 1e8) {
+            local_channel_to_str(channel, chanstr);
+            snprintf(msg, STATUS_MAX, "Setting channel %s took longer than 100000uS; this is not "
+                    "an error but may indicate kernel or bus contention.", chanstr);
+            cf_send_message(caph, msg, MSGFLAG_ERROR);
+        }
+
         /* Handle channel set results */
         if (r < 0) {
             /* If seqno == 0 we're inside the chanhop, so we can tolerate failures.
              * If we're sending an explicit channel change command, error out
              * immediately.
              */
-            if (local_wifi->seq_channel_failure < 10 && seqno == 0) {
-                local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
-                        "and continuing (%s)", chanstr, errstr);
-                cf_send_message(caph, msg, MSGFLAG_ERROR);
+            if (local_wifi->seq_channel_failure < 10) {
+                if (local_wifi->verbose_diagnostics && seqno == 0) {
+                    local_channel_to_str(channel, chanstr);
+                    snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
+                            "and continuing (%s)", chanstr, errstr);
+                    cf_send_message(caph, msg, MSGFLAG_ERROR);
+                }
+
                 return 0;
             } else {
                 local_channel_to_str(channel, chanstr);
@@ -944,6 +996,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     local_wifi->interface = strndup(placeholder, placeholder_len);
+
+    /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "verbose", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->verbose_diagnostics = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->verbose_diagnostics = 1;
+        }
+    }
 
     /* get the mac address; this should be standard for anything */
     if (ifconfig_get_hwaddr(local_wifi->interface, errstr, hwaddr) < 0) {
@@ -1799,7 +1861,8 @@ int main(int argc, char *argv[]) {
         .use_vht_channels = 1,
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
-        .nexmon = NULL
+        .nexmon = NULL,
+        .verbose_diagnostics = 0
     };
 
 #ifdef HAVE_LIBNM

@@ -277,8 +277,17 @@ int mac80211_set_channel_cache(int ifindex, void *nl_sock,
 
 nla_put_failure:
     snprintf(errstr, STATUS_MAX, 
-            "unable to set channel %u/%u mode %u via mac80211: "
-            "error code %d", channel, mac80211_chan_to_freq(channel), chmode, ret);
+            "unable to set channel %u/%u mode %u "
+            "("
+            "SET_WIPHY id %d index %u "
+            "WIFI_FREQ %u "
+            "CHANNEL_TYPE %d"
+            ") error %d",
+            channel, mac80211_chan_to_freq(channel), chmode, 
+            nl80211_id, ifindex, 
+            mac80211_chan_to_freq(channel), 
+            chmode, 
+            ret);
     nlmsg_free(msg);
     return ret;
 #endif
@@ -318,6 +327,7 @@ int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id,
 #else
     struct nl_msg *msg;
     int ret = 0;
+    int chan_type = 0;
 
     if ((msg = nlmsg_alloc()) == NULL) {
         snprintf(errstr, STATUS_MAX, 
@@ -334,24 +344,29 @@ int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id,
 
     switch (chan_width) {
         case NL80211_CHAN_WIDTH_20_NOHT:
+            chan_type = NL80211_CHAN_NO_HT;
             NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_NO_HT);
             break;
         case NL80211_CHAN_WIDTH_20:
+            chan_type = NL80211_CHAN_HT20;
             NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT20);
             break;
         case NL80211_CHAN_WIDTH_40:
-            if (control_freq > center_freq1)
+            if (control_freq > center_freq1) {
+                chan_type = NL80211_CHAN_HT40MINUS;
                 NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT40MINUS);
-            else
+            } else {
+                chan_type = NL80211_CHAN_HT40PLUS;
                 NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, NL80211_CHAN_HT40PLUS);
+            }
             break;
         default:
+            chan_type = -1;
             break;
     }
 
     if (center_freq1 != 0) {
-        NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, 
-                mac80211_chan_to_freq(center_freq1));
+        NLA_PUT_U32(msg, NL80211_ATTR_CENTER_FREQ1, mac80211_chan_to_freq(center_freq1));
     }
 
     if ((ret = nl_send_auto_complete(nl_sock, msg)) >= 0) {
@@ -364,9 +379,22 @@ int mac80211_set_frequency_cache(int ifindex, void *nl_sock, int nl80211_id,
     return 0;
 
 nla_put_failure:
-	snprintf(errstr, STATUS_MAX, 
-            "unable to set frequency %u %u %u via mac80211: error code %d",
-            control_freq, chan_width, center_freq1, ret);
+    snprintf(errstr, STATUS_MAX, 
+            "unable to set frequency %u width %u center %u "
+            "("
+            "SET_WIPHY id %d index %u "
+            "WIFI_FREQ %u "
+            "CHAN_WIDTH %u "
+            "CHANNEL_TYPE %d "
+            "CENTER_FREQ1 %u "
+            "), error %d",
+            control_freq, chan_width, center_freq1, 
+            nl80211_id, ifindex,
+            mac80211_chan_to_freq(control_freq),
+            chan_width,
+            chan_type,
+            mac80211_chan_to_freq(center_freq1),
+            ret);
 	nlmsg_free(msg);
 	return ret;
 #endif
