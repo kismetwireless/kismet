@@ -398,6 +398,8 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
             // Do nothing; fall through to setting the tag num
             ;
         }
+    } else {
+        set_tag_vendor_or_sub(-1);
     }
 
     set_unique_tag_id(tag->tag_num());

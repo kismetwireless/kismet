@@ -352,7 +352,7 @@ public:
     __Proxy(tag_number, uint8_t, uint8_t, uint8_t, tag_number);
     __Proxy(tag_oui, uint32_t, uint32_t, uint32_t, tag_oui);
     __Proxy(tag_oui_manuf, std::string, std::string, std::string, tag_oui_manuf);
-    __Proxy(tag_vendor_or_sub, uint8_t, uint8_t, uint8_t, tag_vendor_or_sub);
+    __Proxy(tag_vendor_or_sub, int16_t, int16_t, int16_t, tag_vendor_or_sub);
     __Proxy(complete_tag_data, std::string, std::string, std::string, complete_tag_data);
 
     void set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> ie);
@@ -364,7 +364,7 @@ protected:
     std::shared_ptr<TrackerElementUInt8> tag_number;
     std::shared_ptr<TrackerElementUInt32> tag_oui;
     std::shared_ptr<TrackerElementString> tag_oui_manuf;
-    std::shared_ptr<TrackerElementUInt8> tag_vendor_or_sub;
+    std::shared_ptr<TrackerElementInt16> tag_vendor_or_sub;
     std::shared_ptr<TrackerElementByteArray> complete_tag_data;
 };
 

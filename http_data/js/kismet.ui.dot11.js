@@ -927,8 +927,73 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "WPS Serial #",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
-                }
-            ],
+                },
+
+                /*
+                {
+                    field: "dot11.advertisedssid.ie_tag_content",
+                    filterOnEmpty: true,
+                    id: "dot11_ssid_ietags",
+                    title: '<b class="k_padding_title">IE tags</b>',
+                    help: "IE tags in beacons define the network and the access point attributes; because dot11_keep_ietags is true, Kismet tracks these here.",
+                },
+
+                {
+                    field: "dot11.advertisedssid.ie_tag_content",
+                    id: "advertised_ietags",
+                    filterOnEmpty: true,
+
+                    groupIterate: true,
+                    iterateTitle: function(opts) {
+                        var ie  = opts['value'][opts['index']]['dot11.ietag.number'];
+                        var oui = opts['value'][opts['index']]['dot11.ietag.oui'];
+                        var sub = opts['value'][opts['index']]['dot11.ietag.subtag'];
+
+                        if (oui != 0)
+                            ie = ie + " " + oui;
+
+                        if (sub != -1)
+                            ie = ie + " " + sub;
+
+                        return ie;
+                    },
+
+                    fields: [
+                    {
+                        field: "dot11.ietag.number",
+                        title: "IE",
+                        help: "Each IE tag has a number between 0 and 255",
+                        filterOnEmpty: true,
+                    },
+                    {
+                        field: "dot11.ietag.oui",
+                        title: "OUI",
+                        help: "Some tags (150 and 221) may have multiple sub-tags organized by vendor",
+                        filterOnEmpty: true,
+                    },
+                    {
+                        field: "dot11.ietag.oui_manuf",
+                        title: "OUI Manuf",
+                        help: "Some tags (150 and 221) may have multiple sub-tags organized by vendor",
+                        filterOnEmpty: true,
+                    },
+                    {
+                        field: "dot11.ietag.subtag",
+                        title: "Sub-Tag IE",
+                        help: "Some tags (150, 221, 255) may have multiple sub-tags",
+                        filterOnEmpty: true,
+                    },
+                    {
+                        field: "dot11.ietag.data",
+                        title: "Tag content",
+                        help: "Raw tag content, as hex",
+                        filterOnEmpty: true,
+                    },
+
+                    ],
+                },
+                */
+                ],
             },
 
             {
@@ -971,16 +1036,21 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                     var key = kismet.ObjectByString(opts['data'], opts['basekey']);
                     var alink = $('a#' + key, opts['container']);
-                    $.get(local_uri_prefix + "devices/by-key/" + key +
-                            "/device.json/dot11.device")
+                    $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                     .done(function(data) {
                         data = kismet.sanitizeObject(data);
 
-                        var ssid = data['dot11.device.last_beaconed_ssid'];
-                        var mac = data['dot11.device.last_bssid'];
+                        try {
+                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid'];
+                            var mac = data['kismet.device.base.macaddr'];
+                        } catch {
 
-                        if (ssid == "")
+                        }
+
+                        if (ssid == "" || typeof(data) === 'undefined')
                             ssid = "<i>n/a</i>";
+
+
 
                         alink.html("Related to " + mac + " (" + ssid + ")");
                     });
