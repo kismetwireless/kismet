@@ -61,6 +61,9 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
                 {
                     local_shared_locker l(gps_mutex);
 
+                    if (!get_gps_reconnect())
+                        return 1;
+
                     if (tcpclient != nullptr && tcpclient->FetchConnected())
                         return 1;
                 }
@@ -82,8 +85,11 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
                 }
 
                 if (time(0) - last_data_time > 30) {
-                    _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
-                            "to GPSD server.");
+                    if (get_gps_reconnect())
+                        _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
+                                "to GPSD server.");
+                    else
+                        _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, disconnecting");
 
                     tcpclient->Disconnect();
                     set_int_device_connected(false);
@@ -220,8 +226,12 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     // one of the weird failure conditions of GPSD is to send a partial record
 
     if (tcphandler->GetReadBufferAvailable() == 0) {
-        _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
-                "disconnecting and reconnecting.");
+        if (get_gps_reconnect())
+            _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
+                    "disconnecting and reconnecting.");
+        else
+            _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; disconnecting.");
+
         tcpclient->Disconnect();
         set_int_device_connected(false);
         return;

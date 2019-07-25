@@ -51,6 +51,9 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                    if (!get_gps_reconnect())
+                        return 1;
+
                     if (get_device_connected()) 
                         return 1;
 

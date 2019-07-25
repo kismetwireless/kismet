@@ -124,6 +124,7 @@ public:
     __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
     __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
     __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
+    __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
     __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
@@ -157,6 +158,8 @@ protected:
 
         RegisterField("kismet.gps.connected", "GPS device is connected", &gps_connected);
 
+        RegisterField("kismet.gps.reconnect", "GPS device will reconnect if there is an error", &gps_reconnect);
+
         RegisterField("kismet.gps.location", "current location", &tracked_location);
         RegisterField("kismet.gps.last_location", "previous location", &tracked_last_location);
 
@@ -178,6 +181,8 @@ protected:
     std::shared_ptr<TrackerElementString> gps_description;
 
     std::shared_ptr<TrackerElementUInt8> gps_connected;
+
+    std::shared_ptr<TrackerElementUInt8> gps_reconnect;
 
     std::shared_ptr<TrackerElementInt32> gps_priority;
 
