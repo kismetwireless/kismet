@@ -320,11 +320,14 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->remote_host = NULL;
     ch->remote_port = 0;
 
+    ch->reverse_server = 0;
+
     ch->cli_sourcedef = NULL;
 
     ch->in_fd = -1;
     ch->out_fd = -1;
     ch->tcp_fd = -1;
+    ch->listen_fd = -1;
 
     /* Disable retry by default */
     ch->remote_retry = 0;
@@ -699,6 +702,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "list", no_argument, 0, 7},
         { "fixed-gps", required_argument, 0, 8},
         { "gps-name", required_argument, 0, 9},
+        { "host", required_argument, 0, 10},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
@@ -749,17 +753,26 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             gps_arg = strdup(optarg);
         } else if (r == 9) {
             caph->gps_name = strdup(optarg);
+        } else if (r == 10) {
+            if (sscanf(optarg, "%512[^:]:%u", parse_hname, &parse_port) != 2) {
+                fprintf(stderr, "FATAL: Expected ip:port for --host\n");
+                return -1;
+            }
+
+            caph->remote_host = strdup(parse_hname);
+            caph->remote_port = parse_port;
+            caph->reverse_server = 1;
         }
     }
 
     if (caph->remote_host == NULL && caph->cli_sourcedef != NULL) {
         fprintf(stderr, 
-                "WARNING: Ignoring --source option when not connecting to a remote host\n");
+                "WARNING: Ignoring --source option when not in remote mode.\n");
     }
 
     if (caph->remote_host == NULL && gps_arg != NULL) {
         fprintf(stderr, 
-                "WARNING: Ignoring --fixed-gps option when not connecting to a remote host\n");
+                "WARNING: Ignoring --fixed-gps option when not in remote mode.\n");
     }
 
     if (gps_arg != NULL) {
@@ -793,6 +806,9 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         /* Set daemon mode only when we have a remote host */
         caph->daemonize = daemon;
 
+        if (caph->reverse_server)
+            return 3;
+
         return 2;
     }
 
@@ -813,6 +829,9 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
                 " --connect [host]:[port]     Connect to remote Kismet server on [host] \n"
                 "                             and [port]; typically Kismet accepts remote \n"
                 "                             capture on port 3501.\n"
+                " --host [ip]:[port]          Listen for incoming remote connections on \n"
+                "                             [interface] and [port]; You need to use a different \n"
+                "                             port for each source you define.\n"
                 " --source [source def]       Specify a source to send to the remote \n"
                 "                             Kismet server; only used in conjunction with \n"
                 "                             remote capture.\n"
@@ -1612,6 +1631,193 @@ finish:
     kismet_external__command__free_unpacked(kds_cmd, NULL);
 
     return cbret;
+}
+
+int cf_handler_remote_server(kis_capture_handler_t *caph) {
+    struct sockaddr_in serv_sock;
+
+    struct sockaddr_in client_addr;
+#ifdef HAVE_SOCKLEN_T
+    socklen_t client_len;
+#else
+    int client_len;
+#endif
+
+    fd_set rset;
+    int max_fd;
+
+    int ret;
+
+    char msgstr[STATUS_MAX];
+    char *uuid = NULL;
+    int cbret;
+
+    cf_params_interface_t *cpi;
+    cf_params_spectrum_t *cps;
+
+    /* If we have nothing to connect to... */
+    if (caph->remote_host == NULL)
+        return 0;
+
+    /* Close the fd if it's open */
+    if (caph->tcp_fd >= 0) {
+        close(caph->tcp_fd);
+        caph->tcp_fd = -1;
+    }
+
+    /* Reset the last ping */
+    caph->last_ping = time(0);
+
+    /* Reset spindown */
+    caph->spindown = 0;
+
+    /* Clear the buffers */
+    kis_simple_ringbuf_clear(caph->in_ringbuf);
+    kis_simple_ringbuf_clear(caph->out_ringbuf);
+
+    /* Perform a local probe on the source to see if it's valid */
+    msgstr[0] = 0;
+
+    cpi = NULL;
+    cps = NULL;
+
+    if (caph->probe_cb == NULL) {
+        fprintf(stderr, "FATAL - unable to connect as remote source when no probe callback "
+                "provided.\n");
+        return -1;
+    }
+
+    cbret = (*(caph->probe_cb))(caph, 0, caph->cli_sourcedef, msgstr, &uuid, 
+            NULL, &cpi, &cps);
+
+    if (cpi != NULL)
+        cf_params_interface_free(cpi);
+
+    if (cps != NULL)
+        cf_params_spectrum_free(cps);
+
+    if (cbret <= 0) {
+        fprintf(stderr, "FATAL - Could not probe local source prior to connecting to the "
+                "remote host: %s\n", msgstr);
+
+        if (uuid)
+            free(uuid);
+    
+        return -1;
+    }
+
+    memset(&serv_sock, 0, sizeof(serv_sock));
+    serv_sock.sin_family = AF_INET;
+    serv_sock.sin_port = htons(caph->remote_port);
+
+    if (strcmp(caph->remote_host, "*") == 0) {
+        serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    } else if (inet_pton(AF_INET, caph->remote_host, &(serv_sock.sin_addr.s_addr)) == 0) {
+        fprintf(stderr, "FATAL - unable to resolve '%s' as bind address, use '*:port' to bind to all interfaces.\n", caph->remote_host);
+        return -1;
+    }
+
+#ifdef SOCK_CLOEXEC
+    if ((caph->listen_fd = socket(AF_INET, SOCK_CLOEXEC | SOCK_STREAM, 0)) < 0) {
+        fprintf(stderr, "FATAL - unable to create listening socket: %s\n", strerror(errno));
+        return -1;
+    }
+#else
+    if ((caph->listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        fprintf(stderr, "FATAL - unable to create listening socket: %s\n", strerror(errno));
+        return -1;
+    }
+    fcntl(caph->listen_fd, F_SETFL, fcntl(caph->listen_fd, F_GETFL, 0) | O_CLOEXEC);
+#endif
+
+    int i = 2;
+    if (setsockopt(caph->listen_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) == -1) {
+        fprintf(stderr, "FATAL - Unable to set options on server socket: %s\n", strerror(errno));
+        close(caph->listen_fd);
+        return -1;
+    }
+
+    if (bind(caph->listen_fd, (struct sockaddr *) &serv_sock, sizeof(serv_sock)) < 0) {
+        fprintf(stderr, "FATAL - Unable to bind server socket: %s\n", strerror(errno));
+        close(caph->listen_fd);
+        return -1;
+    }
+
+    // Enable listening, with a small queue
+    if (listen(caph->listen_fd, 5) < 0) {
+        fprintf(stderr, "FATAL - Unable to listen on server socket: %s\n", strerror(errno));
+        close(caph->listen_fd);
+        return -1;
+    }
+
+    // Set it to nonblocking 
+    fcntl(caph->listen_fd, F_SETFL, fcntl(caph->listen_fd, F_GETFL, 0) | O_NONBLOCK);
+
+    // Wait for a connection
+    fprintf(stderr, "INFO - Waiting for incoming remote connection...\n");
+
+    while (1) {
+        FD_ZERO(&rset);
+        FD_SET(caph->listen_fd, &rset);
+        max_fd = caph->listen_fd;
+
+        if ((ret = select(max_fd + 1, &rset, NULL, NULL, NULL)) < 0) {
+            if (errno != EINTR && errno != EAGAIN) {
+                fprintf(stderr, "FATAL:  Error during remote setup select(): %s\n", strerror(errno));
+                break;
+            }
+        }
+
+        if (ret == 0)
+            continue;
+
+        if (FD_ISSET(caph->listen_fd, &rset)) {
+            memset(&client_addr, 0, sizeof(struct sockaddr_in));
+            client_len = sizeof(struct sockaddr_in);
+
+#ifdef SOCK_CLOEXEC
+            if ((caph->tcp_fd = accept4(caph->listen_fd, (struct sockaddr *) &client_addr, &client_len, SOCK_CLOEXEC)) < 0) {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                    fprintf(stderr, "FATAL:  Remote TCP server accept() failed: %s\n", strerror(errno));
+                    close(caph->listen_fd);
+                    return -1;
+                }
+
+                continue;
+            }
+#else
+            if ((caph->tcp_fd = accept(caph->listen_fd, (struct sockaddr *) &client_addr, &client_len)) < 0) {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                    fprintf(stderr, "FATAL: remote TCP server accept() failed: %s\n", strerror(errno));
+                    close(caph->listen_fd);
+                    return -1;
+                }
+
+                continue;
+            }
+
+            fcntl(caph->tcp_fd, F_SETFL, fcntl(caph->tcp_fd, F_GETFL, 0) | O_CLOEXEC);
+#endif
+
+        }
+    }
+
+    fcntl(caph->tcp_fd, F_SETFL, fcntl(caph->tcp_fd, F_GETFL, 0) | O_NONBLOCK);
+
+    /* Close the server because we only allow one connection; in the future this might
+     * be an opportunity to define an error message and return that.
+     */
+    close(caph->listen_fd);
+
+    fprintf(stderr, "INFO - Accepting connection from '%s'\n", inet_ntoa(client_addr.sin_addr));
+
+    /* Send the NEWSOURCE command to the Kismet server */
+    cf_send_newsource(caph, uuid);
+
+    if (uuid)
+        free(uuid);
+
+    return 1;
 }
 
 int cf_handler_remote_connect(kis_capture_handler_t *caph) {
@@ -2901,7 +3107,11 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
             }
         } else {
             /* Initiate a TCP connection, fail if we can't establish it */
-            if (cf_handler_remote_connect(caph) < 1) {
+            if (caph->reverse_server) {
+                if (cf_handler_remote_server(caph) < 1) {
+                    exit(1);
+                } 
+            } else if (cf_handler_remote_connect(caph) < 1) {
                 exit(1);
             }
 
