@@ -329,6 +329,7 @@ int Usage(char *argv) {
 }
 
 // Libbackward termination handler
+std::mutex backward_dump_mutex;
 void TerminationHandler() {
     signal(SIGKILL, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
@@ -337,13 +338,17 @@ void TerminationHandler() {
     signal(SIGCHLD, SIG_DFL);
     signal(SIGSEGV, SIG_DFL);
 
+    backward_dump_mutex.lock();
+
     std::exception_ptr exc = std::current_exception();
+    std::exception last_exception;
 
     try {
         if (exc) {
             std::rethrow_exception(exc);
         }
     } catch(const std::exception& e) {
+        last_exception = e;
         std::cout << "Uncaught exception \"" << e.what() << "\"\n";
     }
 
@@ -352,6 +357,10 @@ void TerminationHandler() {
     StackTrace st; st.load_here(32);
     Printer p; p.print(st);
 #endif
+
+    std::cout << "Uncaught exception \"" << last_exception.what() << "\"\n";
+
+    backward_dump_mutex.unlock();
 
     std::abort();
 }
