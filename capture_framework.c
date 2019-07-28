@@ -1245,6 +1245,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         fprintf(stderr, "FATAL: Invalid frame header received\n");
         return -1;
     }
@@ -1254,11 +1255,13 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     total_sz = packet_sz + sizeof(kismet_external_frame_t);
 
     if (total_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         fprintf(stderr, "FATAL: Incoming packet too large for ringbuf\n");
         return -1;
     }
 
     if (rb_available < total_sz) {
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         return 0;
     }
 
@@ -1282,9 +1285,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
     data_checksum = ntohl(external_frame->data_checksum);
 
     if (calc_checksum != data_checksum) {
-        fprintf(stderr, "DEBUG - C - Checksum %x calced %x len %u\n", calc_checksum, data_checksum, packet_sz);
+        // fprintf(stderr, "DEBUG - C - Checksum %x calced %x len %u\n", calc_checksum, data_checksum, packet_sz);
         fprintf(stderr, "FATAL:  Invalid frame received, checksum does not match\n");
-        free(frame_buf);
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         return -1;
     }
 
@@ -1293,7 +1296,7 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
 
     if (kds_cmd == NULL) {
         fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack command\n");
-        free(frame_buf);
+        kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
         return -1;
     }
 
