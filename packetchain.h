@@ -161,7 +161,6 @@ protected:
     std::mutex packetqueue_cv_mutex;
     std::condition_variable packetqueue_cv;
 
-    conditional_locker<int> packet_condition;
     std::queue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
 

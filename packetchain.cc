@@ -59,9 +59,6 @@ Packetchain::Packetchain() {
 
     packetchain_shutdown = false;
 
-    // Lock the packet conditional
-    packet_condition.lock();
-
     for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
         packet_threads.push_back(std::thread([this, i]() { 
             thread_set_process_name("packethandler");
@@ -336,9 +333,6 @@ void Packetchain::packet_queue_processor(int slot_number) {
 
         // No packets; fall through to blocking until we have them
         lock.lock();
-
-        // Block until something pokes the conditional locker
-        packet_condition.block_until();
     }
 }
 
