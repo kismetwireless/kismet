@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,7 +21,11 @@
 
 #include "config.h"
 
+#include <queue>
+#include <thread>
 #include <vector>
+
+#include <sys/time.h>
 
 #include "kis_mutex.h"
 #include "globalregistry.h"
@@ -85,11 +89,41 @@ public:
     int ProcessPollableSelect(fd_set rset, fd_set wset);
 
 protected:
+    void poll_queue_processor(int slot_number);
+
     kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
 
     std::vector<std::shared_ptr<Pollable>> pollable_vec;
+
     std::vector<std::shared_ptr<Pollable>> add_vec;
     std::map<std::shared_ptr<Pollable>, int> remove_map;
+
+    class pollable_event {
+    public:
+        pollable_event(fd_set in_rset, fd_set in_wset, std::shared_ptr<Pollable> in_pollable) :
+            rset {in_rset},
+            wset {in_wset},
+            pollable {in_pollable} { }
+
+        fd_set rset, wset;
+        std::shared_ptr<Pollable> pollable;
+    };
+
+    std::queue<pollable_event> pollable_queue;
+    bool pollable_shutdown;
+
+    std::vector<std::thread> pollable_threads;
+
+    // Poll notification cv
+    std::mutex pollqueue_cv_mutex;
+    std::condition_variable pollqueue_cv;
+
+    // We don't need as complex a synchronization method because we don't modify
+    // ta callback chain like we do for the packet chain; we just don't dispatch 
+    // a pollable.  Pollable items should engage a mutex during poll so it shouldn't
+    // be a problem to just remove them from the main pollable vector through
+    // the normal method of placing it into a queue that gets cleaned up by the 
+    // maintenance cycle
 
 };
 
