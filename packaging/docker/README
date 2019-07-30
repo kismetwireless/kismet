@@ -6,22 +6,15 @@
 
 - BUILDING A DOCKER IMAGE -
 
-    To compile a docker image of Kismet:
-        $ docker build -t kismet-git .
+    To compile a docker image of Kismet (run from project root):
+        $ docker build -t kismet-git -f packaging/docker/Dockerfile .
     
     This will pull an Ubuntu 16.04, the required dependencies, the 
     latest Kismet git, and build an image named 'kismet-git'.
 
-    By default, the script 'build-kismet.sh' is copied into the docker
-    and run for compiling Kismet; this script checks out the git repo,
-    runs configure, and make.
-
     The script uses the 'nproc' program to set a parallel compile flag;
     if your system does not have enough RAM to compile Kismet on
-    all your cores, comment out or hardcode a smaller value in 'build-kismet.sh'
-    on the line:
-
-    NPROCS="-j $(nproc)"
+    all your cores, hard code the value on line 38 of the Dockerfile.
 
 - CONFIGURING KISMET -
 
