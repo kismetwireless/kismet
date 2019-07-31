@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -20,23 +20,11 @@
 #include "pollable.h"
 
 PollableTracker::PollableTracker() {
-    pollable_shutdown = false;
 
-    for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
-        pollable_threads.push_back(std::thread([this, i]() {
-            thread_set_process_name("pollhandler");
-            poll_queue_processor(i);
-        }));
-    }
 }
 
 PollableTracker::~PollableTracker() {
-    // Cancel, wake up, and collect all the service threads
-    pollable_shutdown = true;
-    pollqueue_cv.notify_all();
 
-    for (auto& t : pollable_threads)
-        t.join();
 }
 
 void PollableTracker::RegisterPollable(std::shared_ptr<Pollable> in_pollable) {
@@ -69,39 +57,6 @@ void PollableTracker::Maintenance() {
 
     remove_map.clear();
     add_vec.clear();
-}
-
-void PollableTracker::poll_queue_processor(int slot_number) {
-    std::unique_lock<std::mutex> lock(pollqueue_cv_mutex);
-
-    // We only monitor our own shutdown and global complete; we need to continue doing
-    // IO to do a graceful spindown
-    while (!pollable_shutdown &&
-            !Globalreg::globalreg->complete) {
-
-        pollqueue_cv.wait(lock, [this] {
-            return (pollable_queue.size() || pollable_shutdown);
-            });
-
-        // We own the lock; make sure to re-lock it as we leave the loop
-        
-        if (pollable_queue.size() != 0) {
-            // Get the pollable, unlock the queue
-            auto pollable = pollable_queue.front();
-            pollable_queue.pop();
-
-            lock.unlock();
-
-            // Poll
-            pollable.pollable->Poll(pollable.rset, pollable.wset);
-
-            lock.lock();
-
-            continue;
-        }
-
-        lock.lock();
-    }
 }
 
 void PollableTracker::Selectloop(bool spindown_mode) {
@@ -168,16 +123,16 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
 }
 
 int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
-    std::unique_lock<std::mutex> lock(pollqueue_cv_mutex);
+    int r;
+    int num = 0;
 
-    // Simply push all pollable events into the queue with a copy of the fd set
-    for (auto i : pollable_vec) 
-        pollable_queue.push(pollable_event(rset, wset, i));
+    for (auto i : pollable_vec) {
+        r = i->Poll(rset, wset);
 
+        if (r >= 0)
+            num++;
+    }
 
-    lock.unlock();
-    pollqueue_cv.notify_all();
-
-    return 1;
+    return num;
 }
 
