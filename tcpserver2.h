@@ -79,6 +79,8 @@ public:
 protected:
     GlobalRegistry *globalreg;
 
+    kis_recursive_timed_mutex tcp_mutex;
+
     // Perform the TCP accept
     virtual int AcceptConnection();
 

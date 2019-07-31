@@ -39,6 +39,8 @@ void TcpServerV2::SetBufferSize(unsigned int in_sz) {
 
 int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
         std::string in_bindaddress, std::vector<std::string> in_filtervec) {
+    local_locker l(&tcp_mutex);
+
     port = in_port;
     maxcli = in_maxcli;
 
@@ -130,6 +132,8 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
 }
 
 int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+    local_locker l(&tcp_mutex);
+
     int maxfd = in_max_fd;
 
     if (!valid)
@@ -167,6 +171,8 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     size_t len;
     unsigned char *buf;
     ssize_t r_sz;
+
+    local_locker l(&tcp_mutex);
 
     if (!valid)
         return -1;
@@ -300,6 +306,8 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     i->second->PeekFreeWriteBufferData(buf);
                     i->second->ConsumeWriteBufferData(ret);
                 }
+            } else {
+                i->second->PeekFreeWriteBufferData(buf);
             }
         }
     }
@@ -319,6 +327,8 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 void TcpServerV2::KillConnection(int in_fd) {
+    local_locker l(&tcp_mutex);
+
     if (in_fd < 0)
         return;
 
@@ -331,6 +341,8 @@ void TcpServerV2::KillConnection(int in_fd) {
 }
 
 void TcpServerV2::KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler) {
+    local_locker l(&tcp_mutex);
+
     for (auto i : handler_map) {
         if (i.second == in_handler) {
             kill_map[i.first] = i.second;
@@ -440,6 +452,8 @@ std::shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd)
 }
 
 void TcpServerV2::Shutdown() {
+    local_locker l(&tcp_mutex);
+
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
         KillConnection(i->first);
     }
