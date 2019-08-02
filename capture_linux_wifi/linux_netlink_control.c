@@ -66,6 +66,26 @@ static inline void nl_socket_free(struct nl_sock *h) {
 
 #endif
 
+#ifdef HAVE_LINUX_NETLINK
+static int nl80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err, void *arg) {
+	int *ret = (int *) arg;
+	*ret = err->error;
+	return NL_STOP;
+}
+
+static int nl80211_finish_cb(struct nl_msg *msg, void *arg) {
+	int *ret = (int *) arg;
+	*ret = 0;
+	return NL_SKIP;
+}
+
+static int nl80211_ack_cb(struct nl_msg *msg, void *arg) {
+    int *ret = arg;
+    *ret = 0;
+    return NL_STOP;
+}
+#endif
+
 unsigned int mac80211_chan_to_freq(unsigned int in_chan) {
     /* 802.11 channels to frequency; if it looks like a frequency, return as
      * pure frequency; derived from iwconfig */
@@ -427,6 +447,107 @@ int mac80211_set_frequency(const char *interface,
 #endif
 }
 
+#ifdef HAVE_LINUX_NETLINK
+/* Filled in by the freqget callback */
+struct nl80211_freq_cb_data {
+    unsigned int *control_freq;
+    unsigned int *chan_width;
+    unsigned int *chan_type;
+    unsigned int *center_freq1;
+    unsigned int *center_freq2;
+    char *errstr;
+};
+
+static int nl80211_freqget_cb(struct nl_msg *msg, void *arg) {
+    struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+    struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+    struct nl80211_freq_cb_data *cb = (struct nl80211_freq_cb_data *) arg;
+
+    nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+    if (tb_msg[NL80211_ATTR_WIPHY_FREQ]) {
+        uint32_t freq = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_FREQ]);
+
+        *(cb->control_freq) = freq;
+
+        if (tb_msg[NL80211_ATTR_CHANNEL_WIDTH]) {
+            *(cb->chan_width) = nla_get_u32(tb_msg[NL80211_ATTR_CHANNEL_WIDTH]);
+
+            if (tb_msg[NL80211_ATTR_CENTER_FREQ1])
+                *(cb->center_freq1) = nla_get_u32(tb_msg[NL80211_ATTR_CENTER_FREQ1]);
+
+            if (tb_msg[NL80211_ATTR_CENTER_FREQ2])
+                *(cb->center_freq2) = nla_get_u32(tb_msg[NL80211_ATTR_CENTER_FREQ2]);
+
+        } else if (tb_msg[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
+            *(cb->chan_type) = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+        }
+    }
+
+    return 0;
+}
+
+#endif
+
+int mac80211_get_frequency_cache(int ifidx, void *nl_sock, int nl80211_id,
+        unsigned int *control_freq, unsigned int *chan_type, 
+        unsigned int *chan_width, unsigned int *center_freq1,
+        unsigned int *center_freq2, char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+			 "support, check the output of ./configure for why");
+    return -1;
+#else
+    struct nl80211_freq_cb_data cb_data;
+    struct nl_msg *msg;
+    struct nl_cb *cb;
+    int err = 1;
+
+    cb_data.control_freq = control_freq;
+    cb_data.chan_type = chan_type;
+    cb_data.chan_width = chan_width;
+    cb_data.center_freq1 = center_freq1;
+    cb_data.center_freq2 = center_freq2;
+    cb_data.errstr = errstr;
+
+    if ((msg = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to get frequency: unable to allocate mac80211 control message.");
+        return -1;
+    }
+
+    cb = nl_cb_alloc(NL_CB_DEFAULT);
+
+    err = 1;
+
+    nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nl80211_freqget_cb, &cb_data);
+	nl_cb_set(cb, NL_CB_ACK, NL_CB_CUSTOM, nl80211_ack_cb, &err);
+    nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
+    nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
+
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_GET_INTERFACE, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifidx);
+
+    if (nl_send_auto_complete((struct nl_sock *) nl_sock, msg) < 0) {
+nla_put_failure:
+        snprintf(errstr, STATUS_MAX, 
+                "getting frequency failed failed to failed to write netlink command");
+        nlmsg_free(msg);
+        nl_cb_put(cb);
+        return -1;
+    }
+
+    while (err)
+        nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+
+    nl_cb_put(cb);
+    nlmsg_free(msg);
+
+    return 1;
+#endif
+}
+
 struct nl80211_channel_list {
     char *channel;
     struct nl80211_channel_list *next;
@@ -622,26 +743,6 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
     }
 
     return NL_SKIP;
-}
-#endif
-
-#ifdef HAVE_LINUX_NETLINK
-static int nl80211_error_cb(struct sockaddr_nl *nla, struct nlmsgerr *err, void *arg) {
-	int *ret = (int *) arg;
-	*ret = err->error;
-	return NL_STOP;
-}
-
-static int nl80211_finish_cb(struct nl_msg *msg, void *arg) {
-	int *ret = (int *) arg;
-	*ret = 0;
-	return NL_SKIP;
-}
-
-static int nl80211_ack_cb(struct nl_msg *msg, void *arg) {
-    int *ret = arg;
-    *ret = 0;
-    return NL_STOP;
 }
 #endif
 
