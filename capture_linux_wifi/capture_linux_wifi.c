@@ -95,6 +95,7 @@ typedef struct {
 
     char *interface;
     char *cap_interface;
+    char *name;
 
     int datalink_type;
     int override_dlt;
@@ -125,6 +126,14 @@ typedef struct {
 
     /* Do we spam verbose errors, like long channel set intervals? */
     int verbose_diagnostics;
+
+    /* Do we spam statistics? */
+    int verbose_statistics;
+
+    /* Last 100 ns channel set timings */
+    unsigned long channel_set_ns_avg;
+    unsigned int channel_set_ns_count;
+
 } local_wifi_t;
 
 /* Linux Wi-Fi Channels:
@@ -344,6 +353,7 @@ int find_next_ifnum(const char *basename) {
 /* Convert a string into a local interpretation; allocate ret_localchan.
  */
 void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
     local_channel_t *ret_localchan;
     unsigned int parsechan, parse_center1;
     char parsetype[16];
@@ -388,9 +398,9 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
                             wifi_ht_channels[ci].freq == parsechan) {
 
                         if ((wifi_ht_channels[ci].flags & WIFI_HT_HT40MINUS) == 0) {
-                            snprintf(errstr, STATUS_MAX, "requested channel %u as a HT40- "
+                            snprintf(errstr, STATUS_MAX, "%s requested channel %u as a HT40- "
                                     "channel; this does not appear to be a valid channel "
-                                    "for 40MHz operation.", parsechan);
+                                    "for 40MHz operation.", local_wifi->name, parsechan);
                             cf_send_message(caph, errstr, MSGFLAG_INFO);
                         }
 
@@ -661,10 +671,25 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                 channel->control_freq, errstr);
         time_diff = ns_measure_timer_stop(chanset_start_tm);
 
+        if (local_wifi->verbose_statistics) {
+            local_wifi->channel_set_ns_avg += time_diff;
+            local_wifi->channel_set_ns_count++;
+
+            if (local_wifi->channel_set_ns_count >= 100) {
+                snprintf(msg, STATUS_MAX, "%s %s/%s average channel set time: %lunS",
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface, 
+                        local_wifi->channel_set_ns_avg / local_wifi->channel_set_ns_count);
+                cf_send_message(caph, msg, MSGFLAG_INFO);
+                local_wifi->channel_set_ns_avg = 0;
+                local_wifi->channel_set_ns_count = 0;
+            }
+        }
+
         if (local_wifi->verbose_diagnostics && time_diff > (long) 1e8) {
             local_channel_to_str(channel, chanstr);
-            snprintf(msg, STATUS_MAX, "Setting channel %s took longer than 100000uS; this is not "
-                    "an error but may indicate kernel or bus contention.", chanstr);
+            snprintf(msg, STATUS_MAX, "%s %s/%s setting channel %s took longer than 100000uS; this is not "
+                    "an error but may indicate kernel or bus contention.", 
+                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface, chanstr);
             cf_send_message(caph, msg, MSGFLAG_ERROR);
         }
 
@@ -734,10 +759,27 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
         time_diff = ns_measure_timer_stop(chanset_start_tm);
 
+        if (local_wifi->verbose_statistics) {
+            local_wifi->channel_set_ns_avg += time_diff;
+            local_wifi->channel_set_ns_count++;
+
+            if (local_wifi->channel_set_ns_count >= 100) {
+                snprintf(msg, STATUS_MAX, "%s %s/%s average channel set time: %lunS",
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface, 
+                        local_wifi->channel_set_ns_avg / local_wifi->channel_set_ns_count);
+                cf_send_message(caph, msg, MSGFLAG_INFO);
+                local_wifi->channel_set_ns_avg = 0;
+                local_wifi->channel_set_ns_count = 0;
+            }
+        }
+
+
         if (local_wifi->verbose_diagnostics && time_diff > (long) 1e8) {
             local_channel_to_str(channel, chanstr);
-            snprintf(msg, STATUS_MAX, "Setting channel %s took longer than 100000uS; this is not "
-                    "an error but may indicate kernel or bus contention.", chanstr);
+            snprintf(msg, STATUS_MAX, "%s %s/%s setting channel %s took longer than 100000uS; this is not "
+                    "an error but may indicate kernel or bus contention.", 
+                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface, 
+                    chanstr);
             cf_send_message(caph, msg, MSGFLAG_ERROR);
         }
 
@@ -750,8 +792,10 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             if (local_wifi->seq_channel_failure < 10) {
                 if (local_wifi->verbose_diagnostics && seqno == 0) {
                     local_channel_to_str(channel, chanstr);
-                    snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
-                            "and continuing (%s)", chanstr, errstr);
+                    snprintf(msg, STATUS_MAX, "%s %s/%s could not set channel %s; ignoring error "
+                            "and continuing (%s)", 
+                            local_wifi->name, local_wifi->interface, local_wifi->cap_interface, 
+                            chanstr, errstr);
                     cf_send_message(caph, msg, MSGFLAG_ERROR);
                 }
 
@@ -978,6 +1022,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_wifi->cap_interface = NULL;
     }
 
+    if (local_wifi->name) {
+        free(local_wifi->name);
+        local_wifi->name = NULL;
+    }
+
     if (local_wifi->mac80211_socket) {
         mac80211_disconnect(local_wifi->mac80211_socket);
         local_wifi->mac80211_socket = NULL;
@@ -997,13 +1046,30 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_wifi->interface = strndup(placeholder, placeholder_len);
 
-    /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "name", definition)) > 0) {
+        local_wifi->name = strndup(placeholder, placeholder_len);
+    } else {
+        local_wifi->name = strdup(local_wifi->interface);
+    }
+
+    /* Do we use verbose diagnostics? */
     if ((placeholder_len = 
                 cf_find_flag(&placeholder, "verbose", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
             local_wifi->verbose_diagnostics = 0;
         } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
             local_wifi->verbose_diagnostics = 1;
+        }
+    }
+
+    /* Do we use extremely verbose statistics? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "statistics", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            local_wifi->verbose_statistics = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            local_wifi->verbose_statistics = 1;
         }
     }
 
@@ -1337,8 +1403,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if (mac80211_create_monitor_vif(local_wifi->interface,
                     local_wifi->cap_interface, flags, num_flags, errstr) < 0) {
             /* Send an error message */
-            snprintf(errstr2, STATUS_MAX, "Failed to create monitor vif interface '%s' "
-                    "for interface '%s': %s", local_wifi->cap_interface,
+            snprintf(errstr2, STATUS_MAX, "%s failed to create monitor vif interface '%s' "
+                    "for interface '%s': %s", 
+                    local_wifi->name, local_wifi->cap_interface,
                     local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
@@ -1390,8 +1457,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
                 if (iwconfig_set_mode(local_wifi->interface, errstr, 
                             LINUX_WLEXT_MONITOR) < 0) {
-                    snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
-                            "mode: %s", local_wifi->interface, errstr);
+                    snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor "
+                            "mode: %s", 
+                            local_wifi->name, local_wifi->interface, errstr);
                     cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
                     /* We've failed at everything */
@@ -1403,9 +1471,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
                     return -1;
                 } else {
-                    snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
+                    snprintf(errstr2, STATUS_MAX, "%s configured '%s' as monitor mode "
                             "interface instead of using a monitor vif; will continue using "
-                            "this interface as the capture source.", local_wifi->interface);
+                            "this interface as the capture source.", 
+                            local_wifi->name, local_wifi->interface);
                     cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
                     local_wifi->use_mac80211_vif = 0;
@@ -1458,8 +1527,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
             /* Otherwise we're some sort of non-vif wext? */
-            snprintf(errstr2, STATUS_MAX, "Failed to put interface '%s' in monitor "
-                    "mode: %s", local_wifi->interface, errstr);
+            snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor "
+                    "mode: %s", local_wifi->cap_interface, local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
             /* We've failed at everything */
@@ -1467,9 +1536,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     "unable to put '%s' into monitor mode.", local_wifi->interface);
             return -1;
         } else {
-            snprintf(errstr2, STATUS_MAX, "Configured '%s' as monitor mode "
+            snprintf(errstr2, STATUS_MAX, "%s configured '%s' as monitor mode "
                     "interface instead of using a monitor vif",
-                    local_wifi->interface);
+                    local_wifi->cap_interface, local_wifi->interface);
             cf_send_message(caph, errstr2, MSGFLAG_INFO);
         }
     } else {
@@ -1501,17 +1570,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                         definition)) > 0) {
             if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
                 snprintf(errstr, STATUS_MAX,
-                        "Source '%s' ignoring state of primary interface and "
+                        "%s %s/%s ignoring state of primary interface and "
                         "leaving it in an 'up' state; this may cause problems "
-                        "with channel hopping.", local_wifi->interface);
+                        "with channel hopping.", 
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
                 cf_send_message(caph, errstr, MSGFLAG_INFO);
                 ign_primary = 1;
             }
         }
 
         if (!ign_primary) {
-            snprintf(errstr2, STATUS_MAX, "Bringing down parent interface '%s'",
-                    local_wifi->interface);
+            snprintf(errstr2, STATUS_MAX, "%s bringing down parent interface '%s'",
+                    local_wifi->name, local_wifi->interface);
             cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
             if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
@@ -1547,10 +1617,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
 
         if (local_wifi->reset_nm_management) {
-            snprintf(errstr, STATUS_MAX, "Telling NetworkManager not to control "
+            snprintf(errstr, STATUS_MAX, "%s telling NetworkManager not to control "
                     "interface '%s': you may need to re-initialize this interface "
                     "later or tell NetworkManager to control it again via 'nmcli'",
-                    local_wifi->interface);
+                    local_wifi->name, local_wifi->interface);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             nm_device_set_managed(nmdevice, 0);
         }
@@ -1567,9 +1637,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Bring up the cap interface no matter what */
     if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
-        snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
+        snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                 "check 'dmesg' for possible errors while loading firmware: %s",
-                local_wifi->cap_interface, errstr);
+                local_wifi->name, local_wifi->cap_interface, errstr);
         return -1;
     }
 
@@ -1684,8 +1754,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_channel_to_str(localchan, errstr);
         (*ret_interface)->chanset = strdup(errstr);
 
-        snprintf(errstr, STATUS_MAX, "Setting initial channel to %s", 
-                (*ret_interface)->chanset);
+        snprintf(errstr, STATUS_MAX, "%s setting initial channel to %s", 
+                local_wifi->name, (*ret_interface)->chanset);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
 
         if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
@@ -1852,6 +1922,7 @@ int main(int argc, char *argv[]) {
         .pd = NULL,
         .interface = NULL,
         .cap_interface = NULL,
+        .name = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
         .use_mac80211_vif = 1,
@@ -1862,7 +1933,10 @@ int main(int argc, char *argv[]) {
         .seq_channel_failure = 0,
         .reset_nm_management = 0,
         .nexmon = NULL,
-        .verbose_diagnostics = 0
+        .verbose_diagnostics = 0,
+        .verbose_statistics = 0,
+        .channel_set_ns_avg = 0,
+        .channel_set_ns_count = 0,
     };
 
 #ifdef HAVE_LIBNM
