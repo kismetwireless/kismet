@@ -773,7 +773,37 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
         time_diff = ns_measure_timer_stop(chanset_start_tm);
 
-        if (local_wifi->verbose_statistics) {
+        if (r >= 0 && local_wifi->verbose_statistics) {
+            int count = 0;
+
+            while (count < 1000) {
+                unsigned int control_freq = 0, 
+                             chan_type = 0, 
+                             chan_width = 0, 
+                             center_freq1 = 0, 
+                             center_freq2 = 0;
+                int check_r = 0;
+
+                count++;
+
+                check_r = mac80211_get_frequency_cache(local_wifi->mac80211_ifidx,
+                        local_wifi->mac80211_socket, local_wifi->mac80211_id,
+                        &control_freq, &chan_type, &chan_width, &center_freq1, &center_freq2,
+                        errstr);
+
+                if (channel->chan_width == 0 && control_freq == channel->control_freq && chan_type == channel->chan_type)
+                    break;
+                else if (channel->chan_width != 0 && control_freq == channel->control_freq && chan_width == channel->chan_width &&
+                        center_freq1 == channel->center_freq1 && center_freq2 == channel->center_freq2)
+                    break;
+            }
+
+            if (count >= 1000) 
+                snprintf(msg, STATUS_MAX, "%s %s/%s couldn't confirm channel set in 1000 checks.\n",
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+
+            time_diff = ns_measure_timer_stop(chanset_start_tm);
+
             local_wifi->channel_set_ns_avg += time_diff;
             local_wifi->channel_set_ns_count++;
 
