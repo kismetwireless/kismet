@@ -707,8 +707,10 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             if (local_wifi->seq_channel_failure < 10) {
                 if (seqno == 0 && local_wifi->verbose_diagnostics) {
                     local_channel_to_str(channel, chanstr);
-                    snprintf(msg, STATUS_MAX, "Could not set channel %s; ignoring error "
-                            "and continuing (%s)", chanstr, errstr);
+                    snprintf(msg, STATUS_MAX, "%s %s/%s could not set channel %s; ignoring error "
+                            "and continuing (%s)", 
+                            local_wifi->name, local_wifi->interface, local_wifi->cap_interface,
+                            chanstr, errstr);
                     cf_send_message(caph, msg, MSGFLAG_ERROR);
                 }
                 return 0;
@@ -1117,68 +1119,69 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Look up the driver and set any special attributes */
     if (strcmp(driver, "8812au") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the 8812au driver, "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the 8812au driver, "
                 "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
                 "creation but retaining mac80211 channel controls.", 
-                local_wifi->interface);
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "8814au") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the 8814au driver, "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the 8814au driver, "
                 "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
                 "creation but retaining mac80211 channel controls.", 
-                local_wifi->interface);
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "rtl88xxau") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the rtl88xxau driver, "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88xxau driver, "
                 "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
                 "creation but retaining mac80211 channel controls.",
-                local_wifi->interface);
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "rtl8812au") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the rtl8812au driver, "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl8812au driver, "
                 "these drivers have been very unreliable and typically will not properly "
                 "configure monitor mode.  We'll continue to try, but expect an error "
                 "when configuring monitor mode in the next step.  You may have better "
                 "luck with the drivers from https://github.com/aircrack-ng/rtl8812au",
-                local_wifi->interface);
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "rtl8814au") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the rtl8814au driver, "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl8814au driver, "
                 "these drivers have been very unreliable and typically will not properly "
                 "configure monitor mode.  We'll continue to try, but expect an error "
                 "when configuring monitor mode in the next step.  You may have better "
                 "luck with the drivers from https://github.com/aircrack-ng/rtl8812au",
-                local_wifi->interface);
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "ath10k_pci") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks to use the ath10k_pci "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the ath10k_pci "
                 "driver, which is known to report large numbers of invalid packets. "
                 "Kismet will attempt to filter these but it is not possible to "
                 "cleanly filter all of them; you may see large quantities of spurious "
-                "networks.", local_wifi->interface);
+                "networks.", 
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
     } else if (strcmp(driver, "brcmfmac") == 0 ||
             strcmp(driver, "brcmfmac_sdio") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like it is a Broadcom "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks like it is a Broadcom "
                 "binary driver found in the Raspberry Pi and some Android devices; "
                 "this will ONLY work with the nexmon patches",
-                local_wifi->interface);
+                local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
     } else if (strcmp(driver, "iwlwifi") == 0) {
-        snprintf(errstr, STATUS_MAX, "Interface '%s' looks like an Intel iwlwifi device; under "
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks like an Intel iwlwifi device; under "
                 "some driver and firmware versions these have shown significant problems tuning to "
                 "HT and VHT channels, with firmware and driver crashes.  Newer kernels seem to solve "
                 "this problem; if you're on an older version, set htchannels=false,vhtchannels=false "
-                "in your source definition.", local_wifi->interface);
+                "in your source definition.", local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
     }
 
