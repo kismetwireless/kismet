@@ -200,8 +200,12 @@ long ns_measure_timer_stop(struct timespec start) {
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
 
     long diff =
-        (start.tv_sec - end.tv_sec) * (long) 1e9 +
-        (end.tv_nsec - start.tv_nsec);
+        (start.tv_sec - end.tv_sec) * (long) 1e9;
+
+    if (end.tv_nsec > start.tv_nsec)
+        diff += (end.tv_nsec - start.tv_nsec);
+    else
+        diff += (start.tv_nsec - end.tv_nsec);
 
     return diff;
 }
