@@ -138,6 +138,8 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
         packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
                 CHAINPOS_LOGGING, -100);
+    } else {
+        _MSG_INFO("Packets will not be saved to the Kismet database log.");
     }
    
     packet_timeout =
