@@ -846,7 +846,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
                 return 0;
             } else {
                 local_channel_to_str(channel, chanstr);
-                snprintf(msg, STATUS_MAX, "failed to set channel %s: %s", 
+                snprintf(msg, STATUS_MAX, "%s %s/%s failed to set channel %s: %s", 
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface, 
                         chanstr, errstr);
 
                 if (seqno == 0) {
@@ -1137,12 +1138,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* if we're soft rfkilled, unkill us */
     if (linux_sys_get_rfkill(local_wifi->interface, LINUX_RFKILL_TYPE_SOFT) == 1) {
         if (linux_sys_clear_rfkill(local_wifi->interface) < 0) {
-            snprintf(msg, STATUS_MAX, "Unable to activate interface '%s' set to "
-                    "soft rfkill", local_wifi->interface);
+            snprintf(msg, STATUS_MAX, "%s unable to activate interface '%s' set to "
+                    "soft rfkill", 
+                    local_wifi->name, local_wifi->interface);
             return -1;
         }
-        snprintf(errstr, STATUS_MAX, "Removed soft-rfkill and enabled interface '%s'", 
-                local_wifi->interface);
+        snprintf(errstr, STATUS_MAX, "%s removed soft-rfkill and enabled interface '%s'", 
+                local_wifi->name, local_wifi->interface);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
@@ -1230,8 +1232,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
      * respond to SIOCGIWMODE */
     if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
-        snprintf(msg, STATUS_MAX, "Unable to get current wireless mode of "
-                "interface '%s': %s", local_wifi->interface, errstr);
+        snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
+                "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
         return -1;
     }
 
@@ -1244,15 +1246,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (nmclient == NULL) {
         if (nmerror != NULL) {
-            snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
+            snprintf(errstr, STATUS_MAX, "%s could not connect to NetworkManager, "
                     "cannot automatically prevent interface '%s' from being "
                     "modified if NetworkManager is running: %s",
-                    local_wifi->interface, nmerror->message);
+                    local_wifi->name, local_wifi->interface, nmerror->message);
         } else {
-            snprintf(errstr, STATUS_MAX, "Could not connect to NetworkManager, "
+            snprintf(errstr, STATUS_MAX, "%s could not connect to NetworkManager, "
                     "cannot automatically prevent interface '%s' from being "
                     "modified if NetworkManager is running.",
-                    local_wifi->interface);
+                    local_wifi->name, local_wifi->interface);
         }
 
         cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -1276,10 +1278,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_wifi->reset_nm_management = nm_device_get_managed(nmdevice);
 
         if (local_wifi->reset_nm_management) {
-            snprintf(errstr, STATUS_MAX, "Telling NetworkManager not to control "
+            snprintf(errstr, STATUS_MAX, "%s telling NetworkManager not to control "
                     "interface '%s': you may need to re-initialize this interface "
                     "later or tell NetworkManager to control it again via 'nmcli'",
-                    local_wifi->interface);
+                    local_wifi->name, local_wifi->interface);
             cf_send_message(caph, errstr, MSGFLAG_INFO);
             nm_device_set_managed(nmdevice, 0);
         }
@@ -1310,9 +1312,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 if (existing_ifnum >= 0) {
                     if (if_indextoname((unsigned int) existing_ifnum, ifnam) != NULL) {
                         local_wifi->cap_interface = strdup(ifnam);
-                        snprintf(errstr, STATUS_MAX, "Found existing monitor interface "
+                        snprintf(errstr, STATUS_MAX, "%s found existing monitor interface "
                                 "'%s' for source interface '%s'",
-                                local_wifi->cap_interface, local_wifi->interface);
+                                local_wifi->name, local_wifi->cap_interface, local_wifi->interface);
                         cf_send_message(caph, errstr, MSGFLAG_INFO);
                     }
                 }
@@ -1329,9 +1331,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 int ifnum = find_next_ifnum("kismon");
 
                 if (ifnum < 0) {
-                    snprintf(msg, STATUS_MAX, "Could not append 'mon' extension to "
+                    snprintf(msg, STATUS_MAX, "%s could not append 'mon' extension to "
                             "existing interface (%s) and could not find a kismonX "
-                            "within 100 tries", local_wifi->interface);
+                            "within 100 tries", local_wifi->name, local_wifi->interface);
                     return -1;
                 }
 
@@ -1345,11 +1347,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                  * state where NM retyped our interface or something */
                 if (iwconfig_get_mode(ifnam, errstr, &mode) >= 0) {
                     if (mode != LINUX_WLEXT_MONITOR) {
-                        snprintf(msg, STATUS_MAX, "A monitor vif already exists "
+                        snprintf(msg, STATUS_MAX, "%s a monitor vif already exists "
                                 "for interface '%s' (%s) but isn't in monitor mode, "
                                 "check that NetworkManager isn't hijacking the "
                                 "interface, delete the false monitor vif, and try "
-                                "again.", local_wifi->interface, ifnam);
+                                "again.", local_wifi->name, local_wifi->interface, ifnam);
                         return -1;
                     }
                 }
@@ -1410,8 +1412,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         if ((placeholder_len = cf_find_flag(&placeholder, "fcsfail", definition)) > 0) {
             if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
                 snprintf(errstr, STATUS_MAX,
-                        "Source '%s' configuring monitor interface to pass packets "
-                        "which fail FCS checksum", local_wifi->interface);
+                        "%s source '%s' configuring monitor interface to pass packets "
+                        "which fail FCS checksum", 
+                        local_wifi->name, local_wifi->interface);
                 cf_send_message(caph, errstr, MSGFLAG_INFO);
                 num_flags++;
                 fcs = true;
@@ -1422,8 +1425,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                         definition)) > 0) {
             if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
                 snprintf(errstr, STATUS_MAX,
-                        "Source '%s' configuring monitor interface to pass packets "
-                        "which fail PLCP checksum", local_wifi->interface);
+                        "%s source '%s' configuring monitor interface to pass packets "
+                        "which fail PLCP checksum", local_wifi->name, local_wifi->interface);
                 cf_send_message(caph, errstr, MSGFLAG_INFO);
                 num_flags++;
                 plcp = true;
@@ -1469,48 +1472,48 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->nexmon = init_nexmon(local_wifi->interface);
 
                 if (local_wifi->nexmon == NULL) {
-                    snprintf(msg, STATUS_MAX, "Interface '%s' looks like a Broadcom "
+                    snprintf(msg, STATUS_MAX, "%s interface '%s' looks like a Broadcom "
                             "embedded device but could not be initialized:  You MUST install "
                             "the nexmon patched drivers to use this device with Kismet",
-                            local_wifi->interface);
+                            local_wifi->name, local_wifi->interface);
                     return -1;
                 }
 
                 /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
                 if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
-                    snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
+                    snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                             "check 'dmesg' for possible errors while loading firmware: %s",
-                            local_wifi->cap_interface, errstr);
+                            local_wifi->name, local_wifi->cap_interface, errstr);
                     return -1;
                 }
 
                 if (nexmon_monitor(local_wifi->nexmon) < 0) {
-                    snprintf(msg, STATUS_MAX, "Could not place interface '%s' into monitor mode "
+                    snprintf(msg, STATUS_MAX, "%s could not place interface '%s' into monitor mode "
                             "via nexmon drivers; you MUST install the patched nexmon drivers to "
-                            "use embedded broadcom interfaces with Kismet", local_wifi->interface);
+                            "use embedded broadcom interfaces with Kismet", local_wifi->name, local_wifi->interface);
                     return -1;
                 }
 
             } else {
                 /* Otherwise do we look like wext? */
                 if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-                    snprintf(msg, STATUS_MAX, "Could not bring down interface "
-                            "'%s' to set monitor mode: %s", local_wifi->interface, errstr);
+                    snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                            "'%s' to set monitor mode: %s", 
+                            local_wifi->name, local_wifi->interface, errstr);
                     free(flags);
                     return -1;
                 }
 
                 if (iwconfig_set_mode(local_wifi->interface, errstr, 
                             LINUX_WLEXT_MONITOR) < 0) {
-                    snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor "
-                            "mode: %s", 
+                    snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor mode: %s", 
                             local_wifi->name, local_wifi->interface, errstr);
                     cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
                     /* We've failed at everything */
-                    snprintf(msg, STATUS_MAX, "Failed to create a monitor vif and could "
+                    snprintf(msg, STATUS_MAX, "%s failed to create a monitor vif and could "
                             "not set mode of existing interface, unable to put "
-                            "'%s' into monitor mode.", local_wifi->interface);
+                            "'%s' into monitor mode.", local_wifi->name, local_wifi->interface);
 
                     free(flags);
 
@@ -1526,8 +1529,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 }
             }
         } else {
-            snprintf(errstr2, STATUS_MAX, "Successfully created monitor interface "
-                    "'%s' for interface '%s'", local_wifi->cap_interface,
+            snprintf(errstr2, STATUS_MAX, "%s successfully created monitor interface "
+                    "'%s' for interface '%s'", local_wifi->name, local_wifi->cap_interface,
                     local_wifi->interface);
         }
 
@@ -1537,8 +1540,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         /* fprintf(stderr, "debug - bringing down cap interface %s to set mode\n", local_wifi->cap_interface); */
         if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-            snprintf(msg, STATUS_MAX, "Could not bring down interface "
-                    "'%s' to set monitor mode: %s", local_wifi->interface, errstr);
+            snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                    "'%s' to set monitor mode: %s", 
+                    local_wifi->name, local_wifi->interface, errstr);
             return -1;
         }
 
@@ -1549,51 +1553,52 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local_wifi->nexmon = init_nexmon(local_wifi->interface);
 
             if (local_wifi->nexmon == NULL) {
-                snprintf(msg, STATUS_MAX, "Interface '%s' looks like a Broadcom "
+                snprintf(msg, STATUS_MAX, "%s interface '%s' looks like a Broadcom "
                         "embedded device but could not be initialized:  You MUST install "
                         "the nexmon patched drivers to use this device with Kismet",
-                        local_wifi->interface);
+                        local_wifi->name, local_wifi->interface);
                 return -1;
             }
 
             /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
             if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
-                snprintf(msg, STATUS_MAX, "Could not bring up capture interface '%s', "
+                snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                         "check 'dmesg' for possible errors while loading firmware: %s",
-                        local_wifi->cap_interface, errstr);
+                        local_wifi->name, local_wifi->cap_interface, errstr);
                 return -1;
             }
 
             if (nexmon_monitor(local_wifi->nexmon) < 0) {
-                snprintf(msg, STATUS_MAX, "Could not place interface '%s' into monitor mode "
+                snprintf(msg, STATUS_MAX, "%s could not place interface '%s' into monitor mode "
                         "via nexmon drivers; you MUST install the patched nexmon drivers to "
-                        "use embedded broadcom interfaces with Kismet", local_wifi->interface);
+                        "use embedded broadcom interfaces with Kismet", 
+                        local_wifi->name, local_wifi->interface);
                 return -1;
             }
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
             /* Otherwise we're some sort of non-vif wext? */
-            snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor "
-                    "mode: %s", local_wifi->cap_interface, local_wifi->interface, errstr);
+            snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface '%s' in monitor mode: %s", 
+                    local_wifi->name, local_wifi->cap_interface, local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
 
             /* We've failed at everything */
-            snprintf(msg, STATUS_MAX, "Could not not set mode of existing interface, "
-                    "unable to put '%s' into monitor mode.", local_wifi->interface);
+            snprintf(msg, STATUS_MAX, "%s could not not set mode of existing interface, "
+                    "unable to put '%s' into monitor mode.", local_wifi->name, local_wifi->interface);
             return -1;
         } else {
-            snprintf(errstr2, STATUS_MAX, "%s configured '%s' as monitor mode "
+            snprintf(errstr2, STATUS_MAX, "%s %s configured '%s' as monitor mode "
                     "interface instead of using a monitor vif",
-                    local_wifi->cap_interface, local_wifi->interface);
+                    local_wifi->name, local_wifi->cap_interface, local_wifi->interface);
             cf_send_message(caph, errstr2, MSGFLAG_INFO);
         }
     } else {
         if (strcmp(local_wifi->interface, local_wifi->cap_interface) == 0) {
-            snprintf(errstr, STATUS_MAX, "Interface '%s' is already in monitor mode",
-                    local_wifi->interface);
+            snprintf(errstr, STATUS_MAX, "%s interface '%s' is already in monitor mode",
+                    local_wifi->name, local_wifi->interface);
         } else {
-            snprintf(errstr, STATUS_MAX, "Monitor interface '%s' already exists for "
+            snprintf(errstr, STATUS_MAX, "%s monitor interface '%s' already exists for "
                     "capture interface '%s', we'll use that.",
-                    local_wifi->interface, local_wifi->cap_interface);
+                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
         }
 
         cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -1601,8 +1606,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (iwconfig_get_mode(local_wifi->cap_interface, errstr, &mode) < 0 ||
             mode != LINUX_WLEXT_MONITOR) {
-        snprintf(msg, STATUS_MAX, "Capture interface '%s' did not enter monitor "
-                "mode, something is wrong.", local_wifi->cap_interface);
+        snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
+                "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
         return -1;
     }
 
@@ -1630,9 +1635,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
             if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-                snprintf(msg, STATUS_MAX, "Could not bring down parent interface "
-                        "'%s' to capture using '%s': %s", local_wifi->interface,
-                        local_wifi->cap_interface, errstr);
+                snprintf(msg, STATUS_MAX, "%s could not bring down parent interface "
+                        "'%s' to capture using '%s': %s", 
+                        local_wifi->name, local_wifi->interface, local_wifi->cap_interface, errstr);
                 return -1;
             }
         }
@@ -1728,8 +1733,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, default_ht_20, expand_ht_20,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
-        snprintf(msg, STATUS_MAX, "Could not get list of channels from capture "
-                "interface '%s' on '%s': %s", local_wifi->cap_interface,
+        snprintf(msg, STATUS_MAX, "%s could not get list of channels from capture "
+                "interface '%s' on '%s': %s", local_wifi->name, local_wifi->cap_interface,
                 local_wifi->interface, errstr);
         return -1;
     }
@@ -1739,11 +1744,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Get the iw regdom and see if it makes sense */
     if (linux_sys_get_regdom(regdom) == 0) {
         if (strcmp(regdom, "00") == 0) {
-            snprintf(errstr, STATUS_MAX, "System-wide wireless regulatory domain "
+            snprintf(errstr, STATUS_MAX, "%s system-wide wireless regulatory domain "
                     "is set to '00'; this can cause problems setting channels.  If "
                     "you encounter problems, set the regdom with a command like "
                     "'sudo iw reg set US' or whatever country is appropriate for "
-                    "your location.");
+                    "your location.", local_wifi->name);
             cf_send_warning(caph, errstr);
         }
     }
@@ -1753,8 +1758,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             MAX_PACKET_LEN, 1, 1000, pcap_errstr);
 
     if (local_wifi->pd == NULL || strlen(pcap_errstr) != 0) {
-        snprintf(msg, STATUS_MAX, "Could not open capture interface '%s' on '%s' "
-                "as a pcap capture: %s", local_wifi->cap_interface, 
+        snprintf(msg, STATUS_MAX, "%s could not open capture interface '%s' on '%s' "
+                "as a pcap capture: %s", local_wifi->name, local_wifi->cap_interface, 
                 local_wifi->interface, pcap_errstr);
         return -1;
     }
@@ -1763,11 +1768,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *dlt = local_wifi->datalink_type;
 
     if (strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
-        snprintf(msg, STATUS_MAX, "Linux Wi-Fi capturing from monitor vif '%s' on "
-                "interface '%s'", local_wifi->cap_interface, local_wifi->interface);
+        snprintf(msg, STATUS_MAX, "%s Linux Wi-Fi capturing from monitor vif '%s' on "
+                "interface '%s'", local_wifi->name, local_wifi->cap_interface, local_wifi->interface);
     } else {
-        snprintf(msg, STATUS_MAX, "Linux Wi-Fi capturing from interface '%s'",
-                local_wifi->interface);
+        snprintf(msg, STATUS_MAX, "%s Linux Wi-Fi capturing from interface '%s'",
+                local_wifi->name, local_wifi->interface);
     }
 
     (*ret_interface)->capif = strdup(local_wifi->cap_interface);
@@ -1791,8 +1796,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (localchan == NULL) {
             snprintf(msg, STATUS_MAX, 
-                    "Could not parse channel= option provided in source "
-                    "definition");
+                    "%s %s/%s could not parse channel= option provided in source "
+                    "definition", local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
             return -1;
         }
 
@@ -1943,8 +1948,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     pcap_errstr = pcap_geterr(local_wifi->pd);
 
-    snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' closed: %s", 
-            local_wifi->cap_interface, 
+    snprintf(errstr, PCAP_ERRBUF_SIZE, "%s interface '%s' closed: %s", 
+            local_wifi->name, local_wifi->cap_interface, 
             strlen(pcap_errstr) == 0 ? "interface closed" : pcap_errstr );
 
     cf_send_error(caph, 0, errstr);
@@ -1952,10 +1957,10 @@ void capture_thread(kis_capture_handler_t *caph) {
     ifret = ifconfig_get_flags(local_wifi->cap_interface, iferrstr, &ifflags);
 
     if (ifret < 0 || !(ifflags & IFF_UP)) {
-        snprintf(errstr, PCAP_ERRBUF_SIZE, "Interface '%s' no longer appears to be up; "
+        snprintf(errstr, PCAP_ERRBUF_SIZE, "%s interface '%s' no longer appears to be up; "
                 "This can happen when it is unplugged, or another service like DHCP or "
                 "NetworKManager has taken over and shut it down on us.", 
-                local_wifi->cap_interface);
+                local_wifi->name, local_wifi->cap_interface);
         cf_send_error(caph, 0, errstr);
     }
 
