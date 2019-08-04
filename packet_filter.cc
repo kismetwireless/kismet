@@ -468,6 +468,9 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
             set_filter(m, path[3], path[4], v);
         }
 
+        stream << "set filter\n";
+        return 200;
+
     } catch (const std::exception& e) {
         stream << "Error handling request: " << e.what() << "\n";
         return 500;
@@ -511,6 +514,9 @@ unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream,
 
             remove_filter(m, path[3], path[4]);
         }
+
+        stream << "Removed filter\n";
+        return 200;
 
     } catch (const std::exception& e) {
         stream << "Error handling request: " << e.what() << "\n";

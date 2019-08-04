@@ -320,6 +320,9 @@ unsigned int ClassfilterMacaddr::edit_endp_handler(std::ostream& stream,
 			set_filter(m, path[3], v);
         }
 
+        stream << "Set filter\n";
+        return 200;
+
     } catch (const std::exception& e) {
         stream << "Error handling request: " << e.what() << "\n";
         return 500;
@@ -354,6 +357,9 @@ unsigned int ClassfilterMacaddr::remove_endp_handler(std::ostream& stream,
 			// /filters/class/[id]/[phyname]/cmd
 			remove_filter(m, path[3]);
         }
+
+        stream << "Removed filter\n";
+        return 200;
 
     } catch (const std::exception& e) {
         stream << "Error handling request: " << e.what() << "\n";
