@@ -386,6 +386,11 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "identical to the channel advertised in the beacon.  Incorrect channels "
                 "in the probe response may indicate a spoofing or 'evil twin' style attack, "
                 "but can also be indicative of a misbehaving access point or repeater.");
+    alert_qcom_extended_ref =
+        alertracker->ActivateConfiguredAlert("QCOMEXTENDED",
+                "IE 127 Extended Capabilities tags should always be 8 bytes; Some versions "
+                "of the Qualcomm drivers are vulnerable to a buffer overflow resulting in "
+                "execution on the host, as detailed in CVE-2019-10539.");
 
     // Threshold
     signal_too_loud_threshold = 

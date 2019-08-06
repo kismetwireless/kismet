@@ -492,7 +492,7 @@ protected:
         alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
-        alert_atheros_rsnloop_ref, alert_bssts_ref;
+        alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref;
 
     int signal_too_loud_threshold;
 
