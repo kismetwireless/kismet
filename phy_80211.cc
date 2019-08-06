@@ -236,8 +236,6 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     alert_dhcpclient_ref =
         alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
 #endif
-
-    // Register the tracker alerts
     alert_chan_ref =
         alertracker->ActivateConfiguredAlert("CHANCHANGE", 
                 "An access point has changed channel.  This may occur on "
@@ -391,6 +389,13 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "IE 127 Extended Capabilities tags should always be 8 bytes; Some versions "
                 "of the Qualcomm drivers are vulnerable to a buffer overflow resulting in "
                 "execution on the host, as detailed in CVE-2019-10539.");
+    alert_bad_fixlen_ie =
+        alertracker->ActivateConfiguredAlert("BADFIXLENIE",
+                "IE tags contain nested information in beacon and other management frames. "
+                "Some IE tags have constant fixed lengths; a tag advertising with the "
+                "incorrect length may indicate an attempted buffer overflow attack.  "
+                "Specific attacks have their own alerts; this indicates a general, but "
+                "otherwise unknown, malformed tag.");
 
     // Threshold
     signal_too_loud_threshold = 

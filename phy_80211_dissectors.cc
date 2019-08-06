@@ -1588,8 +1588,18 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
         // IE 3 channel
         if (ie_tag->tag_num() == 3) {
-            if (ie_tag->tag_data().length() != 1) {
-                fprintf(stderr, "debug - corrupt channel tag\n");
+            if (ie_tag->tag_len() > 1) {
+                std::string al = fmt::format("IEEE80211 packet from {0} to {1} BSSID {2} included an IE "
+                        "tag {3} entry with an invalid length; IE {3} should be {4} bytes, but was {5}. "
+                        "This may be indicative of an as-yet-unknown buffer overflow attempt against "
+                        "the Wi-Fi drivers or firmware, but could also be caused by a misconfigured device.",
+                        packinfo->source_mac, packinfo->dest_mac, packinfo->bssid_mac, 
+                        3, 1, ie_tag->tag_len());
+
+                alertracker->RaiseAlert(alert_bad_fixlen_ie, in_pack, 
+                        packinfo->bssid_mac, packinfo->source_mac, 
+                        packinfo->dest_mac, packinfo->other_mac, 
+                        packinfo->channel, al);
                 packinfo->corrupt = 1;
                 return -1;
             }
@@ -1855,11 +1865,11 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
         }
 
         if (ie_tag->tag_num() == 127) {
-            if (ie_tag->tag_len() > 8) {
+            if (ie_tag->tag_len() > 10) {
                 std::string al = fmt::format("IEEE80211 Access Point BSSID {} sent a beacon with "
                     "an invalid IE 127 Extended Capabilities tag; this may indicate attempts to "
                     "exploit Qualcomm drivers using the CVE-2019-10539 vulnerability.  Extended "
-                    "capability tags should always be 8 bytes, but saw {}.",
+                    "capability tags should have no more than 10 bytes, but saw {}.",
                     packinfo->bssid_mac, ie_tag->tag_len());
 
                 alertracker->RaiseAlert(alert_qcom_extended_ref, in_pack, 
