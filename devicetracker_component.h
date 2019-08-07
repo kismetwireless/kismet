@@ -106,8 +106,8 @@ public:
         return std::move(dup);
     }
 
-    void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd = true);
-    void append_signal(const Packinfo_Sig_Combo& in, bool update_rrd = true);
+    void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts);
+    void append_signal(const Packinfo_Sig_Combo& in, bool update_rrd, time_t rrd_ts);
 
     __ProxyGet(signal_type, std::string, std::string, signal_type);
 

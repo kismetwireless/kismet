@@ -145,144 +145,148 @@ public:
         // The hour of the day the last known data would go in
         int last_hour_bucket = (ltime / 3600) % 24;
 
+        // Allow backfilling w/in the past minute because packets might come out-of-order
         if (in_time < ltime) {
-            // printf("debug - rrd - timewarp to the past?  discard\n");
-            return;
-        }
-        
-        // If we haven't seen data in a day, we reset everything because
-        // none of it is valid.  This is the simplest case.
-        if (in_time - ltime > (60 * 60 * 24)) {
-            // Directly fill in this second, clear rest of the minute
-            for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
-                if (i - minute_vec->begin() == sec_bucket)
-                    *i = in_s;
-                else
-                    *i = agg.default_val();
-            }
+            if (ltime - in_time > 60)
+                return;
 
-            // Reset the last hour, setting it to a single sample
-            // Get the combined value for the minute
-            int64_t min_val = agg.combine_vector(minute_vec);
-            for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
-                if (i - hour_vec->begin() == min_bucket)
-                    *i = min_val;
-                else
-                    *i = agg.default_val();
-            }
-
-            // Reset the last day, setting it to a single sample
-            int64_t hr_val = agg.combine_vector(hour_vec);
-            for (auto i = day_vec->begin(); i != day_vec->end(); ++i) {
-                if (i - day_vec->begin() == hour_bucket)
-                    *i = hr_val;
-                else
-                    *i = agg.default_val();
-            }
-
-            set_last_time(in_time);
-
-            return;
-        } else if (in_time - ltime > (60*60)) {
-            // printf("debug - rrd - been an hour since last value\n");
-            // If we haven't seen data in an hour but we're still w/in the day:
-            //   - Average the seconds we know about & set the minute record
-            //   - Clear seconds data & set our current value
-            //   - Average the minutes we know about & set the hour record
-            //
-           
-            int64_t sec_avg = 0, min_avg = 0;
-
-            // We only have this entry in the minute, so set it and get the 
-            // combined value
-            
-            for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
-                if (i - minute_vec->begin() == sec_bucket)
-                    *i = in_s;
-                else
-                    *i = agg.default_val();
-            }
-            sec_avg = agg.combine_vector(minute_vec);
-
-            // We haven't seen anything in this hour, so clear it, set the minute
-            // and get the aggregate
-            for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
-                if (i - hour_vec->begin() == min_bucket)
-                    *i = sec_avg;
-                else
-                    *i = agg.default_val();
-            }
-            min_avg = agg.combine_vector(hour_vec);
-
-            // Fill the hours between the last time we saw data and now with
-            // zeroes; fastforward time
-            for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
-                *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = agg.default_val();
-            }
-
-            *(day_vec->begin() + hour_bucket) = min_avg;
-
-        } else if (in_time - ltime > 60) {
-            // - Calculate the average seconds
-            // - Wipe the seconds
-            // - Set the new second value
-            // - Update minutes
-            // - Update hours
-            // printf("debug - rrd - been over a minute since last value\n");
-
-            int64_t sec_avg = 0, min_avg = 0;
-
-            for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
-                if (i - minute_vec->begin() == sec_bucket)
-                    *i = in_s;
-                else
-                    *i = agg.default_val();
-            }
-            sec_avg = agg.combine_vector(minute_vec);
-
-            // Zero between last and current
-            for (int m = 0; 
-                    m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
-                *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60)) = agg.default_val();
-            }
-
-            // Set the updated value
-            *(hour_vec->begin() + min_bucket) = sec_avg;;
-
-            min_avg = agg.combine_vector(hour_vec);
-
-            // Reset the hour
-            *(day_vec->begin() + hour_bucket) = min_avg;
+            uint64_t v = *(minute_vec->begin() + sec_bucket);
+            *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
         } else {
-            // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
-            // If in_time == last_time then we're updating an existing record,
-            // use the aggregator class to combine it
-            
-            // Otherwise, fast-forward seconds with zero data, then propagate the
-            // changes up
-            if (in_time == ltime) {
-                int64_t v = *(minute_vec->begin() + sec_bucket);
-                *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
-            } else {
-                for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                    *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
+            // If we haven't seen data in a day, we reset everything because
+            // none of it is valid.  This is the simplest case.
+            if (in_time - ltime > (60 * 60 * 24)) {
+                // Directly fill in this second, clear rest of the minute
+                for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
+                    if (i - minute_vec->begin() == sec_bucket)
+                        *i = in_s;
+                    else
+                        *i = agg.default_val();
                 }
 
-                *(minute_vec->begin() + sec_bucket) = in_s;
+                // Reset the last hour, setting it to a single sample
+                // Get the combined value for the minute
+                int64_t min_val = agg.combine_vector(minute_vec);
+                for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
+                    if (i - hour_vec->begin() == min_bucket)
+                        *i = min_val;
+                    else
+                        *i = agg.default_val();
+                }
+
+                // Reset the last day, setting it to a single sample
+                int64_t hr_val = agg.combine_vector(hour_vec);
+                for (auto i = day_vec->begin(); i != day_vec->end(); ++i) {
+                    if (i - day_vec->begin() == hour_bucket)
+                        *i = hr_val;
+                    else
+                        *i = agg.default_val();
+                }
+
+                set_last_time(in_time);
+
+                return;
+            } else if (in_time - ltime > (60*60)) {
+                // printf("debug - rrd - been an hour since last value\n");
+                // If we haven't seen data in an hour but we're still w/in the day:
+                //   - Average the seconds we know about & set the minute record
+                //   - Clear seconds data & set our current value
+                //   - Average the minutes we know about & set the hour record
+                //
+
+                int64_t sec_avg = 0, min_avg = 0;
+
+                // We only have this entry in the minute, so set it and get the 
+                // combined value
+
+                for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
+                    if (i - minute_vec->begin() == sec_bucket)
+                        *i = in_s;
+                    else
+                        *i = agg.default_val();
+                }
+                sec_avg = agg.combine_vector(minute_vec);
+
+                // We haven't seen anything in this hour, so clear it, set the minute
+                // and get the aggregate
+                for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
+                    if (i - hour_vec->begin() == min_bucket)
+                        *i = sec_avg;
+                    else
+                        *i = agg.default_val();
+                }
+                min_avg = agg.combine_vector(hour_vec);
+
+                // Fill the hours between the last time we saw data and now with
+                // zeroes; fastforward time
+                for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
+                    *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = agg.default_val();
+                }
+
+                *(day_vec->begin() + hour_bucket) = min_avg;
+
+            } else if (in_time - ltime > 60) {
+                // - Calculate the average seconds
+                // - Wipe the seconds
+                // - Set the new second value
+                // - Update minutes
+                // - Update hours
+                // printf("debug - rrd - been over a minute since last value\n");
+
+                int64_t sec_avg = 0, min_avg = 0;
+
+                for (auto i = minute_vec->begin(); i != minute_vec->end(); ++i) {
+                    if (i - minute_vec->begin() == sec_bucket)
+                        *i = in_s;
+                    else
+                        *i = agg.default_val();
+                }
+                sec_avg = agg.combine_vector(minute_vec);
+
+                // Zero between last and current
+                for (int m = 0; 
+                        m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
+                    *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60)) = agg.default_val();
+                }
+
+                // Set the updated value
+                *(hour_vec->begin() + min_bucket) = sec_avg;;
+
+                min_avg = agg.combine_vector(hour_vec);
+
+                // Reset the hour
+                *(day_vec->begin() + hour_bucket) = min_avg;
+            } else {
+                // printf("debug - rrd - w/in the last minute %d seconds\n", in_time - last_time);
+                // If in_time == last_time then we're updating an existing record,
+                // use the aggregator class to combine it
+
+                // Otherwise, fast-forward seconds with zero data, then propagate the
+                // changes up
+                if (in_time == ltime) {
+                    int64_t v = *(minute_vec->begin() + sec_bucket);
+                    *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
+                } else {
+                    for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                        *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
+                    }
+
+                    *(minute_vec->begin() + sec_bucket) = in_s;
+                }
+
+                // Update all the averages
+                int64_t sec_avg = 0, min_avg = 0;
+
+                sec_avg = agg.combine_vector(minute_vec);
+
+                // Set the minute
+                *(hour_vec->begin() + min_bucket) = sec_avg;
+
+                min_avg = agg.combine_vector(hour_vec);
+
+                // Set the hour
+                *(day_vec->begin() + hour_bucket) = min_avg;
             }
-
-            // Update all the averages
-            int64_t sec_avg = 0, min_avg = 0;
-
-            sec_avg = agg.combine_vector(minute_vec);
-
-            // Set the minute
-            *(hour_vec->begin() + min_bucket) = sec_avg;
-
-            min_avg = agg.combine_vector(hour_vec);
-
-            // Set the hour
-            *(day_vec->begin() + hour_bucket) = min_avg;
         }
 
         set_last_time(in_time);
@@ -301,6 +305,10 @@ public:
 
 protected:
     inline int minutes_different(int m1, int m2) const {
+        // Sanity check
+        m1 = m1 % 60;
+        m2 = m2 % 60;
+
         if (m1 == m2) {
             return 0;
         } else if (m1 < m2) {
@@ -311,6 +319,10 @@ protected:
     }
 
     inline int hours_different(int h1, int h2) const {
+        // Sanity check
+        h1 = h1 % 24;
+        h2 = h2 % 24;
+
         if (h1 == h2) {
             return 0;
         } else if (h1 < h2) {
@@ -321,6 +333,10 @@ protected:
     }
 
     inline int days_different(int d1, int d2) const {
+        // Sanity check
+        d1 = d1 % 7;
+        d2 = d2 % 7;
+
         if (d1 == d2) {
             return 0;
         } else if (d1 < d2) {
@@ -469,31 +485,34 @@ public:
         // The second slot for the last time
         int last_sec_bucket = ltime % 60;
 
+        // Allow backfilling w/in the past minute because packets might come out-of-order
         if (in_time < ltime) {
-            return;
-        }
-        
-        SharedTrackerElement e;
+            if (ltime - in_time > 60)
+                return;
 
-        // If we haven't seen data in a minute, wipe
-        if (in_time - ltime > 60) {
-            for (int x = 0; x < 60; x++) {
-                *(minute_vec->begin() + x) = agg.default_val();
-            }
+            uint64_t v = *(minute_vec->begin() + sec_bucket);
+            *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
         } else {
-            // If in_time == last_time then we're updating an existing record, so
-            // add that in.
-            // Otherwise, fast-forward seconds with zero data, average the seconds,
-            // and propagate the averages up
-            if (in_time == ltime) {
-                uint64_t v = *(minute_vec->begin() + sec_bucket);
-                *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
-            } else {
-                for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                    *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
+            // If we haven't seen data in a minute, wipe
+            if (in_time - ltime > 60) {
+                for (int x = 0; x < 60; x++) {
+                    *(minute_vec->begin() + x) = agg.default_val();
                 }
+            } else {
+                // If in_time == last_time then we're updating an existing record, so
+                // add that in.
+                // Otherwise, fast-forward seconds with zero data, average the seconds,
+                // and propagate the averages up
+                if (in_time == ltime) {
+                    uint64_t v = *(minute_vec->begin() + sec_bucket);
+                    *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
+                } else {
+                    for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
+                        *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
+                    }
 
-                *(minute_vec->begin() + sec_bucket) = in_s;
+                    *(minute_vec->begin() + sec_bucket) = in_s;
+                }
             }
         }
 
@@ -511,6 +530,10 @@ public:
 
 protected:
     inline int minutes_different(int m1, int m2) const {
+        // Sanity check
+        m1 = m1 % 60;
+        m2 = m2 % 60;
+
         if (m1 == m2) {
             return 0;
         } else if (m1 < m2) {

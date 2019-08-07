@@ -259,7 +259,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     time_t stime = time(0);
 
     if (freq_channel) {
-        freq_channel->get_signal_data()->append_signal(*l1info, false);
+        freq_channel->get_signal_data()->append_signal(*l1info, false, 0);
         freq_channel->get_packets_rrd()->add_sample(1, stime);
 
         if (common != NULL) {
@@ -273,7 +273,7 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     }
 
     if (chan_channel) {
-        chan_channel->get_signal_data()->append_signal(*l1info, false);
+        chan_channel->get_signal_data()->append_signal(*l1info, false, 0);
         chan_channel->get_packets_rrd()->add_sample(1, stime);
 
         if (common != NULL) {

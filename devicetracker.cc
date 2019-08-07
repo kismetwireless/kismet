@@ -809,7 +809,7 @@ std::shared_ptr<kis_tracked_device_base>
                 device->set_frequency(pack_l1info->freq_khz);
 
             Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
-            device->get_signal_data()->append_signal(*sc, !ram_no_rrd);
+            device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
 
             delete(sc);
 
