@@ -121,7 +121,7 @@ function pretty_hexdump(b) {
         var hex_str = hexdump(groups[i]) + "  " + hexdump(groups[i + 1]);
         var ascii_str = asciidump(groups[i]) + "  " + asciidump(groups[i + 1]);
 
-        ret_groups.push(hex_str + "    " + ascii_str);
+        ret_groups.push(hex_str + '&nbsp;&nbsp;&nbsp;&nbsp;' + ascii_str);
     }
 
     return ret_groups;
