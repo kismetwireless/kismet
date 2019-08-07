@@ -51,6 +51,82 @@ exports.crypt_version_wpa3 = (1 << 29);
 exports.crypt_l3_mask = 0x300004;
 exports.crypt_l2_mask = 0xFBFA;
 
+// Some hex and ascii manipulation
+function hexstr_to_bytes(hex) {
+    var bytes = [];
+
+    try {
+        for (var i = 0; i < hex.length - 1; i += 2) {
+            bytes.push(parseInt(hex.substr(i, 2), 16));
+        }
+    } catch {
+        ;
+    }
+
+    return bytes;
+}
+
+function hexdump(b) {
+    if (typeof(b) === 'undefined' || b.length == 0)
+        return "..".repeat(8);
+
+    return b.reduce((output, elem) =>
+        (output + ('0' + elem.toString(16)).slice(-2) + ""), '') + "..".repeat(8 - b.length);
+}
+
+function asciidump(b) {
+    var ret = "";
+
+    if (typeof(b) === 'undefined' || b.length == 0)
+        return '.'.repeat(8);
+
+    for (var i = 0; i < b.length; i++) {
+        if (b[i] >= 32 && b[i] <= 127) {
+            var c = String.fromCharCode(b[i]);
+
+            if (c == "<")
+                c = "&lt;";
+            if (c == ">")
+                c = "&gt;";
+            if (c == "&")
+                c = "&amp;";
+
+            ret = ret + c;
+        } else {
+            ret = ret + ".";
+        }
+    }
+
+    ret = ret + ".".repeat(8 - b.length);
+
+    return ret;
+}
+
+function pretty_hexdump(b) {
+    var groups = [];
+    var ret_groups = [];
+
+    if (typeof(b) === 'undefined')
+        return "";
+
+    for (var i = 0; i < b.length; i += 8) {
+        groups.push(b.slice(i, i + 8));
+    }
+
+    if (b.length % 2)
+        b.push([]);
+
+    // Print 2 groups of 8, followed by ascii
+    for (var i = 0; i < groups.length; i += 2) {
+        var hex_str = hexdump(groups[i]) + "  " + hexdump(groups[i + 1]);
+        var ascii_str = asciidump(groups[i]) + "  " + asciidump(groups[i + 1]);
+
+        ret_groups.push(hex_str + "    " + ascii_str);
+    }
+
+    return ret_groups;
+}
+
 exports.CryptToHumanReadable = function(cryptset) {
     var ret = [];
 
@@ -929,7 +1005,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
                 },
 
-                /*
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
                     filterOnEmpty: true,
@@ -942,7 +1017,71 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.advertisedssid.ie_tag_content",
                     id: "advertised_ietags",
                     filterOnEmpty: true,
+                    span: true,
 
+                    render: function(opts) {
+                        return '<table id="tagdump" border="0" />';
+                    },
+
+                    draw: function(opts) {
+                        for (var ie in opts['value']) {
+                            var tag = opts['value'][ie];
+
+                            var pretty_tag = 
+                                $('<tr>')
+                                .append(
+                                    $('<td>', {
+                                        id: "tagno"
+                                    })
+                                    .append(
+                                        $('<div>')
+                                        .html("<b>" + tag['dot11.ietag.number'] + "</b>")
+                                    )
+                                )
+                                .append(
+                                    $('<td>', {
+                                        id: "hexdump"
+                                    })
+                                );
+
+                            if (tag['dot11.ietag.oui'] != 0) {
+                                var oui = ("000000" + tag['dot11.ietag.oui'].toString(16)).substr(-6).replace(/(..)/g, '$1:').slice(0, -1);
+
+                                if (tag['dot11.ietag.oui_manuf'].length != 0)
+                                    oui = oui + " (" + tag['dot11.ietag.oui_manuf'] + ")";
+
+                                $('#tagno', pretty_tag).append(
+                                    $('<div>')
+                                    .text(oui)
+                                );
+                            }
+
+                            if (tag['dot11.ietag.subtag'] >= 0) {
+                                $('#tagno', pretty_tag).append(
+                                    $('<div>')
+                                    .text("Subtag " + tag['dot11.ietag.subtag'])
+                                )
+                            }
+
+                            var hexdumps = pretty_hexdump(hexstr_to_bytes(tag['dot11.ietag.data']));
+
+                            for (var i in hexdumps) {
+                                $('#hexdump', pretty_tag).append(
+                                    $('<div>')
+                                    .append(
+                                        $('<code>')
+                                        .html(hexdumps[i])
+                                    )
+                                )
+                            }
+
+                            $('#tagdump', opts['container']).append(pretty_tag);
+                        }
+                    },
+
+                },
+
+                /*
                     groupIterate: true,
                     iterateTitle: function(opts) {
                         var ie  = opts['value'][opts['index']]['dot11.ietag.number'];
