@@ -570,8 +570,14 @@ class kis_tracked_rrd_peak_signal_aggregator {
 public:
     // Select the stronger signal
     static int64_t combine_element(const int64_t a, const int64_t b) {
+        if (a == 0)
+            return b;
+        if (b == 0)
+            return a;
+
         if (a < b)
             return b;
+
         return a;
     }
 
