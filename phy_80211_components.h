@@ -533,7 +533,7 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __Proxy(beacon_info, std::string, std::string, std::string, beacon_info);
+    __ProxyDynamic(beacon_info, std::string, std::string, std::string, beacon_info, beacon_info_id);
 
     __Proxy(ssid_cloaked, uint8_t, bool, bool, ssid_cloaked);
 
@@ -635,6 +635,8 @@ protected:
     std::shared_ptr<TrackerElementUInt64> last_time;
 
     std::shared_ptr<TrackerElementString> beacon_info;
+    int beacon_info_id;
+
     std::shared_ptr<TrackerElementUInt8> ssid_cloaked;
     std::shared_ptr<TrackerElementUInt64> crypt_set;
     std::shared_ptr<TrackerElementUInt8> wpa_mfp_required;

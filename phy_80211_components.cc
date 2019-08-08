@@ -211,8 +211,9 @@ void dot11_advertised_ssid::register_fields() {
 
     RegisterField("dot11.advertisedssid.first_time", "first time seen", &first_time);
     RegisterField("dot11.advertisedssid.last_time", "last time seen", &last_time);
-    RegisterField("dot11.advertisedssid.beacon_info", 
-            "beacon info / vendor description", &beacon_info);
+    beacon_info_id =
+        RegisterDynamicField("dot11.advertisedssid.beacon_info", 
+                "beacon info / vendor description", &beacon_info);
     RegisterField("dot11.advertisedssid.cloaked", "SSID is hidden / cloaked", &ssid_cloaked);
     RegisterField("dot11.advertisedssid.crypt_set", "bitfield of encryption options", &crypt_set);
     RegisterField("dot11.advertisedssid.maxrate", "advertised maximum rate", &maxrate);
