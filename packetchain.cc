@@ -59,7 +59,17 @@ Packetchain::Packetchain() {
 
     packetchain_shutdown = false;
 
-    for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
+    auto num_chain_threads =
+        Globalreg::globalreg->kismet_config->FetchOptInt("packetprocess_max_threads", -1);
+
+    if (num_chain_threads > 0) {
+        _MSG_INFO("Limiting packet processing to {} threads max ({} cores available)",
+                num_chain_threads, std::thread::hardware_concurrency());
+    } else {
+        num_chain_threads = std::thread::hardware_concurrency();
+    }
+
+    for (int i = 0; i < num_chain_threads; i++) {
         packet_threads.push_back(std::thread([this, i]() { 
             thread_set_process_name("packethandler");
             packet_queue_processor(i);
