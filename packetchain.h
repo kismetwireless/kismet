@@ -149,6 +149,10 @@ protected:
     std::vector<Packetchain::pc_link *> llcdissect_chain;
     std::vector<Packetchain::pc_link *> decrypt_chain;
     std::vector<Packetchain::pc_link *> datadissect_chain;
+
+    kis_recursive_timed_mutex classifier_mutex;
+
+    // Protected chain components which cannot be threaded
     std::vector<Packetchain::pc_link *> classifier_chain;
 	std::vector<Packetchain::pc_link *> tracker_chain;
     std::vector<Packetchain::pc_link *> logging_chain;

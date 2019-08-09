@@ -313,25 +313,31 @@ void Packetchain::packet_queue_processor(int slot_number) {
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : classifier_chain) {
-                if (pcl->callback != NULL)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
-                else if (pcl->l_callback != NULL)
-                    pcl->l_callback(packet);
-            }
+            { 
+                // Protect the classifier and tracker stages because of complex 
+                // relationships between locks
+                local_locker classifier_l(&classifier_mutex);
 
-            for (auto pcl : tracker_chain) {
-                if (pcl->callback != NULL)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
-                else if (pcl->l_callback != NULL)
-                    pcl->l_callback(packet);
-            }
+                for (auto pcl : classifier_chain) {
+                    if (pcl->callback != NULL)
+                        pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    else if (pcl->l_callback != NULL)
+                        pcl->l_callback(packet);
+                }
 
-            for (auto pcl : logging_chain) {
-                if (pcl->callback != NULL)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
-                else if (pcl->l_callback != NULL)
-                    pcl->l_callback(packet);
+                for (auto pcl : tracker_chain) {
+                    if (pcl->callback != NULL)
+                        pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    else if (pcl->l_callback != NULL)
+                        pcl->l_callback(packet);
+                }
+
+                for (auto pcl : logging_chain) {
+                    if (pcl->callback != NULL)
+                        pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    else if (pcl->l_callback != NULL)
+                        pcl->l_callback(packet);
+                }
             }
 
             DestroyPacket(packet);
