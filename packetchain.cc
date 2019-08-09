@@ -59,6 +59,7 @@ Packetchain::Packetchain() {
 
     packetchain_shutdown = false;
 
+#if 0
     auto num_chain_threads =
         Globalreg::globalreg->kismet_config->FetchOptInt("packetprocess_max_threads", -1);
 
@@ -68,6 +69,10 @@ Packetchain::Packetchain() {
     } else {
         num_chain_threads = std::thread::hardware_concurrency();
     }
+#endif
+
+    // Force to a single thread for now
+    int num_chain_threads = 1;
 
     for (int i = 0; i < num_chain_threads; i++) {
         packet_threads.push_back(std::thread([this, i]() { 
