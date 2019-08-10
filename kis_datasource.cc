@@ -631,9 +631,9 @@ void kis_datasource::cancel_all_commands(std::string in_error) {
     command_ack_map.clear();
 }
 
-bool kis_datasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+bool kis_datasource::dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) {
     // Handle all the default options first; ping, pong, message, etc are all
-    // handled for us by the overhead of the KismetExternal protocol, we only need
+    // handled for us by the overhead of the kismet_external protocol, we only need
     // to worry about our specific ones
     if (kis_external_interface::dispatch_rx_packet(c))
         return true;
@@ -1305,7 +1305,7 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
 
     c->set_command("KDSPROBESOURCE");
 
@@ -1339,7 +1339,7 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
 
     c->set_command("KDSOPENSOURCE");
 
@@ -1373,7 +1373,7 @@ unsigned int kis_datasource::send_configure_channel(std::string in_chan,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
 
     c->set_command("KDSCONFIGURE");
 
@@ -1414,7 +1414,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
 
     c->set_command("KDSCONFIGURE");
 
@@ -1457,7 +1457,7 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
 
     c->set_command("KDSLISTINTERFACES");
 

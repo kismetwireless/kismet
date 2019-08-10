@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -41,7 +41,7 @@
 
 // Namespace stub and forward class definition to make deps hopefully
 // easier going forward
-namespace KismetExternal {
+namespace kismet_external {
     class Command;
 };
 
@@ -91,10 +91,10 @@ public:
 protected:
     // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
     // number
-    virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual unsigned int send_packet(std::shared_ptr<kismet_external::Command> c);
 
     // Central packet dispatch handler
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c);
 
     // Generic msg proxy
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) = 0; 
@@ -167,7 +167,7 @@ public:
 
 protected:
     // Central packet dispatch handler
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+    virtual bool dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) override;
 
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override; 
 

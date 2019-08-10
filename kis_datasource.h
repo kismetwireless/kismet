@@ -483,7 +483,7 @@ protected:
 
 
     // Central packet dispatch override to add the datasource commands
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+    virtual bool dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) override;
 
     virtual void handle_msg_proxy(const std::string& msg, const int type) override;
 
