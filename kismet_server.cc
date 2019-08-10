@@ -860,14 +860,14 @@ int main(int argc, char *argv[], char *envp[]) {
     new Kis_Dissector_IPdata(globalregistry);
 
     // Register the base PHYs
-    devicetracker->RegisterPhyHandler(new Kis_80211_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_RTL433_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_Zwave_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_Bluetooth_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_UAV_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_Mousejack_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_RTLAMR_Phy(globalregistry));
-    devicetracker->RegisterPhyHandler(new Kis_RTLADSB_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_80211_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_RTL433_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_Zwave_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_Bluetooth_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_RTLAMR_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_RTLADSB_Phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
