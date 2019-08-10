@@ -46,7 +46,7 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
     }
 
     // Make a buffer handler stub to write to our file
-    bufferhandler.reset(new BufferHandler<FileWritebuf>(NULL, pcapng_file));
+    bufferhandler.reset(new buffer_handler<FileWritebuf>(NULL, pcapng_file));
 
     // Generate the pcap stream itself
     pcapng_stream = new Pcap_Stream_Packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);

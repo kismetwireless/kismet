@@ -232,7 +232,7 @@ public:
 
 protected:
     virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
-        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
+        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<buffer_handler<RingbufV2> >(new buffer_handler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
     }
 };
 
@@ -244,7 +244,7 @@ protected:
     virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
         // Allocate a buffer directly, in a multiple of the max output size for the webserver
         // buffer
-        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
+        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<buffer_handler<Chainbuf> >(new buffer_handler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
     }
 
 };

@@ -47,7 +47,7 @@ protected:
     std::shared_ptr<PollableTracker> pollabletracker;
 
     std::shared_ptr<TcpClientV2> tcpclient;
-    std::shared_ptr<BufferHandler<RingbufV2>> tcphandler;
+    std::shared_ptr<buffer_handler<RingbufV2>> tcphandler;
     BufferInterfaceFunc tcpinterface;
 
     // Called by our tcpinterface 

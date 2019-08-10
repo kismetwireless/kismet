@@ -323,10 +323,10 @@ protected:
 };
 
 template<class B> 
-class BufferHandler : public buffer_handler_generic {
+class buffer_handler : public buffer_handler_generic {
 public:
     // For one-way buffers, define a buffer as having a size of zero
-    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
+    buffer_handler(size_t r_buffer_sz, size_t w_buffer_sz) {
         if (r_buffer_sz != 0)
             read_buffer = new B(r_buffer_sz);
         else
@@ -338,7 +338,7 @@ public:
             write_buffer = NULL;
     }
 
-    BufferHandler(B *r_buf, B *w_buf) {
+    buffer_handler(B *r_buf, B *w_buf) {
         read_buffer = r_buf;
         write_buffer = w_buf;
     }

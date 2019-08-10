@@ -37,7 +37,7 @@ public:
 
 protected:
     Pcap_Stream_Packetchain *pcapng_stream;
-    std::shared_ptr<BufferHandler<FileWritebuf> > bufferhandler;
+    std::shared_ptr<buffer_handler<FileWritebuf> > bufferhandler;
     FileWritebuf *pcapng_file;
 };
 
