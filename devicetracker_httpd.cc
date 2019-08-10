@@ -84,7 +84,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
-                auto tmi = FetchDevice(key);
+                auto tmi = fetch_device(key);
 
                 if (tmi == NULL)
                     return false;
@@ -179,7 +179,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (!Httpd_CanSerialize(tokenurl[4]))
                     return false;
 
-                if (FetchDevice(key) == NULL)
+                if (fetch_device(key) == NULL)
                     return false;
 
                 std::string target = Httpd_StripSuffix(tokenurl[4]);
@@ -307,7 +307,7 @@ int device_tracker::httpd_create_stream_response(
             }
 
             device_key key(tokenurl[3]);
-            auto dev = FetchDevice(key);
+            auto dev = fetch_device(key);
 
             if (dev == nullptr) {
                 _MSG_ERROR("HTTP request for {}; invalid device key {}", path, tokenurl[3]);
@@ -598,7 +598,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                 device_key key(tokenurl[3]);
 
-                auto dev = FetchDevice(key);
+                auto dev = fetch_device(key);
 
                 if (dev == NULL) {
                     stream << "Invalid request: No device with that key";

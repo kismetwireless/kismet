@@ -664,7 +664,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
                 try {
                     auto key = StringTo<device_key>(path[3]);
-                    auto dev = devicetracker->FetchDevice(key);
+                    auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
                         return false;
@@ -686,7 +686,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
                 try {
                     auto key = StringTo<device_key>(path[3]);
-                    auto dev = devicetracker->FetchDevice(key);
+                    auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
                         return cl;
@@ -699,7 +699,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
                     for (auto ci : *dot11->get_associated_client_map()) {
                         auto dk = std::static_pointer_cast<tracker_element_device_key>(ci.second);
-                        auto d = devicetracker->FetchDevice(dk->get());
+                        auto d = devicetracker->fetch_device(dk->get());
                         if (d != nullptr)
                             cl->push_back(d);
                     }
@@ -725,7 +725,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
                 try {
                 auto key = StringTo<device_key>(path[3]);
-                auto dev = devicetracker->FetchDevice(key);
+                auto dev = devicetracker->fetch_device(key);
 
                 if (dev == nullptr)
                 return false;
@@ -747,7 +747,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
                 try {
                     auto key = StringTo<device_key>(path[3]);
-                    auto dev = devicetracker->FetchDevice(key);
+                    auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
                         return cl;
@@ -783,7 +783,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
                         // For every client, repeat, looking for associated clients and shard APs
                         for (auto ci : *dot11->get_associated_client_map()) {
                             auto dk = std::static_pointer_cast<tracker_element_device_key>(ci.second);
-                            auto d = devicetracker->FetchDevice(dk->get());
+                            auto d = devicetracker->fetch_device(dk->get());
 
                             if (d != nullptr)
                                 find_clients(d);
@@ -2856,7 +2856,7 @@ bool Kis_80211_Phy::httpd_verify_path(const char *path, const char *method) {
             return false;
 
         // Does it exist?
-        if (devicetracker->FetchDevice(key) == nullptr)
+        if (devicetracker->fetch_device(key) == nullptr)
             return false;
 
         // Valid requested file?
@@ -2988,14 +2988,14 @@ void Kis_80211_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
     }
 
     // Does it exist?
-    auto dev = devicetracker->FetchDevice(key);
+    auto dev = devicetracker->fetch_device(key);
 
     if (dev == nullptr) {
         stream << "invalid query, unknown device";
         return;
     }
 
-    GenerateHandshakePcap(devicetracker->FetchDevice(key), connection, stream);
+    GenerateHandshakePcap(devicetracker->fetch_device(key), connection, stream);
 
     return;
 }

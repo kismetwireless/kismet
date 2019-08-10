@@ -69,7 +69,7 @@ bool Phy_80211_Httpd_Pcap::httpd_verify_path(const char *path, const char *metho
         // Does it exist?
         device_key targetkey(dot11phy->FetchPhynameHash(), dmac);
 
-        if (devicetracker->FetchDevice(targetkey) != NULL)
+        if (devicetracker->fetch_device(targetkey) != NULL)
             return true;
     }
 
@@ -124,7 +124,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
     device_key targetkey(dot11phy->FetchPhynameHash(), dmac);
 
     std::shared_ptr<kis_tracked_device_base> dev;
-    if ((dev = devicetracker->FetchDevice(targetkey)) == NULL)
+    if ((dev = devicetracker->fetch_device(targetkey)) == NULL)
         return MHD_YES;
 
     if (!httpd->HasValidSession(connection, true)) {

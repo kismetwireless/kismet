@@ -598,7 +598,7 @@ void device_tracker::UpdateFullRefresh() {
     full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
-std::shared_ptr<kis_tracked_device_base> device_tracker::FetchDevice(device_key in_key) {
+std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
     local_shared_locker lock(&devicelist_mutex);
 
 	device_itr i = tracked_map.find(in_key);
@@ -704,7 +704,7 @@ std::shared_ptr<kis_tracked_device_base>
 
     key = device_key(in_phy->FetchPhynameHash(), in_mac);
 
-	if ((device = FetchDevice(key)) == NULL) {
+	if ((device = fetch_device(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
 
@@ -1283,7 +1283,7 @@ int device_tracker::Database_UpgradeDB() {
 void device_tracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker lock(&devicelist_mutex);
 
-    if (FetchDevice(device->get_key()) != NULL) {
+    if (fetch_device(device->get_key()) != NULL) {
         _MSG("device_tracker tried to add device " + device->get_macaddr().Mac2String() + 
                 " which already exists", MSGFLAG_ERROR);
         return;

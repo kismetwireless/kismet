@@ -44,7 +44,7 @@ bool device_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *
         if (key.get_error())
             return false;
 
-        if (devicetracker->FetchDevice(key) == NULL)
+        if (devicetracker->fetch_device(key) == NULL)
             return false;
 
         std::string keyurl = tokenurl[3] + ".pcapng";
@@ -91,7 +91,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
     if (key.get_error())
         return MHD_YES;
 
-    std::shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
+    std::shared_ptr<kis_tracked_device_base> dev = devicetracker->fetch_device(key);
     if (dev == NULL)
         return MHD_YES;
 
