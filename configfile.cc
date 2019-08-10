@@ -649,7 +649,7 @@ void header_value_config::parse_line(const std::string& in_confline) {
     }
 }
 
-std::string header_value_config::getHeader() {
+std::string header_value_config::get_header() {
     local_locker l(&mutex);
     return header;
 }
