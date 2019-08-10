@@ -66,7 +66,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
 int Packetfilter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
     try {
         if (structured->has_key("default")) {
-            set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
+            set_filter_default(filterstring_to_bool(structured->key_as_string("default")));
             stream << "Default filter: " << get_filter_default() << "\n";
             return 200;
         } else {

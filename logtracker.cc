@@ -541,7 +541,7 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 throw std::runtime_error("invalid logclass");
 
             if (tokenurl[4] == "start") {
-                std::string title = structdata->getKeyAsString("title", "");
+                std::string title = structdata->key_as_string("title", "");
 
                 if (title == "")
                     title = get_log_title();

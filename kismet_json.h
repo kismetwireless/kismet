@@ -175,11 +175,11 @@ public:
         return v->as_number();
     }
 
-    virtual std::string getKeyAsString(std::string key) {
+    virtual std::string key_as_string(std::string key) {
         return get_structured_by_key(key)->as_string();
     }
 
-    virtual std::string getKeyAsString(std::string key, std::string def) {
+    virtual std::string key_as_string(std::string key, std::string def) {
         if (!has_key(key))
             return def;
 

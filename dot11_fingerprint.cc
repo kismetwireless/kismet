@@ -206,7 +206,7 @@ unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream,
         if (!structured->has_key("macaddr"))
             throw StructuredDataException("Missing 'macaddr' field in insert command");
 
-        auto mac = mac_addr { structured->getKeyAsString("macaddr") };
+        auto mac = mac_addr { structured->key_as_string("macaddr") };
         if (mac.error)
             throw StructuredDataException("Invalid 'macaddr' field in insert command");
 
@@ -308,7 +308,7 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
             if (!fpi->has_key("macaddr"))
                 throw StructuredDataException("Fingerprint dictionary missing 'macaddr'");
 
-            auto mac = mac_addr { fpi->getKeyAsString("macaddr") };
+            auto mac = mac_addr { fpi->key_as_string("macaddr") };
             if (mac.error)
                 throw StructuredDataException("Invalid MAC address in 'macaddr'");
 

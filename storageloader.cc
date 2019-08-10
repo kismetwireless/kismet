@@ -54,16 +54,16 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
     std::string hexstr;
 
     if (d->has_key("on"))
-        objname = d->getKeyAsString("on");
+        objname = d->key_as_string("on");
     else if (d->has_key("objname"))
-        objname = d->getKeyAsString("objname");
+        objname = d->key_as_string("objname");
     else
         throw std::runtime_error("storage object missing 'on'/'objname'");
 
     if (d->has_key("ot"))
-        objtypestr = d->getKeyAsString("ot");
+        objtypestr = d->key_as_string("ot");
     else if (d->has_key("objtype"))
-        objtypestr = d->getKeyAsString("objtype");
+        objtypestr = d->key_as_string("objtype");
     else
         throw std::runtime_error("storage object missing 'ot'/'objtype'");
 

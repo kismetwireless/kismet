@@ -1564,7 +1564,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             bool cmd_complete_success = false;
 
             // Initiate the open
-            open_datasource(structdata->getKeyAsString("definition"),
+            open_datasource(structdata->key_as_string("definition"),
                     [&error_reason, cl, &cmd_complete_success](bool success, std::string reason, 
                         shared_datasource ds) {
 
@@ -1633,7 +1633,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
                 if (structdata->has_key("channel")) {
                     std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
-                    std::string ch = structdata->getKeyAsString("channel", "");
+                    std::string ch = structdata->key_as_string("channel", "");
 
                     if (ch.length() == 0) {
                         throw std::runtime_error("Invalid channel, could not parse as string");

@@ -117,8 +117,8 @@ public:
     virtual shared_structured get_structured_by_key(std::string key) = 0;
     virtual double key_as_number(std::string key) = 0;
     virtual double key_as_number(std::string key, double def) = 0;
-    virtual std::string getKeyAsString(std::string key, std::string def) = 0;
-    virtual std::string getKeyAsString(std::string key) = 0;
+    virtual std::string key_as_string(std::string key, std::string def) = 0;
+    virtual std::string key_as_string(std::string key) = 0;
     virtual bool getKeyAsBool(std::string key) = 0;
     virtual bool getKeyAsBool(std::string key, bool def) = 0;
 

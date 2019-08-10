@@ -1581,10 +1581,10 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
             if (filterdata->has_key("datasource")) 
                 query.append_where(AND, 
-                        _WHERE("datasource", LIKE, filterdata->getKeyAsString("datasource")));
+                        _WHERE("datasource", LIKE, filterdata->key_as_string("datasource")));
 
             if (filterdata->has_key("device_id")) 
-                query.append_where(AND, _WHERE("devkey", LIKE, filterdata->getKeyAsString("device_id")));
+                query.append_where(AND, _WHERE("devkey", LIKE, filterdata->key_as_string("device_id")));
 
             if (filterdata->has_key("dlt")) 
                 query.append_where(AND, _WHERE("dlt", EQ, filterdata->key_as_number("dlt")));
@@ -1614,15 +1614,15 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
             if (filterdata->has_key("address_source")) 
                 query.append_where(AND, 
-                        _WHERE("sourcemac", LIKE, filterdata->getKeyAsString("address_source")));
+                        _WHERE("sourcemac", LIKE, filterdata->key_as_string("address_source")));
 
             if (filterdata->has_key("address_dest")) 
                 query.append_where(AND, 
-                        _WHERE("destmac", LIKE, filterdata->getKeyAsString("address_dest")));
+                        _WHERE("destmac", LIKE, filterdata->key_as_string("address_dest")));
 
             if (filterdata->has_key("address_trans")) 
                 query.append_where(AND, 
-                        _WHERE("transmac", LIKE, filterdata->getKeyAsString("address_trans")));
+                        _WHERE("transmac", LIKE, filterdata->key_as_string("address_trans")));
 
             if (filterdata->has_key("location_lat_min"))
                 query.append_where(AND, 
@@ -1770,7 +1770,7 @@ unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream,
     if (structured != nullptr) {
         if (structured->has_key("note")) {
             poi_data = "{\"note\": \"" +
-                json_adapter::sanitize_string(structured->getKeyAsString("note")) +
+                json_adapter::sanitize_string(structured->key_as_string("note")) +
                         "\"}";
         }
     }

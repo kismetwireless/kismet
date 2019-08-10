@@ -745,8 +745,8 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         }
 
         if (stripped == "/alerts/definitions/define_alert") {
-            std::string name = structdata->getKeyAsString("name");
-            std::string desc = structdata->getKeyAsString("description");
+            std::string name = structdata->key_as_string("name");
+            std::string desc = structdata->key_as_string("description");
 
             alert_time_unit limit_unit;
             int limit_rate;
@@ -754,19 +754,19 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             alert_time_unit burst_unit;
             int burst_rate;
 
-            if (parse_rate_unit(StrLower(structdata->getKeyAsString("throttle", "")),
+            if (parse_rate_unit(StrLower(structdata->key_as_string("throttle", "")),
                         &limit_unit, &limit_rate) < 0) {
                 throw std::runtime_error("could not parse throttle limits");
             }
 
-            if (parse_rate_unit(StrLower(structdata->getKeyAsString("burst", "")),
+            if (parse_rate_unit(StrLower(structdata->key_as_string("burst", "")),
                         &burst_unit, &burst_rate) < 0) {
                 throw std::runtime_error("could not parse burst limits");
             }
 
             int phyid = KIS_PHY_ANY;
 
-            std::string phyname = structdata->getKeyAsString("phyname", "");
+            std::string phyname = structdata->key_as_string("phyname", "");
 
             if (phyname != "any" && phyname != "") {
                 auto devicetracker = 
@@ -793,20 +793,20 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             return 1;
 
         } else if (stripped == "/alerts/raise_alert") {
-            std::string name = structdata->getKeyAsString("name");
+            std::string name = structdata->key_as_string("name");
     
             int aref = fetch_alert_ref(name);
 
             if (aref < 0)
                 throw std::runtime_error("unknown alert type");
 
-            std::string text = structdata->getKeyAsString("text");
+            std::string text = structdata->key_as_string("text");
 
-            std::string bssid = structdata->getKeyAsString("bssid", "");
-            std::string source = structdata->getKeyAsString("source", "");
-            std::string dest = structdata->getKeyAsString("dest", "");
-            std::string other = structdata->getKeyAsString("other", "");
-            std::string channel = structdata->getKeyAsString("channel", "");
+            std::string bssid = structdata->key_as_string("bssid", "");
+            std::string source = structdata->key_as_string("source", "");
+            std::string dest = structdata->key_as_string("dest", "");
+            std::string other = structdata->key_as_string("other", "");
+            std::string channel = structdata->key_as_string("channel", "");
 
             mac_addr bssid_mac, source_mac, dest_mac, other_mac;
 

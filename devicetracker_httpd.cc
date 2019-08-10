@@ -507,7 +507,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         }
 
         // Get the wrapper, if one exists, default to empty if it doesn't
-        wrapper_name = structdata->getKeyAsString("wrapper", "");
+        wrapper_name = structdata->key_as_string("wrapper", "");
 
         if (structdata->has_key("regex")) {
             regexdata = structdata->get_structured_by_key("regex");
@@ -630,7 +630,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     if (!structdata->has_key("username")) 
                         throw std::runtime_error("expected username in command dictionary");
 
-                    name = structdata->getKeyAsString("username");
+                    name = structdata->key_as_string("username");
 
                     set_device_user_name(dev, name);
 
@@ -650,8 +650,8 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     if (!structdata->has_key("tagvalue"))
                         throw std::runtime_error("expected tagvalue in command dictionary");
 
-                    tag = structdata->getKeyAsString("tagname");
-                    content = structdata->getKeyAsString("tagvalue");
+                    tag = structdata->key_as_string("tagname");
+                    content = structdata->key_as_string("tagvalue");
 
                     set_device_tag(dev, tag, content);
 
