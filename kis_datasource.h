@@ -47,7 +47,7 @@ class kis_datasource_interface;
 typedef std::shared_ptr<kis_datasource_interface> shared_interface;
 
 // Simple keyed object derived from the low-level C protocol
-class KisDatasourceCapKeyedObject;
+class kis_datasource_cap_keyed_object;
 
 class datasource_tracker;
 class kis_datasource;
