@@ -506,7 +506,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
         }
 
         // Capture timestamp and negative-offset timestamp
-        int64_t raw_ts = structured->getKeyAsNumber("last_time", 0);
+        int64_t raw_ts = structured->key_as_number("last_time", 0);
         if (raw_ts < 0)
             timestamp_min = time(0) + raw_ts;
         else

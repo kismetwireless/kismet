@@ -514,7 +514,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         }
 
         if (structdata->has_key("last_time")) {
-            int64_t rawt = structdata->getKeyAsNumber("last_time");
+            int64_t rawt = structdata->key_as_number("last_time");
 
             if (rawt < 0)
                 post_ts = time(0) + rawt;

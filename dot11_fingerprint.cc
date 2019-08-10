@@ -178,13 +178,13 @@ unsigned int dot11_fingerprint_tracker::update_fingerprint(std::ostream &stream,
 
     try {
         if (structured->has_key("beacon_hash"))
-            fp->set_beacon_hash(structured->getKeyAsNumber("beacon_hash"));
+            fp->set_beacon_hash(structured->key_as_number("beacon_hash"));
 
         if (structured->has_key("response_hash"))
-            fp->set_response_hash(structured->getKeyAsNumber("response_hash"));
+            fp->set_response_hash(structured->key_as_number("response_hash"));
 
         if (structured->has_key("probe_hash"))
-            fp->set_probe_hash(structured->getKeyAsNumber("probe_hash"));
+            fp->set_probe_hash(structured->key_as_number("probe_hash"));
 
         rebuild_config();
 
@@ -218,9 +218,9 @@ unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream,
 
         auto fp = std::make_shared<tracked_dot11_fingerprint>();
 
-        fp->set_probe_hash(structured->getKeyAsNumber("beacon_hash", 0));
-        fp->set_response_hash(structured->getKeyAsNumber("response_hash", 0));
-        fp->set_probe_hash(structured->getKeyAsNumber("probe_hash", 0));
+        fp->set_probe_hash(structured->key_as_number("beacon_hash", 0));
+        fp->set_response_hash(structured->key_as_number("response_hash", 0));
+        fp->set_probe_hash(structured->key_as_number("probe_hash", 0));
 
         fingerprint_map->insert(std::make_pair(mac, fp));
 
@@ -320,9 +320,9 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
 
             auto fp = std::make_shared<tracked_dot11_fingerprint>();
 
-            fp->set_probe_hash(fpi->getKeyAsNumber("beacon_hash", 0));
-            fp->set_response_hash(fpi->getKeyAsNumber("response_hash", 0));
-            fp->set_probe_hash(fpi->getKeyAsNumber("probe_hash", 0));
+            fp->set_probe_hash(fpi->key_as_number("beacon_hash", 0));
+            fp->set_response_hash(fpi->key_as_number("response_hash", 0));
+            fp->set_probe_hash(fpi->key_as_number("probe_hash", 0));
 
             fingerprint_map->insert(std::make_pair(mac, fp));
             num_added++;

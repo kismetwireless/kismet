@@ -1695,10 +1695,10 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     // Get the hop rate and the shuffle; default to the source
                     // state if we don't have them provided
                     double rate = 
-                        structdata->getKeyAsNumber("rate", ds->get_source_hop_rate());
+                        structdata->key_as_number("rate", ds->get_source_hop_rate());
 
                     unsigned int shuffle = 
-                        structdata->getKeyAsNumber("shuffle",
+                        structdata->key_as_number("shuffle",
                                 ds->get_source_hop_shuffle());
 
                     _MSG_INFO("Source '{}' setting new hop rate and channel pattern.",

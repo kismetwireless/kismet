@@ -190,10 +190,10 @@ unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const st
             ignore_after_handshake->set(post_structured->getKeyAsBool("ignore_after_handshake"));
 
         if (post_structured->has_key("max_capture_seconds")) 
-            max_contend_cap_seconds->set(post_structured->getKeyAsNumber("max_capture_seconds"));
+            max_contend_cap_seconds->set(post_structured->key_as_number("max_capture_seconds"));
 
         if (post_structured->has_key("min_scan_seconds")) 
-            min_scan_seconds->set(post_structured->getKeyAsNumber("min_scan_seconds"));
+            min_scan_seconds->set(post_structured->key_as_number("min_scan_seconds"));
 
         if (post_structured->has_key("restrict_log_filters")) {
             auto enabled = post_structured->getKeyAsBool("restrict_log_filters");

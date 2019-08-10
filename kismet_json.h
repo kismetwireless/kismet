@@ -159,11 +159,11 @@ public:
         return shared_structured(new structured_json(ki));
     }
 
-    virtual double getKeyAsNumber(std::string key) {
+    virtual double key_as_number(std::string key) {
         return get_structured_by_key(key)->as_number();
     }
 
-    virtual double getKeyAsNumber(std::string key, double def) {
+    virtual double key_as_number(std::string key, double def) {
         if (!has_key(key))
             return def;
 

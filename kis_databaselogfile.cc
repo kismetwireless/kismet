@@ -1573,11 +1573,11 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
         try {
             if (filterdata->has_key("timestamp_start")) 
                 query.append_where(AND, 
-                        _WHERE("ts_sec", GE, filterdata->getKeyAsNumber("timestamp_start")));
+                        _WHERE("ts_sec", GE, filterdata->key_as_number("timestamp_start")));
 
             if (filterdata->has_key("timestamp_end")) 
                 query.append_where(AND, 
-                        _WHERE("ts_sec", LE, filterdata->getKeyAsNumber("timestamp_end")));
+                        _WHERE("ts_sec", LE, filterdata->key_as_number("timestamp_end")));
 
             if (filterdata->has_key("datasource")) 
                 query.append_where(AND, 
@@ -1587,30 +1587,30 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                 query.append_where(AND, _WHERE("devkey", LIKE, filterdata->getKeyAsString("device_id")));
 
             if (filterdata->has_key("dlt")) 
-                query.append_where(AND, _WHERE("dlt", EQ, filterdata->getKeyAsNumber("dlt")));
+                query.append_where(AND, _WHERE("dlt", EQ, filterdata->key_as_number("dlt")));
 
             if (filterdata->has_key("frequency")) 
                 query.append_where(AND, 
-                        _WHERE("frequency", EQ, filterdata->getKeyAsNumber("frequency")));
+                        _WHERE("frequency", EQ, filterdata->key_as_number("frequency")));
 
             if (filterdata->has_key("frequency_min")) 
                 query.append_where(AND, 
-                        _WHERE("frequency", GE, filterdata->getKeyAsNumber("frequency_min")));
+                        _WHERE("frequency", GE, filterdata->key_as_number("frequency_min")));
 
             if (filterdata->has_key("frequency_max")) 
                 query.append_where(AND, 
-                        _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
+                        _WHERE("frequency", LE, filterdata->key_as_number("frequency_max")));
 
             /*
             if (filterdata->has_key("channel")) 
-                query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->getKeyAsNumber("channel")));
+                query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->key_as_number("channel")));
                 */
 
             if (filterdata->has_key("signal_min"))
-                query.append_where(AND, _WHERE("signal", GE, filterdata->getKeyAsNumber("signal_min")));
+                query.append_where(AND, _WHERE("signal", GE, filterdata->key_as_number("signal_min")));
 
             if (filterdata->has_key("signal_max"))
-                query.append_where(AND, _WHERE("signal", LE, filterdata->getKeyAsNumber("signal_max")));
+                query.append_where(AND, _WHERE("signal", LE, filterdata->key_as_number("signal_max")));
 
             if (filterdata->has_key("address_source")) 
                 query.append_where(AND, 
@@ -1626,28 +1626,28 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
             if (filterdata->has_key("location_lat_min"))
                 query.append_where(AND, 
-                        _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min")));
+                        _WHERE("lat", GE, filterdata->key_as_number("location_lat_min")));
 
             if (filterdata->has_key("location_lon_min"))
                 query.append_where(AND, 
-                        _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min")));
+                        _WHERE("lon", GE, filterdata->key_as_number("location_lon_min")));
 
             if (filterdata->has_key("location_lat_max"))
                 query.append_where(AND, 
-                        _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max")));
+                        _WHERE("lat", LE, filterdata->key_as_number("location_lat_max")));
 
             if (filterdata->has_key("location_lon_max"))
                 query.append_where(AND, 
-                        _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max")));
+                        _WHERE("lon", LE, filterdata->key_as_number("location_lon_max")));
 
             if (filterdata->has_key("size_min"))
-                query.append_where(AND, _WHERE("size", GE, filterdata->getKeyAsNumber("size_min")));
+                query.append_where(AND, _WHERE("size", GE, filterdata->key_as_number("size_min")));
 
             if (filterdata->has_key("size_max"))
-                query.append_where(AND, _WHERE("size_max", LE, filterdata->getKeyAsNumber("size_max")));
+                query.append_where(AND, _WHERE("size_max", LE, filterdata->key_as_number("size_max")));
 
             if (filterdata->has_key("limit"))
-                query.append_clause(LIMIT, filterdata->getKeyAsNumber("limit"));
+                query.append_clause(LIMIT, filterdata->key_as_number("limit"));
 
         } catch (const StructuredDataException& e) {
             auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
@@ -1740,7 +1740,7 @@ unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& os
         if (structured->has_key("drop_before")) {
             auto drop_query = 
                 _DELETE(db, "packets", _WHERE("ts_sec", LE, 
-                            structured->getKeyAsNumber("drop_before")));
+                            structured->key_as_number("drop_before")));
 
         } else {
             throw std::runtime_error("Expected 'drop_before' in command dictionary");
