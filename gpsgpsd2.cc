@@ -247,7 +247,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     }
 
     // Peek at all the data we have available
-    buf_sz = tcphandler->PeekReadBufferData((void **) &buf, 
+    buf_sz = tcphandler->peek_read_buffer_data((void **) &buf, 
             tcphandler->get_read_buffer_available());
 
     // Aggregate into a new location; then copy into the main location

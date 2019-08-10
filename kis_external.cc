@@ -111,7 +111,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         }
 
         // Peek at the header
-        buffamt = ringbuf_handler->PeekReadBufferData((void **) &frame, buffamt);
+        buffamt = ringbuf_handler->peek_read_buffer_data((void **) &frame, buffamt);
 
         // Make sure we got the right amount
         if (buffamt < sizeof(kismet_external_frame_t)) {

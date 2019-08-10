@@ -192,7 +192,7 @@ public:
     // refer to the comments for common_buffer
     //
     // Returns amount peeked
-    virtual ssize_t PeekReadBufferData(void **in_ptr, size_t in_sz);
+    virtual ssize_t peek_read_buffer_data(void **in_ptr, size_t in_sz);
     virtual ssize_t PeekWriteBufferData(void **in_ptr, size_t in_sz);
 
     // Perform a zero-copy (when possible) peek of the buffer.  Does not consume

@@ -32,7 +32,7 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
     char *buf;
 
     // Peek at all the data we have available
-    buf_sz = nmeahandler->PeekReadBufferData((void **) &buf, 
+    buf_sz = nmeahandler->peek_read_buffer_data((void **) &buf, 
             nmeahandler->get_read_buffer_available());
 
     // Aggregate into a new location; then copy into the main location

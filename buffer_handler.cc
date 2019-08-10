@@ -96,7 +96,7 @@ ssize_t buffer_handler_generic::get_write_buffer_available() {
     return 0;
 }
 
-ssize_t buffer_handler_generic::PeekReadBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::peek_read_buffer_data(void **in_ptr, size_t in_sz) {
     if (in_ptr == NULL)
         return 0;
 
