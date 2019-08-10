@@ -23,13 +23,13 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceRtl433;
-typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
+class kis_datasource_rtl433;
+typedef std::shared_ptr<kis_datasource_rtl433> SharedDatasourceRtl433;
 
-class KisDatasourceRtl433 : public kis_datasource {
+class kis_datasource_rtl433 : public kis_datasource {
 public:
-    KisDatasourceRtl433(shared_datasource_builder in_builder, bool in_mqtt);
-    virtual ~KisDatasourceRtl433();
+    kis_datasource_rtl433(shared_datasource_builder in_builder, bool in_mqtt);
+    virtual ~kis_datasource_rtl433();
 
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
@@ -64,7 +64,7 @@ public:
     virtual ~DatasourceRtl433Builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, false));
+        return SharedDatasourceRtl433(new kis_datasource_rtl433(in_sh_this, false));
     }
 
     virtual void initialize() override {
@@ -106,7 +106,7 @@ public:
     virtual ~DatasourceRtl433MqttBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, true));
+        return SharedDatasourceRtl433(new kis_datasource_rtl433(in_sh_this, true));
     }
 
     virtual void initialize() override {
