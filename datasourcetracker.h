@@ -196,7 +196,7 @@ protected:
     std::vector<shared_interface> listed_sources;
 };
 
-typedef std::shared_ptr<datasource_tracker_source_list> SharedDSTList;
+typedef std::shared_ptr<datasource_tracker_source_list> shared_dst_source_list;
 
 // Tracker/serializable record of default values used for all datasources
 class datasourcetracker_defaults : public tracker_component {
@@ -480,11 +480,11 @@ protected:
     std::vector<shared_dst_source_probe> probing_complete_vec;
 
     // Sub-workers listing interfaces
-    std::map<unsigned int, SharedDSTList> listing_map;
+    std::map<unsigned int, shared_dst_source_list> listing_map;
     std::atomic<unsigned int> next_list_id;
 
     // Sub-workers slated for being removed
-    std::vector<SharedDSTList> listing_complete_vec;
+    std::vector<shared_dst_source_list> listing_complete_vec;
 
     // Sources which could not be opened in any way and which do not have a UUID
     // assignment (mis-defined startup sources, for instance)
