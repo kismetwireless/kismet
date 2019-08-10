@@ -343,7 +343,7 @@ void config_file::set_opt_dirty(const std::string& in_key, int in_dirty) {
     config_map_dirty[StrLower(in_key)] = in_dirty;
 }
 
-void config_file::SetOpt(const std::string& in_key, const std::string& in_val, int in_dirty) {
+void config_file::set_opt(const std::string& in_key, const std::string& in_val, int in_dirty) {
     local_locker lock(&config_locker);
 
     std::vector<config_entity> v;

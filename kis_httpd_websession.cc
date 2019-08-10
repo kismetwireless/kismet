@@ -128,8 +128,8 @@ void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_pas
     conf_username = in_username;
     conf_password = in_password;
 
-    user_httpd_config->SetOpt("httpd_username", conf_username, true);
-    user_httpd_config->SetOpt("httpd_password", conf_password, true);
+    user_httpd_config->set_opt("httpd_username", conf_username, true);
+    user_httpd_config->set_opt("httpd_password", conf_password, true);
 
     user_httpd_config->save_config(user_httpd_config_file.c_str());
 }
