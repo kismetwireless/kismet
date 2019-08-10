@@ -40,7 +40,7 @@
 //
 // Like other backend clients of a ringbuf handler, does not register as a read
 // or write directly but consumes out of the handler
-class PipeClient : public Pollable {
+class PipeClient : public kis_pollable {
 public:
     PipeClient(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
     virtual ~PipeClient();
@@ -51,7 +51,7 @@ public:
     int OpenPipes(int rpipe, int wpipe);
     void ClosePipes();
 
-    // Pollable interface
+    // kis_pollable interface
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 

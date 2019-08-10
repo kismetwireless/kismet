@@ -47,7 +47,7 @@ class config_file;
 class plugin_tracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
-class Pollable;
+class kis_pollable;
 // ipc system
 class IPCRemote;
 class RootIPCRemote;

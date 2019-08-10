@@ -50,7 +50,7 @@
 // This code replaces tcpserver and netframework with a cleaner TCP implementation
 // which interacts with a bufferhandler
 
-class tcp_server_v2 : public Pollable {
+class tcp_server_v2 : public kis_pollable {
 public:
     struct ipfilter {
         in_addr network;
@@ -70,7 +70,7 @@ public:
 
     virtual void SetBufferSize(unsigned int in_sz);
 
-    // Pollable
+    // kis_pollable
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
    

@@ -39,7 +39,7 @@
 // We don't have to implement a buffer interface directly, because we check the
 // write buffer during the poll() sequence.  The consumer will use the buffer
 // interface for reading data coming in from the client.
-class TcpClientV2 : public Pollable {
+class TcpClientV2 : public kis_pollable {
 public:
     TcpClientV2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
     virtual ~TcpClientV2();
@@ -52,7 +52,7 @@ public:
 
     bool FetchConnected();
 
-    // Pollable interface
+    // kis_pollable interface
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 

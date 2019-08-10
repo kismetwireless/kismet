@@ -29,7 +29,7 @@
 
 // Basic pollable object that anything that gets fed into the select()
 // loop in main() should be descended from
-class Pollable {
+class kis_pollable {
 public:
 	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) = 0;
 	virtual int Poll(fd_set& in_rset, fd_set& in_wset) = 0;

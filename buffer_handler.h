@@ -160,7 +160,7 @@ protected:
 //
 // Typically a buffer handler is created for each async communication task
 // (ie client connection, server socket, serial port, etc) and connected to 
-// the low-level IO driver (often a Pollable) which reads and writes directly
+// the low-level IO driver (often a kis_pollable) which reads and writes directly
 // to the ring buffers.  The buffer handler then automatically calls bound 
 // handlers for read/write events.
 //

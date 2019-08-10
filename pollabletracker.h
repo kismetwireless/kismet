@@ -26,7 +26,7 @@
 #include "kis_mutex.h"
 #include "globalregistry.h"
 
-/* Pollable subsystem tracker
+/* kis_pollable subsystem tracker
  *
  * Monitors pollable events and wraps them into a single select() loop
  * and handles erroring out sources after their events have been processed.
@@ -36,7 +36,7 @@
  * adds and removes are synced at the next descriptor or poll event.
  */
 
-class Pollable;
+class kis_pollable;
 
 class PollableTracker : public lifetime_global {
 public:
@@ -57,12 +57,12 @@ public:
     virtual ~PollableTracker();
 
     // Add a pollable item
-    void RegisterPollable(std::shared_ptr<Pollable> in_pollable);
+    void RegisterPollable(std::shared_ptr<kis_pollable> in_pollable);
 
     // Schedule a pollable item to be removed as soon as the current
     // operation completes (or the next one begins); This allows errored sources
     // to remove themselves once their tasks are complete.
-    void RemovePollable(std::shared_ptr<Pollable> in_pollable);
+    void RemovePollable(std::shared_ptr<kis_pollable> in_pollable);
 
     // Perform a select loop; blocks until polling exits
     void Selectloop(bool spindown_loop);
@@ -87,9 +87,9 @@ public:
 protected:
     kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
 
-    std::vector<std::shared_ptr<Pollable>> pollable_vec;
-    std::vector<std::shared_ptr<Pollable>> add_vec;
-    std::map<std::shared_ptr<Pollable>, int> remove_map;
+    std::vector<std::shared_ptr<kis_pollable>> pollable_vec;
+    std::vector<std::shared_ptr<kis_pollable>> add_vec;
+    std::map<std::shared_ptr<kis_pollable>, int> remove_map;
 
 };
 
