@@ -64,11 +64,11 @@ protected:
 };
 
 // Finite state automata to watch people who probe and never exchange data after an association
-class ProbeNoJoinAutomata : public finite_automata {
+class dot11_probe_nojoin_automata : public finite_automata {
 public:
-    ProbeNoJoinAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
+    dot11_probe_nojoin_automata(global_registry *in_globalreg, alert_time_unit in_unit, 
                         int in_rate, int in_burstrate);
-    ~ProbeNoJoinAutomata();
+    ~dot11_probe_nojoin_automata();
 
     // States:
     // State 0: Probe only

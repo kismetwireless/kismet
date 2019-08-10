@@ -22,20 +22,20 @@
 #include "packetracker.h"
 #include "util.h"
 
-ProbeNoJoinAutomata::ProbeNoJoinAutomata(global_registry *in_globalreg,
+dot11_probe_nojoin_automata::dot11_probe_nojoin_automata(global_registry *in_globalreg,
                                          alert_time_unit in_unit, int in_rate, int in_burstrate) {
     globalreg = in_globalreg;
     alertid = globalreg->alertracker->register_alert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
 }
 
-ProbeNoJoinAutomata::~ProbeNoJoinAutomata() {
+dot11_probe_nojoin_automata::~dot11_probe_nojoin_automata() {
     for (map<mac_addr, _fsa_element *>::iterator iter = bssid_map.begin();
          iter != bssid_map.end(); ++iter) {
         delete iter->second;
     }
 }
 
-int ProbeNoJoinAutomata::process_packet(const packet_info *in_info) {
+int dot11_probe_nojoin_automata::process_packet(const packet_info *in_info) {
     _fsa_element *elem;
     map<mac_addr, _fsa_element *>::iterator iter;
 
