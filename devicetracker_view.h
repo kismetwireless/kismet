@@ -116,7 +116,7 @@ public:
     // and are instead directly manipulated by another component (such as the ssidscan system which
     // maintains a view by directly adding target devices)
     virtual void add_device_direct(std::shared_ptr<kis_tracked_device_base> device);
-    virtual void removeDeviceDirect(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void remove_device_direct(std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
     virtual void register_fields() override {
