@@ -48,10 +48,6 @@ class plugin_tracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
 class kis_pollable;
-// ipc system
-class IPCRemote;
-class RootIPCRemote;
-class KisPanelInterface;
 // Manuf db
 class Manuf;
 // Field name resolver
@@ -63,58 +59,12 @@ class kis_net_httpd;
 #define KISMET_INSTANCE_DRONE	1
 #define KISMET_INSTANCE_CLIENT	2
 
-// TODO remove these when netserver is fully removed
-//
-// These are the offsets into the array of protocol references, not
-// the reference itself.
-// tcpserver protocol numbers for all the builtin protocols kismet
-// uses and needs to refer to internally.  Modules are on their own
-// for tracking this.
-#define PROTO_REF_KISMET		0
-#define PROTO_REF_ERROR			1
-#define PROTO_REF_ACK			2
-#define PROTO_REF_PROTOCOL		3
-#define PROTO_REF_CAPABILITY	4
-#define PROTO_REF_TERMINATE		5
-#define PROTO_REF_TIME			6
-#define PROTO_REF_BSSID			7
-#define PROTO_REF_CLIENT		8
-#define PROTO_REF_CARD			9
-#define PROTO_REF_GPS			10
-#define PROTO_REF_ALERT			11
-#define PROTO_REF_STATUS		12
-#define PROTO_REF_INFO			13
-#define PROTO_REF_REMOVE		14
-#define PROTO_REF_PACKET		15
-#define PROTO_REF_STRING		16
-#define PROTO_REF_WEPKEY		17
-#define PROTO_REF_SSID			18
-#define PROTO_REF_MAX			19
-
-// Same game, packet component references
-#define PACK_COMP_80211			0
-#define PACK_COMP_TURBOCELL		1
-#define PACK_COMP_RADIODATA		2
-#define PACK_COMP_GPS			3
-#define PACK_COMP_LINKFRAME		4
-#define PACK_COMP_80211FRAME	5
-#define PACK_COMP_MANGLEFRAME	6
-#define PACK_COMP_TRACKERNET	7
-#define PACK_COMP_TRACKERCLIENT	8
-#define PACK_COMP_KISCAPSRC		9
-#define PACK_COMP_ALERT			10
-#define PACK_COMP_BASICDATA		11
-#define PACK_COMP_STRINGS		12
-#define PACK_COMP_FCSBYTES		13
-#define PACK_COMP_DEVICE		14
-#define PACK_COMP_COMMON		15
-#define PACK_COMP_CHECKSUM		16
-#define PACK_COMP_DECAP			17
-#define PACK_COMP_MAX			18
-
 // Same game again, with alerts that internal things need to generate
 #define ALERT_REF_KISMET		0
 #define ALERT_REF_MAX			1
+
+// Maximum number of packet components we can track
+#define PACK_COMP_MAX 128
 
 // Define some macros (ew) to shortcut into the vectors we had to build for
 // fast access.  Kids, don't try this at home.

@@ -2470,7 +2470,7 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
     if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(PACK_COMP_80211)) == NULL)
+         (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL)
         return 0;
     if (packinfo->corrupt)
         return 0;
