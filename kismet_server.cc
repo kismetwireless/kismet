@@ -652,7 +652,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
 	// Create the event bus
-	Eventbus::create_eventbus();
+	event_bus::create_eventbus();
 
     // We need to create the pollable system near the top of execution as well
     auto pollabletracker(PollableTracker::create_pollabletracker());

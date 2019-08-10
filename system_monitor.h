@@ -30,7 +30,7 @@
 #include "devicetracker.h"
 #include "kis_net_microhttpd.h"
 
-class Eventbus;
+class event_bus;
 
 class tracked_system_status : public tracker_component {
 public:
@@ -154,7 +154,7 @@ public:
 protected:
     kis_recursive_timed_mutex monitor_mutex;
 
-    std::shared_ptr<Eventbus> eventbus;
+    std::shared_ptr<event_bus> eventbus;
     int logopen_evt_id;
 
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> monitor_endp;

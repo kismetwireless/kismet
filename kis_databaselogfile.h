@@ -144,7 +144,7 @@ public:
         return device_mac_filter;
     }
 
-    // Eventbus event we inject when the log is opened
+    // event_bus event we inject when the log is opened
     class EventDblogOpened : public eventbus_event {
     public:
         static std::string Event() { return "KISMETDB_LOG_OPEN"; }

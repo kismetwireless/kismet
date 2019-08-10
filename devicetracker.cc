@@ -74,7 +74,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
 
 	eventbus =
-		Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+		Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
     device_base_id =
         entrytracker->register_field("kismet.device.base", 

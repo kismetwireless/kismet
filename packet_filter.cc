@@ -123,7 +123,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
 
     devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
-	eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+	eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
 	eb_id = 
 		eventbus->register_listener("NEW_PHY",
 				[this](std::shared_ptr<eventbus_event> evt) {

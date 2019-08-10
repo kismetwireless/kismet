@@ -98,7 +98,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
             Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
         eventbus =
-            Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+            Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
         // Initialize the crc tables
         crc32_init_table_80211(Globalreg::globalreg->crc32_table);

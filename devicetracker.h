@@ -122,7 +122,7 @@ public:
 	kis_phy_handler *fetch_phy_handler(int in_phy);
     kis_phy_handler *fetch_phy_handler_by_name(std::string in_name);
 
-    // Eventbus event we inject when a new phy is added
+    // event_bus event we inject when a new phy is added
     class event_new_phy : public eventbus_event {
     public:
         static std::string event() { return "NEW_PHY"; }
@@ -311,7 +311,7 @@ protected:
 	global_registry *globalreg;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<packet_chain> packetchain;
-    std::shared_ptr<Eventbus> eventbus;
+    std::shared_ptr<event_bus> eventbus;
 
     unsigned long new_datasource_evt_id;
 

@@ -301,7 +301,7 @@ datasource_tracker::datasource_tracker() :
     tcp_server_v2(Globalreg::globalreg) {
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>();
-    eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+    eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
     proto_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.driver",

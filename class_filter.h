@@ -97,7 +97,7 @@ public:
 
 protected:
 	std::shared_ptr<device_tracker> devicetracker;
-	std::shared_ptr<Eventbus> eventbus;
+	std::shared_ptr<event_bus> eventbus;
 	unsigned long eb_id;
 
 	void update_phy_map(std::shared_ptr<eventbus_event> evt);

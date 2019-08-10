@@ -66,24 +66,24 @@ protected:
     std::string event_id;
 };
 
-class Eventbus : public lifetime_global {
+class event_bus : public lifetime_global {
 public:
     using cb_func = std::function<void (std::shared_ptr<eventbus_event>)>;
 
     static std::string global_name() { return "EVENTBUS"; }
 
-    static std::shared_ptr<Eventbus> create_eventbus() {
-        std::shared_ptr<Eventbus> mon(new Eventbus());
+    static std::shared_ptr<event_bus> create_eventbus() {
+        std::shared_ptr<event_bus> mon(new event_bus());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-	Eventbus();
+	event_bus();
 
 public:
-	virtual ~Eventbus();
+	virtual ~event_bus();
 
     unsigned long register_listener(const std::string& channel, cb_func cb);
     unsigned long register_listener(const std::list<std::string>& channels, cb_func cb);

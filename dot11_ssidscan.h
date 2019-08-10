@@ -158,8 +158,8 @@ protected:
     };
     std::map<int, source_timers> source_id_timer_map;
 
-    // Eventbus subscription for new datasources
-    std::shared_ptr<Eventbus> eventbus;
+    // event_bus subscription for new datasources
+    std::shared_ptr<event_bus> eventbus;
     unsigned long eventbus_id;
     void handle_eventbus_evt(std::shared_ptr<eventbus_event> evt);
 

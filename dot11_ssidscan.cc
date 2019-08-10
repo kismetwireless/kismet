@@ -35,7 +35,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
         Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
     eventbus =
-        Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+        Globalreg::FetchMandatoryGlobalAs<event_bus>();
     eventbus_id = 0;
 
     databaselog =

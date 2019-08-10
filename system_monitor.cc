@@ -44,7 +44,7 @@ Systemmonitor::Systemmonitor() :
     lifetime_global() {
 
     devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
-    eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+    eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
     status = std::make_shared<tracked_system_status>();
 

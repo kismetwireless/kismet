@@ -370,7 +370,7 @@ public:
     // Shut down all sources, this happens as kismet is terminating
     virtual void trigger_deferred_shutdown() override;
 
-    // Eventbus event we inject when a new ds is added
+    // event_bus event we inject when a new ds is added
     class event_new_datasource : public eventbus_event {
     public:
         static std::string Event() { return "NEW_DATASOURCE"; }
@@ -459,7 +459,7 @@ protected:
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
-    std::shared_ptr<Eventbus> eventbus;
+    std::shared_ptr<event_bus> eventbus;
 
     kis_recursive_timed_mutex dst_lock;
 
