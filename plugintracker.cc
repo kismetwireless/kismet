@@ -480,6 +480,6 @@ void plugin_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
     if (stripped == "/plugins/all_plugins") {
         local_locker locker(&plugin_lock);
 
-        Httpd_Serialize(path, stream, plugin_registry_vec);
+        httpd_serialize(path, stream, plugin_registry_vec);
     }
 }

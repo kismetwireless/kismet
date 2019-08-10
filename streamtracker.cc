@@ -115,7 +115,7 @@ void StreamTracker::httpd_create_stream_response(
             outvec->push_back(si.second);
         }
 
-        Httpd_Serialize(path, stream, outvec);
+        httpd_serialize(path, stream, outvec);
         return;
     }
 
@@ -143,7 +143,7 @@ void StreamTracker::httpd_create_stream_response(
         return;
 
     if (tokenurl[4] == "stream_info") {
-        Httpd_Serialize(path, stream, smi->second);
+        httpd_serialize(path, stream, smi->second);
         return;
     }
 

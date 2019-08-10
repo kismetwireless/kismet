@@ -116,7 +116,7 @@ void channel_tracker_v2::httpd_create_stream_response(
     if (stripped == "/channels/channels") {
         local_shared_locker locker(&lock);
         auto cv2 = Globalreg::fetch_mandatory_global_as<channel_tracker_v2>("CHANNEL_TRACKER");
-        Httpd_Serialize(path, stream, cv2);
+        httpd_serialize(path, stream, cv2);
     }
 
 }

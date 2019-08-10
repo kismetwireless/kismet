@@ -51,7 +51,7 @@ bool kis_net_httpd_handler::httpd_can_serialize(const std::string& path) {
     return Globalreg::globalreg->entrytracker->can_serialize(httpd->get_suffix(path));
 }
 
-void kis_net_httpd_handler::Httpd_Serialize(const std::string& path, 
+void kis_net_httpd_handler::httpd_serialize(const std::string& path, 
         std::ostream& stream,
         std::shared_ptr<tracker_element> elem, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename) {
