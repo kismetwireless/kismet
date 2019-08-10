@@ -265,17 +265,17 @@ protected:
 
 
 // Extremely simple callback-based POST responder linked to a chainbuf buffer
-class Kis_Net_Httpd_Simple_Post_Endpoint : public kis_net_httpd_chain_stream_handler {
+class kis_net_httpd_simple_post_endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, const std::string& uri, shared_structured post_structured,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
-    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func,
+    kis_net_httpd_simple_post_endpoint(const std::string& in_uri, handler_func in_func,
             kis_recursive_timed_mutex *in_mutex);
-    Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func);
+    kis_net_httpd_simple_post_endpoint(const std::string& in_uri, handler_func in_func);
 
-    virtual ~Kis_Net_Httpd_Simple_Post_Endpoint() { }
+    virtual ~kis_net_httpd_simple_post_endpoint() { }
 
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;

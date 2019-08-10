@@ -127,7 +127,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
                 }, &mutex);
 
     dot11_ssidscan_config_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/phy/phy80211/ssidscan/config", true,
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/ssidscan/config", true,
                 [this](std::ostream& stream, const std::string& url,
                     shared_structured post_structured, 
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {

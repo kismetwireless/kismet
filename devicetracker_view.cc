@@ -43,7 +43,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(uri, 
                 [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
@@ -82,7 +82,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     // all our endpoints are registered w/ no mutex, accordingly.
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(uri, 
                 [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
@@ -107,7 +107,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     uri = fmt::format("/devices/views/{}devices", ss.str());
     device_uri_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(uri, 
                 [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);

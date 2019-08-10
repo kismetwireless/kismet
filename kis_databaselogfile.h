@@ -216,12 +216,12 @@ protected:
     int alert_timeout_timer;
 
     // Packet clearing API
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
             shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 
     // POI API
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> make_poi_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> make_poi_endp;
     unsigned int make_poi_endp_handler(std::ostream& stream, const std::string& uri,
             shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 

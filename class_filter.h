@@ -72,7 +72,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> filter_default;
 
     // Default endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> default_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> default_endp;
     int default_set_endp_handler(std::ostream& stream, shared_structured post_structured);
 
     // Default display endpoint

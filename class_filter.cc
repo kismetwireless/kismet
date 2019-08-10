@@ -50,7 +50,7 @@ class_filter::class_filter(const std::string& in_id, const std::string& in_descr
 
     auto posturl = fmt::format("{}/set_default", base_uri);
     default_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(
                 posturl, 
                 [this](std::ostream& stream, const std::string& uri,
                     shared_structured post_structured, 

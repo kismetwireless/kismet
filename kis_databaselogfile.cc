@@ -247,7 +247,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     packet_drop_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/logging/kismetdb/pcap/drop", 
                 [this](std::ostream& stream, const std::string& uri,
                     shared_structured post_structured, 
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
@@ -255,7 +255,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
                 }, nullptr);
 
     make_poi_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/poi/create_poi", 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/poi/create_poi", 
                 [this](std::ostream& stream, const std::string& uri,
                     shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {

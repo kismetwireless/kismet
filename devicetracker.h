@@ -395,7 +395,7 @@ protected:
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> view_endp;
 
     // Multimac endpoint using new http API
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> multimac_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> multimac_endp;
     unsigned int multimac_endp_handler(std::ostream& stream, const std::string& uri,
             shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
 

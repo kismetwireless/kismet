@@ -146,8 +146,8 @@ protected:
     std::map<device_key, bool> device_presence_map;
 
     // Complex endpoint and optional extended URI endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_uri_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_uri_endp;
 
     // Simpler time-based endpoints
     std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
