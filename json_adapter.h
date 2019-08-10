@@ -37,7 +37,7 @@ void pack(std::ostream &stream, shared_tracker_element e,
         bool prettyprint = false, unsigned int depth = 0);
 
 std::string sanitize_string(const std::string& in) noexcept;
-std::size_t StringExtraSpace(const std::string& in) noexcept;
+std::size_t sanitize_extra_space(const std::string& in) noexcept;
 
 class Serializer : public tracker_element_serializer {
 public:

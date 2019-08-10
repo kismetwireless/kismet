@@ -36,9 +36,9 @@
 #include "devicetracker_component.h"
 #include "json_adapter.h"
 
-/* StringExtraSpace and sanitize_string taken from nlohmann's jsonhpp library,
+/* sanitize_extra_space and sanitize_string taken from nlohmann's jsonhpp library,
    Copyright 2013-2015 Niels Lohmann. and under the MIT license */
-std::size_t json_adapter::StringExtraSpace(const std::string& s) noexcept {
+std::size_t json_adapter::sanitize_extra_space(const std::string& s) noexcept {
     std::size_t result = 0;
 
     for (const auto& c : s) {
@@ -72,7 +72,7 @@ std::size_t json_adapter::StringExtraSpace(const std::string& s) noexcept {
 }
 
 std::string json_adapter::sanitize_string(const std::string& s) noexcept {
-    const auto space = StringExtraSpace(s);
+    const auto space = sanitize_extra_space(s);
     if (space == 0) {
         return s;
     }
