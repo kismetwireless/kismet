@@ -113,7 +113,7 @@ bool class_filter::filterstring_to_bool(const std::string& str) {
     return false;
 }
 
-ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::string& in_description) :
+class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std::string& in_description) :
     class_filter(in_id, in_description, "mac_addr") {
 
     register_fields();
@@ -184,12 +184,12 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
                 }, &mutex);
 }
 
-ClassfilterMacaddr::~ClassfilterMacaddr() {
+class_filter_mac_addr::~class_filter_mac_addr() {
     if (eventbus != nullptr) 
         eventbus->remove_listener(eb_id);
 }
 
-void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, bool value) {
+void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, bool value) {
 	local_locker l(&mutex);
 
 	// Build the tracked version of the record, building any containers we need along the way, this
@@ -227,7 +227,7 @@ void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, 
 	phy_mac_filter_map[phy->FetchPhyId()][in_mac] = value;
 }
 
-void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_phy) {
+void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy) {
 	local_locker l(&mutex);
 
 	// Remove it from the tracked version we display
@@ -269,7 +269,7 @@ void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_ph
 
 }
 
-void ClassfilterMacaddr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
+void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
 	local_locker l(&mutex);
 
 	if (unknown_phy_mac_filter_map.size() == 0)
@@ -292,7 +292,7 @@ void ClassfilterMacaddr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
 	unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
-unsigned int ClassfilterMacaddr::edit_endp_handler(std::ostream& stream, 
+unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
     try {
         if (!structured->hasKey("filter")) {
@@ -332,7 +332,7 @@ unsigned int ClassfilterMacaddr::edit_endp_handler(std::ostream& stream,
     return 500;
 }
 
-unsigned int ClassfilterMacaddr::remove_endp_handler(std::ostream& stream, 
+unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, SharedStructured structured) {
     try {
         if (!structured->hasKey("filter")) {
@@ -370,7 +370,7 @@ unsigned int ClassfilterMacaddr::remove_endp_handler(std::ostream& stream,
     return 500;
 }
 
-bool ClassfilterMacaddr::filter(mac_addr mac, unsigned int phy) {
+bool class_filter_mac_addr::filter(mac_addr mac, unsigned int phy) {
 	local_locker l(&mutex);
 
 	auto pi = phy_mac_filter_map.find(phy);
@@ -386,13 +386,13 @@ bool ClassfilterMacaddr::filter(mac_addr mac, unsigned int phy) {
 	return si->second;
 }
 
-std::shared_ptr<tracker_element_map> ClassfilterMacaddr::self_endp_handler() {
+std::shared_ptr<tracker_element_map> class_filter_mac_addr::self_endp_handler() {
     auto ret = std::make_shared<tracker_element_map>();
     build_self_content(ret);
     return ret;
 }
 
-void ClassfilterMacaddr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
+void class_filter_mac_addr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
     class_filter::build_self_content(content);
 
     content->insert(filter_phy_block);

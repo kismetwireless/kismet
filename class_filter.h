@@ -85,10 +85,10 @@ protected:
 };
 
 // MAC based filter
-class ClassfilterMacaddr : public class_filter {
+class class_filter_mac_addr : public class_filter {
 public:
-    ClassfilterMacaddr(const std::string& in_id, const std::string& in_descripton);
-    virtual ~ClassfilterMacaddr();
+    class_filter_mac_addr(const std::string& in_id, const std::string& in_descripton);
+    virtual ~class_filter_mac_addr();
 
     virtual bool filter(mac_addr in_mac, unsigned int in_phy);
 

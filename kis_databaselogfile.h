@@ -140,7 +140,7 @@ public:
         return packet_mac_filter;
     }
 
-    std::shared_ptr<ClassfilterMacaddr> GetDeviceFilter() {
+    std::shared_ptr<class_filter_mac_addr> GetDeviceFilter() {
         return device_mac_filter;
     }
 
@@ -229,7 +229,7 @@ protected:
     std::shared_ptr<tracker_element> list_poi_endp_handler();
 
     // Device log filter
-    std::shared_ptr<ClassfilterMacaddr> device_mac_filter;
+    std::shared_ptr<class_filter_mac_addr> device_mac_filter;
 
     // Packet log filter
     std::shared_ptr<PacketfilterMacaddr> packet_mac_filter;
