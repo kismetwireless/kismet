@@ -87,7 +87,7 @@ shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_
         return existing->second;
 
     // Build it
-    r = Globalreg::globalreg->entrytracker->GetSharedInstance(i);
+    r = Globalreg::globalreg->entrytracker->get_shared_instance(i);
 
     // Add it to our tracked map object
     insert(r);

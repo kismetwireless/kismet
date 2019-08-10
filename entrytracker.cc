@@ -139,7 +139,7 @@ std::string entry_tracker::get_field_description(int in_id) {
 }
 
 
-std::shared_ptr<tracker_element> entry_tracker::GetSharedInstance(int in_id) {
+std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
     local_locker lock(&entry_mutex);
 
     auto iter = field_id_map.find(in_id);
@@ -150,7 +150,7 @@ std::shared_ptr<tracker_element> entry_tracker::GetSharedInstance(int in_id) {
     return iter->second->builder->clone_type(iter->second->field_id);
 }
 
-std::shared_ptr<tracker_element> entry_tracker::GetSharedInstance(const std::string& in_name) {
+std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
     auto lname = StrLower(in_name);
