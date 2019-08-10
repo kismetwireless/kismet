@@ -39,9 +39,9 @@ void pack(std::ostream &stream, shared_tracker_element e,
 std::string sanitize_string(const std::string& in) noexcept;
 std::size_t sanitize_extra_space(const std::string& in) noexcept;
 
-class Serializer : public tracker_element_serializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
+    serializer() :
         tracker_element_serializer() { }
 
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
@@ -59,9 +59,9 @@ public:
 // which will not require loading the entire object into RAM
 namespace EkJsonAdapter {
 
-class Serializer : public tracker_element_serializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
+    serializer() :
         tracker_element_serializer() { }
 
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
@@ -85,9 +85,9 @@ public:
 // it to be human readable.
 namespace PrettyJsonAdapter {
 
-class Serializer : public tracker_element_serializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
+    serializer() :
         tracker_element_serializer() { }
 
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
@@ -131,9 +131,9 @@ namespace StorageJsonAdapter {
 void pack(std::ostream &stream, shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
-class Serializer : public tracker_element_serializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
+    serializer() :
         tracker_element_serializer() { }
 
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
