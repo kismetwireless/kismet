@@ -389,7 +389,7 @@ public:
             kis_net_httpd_connection *connection);
 
     // Append timestamp and mime headers
-    static void AppendStandardHeaders(kis_net_httpd *httpd,
+    static void append_standard_headers(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, const char *url);
 
     // Queue a http response
