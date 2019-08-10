@@ -92,7 +92,7 @@ void kis_httpd_websession::trigger_deferred_startup() {
     httpd->register_session_handler(websession);
 
     // Register as not requiring a login for these endpoints
-    httpd->RegisterUnauthHandler(this);
+    httpd->register_unauth_handler(this);
 
     activated = true;
 }

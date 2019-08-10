@@ -185,7 +185,7 @@ kis_net_httpd::kis_net_httpd() {
     }
 
     if (http_serve_files == false && http_serve_user_files == false) {
-        RegisterUnauthHandler(new Kis_Net_Httpd_No_Files_Handler());
+        register_unauth_handler(new Kis_Net_Httpd_No_Files_Handler());
     }
 
     session_timeout = 
@@ -400,7 +400,7 @@ void kis_net_httpd::remove_handler(kis_net_httpd_handler *in_handler) {
     }
 }
 
-void kis_net_httpd::RegisterUnauthHandler(kis_net_httpd_handler *in_handler) {
+void kis_net_httpd::register_unauth_handler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     unauth_handler_vec.push_back(in_handler);
@@ -1435,7 +1435,7 @@ kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracke
     content {in_element},
     generator {nullptr},
     mutex {in_mutex} { 
-    httpd->RegisterUnauthHandler(this);
+    httpd->register_unauth_handler(this);
 }
 
 kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracked_endpoint(const std::string& in_uri,
@@ -1445,7 +1445,7 @@ kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracke
     content { nullptr },
     generator {in_func},
     mutex {nullptr} {
-    httpd->RegisterUnauthHandler(this);
+    httpd->register_unauth_handler(this);
 }
 
 kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracked_endpoint(const std::string& in_uri,
@@ -1456,7 +1456,7 @@ kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracke
     content { nullptr },
     generator {in_func},
     mutex {in_mutex} {
-    httpd->RegisterUnauthHandler(this);
+    httpd->register_unauth_handler(this);
 }
 
 bool kis_net_httpd_simple_unauth_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {

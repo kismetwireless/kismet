@@ -359,7 +359,7 @@ public:
     void remove_handler(kis_net_httpd_handler *in_handler);
 
     // Unauth handlers do not require a login; use of them should be very limited.
-    void RegisterUnauthHandler(kis_net_httpd_handler *in_handler);
+    void register_unauth_handler(kis_net_httpd_handler *in_handler);
     void RemoveUnauthHandler(kis_net_httpd_handler *in_handler);
 
     static std::string get_suffix(std::string url);
