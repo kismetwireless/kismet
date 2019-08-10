@@ -259,7 +259,7 @@ int config_file::save_config(const char *in_fname) {
     return 1;
 }
 
-std::string config_file::FetchOpt(std::string in_key) {
+std::string config_file::fetch_opt(std::string in_key) {
     local_locker lock(&config_locker);
 
     auto cmitr = config_map.find(StrLower(in_key));
@@ -277,7 +277,7 @@ std::string config_file::FetchOpt(std::string in_key) {
 }
 
 std::string config_file::FetchOptDfl(std::string in_key, std::string in_dfl) {
-    std::string r = FetchOpt(in_key);
+    std::string r = fetch_opt(in_key);
 
     if (r.length() == 0)
         return in_dfl;
@@ -307,7 +307,7 @@ int config_file::FetchOptBoolean(std::string in_key, int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 
-    std::string v = StrLower(FetchOpt(in_key));
+    std::string v = StrLower(fetch_opt(in_key));
     int r;
 
     r = StringToBool(v);

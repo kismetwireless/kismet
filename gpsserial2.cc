@@ -96,9 +96,9 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
     std::string proto_name;
     unsigned int proto_baud;
 
-    proto_device = FetchOpt("device", source_definition_opts);
-    proto_baud_s = FetchOpt("baud", source_definition_opts);
-    proto_name = FetchOpt("name", source_definition_opts);
+    proto_device = fetch_opt("device", source_definition_opts);
+    proto_baud_s = fetch_opt("baud", source_definition_opts);
+    proto_name = fetch_opt("name", source_definition_opts);
 
     if (proto_device == "") {
         _MSG("GPSSerial expected device= option, none found.", MSGFLAG_ERROR);

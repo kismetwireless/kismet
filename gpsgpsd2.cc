@@ -143,8 +143,8 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
     std::string proto_port_s;
     unsigned int proto_port;
 
-    proto_host = FetchOpt("host", source_definition_opts);
-    proto_port_s = FetchOpt("port", source_definition_opts);
+    proto_host = fetch_opt("host", source_definition_opts);
+    proto_port_s = fetch_opt("port", source_definition_opts);
 
     if (proto_host == "") {
         _MSG("GPSGpsdV2 expected host= option, none found.", MSGFLAG_ERROR);

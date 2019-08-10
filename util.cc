@@ -332,7 +332,7 @@ int TokenNullJoin(std::string *ret_str, const char **in_list) {
 }
 
 // Quick fetch of strings from a map of options
-std::string FetchOpt(const std::string& in_key, std::vector<opt_pair> *in_vec,
+std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec,
         const std::string& dvalue) {
     if (in_vec == nullptr)
         return dvalue;
@@ -345,7 +345,7 @@ std::string FetchOpt(const std::string& in_key, std::vector<opt_pair> *in_vec,
     return dvalue;
 }
 
-std::string FetchOpt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
+std::string fetch_opt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         std::string dvalue) {
 
     auto i = in_map.find(in_key);
@@ -357,7 +357,7 @@ std::string FetchOpt(const std::string& in_key, const std::map<std::string, std:
 }
 
 int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
-    std::string s = FetchOpt(in_key, in_vec);
+    std::string s = fetch_opt(in_key, in_vec);
 
 	return StringToBool(s, dvalue);
 }

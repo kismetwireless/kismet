@@ -363,10 +363,10 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
     std::vector<opt_pair> optvec;
     StringToOpts(in_def.substr(cpos + 1, in_def.length()), ",", &optvec);
 
-    std::string manuf_name = FetchOpt("name", &optvec);
-    std::string manuf_model = FetchOpt("model", &optvec);
-    std::string macstr = FetchOpt("mac", &optvec);
-    std::string ssid = FetchOpt("ssid", &optvec);
+    std::string manuf_name = fetch_opt("name", &optvec);
+    std::string manuf_model = fetch_opt("model", &optvec);
+    std::string macstr = fetch_opt("mac", &optvec);
+    std::string ssid = fetch_opt("ssid", &optvec);
     bool matchany = FetchOptBoolean("match_any", &optvec, false);
 
     if (manuf_name == "") {

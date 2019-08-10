@@ -429,7 +429,7 @@ void Datasourcetracker::Deferred_Startup() {
     }
 
     std::string optval;
-    if ((optval = Globalreg::globalreg->kismet_config->FetchOpt("channel_hop_speed")) != "") {
+    if ((optval = Globalreg::globalreg->kismet_config->fetch_opt("channel_hop_speed")) != "") {
         try {
             double dv = string_to_rate(optval, 1);
             config_defaults->set_hop_rate(dv);
@@ -461,7 +461,7 @@ void Datasourcetracker::Deferred_Startup() {
         config_defaults->set_retry_on_error(true);
     }
 
-    std::string listen = Globalreg::globalreg->kismet_config->FetchOpt("remote_capture_listen");
+    std::string listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
     uint32_t listenport = 
         Globalreg::globalreg->kismet_config->FetchOptUInt("remote_capture_port", 0);
 
@@ -801,7 +801,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
 
         StringToOpts(options, ",", &opt_vec);
 
-        type = StrLower(FetchOpt("type", &opt_vec));
+        type = StrLower(fetch_opt("type", &opt_vec));
 
         if (type == "")
             type = "auto";

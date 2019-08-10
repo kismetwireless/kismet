@@ -95,9 +95,9 @@ alert_tracker::alert_tracker() :
     prelude_init_client(PRELUDE_ANALYZER_MODEL);
 #endif
 
-	if (Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
+	if (Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog") != "") {
 		int scantmp;
-		if (sscanf(Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
+		if (sscanf(Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog").c_str(), 
 				   "%d", &scantmp) != 1 || scantmp < 0) {
             _MSG("Illegal value for 'alertbacklog' in kismet.conf, expected number greater than zero.",
                     MSGFLAG_FATAL);

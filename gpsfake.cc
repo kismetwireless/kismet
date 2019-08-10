@@ -37,9 +37,9 @@ bool GPSFake::open_gps(std::string in_opts) {
     std::string proto_lon;
     std::string proto_alt;
 
-    proto_lat = FetchOpt("lat", source_definition_opts);
-    proto_lon = FetchOpt("lon", source_definition_opts);
-    proto_alt = FetchOpt("alt", source_definition_opts);
+    proto_lat = fetch_opt("lat", source_definition_opts);
+    proto_lon = fetch_opt("lon", source_definition_opts);
+    proto_alt = fetch_opt("alt", source_definition_opts);
 
     gps_location = new kis_gps_packinfo();
 

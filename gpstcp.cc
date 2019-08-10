@@ -95,14 +95,14 @@ bool GPSTCP::open_gps(std::string in_opts) {
     }
 
     std::string proto_name;
-    proto_name = FetchOpt("name", source_definition_opts);
+    proto_name = fetch_opt("name", source_definition_opts);
 
     std::string proto_host;
     std::string proto_port_s;
     unsigned int proto_port;
 
-    proto_host = FetchOpt("host", source_definition_opts);
-    proto_port_s = FetchOpt("port", source_definition_opts);
+    proto_host = fetch_opt("host", source_definition_opts);
+    proto_port_s = fetch_opt("port", source_definition_opts);
 
     if (proto_host == "") {
         _MSG("GPSTCP expected host= option, none found.", MSGFLAG_ERROR);

@@ -368,7 +368,7 @@ void TerminationHandler() {
 // Load a UUID
 void Load_Kismet_UUID(global_registry *globalreg) {
     // Look for a global override
-    uuid confuuid(globalreg->kismet_config->FetchOpt("server_uuid"));
+    uuid confuuid(globalreg->kismet_config->fetch_opt("server_uuid"));
 
     if (!confuuid.error) {
         _MSG("Setting server UUID " + confuuid.UUID2String() + " from kismet.conf "
@@ -380,7 +380,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     }
 
     // Make a custom config
-    std::string conf_dir_path_raw = globalreg->kismet_config->FetchOpt("configdir");
+    std::string conf_dir_path_raw = globalreg->kismet_config->fetch_opt("configdir");
     std::string config_dir_path = 
         globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
@@ -390,7 +390,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     uuidconf.parse_config(uuidconfpath.c_str());
 
     // Look for a saved uuid
-    confuuid = uuid(uuidconf.FetchOpt("server_uuid"));
+    confuuid = uuid(uuidconf.fetch_opt("server_uuid"));
     if (confuuid.error) {
         confuuid.GenerateTimeUUID((uint8_t *) "KISMET");
         _MSG("Generated server UUID " + confuuid.UUID2String() + " and storing in " +
@@ -673,8 +673,8 @@ int main(int argc, char *argv[], char *envp[]) {
     struct stat fstat;
     std::string configdir;
 
-    if (conf->FetchOpt("configdir") != "") {
-        configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
+    if (conf->fetch_opt("configdir") != "") {
+        configdir = conf->ExpandLogPath(conf->fetch_opt("configdir"), "", "", 0, 1);
     } else {
         _MSG("No 'configdir' option in the config file; make sure that the "
                 "Kismet config files are installed and up to date.", MSGFLAG_FATAL);
@@ -713,7 +713,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Load_Kismet_UUID(globalregistry);
 
     // Set up ulimits if we define any
-    std::string limits = globalregistry->kismet_config->FetchOpt("ulimit_mbytes");
+    std::string limits = globalregistry->kismet_config->fetch_opt("ulimit_mbytes");
     if (limits != "") {
         long limitb;
         if (sscanf(limits.c_str(), "%ld", &limitb) != 1) {
@@ -769,14 +769,14 @@ int main(int argc, char *argv[], char *envp[]) {
         globalregistry->messagebus->RemoveClient(smartmsgcli);
     }
 
-    if (conf->FetchOpt("servername") == "") {
+    if (conf->fetch_opt("servername") == "") {
         char hostname[64];
         if (gethostname(hostname, 64) < 0)
             globalregistry->servername = "Kismet";
         else
             globalregistry->servername = std::string(hostname);
     } else {
-        globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
+        globalregistry->servername = MungeToPrintable(conf->fetch_opt("servername"));
     }
 
     // Create the IPC handler

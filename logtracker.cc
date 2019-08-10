@@ -158,7 +158,7 @@ void LogTracker::Deferred_Startup() {
     std::vector<std::string> types;
    
     if (argtypes.length() == 0)
-        types = StrTokenize(Globalreg::globalreg->kismet_config->FetchOpt("log_types"), ",");
+        types = StrTokenize(Globalreg::globalreg->kismet_config->fetch_opt("log_types"), ",");
     else
         types = StrTokenize(argtypes, ",");
         

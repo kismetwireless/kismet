@@ -150,8 +150,8 @@ kis_net_httpd::kis_net_httpd() {
 
     std::string http_data_dir, http_aux_data_dir;
 
-    http_data_dir = Globalreg::globalreg->kismet_config->FetchOpt("httpd_home");
-    http_aux_data_dir = Globalreg::globalreg->kismet_config->FetchOpt("httpd_user_home");
+    http_data_dir = Globalreg::globalreg->kismet_config->fetch_opt("httpd_home");
+    http_aux_data_dir = Globalreg::globalreg->kismet_config->fetch_opt("httpd_user_home");
 
     if (http_data_dir == "") {
         _MSG("No httpd_home defined in kismet.conf, disabling static file serving. "
@@ -192,8 +192,8 @@ kis_net_httpd::kis_net_httpd() {
         Globalreg::globalreg->kismet_config->FetchOptUInt("httpd_session_timeout", 7200);
 
     use_ssl = Globalreg::globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
-    pem_path = Globalreg::globalreg->kismet_config->FetchOpt("httpd_ssl_cert");
-    key_path = Globalreg::globalreg->kismet_config->FetchOpt("httpd_ssl_key");
+    pem_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_cert");
+    key_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_key");
 
     RegisterMimeType("html", "text/html");
     RegisterMimeType("svg", "image/svg+xml");
@@ -224,7 +224,7 @@ kis_net_httpd::kis_net_httpd() {
     store_sessions = false;
     session_db = NULL;
 
-    sessiondb_file = Globalreg::globalreg->kismet_config->FetchOpt("httpd_session_db");
+    sessiondb_file = Globalreg::globalreg->kismet_config->fetch_opt("httpd_session_db");
 
     if (sessiondb_file != "") {
         sessiondb_file = 

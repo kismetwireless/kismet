@@ -51,8 +51,8 @@ void Kis_Httpd_Websession::Deferred_Startup() {
     user_httpd_config_file = 
         Globalreg::globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
 
-    conf_username = Globalreg::globalreg->kismet_config->FetchOpt("httpd_username");
-    conf_password = Globalreg::globalreg->kismet_config->FetchOpt("httpd_password");
+    conf_username = Globalreg::globalreg->kismet_config->fetch_opt("httpd_username");
+    conf_password = Globalreg::globalreg->kismet_config->fetch_opt("httpd_password");
 
     if (conf_username != "" || conf_password != "") {
         int globalref;
@@ -103,8 +103,8 @@ void Kis_Httpd_Websession::userdir_login() {
     if (stat(user_httpd_config_file.c_str(), &buf) == 0) {
         user_httpd_config->parse_config(user_httpd_config_file.c_str());
 
-        conf_username = user_httpd_config->FetchOpt("httpd_username");
-        conf_password = user_httpd_config->FetchOpt("httpd_password");
+        conf_username = user_httpd_config->fetch_opt("httpd_username");
+        conf_password = user_httpd_config->fetch_opt("httpd_password");
     }
 
     // We use the user config - even if it's blank, we check that elsewhere

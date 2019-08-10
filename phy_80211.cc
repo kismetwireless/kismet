@@ -475,7 +475,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 	conf_save = Globalreg::globalreg->timestamp.tv_sec;
 
 	ssid_conf = new config_file(Globalreg::globalreg);
-	ssid_conf->parse_config(ssid_conf->ExpandLogPath(Globalreg::globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+	ssid_conf->parse_config(ssid_conf->ExpandLogPath(Globalreg::globalreg->kismet_config->fetch_opt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
     Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<config_file>(ssid_conf));
 #endif
 
@@ -507,7 +507,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         std::vector<opt_pair> optvec;
         StringToOpts(l.substr(cpos + 1, l.length()), ",", &optvec);
 
-        std::string ssid = FetchOpt("ssid", &optvec);
+        std::string ssid = fetch_opt("ssid", &optvec);
 
         if (ssid == "") {
             _MSG("Invalid 'apspoof' configuration line, expected 'name:ssid=\"...\","  
@@ -516,7 +516,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         }
 
         std::vector<mac_addr> macvec;
-        for (auto m : StrTokenize(FetchOpt("validmacs", &optvec), ",", true)) {
+        for (auto m : StrTokenize(fetch_opt("validmacs", &optvec), ",", true)) {
             mac_addr ma(m);
 
             if (ma.error) {

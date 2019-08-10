@@ -82,14 +82,14 @@ bool KisGps::open_gps(std::string in_definition) {
         }
     }
 
-    std::string sname = FetchOpt("name", source_definition_opts);
+    std::string sname = fetch_opt("name", source_definition_opts);
     if (sname != "") {
         set_int_gps_name(sname);
     } else {
         set_int_gps_name(gps_prototype->get_default_name());
     }
 
-    std::string suuid = FetchOpt("uuid", source_definition_opts);
+    std::string suuid = fetch_opt("uuid", source_definition_opts);
     if (suuid != "") {
         // Use the static UUID from the defintion
         uuid u(suuid);
@@ -115,7 +115,7 @@ bool KisGps::open_gps(std::string in_definition) {
         set_int_gps_uuid(u);
     }
 
-    std::string sprio = FetchOpt("priority", source_definition_opts);
+    std::string sprio = fetch_opt("priority", source_definition_opts);
     if (sprio != "") {
         int priority;
 

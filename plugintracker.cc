@@ -74,7 +74,7 @@ Plugintracker::Plugintracker(global_registry *in_globalreg) :
         }
     }
 
-    if (globalreg->kismet_config->FetchOpt("allowplugins") == "true") {
+    if (globalreg->kismet_config->fetch_opt("allowplugins") == "true") {
         config_disable = 0;
     } else {
         config_disable = 1;
@@ -125,7 +125,7 @@ int Plugintracker::ScanPlugins() {
     }
 
     std::string config_path;
-    if ((config_path = globalreg->kismet_config->FetchOpt("configdir")) == "") {
+    if ((config_path = globalreg->kismet_config->fetch_opt("configdir")) == "") {
         _MSG(
             "Failed to find a 'configdir' path in the Kismet config file, "
             "ignoring local plugins.",
@@ -179,7 +179,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         std::string s;
 
-        if ((s = cf.FetchOpt("name")) == "") {
+        if ((s = cf.fetch_opt("name")) == "") {
             _MSG("Missing 'name=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -187,7 +187,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         preg->set_plugin_name(s);
 
-        if ((s = cf.FetchOpt("description")) == "") {
+        if ((s = cf.fetch_opt("description")) == "") {
             _MSG("Missing 'description=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -196,7 +196,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
         preg->set_plugin_description(s);
 
 
-        if ((s = cf.FetchOpt("author")) == "") {
+        if ((s = cf.fetch_opt("author")) == "") {
             _MSG("Missing 'author=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -205,7 +205,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
         preg->set_plugin_author(s);
 
 
-        if ((s = cf.FetchOpt("version")) == "") {
+        if ((s = cf.fetch_opt("version")) == "") {
             _MSG("Missing 'version=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -214,7 +214,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
         preg->set_plugin_version(s);
 
 
-        if ((s = cf.FetchOpt("object")) != "") {
+        if ((s = cf.fetch_opt("object")) != "") {
             if (s.find("/") != std::string::npos) {
                 _MSG("Found path in 'object=' in plugin manifest '" + manifest +
                         "', object= should define the file name only", MSGFLAG_ERROR);
@@ -224,7 +224,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_so(s);
         }
 
-        if ((s = cf.FetchOpt("httpexternal")) != "") {
+        if ((s = cf.fetch_opt("httpexternal")) != "") {
             if (s.find("/") != std::string::npos) {
                 _MSG_ERROR("Found path in 'httpexternal=' in plugin manifest '{}', "
                         "httpexternal= should define the binary name only.", manifest);
@@ -234,7 +234,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_http_external(s);
         }
 
-        if ((s = cf.FetchOpt("js")) != "") {
+        if ((s = cf.fetch_opt("js")) != "") {
             if (s.find(",") == std::string::npos) {
                 _MSG("Found an invalid 'js=' in plugin manifest '" + manifest +
                         "', js= should define module,path", MSGFLAG_ERROR);

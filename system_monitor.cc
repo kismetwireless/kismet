@@ -96,9 +96,9 @@ Systemmonitor::Systemmonitor() :
     status->set_server_git(VERSION_GIT_COMMIT);
     status->set_build_time(VERSION_BUILD_TIME);
 
-    status->set_server_name(Globalreg::globalreg->kismet_config->FetchOpt("server_name"));
-    status->set_server_description(Globalreg::globalreg->kismet_config->FetchOpt("server_description"));
-    status->set_server_location(Globalreg::globalreg->kismet_config->FetchOpt("server_location"));
+    status->set_server_name(Globalreg::globalreg->kismet_config->fetch_opt("server_name"));
+    status->set_server_description(Globalreg::globalreg->kismet_config->fetch_opt("server_description"));
+    status->set_server_location(Globalreg::globalreg->kismet_config->fetch_opt("server_location"));
 
 #if defined(SYS_LINUX) and defined(HAVE_SENSORS_SENSORS_H)
     sensors_init(NULL);
