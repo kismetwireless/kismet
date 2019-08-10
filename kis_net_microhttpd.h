@@ -349,7 +349,7 @@ public:
     int stop_httpd();
 
     bool httpd_running() { return running; }
-    unsigned int FetchPort() { return http_port; };
+    unsigned int fetch_port() { return http_port; };
     bool FetchUsingSSL() { return use_ssl; };
 
     void RegisterSessionHandler(std::shared_ptr<kis_httpd_websession> in_session);
