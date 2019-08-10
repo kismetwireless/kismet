@@ -41,7 +41,7 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
     std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
 
     // We've tokenized a copy of the buffer so unlock what we peeked
-    nmeahandler->PeekFreeReadBufferData(buf);
+    nmeahandler->peek_free_read_buffer_data(buf);
 
     if (inptok.size() < 1) {
         return;

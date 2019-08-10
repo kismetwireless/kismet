@@ -187,7 +187,7 @@ public:
     // When possible, minimizes copies; actual copy and memory use depends on the
     // lower-level buffer, and consumers should not rely on specific behaviors.
     //
-    // Consumers MUST conclude a peek operation with PeekFreeReadBufferData(...) or
+    // Consumers MUST conclude a peek operation with peek_free_read_buffer_data(...) or
     // PeekFreeWriteBufferData(...), and may not perform multiple peeks simultaneously;
     // refer to the comments for common_buffer
     //
@@ -201,7 +201,7 @@ public:
     virtual ssize_t zero_copy_peek_read_buffer_data(void **in_ptr, size_t in_sz);
     virtual ssize_t zero_copy_peek_write_buffer_data(void **in_ptr, size_t in_sz);
 
-    virtual void PeekFreeReadBufferData(void *in_ptr);
+    virtual void peek_free_read_buffer_data(void *in_ptr);
     virtual void PeekFreeWriteBufferData(void *in_ptr);
 
     // Consume data from the buffer.  Must not be called while there is pending 'peek'd 

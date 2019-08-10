@@ -115,13 +115,13 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
 
         // Make sure we got the right amount
         if (buffamt < sizeof(kismet_external_frame_t)) {
-            ringbuf_handler->PeekFreeReadBufferData(frame);
+            ringbuf_handler->peek_free_read_buffer_data(frame);
             return;
         }
 
         // Check the frame signature
         if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-            ringbuf_handler->PeekFreeReadBufferData(frame);
+            ringbuf_handler->peek_free_read_buffer_data(frame);
 
             _MSG("Kismet external interface got command frame with invalid signature", MSGFLAG_ERROR);
             trigger_error("Invalid signature on command frame");
@@ -135,7 +135,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
 
         // If we'll never be able to read it, blow up
         if ((long int) frame_sz >= ringbuf_handler->get_read_buffer_size()) {
-            ringbuf_handler->PeekFreeReadBufferData(frame);
+            ringbuf_handler->peek_free_read_buffer_data(frame);
 
             std::stringstream ss;
 
@@ -153,7 +153,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
 
         // If we don't have the whole buffer available, bail on this read
         if (frame_sz > buffamt) {
-            ringbuf_handler->PeekFreeReadBufferData(frame);
+            ringbuf_handler->peek_free_read_buffer_data(frame);
             // fprintf(stderr, "debug - external - read %lu needed %u\n", buffamt, frame_sz);
             return;
         }
@@ -162,7 +162,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         data_checksum = adler32_checksum((const char *) frame->data, data_sz);
 
         if (data_checksum != kis_ntoh32(frame->data_checksum)) {
-            ringbuf_handler->PeekFreeReadBufferData(frame);
+            ringbuf_handler->peek_free_read_buffer_data(frame);
 
             _MSG("Kismet external interface got command frame with invalid checksum",
                     MSGFLAG_ERROR);
@@ -175,7 +175,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
         if (!cmd->ParseFromArray(frame->data, data_sz)) {
-            ringbuf_handler->PeekFreeReadBufferData(frame);
+            ringbuf_handler->peek_free_read_buffer_data(frame);
 
             _MSG("Kismet external interface could not interpret the payload of the "
                     "command frame", MSGFLAG_ERROR);
@@ -188,7 +188,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
 
         // Consume the buffer now that we're done; we only consume the 
         // frame size because we could have peeked a much larger buffer
-        ringbuf_handler->PeekFreeReadBufferData(frame);
+        ringbuf_handler->peek_free_read_buffer_data(frame);
         ringbuf_handler->ConsumeReadBufferData(frame_sz);
 
         // Unlock before processing, individual commands will lock as needed

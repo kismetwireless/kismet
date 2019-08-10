@@ -130,7 +130,7 @@ ssize_t buffer_handler_generic::zero_copy_peek_write_buffer_data(void **in_ptr, 
     return 0;
 }
 
-void buffer_handler_generic::PeekFreeReadBufferData(void *in_ptr) {
+void buffer_handler_generic::peek_free_read_buffer_data(void *in_ptr) {
     if (read_buffer)
         return read_buffer->peek_free((unsigned char *) in_ptr);
 

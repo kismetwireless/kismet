@@ -262,7 +262,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     bool set_error;
 
     std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
-    tcphandler->PeekFreeReadBufferData(buf);
+    tcphandler->peek_free_read_buffer_data(buf);
 
     if (inptok.size() < 1) {
         return;
