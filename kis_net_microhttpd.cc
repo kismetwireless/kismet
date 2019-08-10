@@ -249,7 +249,7 @@ kis_net_httpd::kis_net_httpd() {
                 if (sestok.size() != 4)
                     continue;
 
-                std::shared_ptr<Kis_Net_Httpd_Session> sess(new Kis_Net_Httpd_Session());
+                std::shared_ptr<kis_net_httpd_session> sess(new kis_net_httpd_session());
 
                 sess->sessionid = sestok[0];
 
@@ -556,7 +556,7 @@ bool kis_net_httpd::HasValidSession(kis_net_httpd_connection *connection, bool s
     if (connection->session != NULL)
         return true;
 
-    std::shared_ptr<Kis_Net_Httpd_Session> s;
+    std::shared_ptr<kis_net_httpd_session> s;
     const char *cookieval;
 
     cookieval = MHD_lookup_connection_value(connection->connection,
@@ -592,11 +592,11 @@ bool kis_net_httpd::HasValidSession(kis_net_httpd_connection *connection, bool s
     return false;
 }
 
-std::shared_ptr<Kis_Net_Httpd_Session> 
+std::shared_ptr<kis_net_httpd_session> 
 kis_net_httpd::CreateSession(kis_net_httpd_connection *connection, 
         struct MHD_Response *response, time_t in_lifetime) {
     
-    std::shared_ptr<Kis_Net_Httpd_Session> s;
+    std::shared_ptr<kis_net_httpd_session> s;
 
     // Use 128 bits of entropy to make a session key
 
@@ -640,7 +640,7 @@ kis_net_httpd::CreateSession(kis_net_httpd_connection *connection,
         }
     }
 
-    s = std::make_shared<Kis_Net_Httpd_Session>();
+    s = std::make_shared<kis_net_httpd_session>();
     s->sessionid = cookie.str();
     s->session_created = time(0);
     s->session_seen = s->session_created;
@@ -655,7 +655,7 @@ kis_net_httpd::CreateSession(kis_net_httpd_connection *connection,
 }
 
 
-void kis_net_httpd::AddSession(std::shared_ptr<Kis_Net_Httpd_Session> in_session) {
+void kis_net_httpd::AddSession(std::shared_ptr<kis_net_httpd_session> in_session) {
     local_locker lock(&session_mutex);
 
     session_map[in_session->sessionid] = in_session;
@@ -673,7 +673,7 @@ void kis_net_httpd::DelSession(std::string in_key) {
     }
 }
 
-void kis_net_httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session> >::iterator in_itr) {
+void kis_net_httpd::DelSession(std::map<std::string, std::shared_ptr<kis_net_httpd_session> >::iterator in_itr) {
     local_locker lock(&session_mutex);
 
     if (in_itr != session_map.end()) {
@@ -682,7 +682,7 @@ void kis_net_httpd::DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Htt
     }
 }
 
-std::shared_ptr<Kis_Net_Httpd_Session> kis_net_httpd::FindSession(const std::string& in_session_tok) {
+std::shared_ptr<kis_net_httpd_session> kis_net_httpd::FindSession(const std::string& in_session_tok) {
     local_locker lock(&session_mutex);
 
     auto si = session_map.find(in_session_tok);
@@ -740,7 +740,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         return MHD_NO;
     
     // Update the session records if one exists
-    std::shared_ptr<Kis_Net_Httpd_Session> s = NULL;
+    std::shared_ptr<kis_net_httpd_session> s = NULL;
     const char *cookieval;
     int ret = MHD_NO;
 

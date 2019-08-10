@@ -40,7 +40,7 @@
 #include "trackedelement.h"
 
 class kis_net_httpd;
-class Kis_Net_Httpd_Session;
+class kis_net_httpd_session;
 class kis_net_httpd_connection;
 class Kis_Net_Httpd_Handler;
 
@@ -140,7 +140,7 @@ public:
     Kis_Net_Httpd_Handler *httpdhandler;    
 
     // Login session
-    std::shared_ptr<Kis_Net_Httpd_Session> session;
+    std::shared_ptr<kis_net_httpd_session> session;
 
     // Connection
     struct MHD_Connection *connection;
@@ -155,7 +155,7 @@ public:
     std::mutex connection_mutex;
 };
 
-class Kis_Net_Httpd_Session {
+class kis_net_httpd_session {
 public:
     // Session ID
     std::string sessionid;
@@ -381,7 +381,7 @@ public:
 
     // Create a session; if connection is not null, insert session into connection.
     // If response is not null, append to the response
-    std::shared_ptr<Kis_Net_Httpd_Session> CreateSession(kis_net_httpd_connection *connection, 
+    std::shared_ptr<kis_net_httpd_session> CreateSession(kis_net_httpd_connection *connection, 
             struct MHD_Response *response, time_t in_lifetime);
 
     // Append a session cookie if we have a valid session for this connection
@@ -469,15 +469,15 @@ protected:
 
     char *read_ssl_file(std::string in_fname);
 
-    void AddSession(std::shared_ptr<Kis_Net_Httpd_Session> in_session);
+    void AddSession(std::shared_ptr<kis_net_httpd_session> in_session);
     void DelSession(std::string in_key);
-    void DelSession(std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session>>::iterator in_itr);
+    void DelSession(std::map<std::string, std::shared_ptr<kis_net_httpd_session>>::iterator in_itr);
     // Find a valid session; will return a session or nullptr if no session key is found, or if the
     // session is found but expired.
-    std::shared_ptr<Kis_Net_Httpd_Session> FindSession(const std::string& in_session_key);
+    std::shared_ptr<kis_net_httpd_session> FindSession(const std::string& in_session_key);
     void WriteSessions();
 
-    std::map<std::string, std::shared_ptr<Kis_Net_Httpd_Session>> session_map;
+    std::map<std::string, std::shared_ptr<kis_net_httpd_session>> session_map;
 
     bool store_sessions;
     std::string sessiondb_file;
