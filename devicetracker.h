@@ -185,7 +185,7 @@ public:
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
     // RO only
-    void MatchOnReadonlyDevices(std::shared_ptr<device_tracker_filter_worker> worker,
+    void do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 

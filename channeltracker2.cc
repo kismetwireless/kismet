@@ -179,7 +179,7 @@ int channel_tracker_v2::timetracker_event(int event_id __attribute__((unused))) 
     local_locker locker(&lock);
 
     auto worker = std::make_shared<channeltracker_v2_device_worker>(this);
-    devicetracker->MatchOnReadonlyDevices(worker);
+    devicetracker->do_readonly_device_work(worker);
 
     // Reschedule
     struct timeval trigger_tm;

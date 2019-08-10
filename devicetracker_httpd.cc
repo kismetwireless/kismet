@@ -272,7 +272,7 @@ int device_tracker::httpd_create_stream_response(
                     return false;
                 }, nullptr);
 
-        MatchOnReadonlyDevices(fw);
+        do_readonly_device_work(fw);
         return MHD_YES;
     }
 
@@ -405,7 +405,7 @@ int device_tracker::httpd_create_stream_response(
 
                         return true;
                     }, nullptr);
-            MatchOnReadonlyDevices(fw);
+            do_readonly_device_work(fw);
             devvec = fw->GetMatchedDevices();
 
             Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
@@ -700,12 +700,12 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                         return true;
                         }, nullptr);
-                MatchOnReadonlyDevices(tw);
+                do_readonly_device_work(tw);
                 timedevs = tw->GetMatchedDevices();
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnReadonlyDevices(worker, timedevs);
+                    do_readonly_device_work(worker, timedevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;

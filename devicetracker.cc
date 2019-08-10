@@ -920,7 +920,7 @@ void device_tracker::MatchOnDevices(std::shared_ptr<device_tracker_filter_worker
     MatchOnDevicesRaw(worker, immutable_copy, batch);
 }
 
-void device_tracker::MatchOnReadonlyDevices(std::shared_ptr<device_tracker_filter_worker> worker, 
+void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
         std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     // Make a copy of the vector
@@ -1000,7 +1000,7 @@ void device_tracker::MatchOnDevices(std::shared_ptr<device_tracker_filter_worker
     MatchOnDevicesRaw(worker, copy_vec, batch);
 }
 
-void device_tracker::MatchOnReadonlyDevices(std::shared_ptr<device_tracker_filter_worker> worker,
+void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
     // Make a copy of the vector
@@ -1063,8 +1063,8 @@ void device_tracker::MatchOnDevices(std::shared_ptr<device_tracker_filter_worker
     MatchOnDevices(worker, immutable_tracked_vec, batch);
 }
 
-void device_tracker::MatchOnReadonlyDevices(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
-    MatchOnReadonlyDevices(worker, immutable_tracked_vec, batch);
+void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
+    do_readonly_device_work(worker, immutable_tracked_vec, batch);
 }
 
 // Simple std::sort comparison function to order by the least frequently
@@ -1412,7 +1412,7 @@ void device_tracker::databaselog_write_devices() {
             return false;
         }, nullptr);
 
-    MatchOnReadonlyDevices(worker);
+    do_readonly_device_work(worker);
 }
 
 int device_tracker::load_devices() {
