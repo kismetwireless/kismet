@@ -314,11 +314,11 @@ datasource_tracker::datasource_tracker() :
                 "Datasource");
 
     proto_vec =
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.datasourcetracker.drivers",
+        Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.datasourcetracker.drivers",
                 tracker_element_factory<tracker_element_vector>(), "Known drivers");
 
     datasource_vec =
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.datasourcetracker.sources",
+        Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.datasourcetracker.sources",
                 tracker_element_factory<tracker_element_vector>(), "Configured sources");
 
     all_sources_endp =
@@ -418,7 +418,7 @@ void datasource_tracker::trigger_deferred_startup() {
     next_source_num = 0;
 
     config_defaults = 
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<datasource_tracker_defaults>("kismet.datasourcetracker.defaults",
+        Globalreg::globalreg->entrytracker->register_and_get_field_as<datasource_tracker_defaults>("kismet.datasourcetracker.defaults",
                 tracker_element_factory<datasource_tracker_defaults>(),
                 "Datasource default values");
 

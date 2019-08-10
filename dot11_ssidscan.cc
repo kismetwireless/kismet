@@ -43,47 +43,47 @@ dot11_ssid_scan::dot11_ssid_scan() {
 
     // We aren't a tracked component so we register our sub elements directly
     ssidscan_enabled =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_uint8>("dot11.ssidscan.enabled",
+        entrytracker->register_and_get_field_as<tracker_element_uint8>("dot11.ssidscan.enabled",
                 tracker_element_factory<tracker_element_uint8>(),
                 "SSIDScan module enabled");
 
     target_ssids =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_vector_string>("dot11.ssidscan.targets",
+        entrytracker->register_and_get_field_as<tracker_element_vector_string>("dot11.ssidscan.targets",
                 tracker_element_factory<tracker_element_vector_string>(),
                 "Target SSID regexes");
 
     ssidscan_datasources_uuids =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("dot11.ssidscan.datasources",
+        entrytracker->register_and_get_field_as<tracker_element_vector>("dot11.ssidscan.datasources",
                 tracker_element_factory<tracker_element_vector>(),
                 "Usable datasource pool (UUIDs)");
 
     ssidscan_datasources =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("dot11.ssidscan.datasources",
+        entrytracker->register_and_get_field_as<tracker_element_vector>("dot11.ssidscan.datasources",
                 tracker_element_factory<tracker_element_vector>(),
                 "Active datasource pool");
 
     ignore_after_handshake =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_uint8>("dot11.ssidscan.ignore_after_handshake",
+        entrytracker->register_and_get_field_as<tracker_element_uint8>("dot11.ssidscan.ignore_after_handshake",
             tracker_element_factory<tracker_element_uint8>(),
             "Ignore a device after a WPA handshake is captured");
 
     max_contend_cap_seconds =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_uint32>("dot11.ssidscan.max_cap_seconds",
+        entrytracker->register_and_get_field_as<tracker_element_uint32>("dot11.ssidscan.max_cap_seconds",
             tracker_element_factory<tracker_element_uint32>(),
             "Maximum number of seconds to capture before returning to hop");
 
     min_scan_seconds =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_uint32>("dot11.ssidscan.min_scan_seconds",
+        entrytracker->register_and_get_field_as<tracker_element_uint32>("dot11.ssidscan.min_scan_seconds",
             tracker_element_factory<tracker_element_uint32>(),
             "Minimum number of seconds to scan before locking to a channel if a device is present");
 
     initial_log_filters =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_uint8>("dot11.ssidscan.set_initial_log_filters",
+        entrytracker->register_and_get_field_as<tracker_element_uint8>("dot11.ssidscan.set_initial_log_filters",
             tracker_element_factory<tracker_element_uint8>(),
             "Automatically set the log to only pass target devices");
 
     filter_logs =
-        entrytracker->RegisterAndGetFieldAs<tracker_element_uint8>("dot11.ssidscan.filter_logs",
+        entrytracker->register_and_get_field_as<tracker_element_uint8>("dot11.ssidscan.filter_logs",
             tracker_element_factory<tracker_element_uint8>(),
             "Automatically configure log filters to pass target devices");
 

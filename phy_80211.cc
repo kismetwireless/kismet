@@ -151,7 +151,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
             packetchain->RegisterPacketComponent("RADIODATA");
 
         ssid_regex_vec =
-            Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("phy80211.ssid_alerts", 
+            Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("phy80211.ssid_alerts", 
                     tracker_element_factory<tracker_element_vector>(),
                     "Regex SSID alert configuration");
 

@@ -74,7 +74,7 @@ public:
             const std::string& in_desc);
 
     template<typename TE> 
-    std::shared_ptr<TE> RegisterAndGetFieldAs(const std::string& in_name,
+    std::shared_ptr<TE> register_and_get_field_as(const std::string& in_name,
             std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc) {
         return std::static_pointer_cast<TE>(register_and_get_field(in_name, std::move(in_builder),

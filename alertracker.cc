@@ -57,7 +57,7 @@ alert_tracker::alert_tracker() :
 
 
     alert_defs_vec = 
-        entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.alert.definition_list",
+        entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.alert.definition_list",
                 tracker_element_factory<tracker_element_vector>(), 
                 "Kismet alert definitions");
 
