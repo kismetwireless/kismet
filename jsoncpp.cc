@@ -369,7 +369,7 @@ bool Reader::parse(const char* beginDoc,
   if (collectComments_ && !commentsBefore_.empty())
     root.setComment(commentsBefore_, commentAfter);
   if (features_.strictRoot_) {
-    if (!root.is_array() && !root.isObject()) {
+    if (!root.isArray() && !root.isObject()) {
       // Set error location to start of doc, ideally should be first token found
       // in doc
       token.type_ = tokenError;
@@ -1304,7 +1304,7 @@ bool OurReader::parse(const char* beginDoc,
   if (collectComments_ && !commentsBefore_.empty())
     root.setComment(commentsBefore_, commentAfter);
   if (features_.strictRoot_) {
-    if (!root.is_array() && !root.isObject()) {
+    if (!root.isArray() && !root.isObject()) {
       // Set error location to start of doc, ideally should be first token found
       // in doc
       token.type_ = tokenError;
@@ -2344,7 +2344,7 @@ ValueIteratorBase::computeDistance(const SelfType& other) const {
     return 0;
   }
 
-  // usage of std::distance is not portable (does not compile with Sun Studio 12
+  // Usage of std::distance is not portable (does not compile with Sun Studio 12
   // RogueWave STL,
   // which is the one used by default).
   // Using a portable hand-made version for non random iterator instead:
@@ -3103,7 +3103,7 @@ unsigned Value::getCStringLength() const {
 }
 #endif
 
-bool Value::as_string(char const** str, char const** cend) const {
+bool Value::getString(char const** str, char const** cend) const {
   if (type_ != stringValue) return false;
   if (value_.string_ == 0) return false;
   unsigned length;
@@ -3374,7 +3374,7 @@ ArrayIndex Value::size() const {
 }
 
 bool Value::empty() const {
-  if (isNull() || is_array() || isObject())
+  if (isNull() || isArray() || isObject())
     return size() == 0u;
   else
     return false;
@@ -3793,7 +3793,7 @@ static bool IsIntegral(double d) {
 
 bool Value::isNull() const { return type_ == nullValue; }
 
-bool Value::is_bool() const { return type_ == booleanValue; }
+bool Value::isBool() const { return type_ == booleanValue; }
 
 bool Value::isInt() const {
   switch (type_) {
@@ -3901,9 +3901,9 @@ bool Value::isDouble() const { return type_ == intValue || type_ == uintValue ||
 
 bool Value::isNumeric() const { return isDouble(); }
 
-bool Value::is_string() const { return type_ == stringValue; }
+bool Value::isString() const { return type_ == stringValue; }
 
-bool Value::is_array() const { return type_ == arrayValue; }
+bool Value::isArray() const { return type_ == arrayValue; }
 
 bool Value::isObject() const { return type_ == objectValue; }
 
@@ -4091,7 +4091,7 @@ const Value& Path::resolve(const Value& root) const {
   for (Args::const_iterator it = args_.begin(); it != args_.end(); ++it) {
     const PathArgument& arg = *it;
     if (arg.kind_ == PathArgument::kindIndex) {
-      if (!node->is_array() || !node->isValidIndex(arg.index_)) {
+      if (!node->isArray() || !node->isValidIndex(arg.index_)) {
         // Error: unable to resolve path (array value expected at position...
         return Value::null;
       }
@@ -4117,7 +4117,7 @@ Value Path::resolve(const Value& root, const Value& defaultValue) const {
   for (Args::const_iterator it = args_.begin(); it != args_.end(); ++it) {
     const PathArgument& arg = *it;
     if (arg.kind_ == PathArgument::kindIndex) {
-      if (!node->is_array() || !node->isValidIndex(arg.index_))
+      if (!node->isArray() || !node->isValidIndex(arg.index_))
         return defaultValue;
       node = &((*node)[arg.index_]);
     } else if (arg.kind_ == PathArgument::kindKey) {
@@ -4136,7 +4136,7 @@ Value& Path::make(Value& root) const {
   for (Args::const_iterator it = args_.begin(); it != args_.end(); ++it) {
     const PathArgument& arg = *it;
     if (arg.kind_ == PathArgument::kindIndex) {
-      if (!node->is_array()) {
+      if (!node->isArray()) {
         // Error: node is not an array at position ...
       }
       node = &((*node)[arg.index_]);
@@ -4538,7 +4538,7 @@ void FastWriter::writeValue(const Value& value) {
     // Is NULL possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.as_string(&str, &end);
+    bool ok = value.getString(&str, &end);
     if (ok) document_ += valueToQuotedStringN(str, static_cast<unsigned>(end-str));
     break;
   }
@@ -4608,7 +4608,7 @@ void StyledWriter::writeValue(const Value& value) {
     // Is NULL possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.as_string(&str, &end);
+    bool ok = value.getString(&str, &end);
     if (ok) pushValue(valueToQuotedStringN(str, static_cast<unsigned>(end-str)));
     else pushValue("");
     break;
@@ -4697,7 +4697,7 @@ bool StyledWriter::isMultilineArray(const Value& value) {
   childValues_.clear();
   for (ArrayIndex index = 0; index < size && !isMultiLine; ++index) {
     const Value& childValue = value[index];
-    isMultiLine = ((childValue.is_array() || childValue.isObject()) &&
+    isMultiLine = ((childValue.isArray() || childValue.isObject()) &&
                         childValue.size() > 0);
   }
   if (!isMultiLine) // check if line length > max line length
@@ -4825,7 +4825,7 @@ void StyledStreamWriter::writeValue(const Value& value) {
     // Is NULL possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.as_string(&str, &end);
+    bool ok = value.getString(&str, &end);
     if (ok) pushValue(valueToQuotedStringN(str, static_cast<unsigned>(end-str)));
     else pushValue("");
     break;
@@ -4916,7 +4916,7 @@ bool StyledStreamWriter::isMultilineArray(const Value& value) {
   childValues_.clear();
   for (ArrayIndex index = 0; index < size && !isMultiLine; ++index) {
     const Value& childValue = value[index];
-    isMultiLine = ((childValue.is_array() || childValue.isObject()) &&
+    isMultiLine = ((childValue.isArray() || childValue.isObject()) &&
                         childValue.size() > 0);
   }
   if (!isMultiLine) // check if line length > max line length
@@ -5106,7 +5106,7 @@ void BuiltStyledStreamWriter::writeValue(Value const& value) {
     // Is NULL is possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.as_string(&str, &end);
+    bool ok = value.getString(&str, &end);
     if (ok) pushValue(valueToQuotedStringN(str, static_cast<unsigned>(end-str)));
     else pushValue("");
     break;
@@ -5199,7 +5199,7 @@ bool BuiltStyledStreamWriter::isMultilineArray(Value const& value) {
   childValues_.clear();
   for (ArrayIndex index = 0; index < size && !isMultiLine; ++index) {
     Value const& childValue = value[index];
-    isMultiLine = ((childValue.is_array() || childValue.isObject()) &&
+    isMultiLine = ((childValue.isArray() || childValue.isObject()) &&
                         childValue.size() > 0);
   }
   if (!isMultiLine) // check if line length > max line length

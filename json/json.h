@@ -821,7 +821,7 @@ Json::Value obj_value(Json::objectValue); // {}
   /** Get raw char* of string-value.
    *  \return false if !string. (Seg-fault if str or end are NULL.)
    */
-  bool as_string(
+  bool getString(
       char const** begin, char const** end) const;
 #ifdef JSON_USE_CPPTL
   CppTL::ConstString asConstString() const;
@@ -839,7 +839,7 @@ Json::Value obj_value(Json::objectValue); // {}
   bool asBool() const;
 
   bool isNull() const;
-  bool is_bool() const;
+  bool isBool() const;
   bool isInt() const;
   bool isInt64() const;
   bool isUInt() const;
@@ -847,8 +847,8 @@ Json::Value obj_value(Json::objectValue); // {}
   bool isIntegral() const;
   bool isDouble() const;
   bool isNumeric() const;
-  bool is_string() const;
-  bool is_array() const;
+  bool isString() const;
+  bool isArray() const;
   bool isObject() const;
 
   bool isConvertibleTo(ValueType other) const;
@@ -1652,7 +1652,7 @@ public:
 
 /** \brief Build a CharReader implementation.
 
-usage:
+Usage:
 \code
   using namespace Json;
   CharReaderBuilder builder;
@@ -1820,7 +1820,7 @@ class Value;
 
 /**
 
-usage:
+Usage:
 \code
   using namespace Json;
   void writeToStdout(StreamWriter::Factory const& factory, Value const& value) {
@@ -1865,7 +1865,7 @@ JSONCPP_STRING JSON_API writeString(StreamWriter::Factory const& factory, Value 
 
 /** \brief Build a StreamWriter implementation.
 
-usage:
+Usage:
 \code
   using namespace Json;
   Value value = ...;
@@ -2017,7 +2017,7 @@ public:
   ~StyledWriter() JSONCPP_OVERRIDE {}
 
 public: // overridden from Writer
-  /** \brief serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
+  /** \brief Serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
    * \param root Value to serialize.
    * \return String containing the JSON document that represents the root value.
    */
@@ -2088,7 +2088,7 @@ public:
   ~StyledStreamWriter() {}
 
 public:
-  /** \brief serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
+  /** \brief Serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
    * \param out Stream to write to. (Can be ostringstream, e.g.)
    * \param root Value to serialize.
    * \note There is no point in deriving from Writer, since write() should not
