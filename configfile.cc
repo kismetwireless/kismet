@@ -326,7 +326,7 @@ unsigned int config_file::fetch_opt_uint(const std::string& in_key, unsigned int
     return FetchOptAs<unsigned int>(in_key, dvalue);
 }
 
-unsigned long config_file::FetchOptULong(const std::string& in_key, unsigned long dvalue) {
+unsigned long config_file::fetch_opt_ulong(const std::string& in_key, unsigned long dvalue) {
     return FetchOptAs<unsigned long>(in_key, dvalue);
 }
 

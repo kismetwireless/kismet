@@ -639,7 +639,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
                     });
         devicetracker->add_view(ap_view);
 
-        bss_ts_group_usec = Globalreg::globalreg->kismet_config->FetchOptULong("dot11_related_bss_window", 10'000'000);
+        bss_ts_group_usec = Globalreg::globalreg->kismet_config->fetch_opt_ulong("dot11_related_bss_window", 10'000'000);
     } else {
         _MSG_INFO("Phy80211 access point views are turned off; this will prevent matching related devices by timestamp "
                 "and other features.");

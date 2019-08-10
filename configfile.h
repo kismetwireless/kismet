@@ -66,7 +66,7 @@ public:
     // Older API
     int fetch_opt_int(const std::string& in_key, int dvalue);
     unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);
-    unsigned long int FetchOptULong(const std::string& in_key, unsigned long dvalue);
+    unsigned long int fetch_opt_ulong(const std::string& in_key, unsigned long dvalue);
 
     // New C++ api; fetch an opt as a dynamic type dervied via '>>' assignment; will thow
     // std::runtime_error if the type can not be converted.  If the key is not found, the

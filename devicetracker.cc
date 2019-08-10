@@ -255,7 +255,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 globalreg->kismet_config->fetch_opt_bool("persistent_compression", true);
 
             persistent_storage_timeout =
-                globalreg->kismet_config->FetchOptULong("persistent_timeout", 86400);
+                globalreg->kismet_config->fetch_opt_ulong("persistent_timeout", 86400);
         }
     }
 #endif
