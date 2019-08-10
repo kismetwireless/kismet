@@ -44,7 +44,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
     if (block_for_buffer) {
         handler->SetReadBufferDrainCb([this](size_t) {
             local_locker l(&required_bytes_mutex);
-            if (locker_required_bytes != 0 && handler->GetWriteBufferAvailable() > locker_required_bytes) {
+            if (locker_required_bytes != 0 && handler->get_write_buffer_available() > locker_required_bytes) {
                 buffer_available_locker.unlock(1);
                 locker_required_bytes = 0;
             }
@@ -62,7 +62,7 @@ Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
 
 int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
     // Got the space already?  We're fine.
-    if (handler->GetWriteBufferAvailable() >= req_bytes) {
+    if (handler->get_write_buffer_available() >= req_bytes) {
         return 1;
     }
 
@@ -93,7 +93,7 @@ void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
 
 ssize_t Pcap_Stream_Ringbuf::buffer_available() {
     if (handler != nullptr) 
-        return handler->GetWriteBufferAvailable();
+        return handler->get_write_buffer_available();
 
     return 0;
 }
