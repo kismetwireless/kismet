@@ -397,7 +397,7 @@ public:
 
 protected:
     std::shared_ptr<alert_tracker> alertracker;
-    std::shared_ptr<packetchain> packetchain;
+    std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<Eventbus> eventbus;

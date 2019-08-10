@@ -86,12 +86,12 @@
 
 class kis_packet;
 
-class packetchain : public lifetime_global {
+class Packetchain : public lifetime_global {
 public:
     static std::string global_name() { return "PACKETCHAIN"; }
 
-    static std::shared_ptr<packetchain> create_packetchain() {
-        std::shared_ptr<packetchain> mon(new packetchain());
+    static std::shared_ptr<Packetchain> create_packetchain() {
+        std::shared_ptr<Packetchain> mon(new Packetchain());
         Globalreg::globalreg->packetchain = mon.get();
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
@@ -99,10 +99,10 @@ public:
     }
 
 private:
-    packetchain();
+    Packetchain();
 
 public:
-    virtual ~packetchain();
+    virtual ~Packetchain();
 
     int RegisterPacketComponent(std::string in_component);
     int RemovePacketComponent(int in_id);
@@ -119,7 +119,7 @@ public:
     typedef int (*pc_callback)(CHAINCALL_PARMS);
     typedef struct {
         int priority;
-		packetchain::pc_callback callback;
+		Packetchain::pc_callback callback;
         std::function<int (kis_packet *)> l_callback;
         void *auxdata;
 		int id;
@@ -145,13 +145,13 @@ protected:
     std::map<int, std::string> component_id_map;
 
     // Core chain components
-    std::vector<packetchain::pc_link *> postcap_chain;
-    std::vector<packetchain::pc_link *> llcdissect_chain;
-    std::vector<packetchain::pc_link *> decrypt_chain;
-    std::vector<packetchain::pc_link *> datadissect_chain;
-    std::vector<packetchain::pc_link *> classifier_chain;
-	std::vector<packetchain::pc_link *> tracker_chain;
-    std::vector<packetchain::pc_link *> logging_chain;
+    std::vector<Packetchain::pc_link *> postcap_chain;
+    std::vector<Packetchain::pc_link *> llcdissect_chain;
+    std::vector<Packetchain::pc_link *> decrypt_chain;
+    std::vector<Packetchain::pc_link *> datadissect_chain;
+    std::vector<Packetchain::pc_link *> classifier_chain;
+	std::vector<Packetchain::pc_link *> tracker_chain;
+    std::vector<Packetchain::pc_link *> logging_chain;
 
     // Packet component mutex
     kis_recursive_timed_mutex packetcomp_mutex;

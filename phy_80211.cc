@@ -89,7 +89,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
             Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
 
         packetchain =
-            Globalreg::FetchMandatoryGlobalAs<packetchain>();
+            Globalreg::FetchMandatoryGlobalAs<Packetchain>();
 
         timetracker =
             Globalreg::FetchMandatoryGlobalAs<time_tracker>();

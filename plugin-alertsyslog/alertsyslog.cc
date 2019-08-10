@@ -69,8 +69,8 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 int alertsyslog_openlog(global_registry *in_globalreg) {
     // We can't use the templated FetchGlobalAs here because the template object code
     // won't exist in the server object
-    std::shared_ptr<packetchain> packetchain =
-        std::static_pointer_cast<packetchain>(in_globalreg->FetchGlobal(std::string("PACKETCHAIN")));
+    std::shared_ptr<Packetchain> packetchain =
+        std::static_pointer_cast<Packetchain>(in_globalreg->FetchGlobal(std::string("PACKETCHAIN")));
 
     if (packetchain == NULL) {
         _MSG("Unable to register syslog plugin, packetchain was unavailable",

@@ -33,7 +33,7 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("RTLADSB");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<packetchain>();
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
     devicetracker =

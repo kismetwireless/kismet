@@ -38,8 +38,8 @@ kis_database_logfile::kis_database_logfile():
     kis_net_httpd_ringbuf_stream_handler(),
     MessageClient(Globalreg::globalreg, nullptr) {
 
-    std::shared_ptr<packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
+    std::shared_ptr<Packetchain> packetchain =
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
     pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
     pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
@@ -133,8 +133,8 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
 
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_packets", true)) {
         _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
-        std::shared_ptr<packetchain> packetchain =
-            Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
+        std::shared_ptr<Packetchain> packetchain =
+            Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
         packetchain->RegisterHandler(&kis_database_logfile::packet_handler, this, 
                 CHAINPOS_LOGGING, -100);
@@ -425,7 +425,7 @@ void kis_database_logfile::Log_Close() {
     db_enabled = false;
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<packetchain>();
+        Globalreg::FetchGlobalAs<Packetchain>();
     if (packetchain != NULL) 
         packetchain->RemoveHandler(&kis_database_logfile::packet_handler, CHAINPOS_LOGGING);
 

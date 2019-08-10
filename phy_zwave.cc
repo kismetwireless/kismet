@@ -35,7 +35,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("Z-Wave");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<packetchain>();
+        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
     devicetracker =

@@ -1849,8 +1849,8 @@ bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const cha
                     }
 
                     if (packetchain == NULL) {
-                        std::shared_ptr<packetchain> packetchain = 
-                            Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
+                        std::shared_ptr<Packetchain> packetchain = 
+                            Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
                         pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
                     }
 
@@ -1924,8 +1924,8 @@ int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *ht
                 datasourcetracker =
                     Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
 
-                std::shared_ptr<packetchain> packetchain = 
-                    Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
+                std::shared_ptr<Packetchain> packetchain = 
+                    Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
                 pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
                 SharedDatasource ds = datasourcetracker->find_datasource(u);
