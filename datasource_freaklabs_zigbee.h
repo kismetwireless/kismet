@@ -35,16 +35,16 @@ public:
     virtual ~kis_datasource_freaklabs_zigbee() { };
 };
 
-class DatasourceFreaklabsZigbeeBuilder : public KisDatasourceBuilder {
+class datasource_freaklabs_zigbee_builder : public KisDatasourceBuilder {
 public:
-    DatasourceFreaklabsZigbeeBuilder(int in_id) :
+    datasource_freaklabs_zigbee_builder(int in_id) :
         KisDatasourceBuilder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceFreaklabsZigbeeBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_freaklabs_zigbee_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisDatasourceBuilder(in_id, e) {
 
         register_fields();
@@ -52,7 +52,7 @@ public:
         initialize();
     }
 
-    DatasourceFreaklabsZigbeeBuilder() :
+    datasource_freaklabs_zigbee_builder() :
         KisDatasourceBuilder(0) {
 
         register_fields();
@@ -60,7 +60,7 @@ public:
         initialize();
     }
 
-    virtual ~DatasourceFreaklabsZigbeeBuilder() { }
+    virtual ~datasource_freaklabs_zigbee_builder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
         return SharedDatasourceFreaklabsZigbee(new kis_datasource_freaklabs_zigbee(in_sh_this));
