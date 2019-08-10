@@ -48,7 +48,7 @@ void Kis_Net_Httpd_Handler::Bind_Httpd_Server() {
 }
 
 bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
-    return Globalreg::globalreg->entrytracker->CanSerialize(httpd->GetSuffix(path));
+    return Globalreg::globalreg->entrytracker->can_serialize(httpd->GetSuffix(path));
 }
 
 void Kis_Net_Httpd_Handler::Httpd_Serialize(const std::string& path, 
