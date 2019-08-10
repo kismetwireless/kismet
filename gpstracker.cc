@@ -77,7 +77,7 @@ gps_tracker::gps_tracker() :
     register_gps_builder(shared_gps_builder(new gps_tcp_builder()));
     register_gps_builder(shared_gps_builder(new gps_gpsd_v2_builder()));
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));
-    register_gps_builder(shared_gps_builder(new GPSWebBuilder()));
+    register_gps_builder(shared_gps_builder(new gps_web_builder()));
 
     // Process any gps options in the config file
     std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->fetch_opt_vec("gps");
