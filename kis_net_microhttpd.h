@@ -398,7 +398,7 @@ public:
 
     // Send a standard HTTP response appending the session and standard 
     // headers
-    static int SendStandardHttpResponse(kis_net_httpd *httpd,
+    static int send_standard_http_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, const char *url);
 
     // Catch MHD panics and try to close more elegantly

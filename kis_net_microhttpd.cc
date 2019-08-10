@@ -1210,7 +1210,7 @@ int kis_net_httpd::send_http_response(kis_net_httpd *httpd __attribute__((unused
     return MHD_YES;
 }
 
-int kis_net_httpd::SendStandardHttpResponse(kis_net_httpd *httpd,
+int kis_net_httpd::send_standard_http_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection, const char *url) {
     append_http_session(httpd, connection);
     append_standard_headers(httpd, connection, url);

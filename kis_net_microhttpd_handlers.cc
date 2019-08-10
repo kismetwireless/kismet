@@ -87,7 +87,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd
             MHD_create_response_from_buffer(stream.str().length(),
                     (void *) stream.str().data(), MHD_RESPMEM_MUST_COPY);
 
-        ret = httpd->SendStandardHttpResponse(httpd, connection, url);
+        ret = httpd->send_standard_http_response(httpd, connection, url);
 
         return ret;
     }
@@ -115,7 +115,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(kis_net_httpd *http
         connection->response = 
             MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
         connection->httpcode = 500;
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     }
 
     if (connection->response == NULL) {
@@ -124,7 +124,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(kis_net_httpd *http
                     (void *) connection->response_stream.str().data(), 
                     MHD_RESPMEM_MUST_COPY);
 
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     } 
 
     return MHD_YES;
@@ -418,7 +418,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(kis_net_httpd *h
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
                     &buffer_event_cb, aux, &free_buffer_aux_callback);
 
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     }
 
     return MHD_NO;
@@ -478,7 +478,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandlePostRequest(kis_net_httpd *
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
                     &buffer_event_cb, aux, &free_buffer_aux_callback);
 
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     }
 
     return MHD_NO;
