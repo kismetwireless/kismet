@@ -126,11 +126,11 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual int httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Messagebus API
     virtual void ProcessMessage(std::string in_msg, int in_flags) override;
@@ -218,12 +218,12 @@ protected:
     // Packet clearing API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
-            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+            SharedStructured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 
     // POI API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> make_poi_endp;
     unsigned int make_poi_endp_handler(std::ostream& stream, const std::string& uri,
-            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+            SharedStructured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_poi_endp;
     std::shared_ptr<tracker_element> list_poi_endp_handler();

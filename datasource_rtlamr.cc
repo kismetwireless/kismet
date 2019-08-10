@@ -57,7 +57,7 @@ void KisDatasourceRtlamr::open_interface(std::string in_definition, unsigned int
 }
 
 #if 0
-int KisDatasourceRtlamr::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int KisDatasourceRtlamr::httpd_post_complete(kis_net_httpd_connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 

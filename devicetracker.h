@@ -266,11 +266,11 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method);
 
     virtual int httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
-    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls);
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls);
     
     // Timetracker event handler
     virtual int timetracker_event(int eventid);
@@ -397,7 +397,7 @@ protected:
     // Multimac endpoint using new http API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> multimac_endp;
     unsigned int multimac_endp_handler(std::ostream& stream, const std::string& uri,
-            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache);
+            SharedStructured structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
 
     // /phys/all_phys.json endpoint using new simple endpoint API
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> all_phys_endp;

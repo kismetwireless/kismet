@@ -224,7 +224,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
 
 int device_tracker::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -418,7 +418,7 @@ int device_tracker::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int device_tracker::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // Split URL and process
     std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
 
@@ -739,7 +739,7 @@ int device_tracker::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
 }
 
 unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
-        SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+        SharedStructured structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
         auto ret_devices = std::make_shared<tracker_element_vector>();

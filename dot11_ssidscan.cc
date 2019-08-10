@@ -130,7 +130,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/phy/phy80211/ssidscan/config", true,
                 [this](std::ostream& stream, const std::string& url,
                     SharedStructured post_structured, 
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return config_endp_handler(stream, url, post_structured, variable_cache);
                 }, &mutex);
 
@@ -169,7 +169,7 @@ void Dot11_SsidScan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
 }
 
 unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std::string& url,
-        SharedStructured post_structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+        SharedStructured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
         if (post_structured->hasKey("ssidscan_enabled")) {

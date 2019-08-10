@@ -2872,7 +2872,7 @@ bool Kis_80211_Phy::httpd_verify_path(const char *path, const char *method) {
 }
 
 void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
-        Kis_Net_Httpd_Connection *connection, std::stringstream &stream) {
+        kis_net_httpd_connection *connection, std::stringstream &stream) {
 
     // Hardcode the pcap header
     struct pcap_header {
@@ -2961,7 +2961,7 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
 }
 
 void Kis_80211_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
@@ -3000,7 +3000,7 @@ void Kis_80211_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int Kis_80211_Phy::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_80211_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     bool handled = false;
 
     std::string stripped = Httpd_StripSuffix(concls->url);

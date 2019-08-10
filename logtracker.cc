@@ -381,7 +381,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
 }
 
 void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) {
 
@@ -487,7 +487,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
 }
 
-int LogTracker::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     SharedStructured structdata;
 
     // All the posts require login

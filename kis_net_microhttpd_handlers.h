@@ -30,7 +30,7 @@
 #include "trackedelement.h"
 
 class kis_net_httpd;
-class Kis_Net_Httpd_Connection;
+class kis_net_httpd_connection;
 
 // Basic request handler from MHD
 class Kis_Net_Httpd_Handler {
@@ -45,12 +45,12 @@ public:
     // MHD_create_response_from_... and will typically call some other
     // function to generate the data for the response
     virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
     virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection, 
+            kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
@@ -84,7 +84,7 @@ public:
 
     // Called when a POST event is complete - all data has been uploaded and
     // cached in the connection info.
-    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
         return MHD_NO;
     }
 
@@ -135,17 +135,17 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method) = 0;
 
     virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
     virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd, 
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
     virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection, 
+            kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 };
@@ -156,7 +156,7 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method);
 
     virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 };
@@ -175,11 +175,11 @@ public:
     virtual ~kis_net_httpd_buffer_stream_handler();
 
     virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
     virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection, 
+            kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
@@ -196,7 +196,7 @@ public:
     //            streamresponse is complete, typically used when streaming a finite
     //            amount of data through a memchunk buffer like a json serialization
     virtual int httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
@@ -207,7 +207,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) = 0;
 
     // Called by microhttpd during servicing a connecting; cls is a 
     // kis_net_httpd_buffer_stream_aux which contains all our references to
@@ -257,7 +257,7 @@ protected:
 class Kis_Net_Httpd_Buffer_Stream_Aux : public BufferInterface {
 public:
     Kis_Net_Httpd_Buffer_Stream_Aux(kis_net_httpd_buffer_stream_handler *in_handler,
-            Kis_Net_Httpd_Connection *in_httpd_connection, 
+            kis_net_httpd_connection *in_httpd_connection, 
             std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
             void *in_aux,
             std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
@@ -317,7 +317,7 @@ public:
     kis_net_httpd_buffer_stream_handler *httpd_stream_handler;
 
     // kis httpd connection we belong to
-    Kis_Net_Httpd_Connection *httpd_connection;
+    kis_net_httpd_connection *httpd_connection;
 
     // Buffer handler
     std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;

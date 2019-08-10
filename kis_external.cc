@@ -684,7 +684,7 @@ bool KisExternalHttpInterface::httpd_verify_path(const char *path, const char *m
 // We don't need to spawn our own thread - we're already our own thread independent
 // of the IO processing system.
 int KisExternalHttpInterface::httpd_create_stream_response(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -747,7 +747,7 @@ int KisExternalHttpInterface::httpd_create_stream_response(kis_net_httpd *httpd,
     return MHD_YES;
 }
 
-int KisExternalHttpInterface::httpd_post_complete(Kis_Net_Httpd_Connection *connection) {
+int KisExternalHttpInterface::httpd_post_complete(kis_net_httpd_connection *connection) {
     auto m = http_proxy_uri_map.find(std::string("POST"));
 
     if (m == http_proxy_uri_map.end()) {

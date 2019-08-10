@@ -215,14 +215,14 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
 }
 
 void Kis_Zwave_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
     return;
 }
 
-int Kis_Zwave_Phy::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls, true)) {

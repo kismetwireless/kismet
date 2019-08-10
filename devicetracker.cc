@@ -402,7 +402,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     multimac_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/devices/multimac/devices", 
                 [this](std::ostream& stream, const std::string& uri, SharedStructured structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                 return multimac_endp_handler(stream, uri, structured, variable_cache);
                 });
 

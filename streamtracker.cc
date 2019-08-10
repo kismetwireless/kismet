@@ -93,7 +93,7 @@ bool StreamTracker::httpd_verify_path(const char *path, const char *method) {
 
 void StreamTracker::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 

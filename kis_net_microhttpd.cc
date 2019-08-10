@@ -552,7 +552,7 @@ void kis_net_httpd::MHD_Panic(void *cls, const char *file __attribute__((unused)
     httpd->microhttpd = NULL;
 }
 
-bool kis_net_httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool send_invalid) {
+bool kis_net_httpd::HasValidSession(kis_net_httpd_connection *connection, bool send_invalid) {
     if (connection->session != NULL)
         return true;
 
@@ -593,7 +593,7 @@ bool kis_net_httpd::HasValidSession(Kis_Net_Httpd_Connection *connection, bool s
 }
 
 std::shared_ptr<Kis_Net_Httpd_Session> 
-kis_net_httpd::CreateSession(Kis_Net_Httpd_Connection *connection, 
+kis_net_httpd::CreateSession(kis_net_httpd_connection *connection, 
         struct MHD_Response *response, time_t in_lifetime) {
     
     std::shared_ptr<Kis_Net_Httpd_Session> s;
@@ -744,7 +744,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     const char *cookieval;
     int ret = MHD_NO;
 
-    Kis_Net_Httpd_Connection *concls = NULL;
+    kis_net_httpd_connection *concls = NULL;
     bool new_concls = false;
 
     cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
@@ -787,7 +787,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     
     // If we don't have a connection state, make one
     if (*ptr == NULL) {
-        concls = new Kis_Net_Httpd_Connection();
+        concls = new kis_net_httpd_connection();
         // fprintf(stderr, "debug - allocated new connection state %p\n", concls);
 
         *ptr = (void *) concls;
@@ -801,7 +801,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         new_concls = true;
     } else {
-        concls = (Kis_Net_Httpd_Connection *) *ptr;
+        concls = (kis_net_httpd_connection *) *ptr;
     }
 
     {
@@ -853,7 +853,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         /* Set up a POST handler */
         if (strcmp(method, "POST") == 0) {
-            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_POST;
+            concls->connection_type = kis_net_httpd_connection::CONNECTION_POST;
 
             concls->postprocessor =
                 MHD_create_post_processor(connection, KIS_HTTPD_POSTBUFFERSZ,
@@ -868,7 +868,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             }
         } else {
             // Otherwise default to the get handler
-            concls->connection_type = Kis_Net_Httpd_Connection::CONNECTION_GET;
+            concls->connection_type = kis_net_httpd_connection::CONNECTION_GET;
         }
 
         // We're done
@@ -923,7 +923,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         
         MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, 
                 [](void *cls, enum MHD_ValueKind, const char *key, const char *value) -> int {
-                    auto concls = static_cast<Kis_Net_Httpd_Connection *>(cls);
+                    auto concls = static_cast<kis_net_httpd_connection *>(cls);
 
                     concls->variable_cache[key] = std::make_shared<std::stringstream>();
 
@@ -945,7 +945,7 @@ int kis_net_httpd::http_post_handler(void *coninfo_cls, enum MHD_ValueKind kind,
         const char *transfer_encoding, const char *data, 
         uint64_t off, size_t size) {
 
-    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
+    kis_net_httpd_connection *concls = (kis_net_httpd_connection *) coninfo_cls;
 
     if (concls->httpdhandler->Httpd_UseCustomPostIterator()) {
         return (concls->httpdhandler)->Httpd_PostIterator(coninfo_cls, kind,
@@ -965,7 +965,7 @@ void kis_net_httpd::http_request_completed(void *cls __attribute__((unused)),
         struct MHD_Connection *connection __attribute__((unused)),
         void **con_cls, 
         enum MHD_RequestTerminationCode toe __attribute__((unused))) {
-    Kis_Net_Httpd_Connection *con_info = (Kis_Net_Httpd_Connection *) *con_cls;
+    kis_net_httpd_connection *con_info = (kis_net_httpd_connection *) *con_cls;
 
     if (con_info == NULL)
         return;
@@ -974,7 +974,7 @@ void kis_net_httpd::http_request_completed(void *cls __attribute__((unused)),
     {
         std::lock_guard<std::mutex> lk(con_info->connection_mutex);
 
-        if (con_info->connection_type == Kis_Net_Httpd_Connection::CONNECTION_POST) {
+        if (con_info->connection_type == kis_net_httpd_connection::CONNECTION_POST) {
             MHD_destroy_post_processor(con_info->postprocessor);
             con_info->postprocessor = NULL;
         }
@@ -1007,7 +1007,7 @@ std::string kis_net_httpd::GetMimeType(std::string ext) {
     return "";
 }
 
-int kis_net_httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *connection,
+int kis_net_httpd::handle_static_file(void *cls, kis_net_httpd_connection *connection,
         const char *url, const char *method) {
     kis_net_httpd *kishttpd = (kis_net_httpd *) cls;
 
@@ -1137,7 +1137,7 @@ int kis_net_httpd::handle_static_file(void *cls, Kis_Net_Httpd_Connection *conne
 }
 
 void kis_net_httpd::AppendHttpSession(kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection) {
+        kis_net_httpd_connection *connection) {
 
     if (connection->session != NULL) {
         std::stringstream cookiestr;
@@ -1153,7 +1153,7 @@ void kis_net_httpd::AppendHttpSession(kis_net_httpd *httpd __attribute__((unused
 }
 
 void kis_net_httpd::AppendStandardHeaders(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection, const char *url) {
+        kis_net_httpd_connection *connection, const char *url) {
 
     // Last-modified is always now
     char lastmod[31];
@@ -1200,7 +1200,7 @@ void kis_net_httpd::AppendStandardHeaders(kis_net_httpd *httpd,
 }
 
 int kis_net_httpd::SendHttpResponse(kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection) {
+        kis_net_httpd_connection *connection) {
 
     MHD_queue_response(connection->connection, connection->httpcode, 
             connection->response);
@@ -1211,7 +1211,7 @@ int kis_net_httpd::SendHttpResponse(kis_net_httpd *httpd __attribute__((unused))
 }
 
 int kis_net_httpd::SendStandardHttpResponse(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection, const char *url) {
+        kis_net_httpd_connection *connection, const char *url) {
     AppendHttpSession(httpd, connection);
     AppendStandardHeaders(httpd, connection, url);
     return SendHttpResponse(httpd, connection);
@@ -1261,7 +1261,7 @@ bool Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_verify_path(const char *path, 
 
 int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -1317,7 +1317,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1470,7 +1470,7 @@ bool Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_verify_path(const char 
 
 int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -1526,7 +1526,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1679,7 +1679,7 @@ bool Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_verify_path(const char *in_path,
 
 int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *in_path, const char *in_method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -1733,7 +1733,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1876,7 +1876,7 @@ bool Kis_Net_Httpd_Simple_Post_Endpoint::httpd_verify_path(const char *path, con
 
 int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -1887,7 +1887,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1983,7 +1983,7 @@ bool Kis_Net_Httpd_Path_Post_Endpoint::httpd_verify_path(const char *in_path, co
 
 int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *in_path, const char *in_method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -1991,7 +1991,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 

@@ -364,11 +364,11 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Timetracker event handler
     virtual int timetracker_event(int eventid) override;
@@ -439,7 +439,7 @@ protected:
             kis_packet *in_pack, dot11_packinfo *dot11info);
 
     void GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             std::stringstream &stream);
 
     int dot11_device_entry_id;

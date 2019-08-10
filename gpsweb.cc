@@ -89,7 +89,7 @@ bool GPSWeb::httpd_verify_path(const char *path, const char *method) {
 }
 
 void GPSWeb::httpd_create_stream_response(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
     return;
@@ -100,7 +100,7 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
         const char *transfer_encoding, const char *data, 
         uint64_t off, size_t size) {
 
-    Kis_Net_Httpd_Connection *concls = (Kis_Net_Httpd_Connection *) coninfo_cls;
+    kis_net_httpd_connection *concls = (kis_net_httpd_connection *) coninfo_cls;
 
     bool handled = false;
 

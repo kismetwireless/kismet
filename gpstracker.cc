@@ -281,7 +281,7 @@ bool GpsTracker::httpd_verify_path(const char *path, const char *method) {
 
 void GpsTracker::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection __attribute__((unused)),
+        kis_net_httpd_connection *connection __attribute__((unused)),
         const char *path, const char *method, 
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused)), 

@@ -67,7 +67,7 @@ std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
 }
 
 int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd, 
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -96,7 +96,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd
 }
 
 int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(kis_net_httpd *httpd, 
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused))) {
@@ -144,7 +144,7 @@ bool Kis_Net_Httpd_No_Files_Handler::httpd_verify_path(const char *path,
 }
 
 void Kis_Net_Httpd_No_Files_Handler::httpd_create_stream_response(kis_net_httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection __attribute__((unused)),
+        kis_net_httpd_connection *connection __attribute__((unused)),
         const char *url __attribute__((unused)), 
         const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),
@@ -169,7 +169,7 @@ void Kis_Net_Httpd_No_Files_Handler::httpd_create_stream_response(kis_net_httpd 
 
 Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
         kis_net_httpd_buffer_stream_handler *in_handler,
-        Kis_Net_Httpd_Connection *in_httpd_connection,
+        kis_net_httpd_connection *in_httpd_connection,
         std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
         void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) :
     httpd_stream_handler(in_handler),
@@ -344,7 +344,7 @@ static void free_buffer_aux_callback(void *cls) {
 }
 
 int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd, 
-        Kis_Net_Httpd_Connection *connection,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -425,7 +425,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(kis_net_httpd *h
 }
 
 int kis_net_httpd_buffer_stream_handler::Httpd_HandlePostRequest(kis_net_httpd *httpd,
-        Kis_Net_Httpd_Connection *connection, 
+        kis_net_httpd_connection *connection, 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 

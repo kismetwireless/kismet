@@ -46,7 +46,7 @@ namespace KismetExternal {
 };
 
 struct KisExternalHttpSession {
-    Kis_Net_Httpd_Connection *connection; 
+    kis_net_httpd_connection *connection; 
     std::shared_ptr<conditional_locker<int> > locker;
 };
 
@@ -152,7 +152,7 @@ public:
     //            streamresponse is complete, typically used when streaming a finite
     //            amount of data through a memchunk buffer like a json serialization
     virtual int httpd_create_stream_response(kis_net_httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
@@ -163,7 +163,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override;
 
 protected:
     // Central packet dispatch handler
