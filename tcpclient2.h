@@ -39,10 +39,10 @@
 // We don't have to implement a buffer interface directly, because we check the
 // write buffer during the poll() sequence.  The consumer will use the buffer
 // interface for reading data coming in from the client.
-class TcpClientV2 : public kis_pollable {
+class tcp_client_v2 : public kis_pollable {
 public:
-    TcpClientV2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
-    virtual ~TcpClientV2();
+    tcp_client_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~tcp_client_v2();
 
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 

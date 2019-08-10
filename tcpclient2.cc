@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-TcpClientV2::TcpClientV2(global_registry *in_globalreg, 
+tcp_client_v2::tcp_client_v2(global_registry *in_globalreg, 
         std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     handler {in_rbhandler},
@@ -39,11 +39,11 @@ TcpClientV2::TcpClientV2(global_registry *in_globalreg,
     connected {false}, 
     cli_fd {-1} { }
 
-TcpClientV2::~TcpClientV2() {
+tcp_client_v2::~tcp_client_v2() {
     Disconnect();
 }
 
-void TcpClientV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void tcp_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(tcp_mutex);
 
     if (in_parent != nullptr)
@@ -52,7 +52,7 @@ void TcpClientV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent
         tcp_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
+int tcp_client_v2::Connect(std::string in_host, unsigned int in_port) {
     local_locker l(tcp_mutex);
 
     std::stringstream msg;
@@ -121,7 +121,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
     return 0;
 }
 
-int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int tcp_client_v2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(tcp_mutex);
 
     // All we fill in is the descriptor for writing if we're still trying to
@@ -150,7 +150,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     return in_max_fd;
 }
 
-int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int tcp_client_v2::Poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker l(tcp_mutex);
     
     std::string msg;
@@ -298,7 +298,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void TcpClientV2::Disconnect() {
+void tcp_client_v2::Disconnect() {
     local_locker l(tcp_mutex);
 
     if (pending_connect || connected) {
@@ -312,7 +312,7 @@ void TcpClientV2::Disconnect() {
     connected = false;
 }
 
-bool TcpClientV2::FetchConnected() {
+bool tcp_client_v2::FetchConnected() {
     local_shared_locker l(tcp_mutex);
 
     if (connected || pending_connect)
