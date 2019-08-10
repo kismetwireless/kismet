@@ -53,7 +53,7 @@ public:
     IPCRemoteV2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
     virtual ~IPCRemoteV2();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Add paths to look for binary in.  Paths are searched in the order
     // they are added

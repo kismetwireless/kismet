@@ -43,7 +43,7 @@ TcpClientV2::~TcpClientV2() {
     Disconnect();
 }
 
-void TcpClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void TcpClientV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(tcp_mutex);
 
     if (in_parent != nullptr)

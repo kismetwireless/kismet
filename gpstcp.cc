@@ -124,14 +124,14 @@ bool GPSTCP::open_gps(std::string in_opts) {
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
         nmeahandler =  std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
-        nmeahandler->SetMutex(gps_mutex);
+        nmeahandler->set_mutex(gps_mutex);
         nmeahandler->SetReadBufferInterface(&nmeainterface);
     }
 
     if (tcpclient == nullptr) {
         // Link to a tcp connection
         tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, nmeahandler);
-        tcpclient->SetMutex(gps_mutex);
+        tcpclient->set_mutex(gps_mutex);
         pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
     }
 

@@ -42,7 +42,7 @@ buffer_handler_generic::~buffer_handler_generic() {
         delete write_buffer;
 }
 
-void buffer_handler_generic::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void buffer_handler_generic::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     if (in_parent != nullptr && in_parent == handler_mutex)
         return;
 

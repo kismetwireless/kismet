@@ -41,7 +41,7 @@ SerialClientV2::~SerialClientV2() {
     Close();
 }
 
-void SerialClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void SerialClientV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(serial_mutex);
 
     if (in_parent != nullptr)

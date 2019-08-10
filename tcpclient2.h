@@ -44,7 +44,7 @@ public:
     TcpClientV2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
     virtual ~TcpClientV2();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Connect to a host, returns 0 if connection initiated and negative if fail
     int Connect(std::string in_host, unsigned int in_port);

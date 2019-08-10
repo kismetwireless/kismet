@@ -167,14 +167,14 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
         // GPSD network connection writes data as well as reading, but most of it is
         // inbound data
         tcphandler = std::make_shared<BufferHandler<RingbufV2>>(4096, 512);
-        tcphandler->SetMutex(gps_mutex);
+        tcphandler->set_mutex(gps_mutex);
         tcphandler->SetReadBufferInterface(&tcpinterface);
     }
 
     if (tcpclient == nullptr) {
         // Link it to a tcp connection
         tcpclient = std::make_shared<TcpClientV2>(Globalreg::globalreg, tcphandler);
-        tcpclient->SetMutex(gps_mutex);
+        tcpclient->set_mutex(gps_mutex);
         pollabletracker->RegisterPollable(std::static_pointer_cast<Pollable>(tcpclient));
     }
 

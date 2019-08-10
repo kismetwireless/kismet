@@ -53,7 +53,7 @@ PipeClient::~PipeClient() {
     }
 }
 
-void PipeClient::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void PipeClient::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(pipe_mutex);
 
     if (in_parent != nullptr)

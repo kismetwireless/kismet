@@ -171,7 +171,7 @@ public:
     buffer_handler_generic();
     virtual ~buffer_handler_generic();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Basic size ops
     virtual ssize_t GetReadBufferSize();

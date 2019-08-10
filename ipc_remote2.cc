@@ -52,7 +52,7 @@ IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg,
 
 }
 
-void IPCRemoteV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void IPCRemoteV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(ipc_mutex);
 
     if (in_parent != nullptr)
@@ -61,7 +61,7 @@ void IPCRemoteV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent)
         ipc_mutex = std::make_shared<kis_recursive_timed_mutex>();
 
     if (pipeclient != nullptr)
-        pipeclient->SetMutex(in_parent);
+        pipeclient->set_mutex(in_parent);
 }
 
 IPCRemoteV2::~IPCRemoteV2() {
@@ -281,7 +281,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     }
 
     pipeclient.reset(new PipeClient(globalreg, ipchandler));
-    pipeclient->SetMutex(ipc_mutex);
+    pipeclient->set_mutex(ipc_mutex);
 
     // Read from the child write pair, write to the child read pair
     pipeclient->OpenPipes(outpipepair[0], inpipepair[1]);
@@ -394,7 +394,7 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     close(outpipepair[0]);
 
     pipeclient.reset(new PipeClient(globalreg, ipchandler));
-    pipeclient->SetMutex(ipc_mutex);
+    pipeclient->set_mutex(ipc_mutex);
 
     pollabletracker->RegisterPollable(pipeclient);
 
