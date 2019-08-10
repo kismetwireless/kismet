@@ -1750,7 +1750,7 @@ void device_tracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_de
 }
 
 void device_tracker::HandleNewDatasourceEvent(std::shared_ptr<eventbus_event> evt) {
-    auto ds_evt = std::static_pointer_cast<Datasourcetracker::EventNewDatasource>(evt);
+    auto ds_evt = std::static_pointer_cast<datasource_tracker::EventNewDatasource>(evt);
 
     if (map_seenby_views) {
         auto source_uuid = ds_evt->datasource->get_source_uuid();

@@ -828,7 +828,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Add the datasource tracker
-    auto datasourcetracker = Datasourcetracker::create_dst();
+    auto datasourcetracker = datasource_tracker::create_dst();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);

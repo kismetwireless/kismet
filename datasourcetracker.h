@@ -70,7 +70,7 @@
  *
  */
 
-class Datasourcetracker;
+class datasource_tracker;
 class kis_datasource;
 class DST_Worker;
 
@@ -338,11 +338,11 @@ protected:
 // Fwd def of datasource pcap feed
 class Datasourcetracker_Httpd_Pcap;
 
-class Datasourcetracker : public kis_net_httpd_cppstream_handler, 
+class datasource_tracker : public kis_net_httpd_cppstream_handler, 
     public lifetime_global, public DeferredStartup, public TcpServerV2 {
 public:
-    static std::shared_ptr<Datasourcetracker> create_dst() {
-        auto mon = std::make_shared<Datasourcetracker>();
+    static std::shared_ptr<datasource_tracker> create_dst() {
+        auto mon = std::make_shared<datasource_tracker>();
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         Globalreg::globalreg->RegisterDeferredGlobal(mon);
@@ -356,10 +356,10 @@ public:
     }
 
     // Must be public to accomodate make_shared but should not be called directly
-    Datasourcetracker();
+    datasource_tracker();
 
 public:
-    virtual ~Datasourcetracker();
+    virtual ~datasource_tracker();
 
     static std::string global_name() { return "DATASOURCETRACKER"; }
 
@@ -457,7 +457,7 @@ protected:
     // Log the datasources
     virtual void databaselog_write_datasources();
 
-    std::shared_ptr<Datasourcetracker> datasourcetracker;
+    std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<Eventbus> eventbus;
 
@@ -549,7 +549,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<Datasourcetracker> datasourcetracker;
+    std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<packet_chain> packetchain;
 
     int pack_comp_datasrc;

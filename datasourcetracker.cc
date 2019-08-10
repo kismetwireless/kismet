@@ -296,7 +296,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
 }
 
 
-Datasourcetracker::Datasourcetracker() :
+datasource_tracker::datasource_tracker() :
     kis_net_httpd_cppstream_handler(),
     TcpServerV2(Globalreg::globalreg) {
 
@@ -365,7 +365,7 @@ Datasourcetracker::Datasourcetracker() :
     Bind_Httpd_Server();
 }
 
-Datasourcetracker::~Datasourcetracker() {
+datasource_tracker::~datasource_tracker() {
     Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
 
     if (completion_cleanup_id >= 0)
@@ -383,7 +383,7 @@ Datasourcetracker::~Datasourcetracker() {
         i.second->cancel();
 }
 
-void Datasourcetracker::databaselog_write_datasources() {
+void datasource_tracker::databaselog_write_datasources() {
     if (!database_log_enabled)
         return;
 
@@ -404,11 +404,11 @@ void Datasourcetracker::databaselog_write_datasources() {
     dbf->log_datasources(v);
 }
 
-std::shared_ptr<datasourcetracker_defaults> Datasourcetracker::get_config_defaults() {
+std::shared_ptr<datasourcetracker_defaults> datasource_tracker::get_config_defaults() {
     return config_defaults;
 }
 
-void Datasourcetracker::Deferred_Startup() {
+void datasource_tracker::Deferred_Startup() {
     bool used_args = false;
 
     completion_cleanup_id = -1;
@@ -608,7 +608,7 @@ void Datasourcetracker::Deferred_Startup() {
     auto simul_open_delay = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_delay", 10);
 
-    auto launch_func = [](Datasourcetracker *dst, std::string src) {
+    auto launch_func = [](datasource_tracker *dst, std::string src) {
             dst->open_datasource(src, 
                     [src](bool success, std::string reason, shared_datasource) {
                 if (success) {
@@ -624,7 +624,7 @@ void Datasourcetracker::Deferred_Startup() {
     };
 
     if (stagger_thresh == 0 || src_vec.size() <= stagger_thresh) {
-        auto source_t = std::thread([launch_func](Datasourcetracker *dst, 
+        auto source_t = std::thread([launch_func](datasource_tracker *dst, 
                     const std::vector<std::string>& src_vec) {
                 for (auto i : src_vec) {
                     launch_func(dst, i);
@@ -640,7 +640,7 @@ void Datasourcetracker::Deferred_Startup() {
 
             if (work_vec.size() > simul_open) {
                 // Pass a copy of the work vec so that we can immediately clear it
-                auto launch_t = std::thread([launch_func, simul_open_delay](Datasourcetracker *dst,
+                auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
                             const std::vector<std::string> src_vec, unsigned int gn) {
 
                     // All the threads launch more or less at once, so each thread sleeps for
@@ -660,7 +660,7 @@ void Datasourcetracker::Deferred_Startup() {
         }
 
         // Launch the last of the group
-        auto launch_t = std::thread([launch_func, simul_open_delay](Datasourcetracker *dst,
+        auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
                     const std::vector<std::string> src_vec, unsigned int gn) {
 
                     sleep(gn * simul_open_delay);
@@ -676,7 +676,7 @@ void Datasourcetracker::Deferred_Startup() {
     return;
 }
 
-void Datasourcetracker::Deferred_Shutdown() {
+void datasource_tracker::Deferred_Shutdown() {
     local_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
@@ -684,7 +684,7 @@ void Datasourcetracker::Deferred_Shutdown() {
     }
 }
 
-void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
+void datasource_tracker::iterate_datasources(DST_Worker *in_worker) {
     std::shared_ptr<tracker_element_vector> immutable_copy;
 
     {
@@ -699,7 +699,7 @@ void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     in_worker->finalize();
 }
 
-bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
+bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
     // Look for it in the sources vec and fully close it and get rid of it
@@ -726,7 +726,7 @@ bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
     return false;
 }
 
-shared_datasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
+shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
     local_shared_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
@@ -739,7 +739,7 @@ shared_datasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
     return nullptr;
 }
 
-bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
+bool datasource_tracker::close_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
@@ -759,7 +759,7 @@ bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
     return false;
 }
 
-int Datasourcetracker::register_datasource(shared_datasource_builder in_builder) {
+int datasource_tracker::register_datasource(shared_datasource_builder in_builder) {
     local_locker lock(&dst_lock);
 
     for (auto i : *proto_vec) {
@@ -778,7 +778,7 @@ int Datasourcetracker::register_datasource(shared_datasource_builder in_builder)
     return 1;
 }
 
-void Datasourcetracker::open_datasource(const std::string& in_source, 
+void datasource_tracker::open_datasource(const std::string& in_source, 
         const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
     // fprintf(stderr, "debug - DST open source %s\n", in_source.c_str());
 
@@ -908,7 +908,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
     return;
 }
 
-void Datasourcetracker::open_datasource(const std::string& in_source, 
+void datasource_tracker::open_datasource(const std::string& in_source, 
         shared_datasource_builder in_proto,
         const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
     local_locker lock(&dst_lock);
@@ -938,7 +938,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
         });
 }
 
-void Datasourcetracker::merge_source(shared_datasource in_source) {
+void datasource_tracker::merge_source(shared_datasource in_source) {
     local_locker lock(&dst_lock);
 
     // Get the UUID and compare it to our map; re-use a UUID if we knew
@@ -969,7 +969,7 @@ void Datasourcetracker::merge_source(shared_datasource in_source) {
     datasource_vec->push_back(in_source);
 }
 
-void Datasourcetracker::list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb) {
+void datasource_tracker::list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb) {
     // Create a DSTProber to handle the probing
     auto dst_list = std::make_shared<DST_DatasourceList>(proto_vec);
     unsigned int listid = 0;
@@ -1029,7 +1029,7 @@ void Datasourcetracker::list_interfaces(const std::function<void (std::vector<Sh
     });
 }
 
-void Datasourcetracker::schedule_cleanup() {
+void datasource_tracker::schedule_cleanup() {
     local_locker lock(&dst_lock);
 
     if (completion_cleanup_id >= 0)
@@ -1061,7 +1061,7 @@ void Datasourcetracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-void Datasourcetracker::NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) {
+void datasource_tracker::NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) {
     dst_incoming_remote *incoming = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
                     uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
@@ -1072,7 +1072,7 @@ void Datasourcetracker::NewConnection(std::shared_ptr<buffer_handler_generic> co
     conn_handler->set_read_buffer_interface(incoming);
 }
 
-void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
+void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
         std::shared_ptr<buffer_handler_generic> in_handler) {
     shared_datasource merge_target_device;
@@ -1156,7 +1156,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 // exist, and are hopping
 class dst_chansplit_worker : public DST_Worker {
 public:
-    dst_chansplit_worker(Datasourcetracker *in_dst,
+    dst_chansplit_worker(datasource_tracker *in_dst,
             std::shared_ptr<datasourcetracker_defaults> in_defaults, 
             shared_datasource in_ds) {
         dst = in_dst;
@@ -1255,7 +1255,7 @@ public:
 protected:
     std::string match_type;
 
-    Datasourcetracker *dst;
+    datasource_tracker *dst;
 
     shared_datasource initial_ds;
     std::vector<shared_datasource> target_sources;
@@ -1264,7 +1264,7 @@ protected:
 
 };
 
-void Datasourcetracker::calculate_source_hopping(shared_datasource in_ds) {
+void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
     if (!in_ds->get_definition_opt_bool("channel_hop", true)) {
         // Source doesn't hop regardless of defaults
         return;
@@ -1285,7 +1285,7 @@ void Datasourcetracker::calculate_source_hopping(shared_datasource in_ds) {
     }
 }
 
-void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
+void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
     local_locker lock(&dst_lock);
 
     for (auto x : dst_remote_complete_vec) {
@@ -1313,7 +1313,7 @@ void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
 }
 
 
-bool Datasourcetracker::httpd_verify_path(const char *path, const char *method) {
+bool datasource_tracker::httpd_verify_path(const char *path, const char *method) {
     std::string stripped = Httpd_StripSuffix(path);
 
     if (strcmp(method, "POST") == 0) {
@@ -1407,7 +1407,7 @@ bool Datasourcetracker::httpd_verify_path(const char *path, const char *method) 
     return false;
 }
 
-void Datasourcetracker::httpd_create_stream_response(kis_net_httpd *httpd,
+void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
        const char *path, const char *method, const char *upload_data,
        size_t *upload_data_size, std::stringstream &stream) {
@@ -1525,7 +1525,7 @@ void Datasourcetracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
 }
 
-int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
+int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     if (!Httpd_CanSerialize(concls->url)) {
         concls->response_stream << "Invalid request, cannot serialize URL";
         concls->httpcode = 400;
@@ -1783,7 +1783,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     return MHD_YES;
 }
 
-double Datasourcetracker::string_to_rate(std::string in_str, double in_default) {
+double datasource_tracker::string_to_rate(std::string in_str, double in_default) {
     double v, dv;
 
     std::vector<std::string> toks = StrTokenize(in_str, "/");
@@ -1845,7 +1845,7 @@ bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const cha
 
                     if (datasourcetracker == NULL) {
                         datasourcetracker =
-                            Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+                            Globalreg::FetchMandatoryGlobalAs<datasource_tracker>("DATASOURCETRACKER");
                     }
 
                     if (packetchain == NULL) {
@@ -1922,7 +1922,7 @@ int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *ht
                 }
 
                 datasourcetracker =
-                    Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+                    Globalreg::FetchMandatoryGlobalAs<datasource_tracker>("DATASOURCETRACKER");
 
                 std::shared_ptr<packet_chain> packetchain = 
                     Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
@@ -2039,8 +2039,8 @@ void dst_incoming_remote::kill() {
 
     close_external();
 
-    std::shared_ptr<Datasourcetracker> datasourcetracker =
-        Globalreg::FetchGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+    std::shared_ptr<datasource_tracker> datasourcetracker =
+        Globalreg::FetchGlobalAs<datasource_tracker>("DATASOURCETRACKER");
 
     if (datasourcetracker != NULL) 
         datasourcetracker->queue_dead_remote(this);

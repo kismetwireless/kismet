@@ -49,7 +49,7 @@ typedef std::shared_ptr<KisDatasourceInterface> SharedInterface;
 // Simple keyed object derived from the low-level C protocol
 class KisDatasourceCapKeyedObject;
 
-class Datasourcetracker;
+class datasource_tracker;
 class kis_datasource;
 
 class kis_datasource_builder : public tracker_component {

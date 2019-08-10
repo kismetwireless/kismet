@@ -547,7 +547,7 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
     }
 
     auto datasourcetracker =
-        Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<datasource_tracker>("DATASOURCETRACKER");
 
     set_int_source_retry(get_definition_opt_bool("retry", 
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));
