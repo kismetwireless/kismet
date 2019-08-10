@@ -152,7 +152,7 @@ public:
         except_if_not(is_dictionary(), "Dictionary/Map");
 
         if (!has_key(key)) 
-            throw StructuredDataNoSuchKey("No such key: " + key);
+            throw structured_data_no_such_key("No such key: " + key);
 
         auto ki = json[key];
 

@@ -68,8 +68,8 @@ struct StructuredDataUnsuitable : public StructuredDataException {
         StructuredDataException(message) {}
 };
 
-struct StructuredDataNoSuchKey : public StructuredDataException {
-    StructuredDataNoSuchKey(std::string const& message) : 
+struct structured_data_no_such_key : public StructuredDataException {
+    structured_data_no_such_key(std::string const& message) : 
         StructuredDataException(message) {}
 };
 
