@@ -192,7 +192,7 @@ public:
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is not duplicated, the caller must ensure
     // this is a safe operation (the vector must not be modified during execution of the worker)
-    void MatchOnDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker,
+    void do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
     // RO only
