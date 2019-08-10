@@ -276,7 +276,7 @@ std::string config_file::fetch_opt(std::string in_key) {
     return val;
 }
 
-std::string config_file::FetchOptDfl(std::string in_key, std::string in_dfl) {
+std::string config_file::fetch_opt_dfl(std::string in_key, std::string in_dfl) {
     std::string r = fetch_opt(in_key);
 
     if (r.length() == 0)
@@ -476,7 +476,7 @@ std::string config_file::ExpandLogPath(const std::string& path, const std::strin
             std::string pfx = Globalreg::globalreg->log_prefix;
 
             if (pfx == "") 
-                pfx = FetchOptDfl("log_prefix", "./");
+                pfx = fetch_opt_dfl("log_prefix", "./");
 
             if (pfx != "") 
                 if (pfx[pfx.length() - 1] != '/')

@@ -45,7 +45,7 @@ void Kis_Httpd_Websession::Deferred_Startup() {
 
     user_httpd_config = new config_file(Globalreg::globalreg);
     auto conf_dir_path_raw = 
-        Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_auth_file", 
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_auth_file", 
                 "%h/.kismet/kismet_httpd.conf");
 
     user_httpd_config_file = 

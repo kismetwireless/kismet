@@ -140,13 +140,13 @@ kis_net_httpd::kis_net_httpd() {
     }
 
     http_port = Globalreg::globalreg->kismet_config->FetchOptUInt("httpd_port", 2501);
-    http_host = Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_bind_address", "");
+    http_host = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_bind_address", "");
 
     if (http_host == "") {
         _MSG_INFO("Kismet will only listen to HTTP requests on {}:{}", http_port, http_host);
     }
 
-    uri_prefix = Globalreg::globalreg->kismet_config->FetchOptDfl("httpd_uri_prefix", "");
+    uri_prefix = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_uri_prefix", "");
 
     std::string http_data_dir, http_aux_data_dir;
 

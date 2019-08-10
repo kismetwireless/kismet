@@ -55,7 +55,7 @@ public:
     }
 
     std::string fetch_opt(std::string in_key);
-    std::string FetchOptDfl(std::string in_key, std::string in_dfl);
+    std::string fetch_opt_dfl(std::string in_key, std::string in_dfl);
     std::string FetchOpt_nl(std::string in_key);
     std::vector<std::string> FetchOptVec(std::string in_key);
 

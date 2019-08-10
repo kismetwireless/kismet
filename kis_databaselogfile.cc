@@ -276,7 +276,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
                 "Kismetdb packet MAC filtering");
 
     auto device_filter_dfl = 
-        Globalreg::globalreg->kismet_config->FetchOptDfl("kis_log_device_filter_default", "pass");
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("kis_log_device_filter_default", "pass");
 
     if (device_filter_dfl == "pass" || device_filter_dfl == "false") {
         device_mac_filter->set_filter_default(false);
@@ -320,7 +320,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     auto packet_filter_dfl = 
-        Globalreg::globalreg->kismet_config->FetchOptDfl("kis_log_packet_filter_default", "pass");
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("kis_log_packet_filter_default", "pass");
 
     if (packet_filter_dfl == "pass" || packet_filter_dfl == "false") {
         packet_mac_filter->set_filter_default(false);

@@ -140,18 +140,18 @@ void LogTracker::Deferred_Startup() {
         set_int_logging_enabled(false);
 
     if (argtitle.length() == 0)
-        set_int_log_title(Globalreg::globalreg->kismet_config->FetchOptDfl("log_title", "Kismet"));
+        set_int_log_title(Globalreg::globalreg->kismet_config->fetch_opt_dfl("log_title", "Kismet"));
     else
         set_int_log_title(argtitle);
 
     if (argprefix.length() == 0) 
-        set_int_log_prefix(Globalreg::globalreg->kismet_config->FetchOptDfl("log_prefix", "./"));
+        set_int_log_prefix(Globalreg::globalreg->kismet_config->fetch_opt_dfl("log_prefix", "./"));
     else
         set_int_log_prefix(argprefix);
 
     Globalreg::globalreg->log_prefix = get_log_prefix();
 
-    set_int_log_template(Globalreg::globalreg->kismet_config->FetchOptDfl("log_template", 
+    set_int_log_template(Globalreg::globalreg->kismet_config->fetch_opt_dfl("log_template", 
                 "%p/%n-%D-%t-%i.%l"));
 
 

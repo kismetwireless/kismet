@@ -551,7 +551,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_fingerprint_devices", true)) {
         auto fingerprint_s = 
-            Globalreg::globalreg->kismet_config->FetchOptDfl("dot11_beacon_ie_fingerprint",
+            Globalreg::globalreg->kismet_config->fetch_opt_dfl("dot11_beacon_ie_fingerprint",
                     "0,1,45,48,50,61,74,127,191,195,221-00156D-00,221-0050F2-2,221-001018-2,221-506F9A-28");
         auto fingerprint_v = QuoteStrTokenize(fingerprint_s, ",");
 
@@ -580,7 +580,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         }
 
         auto pfingerprint_s = 
-            Globalreg::globalreg->kismet_config->FetchOptDfl("dot11_probe_ie_fingerprint",
+            Globalreg::globalreg->kismet_config->fetch_opt_dfl("dot11_probe_ie_fingerprint",
                     "1,50,59,107,127,221-001018-2,221-00904c-51");
         auto pfingerprint_v = QuoteStrTokenize(pfingerprint_s, ",");
 
