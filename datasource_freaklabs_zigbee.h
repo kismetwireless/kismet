@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -23,16 +23,16 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceFreaklabsZigbee;
-typedef std::shared_ptr<KisDatasourceFreaklabsZigbee> SharedDatasourceFreaklabsZigbee;
+class kis_datasource_freaklabs_zigbee;
+typedef std::shared_ptr<kis_datasource_freaklabs_zigbee> SharedDatasourceFreaklabsZigbee;
 
-class KisDatasourceFreaklabsZigbee : public KisDatasource {
+class kis_datasource_freaklabs_zigbee : public KisDatasource {
 public:
-    KisDatasourceFreaklabsZigbee(SharedDatasourceBuilder in_builder) :
+    kis_datasource_freaklabs_zigbee(SharedDatasourceBuilder in_builder) :
         KisDatasource(in_builder) { 
         set_int_source_ipc_binary("kismet_cap_freaklabs_zigbee");
     };
-    virtual ~KisDatasourceFreaklabsZigbee() { };
+    virtual ~kis_datasource_freaklabs_zigbee() { };
 };
 
 class DatasourceFreaklabsZigbeeBuilder : public KisDatasourceBuilder {
@@ -63,7 +63,7 @@ public:
     virtual ~DatasourceFreaklabsZigbeeBuilder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceFreaklabsZigbee(new KisDatasourceFreaklabsZigbee(in_sh_this));
+        return SharedDatasourceFreaklabsZigbee(new kis_datasource_freaklabs_zigbee(in_sh_this));
     }
 
     virtual void initialize() {
