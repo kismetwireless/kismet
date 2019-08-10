@@ -195,15 +195,15 @@ kis_net_httpd::kis_net_httpd() {
     pem_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_cert");
     key_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_key");
 
-    RegisterMimeType("html", "text/html");
-    RegisterMimeType("svg", "image/svg+xml");
-    RegisterMimeType("css", "text/css");
-    RegisterMimeType("jpeg", "image/jpeg");
-    RegisterMimeType("gif", "image/gif");
-    RegisterMimeType("ico", "image/x-icon");
-    RegisterMimeType("json", "application/json");
-    RegisterMimeType("ekjson", "application/json");
-    RegisterMimeType("pcap", "application/vnd.tcpdump.pcap");
+    register_mime_type("html", "text/html");
+    register_mime_type("svg", "image/svg+xml");
+    register_mime_type("css", "text/css");
+    register_mime_type("jpeg", "image/jpeg");
+    register_mime_type("gif", "image/gif");
+    register_mime_type("ico", "image/x-icon");
+    register_mime_type("json", "application/json");
+    register_mime_type("ekjson", "application/json");
+    register_mime_type("pcap", "application/vnd.tcpdump.pcap");
 
     std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->fetch_opt_vec("httpd_mime");
     for (unsigned int i = 0; i < mimeopts.size(); i++) {
@@ -216,7 +216,7 @@ kis_net_httpd::kis_net_httpd() {
 
         _MSG("Adding user-defined MIME type " + mime_comps[1] + " for " + mime_comps[0],
                 MSGFLAG_INFO);
-        RegisterMimeType(mime_comps[0], mime_comps[1]);
+        register_mime_type(mime_comps[0], mime_comps[1]);
         
     }
 
@@ -359,7 +359,7 @@ std::string kis_net_httpd::strip_suffix(std::string url) {
     return url.substr(0, lastdot);
 }
 
-void kis_net_httpd::RegisterMimeType(std::string suffix, std::string mimetype) {
+void kis_net_httpd::register_mime_type(std::string suffix, std::string mimetype) {
     local_locker lock(&controller_mutex);
     mime_type_map[StrLower(suffix)] = mimetype;
 }

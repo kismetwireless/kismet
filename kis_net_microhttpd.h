@@ -365,7 +365,7 @@ public:
     static std::string get_suffix(std::string url);
     static std::string strip_suffix(std::string url);
 
-    void RegisterMimeType(std::string suffix, std::string mimetype);
+    void register_mime_type(std::string suffix, std::string mimetype);
     std::string GetMimeType(std::string suffix);
 
     // Register a static files directory (used for system, home, and plugin data)
