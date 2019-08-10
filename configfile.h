@@ -117,7 +117,7 @@ public:
     }
 
 	// Fetches the load-time checksum of the config values.
-	uint32_t FetchFileChecksum();
+	uint32_t fetch_file_checksum();
 
 protected:
     class config_entity {

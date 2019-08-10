@@ -599,7 +599,7 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
     return logtemplate;
 }
 
-uint32_t config_file::FetchFileChecksum() {
+uint32_t config_file::fetch_file_checksum() {
     local_locker lock(&config_locker);
 
     if (checksum == 0)
