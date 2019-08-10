@@ -124,7 +124,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     
 }
 
-std::shared_ptr<tracker_element_vector> device_tracker_view::doDeviceWork(DevicetrackerViewWorker& worker) {
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
@@ -132,7 +132,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::doDeviceWork(Device
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
-    return doDeviceWork(worker, immutable_copy);
+    return do_device_work(worker, immutable_copy);
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::doReadonlyDeviceWork(DevicetrackerViewWorker& worker) {
@@ -146,7 +146,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::doReadonlyDeviceWor
     return doReadonlyDeviceWork(worker, immutable_copy);
 }
 
-std::shared_ptr<tracker_element_vector> device_tracker_view::doDeviceWork(DevicetrackerViewWorker& worker,
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(DevicetrackerViewWorker& worker,
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
