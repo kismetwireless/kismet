@@ -31,7 +31,7 @@
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 
-class Kis_Gps_Location;
+class kis_gps_location;
 class kis_gps_packinfo;
 
 class kis_gps_builder;
