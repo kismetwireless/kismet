@@ -42,7 +42,7 @@
 class kis_net_httpd;
 class kis_net_httpd_session;
 class kis_net_httpd_connection;
-class Kis_Net_Httpd_Handler;
+class kis_net_httpd_handler;
 
 class entry_tracker;
 
@@ -137,7 +137,7 @@ public:
     kis_net_httpd *httpd;    
 
     // Handler
-    Kis_Net_Httpd_Handler *httpdhandler;    
+    kis_net_httpd_handler *httpdhandler;    
 
     // Login session
     std::shared_ptr<kis_net_httpd_session> session;
@@ -355,12 +355,12 @@ public:
     void RegisterSessionHandler(std::shared_ptr<kis_httpd_websession> in_session);
 
     // All standard handlers require a login
-    void RegisterHandler(Kis_Net_Httpd_Handler *in_handler);
-    void RemoveHandler(Kis_Net_Httpd_Handler *in_handler);
+    void RegisterHandler(kis_net_httpd_handler *in_handler);
+    void RemoveHandler(kis_net_httpd_handler *in_handler);
 
     // Unauth handlers do not require a login; use of them should be very limited.
-    void RegisterUnauthHandler(Kis_Net_Httpd_Handler *in_handler);
-    void RemoveUnauthHandler(Kis_Net_Httpd_Handler *in_handler);
+    void RegisterUnauthHandler(kis_net_httpd_handler *in_handler);
+    void RemoveUnauthHandler(kis_net_httpd_handler *in_handler);
 
     static std::string get_suffix(std::string url);
     static std::string strip_suffix(std::string url);
@@ -418,10 +418,10 @@ protected:
     // Vector of unauthorized handlers that do not need a login; there should be very very few
     // of these.  Static file handlers, and the very basic user name handler to make the initial
     // login display are about the only ones
-    std::vector<Kis_Net_Httpd_Handler *> unauth_handler_vec;
+    std::vector<kis_net_httpd_handler *> unauth_handler_vec;
 
     // General handler vec.  All of these require a valid login.
-    std::vector<Kis_Net_Httpd_Handler *> handler_vec;
+    std::vector<kis_net_httpd_handler *> handler_vec;
 
     std::string conf_username, conf_password;
 

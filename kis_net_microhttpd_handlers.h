@@ -33,10 +33,10 @@ class kis_net_httpd;
 class kis_net_httpd_connection;
 
 // Basic request handler from MHD
-class Kis_Net_Httpd_Handler {
+class kis_net_httpd_handler {
 public:
-    Kis_Net_Httpd_Handler();
-    virtual ~Kis_Net_Httpd_Handler();
+    kis_net_httpd_handler();
+    virtual ~kis_net_httpd_handler();
 
     // Bind a http server if we need to do that later in the instantiation
     void Bind_Httpd_Server();
@@ -126,10 +126,10 @@ protected:
 };
 
 // Take a C++ stream and use it as a response
-class kis_net_httpd_cppstream_handler : public Kis_Net_Httpd_Handler {
+class kis_net_httpd_cppstream_handler : public kis_net_httpd_handler {
 public:
     kis_net_httpd_cppstream_handler() : 
-        Kis_Net_Httpd_Handler() { }
+        kis_net_httpd_handler() { }
     virtual ~kis_net_httpd_cppstream_handler() { };
 
     virtual bool httpd_verify_path(const char *path, const char *method) = 0;
@@ -166,9 +166,9 @@ public:
 //
 // Because this is a long-running handler, it must track the buffer state
 // inside a connection object.
-class kis_net_httpd_buffer_stream_handler : public Kis_Net_Httpd_Handler {
+class kis_net_httpd_buffer_stream_handler : public kis_net_httpd_handler {
 public:
-    kis_net_httpd_buffer_stream_handler() : Kis_Net_Httpd_Handler() {
+    kis_net_httpd_buffer_stream_handler() : kis_net_httpd_handler() {
         // Default rb size
         k_n_h_r_ringbuf_size = 1024*1024*4;
     }

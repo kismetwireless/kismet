@@ -383,13 +383,13 @@ void kis_net_httpd::RegisterStaticDir(std::string in_prefix, std::string in_path
     static_dir_vec.push_back(static_dir(in_prefix, in_path));
 }
 
-void kis_net_httpd::RegisterHandler(Kis_Net_Httpd_Handler *in_handler) {
+void kis_net_httpd::RegisterHandler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     handler_vec.push_back(in_handler);
 }
 
-void kis_net_httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
+void kis_net_httpd::RemoveHandler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     for (unsigned int x = 0; x < handler_vec.size(); x++) {
@@ -400,13 +400,13 @@ void kis_net_httpd::RemoveHandler(Kis_Net_Httpd_Handler *in_handler) {
     }
 }
 
-void kis_net_httpd::RegisterUnauthHandler(Kis_Net_Httpd_Handler *in_handler) {
+void kis_net_httpd::RegisterUnauthHandler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     unauth_handler_vec.push_back(in_handler);
 }
 
-void kis_net_httpd::RemoveUnauthHandler(Kis_Net_Httpd_Handler *in_handler) {
+void kis_net_httpd::RemoveUnauthHandler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     for (unsigned int x = 0; x < unauth_handler_vec.size(); x++) {
@@ -757,7 +757,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         }
     } 
     
-    Kis_Net_Httpd_Handler *handler = NULL;
+    kis_net_httpd_handler *handler = NULL;
 
     // Collapse multiple slashes
     std::string url(in_url);

@@ -26,13 +26,13 @@
 #include "kis_net_microhttpd.h"
 #include "messagebus.h"
 
-Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler() {
+kis_net_httpd_handler::kis_net_httpd_handler() {
     httpd = Globalreg::fetch_mandatory_global_as<kis_net_httpd>();
 
     // Bind_Httpd_Server(Globalreg::globalreg);
 }
 
-Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
+kis_net_httpd_handler::~kis_net_httpd_handler() {
     httpd = 
         Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
 
@@ -43,26 +43,26 @@ Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
     }
 }
 
-void Kis_Net_Httpd_Handler::Bind_Httpd_Server() {
+void kis_net_httpd_handler::Bind_Httpd_Server() {
     httpd->RegisterHandler(this);
 }
 
-bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
+bool kis_net_httpd_handler::Httpd_CanSerialize(const std::string& path) {
     return Globalreg::globalreg->entrytracker->can_serialize(httpd->get_suffix(path));
 }
 
-void Kis_Net_Httpd_Handler::Httpd_Serialize(const std::string& path, 
+void kis_net_httpd_handler::Httpd_Serialize(const std::string& path, 
         std::ostream& stream,
         std::shared_ptr<tracker_element> elem, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename) {
     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, elem, rename);
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
+std::string kis_net_httpd_handler::Httpd_GetSuffix(const std::string& path) {
     return httpd->get_suffix(path);
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
+std::string kis_net_httpd_handler::Httpd_StripSuffix(const std::string& path) {
     return httpd->strip_suffix(path);
 }
 
