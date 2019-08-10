@@ -1541,21 +1541,21 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
             }
         } catch(const StructuredDataException& e) {
             auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-            auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+            auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
             std::ostream stream(streambuf);
 
             saux->set_aux(streambuf, 
                     [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                     if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
                     });
 
             // Set our sync function which is called by the webserver side before we
             // clean up...
             saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                     if (aux->aux != NULL) {
-                    ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                    ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                     }
                     });
 
@@ -1651,21 +1651,21 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
         } catch (const StructuredDataException& e) {
             auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-            auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+            auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
             std::ostream stream(streambuf);
 
             saux->set_aux(streambuf, 
                     [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                     if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
                     });
 
             // Set our sync function which is called by the webserver side before we
             // clean up...
             saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                     if (aux->aux != NULL) {
-                    ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                    ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                     }
                     });
 

@@ -370,11 +370,11 @@ private:
 
 // A C++ streambuf-compatible wrapper around a buf handler with an interstitial string
 // cache
-struct BufferHandlerOStringStreambuf : public std::stringbuf {
-    BufferHandlerOStringStreambuf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
+struct buffer_handler_ostringstream_buf : public std::stringbuf {
+    buffer_handler_ostringstream_buf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
         rb_handler(in_rbhandler) { }
 
-    virtual ~BufferHandlerOStringStreambuf();
+    virtual ~buffer_handler_ostringstream_buf();
 
 protected:
     // Wrap the stringbuf functions 

@@ -1274,22 +1274,22 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_response(
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
-    BufferHandlerOStringStreambuf *streambuf = 
-        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    buffer_handler_ostringstream_buf *streambuf = 
+        new buffer_handler_ostringstream_buf(saux->get_rbhandler());
     std::ostream stream(streambuf);
 
     // Set our cleanup function
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1319,7 +1319,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_response(
 
 int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     local_demand_locker l(mutex);
 
@@ -1331,14 +1331,14 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1483,22 +1483,22 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
-    BufferHandlerOStringStreambuf *streambuf = 
-        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    buffer_handler_ostringstream_buf *streambuf = 
+        new buffer_handler_ostringstream_buf(saux->get_rbhandler());
     std::ostream stream(streambuf);
 
     // Set our cleanup function
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1528,7 +1528,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
 
 int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     local_demand_locker l(mutex);
 
@@ -1540,14 +1540,14 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1692,22 +1692,22 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
         (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
 
-    BufferHandlerOStringStreambuf *streambuf = 
-        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    buffer_handler_ostringstream_buf *streambuf = 
+        new buffer_handler_ostringstream_buf(saux->get_rbhandler());
     std::ostream stream(streambuf);
 
     // Set our cleanup function
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1735,7 +1735,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
 
 int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     local_demand_locker l(mutex);
 
@@ -1747,14 +1747,14 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_conne
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1889,7 +1889,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_create_stream_response(
 
 int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     local_demand_locker l(mutex);
 
@@ -1901,14 +1901,14 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_post_complete(kis_net_httpd_connec
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -1993,7 +1993,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
 
 int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     local_demand_locker l(mutex);
 
@@ -2005,14 +2005,14 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(kis_net_httpd_connecti
     saux->set_aux(streambuf, 
             [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
     saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 

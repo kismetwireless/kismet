@@ -542,11 +542,11 @@ buffer_handler_ostream_buf::int_type buffer_handler_ostream_buf::overflow(int_ty
     return 1;
 }
 
-BufferHandlerOStringStreambuf::~BufferHandlerOStringStreambuf() {
+buffer_handler_ostringstream_buf::~buffer_handler_ostringstream_buf() {
     rb_handler = NULL;
 }
 
-std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::streamsize n) {
+std::streamsize buffer_handler_ostringstream_buf::xsputn(const char_type *s, std::streamsize n) {
     local_locker l(&mutex);
 
     std::streamsize sz = std::stringbuf::xsputn(s, n);
@@ -560,10 +560,10 @@ std::streamsize BufferHandlerOStringStreambuf::xsputn(const char_type *s, std::s
     return sz;
 }
 
-BufferHandlerOStringStreambuf::int_type BufferHandlerOStringStreambuf::overflow(int_type ch) {
+buffer_handler_ostringstream_buf::int_type buffer_handler_ostringstream_buf::overflow(int_type ch) {
     local_locker l(&mutex);
 
-    BufferHandlerOStringStreambuf::int_type it = std::stringbuf::overflow(ch);
+    buffer_handler_ostringstream_buf::int_type it = std::stringbuf::overflow(ch);
 
     if (str().length() >= 1024) {
         sync();
@@ -572,7 +572,7 @@ BufferHandlerOStringStreambuf::int_type BufferHandlerOStringStreambuf::overflow(
     return it;
 }
 
-int BufferHandlerOStringStreambuf::sync() {
+int buffer_handler_ostringstream_buf::sync() {
     if (rb_handler == NULL) {
         return -1;
     }
