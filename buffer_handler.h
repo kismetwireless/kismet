@@ -252,7 +252,7 @@ public:
     // Only one block of data may be reserved at a time.
     //
     // Returns the amount of data available in the reserved block
-    virtual ssize_t ZeroCopyReserveReadBufferData(void **in_ptr, size_t len);
+    virtual ssize_t zero_copy_reserve_read_buffer_data(void **in_ptr, size_t len);
     virtual ssize_t zero_copy_reserve_write_buffer_data(void **in_ptr, size_t len);
     
 

@@ -169,7 +169,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // as we can at once.
         
         while (handler->get_read_buffer_available() > 0) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, 
                     handler->get_read_buffer_available());
 
             if ((ret = read(device_fd, buf, len)) <= 0) {

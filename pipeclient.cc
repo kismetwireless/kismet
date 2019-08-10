@@ -132,7 +132,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
         while ((avail = handler->get_read_buffer_available())) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf, avail);
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, avail);
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -218,7 +218,7 @@ int PipeClient::FlushRead() {
 
     if (read_fd > -1 && handler != nullptr) {
         while (handler->get_read_buffer_available() && read_fd > -1) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf,
                     handler->get_read_buffer_available());
 
             if ((ret = read(read_fd, buf, len)) <= 0) {

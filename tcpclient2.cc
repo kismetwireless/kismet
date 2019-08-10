@@ -207,7 +207,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // as we can at once.
        
         while (connected && handler->get_read_buffer_available() > 0) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, 
                     handler->get_read_buffer_available());
 
             // We ought to never hit this because it ought to always be available

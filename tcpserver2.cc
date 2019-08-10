@@ -216,7 +216,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
             while (i->second->get_read_buffer_available() > 0) {
                 // Read only as much as we can get w/ a direct reference
-                r_sz = i->second->ZeroCopyReserveReadBufferData((void **) &buf, 
+                r_sz = i->second->zero_copy_reserve_read_buffer_data((void **) &buf, 
                         i->second->get_read_buffer_available());
 
                 if (r_sz < 0) {
