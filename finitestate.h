@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -29,10 +29,10 @@
 
 // Finite state automata superclass which handles a category of tracking conditions.
 // It's possible that there can be multiple state machines of a single category
-// (ie, tracking multiple potential quesitionable MACs); the FiniteAutomata is
+// (ie, tracking multiple potential quesitionable MACs); the finite_automata is
 // responsible for handling these in whatever sane manner is necessary and for
 // timing out old conections.
-class FiniteAutomata {
+class finite_automata {
 public:
     // An individual state element
     class _fsa_element {
@@ -51,7 +51,7 @@ public:
         int counter;
     };
 
-    virtual ~FiniteAutomata() { }
+    virtual ~finite_automata() { }
 
     // Handle a packet
     virtual int ProcessPacket(const packet_info *in_info) = 0;
@@ -64,7 +64,7 @@ protected:
 };
 
 // Finite state automata to watch people who probe and never exchange data after an association
-class ProbeNoJoinAutomata : public FiniteAutomata {
+class ProbeNoJoinAutomata : public finite_automata {
 public:
     ProbeNoJoinAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                         int in_rate, int in_burstrate);
@@ -88,7 +88,7 @@ protected:
 // FSA to look for a disassociate/deauth from a client who then keeps talking.  This is
 // suspicious behavior.  Based on "802.11 Denial-of-Service Attacks:  Real Vulnerabilities
 // and Practical Solutions", Bellardo, J. and Savage, S.
-class DisassocTrafficAutomata : public FiniteAutomata {
+class DisassocTrafficAutomata : public finite_automata {
 public:
     DisassocTrafficAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                         int in_rate, int in_burstrate);
@@ -107,9 +107,9 @@ protected:
 // cheap way to keep track of how much we're flapping - we don't want a reboot of an AP to
 // generate an alert, but we DO want a spoofed AP beaconing in the same space to generate
 // one.
-class BssTimestampAutomata : public FiniteAutomata {
+class BssTimestampAutomata : public finite_automata {
 public:
-    class _bs_fsa_element : public FiniteAutomata::_fsa_element {
+    class _bs_fsa_element : public finite_automata::_fsa_element {
     public:
         _bs_fsa_element() {
             bss_timestamp = 0;
@@ -130,7 +130,7 @@ protected:
 
 // Detect broadcast replay WEP attacks by looking for bursts of packets with the same
 // IV and ICV
-class WepRebroadcastAutomata : public FiniteAutomata {
+class WepRebroadcastAutomata : public finite_automata {
 public:
     WepRebroadcastAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                            int in_rate, int in_burstrate);
@@ -151,7 +151,7 @@ protected:
 #if 0
 // This doesn't really work so we won't use it.
 // Finite state automata to watch sequence numbers
-class SequenceSpoofAutomata : public FiniteAutomata {
+class SequenceSpoofAutomata : public finite_automata {
 public:
     SequenceSpoofAutomata(Packetracker *in_ptracker, alert_tracker *in_atracker,
                           alert_time_unit in_unit, int in_rate, int in_burstrate);
