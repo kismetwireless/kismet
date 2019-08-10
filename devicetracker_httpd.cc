@@ -260,7 +260,7 @@ int device_tracker::httpd_create_stream_response(
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
         // Instantiate a manual serializer
-        JsonAdapter::Serializer serial; 
+        json_adapter::Serializer serial; 
 
         auto fw = std::make_shared<devicetracker_function_worker>(
                 [&stream, &serial](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {

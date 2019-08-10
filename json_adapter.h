@@ -28,7 +28,7 @@
 // Standard JSON serialization adapter; will form complete JSON objects out
 // of the input objects.  Best connected to a chainbuf output stream via a
 // buffer_handler_ostream_buf or similar
-namespace JsonAdapter {
+namespace json_adapter {
 
 // Basic packer with some defaulted options - prettyprint and depth used for
 // recursive indenting and prettifying the output
@@ -70,11 +70,11 @@ public:
 
         if (in_elem->get_type() == tracker_type::tracker_vector) {
             for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
-                JsonAdapter::Pack(stream, i, name_map);
+                json_adapter::Pack(stream, i, name_map);
                 stream << "\n";
             }
         } else {
-            JsonAdapter::Pack(stream, in_elem, name_map);
+            json_adapter::Pack(stream, in_elem, name_map);
         }
     }
 };
@@ -93,7 +93,7 @@ public:
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
-        JsonAdapter::Pack(stream, in_elem, name_map, true, 1);
+        json_adapter::Pack(stream, in_elem, name_map, true, 1);
     }
 
 };

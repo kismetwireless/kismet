@@ -110,7 +110,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     std::stringstream fake_json;
     fake_json << "{";
     fake_json << "\"bt_address\":\"" << bpi->address << "\",";
-    fake_json << "\"bt_name\":\"" << JsonAdapter::SanitizeString(bpi->name) << "\",";
+    fake_json << "\"bt_name\":\"" << json_adapter::SanitizeString(bpi->name) << "\",";
     fake_json << "\"txpower\":" << bpi->txpower << ",";
     fake_json << "\"type\":" << bpi->type << ",";
     fake_json << "\"uuid_list\": [";
