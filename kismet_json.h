@@ -78,15 +78,15 @@ public:
     }
 
     virtual bool is_bool() {
-        return json.is_bool();
+        return json.isBool();
     }
 
     virtual bool is_string() {
-        return json.is_string();
+        return json.isString();
     }
 
     virtual bool is_array() {
-        return json.is_array();
+        return json.isArray();
     }
 
     virtual bool is_dictionary() {
