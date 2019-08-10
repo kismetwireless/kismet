@@ -930,7 +930,7 @@ void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filt
         immutable_copy = std::make_shared<tracker_element_vector>(vec);
     }
 
-    MatchOnReadonlyDevicesRaw(worker, immutable_copy, batch);
+    do_readonly_device_work_raw(worker, immutable_copy, batch);
 
 }
 
@@ -959,7 +959,7 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
     worker->Finalize(this);
 }
 
-void device_tracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker, 
+void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
         std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     if (vec == nullptr)
@@ -1010,7 +1010,7 @@ void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filt
         copy_vec = vec;
     }
 
-    MatchOnReadonlyDevicesRaw(worker, copy_vec, batch);
+    do_readonly_device_work_raw(worker, copy_vec, batch);
 }
 
 void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
@@ -1036,7 +1036,7 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
     worker->Finalize(this);
 }
 
-void device_tracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker,
+void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
     kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {

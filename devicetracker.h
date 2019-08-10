@@ -176,7 +176,7 @@ public:
     void match_on_devices_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly match
-    void MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker, 
+    void do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
@@ -196,7 +196,7 @@ public:
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
     // RO only
-    void MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker,
+    void do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
