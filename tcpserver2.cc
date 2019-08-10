@@ -207,7 +207,7 @@ int tcp_server_v2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         handler_map[accept_fd] = con_handler;
 
-        NewConnection(con_handler);
+        new_connection(con_handler);
     }
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {

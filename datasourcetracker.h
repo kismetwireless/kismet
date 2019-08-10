@@ -439,7 +439,7 @@ public:
     void iterate_datasources(datasource_tracker_worker *in_worker);
 
     // TCPServerV2 API
-    virtual void NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) override;
+    virtual void new_connection(std::shared_ptr<buffer_handler_generic> conn_handler) override;
 
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);

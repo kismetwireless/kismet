@@ -1061,7 +1061,7 @@ void datasource_tracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-void datasource_tracker::NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) {
+void datasource_tracker::new_connection(std::shared_ptr<buffer_handler_generic> conn_handler) {
     dst_incoming_remote *incoming = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
                     uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {

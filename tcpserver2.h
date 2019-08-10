@@ -75,7 +75,7 @@ public:
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
    
     // Must be filled in
-    virtual void NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) = 0;
+    virtual void new_connection(std::shared_ptr<buffer_handler_generic> conn_handler) = 0;
 protected:
     global_registry *globalreg;
 
