@@ -387,7 +387,7 @@ void buffer_handler_generic::set_read_buffer_drain_cb(std::function<void (size_t
     rbuf_drain_avail = true;
 }
 
-void buffer_handler_generic::SetWriteBufferDrainCb(std::function<void (size_t)> in_cb) {
+void buffer_handler_generic::set_write_buffer_drain_cb(std::function<void (size_t)> in_cb) {
     wbuf_drain_avail = false;
     writebuf_drain_cb = in_cb;
     wbuf_drain_avail = true;
@@ -481,7 +481,7 @@ std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streams
     blocking_cl.reset(new conditional_locker<size_t>());
 
     // Set a write completion callback
-    rb_handler->SetWriteBufferDrainCb([this](size_t amt __attribute__((unused))) {
+    rb_handler->set_write_buffer_drain_cb([this](size_t amt __attribute__((unused))) {
         blocking_cl->unlock(amt);
     });
 
@@ -524,7 +524,7 @@ BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch)
     blocking_cl.reset(new conditional_locker<size_t>());
 
     // Set a write completion callback
-    rb_handler->SetWriteBufferDrainCb([this](size_t amt __attribute__((unused))) {
+    rb_handler->set_write_buffer_drain_cb([this](size_t amt __attribute__((unused))) {
         blocking_cl->unlock(amt);
     });
 

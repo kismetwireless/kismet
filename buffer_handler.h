@@ -281,7 +281,7 @@ public:
     // Set simple functional callbacks to be called when we drain an interface; used to
     // allow quick unlocking of blocked writers
     virtual void set_read_buffer_drain_cb(std::function<void (size_t)> in_cb);
-    virtual void SetWriteBufferDrainCb(std::function<void (size_t)> in_cb);
+    virtual void set_write_buffer_drain_cb(std::function<void (size_t)> in_cb);
 
     virtual void RemoveReadBufferDrainCb();
     virtual void RemoveWriteBufferDrainCb();
