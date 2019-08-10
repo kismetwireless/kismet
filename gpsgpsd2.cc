@@ -734,7 +734,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
         if (!set_heading && time(0) - last_heading_time > 5 &&
                 gps_last_location->fix >= 2) {
             gps_location->heading = 
-                GpsCalcHeading(gps_location->lat, gps_location->lon, 
+                gps_calc_heading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
             last_heading_time = gps_location->tv.tv_sec;
         }

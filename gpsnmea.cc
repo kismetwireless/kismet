@@ -313,7 +313,7 @@ A        Auto selection of 2D or 3D fix (M = manual)
                 gps_last_location != NULL &&
                 gps_last_location->fix >= 2) {
             gps_location->heading = 
-                GpsCalcHeading(gps_location->lat, gps_location->lon, 
+                gps_calc_heading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
             last_heading_time = gps_location->tv.tv_sec;
         }

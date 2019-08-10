@@ -137,7 +137,7 @@ bool kis_gps::open_gps(std::string in_definition) {
     return true;
 }
 
-double kis_gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
+double kis_gps::gps_calc_heading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
     double r = GpsCalcRad((double) in_lat2);
 

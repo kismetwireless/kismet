@@ -137,7 +137,7 @@ public:
     virtual bool open_gps(std::string in_definition);
 
     // Various GPS transformation utility functions
-    static double GpsCalcHeading(double in_lat, double in_lon, double in_lat2, double in_lon2);
+    static double gps_calc_heading(double in_lat, double in_lon, double in_lat2, double in_lon2);
     static double GpsCalcRad(double lat);
     static double GpsRad2Deg(double x);
     static double GpsDeg2Rad(double x);
