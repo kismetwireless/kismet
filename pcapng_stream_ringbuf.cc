@@ -182,7 +182,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    write_sz = handler->PutWriteBufferData(buf, buf_sz, true);
+    write_sz = handler->put_write_buffer_data(buf, buf_sz, true);
 
     if (write_sz != buf_sz) {
         handler->ProtocolError();
@@ -195,7 +195,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     // Put the trailing size
     *end_sz += 4;
     
-    write_sz = handler->PutWriteBufferData(end_sz, 4, true);
+    write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
         handler->ProtocolError();
@@ -297,7 +297,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    write_sz = handler->PutWriteBufferData(retbuf, buf_sz, true);
+    write_sz = handler->put_write_buffer_data(retbuf, buf_sz, true);
 
     if (write_sz != buf_sz) {
         handler->ProtocolError();
@@ -310,7 +310,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     // Put the trailing size
     *end_sz += 4;
     
-    write_sz = handler->PutWriteBufferData(end_sz, 4, true);
+    write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
         handler->ProtocolError();
@@ -403,7 +403,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     // Write all the incoming blocks sequentially
     for (auto db : in_blocks) {
         // Write the data to the ringbuf
-        write_sz = handler->PutWriteBufferData(db.data, db.len, true);
+        write_sz = handler->put_write_buffer_data(db.data, db.len, true);
 
         if (write_sz != db.len) {
             handler->ProtocolError();
@@ -420,7 +420,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     pad_sz = PAD_TO_32BIT(aggregate_block_sz) - aggregate_block_sz;
 
     if (pad_sz > 0) {
-        write_sz = handler->PutWriteBufferData(&pad, pad_sz, true);
+        write_sz = handler->put_write_buffer_data(&pad, pad_sz, true);
 
         if (write_sz != pad_sz) {
             handler->ProtocolError();
@@ -443,7 +443,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    write_sz = handler->PutWriteBufferData(retbuf, sizeof(pcapng_option_t), true);
+    write_sz = handler->put_write_buffer_data(retbuf, sizeof(pcapng_option_t), true);
 
     if (write_sz != sizeof(pcapng_option_t)) {
         handler->ProtocolError();
@@ -458,7 +458,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     // Put the trailing size
     *end_sz += 4;
     
-    write_sz = handler->PutWriteBufferData(end_sz, 4, true);
+    write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
         handler->ProtocolError();

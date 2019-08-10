@@ -303,7 +303,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
                     // Send a JSON message that we want future communication in JSON
                     std::string json_msg = "?WATCH={\"json\":true};\n";
 
-                    if (tcphandler->PutWriteBufferData((void *) json_msg.c_str(), 
+                    if (tcphandler->put_write_buffer_data((void *) json_msg.c_str(), 
                                 json_msg.length(), true) < json_msg.length()) {
                         _MSG("GPSGpsdV2 could not not write JSON enable command",
                                 MSGFLAG_ERROR);
@@ -429,7 +429,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             poll_mode = 1;
 
             std::string init_cmd = "L\n";
-            if (tcphandler->PutWriteBufferData((void *) init_cmd.c_str(), 
+            if (tcphandler->put_write_buffer_data((void *) init_cmd.c_str(), 
                         init_cmd.length(), true) < init_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write NMEA enable command",
                         MSGFLAG_ERROR);
@@ -442,7 +442,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             // have to detect this version and kick it into debug R=1 mode
             // and do NMEA ourselves.
             std::string cmd = "R=1\n";
-            if (tcphandler->PutWriteBufferData((void *) cmd.c_str(), 
+            if (tcphandler->put_write_buffer_data((void *) cmd.c_str(), 
                         cmd.length(), true) < cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write NMEA enable command",
                         MSGFLAG_ERROR);
@@ -476,7 +476,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
             // This has been merged into one command because gpsd apparently
             // silently drops the second command sent too quickly
             std::string watch_cmd = "J=1,W=1,R=1\n";
-            if (tcphandler->PutWriteBufferData((void *) watch_cmd.c_str(), 
+            if (tcphandler->put_write_buffer_data((void *) watch_cmd.c_str(), 
                         watch_cmd.length(), true) < watch_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);
@@ -484,7 +484,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
             // Go into poll mode
             std::string poll_cmd = "PAVM\n";
-            if (tcphandler->PutWriteBufferData((void *) poll_cmd.c_str(), 
+            if (tcphandler->put_write_buffer_data((void *) poll_cmd.c_str(), 
                         poll_cmd.length(), true) < poll_cmd.length()) {
                 _MSG("GPSGpsdV2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);

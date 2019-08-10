@@ -208,14 +208,14 @@ bool buffer_handler_generic::put_read_buffer_data(std::string in_data) {
     return (r == in_data.length());
 }
 
-bool buffer_handler_generic::PutWriteBufferData(std::string in_data) {
+bool buffer_handler_generic::put_write_buffer_data(std::string in_data) {
     size_t r =
-        PutWriteBufferData((void *) in_data.data(), in_data.length(), true);
+        put_write_buffer_data((void *) in_data.data(), in_data.length(), true);
     return (r == in_data.length());
 }
 
     
-size_t buffer_handler_generic::PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic) {
+size_t buffer_handler_generic::put_write_buffer_data(void *in_ptr, size_t in_sz, bool in_atomic) {
     size_t ret;
 
     {
@@ -462,7 +462,7 @@ std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streams
     }
 
     // fprintf(stderr, "debug - ostreambuf putting %lu\n", n);
-    ssize_t written = rb_handler->PutWriteBufferData((void *) s, (size_t) n, true);
+    ssize_t written = rb_handler->put_write_buffer_data((void *) s, (size_t) n, true);
 
     if (written == n)
         return n;
@@ -488,7 +488,7 @@ std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streams
     // Jump as far as we managed to write
     ssize_t wpos = written;
     while (1) {
-        written = rb_handler->PutWriteBufferData((void *) (s + wpos), n - wpos, true);
+        written = rb_handler->put_write_buffer_data((void *) (s + wpos), n - wpos, true);
 
         if (wpos + written == n) {
             rb_handler->RemoveWriteBufferDrainCb();
@@ -511,7 +511,7 @@ BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch)
     if (rb_handler == NULL)
         return -1;
 
-    if (rb_handler->PutWriteBufferData((void *) &ch, 1, true) == 1) 
+    if (rb_handler->put_write_buffer_data((void *) &ch, 1, true) == 1) 
         return 1;
 
     // Not blocking, nothing we can do
@@ -529,7 +529,7 @@ BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch)
     });
 
     while (1) {
-        if (rb_handler->PutWriteBufferData((void *) &ch, 1, true) == 1) {
+        if (rb_handler->put_write_buffer_data((void *) &ch, 1, true) == 1) {
             rb_handler->RemoveWriteBufferDrainCb();
             return 1;
         }
@@ -584,7 +584,7 @@ int BufferHandlerOStringStreambuf::sync() {
     // fmt::print(stderr, "debug - ostringstreambuf sync {}\n", sz);
 
     ssize_t written = 
-        rb_handler->PutWriteBufferData((void *) str().data(), sz, true);
+        rb_handler->put_write_buffer_data((void *) str().data(), sz, true);
 
     if (written != (ssize_t) sz) {
         // fprintf(stderr, "debug - ostringstreambuf couldn't write temp string, wrote %lu of %lu\n", written, sz);

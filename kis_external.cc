@@ -582,7 +582,7 @@ void KisExternalHttpInterface::handle_packet_http_response(uint32_t in_seqno,
 
     // Copy any response data
     if (resp.has_content() && resp.content().size() > 0) {
-        if (!saux->ringbuf_handler->PutWriteBufferData(resp.content())) {
+        if (!saux->ringbuf_handler->put_write_buffer_data(resp.content())) {
             _MSG("Kismet external interface could not put response data into the HTTP "
                     "buffer for a HTTPRESPONSE session", MSGFLAG_ERROR);
             // We have to kill this session before we shut down everything else
