@@ -96,7 +96,7 @@ public:
     virtual ~structured_data() { };
 
     // Describe this current object
-    virtual bool isNumber() = 0;
+    virtual bool is_number() = 0;
     virtual bool isBool() = 0;
     virtual bool isString() = 0;
     virtual bool isArray() = 0;

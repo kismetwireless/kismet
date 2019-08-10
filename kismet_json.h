@@ -73,7 +73,7 @@ public:
         }
     }
 
-    virtual bool isNumber() {
+    virtual bool is_number() {
         return json.isNumeric();
     }
 
@@ -99,7 +99,7 @@ public:
     }
 
     virtual double getNumber() {
-        except_if_not(isNumber(), "number");
+        except_if_not(is_number(), "number");
         return json.asDouble();
     }
 
@@ -169,7 +169,7 @@ public:
 
         shared_structured v = getStructuredByKey(key);
 
-        if (!v->isNumber())
+        if (!v->is_number())
             return def;
 
         return v->getNumber();

@@ -32,7 +32,7 @@
 shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
 
     // A '0' object is a NULL reference, skip it
-    if (d->isNumber() && d->getNumber() == 0)
+    if (d->is_number() && d->getNumber() == 0)
         return NULL;
 
     // Each object should be a dictionary containing a 'storage' format record from 
