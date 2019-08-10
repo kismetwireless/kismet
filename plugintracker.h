@@ -323,7 +323,7 @@ public:
 
         // Grow the IPC buffer
         ringbuf_handler.reset(new BufferHandler<RingbufV2>((1024*1024), (1024*1024)));
-        ringbuf_handler->SetReadBufferInterface(this);
+        ringbuf_handler->set_read_buffer_interface(this);
 
         ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
 

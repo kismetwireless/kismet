@@ -272,7 +272,7 @@ public:
     virtual void trigger_read_callback(size_t in_sz);
 
     // Set interface callbacks to be called when we have data in the buffers
-    virtual void SetReadBufferInterface(buffer_interface *in_interface);
+    virtual void set_read_buffer_interface(buffer_interface *in_interface);
     virtual void SetWriteBufferInterface(buffer_interface *in_interface);
 
     virtual void RemoveReadBufferInterface();

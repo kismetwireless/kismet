@@ -1069,7 +1069,7 @@ void Datasourcetracker::NewConnection(std::shared_ptr<buffer_handler_generic> co
             open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
         });
 
-    conn_handler->SetReadBufferInterface(incoming);
+    conn_handler->set_read_buffer_interface(incoming);
 }
 
 void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,

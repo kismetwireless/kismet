@@ -168,7 +168,7 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
         // inbound data
         tcphandler = std::make_shared<BufferHandler<RingbufV2>>(4096, 512);
         tcphandler->set_mutex(gps_mutex);
-        tcphandler->SetReadBufferInterface(&tcpinterface);
+        tcphandler->set_read_buffer_interface(&tcpinterface);
     }
 
     if (tcpclient == nullptr) {

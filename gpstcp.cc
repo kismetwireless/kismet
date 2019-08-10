@@ -125,7 +125,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
         // We never write to a serial gps so don't make a write buffer
         nmeahandler =  std::make_shared<BufferHandler<RingbufV2>>(2048, 0);
         nmeahandler->set_mutex(gps_mutex);
-        nmeahandler->SetReadBufferInterface(&nmeainterface);
+        nmeahandler->set_read_buffer_interface(&nmeainterface);
     }
 
     if (tcpclient == nullptr) {

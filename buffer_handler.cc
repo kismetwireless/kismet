@@ -350,7 +350,7 @@ void buffer_handler_generic::clear_write_buffer() {
         write_buffer->clear();
 }
 
-void buffer_handler_generic::SetReadBufferInterface(buffer_interface *in_interface) {
+void buffer_handler_generic::set_read_buffer_interface(buffer_interface *in_interface) {
     rbuf_notify_avail = false;
     rbuf_notify = in_interface;
     rbuf_notify_avail = true;
