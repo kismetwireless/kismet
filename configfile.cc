@@ -318,7 +318,7 @@ int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
     return r;
 }
 
-int config_file::FetchOptInt(const std::string& in_key, int dvalue) {
+int config_file::fetch_opt_int(const std::string& in_key, int dvalue) {
     return FetchOptAs<int>(in_key, dvalue);
 }
 

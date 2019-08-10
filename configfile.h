@@ -64,7 +64,7 @@ public:
 	int fetch_opt_bool(std::string in_key, int dvalue);
 
     // Older API
-    int FetchOptInt(const std::string& in_key, int dvalue);
+    int fetch_opt_int(const std::string& in_key, int dvalue);
     unsigned int FetchOptUInt(const std::string& in_key, unsigned int dvalue);
     unsigned long int FetchOptULong(const std::string& in_key, unsigned long dvalue);
 

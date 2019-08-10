@@ -337,7 +337,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     // Set up the device timeout
     device_idle_expiration =
-        globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
+        globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =

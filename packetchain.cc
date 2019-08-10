@@ -61,7 +61,7 @@ packet_chain::packet_chain() {
 
 #if 0
     auto num_chain_threads =
-        Globalreg::globalreg->kismet_config->FetchOptInt("packetprocess_max_threads", -1);
+        Globalreg::globalreg->kismet_config->fetch_opt_int("packetprocess_max_threads", -1);
 
     if (num_chain_threads > 0) {
         _MSG_INFO("Limiting packet processing to {} threads max ({} cores available)",

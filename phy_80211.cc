@@ -399,7 +399,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Threshold
     signal_too_loud_threshold = 
-        Globalreg::globalreg->kismet_config->FetchOptInt("dot11_max_signal", -10);
+        Globalreg::globalreg->kismet_config->fetch_opt_int("dot11_max_signal", -10);
 
     // Do we process the whole data packet?
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("hidedata", 0) ||
@@ -449,7 +449,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Set up the device timeout
     device_idle_expiration =
-        Globalreg::globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
