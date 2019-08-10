@@ -37,8 +37,8 @@ alert_tracker::alert_tracker() :
 
 	next_alert_id = 0;
 
-    packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>();
-    entrytracker = Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
+    packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     alert_vec_id =
         entrytracker->register_field("kismet.alert.list",
@@ -770,7 +770,7 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
             if (phyname != "any" && phyname != "") {
                 auto devicetracker = 
-                    Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+                    Globalreg::fetch_mandatory_global_as<device_tracker>();
                 kis_phy_handler *phyh = devicetracker->fetch_phy_handler_by_name(phyname);
 
                 if (phyh == NULL)

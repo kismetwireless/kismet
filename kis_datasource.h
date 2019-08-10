@@ -435,7 +435,7 @@ protected:
             command_time = time(0);
 
             timetracker = 
-                Globalreg::FetchMandatoryGlobalAs<time_tracker>();
+                Globalreg::fetch_mandatory_global_as<time_tracker>();
 
             // Generate a timeout for 5 seconds from now
             auto src_alias = in_src;

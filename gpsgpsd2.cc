@@ -51,9 +51,9 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
     last_data_time = time(0);
 
     pollabletracker = 
-        Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
+        Globalreg::fetch_mandatory_global_as<PollableTracker>("POLLABLETRACKER");
 
-    auto timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
+    auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,

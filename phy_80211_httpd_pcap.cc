@@ -55,7 +55,7 @@ bool Phy_80211_Httpd_Pcap::httpd_verify_path(const char *path, const char *metho
             return false;
 
         auto devicetracker =
-            Globalreg::FetchMandatoryGlobalAs<device_tracker>("DEVICETRACKER");
+            Globalreg::fetch_mandatory_global_as<device_tracker>("DEVICETRACKER");
 
         kis_phy_handler *dot11phy = 
             devicetracker->fetch_phy_handler_by_name("IEEE802.11");
@@ -86,7 +86,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
     }
 
     auto devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<device_tracker>("DEVICETRACKER");
+        Globalreg::fetch_mandatory_global_as<device_tracker>("DEVICETRACKER");
 
     kis_phy_handler *dot11phy = 
         devicetracker->fetch_phy_handler_by_name("IEEE802.11");
@@ -132,8 +132,8 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         return MHD_YES;
     }
 
-    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
+    auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
     int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 

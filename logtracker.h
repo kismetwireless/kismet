@@ -158,7 +158,7 @@ public:
 
         if (builder != NULL && builder->get_stream()) {
             std::shared_ptr<StreamTracker> streamtracker = 
-                Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
+                Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
 
             streamtracker->remove_streamer(get_stream_id());
         }

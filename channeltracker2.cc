@@ -35,7 +35,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     register_fields();
     reserve_fields(NULL);
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
     packetchain->RegisterHandler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
@@ -44,14 +44,14 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 	pack_comp_l1data = packetchain->RegisterPacketComponent("RADIODATA");
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<device_tracker>("DEVICETRACKER");
+        Globalreg::fetch_mandatory_global_as<device_tracker>("DEVICETRACKER");
 
     struct timeval trigger_tm;
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
     timetracker =
-        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
+        Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
@@ -115,7 +115,7 @@ void channel_tracker_v2::httpd_create_stream_response(
 
     if (stripped == "/channels/channels") {
         local_shared_locker locker(&lock);
-        auto cv2 = Globalreg::FetchMandatoryGlobalAs<channel_tracker_v2>("CHANNEL_TRACKER");
+        auto cv2 = Globalreg::fetch_mandatory_global_as<channel_tracker_v2>("CHANNEL_TRACKER");
         Httpd_Serialize(path, stream, cv2);
     }
 

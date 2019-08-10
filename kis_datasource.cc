@@ -41,10 +41,10 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     }
 
     timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
+        Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
+        Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
@@ -547,7 +547,7 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
     }
 
     auto datasourcetracker =
-        Globalreg::FetchMandatoryGlobalAs<datasource_tracker>("DATASOURCETRACKER");
+        Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
 
     set_int_source_retry(get_definition_opt_bool("retry", 
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));
@@ -1595,7 +1595,7 @@ void kis_datasource::handle_source_error() {
                 "to reconnect to resume capture.";
 
             std::shared_ptr<alert_tracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+                Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
             alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1617,7 +1617,7 @@ void kis_datasource::handle_source_error() {
                 "closed.";
 
             std::shared_ptr<alert_tracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+                Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
             alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1655,7 +1655,7 @@ void kis_datasource::handle_source_error() {
             get_source_retry_attempts() << " failures)";
 
         std::shared_ptr<alert_tracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+            Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
         alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
@@ -1681,7 +1681,7 @@ void kis_datasource::handle_source_error() {
                                 "re-opened";
 
                             std::shared_ptr<alert_tracker> alertracker =
-                                Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+                                Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
                             alertracker->raise_one_shot("SOURCEOPEN", ss.str(), -1);
 
                             if (get_source_hopping()) {
