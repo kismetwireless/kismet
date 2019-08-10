@@ -135,7 +135,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(Devi
     return do_device_work(worker, immutable_copy);
 }
 
-std::shared_ptr<tracker_element_vector> device_tracker_view::doReadonlyDeviceWork(DevicetrackerViewWorker& worker) {
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
@@ -143,7 +143,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::doReadonlyDeviceWor
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
-    return doReadonlyDeviceWork(worker, immutable_copy);
+    return do_readonly_device_work(worker, immutable_copy);
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(DevicetrackerViewWorker& worker,
@@ -178,7 +178,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(Devi
     return ret;
 }
 
-std::shared_ptr<tracker_element_vector> device_tracker_view::doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(DevicetrackerViewWorker& worker,
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
@@ -365,7 +365,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const
                 return true;
                 });
 
-    return doReadonlyDeviceWork(worker);
+    return do_readonly_device_work(worker);
 }
 
 bool device_tracker_view::device_time_uri_endpoint_path(const std::vector<std::string>& path) {
@@ -431,7 +431,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(c
                 return true;
                 });
 
-    return doReadonlyDeviceWork(worker);
+    return do_readonly_device_work(worker);
 }
 
 unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream, 
@@ -645,7 +645,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                     });
 
         // Do the work and copy the vector
-        auto ts_vec = doReadonlyDeviceWork(worker, next_work_vec);
+        auto ts_vec = do_readonly_device_work(worker, next_work_vec);
         next_work_vec->set(ts_vec->begin(), ts_vec->end());
     }
 
@@ -653,7 +653,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     if (search_term.length() > 0 && search_paths.size() > 0) {
         auto worker =
             DevicetrackerViewICaseStringmatchWorker(search_term, search_paths);
-        auto s_vec = doReadonlyDeviceWork(worker, next_work_vec);
+        auto s_vec = do_readonly_device_work(worker, next_work_vec);
         next_work_vec->set(s_vec->begin(), s_vec->end());
     }
 
@@ -662,7 +662,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
         try {
             auto worker = 
                 DevicetrackerViewRegexWorker(regex);
-            auto r_vec = doReadonlyDeviceWork(worker, next_work_vec);
+            auto r_vec = do_readonly_device_work(worker, next_work_vec);
             next_work_vec = r_vec;
             // next_work_vec->set(r_vec->begin(), r_vec->end());
         } catch (const std::exception& e) {

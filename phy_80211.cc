@@ -1089,7 +1089,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                             // fmt::print("debug - looking at bssts for {} vs {} ... {} {} diff {}\n", bssid_dev->get_macaddr(), dev->get_macaddr(), bsts, dot11info->timestamp, diff);
                             return diff < d11phy->bss_ts_group_usec;
                         });
-                    d11phy->ap_view->doReadonlyDeviceWork(bss_worker);
+                    d11phy->ap_view->do_readonly_device_work(bss_worker);
 
                     // Set a bidirectional relationship
                     for (auto ri : *(bss_worker.getMatchedDevices())) {
