@@ -39,7 +39,7 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
                 BufferAvailable(in_avail);
             },
             [this](std::string in_err) {
-                BufferError(in_err);
+                buffer_error(in_err);
             });
 
     pollabletracker =
@@ -169,7 +169,7 @@ bool GPSSerialV2::get_device_connected() {
     return serialclient->FetchConnected();
 }
 
-void GPSSerialV2::BufferError(std::string in_error) {
+void GPSSerialV2::buffer_error(std::string in_error) {
     local_locker lock(gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a serial error: " + in_error,

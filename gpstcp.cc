@@ -42,7 +42,7 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
                 BufferAvailable(in_avail);
             },
             [this](std::string in_err) {
-                BufferError(in_err);
+                buffer_error(in_err);
             });
 
     pollabletracker = Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
@@ -175,7 +175,7 @@ bool GPSTCP::get_device_connected() {
     return tcpclient->FetchConnected();
 }
 
-void GPSTCP::BufferError(std::string in_error) {
+void GPSTCP::buffer_error(std::string in_error) {
     local_locker lock(gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,

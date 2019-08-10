@@ -50,7 +50,7 @@ protected:
     std::shared_ptr<PollableTracker> pollabletracker;
     std::shared_ptr<TcpClientV2> tcpclient;
 
-    virtual void BufferError(std::string error);
+    virtual void buffer_error(std::string error);
 
     std::string host;
     unsigned int port;

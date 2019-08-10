@@ -2067,7 +2067,7 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
     kill();
 }
 
-void dst_incoming_remote::BufferError(std::string in_error) {
+void dst_incoming_remote::buffer_error(std::string in_error) {
     _MSG("Incoming remote source failed: " + in_error, MSGFLAG_ERROR);
     kill();
     return;

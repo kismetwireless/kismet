@@ -33,7 +33,7 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
             BufferAvailable(in_amt);
         },
         [this](std::string in_err) {
-            BufferError(in_err);
+            buffer_error(in_err);
         }
     } {
 
@@ -744,7 +744,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     update_locations();
 }
 
-void GPSGpsdV2::BufferError(std::string in_error) {
+void GPSGpsdV2::buffer_error(std::string in_error) {
     local_locker lock(gps_mutex);
 
     set_int_device_connected(false);

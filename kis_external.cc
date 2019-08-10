@@ -84,7 +84,7 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     ipc_remote.reset();
     ringbuf_handler.reset();
 
-    BufferError(in_error);
+    buffer_error(in_error);
 }
 
 void KisExternalInterface::BufferAvailable(size_t in_amt) {
@@ -199,7 +199,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
     }
 }
 
-void KisExternalInterface::BufferError(std::string in_error) {
+void KisExternalInterface::buffer_error(std::string in_error) {
     // Try to read anything left in the buffer in case we're exiting w/ pending valid data
     BufferAvailable(0);
     

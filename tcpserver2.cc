@@ -237,7 +237,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                         // Dump the commit
                         i->second->commit_read_buffer_data(buf, 0);
-                        i->second->BufferError(msg.str());
+                        i->second->buffer_error(msg.str());
 
                         KillConnection(i->first);
 
@@ -249,7 +249,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     _MSG(msg.str(), MSGFLAG_ERROR);
                     // Dump the commit
                     i->second->commit_read_buffer_data(buf, 0);
-                    i->second->BufferError(msg.str());
+                    i->second->buffer_error(msg.str());
 
                     KillConnection(i->first);
 
@@ -289,7 +289,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             " - " << kis_strerror_r(errno);
 
                         i->second->peek_free_write_buffer_data(buf);
-                        i->second->BufferError(msg.str());
+                        i->second->buffer_error(msg.str());
 
                         KillConnection(i->first);
                         continue;
@@ -298,7 +298,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     msg << "TCP server closing client " << i->first <<
                         " - connection closed by remote side.";
                     i->second->peek_free_write_buffer_data(buf);
-                    i->second->BufferError(msg.str());
+                    i->second->buffer_error(msg.str());
                     KillConnection(i->first);
                     continue;
                 } else {
@@ -336,7 +336,7 @@ void TcpServerV2::KillConnection(int in_fd) {
 
     if (i != handler_map.end()) {
         kill_map[i->first] = i->second;
-        i->second->BufferError("TCP connection closed");
+        i->second->buffer_error("TCP connection closed");
     }
 }
 
@@ -346,7 +346,7 @@ void TcpServerV2::KillConnection(std::shared_ptr<buffer_handler_generic> in_hand
     for (auto i : handler_map) {
         if (i.second == in_handler) {
             kill_map[i.first] = i.second;
-            i.second->BufferError("TCP connection closed");
+            i.second->buffer_error("TCP connection closed");
             return;
         }
     }

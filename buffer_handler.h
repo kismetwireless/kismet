@@ -287,7 +287,7 @@ public:
     virtual void RemoveWriteBufferDrainCb();
 
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
-    virtual void BufferError(std::string in_error);
+    virtual void buffer_error(std::string in_error);
     // Propagate an error to a specific listener
     virtual void ReadBufferError(std::string in_error);
     virtual void WriteBufferError(std::string in_error);
@@ -402,7 +402,7 @@ public:
     virtual void BufferAvailable(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
-    virtual void BufferError(std::string in_error __attribute__((unused))) { }
+    virtual void buffer_error(std::string in_error __attribute__((unused))) { }
 
 protected:
     buffer_handler_generic *buffer_handler;
@@ -425,7 +425,7 @@ public:
             available_fn(in_amt);
     }
 
-    virtual void BufferError(std::string in_error) {
+    virtual void buffer_error(std::string in_error) {
         if (error_fn != nullptr)
             error_fn(in_error);
     }

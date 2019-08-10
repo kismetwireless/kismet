@@ -72,7 +72,7 @@ IPCRemoteV2::~IPCRemoteV2() {
 
     if (ipchandler != nullptr) {
         ipchandler->SetProtocolErrorCb([]() { });
-        ipchandler->BufferError("IPC process has closed");
+        ipchandler->buffer_error("IPC process has closed");
     }
 
     hard_kill();
@@ -112,7 +112,7 @@ void IPCRemoteV2::close_ipc() {
 
     if (ipchandler != nullptr) {
         ipchandler->SetProtocolErrorCb([]() { });
-        ipchandler->BufferError("IPC process has closed");
+        ipchandler->buffer_error("IPC process has closed");
     }
 
     pipeclient.reset();
@@ -460,7 +460,7 @@ void IPCRemoteV2::notify_killed(int in_exit) {
 
     if (ipchandler != nullptr) {
         ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " << in_exit;
-        ipchandler->BufferError(ss.str());
+        ipchandler->buffer_error(ss.str());
     }
 
     close_ipc();

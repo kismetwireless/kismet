@@ -74,7 +74,7 @@ public:
     // Buffer interface - handles error on IPC or TCP, called when there is a 
     // low-level error on the communications stack (process death, etc).
     // Passes error to the the internal source_error function
-    virtual void BufferError(std::string in_error);
+    virtual void buffer_error(std::string in_error);
 
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);

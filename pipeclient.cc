@@ -144,7 +144,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                     }
 
                     handler->commit_read_buffer_data(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->buffer_error(msg.str());
 
                     ClosePipes();
 
@@ -188,7 +188,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                     handler->peek_free_write_buffer_data(buf);
 
                     // Push the error upstream
-                    handler->BufferError(msg.str());
+                    handler->buffer_error(msg.str());
 
                     ClosePipes();
 
@@ -230,7 +230,7 @@ int PipeClient::FlushRead() {
                     }
 
                     handler->commit_read_buffer_data(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->buffer_error(msg.str());
 
                     ClosePipes();
 

@@ -52,7 +52,7 @@ protected:
 
     // Called by our tcpinterface 
     virtual void BufferAvailable(size_t in_amt);
-    virtual void BufferError(std::string in_err);
+    virtual void buffer_error(std::string in_err);
 
     // Device
     std::string host;

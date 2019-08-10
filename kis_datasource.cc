@@ -443,7 +443,7 @@ void KisDatasource::trigger_error(std::string in_error) {
     cancel_all_commands(in_error);
 }
 
-void KisDatasource::BufferError(std::string in_error) {
+void KisDatasource::buffer_error(std::string in_error) {
     BufferAvailable(0);
 
     trigger_error(in_error);

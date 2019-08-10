@@ -195,7 +195,7 @@ size_t buffer_handler_generic::put_read_buffer_data(void *in_ptr, size_t in_sz,
 
     if (rbuf_notify_avail && rbuf_notify) {
         if (ret != in_sz)
-            rbuf_notify->BufferError("insufficient space in buffer");
+            rbuf_notify->buffer_error("insufficient space in buffer");
         rbuf_notify->BufferAvailable(ret);
     }
 
@@ -223,7 +223,7 @@ size_t buffer_handler_generic::put_write_buffer_data(void *in_ptr, size_t in_sz,
 
         if (!write_buffer) {
             if (wbuf_notify)
-                wbuf_notify->BufferError("No write buffer connected");
+                wbuf_notify->buffer_error("No write buffer connected");
 
             return 0;
         }
@@ -239,7 +239,7 @@ size_t buffer_handler_generic::put_write_buffer_data(void *in_ptr, size_t in_sz,
 
     if (wbuf_notify_avail && wbuf_notify) {
         if (ret != in_sz)
-            wbuf_notify->BufferError("insufficient space in buffer");
+            wbuf_notify->buffer_error("insufficient space in buffer");
 
         wbuf_notify->BufferAvailable(ret);
     }
@@ -312,7 +312,7 @@ bool buffer_handler_generic::commit_read_buffer_data(void *in_ptr, size_t in_sz)
 
     if (rbuf_notify_avail && rbuf_notify) {
         if (!s)
-            rbuf_notify->BufferError("error committing to read buffer");
+            rbuf_notify->buffer_error("error committing to read buffer");
         else
             rbuf_notify->BufferAvailable(in_sz);
     }
@@ -332,7 +332,7 @@ bool buffer_handler_generic::commit_write_buffer_data(void *in_ptr, size_t in_sz
 
     if (wbuf_notify_avail && wbuf_notify) {
         if (!s)
-            wbuf_notify->BufferError("error committing to write buffer");
+            wbuf_notify->buffer_error("error committing to write buffer");
         else
             wbuf_notify->BufferAvailable(in_sz);
     }
@@ -403,19 +403,19 @@ void buffer_handler_generic::RemoveWriteBufferDrainCb() {
     writebuf_drain_cb = nullptr; 
 }
 
-void buffer_handler_generic::BufferError(std::string in_error) {
+void buffer_handler_generic::buffer_error(std::string in_error) {
     ReadBufferError(in_error);
     WriteBufferError(in_error);
 }
 
 void buffer_handler_generic::ReadBufferError(std::string in_error) {
     if (rbuf_notify_avail && rbuf_notify)
-        rbuf_notify->BufferError(in_error);
+        rbuf_notify->buffer_error(in_error);
 }
 
 void buffer_handler_generic::WriteBufferError(std::string in_error) {
     if (wbuf_notify_avail && wbuf_notify)
-        wbuf_notify->BufferError(in_error);
+        wbuf_notify->buffer_error(in_error);
 }
 
 void buffer_handler_generic::SetProtocolErrorCb(std::function<void (void)> in_cb) {
@@ -471,7 +471,7 @@ std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streams
 
     // If we couldn't write it all into the buffer, flag a full error
     if (written != n && !blocking) {
-        rb_handler->BufferError("write buffer full, streambuf unable to write data");
+        rb_handler->buffer_error("write buffer full, streambuf unable to write data");
         return -1;
     }
 
@@ -516,7 +516,7 @@ BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch)
 
     // Not blocking, nothing we can do
     if (!blocking) {
-        rb_handler->BufferError("write buffer full, streambuf unable to write data");
+        rb_handler->buffer_error("write buffer full, streambuf unable to write data");
         return -1;
     }
 

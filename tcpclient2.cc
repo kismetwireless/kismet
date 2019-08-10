@@ -109,7 +109,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
             pending_connect = false;
 
             // Send the error to any listeners
-            handler->BufferError(msg.str());
+            handler->buffer_error(msg.str());
 
             return -1;
         }
@@ -174,7 +174,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 msg = fmt::format("Could not connect to TCP server {}:{} ({} / errno {})",
                         host, port, kis_strerror_r(e), e);
 
-                handler->BufferError(msg);
+                handler->buffer_error(msg);
 
                 if (cli_fd >= 0)
                     close(cli_fd);
@@ -232,7 +232,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                     // Dump the commit
                     handler->commit_read_buffer_data(buf, 0);
-                    handler->BufferError(msg);
+                    handler->buffer_error(msg);
 
                     Disconnect();
                     return 0;
@@ -242,7 +242,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         host, port);
                 // Dump the commit
                 handler->commit_read_buffer_data(buf, 0);
-                handler->BufferError(msg);
+                handler->buffer_error(msg);
 
                 Disconnect();
                 return 0;
@@ -276,7 +276,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     host, port, kis_strerror_r(errno), errno);
 
                 handler->peek_free_write_buffer_data(buf);
-                handler->BufferError(msg);
+                handler->buffer_error(msg);
 
                 Disconnect();
                 return 0;
@@ -285,7 +285,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             msg = fmt::format("TCP client connection to {}:{} closed by remote",
                     host, port);
             handler->peek_free_write_buffer_data(buf);
-            handler->BufferError(msg);
+            handler->buffer_error(msg);
             Disconnect();
             return 0;
         } else {

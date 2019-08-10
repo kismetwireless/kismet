@@ -395,7 +395,7 @@ public:
     virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
     // IPC error
-    virtual void BufferError(std::string in_error) override;
+    virtual void buffer_error(std::string in_error) override;
 
     virtual void pre_serialize() override {
         local_eol_shared_locker l(ext_mutex);

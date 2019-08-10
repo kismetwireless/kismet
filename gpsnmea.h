@@ -46,7 +46,7 @@ protected:
 
     // buffer_interface API
     virtual void BufferAvailable(size_t in_amt);
-    virtual void BufferError(std::string in_err) = 0;
+    virtual void buffer_error(std::string in_err) = 0;
 
     // Have we ever seen data from the device?
     bool ever_seen_gps;

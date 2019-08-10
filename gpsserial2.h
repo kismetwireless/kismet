@@ -53,7 +53,7 @@ protected:
     std::shared_ptr<SerialClientV2> serialclient;
 
     // buffer_interface API - buffer available implemented in gpsnmea
-    virtual void BufferError(std::string error);
+    virtual void buffer_error(std::string error);
 
     // Device
     std::string serial_device;

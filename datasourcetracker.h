@@ -323,7 +323,7 @@ public:
         std::swap(handshake_thread, t);
     }
 
-    virtual void BufferError(std::string in_error) override;
+    virtual void buffer_error(std::string in_error) override;
 
 protected:
     // Timeout for killing this connection

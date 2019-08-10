@@ -184,7 +184,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     }
 
                     handler->commit_read_buffer_data(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->buffer_error(msg.str());
 
                     Close();
                     return 0;
@@ -221,7 +221,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     " - " << kis_strerror_r(errno);
 
                 handler->peek_free_write_buffer_data(buf);
-                handler->BufferError(msg.str());
+                handler->buffer_error(msg.str());
 
                 Close();
                 return 0;
