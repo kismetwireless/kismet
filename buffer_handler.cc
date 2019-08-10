@@ -173,7 +173,7 @@ size_t buffer_handler_generic::consume_write_buffer_data(size_t in_sz) {
 }
 
 
-size_t buffer_handler_generic::PutReadBufferData(void *in_ptr, size_t in_sz, 
+size_t buffer_handler_generic::put_read_buffer_data(void *in_ptr, size_t in_sz, 
         bool in_atomic) {
     size_t ret;
 
@@ -202,9 +202,9 @@ size_t buffer_handler_generic::PutReadBufferData(void *in_ptr, size_t in_sz,
     return ret;
 }
 
-bool buffer_handler_generic::PutReadBufferData(std::string in_data) {
+bool buffer_handler_generic::put_read_buffer_data(std::string in_data) {
     size_t r =
-        PutReadBufferData((void *) in_data.data(), in_data.length(), true);
+        put_read_buffer_data((void *) in_data.data(), in_data.length(), true);
     return (r == in_data.length());
 }
 
