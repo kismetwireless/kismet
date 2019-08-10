@@ -470,8 +470,8 @@ protected:
     char *read_ssl_file(std::string in_fname);
 
     void add_session(std::shared_ptr<kis_net_httpd_session> in_session);
-    void DelSession(std::string in_key);
-    void DelSession(std::map<std::string, std::shared_ptr<kis_net_httpd_session>>::iterator in_itr);
+    void del_session(std::string in_key);
+    void del_session(std::map<std::string, std::shared_ptr<kis_net_httpd_session>>::iterator in_itr);
     // Find a valid session; will return a session or nullptr if no session key is found, or if the
     // session is found but expired.
     std::shared_ptr<kis_net_httpd_session> FindSession(const std::string& in_session_key);

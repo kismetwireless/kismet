@@ -662,7 +662,7 @@ void kis_net_httpd::add_session(std::shared_ptr<kis_net_httpd_session> in_sessio
     WriteSessions();
 }
 
-void kis_net_httpd::DelSession(std::string in_key) {
+void kis_net_httpd::del_session(std::string in_key) {
     local_locker lock(&session_mutex);
 
     auto i = session_map.find(in_key);
@@ -673,7 +673,7 @@ void kis_net_httpd::DelSession(std::string in_key) {
     }
 }
 
-void kis_net_httpd::DelSession(std::map<std::string, std::shared_ptr<kis_net_httpd_session> >::iterator in_itr) {
+void kis_net_httpd::del_session(std::map<std::string, std::shared_ptr<kis_net_httpd_session> >::iterator in_itr) {
     local_locker lock(&session_mutex);
 
     if (in_itr != session_map.end()) {
@@ -691,7 +691,7 @@ std::shared_ptr<kis_net_httpd_session> kis_net_httpd::FindSession(const std::str
         // Delete if the session has expired and don't assign as a session
         if (si->second->session_lifetime != 0 &&
                 si->second->session_seen + si->second->session_lifetime < time(0)) {
-            DelSession(si);
+            del_session(si);
             return nullptr;
         } else {
             return si->second;
