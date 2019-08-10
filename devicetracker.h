@@ -310,7 +310,7 @@ public:
 protected:
 	global_registry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<packetchain> packetchain;
     std::shared_ptr<Eventbus> eventbus;
 
     unsigned long new_datasource_evt_id;

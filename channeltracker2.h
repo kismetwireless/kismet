@@ -177,7 +177,7 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<Timetracker> timetracker;
 
-    // Packetchain callback
+    // packetchain callback
     static int PacketChainHandler(CHAINCALL_PARMS);
 
     // Tracker component

@@ -69,7 +69,7 @@ int Devicetracker_Httpd_Pcap::httpd_create_stream_response(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
     int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
     // /devices/by-key/[key]/pcap/[key].pcapng

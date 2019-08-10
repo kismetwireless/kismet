@@ -84,7 +84,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
     phyname = "UAV";
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::FetchMandatoryGlobalAs<packetchain>();
     devicetracker =
         Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 

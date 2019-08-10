@@ -245,7 +245,7 @@ protected:
 
 
 protected:
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 

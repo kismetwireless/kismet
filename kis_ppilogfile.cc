@@ -41,7 +41,7 @@ KisPPILogfile::KisPPILogfile(SharedLogBuilder in_builder) :
 	dumper = NULL;
     dump_filep = NULL;
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
 
     pack_comp_80211 = packetchain->RegisterPacketComponent("PHY80211");
     pack_comp_mangleframe = packetchain->RegisterPacketComponent("MANGLEDATA");
@@ -62,7 +62,7 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
     dump_filep = NULL;
 
     auto packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
 
 	dumpfile = pcap_open_dead(DLT_PPI, MAX_PACKET_LEN);
 
@@ -106,7 +106,7 @@ void KisPPILogfile::Log_Close() {
     set_int_log_open(false);
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::FetchGlobalAs<packetchain>("PACKETCHAIN");
     if (packetchain != NULL) 
         packetchain->RemoveHandler(&KisPPILogfile::packet_handler, CHAINPOS_LOGGING);
 

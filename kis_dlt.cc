@@ -35,7 +35,7 @@ Kis_DLT_Handler::Kis_DLT_Handler() :
     dlt {-1} {
 
     auto packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::FetchMandatoryGlobalAs<packetchain>();
 
 	chainid = 
 		packetchain->RegisterHandler(&kis_dlt_packethook, this,
@@ -58,7 +58,7 @@ Kis_DLT_Handler::Kis_DLT_Handler() :
 
 Kis_DLT_Handler::~Kis_DLT_Handler() {
     auto packetchain = 
-        Globalreg::FetchGlobalAs<Packetchain>();
+        Globalreg::FetchGlobalAs<packetchain>();
 
 	if (packetchain != nullptr) 
 		packetchain->RemoveHandler(chainid, CHAINPOS_POSTCAP);

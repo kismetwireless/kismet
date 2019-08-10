@@ -107,7 +107,7 @@ protected:
 
     std::shared_ptr<BufferHandlerGeneric> handler;
 
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<packetchain> packetchain;
 
     int pack_comp_linkframe, pack_comp_datasrc;
 

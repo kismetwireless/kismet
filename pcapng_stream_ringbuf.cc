@@ -35,7 +35,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
     locker_required_bytes {0} {
 
     packetchain = 
-        std::static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+        std::static_pointer_cast<packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");

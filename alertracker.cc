@@ -37,7 +37,7 @@ alert_tracker::alert_tracker() :
 
 	next_alert_id = 0;
 
-    packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+    packetchain = Globalreg::FetchMandatoryGlobalAs<packetchain>();
     entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
     alert_vec_id =

@@ -33,7 +33,7 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("RTLAMR");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::FetchMandatoryGlobalAs<packetchain>();
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
     devicetracker =
