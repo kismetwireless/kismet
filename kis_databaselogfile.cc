@@ -97,7 +97,7 @@ void kis_database_logfile::trigger_deferred_shutdown() {
 
 }
 
-bool kis_database_logfile::Log_Open(std::string in_path) {
+bool kis_database_logfile::log_open(std::string in_path) {
     local_locker dbl(&ds_mutex);
 
     auto timetracker = 

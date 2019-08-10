@@ -52,7 +52,7 @@ KisPPILogfile::KisPPILogfile(shared_log_builder in_builder) :
     pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
 }
 
-bool KisPPILogfile::Log_Open(std::string in_path) {
+bool KisPPILogfile::log_open(std::string in_path) {
     local_locker lock(&log_mutex);
 
     set_int_log_path(in_path);

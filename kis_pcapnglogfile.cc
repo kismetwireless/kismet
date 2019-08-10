@@ -31,7 +31,7 @@ KisPcapNGLogfile::~KisPcapNGLogfile() {
     Log_Close();
 }
 
-bool KisPcapNGLogfile::Log_Open(std::string in_path) {
+bool KisPcapNGLogfile::log_open(std::string in_path) {
     local_locker lock(&log_mutex);
 
     set_int_log_path(in_path);

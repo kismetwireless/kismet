@@ -269,7 +269,7 @@ SharedLogfile LogTracker::open_log(shared_log_builder in_builder, std::string in
         Globalreg::globalreg->kismet_config->expand_log_path(get_log_template(),
                 in_title, lf->get_builder()->get_log_class(), 1, 0);
 
-    if (!lf->Log_Open(logpath)) {
+    if (!lf->log_open(logpath)) {
         _MSG("Failed to open " + lf->get_builder()->get_log_class() + " log " + logpath,
                 MSGFLAG_ERROR);
     }

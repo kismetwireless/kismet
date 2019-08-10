@@ -68,7 +68,7 @@ public:
 	virtual void RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
 	virtual void RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
 
-    virtual bool Log_Open(std::string in_path) override;
+    virtual bool log_open(std::string in_path) override;
     virtual void Log_Close() override;
 
 	struct ppi_cb_rec {

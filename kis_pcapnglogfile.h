@@ -32,7 +32,7 @@ public:
     KisPcapNGLogfile(shared_log_builder in_builder);
     virtual ~KisPcapNGLogfile();
 
-    virtual bool Log_Open(std::string in_path) override;
+    virtual bool log_open(std::string in_path) override;
     virtual void Log_Close() override;
 
 protected:

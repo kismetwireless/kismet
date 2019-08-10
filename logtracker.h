@@ -180,7 +180,7 @@ public:
         return std::move(dup);
     }
 
-    virtual bool Log_Open(std::string in_path) { 
+    virtual bool log_open(std::string in_path) { 
         local_locker lock(&log_mutex);
 
         set_int_log_path(in_path);
