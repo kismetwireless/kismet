@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -23,13 +23,13 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceRtladsb;
-typedef std::shared_ptr<KisDatasourceRtladsb> SharedDatasourceRtladsb;
+class kis_datasource_rtladsb;
+typedef std::shared_ptr<kis_datasource_rtladsb> SharedDatasourceRtladsb;
 
-class KisDatasourceRtladsb : public kis_datasource {
+class kis_datasource_rtladsb : public kis_datasource {
 public:
-    KisDatasourceRtladsb(shared_datasource_builder in_builder, bool in_mqtt);
-    virtual ~KisDatasourceRtladsb();
+    kis_datasource_rtladsb(shared_datasource_builder in_builder, bool in_mqtt);
+    virtual ~kis_datasource_rtladsb();
 
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
@@ -64,7 +64,7 @@ public:
     virtual ~DatasourceRtladsbBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return SharedDatasourceRtladsb(new KisDatasourceRtladsb(in_sh_this, false));
+        return SharedDatasourceRtladsb(new kis_datasource_rtladsb(in_sh_this, false));
     }
 
     virtual void initialize() override {
@@ -106,7 +106,7 @@ public:
     virtual ~DatasourceRtladsbMqttBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return SharedDatasourceRtladsb(new KisDatasourceRtladsb(in_sh_this, true));
+        return SharedDatasourceRtladsb(new kis_datasource_rtladsb(in_sh_this, true));
     }
 
     virtual void initialize() override {
