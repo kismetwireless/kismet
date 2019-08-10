@@ -47,9 +47,9 @@ public:
 };
 
 
-class DatasourceOsxCorewlanWifiBuilder : public kis_datasource_builder {
+class datasource_osx_corewlan_wifi_builder : public kis_datasource_builder {
 public:
-    DatasourceOsxCorewlanWifiBuilder(int in_id) :
+    datasource_osx_corewlan_wifi_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
         register_fields();
@@ -57,7 +57,7 @@ public:
         initialize();
     }
 
-    DatasourceOsxCorewlanWifiBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_osx_corewlan_wifi_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
         register_fields();
@@ -65,7 +65,7 @@ public:
         initialize();
     }
 
-    DatasourceOsxCorewlanWifiBuilder() :
+    datasource_osx_corewlan_wifi_builder() :
         kis_datasource_builder() {
 
         register_fields();
@@ -73,7 +73,7 @@ public:
         initialize();
     }
 
-    virtual ~DatasourceOsxCorewlanWifiBuilder() { }
+    virtual ~datasource_osx_corewlan_wifi_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return shared_datasource_osx_corewlan_wifi(new kis_datasource_osx_corewlan_wifi(in_sh_this));
