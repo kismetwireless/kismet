@@ -22,7 +22,7 @@
 #include "kismet_json.h"
 #include "phy_rtlamr.h"
 
-KisDatasourceRtlamr::KisDatasourceRtlamr(shared_datasource_builder in_builder, bool in_mqtt) :
+kis_datasource_rtlamr::kis_datasource_rtlamr(shared_datasource_builder in_builder, bool in_mqtt) :
     kis_datasource(in_builder) {
 
     std::string devnum = MungeToPrintable(get_definition_opt("device"));
@@ -42,11 +42,11 @@ KisDatasourceRtlamr::KisDatasourceRtlamr(shared_datasource_builder in_builder, b
 
 }
 
-KisDatasourceRtlamr::~KisDatasourceRtlamr() {
+kis_datasource_rtlamr::~kis_datasource_rtlamr() {
 
 }
 
-void KisDatasourceRtlamr::open_interface(std::string in_definition, unsigned int in_transaction,
+void kis_datasource_rtlamr::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
     kis_datasource::open_interface(in_definition, in_transaction, in_cb);
 
@@ -57,7 +57,7 @@ void KisDatasourceRtlamr::open_interface(std::string in_definition, unsigned int
 }
 
 #if 0
-int KisDatasourceRtlamr::httpd_post_complete(kis_net_httpd_connection *concls) {
+int kis_datasource_rtlamr::httpd_post_complete(kis_net_httpd_connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 
