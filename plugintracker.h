@@ -308,10 +308,10 @@ protected:
 
 /* External plugin loader for plugins only using the external http interface; no need for them
  * to implement a C++ component; this will get instantiated in the plugin finalization layer */
-class ExternalHttpPluginHarness : public KisExternalHttpInterface {
+class ExternalHttpPluginHarness : public kis_external_http_interface {
 public:
     ExternalHttpPluginHarness(std::string plugin_name, std::string binary) : 
-        KisExternalHttpInterface() {
+        kis_external_http_interface() {
 
         // Look for someone playing hijinks
         if (binary.find("/") != std::string::npos) {

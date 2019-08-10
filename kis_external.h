@@ -130,10 +130,10 @@ protected:
     int ping_timer_id;
 };
 
-class KisExternalHttpInterface : public kis_external_interface, kis_net_httpd_chain_stream_handler {
+class kis_external_http_interface : public kis_external_interface, kis_net_httpd_chain_stream_handler {
 public:
-    KisExternalHttpInterface();
-    virtual ~KisExternalHttpInterface();
+    kis_external_http_interface();
+    virtual ~kis_external_http_interface();
 
     // Trigger an error condition and call all the related functions
     virtual void trigger_error(std::string reason) override;
