@@ -69,8 +69,8 @@ public:
     header_value_config asConfigComplex(mac_addr m) {
         header_value_config hc;
         hc.set_header(m.asString());
-        hc.setValue("beacon_hash", get_beacon_hash());
-        hc.setValue("response_hash", get_response_hash());
+        hc.set_value("beacon_hash", get_beacon_hash());
+        hc.set_value("response_hash", get_response_hash());
 
         return hc;
     };

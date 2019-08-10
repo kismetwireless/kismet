@@ -212,7 +212,7 @@ public:
 
     // Set a value, converting the arbitrary input into a string
     template<typename T>
-    void setValue(const std::string& in_key, T in_value) {
+    void set_value(const std::string& in_key, T in_value) {
         local_locker l(&mutex); 
         content_map[in_key] = fmt::format("{}", in_value);
     }
