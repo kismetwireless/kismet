@@ -854,7 +854,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Register the DLT handlers
-    Kis_DLT_PPI::create_dlt();
+    kis_dlt_ppi::create_dlt();
     Kis_DLT_Radiotap::create_dlt();
 
     new kis_dissector_ip_data(globalregistry);

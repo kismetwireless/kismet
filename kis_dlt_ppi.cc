@@ -34,7 +34,7 @@
 
 #include "gpstracker.h"
 
-Kis_DLT_PPI::Kis_DLT_PPI() :
+kis_dlt_ppi::kis_dlt_ppi() :
 	kis_dlt_handler() {
 
 	dlt_name = "PPI";
@@ -43,7 +43,7 @@ Kis_DLT_PPI::Kis_DLT_PPI() :
 	_MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
 }
 
-int Kis_DLT_PPI::handle_packet(kis_packet *in_pack) {
+int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
 	kis_datachunk *decapchunk = 
 		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
 

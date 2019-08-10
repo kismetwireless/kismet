@@ -28,22 +28,22 @@
 #include "packetchain.h"
 #include "kis_dlt.h"
 
-class Kis_DLT_PPI : public kis_dlt_handler {
+class kis_dlt_ppi : public kis_dlt_handler {
 public:
     static std::string global_name() { return "DLT_PPI"; }
 
-    static std::shared_ptr<Kis_DLT_PPI> create_dlt() {
-        std::shared_ptr<Kis_DLT_PPI> mon(new Kis_DLT_PPI());
+    static std::shared_ptr<kis_dlt_ppi> create_dlt() {
+        std::shared_ptr<kis_dlt_ppi> mon(new kis_dlt_ppi());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-	Kis_DLT_PPI();
+	kis_dlt_ppi();
 
 public:
-	virtual ~Kis_DLT_PPI() { };
+	virtual ~kis_dlt_ppi() { };
 
 	virtual int handle_packet(kis_packet *in_pack);
 };
