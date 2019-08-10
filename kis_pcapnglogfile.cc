@@ -20,7 +20,7 @@
 
 #include "kis_pcapnglogfile.h"
 
-KisPcapNGLogfile::KisPcapNGLogfile(SharedLogBuilder in_builder) :
+KisPcapNGLogfile::KisPcapNGLogfile(shared_log_builder in_builder) :
     KisLogfile(in_builder) {
 
     pcapng_stream = NULL;

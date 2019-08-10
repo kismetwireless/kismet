@@ -32,7 +32,7 @@
 #include "sqlite3_cpp11.h"
 
 kis_database_logfile::kis_database_logfile():
-    KisLogfile(SharedLogBuilder(NULL)), 
+    KisLogfile(shared_log_builder(NULL)), 
     kis_database(Globalreg::globalreg, "kismetlog"),
     lifetime_global(),
     kis_net_httpd_ringbuf_stream_handler(),

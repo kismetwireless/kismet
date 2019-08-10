@@ -29,7 +29,7 @@
 
 class KisPcapNGLogfile : public KisLogfile {
 public:
-    KisPcapNGLogfile(SharedLogBuilder in_builder);
+    KisPcapNGLogfile(shared_log_builder in_builder);
     virtual ~KisPcapNGLogfile();
 
     virtual bool Log_Open(std::string in_path) override;
@@ -66,7 +66,7 @@ public:
 
     virtual ~KisPcapNGLogfileBuilder() { }
 
-    virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
+    virtual SharedLogfile build_logfile(shared_log_builder builder) {
         return SharedLogfile(new KisPcapNGLogfile(builder));
     }
 

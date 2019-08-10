@@ -28,7 +28,7 @@
 #include "kis_ppi.h"
 #include "phy_80211.h"
 
-KisPPILogfile::KisPPILogfile(SharedLogBuilder in_builder) : 
+KisPPILogfile::KisPPILogfile(shared_log_builder in_builder) : 
     KisLogfile(in_builder) {
 
 	// Default to dot11

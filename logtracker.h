@@ -31,7 +31,7 @@
 #include "streamtracker.h"
 
 class KisLogfileBuilder;
-typedef std::shared_ptr<KisLogfileBuilder> SharedLogBuilder;
+typedef std::shared_ptr<KisLogfileBuilder> shared_log_builder;
 
 class KisLogfile;
 typedef std::shared_ptr<KisLogfile> SharedLogfile;
@@ -86,7 +86,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual SharedLogfile build_logfile(SharedLogBuilder) {
+    virtual SharedLogfile build_logfile(shared_log_builder) {
         return NULL;
     }
 
@@ -139,7 +139,7 @@ public:
         reserve_fields(e);
     }
 
-    KisLogfile(SharedLogBuilder in_builder) :
+    KisLogfile(shared_log_builder in_builder) :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -213,7 +213,7 @@ protected:
     }
 
     // Builder/prototype that made us
-    SharedLogBuilder builder;
+    shared_log_builder builder;
 
     kis_recursive_timed_mutex log_mutex;
 
@@ -249,13 +249,13 @@ public:
     virtual void trigger_deferred_shutdown() override;
 
     // Register a log type
-    int register_log(SharedLogBuilder in_builder);
+    int register_log(shared_log_builder in_builder);
 
     // Open a log
     SharedLogfile open_log(std::string in_class);
-    SharedLogfile open_log(SharedLogBuilder in_builder);
+    SharedLogfile open_log(shared_log_builder in_builder);
     SharedLogfile open_log(std::string in_class, std::string in_title);
-    SharedLogfile open_log(SharedLogBuilder in_builder, std::string in_title);
+    SharedLogfile open_log(shared_log_builder in_builder, std::string in_title);
 
     // Close a log
     int close_log(SharedLogfile in_logfile);

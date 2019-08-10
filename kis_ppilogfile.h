@@ -60,7 +60,7 @@ typedef kis_datachunk *(*dumpfile_pcap_filter_cb)(DUMPFILE_PCAP_FILTER_PARMS);
 // Pcap-based packet writer
 class KisPPILogfile : public KisLogfile {
 public:
-    KisPPILogfile(SharedLogBuilder in_builder);
+    KisPPILogfile(shared_log_builder in_builder);
     virtual ~KisPPILogfile();
 
 	static int packet_handler(CHAINCALL_PARMS);
@@ -124,7 +124,7 @@ public:
 
     virtual ~KisPPILogfileBuilder() { }
 
-    virtual SharedLogfile build_logfile(SharedLogBuilder builder) override {
+    virtual SharedLogfile build_logfile(shared_log_builder builder) override {
         return SharedLogfile(new KisPPILogfile(builder));
     }
 

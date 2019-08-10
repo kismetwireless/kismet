@@ -198,7 +198,7 @@ void LogTracker::trigger_deferred_shutdown() {
     return;
 }
 
-int LogTracker::register_log(SharedLogBuilder in_builder) {
+int LogTracker::register_log(shared_log_builder in_builder) {
     local_locker lock(&tracker_mutex);
 
     for (auto i : *logproto_vec) {
@@ -224,7 +224,7 @@ SharedLogfile LogTracker::open_log(std::string in_class) {
 SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
-    SharedLogBuilder target_builder;
+    shared_log_builder target_builder;
 
     for (auto b : *logproto_vec) {
         auto builder = std::static_pointer_cast<KisLogfileBuilder>(b);
@@ -237,11 +237,11 @@ SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
     return 0;
 }
 
-SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder) {
+SharedLogfile LogTracker::open_log(shared_log_builder in_builder) {
     return open_log(in_builder, get_log_title());
 }
 
-SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder, std::string in_title) {
+SharedLogfile LogTracker::open_log(shared_log_builder in_builder, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
     if (in_builder == NULL)
