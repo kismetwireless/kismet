@@ -141,7 +141,7 @@ public:
     static double gps_calc_rad(double lat);
     static double gps_rad_to_deg(double x);
     static double gps_deg_to_rad(double x);
-    static double GpsEarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
+    static double gps_earth_distance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
 protected:
     // We share mutexes down to the driver engines so we use a shared

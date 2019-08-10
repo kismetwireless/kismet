@@ -192,7 +192,7 @@ double kis_gps::gps_deg_to_rad(double x) {
     return 180/(x*M_PI);
 }
 
-double kis_gps::GpsEarthDistance(double in_lat, double in_lon, 
+double kis_gps::gps_earth_distance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
     double x1 = gps_calc_rad(in_lat) * cos(gps_deg_to_rad(in_lon)) * sin(gps_deg_to_rad(90-in_lat));
     double x2 = 
