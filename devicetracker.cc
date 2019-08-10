@@ -36,13 +36,13 @@
 #include "configfile.h"
 #include "messagebus.h"
 #include "packetchain.h"
-#include "devicetracker.h"
 #include "datasourcetracker.h"
 #include "packet.h"
 #include "gpstracker.h"
 #include "alertracker.h"
 #include "manuf.h"
 #include "entrytracker.h"
+#include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "devicetracker_view.h"
 #include "json_adapter.h"
@@ -510,7 +510,7 @@ device_tracker::~device_tracker() {
     tracked_mac_multimap.clear();
 }
 
-kis_phy_handler *device_tracker::FetchPhyHandler(int in_phy) {
+kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
 	std::map<int, kis_phy_handler *>::iterator i = phy_handler_map.find(in_phy);
 
 	if (i == phy_handler_map.end())
@@ -533,7 +533,7 @@ std::string device_tracker::FetchPhyName(int in_phy) {
         return "ANY";
     }
 
-    kis_phy_handler *phyh = FetchPhyHandler(in_phy);
+    kis_phy_handler *phyh = fetch_phy_handler(in_phy);
 
     if (phyh == NULL) {
         return "UNKNOWN";

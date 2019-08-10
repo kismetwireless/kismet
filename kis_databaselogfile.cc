@@ -1009,7 +1009,7 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
     keystring = "0";
 
     if (commoninfo != NULL) {
-        phyh = devicetracker->FetchPhyHandler(commoninfo->phyid);
+        phyh = devicetracker->fetch_phy_handler(commoninfo->phyid);
         macstring = commoninfo->source.Mac2String();
         deststring = commoninfo->dest.Mac2String();
         transstring = commoninfo->transmitter.Mac2String();
