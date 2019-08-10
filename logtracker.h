@@ -243,7 +243,7 @@ public:
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
     virtual void Deferred_Startup() override;
     virtual void Deferred_Shutdown() override;

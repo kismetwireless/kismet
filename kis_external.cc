@@ -747,7 +747,7 @@ int KisExternalHttpInterface::httpd_create_stream_response(Kis_Net_Httpd *httpd,
     return MHD_YES;
 }
 
-int KisExternalHttpInterface::Httpd_PostComplete(Kis_Net_Httpd_Connection *connection) {
+int KisExternalHttpInterface::httpd_post_complete(Kis_Net_Httpd_Connection *connection) {
     auto m = http_proxy_uri_map.find(std::string("POST"));
 
     if (m == http_proxy_uri_map.end()) {

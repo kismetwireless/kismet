@@ -1317,7 +1317,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1526,7 +1526,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1733,7 +1733,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1887,7 +1887,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 
@@ -1991,7 +1991,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
 

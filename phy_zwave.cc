@@ -222,7 +222,7 @@ void Kis_Zwave_Phy::httpd_create_stream_response(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_Zwave_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Zwave_Phy::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
 
     // Anything involving POST here requires a login
     if (!httpd->HasValidSession(concls, true)) {

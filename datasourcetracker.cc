@@ -1525,7 +1525,7 @@ void Datasourcetracker::httpd_create_stream_response(Kis_Net_Httpd *httpd,
 
 }
 
-int Datasourcetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Datasourcetracker::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     if (!Httpd_CanSerialize(concls->url)) {
         concls->response_stream << "Invalid request, cannot serialize URL";
         concls->httpcode = 400;

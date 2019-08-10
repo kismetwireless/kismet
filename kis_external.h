@@ -163,7 +163,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override;
 
 protected:
     // Central packet dispatch handler

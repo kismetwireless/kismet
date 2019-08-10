@@ -3000,7 +3000,7 @@ void Kis_80211_Phy::httpd_create_stream_response(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_80211_Phy::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     bool handled = false;
 
     std::string stripped = Httpd_StripSuffix(concls->url);

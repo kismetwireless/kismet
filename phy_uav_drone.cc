@@ -333,7 +333,7 @@ void Kis_UAV_Phy::httpd_create_stream_response(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_UAV_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_UAV_Phy::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     return 0;
 }
 

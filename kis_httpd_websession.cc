@@ -236,7 +236,7 @@ void Kis_Httpd_Websession::httpd_create_stream_response(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_Httpd_Websession::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Httpd_Websession::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     local_locker l(&mutex);
 
     auto stripped = kishttpd::StripSuffix(concls->url);

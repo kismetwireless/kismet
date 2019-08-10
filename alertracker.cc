@@ -719,7 +719,7 @@ void alert_tracker::httpd_create_stream_response(
     Httpd_Serialize(path, stream, transmit);
 }
 
-int alert_tracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int alert_tracker::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
    
     if (!Httpd_CanSerialize(concls->url) ||

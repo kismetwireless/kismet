@@ -74,7 +74,7 @@ public:
 
     // By default, the Kismet HTTPD implementation will cache all POST variables
     // in the variable_cache map in the connection record, and call
-    // Httpd_PostComplete(connection, stream&) to generate the output.
+    // httpd_post_complete(connection, stream&) to generate the output.
     // If this is inappropriate for your endpoint, for instance if you are
     // implementing some sort of file upload, then this function should
     // return 'true' and you should implement it in Httpd_PostIterator
@@ -84,7 +84,7 @@ public:
 
     // Called when a POST event is complete - all data has been uploaded and
     // cached in the connection info.
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
         return MHD_NO;
     }
 
@@ -207,7 +207,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) = 0;
 
     // Called by microhttpd during servicing a connecting; cls is a 
     // kis_net_httpd_buffer_stream_aux which contains all our references to

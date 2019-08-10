@@ -418,7 +418,7 @@ int device_tracker::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int device_tracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int device_tracker::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     // Split URL and process
     std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
 

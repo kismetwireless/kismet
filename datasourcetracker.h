@@ -432,7 +432,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
@@ -544,7 +544,7 @@ public:
             size_t *upload_data_size) override; 
 
     // We don't currently handle POSTed data
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override {
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override {
         return 0;
     }
 

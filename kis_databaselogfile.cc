@@ -1506,7 +1506,7 @@ int kis_database_logfile::httpd_create_stream_response(Kis_Net_Httpd *httpd,
     return MHD_YES;
 }
 
-int kis_database_logfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int kis_database_logfile::httpd_post_complete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::string suffix = Httpd_GetSuffix(concls->url);
 

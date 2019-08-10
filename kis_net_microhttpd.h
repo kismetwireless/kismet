@@ -194,7 +194,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
     std::string uri;
@@ -226,7 +226,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
     std::string uri;
@@ -255,7 +255,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
     path_func path;
@@ -285,7 +285,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
     std::string uri;
@@ -317,7 +317,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *concls) override;
 
 protected:
     path_func path;

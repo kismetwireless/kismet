@@ -45,7 +45,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size); 
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+    virtual int httpd_post_complete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
         return 0;
     }
     

@@ -108,7 +108,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     try {
-        Httpd_PostComplete(connection);
+        httpd_post_complete(connection);
     } catch (const std::exception& e) {
         auto err = fmt::format("Server error:  Uncaught exception '{}'\n", e.what());
 
@@ -458,7 +458,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
                 cl.unlock(1);
 
                 try {
-                    int r = Httpd_PostComplete(connection);
+                    int r = httpd_post_complete(connection);
                     if (r == MHD_YES) {
                         // fprintf(stderr, "debug - triggering complete\n");
                         aux->sync();
