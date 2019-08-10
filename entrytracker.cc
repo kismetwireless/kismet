@@ -234,7 +234,7 @@ void entry_tracker::register_serializer(const std::string& in_name,
     serializer_map[mod_type] = in_ser;
 }
 
-void entry_tracker::RemoveSerializer(const std::string& in_name) {
+void entry_tracker::remove_serializer(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
     std::string mod_type = StrLower(in_name);
