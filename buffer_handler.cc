@@ -196,7 +196,7 @@ size_t buffer_handler_generic::put_read_buffer_data(void *in_ptr, size_t in_sz,
     if (rbuf_notify_avail && rbuf_notify) {
         if (ret != in_sz)
             rbuf_notify->buffer_error("insufficient space in buffer");
-        rbuf_notify->BufferAvailable(ret);
+        rbuf_notify->buffer_available(ret);
     }
 
     return ret;
@@ -241,7 +241,7 @@ size_t buffer_handler_generic::put_write_buffer_data(void *in_ptr, size_t in_sz,
         if (ret != in_sz)
             wbuf_notify->buffer_error("insufficient space in buffer");
 
-        wbuf_notify->BufferAvailable(ret);
+        wbuf_notify->buffer_available(ret);
     }
 
     return ret;
@@ -289,13 +289,13 @@ ssize_t buffer_handler_generic::zero_copy_reserve_write_buffer_data(void **in_pt
 
 void buffer_handler_generic::trigger_write_callback(size_t in_sz) {
     if (wbuf_notify_avail && wbuf_notify) {
-        wbuf_notify->BufferAvailable(in_sz);
+        wbuf_notify->buffer_available(in_sz);
     }
 }
 
 void buffer_handler_generic::trigger_read_callback(size_t in_sz) {
     if (rbuf_notify_avail && rbuf_notify) {
-        rbuf_notify->BufferAvailable(in_sz);
+        rbuf_notify->buffer_available(in_sz);
     }
 }
 
@@ -314,7 +314,7 @@ bool buffer_handler_generic::commit_read_buffer_data(void *in_ptr, size_t in_sz)
         if (!s)
             rbuf_notify->buffer_error("error committing to read buffer");
         else
-            rbuf_notify->BufferAvailable(in_sz);
+            rbuf_notify->buffer_available(in_sz);
     }
 
     return s;
@@ -334,7 +334,7 @@ bool buffer_handler_generic::commit_write_buffer_data(void *in_ptr, size_t in_sz
         if (!s)
             wbuf_notify->buffer_error("error committing to write buffer");
         else
-            wbuf_notify->BufferAvailable(in_sz);
+            wbuf_notify->buffer_available(in_sz);
     }
 
     return s;
@@ -357,7 +357,7 @@ void buffer_handler_generic::set_read_buffer_interface(buffer_interface *in_inte
 
     size_t pending = get_read_buffer_used();
     if (pending)
-        rbuf_notify->BufferAvailable(pending);
+        rbuf_notify->buffer_available(pending);
 }
 
 void buffer_handler_generic::set_write_buffer_interface(buffer_interface *in_interface) {
@@ -368,7 +368,7 @@ void buffer_handler_generic::set_write_buffer_interface(buffer_interface *in_int
     size_t pending = get_write_buffer_used();
 
     if (pending)
-        wbuf_notify->BufferAvailable(pending);
+        wbuf_notify->buffer_available(pending);
 }
 
 void buffer_handler_generic::remove_read_buffer_interface() {

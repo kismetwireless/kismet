@@ -87,7 +87,7 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     buffer_error(in_error);
 }
 
-void KisExternalInterface::BufferAvailable(size_t in_amt) {
+void KisExternalInterface::buffer_available(size_t in_amt) {
     if (in_amt == 0)
         return;
 
@@ -201,7 +201,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
 
 void KisExternalInterface::buffer_error(std::string in_error) {
     // Try to read anything left in the buffer in case we're exiting w/ pending valid data
-    BufferAvailable(0);
+    buffer_available(0);
     
     close_external();
 }

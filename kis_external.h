@@ -69,7 +69,7 @@ public:
     virtual void trigger_error(std::string reason);
 
     // Buffer interface - called when the attached ringbuffer has data available.
-    virtual void BufferAvailable(size_t in_amt);
+    virtual void buffer_available(size_t in_amt);
 
     // Buffer interface - handles error on IPC or TCP, called when there is a 
     // low-level error on the communications stack (process death, etc).

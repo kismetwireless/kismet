@@ -399,7 +399,7 @@ public:
     virtual ~buffer_interface();
 
     // Called when the linked buffer has new data available
-    virtual void BufferAvailable(size_t in_amt) = 0;
+    virtual void buffer_available(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
     virtual void buffer_error(std::string in_error __attribute__((unused))) { }
@@ -420,7 +420,7 @@ public:
 
     virtual ~buffer_interface_func() { }
 
-    virtual void BufferAvailable(size_t in_amt) {
+    virtual void buffer_available(size_t in_amt) {
         if (available_fn != nullptr)
             available_fn(in_amt);
     }

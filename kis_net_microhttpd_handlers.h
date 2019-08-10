@@ -295,7 +295,7 @@ public:
     }
 
     // RBI interface to notify when data is in the buffer
-    virtual void BufferAvailable(size_t in_amt);
+    virtual void buffer_available(size_t in_amt);
 
     // Let the httpd callback pull the rb handler out
     std::shared_ptr<buffer_handler_generic> get_rbhandler() { return ringbuf_handler; }

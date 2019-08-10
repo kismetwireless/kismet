@@ -36,7 +36,7 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
 
     nmeainterface = buffer_interface_func(
             [this](size_t in_avail) {
-                BufferAvailable(in_avail);
+                buffer_available(in_avail);
             },
             [this](std::string in_err) {
                 buffer_error(in_err);

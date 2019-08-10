@@ -209,7 +209,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
     cl->unlock(0);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute__((unused))) {
+void Kis_Net_Httpd_Buffer_Stream_Aux::buffer_available(size_t in_amt __attribute__((unused))) {
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block

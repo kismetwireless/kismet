@@ -444,7 +444,7 @@ void KisDatasource::trigger_error(std::string in_error) {
 }
 
 void KisDatasource::buffer_error(std::string in_error) {
-    BufferAvailable(0);
+    buffer_available(0);
 
     trigger_error(in_error);
 }

@@ -30,7 +30,7 @@ GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) :
     KisGps(in_builder),
     tcpinterface {
         [this](size_t in_amt) { 
-            BufferAvailable(in_amt);
+            buffer_available(in_amt);
         },
         [this](std::string in_err) {
             buffer_error(in_err);
@@ -216,7 +216,7 @@ bool GPSGpsdV2::get_location_valid() {
     return true;
 }
 
-void GPSGpsdV2::BufferAvailable(size_t in_amt) {
+void GPSGpsdV2::buffer_available(size_t in_amt) {
     local_locker lock(gps_mutex);
 
     size_t buf_sz;

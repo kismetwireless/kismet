@@ -45,7 +45,7 @@ protected:
     buffer_interface_func nmeainterface;
 
     // buffer_interface API
-    virtual void BufferAvailable(size_t in_amt);
+    virtual void buffer_available(size_t in_amt);
     virtual void buffer_error(std::string in_err) = 0;
 
     // Have we ever seen data from the device?
