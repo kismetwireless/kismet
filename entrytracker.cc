@@ -71,7 +71,7 @@ int entry_tracker::register_field(const std::string& in_name,
     return definition->field_id;
 }
 
-std::shared_ptr<tracker_element> entry_tracker::RegisterAndGetField(const std::string& in_name,
+std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std::string& in_name,
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);

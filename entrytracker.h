@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -69,7 +69,7 @@ public:
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
-    std::shared_ptr<tracker_element> RegisterAndGetField(const std::string& in_name, 
+    std::shared_ptr<tracker_element> register_and_get_field(const std::string& in_name, 
             std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 
@@ -77,7 +77,7 @@ public:
     std::shared_ptr<TE> RegisterAndGetFieldAs(const std::string& in_name,
             std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc) {
-        return std::static_pointer_cast<TE>(RegisterAndGetField(in_name, std::move(in_builder),
+        return std::static_pointer_cast<TE>(register_and_get_field(in_name, std::move(in_builder),
                     in_desc));
     }
 

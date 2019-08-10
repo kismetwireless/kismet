@@ -1079,7 +1079,7 @@ std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_e
             Gettracker_elementPath((*si)->resolved_path, in);
 
         if (f == NULL) {
-            f = Globalreg::globalreg->entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
+            f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + IntToString(fn),
                     tracker_element_factory<tracker_element_int8>(),
                     "unallocated field");
 
