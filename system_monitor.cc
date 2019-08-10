@@ -361,7 +361,7 @@ void tracked_system_status::pre_serialize() {
     local_locker lock(&monitor_mutex);
 
     kis_battery_info batinfo;
-    Fetch_Battery_Info(&batinfo);
+    fetch_battery_info(&batinfo);
 
     set_battery_perc(batinfo.percentage);
     if (batinfo.ac && batinfo.charging) {

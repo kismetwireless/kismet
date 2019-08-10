@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -33,7 +33,7 @@ struct kis_battery_info {
 	int percentage, charging, ac, remaining_sec;
 };
 
-int Fetch_Battery_Info(kis_battery_info *out_info);
+int fetch_battery_info(kis_battery_info *out_info);
 
 #endif
 
