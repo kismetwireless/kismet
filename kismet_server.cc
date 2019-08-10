@@ -876,7 +876,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourcePcapfileBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_kismetdb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceLinuxWifiBuilder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceLinuxBluetoothBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_linux_bluetooth_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceOsxCorewlanWifiBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433Builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433MqttBuilder()));
