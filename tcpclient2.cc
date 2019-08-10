@@ -137,7 +137,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
         return in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed()) {
+    if (handler->get_write_buffer_used()) {
         FD_SET(cli_fd, out_wset);
     }
 
@@ -263,7 +263,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (connected && FD_ISSET(cli_fd, &in_wset)) {
         // Peek the entire data 
         len = handler->ZeroCopyPeekWriteBufferData((void **) &buf, 
-                handler->GetWriteBufferUsed());
+                handler->get_write_buffer_used());
 
         ret = send(cli_fd, buf, len, MSG_DONTWAIT);
 

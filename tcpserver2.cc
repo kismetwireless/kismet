@@ -153,7 +153,7 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
                 maxfd = i->first;
         }
 
-        if (i->second->GetWriteBufferUsed() > 0) {
+        if (i->second->get_write_buffer_used() > 0) {
             FD_SET(i->first, out_wset);
 
             if (maxfd < i->first)
@@ -275,7 +275,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         if (FD_ISSET(i->first, &in_wset)) {
             len = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, 
-                    i->second->GetWriteBufferUsed());
+                    i->second->get_write_buffer_used());
 
             if (len > 0) {
                 ret = send(i->first, buf, len, MSG_DONTWAIT);

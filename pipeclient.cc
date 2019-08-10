@@ -100,7 +100,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     int max_fd = in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (write_fd > -1 && handler->GetWriteBufferUsed()) {
+    if (write_fd > -1 && handler->get_write_buffer_used()) {
         FD_SET(write_fd, out_wset);
         if (write_fd > in_max_fd)
             max_fd = write_fd;
@@ -169,7 +169,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     }
 
     if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
-        len = handler->GetWriteBufferUsed();
+        len = handler->get_write_buffer_used();
 
         // Let the caller consider doing something with a full buffer
         if (len == 0)

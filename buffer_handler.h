@@ -178,7 +178,7 @@ public:
     virtual ssize_t get_write_buffer_size();
 
     virtual size_t GetReadBufferUsed();
-    virtual size_t GetWriteBufferUsed();
+    virtual size_t get_write_buffer_used();
 
     virtual ssize_t GetReadBufferAvailable();
     virtual ssize_t GetWriteBufferAvailable();

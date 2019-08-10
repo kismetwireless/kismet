@@ -135,7 +135,7 @@ int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) 
         return in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed())
+    if (handler->get_write_buffer_used())
         FD_SET(device_fd, out_wset);
 
     // We always want to read data if we have any space
@@ -209,7 +209,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     }
 
     if (FD_ISSET(device_fd, &in_wset)) {
-        len = handler->GetWriteBufferUsed();
+        len = handler->get_write_buffer_used();
 
         // Peek the data into our buffer
         ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
