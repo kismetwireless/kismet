@@ -68,7 +68,7 @@ public:
             std::shared_ptr<rename_map> name_map = nullptr) override {
         local_locker lock(&mutex);
 
-        if (in_elem->get_type() == TrackerType::TrackerVector) {
+        if (in_elem->get_type() == tracker_type::tracker_vector) {
             for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
                 JsonAdapter::Pack(stream, i, name_map);
                 stream << "\n";
@@ -109,7 +109,7 @@ public:
 // top-level record would be represented as:
 // {
 //    "objname": "kismet.device.base",
-//    "objtype": "TrackerMap",
+//    "objtype": "tracker_map",
 //    "objdata": {
 //       ... device fields
 //     }
@@ -120,7 +120,7 @@ public:
 // ...
 //    "kismet.device.base.key": {
 //        "objname": "kismet.device.base.key",
-//        "objtype": "TrackerUInt64",
+//        "objtype": "tracker_uint64",
 //        "objdata": 31777509604288
 //     }
 // ...

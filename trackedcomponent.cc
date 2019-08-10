@@ -66,7 +66,7 @@ shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_
 
     // Find the value of any known fields in the importer element; only try
     // if the imported element is a map
-    if (e != nullptr && e->get_type() == TrackerType::TrackerMap) {
+    if (e != nullptr && e->get_type() == tracker_type::tracker_map) {
         r = e->get_sub(i);
 
         if (r != nullptr) {
@@ -119,7 +119,7 @@ shared_tracker_element tracker_component::get_child_path(const std::vector<std::
         if (next_elem == nullptr) {
             // If we're just starting, find the top element in this object
             next_elem = get_sub(id);
-        } else if (next_elem->get_type() == TrackerType::TrackerMap) {
+        } else if (next_elem->get_type() == tracker_type::tracker_map) {
             // Otherwise, find the next element of the path in the object in the chain
             // we're currently inspecting, assuming it's a map
             next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);

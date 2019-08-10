@@ -1484,8 +1484,8 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
         shared_tracker_element e = 
             StorageLoader::storage_to_tracker(sjson);
 
-        if (e->get_type() != TrackerType::TrackerMap) 
-            throw StructuredDataException(fmt::format("Expected a TrackerMap from loading the storage "
+        if (e->get_type() != tracker_type::tracker_map) 
+            throw StructuredDataException(fmt::format("Expected a tracker_map from loading the storage "
                     "element, but got {}", e->type_to_typestring(e->get_type())));
 
         // Adopt it into a device

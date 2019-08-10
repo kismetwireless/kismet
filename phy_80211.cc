@@ -3126,7 +3126,7 @@ void Kis_80211_Phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tra
     if (in_storage == NULL || in_device == NULL)
         return;
 
-    if (in_storage->get_type() != TrackerType::TrackerMap)
+    if (in_storage->get_type() != tracker_type::tracker_map)
         return;
 
     auto in_map =
@@ -3137,7 +3137,7 @@ void Kis_80211_Phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tra
 
     // Adopt it into a dot11
     if (d11devi != in_map->end()) {
-        if (d11devi->second->get_type() != TrackerType::TrackerMap)
+        if (d11devi->second->get_type() != tracker_type::tracker_map)
             return;
 
         auto d11dev =

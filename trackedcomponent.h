@@ -55,7 +55,7 @@
 // can be annealed into the c++ representation without copying/re-parsing the data.
 //
 // Subclasses MUST override the signature, typically with a checksum of the class
-// name, so that the entry tracker can differentiate multiple TrackerMap classes
+// name, so that the entry tracker can differentiate multiple tracker_map classes
 class tracker_component : public tracker_element_map {
 
 // Ugly trackercomponent macro for proxying trackerelement values

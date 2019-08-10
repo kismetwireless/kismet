@@ -522,7 +522,7 @@ protected:
     virtual void register_fields() override;
 
     // We don't build quite like a normal object so just remember what our
-    // element ID is - it's a generic TrackerMap which holds our serializable
+    // element ID is - it's a generic tracker_map which holds our serializable
     // presentation data for indexing sources
     int datasource_entity_id;
 

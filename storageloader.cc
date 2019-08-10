@@ -44,7 +44,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
 
     std::string objname;
     std::string objtypestr;
-    TrackerType objtype;
+    tracker_type objtype;
 
     std::shared_ptr<StructuredData> objdata;
 
@@ -82,65 +82,65 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
     try {
         switch (objtype) {
             // Integer types are directly coerced
-            case TrackerType::TrackerInt8:
+            case tracker_type::tracker_int8:
                 elem = std::make_shared<tracker_element_int8>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerUInt8:
+            case tracker_type::tracker_uint8:
                 elem = std::make_shared<tracker_element_uint8>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerInt16:
+            case tracker_type::tracker_int16:
                 elem = std::make_shared<tracker_element_int16>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerUInt16:
+            case tracker_type::tracker_uint16:
                 elem = std::make_shared<tracker_element_uint16>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerInt32:
+            case tracker_type::tracker_int32:
                 elem = std::make_shared<tracker_element_int32>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerUInt32:
+            case tracker_type::tracker_uint32:
                 elem = std::make_shared<tracker_element_uint32>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerInt64:
+            case tracker_type::tracker_int64:
                 elem = std::make_shared<tracker_element_int64>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerUInt64:
+            case tracker_type::tracker_uint64:
                 elem = std::make_shared<tracker_element_uint64>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerFloat:
+            case tracker_type::tracker_float:
                 elem = std::make_shared<tracker_element_float>();
                 elem->coercive_set(objdata->getNumber());
                 break;
-            case TrackerType::TrackerDouble:
+            case tracker_type::tracker_double:
                 elem = std::make_shared<tracker_element_double>();
                 elem->coercive_set(objdata->getNumber());
                 break;
                 // String and string-like types are directly coerced
-            case TrackerType::TrackerString:
+            case tracker_type::tracker_string:
                 elem = std::make_shared<tracker_element_string>();
                 elem->coercive_set(objdata->getString());
                 break;
-            case TrackerType::TrackerMac:
+            case tracker_type::tracker_mac_addr:
                 elem = std::make_shared<tracker_element_mac_addr>();
                 elem->coercive_set(objdata->getString());
                 break;
-            case TrackerType::TrackerUuid:
+            case tracker_type::tracker_uuid:
                 elem = std::make_shared<tracker_element_uuid>();
                 elem->coercive_set(objdata->getString());
                 break;
-            case TrackerType::TrackerKey:
+            case tracker_type::tracker_key:
                 elem = std::make_shared<tracker_element_device_key>();
                 elem->coercive_set(objdata->getString());
                 break;
                 // Map and vector types need to be iteratively processed
-            case TrackerType::TrackerVector:
+            case tracker_type::tracker_vector:
                 elem = std::make_shared<tracker_element_vector>();
                 for (auto i : objdata->getStructuredArray()) {
                     auto re = storage_to_tracker(i);
@@ -150,7 +150,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                 }
 
                 break;
-            case TrackerType::TrackerMap:
+            case tracker_type::tracker_map:
                 elem = std::make_shared<tracker_element_map>();
 
                 for (auto i : objdata->getStructuredStrMap()) {
@@ -161,7 +161,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                 }
 
                 break;
-            case TrackerType::TrackerMacMap:
+            case tracker_type::tracker_mac_map:
                 elem = std::make_shared<tracker_element_mac_map>();
 
                 for (auto i : objdata->getStructuredStrMap()) {
@@ -176,7 +176,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                 }
 
                 break;
-            case TrackerType::TrackerIntMap:
+            case tracker_type::tracker_int_map:
                 elem = std::make_shared<tracker_element_int_map>();
 
                 for (auto i : objdata->getStructuredNumMap()) {
@@ -187,7 +187,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                 }
 
                 break;
-            case TrackerType::TrackerDoubleMap:
+            case tracker_type::tracker_double_map:
                 elem = std::make_shared<tracker_element_double_map>();
 
                 for (auto i : objdata->getStructuredNumMap()) {
@@ -196,7 +196,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                     if (re != NULL) 
                         std::static_pointer_cast<tracker_element_double_map>(elem)->insert(i.first, re);
                 }
-            case TrackerType::TrackerStringMap:
+            case tracker_type::tracker_string_map:
                 elem = std::make_shared<tracker_element_string_map>();
 
                 for (auto i : objdata->getStructuredStrMap()) {
@@ -207,7 +207,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                 }
 
                 break;
-            case TrackerType::TrackerKeyMap:
+            case tracker_type::tracker_key_map:
                 elem = std::make_shared<tracker_element_device_key_map>();
 
                 for (auto i : objdata->getStructuredStrMap()) {
@@ -221,7 +221,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
                         std::static_pointer_cast<tracker_element_device_key_map>(elem)->insert(k, re);
                 }
                 break;
-            case TrackerType::TrackerByteArray:
+            case tracker_type::tracker_byte_array:
                 // hexstr = hexstr_to_binstr(objdata->getString().c_str());
                 elem = std::make_shared<tracker_element_byte_array>();
 
