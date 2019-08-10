@@ -146,7 +146,7 @@ void GpsTracker::register_gps_builder(shared_gps_builder in_builder) {
 std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
     local_locker lock(&gpsmanager_mutex);
 
-    SharedGps gps;
+    shared_gps gps;
     shared_gps_builder builder;
 
     size_t cpos = in_definition.find(":");
@@ -179,7 +179,7 @@ std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
     // If it's a singleton make sure we don't have something built already
     if (builder->get_singleton()) {
         for (auto d : *gps_instances_vec) {
-            SharedGps igps = std::static_pointer_cast<kis_gps>(d);
+            shared_gps igps = std::static_pointer_cast<kis_gps>(d);
 
             if (igps->get_gps_prototype()->get_gps_class() == types) {
                 _MSG("GPSTRACKER - Already defined a GPS of type '" + types + "', this "
@@ -204,8 +204,8 @@ std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
     // Sort running GPS by priority
     sort(gps_instances_vec->begin(), gps_instances_vec->end(), 
             [](const shared_tracker_element a, const shared_tracker_element b) -> bool {
-                SharedGps ga = std::static_pointer_cast<kis_gps>(a);
-                SharedGps gb = std::static_pointer_cast<kis_gps>(b);
+                shared_gps ga = std::static_pointer_cast<kis_gps>(a);
+                shared_gps gb = std::static_pointer_cast<kis_gps>(b);
 
                 return ga->get_gps_priority() < gb->get_gps_priority();
             });
@@ -218,7 +218,7 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
 
     // Iterate 
     for (auto d : *gps_instances_vec) {
-        SharedGps gps = std::static_pointer_cast<kis_gps>(d);
+        shared_gps gps = std::static_pointer_cast<kis_gps>(d);
 
         if (gps->get_gps_data_only())
             continue;

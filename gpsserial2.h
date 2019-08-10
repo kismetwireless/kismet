@@ -87,8 +87,8 @@ public:
         set_int_singleton(false);
     }
 
-    virtual SharedGps build_gps(shared_gps_builder in_builder) override {
-        return SharedGps(new GPSSerialV2(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder) override {
+        return shared_gps(new GPSSerialV2(in_builder));
     }
 };
 

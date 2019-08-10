@@ -38,7 +38,7 @@ class KisGpsBuilder;
 typedef std::shared_ptr<KisGpsBuilder> shared_gps_builder;
 
 class kis_gps;
-typedef std::shared_ptr<kis_gps> SharedGps;
+typedef std::shared_ptr<kis_gps> shared_gps;
 
 // GPS builders are responsible for telling the GPS tracker what sort of GPS,
 // the basic priority, the type and default name, and so on.
@@ -78,7 +78,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual SharedGps build_gps(shared_gps_builder) {
+    virtual shared_gps build_gps(shared_gps_builder) {
         return NULL;
     }
 

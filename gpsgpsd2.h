@@ -97,8 +97,8 @@ public:
         set_int_default_name("gpsd");
     }
 
-    virtual SharedGps build_gps(shared_gps_builder in_builder) {
-        return SharedGps(new GPSGpsdV2(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder) {
+        return shared_gps(new GPSGpsdV2(in_builder));
     }
 };
 

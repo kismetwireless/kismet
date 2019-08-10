@@ -32,7 +32,7 @@ class KisGpsBuilder;
 typedef std::shared_ptr<KisGpsBuilder> shared_gps_builder;
 
 class kis_gps;
-typedef std::shared_ptr<kis_gps> SharedGps;
+typedef std::shared_ptr<kis_gps> shared_gps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
 class kis_gps_packinfo : public packet_component {

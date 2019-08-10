@@ -58,8 +58,8 @@ public:
         set_int_singleton(true);
     }
 
-    virtual SharedGps build_gps(shared_gps_builder in_builder) {
-        return SharedGps(new kis_gps_fake(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder) {
+        return shared_gps(new kis_gps_fake(in_builder));
     }
 };
 
