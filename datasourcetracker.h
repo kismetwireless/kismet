@@ -199,28 +199,28 @@ protected:
 typedef std::shared_ptr<datasource_tracker_source_list> shared_dst_source_list;
 
 // Tracker/serializable record of default values used for all datasources
-class datasourcetracker_defaults : public tracker_component {
+class datasource_tracker_defaults : public tracker_component {
 public:
-    datasourcetracker_defaults() :
+    datasource_tracker_defaults() :
         tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    datasourcetracker_defaults(int in_id) :
+    datasource_tracker_defaults(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    datasourcetracker_defaults(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_tracker_defaults(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("datasourcetracker_defaults");
+        return adler32_checksum("datasource_tracker_defaults");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -445,7 +445,7 @@ public:
     double string_to_rate(std::string in_str, double in_default);
 
     // Access the defaults
-    std::shared_ptr<datasourcetracker_defaults> get_config_defaults();
+    std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
     // Queue a remote handler to be removed
     void queue_dead_remote(dst_incoming_remote *in_dead);
@@ -502,7 +502,7 @@ protected:
     unsigned int next_source_num;
     std::map<uuid, unsigned int> uuid_source_num_map;
 
-    std::shared_ptr<datasourcetracker_defaults> config_defaults;
+    std::shared_ptr<datasource_tracker_defaults> config_defaults;
 
     // Re-assign channel hopping because we've opened a new source
     // and want to do channel split

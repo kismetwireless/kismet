@@ -404,7 +404,7 @@ void datasource_tracker::databaselog_write_datasources() {
     dbf->log_datasources(v);
 }
 
-std::shared_ptr<datasourcetracker_defaults> datasource_tracker::get_config_defaults() {
+std::shared_ptr<datasource_tracker_defaults> datasource_tracker::get_config_defaults() {
     return config_defaults;
 }
 
@@ -418,8 +418,8 @@ void datasource_tracker::Deferred_Startup() {
     next_source_num = 0;
 
     config_defaults = 
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<datasourcetracker_defaults>("kismet.datasourcetracker.defaults",
-                tracker_element_factory<datasourcetracker_defaults>(),
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<datasource_tracker_defaults>("kismet.datasourcetracker.defaults",
+                tracker_element_factory<datasource_tracker_defaults>(),
                 "Datasource default values");
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("channel_hop", true)) {
@@ -1157,7 +1157,7 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 class dst_chansplit_worker : public datasource_tracker_worker {
 public:
     dst_chansplit_worker(datasource_tracker *in_dst,
-            std::shared_ptr<datasourcetracker_defaults> in_defaults, 
+            std::shared_ptr<datasource_tracker_defaults> in_defaults, 
             shared_datasource in_ds) {
         dst = in_dst;
         defaults = in_defaults;
@@ -1260,7 +1260,7 @@ protected:
     shared_datasource initial_ds;
     std::vector<shared_datasource> target_sources;
 
-    std::shared_ptr<datasourcetracker_defaults> defaults;
+    std::shared_ptr<datasource_tracker_defaults> defaults;
 
 };
 
