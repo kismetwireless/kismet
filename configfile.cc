@@ -654,7 +654,7 @@ std::string header_value_config::get_header() {
     return header;
 }
 
-void header_value_config::setHeader(const std::string& in_str) {
+void header_value_config::set_header(const std::string& in_str) {
     local_locker l(&mutex);
     header = in_str;
 }

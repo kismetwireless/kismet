@@ -177,7 +177,7 @@ public:
     void parse_line(const std::string& in_confline);
 
     std::string get_header();
-    void setHeader(const std::string& in_str);
+    void set_header(const std::string& in_str);
 
     // Does a key exist?
     bool hasKey(const std::string& in_key);

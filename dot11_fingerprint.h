@@ -68,7 +68,7 @@ public:
     // Turn it into a complex config line
     header_value_config asConfigComplex(mac_addr m) {
         header_value_config hc;
-        hc.setHeader(m.asString());
+        hc.set_header(m.asString());
         hc.setValue("beacon_hash", get_beacon_hash());
         hc.setValue("response_hash", get_response_hash());
 
