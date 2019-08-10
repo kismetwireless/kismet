@@ -28,8 +28,8 @@
 #include "kis_net_microhttpd.h"
 #include "trackedlocation.h"
 
-class KisGpsBuilder;
-typedef std::shared_ptr<KisGpsBuilder> shared_gps_builder;
+class kis_gps_builder;
+typedef std::shared_ptr<kis_gps_builder> shared_gps_builder;
 
 class kis_gps;
 typedef std::shared_ptr<kis_gps> shared_gps;

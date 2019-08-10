@@ -34,32 +34,32 @@
 class Kis_Gps_Location;
 class kis_gps_packinfo;
 
-class KisGpsBuilder;
-typedef std::shared_ptr<KisGpsBuilder> shared_gps_builder;
+class kis_gps_builder;
+typedef std::shared_ptr<kis_gps_builder> shared_gps_builder;
 
 class kis_gps;
 typedef std::shared_ptr<kis_gps> shared_gps;
 
 // GPS builders are responsible for telling the GPS tracker what sort of GPS,
 // the basic priority, the type and default name, and so on.
-class KisGpsBuilder : public tracker_component {
+class kis_gps_builder : public tracker_component {
 public:
-    KisGpsBuilder() :
+    kis_gps_builder() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisGpsBuilder(int in_id) :
+    kis_gps_builder(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    virtual ~KisGpsBuilder() { }
+    virtual ~kis_gps_builder() { }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("KisGpsBuilder");
+        return adler32_checksum("kis_gps_builder");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -125,7 +125,7 @@ public:
     __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
     __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
     __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
-    __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
+    __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
     virtual kis_gps_packinfo *get_last_location() { return gps_last_location; }
@@ -175,7 +175,7 @@ protected:
     // Push the locations into the tracked locations and swap
     virtual void update_locations();
 
-    std::shared_ptr<KisGpsBuilder> gps_prototype;
+    std::shared_ptr<kis_gps_builder> gps_prototype;
 
     std::shared_ptr<tracker_element_string> gps_name;
     std::shared_ptr<tracker_element_string> gps_description;

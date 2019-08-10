@@ -43,10 +43,10 @@ public:
     virtual kis_gps_packinfo *get_last_location();
 };
 
-class gps_fake_builder : public KisGpsBuilder {
+class gps_fake_builder : public kis_gps_builder {
 public:
     gps_fake_builder() : 
-        KisGpsBuilder() { 
+        kis_gps_builder() { 
         initialize();
     }
 

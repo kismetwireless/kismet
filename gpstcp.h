@@ -68,10 +68,10 @@ protected:
     static int time_event_reconnect(TIMEEVENT_PARMS);
 };
 
-class GPSTCPBuilder : public KisGpsBuilder {
+class GPSTCPBuilder : public kis_gps_builder {
 public:
     GPSTCPBuilder() : 
-        KisGpsBuilder() { 
+        kis_gps_builder() { 
         initialize();
     }
 

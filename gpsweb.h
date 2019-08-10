@@ -60,10 +60,10 @@ protected:
     time_t last_heading_time;
 };
 
-class GPSWebBuilder : public KisGpsBuilder {
+class GPSWebBuilder : public kis_gps_builder {
 public:
     GPSWebBuilder() : 
-        KisGpsBuilder() { 
+        kis_gps_builder() { 
         initialize();
     }
 

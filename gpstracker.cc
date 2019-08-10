@@ -131,7 +131,7 @@ void GpsTracker::register_gps_builder(shared_gps_builder in_builder) {
     local_locker lock(&gpsmanager_mutex);
 
     for (auto x : *gps_prototypes_vec) {
-        shared_gps_builder gb = std::static_pointer_cast<KisGpsBuilder>(x);
+        shared_gps_builder gb = std::static_pointer_cast<kis_gps_builder>(x);
 
         if (gb->get_gps_class() == in_builder->get_gps_class()) {
             _MSG("GPSTRACKER - tried to register a duplicate GPS driver for '" +
@@ -161,7 +161,7 @@ std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
 
     // Find a driver
     for (auto p : *gps_prototypes_vec) {
-        shared_gps_builder optbuilder = std::static_pointer_cast<KisGpsBuilder>(p);
+        shared_gps_builder optbuilder = std::static_pointer_cast<kis_gps_builder>(p);
 
         if (optbuilder->get_gps_class() == types) {
             builder = optbuilder;
