@@ -189,7 +189,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
     cl->lock();
 
     // If the buffer encounters an error, unlock the variable and set the error state
-    ringbuf_handler->SetProtocolErrorCb([this]() {
+    ringbuf_handler->set_protocol_error_cb([this]() {
             trigger_error();
         });
 
@@ -203,7 +203,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
 
     if (ringbuf_handler) {
         ringbuf_handler->remove_write_buffer_interface();
-        ringbuf_handler->SetProtocolErrorCb(NULL);
+        ringbuf_handler->set_protocol_error_cb(NULL);
     }
 
     cl->unlock(0);

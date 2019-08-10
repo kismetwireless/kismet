@@ -444,7 +444,7 @@ std::shared_ptr<buffer_handler_generic> TcpServerV2::AllocateConnection(int in_f
 
     // Protocol errors kill the connection
     auto fd_alias = in_fd;
-    rbh->SetProtocolErrorCb([this, fd_alias]() {
+    rbh->set_protocol_error_cb([this, fd_alias]() {
         KillConnection(fd_alias);
     });
 

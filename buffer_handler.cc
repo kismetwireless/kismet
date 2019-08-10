@@ -418,7 +418,7 @@ void buffer_handler_generic::write_buffer_error(std::string in_error) {
         wbuf_notify->buffer_error(in_error);
 }
 
-void buffer_handler_generic::SetProtocolErrorCb(std::function<void (void)> in_cb) {
+void buffer_handler_generic::set_protocol_error_cb(std::function<void (void)> in_cb) {
     local_locker lock(handler_mutex);
 
     protoerror_cb = in_cb;

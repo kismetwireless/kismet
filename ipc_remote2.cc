@@ -46,7 +46,7 @@ IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg,
 
     ipchandler = in_rbhandler;
 
-    ipchandler->SetProtocolErrorCb([this]() {
+    ipchandler->set_protocol_error_cb([this]() {
         close_ipc();
     });
 
@@ -71,7 +71,7 @@ IPCRemoteV2::~IPCRemoteV2() {
     }
 
     if (ipchandler != nullptr) {
-        ipchandler->SetProtocolErrorCb([]() { });
+        ipchandler->set_protocol_error_cb([]() { });
         ipchandler->buffer_error("IPC process has closed");
     }
 
@@ -111,7 +111,7 @@ void IPCRemoteV2::close_ipc() {
     }
 
     if (ipchandler != nullptr) {
-        ipchandler->SetProtocolErrorCb([]() { });
+        ipchandler->set_protocol_error_cb([]() { });
         ipchandler->buffer_error("IPC process has closed");
     }
 

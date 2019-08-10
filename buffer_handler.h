@@ -298,7 +298,7 @@ public:
     virtual void protocol_error();
     // Set a protocol error callback; line level drivers should set this and initiate
     // a shutdown of the line connections
-    virtual void SetProtocolErrorCb(std::function<void (void)> in_cb);
+    virtual void set_protocol_error_cb(std::function<void (void)> in_cb);
 
     friend class buffer_handler_generic_locker;
 
