@@ -152,7 +152,7 @@ Systemmonitor::Systemmonitor() :
 
                         {
                             local_locker l(&monitor_mutex);
-                            Globalreg::globalreg->entrytracker->Serialize("json", js, status, NULL);
+                            Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
                         }
 
                         kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
@@ -179,7 +179,7 @@ Systemmonitor::Systemmonitor() :
 
                 {
                     local_locker l(&monitor_mutex);
-                    Globalreg::globalreg->entrytracker->Serialize("json", js, status, NULL);
+                    Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
                 }
 
                 kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());

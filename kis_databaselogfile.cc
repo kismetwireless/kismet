@@ -909,7 +909,7 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
 
     std::stringstream sstr;
 
-    // Serialize the device
+    // serialize the device
     JsonAdapter::Pack(sstr, d, NULL);
     std::string streamstring = sstr.str();
 

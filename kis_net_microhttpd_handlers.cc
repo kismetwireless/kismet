@@ -55,7 +55,7 @@ void Kis_Net_Httpd_Handler::Httpd_Serialize(const std::string& path,
         std::ostream& stream,
         std::shared_ptr<tracker_element> elem, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename) {
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, elem, rename);
+    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, elem, rename);
 }
 
 std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {

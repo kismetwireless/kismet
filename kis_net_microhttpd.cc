@@ -1307,7 +1307,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_response(
         else
             output_content = content;
 
-        Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+        Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
     } catch (const std::exception& e) {
         stream << "Error: " << e.what() << "\n";
         connection->httpcode = 500;
@@ -1418,12 +1418,12 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
         auto simple = 
             Summarizetracker_element(output_content, summary_vec, rename_map);
 
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
         return MHD_YES;
     }
 
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url), stream, 
             output_content, nullptr);
     return MHD_YES;
 }
@@ -1516,7 +1516,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
         else
             output_content = content;
 
-        Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+        Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
     } catch (const std::exception& e) {
         stream << "Error: " << e.what() << "\n";
         connection->httpcode = 500;
@@ -1627,12 +1627,12 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
         auto simple = 
             Summarizetracker_element(output_content, summary_vec, rename_map);
 
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
         return MHD_YES;
     }
 
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url), stream, 
             output_content, nullptr);
     return MHD_YES;
 }
@@ -1728,7 +1728,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_create_stream_response(
         return MHD_YES;
     }
 
-    Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+    Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
 
     return MHD_YES;
 }
@@ -1830,12 +1830,12 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
         auto simple = 
             Summarizetracker_element(output_content, summary_vec, rename_map);
 
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
         return MHD_YES;
     }
 
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
+    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url), stream, 
             output_content, nullptr);
     return MHD_YES;
 }

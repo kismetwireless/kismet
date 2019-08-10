@@ -119,7 +119,7 @@ void GpsTracker::log_snapshot_gps() {
         gettimeofday(&tv, NULL);
 
         std::stringstream ss;
-        Globalreg::globalreg->entrytracker->Serialize("json", ss, d, NULL);
+        Globalreg::globalreg->entrytracker->serialize("json", ss, d, NULL);
 
         dbf->log_snapshot(NULL, tv, "GPS", ss.str());
     }
@@ -296,13 +296,13 @@ void GpsTracker::httpd_create_stream_response(
     std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/gps/drivers") {
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, 
                 gps_prototypes_vec, NULL);
         return;
     }
 
     if (stripped == "/gps/all_gps") {
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, 
                 gps_instances_vec, NULL);
         return;
     }
@@ -333,7 +333,7 @@ void GpsTracker::httpd_create_stream_response(
             loctrip->set_valid(false);
         }
 
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, loctrip, NULL);
+        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, loctrip, NULL);
         return;
     }
 

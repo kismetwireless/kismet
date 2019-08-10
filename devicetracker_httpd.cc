@@ -339,11 +339,11 @@ int device_tracker::httpd_create_stream_response(
                     // Set the mime component of the url
                     connection->mime_url = tokenurl[4];
 
-                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
+                    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
                     return MHD_YES;
                 }
 
-                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
+                Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
                 // fmt::print(stderr, "Wrote data for key {}", key);
 
                 return MHD_YES;
@@ -374,7 +374,7 @@ int device_tracker::httpd_create_stream_response(
                 devvec->push_back(mmpi->second);
             }
 
-            Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+            Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         } else if (tokenurl[2] == "last-time") {
@@ -408,7 +408,7 @@ int device_tracker::httpd_create_stream_response(
             MatchOnReadonlyDevices(fw);
             devvec = fw->GetMatchedDevices();
 
-            Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+            Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         }
@@ -574,7 +574,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
                         devvec->push_back(SummarizeSingletracker_element(mmpi->second, summary_vec, rename_map));
 
-                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                             devvec, rename_map);
 
                     return MHD_YES;
@@ -614,7 +614,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     auto simple = 
                         SummarizeSingletracker_element(dev, summary_vec, rename_map);
 
-                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
+                    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), 
                             stream, simple, rename_map);
 
                     return MHD_YES;
@@ -721,7 +721,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     outdevs->push_back(SummarizeSingletracker_element(rd, summary_vec, rename_map));
                 }
 
-                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                         outdevs, rename_map);
                 return MHD_YES;
             }
@@ -781,7 +781,7 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         auto output = 
             kishttpd::SummarizeWithStructured(ret_devices, structured, rename_map);
 
-        Globalreg::globalreg->entrytracker->Serialize(kishttpd::GetSuffix(uri), stream, output, rename_map);
+        Globalreg::globalreg->entrytracker->serialize(kishttpd::GetSuffix(uri), stream, output, rename_map);
 
         return 200;
 

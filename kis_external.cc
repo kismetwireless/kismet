@@ -348,7 +348,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
     frame->data_sz = kis_hton32(content_sz);
 
-    // Serialize into our array
+    // serialize into our array
     c->SerializeToArray(frame->data, content_sz);
 
     // Calculate the checksum and set it in the frame

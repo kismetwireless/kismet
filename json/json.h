@@ -2017,7 +2017,7 @@ public:
   ~StyledWriter() JSONCPP_OVERRIDE {}
 
 public: // overridden from Writer
-  /** \brief Serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
+  /** \brief serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
    * \param root Value to serialize.
    * \return String containing the JSON document that represents the root value.
    */
@@ -2088,7 +2088,7 @@ public:
   ~StyledStreamWriter() {}
 
 public:
-  /** \brief Serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
+  /** \brief serialize a Value in <a HREF="http://www.json.org">JSON</a> format.
    * \param out Stream to write to. (Can be ostringstream, e.g.)
    * \param root Value to serialize.
    * \note There is no point in deriving from Writer, since write() should not

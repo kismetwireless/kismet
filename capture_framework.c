@@ -2256,7 +2256,7 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
     frame->data_sz = htonl(data_sz);
 
-    /* Serialize into the data payload of the frame */
+    /* serialize into the data payload of the frame */
     kismet_external__command__pack(&cmd, frame->data);
 
     /* Checksum the data payload */
