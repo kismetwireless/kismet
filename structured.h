@@ -125,7 +125,7 @@ public:
     // Get structured sub-arrays
     virtual structured_vec as_vector() = 0;
     virtual structured_num_map as_number_map() = 0;
-    virtual structured_str_map getStructuredStrMap() = 0;
+    virtual structured_str_map as_string_map() = 0;
 
     // Convert a structured array of paired arrays, or a structured dictinary of k:v pairs, to
     // a std::pair<string, string> structure useful in other functions.  May throw its own exceptions
@@ -148,7 +148,7 @@ public:
                 ret.push_back(std::make_pair(sub[0]->as_string(), sub[1]->as_string()));
             }
         } else if (is_dictionary()) {
-            for (auto i : getStructuredStrMap()) {
+            for (auto i : as_string_map()) {
                 ret.push_back(std::make_pair(i.first, i.second->as_string()));
             }
         } else {

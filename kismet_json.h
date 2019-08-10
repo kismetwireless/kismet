@@ -237,7 +237,7 @@ public:
         return m;
     }
 
-    virtual structured_str_map getStructuredStrMap() {
+    virtual structured_str_map as_string_map() {
         except_if_not(is_dictionary(), "dictionary/map");
 
         structured_str_map m;

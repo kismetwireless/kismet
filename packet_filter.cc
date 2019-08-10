@@ -457,7 +457,7 @@ unsigned int packet_filter_mac_addr::edit_endp_handler(std::ostream& stream,
         // path[3] phy
         // path[4] block
 
-        for (auto i : filter->getStructuredStrMap()) {
+        for (auto i : filter->as_string_map()) {
             mac_addr m{i.first};
             bool v = i.second->as_bool();
 

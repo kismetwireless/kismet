@@ -40,7 +40,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
     if (!d->is_dictionary()) 
         throw std::runtime_error("expected dictionary object from structured serialization");
 
-    structured_data::structured_str_map m = d->getStructuredStrMap();
+    structured_data::structured_str_map m = d->as_string_map();
 
     std::string objname;
     std::string objtypestr;
@@ -153,7 +153,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             case tracker_type::tracker_map:
                 elem = std::make_shared<tracker_element_map>();
 
-                for (auto i : objdata->getStructuredStrMap()) {
+                for (auto i : objdata->as_string_map()) {
                     auto re = storage_to_tracker(i.second);
 
                     if (re != NULL) 
@@ -164,7 +164,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             case tracker_type::tracker_mac_map:
                 elem = std::make_shared<tracker_element_mac_map>();
 
-                for (auto i : objdata->getStructuredStrMap()) {
+                for (auto i : objdata->as_string_map()) {
                     mac_addr m(i.first);
                     if (m.error)
                         throw std::runtime_error("unable to process mac address key in macmap");
@@ -199,7 +199,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             case tracker_type::tracker_string_map:
                 elem = std::make_shared<tracker_element_string_map>();
 
-                for (auto i : objdata->getStructuredStrMap()) {
+                for (auto i : objdata->as_string_map()) {
                     auto re = storage_to_tracker(i.second);
 
                     if (re != NULL)
@@ -210,7 +210,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             case tracker_type::tracker_key_map:
                 elem = std::make_shared<tracker_element_device_key_map>();
 
-                for (auto i : objdata->getStructuredStrMap()) {
+                for (auto i : objdata->as_string_map()) {
                     device_key k(i.first);
                     if (k.get_error())
                         throw std::runtime_error("unable to process device key in keymap");
