@@ -603,12 +603,12 @@ uint32_t config_file::fetch_file_checksum() {
     local_locker lock(&config_locker);
 
     if (checksum == 0)
-        CalculateChecksum();
+        calculate_file_checksum();
 
     return checksum;
 }
 
-void config_file::CalculateChecksum() {
+void config_file::calculate_file_checksum() {
     local_locker lock(&config_locker);
 
     std::string cks;

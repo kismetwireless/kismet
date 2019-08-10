@@ -131,7 +131,7 @@ protected:
         std::string sourcefile;
     };
 
-	void CalculateChecksum();
+	void calculate_file_checksum();
 
     // Optional included file, don't error if it's not found
     int ParseOptInclude(const std::string path,
