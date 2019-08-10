@@ -50,15 +50,15 @@
 // This code replaces tcpserver and netframework with a cleaner TCP implementation
 // which interacts with a bufferhandler
 
-class TcpServerV2 : public Pollable {
+class tcp_server_v2 : public Pollable {
 public:
     struct ipfilter {
         in_addr network;
         in_addr mask;
     };
 
-    TcpServerV2(global_registry *in_globalreg);
-    virtual ~TcpServerV2();
+    tcp_server_v2(global_registry *in_globalreg);
+    virtual ~tcp_server_v2();
 
     virtual int ConfigureServer(short int in_port, unsigned int in_maxcli,
             std::string in_bindaddress, std::vector<std::string> in_filtervec);
@@ -100,7 +100,7 @@ protected:
 
     struct sockaddr_in serv_sock;
 
-    std::vector<TcpServerV2::ipfilter> ipfilter_vec;
+    std::vector<tcp_server_v2::ipfilter> ipfilter_vec;
 
     int server_fd;
 

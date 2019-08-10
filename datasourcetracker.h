@@ -339,7 +339,7 @@ protected:
 class datasource_tracker_httpd_pcap;
 
 class datasource_tracker : public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public deferred_startup, public TcpServerV2 {
+    public lifetime_global, public deferred_startup, public tcp_server_v2 {
 public:
     static std::shared_ptr<datasource_tracker> create_dst() {
         auto mon = std::make_shared<datasource_tracker>();

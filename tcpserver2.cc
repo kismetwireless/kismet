@@ -20,7 +20,7 @@
 #include "tcpserver2.h"
 #include "ringbuf2.h"
 
-TcpServerV2::TcpServerV2(global_registry *in_globalreg) {
+tcp_server_v2::tcp_server_v2(global_registry *in_globalreg) {
     globalreg = in_globalreg;
     valid = false;
     
@@ -29,15 +29,15 @@ TcpServerV2::TcpServerV2(global_registry *in_globalreg) {
     ringbuf_size = 128 * 1024;
 }
 
-TcpServerV2::~TcpServerV2() {
+tcp_server_v2::~tcp_server_v2() {
     Shutdown();
 }
 
-void TcpServerV2::SetBufferSize(unsigned int in_sz) {
+void tcp_server_v2::SetBufferSize(unsigned int in_sz) {
     ringbuf_size = in_sz;
 }
 
-int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
+int tcp_server_v2::ConfigureServer(short int in_port, unsigned int in_maxcli,
         std::string in_bindaddress, std::vector<std::string> in_filtervec) {
     local_locker l(&tcp_mutex);
 
@@ -131,7 +131,7 @@ int TcpServerV2::ConfigureServer(short int in_port, unsigned int in_maxcli,
     return 1;
 }
 
-int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int tcp_server_v2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(&tcp_mutex);
 
     int maxfd = in_max_fd;
@@ -165,7 +165,7 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 }
 
 
-int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int tcp_server_v2::Poll(fd_set& in_rset, fd_set& in_wset) {
     std::stringstream msg;
     int ret, iret;
     size_t len;
@@ -326,7 +326,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void TcpServerV2::KillConnection(int in_fd) {
+void tcp_server_v2::KillConnection(int in_fd) {
     local_locker l(&tcp_mutex);
 
     if (in_fd < 0)
@@ -340,7 +340,7 @@ void TcpServerV2::KillConnection(int in_fd) {
     }
 }
 
-void TcpServerV2::KillConnection(std::shared_ptr<buffer_handler_generic> in_handler) {
+void tcp_server_v2::KillConnection(std::shared_ptr<buffer_handler_generic> in_handler) {
     local_locker l(&tcp_mutex);
 
     for (auto i : handler_map) {
@@ -352,7 +352,7 @@ void TcpServerV2::KillConnection(std::shared_ptr<buffer_handler_generic> in_hand
     }
 }
 
-int TcpServerV2::AcceptConnection() {
+int tcp_server_v2::AcceptConnection() {
     int new_fd;
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T
@@ -404,7 +404,7 @@ int TcpServerV2::AcceptConnection() {
     return new_fd;
 }
 
-bool TcpServerV2::AllowConnection(int in_fd) {
+bool tcp_server_v2::AllowConnection(int in_fd) {
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T
     socklen_t client_len;
@@ -438,7 +438,7 @@ bool TcpServerV2::AllowConnection(int in_fd) {
     return false;
 }
 
-std::shared_ptr<buffer_handler_generic> TcpServerV2::AllocateConnection(int in_fd) {
+std::shared_ptr<buffer_handler_generic> tcp_server_v2::AllocateConnection(int in_fd) {
     // Basic allocation
     std::shared_ptr<buffer_handler_generic> rbh(new buffer_handler<RingbufV2>(ringbuf_size, ringbuf_size));  
 
@@ -451,7 +451,7 @@ std::shared_ptr<buffer_handler_generic> TcpServerV2::AllocateConnection(int in_f
     return rbh;
 }
 
-void TcpServerV2::Shutdown() {
+void tcp_server_v2::Shutdown() {
     local_locker l(&tcp_mutex);
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {

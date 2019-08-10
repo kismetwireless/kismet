@@ -298,7 +298,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
 
 datasource_tracker::datasource_tracker() :
     kis_net_httpd_cppstream_handler(),
-    TcpServerV2(Globalreg::globalreg) {
+    tcp_server_v2(Globalreg::globalreg) {
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>();
     eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
