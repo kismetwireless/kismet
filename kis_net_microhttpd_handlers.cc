@@ -222,10 +222,10 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<buffer_ha
         { 
             local_locker lock(&aux_mutex);
 
-            // fmt::print(stderr, "buffer block until sees {}\n", rbh->GetReadBufferUsed());
+            // fmt::print(stderr, "buffer block until sees {}\n", rbh->get_read_buffer_used());
 
             // Immediately return if we have pending data
-            if (rbh->GetReadBufferUsed()) {
+            if (rbh->get_read_buffer_used()) {
                 return;
             }
 

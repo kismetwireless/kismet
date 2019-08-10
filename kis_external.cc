@@ -104,7 +104,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
             return;
 
         // See if we have enough to get a frame header
-        size_t buffamt = ringbuf_handler->GetReadBufferUsed();
+        size_t buffamt = ringbuf_handler->get_read_buffer_used();
 
         if (buffamt < sizeof(kismet_external_frame_t)) {
             return;

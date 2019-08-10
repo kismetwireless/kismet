@@ -68,7 +68,7 @@ ssize_t buffer_handler_generic::get_write_buffer_size() {
     return 0;
 }
 
-size_t buffer_handler_generic::GetReadBufferUsed() {
+size_t buffer_handler_generic::get_read_buffer_used() {
     if (read_buffer)
         return read_buffer->used();
 
@@ -355,7 +355,7 @@ void buffer_handler_generic::SetReadBufferInterface(buffer_interface *in_interfa
     rbuf_notify = in_interface;
     rbuf_notify_avail = true;
 
-    size_t pending = GetReadBufferUsed();
+    size_t pending = get_read_buffer_used();
     if (pending)
         rbuf_notify->BufferAvailable(pending);
 }
