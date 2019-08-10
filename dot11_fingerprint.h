@@ -66,8 +66,8 @@ public:
     __Proxy(probe_hash, uint32_t, uint32_t, uint32_t, probe_hash);
 
     // Turn it into a complex config line
-    HeaderValueConfig asConfigComplex(mac_addr m) {
-        HeaderValueConfig hc;
+    header_value_config asConfigComplex(mac_addr m) {
+        header_value_config hc;
         hc.setHeader(m.asString());
         hc.setValue("beacon_hash", get_beacon_hash());
         hc.setValue("response_hash", get_response_hash());

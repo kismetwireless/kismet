@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -36,7 +36,7 @@
 #include "macaddr.h"
 #include "kis_mutex.h"
 
-class HeaderValueConfig;
+class header_value_config;
 
 class ConfigFile {
 public:
@@ -164,15 +164,15 @@ protected:
 //
 // Values may also be quoted:
 // confvalue=header:key1="value1,1a,1b",key2=value2,...
-class HeaderValueConfig {
+class header_value_config {
 public:
-    HeaderValueConfig(const HeaderValueConfig& hc) {
+    header_value_config(const header_value_config& hc) {
         header = hc.header;
         content_map = std::map<std::string, std::string> {hc.content_map};
     }
 
-    HeaderValueConfig(const std::string& in_confline);
-    HeaderValueConfig();
+    header_value_config(const std::string& in_confline);
+    header_value_config();
 
     void parseLine(const std::string& in_confline);
 
@@ -222,8 +222,8 @@ public:
 
     // Encode to string.  All values will be quoted for safety.
     std::string toString();
-    friend std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& c);
-    friend std::istream& operator>>(std::istream& is, HeaderValueConfig& c);
+    friend std::ostream& operator<<(std::ostream& os, const header_value_config& c);
+    friend std::istream& operator>>(std::istream& is, header_value_config& c);
 
 protected:
     kis_recursive_timed_mutex mutex;
@@ -233,8 +233,8 @@ protected:
 
 };
 
-std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& h);
-std::istream& operator>>(std::istream& is, HeaderValueConfig& h);
+std::ostream& operator<<(std::ostream& os, const header_value_config& h);
+std::istream& operator>>(std::istream& is, header_value_config& h);
 
 #endif
 

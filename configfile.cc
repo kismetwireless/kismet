@@ -623,14 +623,14 @@ void ConfigFile::CalculateChecksum() {
     checksum = adler32_checksum(cks.c_str(), cks.length());
 }
 
-HeaderValueConfig::HeaderValueConfig(const std::string& in_confline) {
+header_value_config::header_value_config(const std::string& in_confline) {
     parseLine(in_confline);
 }
 
-HeaderValueConfig::HeaderValueConfig() {
+header_value_config::header_value_config() {
 }
 
-void HeaderValueConfig::parseLine(const std::string& in_confline) {
+void header_value_config::parseLine(const std::string& in_confline) {
     local_locker l(&mutex);
 
     auto cpos = in_confline.find(":");
@@ -649,22 +649,22 @@ void HeaderValueConfig::parseLine(const std::string& in_confline) {
     }
 }
 
-std::string HeaderValueConfig::getHeader() {
+std::string header_value_config::getHeader() {
     local_locker l(&mutex);
     return header;
 }
 
-void HeaderValueConfig::setHeader(const std::string& in_str) {
+void header_value_config::setHeader(const std::string& in_str) {
     local_locker l(&mutex);
     header = in_str;
 }
 
-bool HeaderValueConfig::hasKey(const std::string& in_str) {
+bool header_value_config::hasKey(const std::string& in_str) {
     local_locker l(&mutex);
     return (content_map.find(in_str) != content_map.end());
 }
 
-std::string HeaderValueConfig::getValue(const std::string& in_str) {
+std::string header_value_config::getValue(const std::string& in_str) {
     local_locker l(&mutex);
     
     auto vi = content_map.find(in_str);
@@ -675,7 +675,7 @@ std::string HeaderValueConfig::getValue(const std::string& in_str) {
     return vi->second;
 }
 
-std::string HeaderValueConfig::getValue(const std::string& in_str, const std::string& in_defl) {
+std::string header_value_config::getValue(const std::string& in_str, const std::string& in_defl) {
     local_locker l(&mutex);
 
     auto vi = content_map.find(in_str);
@@ -686,7 +686,7 @@ std::string HeaderValueConfig::getValue(const std::string& in_str, const std::st
     return vi->second;
 }
 
-void HeaderValueConfig::eraseKey(const std::string& in_key) {
+void header_value_config::eraseKey(const std::string& in_key) {
     local_locker l(&mutex);
 
     auto vi = content_map.find(in_key);
@@ -697,7 +697,7 @@ void HeaderValueConfig::eraseKey(const std::string& in_key) {
     content_map.erase(vi);
 }
 
-std::string HeaderValueConfig::toString() {
+std::string header_value_config::toString() {
     std::stringstream ss;
 
     ss << header << ":";
@@ -714,7 +714,7 @@ std::string HeaderValueConfig::toString() {
     return ss.str();
 }
 
-std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& h) {
+std::ostream& operator<<(std::ostream& os, const header_value_config& h) {
     os << h.header << ":";
 
     bool add_comma = false;
@@ -729,7 +729,7 @@ std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& h) {
     return os;
 }
 
-std::istream& operator>>(std::istream& is, HeaderValueConfig& h) {
+std::istream& operator>>(std::istream& is, header_value_config& h) {
     std::string sline;
     std::getline(is, sline);
     h.parseLine(sline);
