@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -25,19 +25,19 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceOsxCorewlanWifi;
-typedef std::shared_ptr<KisDatasourceOsxCorewlanWifi> SharedDatasourceOsxCorewlanWifi;
+class kis_datasource_osx_corewlan_wifi;
+typedef std::shared_ptr<kis_datasource_osx_corewlan_wifi> SharedDatasourceOsxCorewlanWifi;
 
-class KisDatasourceOsxCorewlanWifi : public kis_datasource {
+class kis_datasource_osx_corewlan_wifi : public kis_datasource {
 public:
-    KisDatasourceOsxCorewlanWifi(shared_datasource_builder in_builder) :
+    kis_datasource_osx_corewlan_wifi(shared_datasource_builder in_builder) :
         kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_osx_corewlan_wifi");
     }
 
-    virtual ~KisDatasourceOsxCorewlanWifi() { };
+    virtual ~kis_datasource_osx_corewlan_wifi() { };
 
     // Almost all of the logic is implemented in the capture binary and derived
     // from our prototype; all the list, probe, etc functions proxy to our binary
@@ -76,7 +76,7 @@ public:
     virtual ~DatasourceOsxCorewlanWifiBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceOsxCorewlanWifi(new KisDatasourceOsxCorewlanWifi(in_sh_this));
+        return SharedDatasourceOsxCorewlanWifi(new kis_datasource_osx_corewlan_wifi(in_sh_this));
     }
 
     virtual void initialize() {
