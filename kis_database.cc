@@ -170,7 +170,7 @@ bool kis_database::database_valid() {
     return (db != NULL);
 }
 
-unsigned int kis_database::Database_GetDBVersion() {
+unsigned int kis_database::database_get_db_version() {
     local_locker dblock(&ds_mutex);
 
     if (db == NULL)

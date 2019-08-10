@@ -1198,7 +1198,7 @@ void device_tracker::unlock_devicelist() {
 int device_tracker::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
-    unsigned int dbv = Database_GetDBVersion();
+    unsigned int dbv = database_get_db_version();
     std::string sql;
     int r;
     char *sErrMsg = NULL;
@@ -1789,7 +1789,7 @@ device_tracker_state_store::device_tracker_state_store(global_registry *in_globa
 int device_tracker_state_store::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
-    unsigned int dbv = Database_GetDBVersion();
+    unsigned int dbv = database_get_db_version();
     std::string sql;
     int r;
     char *sErrMsg = NULL;

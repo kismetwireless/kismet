@@ -72,7 +72,7 @@ public:
 
     virtual bool database_valid();
 
-    virtual unsigned int Database_GetDBVersion();
+    virtual unsigned int database_get_db_version();
 
     // Upgrade a database which doesn't match our version
     virtual int database_upgrade_db() = 0;
