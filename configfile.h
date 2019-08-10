@@ -221,7 +221,7 @@ public:
     void erase_key(const std::string& in_key);
 
     // Encode to string.  All values will be quoted for safety.
-    std::string toString();
+    std::string to_string();
     friend std::ostream& operator<<(std::ostream& os, const header_value_config& c);
     friend std::istream& operator>>(std::istream& is, header_value_config& c);
 

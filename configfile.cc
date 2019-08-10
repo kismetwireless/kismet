@@ -697,7 +697,7 @@ void header_value_config::erase_key(const std::string& in_key) {
     content_map.erase(vi);
 }
 
-std::string header_value_config::toString() {
+std::string header_value_config::to_string() {
     std::stringstream ss;
 
     ss << header << ":";
