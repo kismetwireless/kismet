@@ -83,7 +83,7 @@ public:
 
 // "Pretty" JSON adapter.  This will include metadata about the fields, and format
 // it to be human readable.
-namespace PrettyJsonAdapter {
+namespace pretty_json_adapter {
 
 class serializer : public tracker_element_serializer {
 public:
