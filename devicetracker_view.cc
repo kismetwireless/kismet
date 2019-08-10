@@ -489,7 +489,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                 if (i->is_string()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
-                } else if (i->isArray()) {
+                } else if (i->is_array()) {
                     auto mapvec = i->getStringVec();
 
                     if (mapvec.size() != 2)
@@ -579,7 +579,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                 // Resolve the path, we only allow the first one
                 auto index_array = column_index->second->getStructuredArray();
                 if (index_array.size() > 0) {
-                    if (index_array[0]->isArray()) {
+                    if (index_array[0]->is_array()) {
                         // We only allow the first field, but make sure we're not a nested array
                         auto index_sub_array = index_array[0]->getStringVec();
                         if (index_sub_array.size() > 0) {

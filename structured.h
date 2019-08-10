@@ -99,7 +99,7 @@ public:
     virtual bool is_number() = 0;
     virtual bool is_bool() = 0;
     virtual bool is_string() = 0;
-    virtual bool isArray() = 0;
+    virtual bool is_array() = 0;
     virtual bool isDictionary() = 0;
     virtual bool isBinary() = 0;
 
@@ -133,9 +133,9 @@ public:
     std::vector<std::pair<std::string, std::string>> getAsPairVector() {
         auto ret = std::vector<std::pair<std::string, std::string>>();
 
-        if (isArray()) {
+        if (is_array()) {
             for (auto i : getStructuredArray()) {
-                if (!i->isArray()) 
+                if (!i->is_array()) 
                     throw StructuredDataUnsuitable("Cannot parse object as vector of pairs for converstion to "
                             "pair list");
 

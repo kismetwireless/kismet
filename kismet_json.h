@@ -85,8 +85,8 @@ public:
         return json.is_string();
     }
 
-    virtual bool isArray() {
-        return json.isArray();
+    virtual bool is_array() {
+        return json.is_array();
     }
 
     virtual bool isDictionary() {
@@ -119,7 +119,7 @@ public:
     }
 
     virtual number_vec getNumberVec() {
-        except_if_not(isArray(), "Array/Vector");
+        except_if_not(is_array(), "Array/Vector");
 
         number_vec v;
 
@@ -132,7 +132,7 @@ public:
     }
 
     virtual string_vec getStringVec() {
-        except_if_not(isArray(), "Array/Vector");
+        except_if_not(is_array(), "Array/Vector");
 
         string_vec v;
 
@@ -208,7 +208,7 @@ public:
     }
 
     virtual structured_vec getStructuredArray() {
-        except_if_not(isArray(), "array/vector");
+        except_if_not(is_array(), "array/vector");
 
         structured_vec v;
 

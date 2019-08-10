@@ -489,7 +489,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 if (i->is_string()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
-                } else if (i->isArray()) {
+                } else if (i->is_array()) {
                     structured_data::string_vec mapvec = i->getStringVec();
 
                     if (mapvec.size() != 2) {

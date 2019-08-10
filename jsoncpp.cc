@@ -369,7 +369,7 @@ bool Reader::parse(const char* beginDoc,
   if (collectComments_ && !commentsBefore_.empty())
     root.setComment(commentsBefore_, commentAfter);
   if (features_.strictRoot_) {
-    if (!root.isArray() && !root.isObject()) {
+    if (!root.is_array() && !root.isObject()) {
       // Set error location to start of doc, ideally should be first token found
       // in doc
       token.type_ = tokenError;
@@ -1304,7 +1304,7 @@ bool OurReader::parse(const char* beginDoc,
   if (collectComments_ && !commentsBefore_.empty())
     root.setComment(commentsBefore_, commentAfter);
   if (features_.strictRoot_) {
-    if (!root.isArray() && !root.isObject()) {
+    if (!root.is_array() && !root.isObject()) {
       // Set error location to start of doc, ideally should be first token found
       // in doc
       token.type_ = tokenError;
@@ -3374,7 +3374,7 @@ ArrayIndex Value::size() const {
 }
 
 bool Value::empty() const {
-  if (isNull() || isArray() || isObject())
+  if (isNull() || is_array() || isObject())
     return size() == 0u;
   else
     return false;
@@ -3903,7 +3903,7 @@ bool Value::isNumeric() const { return isDouble(); }
 
 bool Value::is_string() const { return type_ == stringValue; }
 
-bool Value::isArray() const { return type_ == arrayValue; }
+bool Value::is_array() const { return type_ == arrayValue; }
 
 bool Value::isObject() const { return type_ == objectValue; }
 
@@ -4091,7 +4091,7 @@ const Value& Path::resolve(const Value& root) const {
   for (Args::const_iterator it = args_.begin(); it != args_.end(); ++it) {
     const PathArgument& arg = *it;
     if (arg.kind_ == PathArgument::kindIndex) {
-      if (!node->isArray() || !node->isValidIndex(arg.index_)) {
+      if (!node->is_array() || !node->isValidIndex(arg.index_)) {
         // Error: unable to resolve path (array value expected at position...
         return Value::null;
       }
@@ -4117,7 +4117,7 @@ Value Path::resolve(const Value& root, const Value& defaultValue) const {
   for (Args::const_iterator it = args_.begin(); it != args_.end(); ++it) {
     const PathArgument& arg = *it;
     if (arg.kind_ == PathArgument::kindIndex) {
-      if (!node->isArray() || !node->isValidIndex(arg.index_))
+      if (!node->is_array() || !node->isValidIndex(arg.index_))
         return defaultValue;
       node = &((*node)[arg.index_]);
     } else if (arg.kind_ == PathArgument::kindKey) {
@@ -4136,7 +4136,7 @@ Value& Path::make(Value& root) const {
   for (Args::const_iterator it = args_.begin(); it != args_.end(); ++it) {
     const PathArgument& arg = *it;
     if (arg.kind_ == PathArgument::kindIndex) {
-      if (!node->isArray()) {
+      if (!node->is_array()) {
         // Error: node is not an array at position ...
       }
       node = &((*node)[arg.index_]);
@@ -4697,7 +4697,7 @@ bool StyledWriter::isMultilineArray(const Value& value) {
   childValues_.clear();
   for (ArrayIndex index = 0; index < size && !isMultiLine; ++index) {
     const Value& childValue = value[index];
-    isMultiLine = ((childValue.isArray() || childValue.isObject()) &&
+    isMultiLine = ((childValue.is_array() || childValue.isObject()) &&
                         childValue.size() > 0);
   }
   if (!isMultiLine) // check if line length > max line length
@@ -4916,7 +4916,7 @@ bool StyledStreamWriter::isMultilineArray(const Value& value) {
   childValues_.clear();
   for (ArrayIndex index = 0; index < size && !isMultiLine; ++index) {
     const Value& childValue = value[index];
-    isMultiLine = ((childValue.isArray() || childValue.isObject()) &&
+    isMultiLine = ((childValue.is_array() || childValue.isObject()) &&
                         childValue.size() > 0);
   }
   if (!isMultiLine) // check if line length > max line length
@@ -5199,7 +5199,7 @@ bool BuiltStyledStreamWriter::isMultilineArray(Value const& value) {
   childValues_.clear();
   for (ArrayIndex index = 0; index < size && !isMultiLine; ++index) {
     Value const& childValue = value[index];
-    isMultiLine = ((childValue.isArray() || childValue.isObject()) &&
+    isMultiLine = ((childValue.is_array() || childValue.isObject()) &&
                         childValue.size() > 0);
   }
   if (!isMultiLine) // check if line length > max line length
