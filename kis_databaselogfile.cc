@@ -1466,13 +1466,13 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
         Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
         auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>();
 
-        auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
+        auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
         saux->set_aux(dbrb,
                 [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 streamtracker->remove_streamer(dbrb->get_stream_id());
                 if (aux->aux != NULL) {
-                delete (Pcap_Stream_Database *) (aux->aux);
+                delete (pcap_stream_database *) (aux->aux);
                 }
                 });
 
@@ -1681,13 +1681,13 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>();
 
-    auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
+    auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
     saux->set_aux(dbrb,
             [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
                 streamtracker->remove_streamer(dbrb->get_stream_id());
                 if (aux->aux != NULL) {
-                    delete (Pcap_Stream_Database *) (aux->aux);
+                    delete (pcap_stream_database *) (aux->aux);
                 }
             });
 
@@ -1790,7 +1790,7 @@ std::shared_ptr<tracker_element> kis_database_logfile::list_poi_endp_handler() {
     return std::make_shared<tracker_element_vector>();
 }
 
-Pcap_Stream_Database::Pcap_Stream_Database(global_registry *in_globalreg,
+pcap_stream_database::pcap_stream_database(global_registry *in_globalreg,
         std::shared_ptr<buffer_handler_generic> in_handler) :
         Pcap_Stream_Ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
         next_pcap_intf_id {0} {
@@ -1799,14 +1799,14 @@ Pcap_Stream_Database::Pcap_Stream_Database(global_registry *in_globalreg,
     add_database_interface("0", "lo", "Placeholder for missing interface");
 }
 
-Pcap_Stream_Database::~Pcap_Stream_Database() {
+pcap_stream_database::~pcap_stream_database() {
 }
 
-void Pcap_Stream_Database::stop_stream(std::string in_reason) {
+void pcap_stream_database::stop_stream(std::string in_reason) {
     handler->protocol_error();
 }
 
-void Pcap_Stream_Database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
+void pcap_stream_database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
         const std::string& in_name) {
     
     if (db_uuid_intf_map.find(in_uuid) != db_uuid_intf_map.end())
@@ -1819,7 +1819,7 @@ void Pcap_Stream_Database::add_database_interface(const std::string& in_uuid, co
     db_uuid_intf_map[in_uuid] = intf;
 }
 
-int Pcap_Stream_Database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
+int pcap_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
         const std::string& interface_uuid, unsigned int dlt, const std::string& data) {
 
     auto pcap_intf_i = db_uuid_intf_map.find(interface_uuid);

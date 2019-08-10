@@ -281,12 +281,12 @@ public:
     }
 };
 
-class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
+class pcap_stream_database : public Pcap_Stream_Ringbuf {
 public:
-    Pcap_Stream_Database(global_registry *in_globalreg, 
+    pcap_stream_database(global_registry *in_globalreg, 
             std::shared_ptr<buffer_handler_generic> in_handler);
 
-    virtual ~Pcap_Stream_Database();
+    virtual ~pcap_stream_database();
 
     virtual void stop_stream(std::string in_reason);
 
