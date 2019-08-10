@@ -73,7 +73,7 @@ GpsTracker::GpsTracker() :
     }
 
     // Register the built-in GPS drivers
-    register_gps_builder(shared_gps_builder(new GPSSerialV2Builder()));
+    register_gps_builder(shared_gps_builder(new gps_serial_v2_builder()));
     register_gps_builder(shared_gps_builder(new GPSTCPBuilder()));
     register_gps_builder(shared_gps_builder(new gps_gpsd_v2_builder()));
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));

@@ -72,9 +72,9 @@ protected:
     static int time_event_reconnect(TIMEEVENT_PARMS);
 };
 
-class GPSSerialV2Builder : public kis_gps_builder {
+class gps_serial_v2_builder : public kis_gps_builder {
 public:
-    GPSSerialV2Builder() : 
+    gps_serial_v2_builder() : 
         kis_gps_builder() { 
         initialize();
     }
