@@ -125,16 +125,16 @@ public:
     }
 
 protected:
-    class BindingInterface {
+    class binding_interface {
     public:
-        virtual ~BindingInterface() { }
+        virtual ~binding_interface() { }
 
         virtual std::string get_query() = 0;
         virtual int bind_query(sqlite3_stmt *, int) = 0;
     };
 
     template<typename T>
-    class Binding : public BindingInterface {
+    class Binding : public binding_interface {
     public:
         Binding(const std::string& in_query, const T& in_value,
                 std::function<int (sqlite3_stmt *, int, T)> in_binder) :
@@ -162,7 +162,7 @@ protected:
         std::function<int (sqlite3_stmt *, int, T)> binder;
     };
 
-    std::vector<std::shared_ptr<BindingInterface>> bindings;
+    std::vector<std::shared_ptr<binding_interface>> bindings;
 
 };
 
