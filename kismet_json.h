@@ -113,7 +113,7 @@ public:
         return hexstr_to_binstr(as_string().c_str());
     }
 
-    virtual bool getBool() {
+    virtual bool as_bool() {
         except_if_not(is_bool() || is_string(), "Boolean");
         return json.asBool();
     }
@@ -192,7 +192,7 @@ public:
     }
 
     virtual bool getKeyAsBool(std::string key) {
-        return getStructuredByKey(key)->getBool();
+        return getStructuredByKey(key)->as_bool();
     }
 
     virtual bool getKeyAsBool(std::string key, bool def) {
@@ -204,7 +204,7 @@ public:
         if (!v->is_bool())
             return def;
 
-        return v->getBool();
+        return v->as_bool();
     }
 
     virtual structured_vec getStructuredArray() {

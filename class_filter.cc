@@ -310,7 +310,7 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
 
         for (auto i : filter->getStructuredStrMap()) {
             mac_addr m{i.first};
-            bool v = i.second->getBool();
+            bool v = i.second->as_bool();
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
