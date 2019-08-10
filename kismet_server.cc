@@ -885,7 +885,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtladsbBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtladsbMqttBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_freaklabs_zigbee_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceNrfMousejackBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();
