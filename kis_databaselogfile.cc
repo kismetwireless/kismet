@@ -81,7 +81,7 @@ kis_database_logfile::kis_database_logfile():
 }
 
 kis_database_logfile::~kis_database_logfile() {
-    auto messagebus = Globalreg::FetchGlobalAs<MessageBus>();
+    auto messagebus = Globalreg::FetchGlobalAs<message_bus>();
     if (messagebus != nullptr)
         messagebus->RemoveClient(this);
 
@@ -365,7 +365,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
         auto messagebus = 
-            Globalreg::fetch_mandatory_global_as<MessageBus>();
+            Globalreg::fetch_mandatory_global_as<message_bus>();
         messagebus->RegisterClient(this, MSGFLAG_ALL);
     }
 

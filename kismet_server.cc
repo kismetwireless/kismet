@@ -638,7 +638,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // First order - create our message bus and our client for outputting
-    MessageBus::create_messagebus(globalregistry);
+    message_bus::create_messagebus(globalregistry);
 
     // Create a smart stdout client and allocate the fatal message client, 
     // add them to the messagebus

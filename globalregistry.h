@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -35,20 +35,15 @@
 class global_registry;
 
 // Pre-defs for all the things we point to
-class MessageBus;
+class message_bus;
 
-// Old network tracking core due to be removed
-class Netracker;
 // new multiphy tracking core
 class device_tracker;
 
 class packet_chain;
 class alert_tracker;
 class time_tracker;
-class KisNetFramework;
-class KisDroneFramework;
 class config_file;
-class SoundControl;
 class Plugintracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
@@ -214,7 +209,7 @@ public:
     // Signal service thread that gets cleaned up at exit
     std::thread signal_service_thread;
     
-    MessageBus *messagebus;
+    message_bus *messagebus;
 
     // Globals which should be deprecated in favor of named globals; all code should
     // be migrated to the shared pointer references

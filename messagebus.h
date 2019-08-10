@@ -77,12 +77,12 @@ public:
     void ProcessMessage(std::string in_msg, int in_flags);
 };
 
-class MessageBus : public lifetime_global {
+class message_bus : public lifetime_global {
 public:
     static std::string global_name() { return "MESSAGEBUS"; }
 
-    static std::shared_ptr<MessageBus> create_messagebus(global_registry *in_globalreg) {
-        std::shared_ptr<MessageBus> mon(new MessageBus(in_globalreg));
+    static std::shared_ptr<message_bus> create_messagebus(global_registry *in_globalreg) {
+        std::shared_ptr<message_bus> mon(new message_bus(in_globalreg));
         in_globalreg->messagebus = mon.get();
         in_globalreg->register_lifetime_global(mon);
         in_globalreg->insert_global(global_name(), mon);
@@ -90,10 +90,10 @@ public:
     }
 
 private:
-    MessageBus(global_registry *in_globalreg);
+    message_bus(global_registry *in_globalreg);
 
 public:
-    virtual ~MessageBus();
+    virtual ~message_bus();
 
     // Inject a message into the bus
     void InjectMessage(std::string in_msg, int in_flags);
@@ -112,7 +112,7 @@ protected:
         int mask;
     } busclient;
 
-    std::vector<MessageBus::busclient *> subscribers;
+    std::vector<message_bus::busclient *> subscribers;
 
     class message {
     public:
