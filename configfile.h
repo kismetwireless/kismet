@@ -174,7 +174,7 @@ public:
     header_value_config(const std::string& in_confline);
     header_value_config();
 
-    void parseLine(const std::string& in_confline);
+    void parse_line(const std::string& in_confline);
 
     std::string getHeader();
     void setHeader(const std::string& in_str);

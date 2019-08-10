@@ -624,13 +624,13 @@ void config_file::calculate_file_checksum() {
 }
 
 header_value_config::header_value_config(const std::string& in_confline) {
-    parseLine(in_confline);
+    parse_line(in_confline);
 }
 
 header_value_config::header_value_config() {
 }
 
-void header_value_config::parseLine(const std::string& in_confline) {
+void header_value_config::parse_line(const std::string& in_confline) {
     local_locker l(&mutex);
 
     auto cpos = in_confline.find(":");
@@ -732,7 +732,7 @@ std::ostream& operator<<(std::ostream& os, const header_value_config& h) {
 std::istream& operator>>(std::istream& is, header_value_config& h) {
     std::string sline;
     std::getline(is, sline);
-    h.parseLine(sline);
+    h.parse_line(sline);
     return is;
 }
 
