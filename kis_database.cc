@@ -93,7 +93,7 @@ bool kis_database::database_open(std::string in_file_path) {
     // If the table doesn't exist, build it...
     if (!k_t_exists) {
         // Build the master table
-        if (!Database_CreateMasterTable())
+        if (!database_create_master_table())
             return false;
     }
 
@@ -110,7 +110,7 @@ void kis_database::database_close() {
     db = NULL;
 }
 
-bool kis_database::Database_CreateMasterTable() {
+bool kis_database::database_create_master_table() {
     local_locker dblock(&ds_mutex);
 
     std::string sql;

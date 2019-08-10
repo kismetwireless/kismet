@@ -78,7 +78,7 @@ public:
     virtual int database_upgrade_db() = 0;
 
 protected:
-    virtual bool Database_CreateMasterTable();
+    virtual bool database_create_master_table();
 
     // Force-set db version, to be called after upgrading the db or
     // creating a new db
