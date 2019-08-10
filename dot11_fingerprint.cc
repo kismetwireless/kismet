@@ -261,7 +261,7 @@ unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& st
 
     try {
         auto fpv = structured->getStructuredByKey("fingerprints");
-        auto fingerprints = fpv->getStringVec();
+        auto fingerprints = fpv->as_string_vector();
 
         int num_erased = 0;
 

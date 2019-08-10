@@ -490,7 +490,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                     auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
-                    auto mapvec = i->getStringVec();
+                    auto mapvec = i->as_string_vector();
 
                     if (mapvec.size() != 2)
                         throw StructuredDataException("Invalid field mapping, expected "
@@ -581,14 +581,14 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                 if (index_array.size() > 0) {
                     if (index_array[0]->is_array()) {
                         // We only allow the first field, but make sure we're not a nested array
-                        auto index_sub_array = index_array[0]->getStringVec();
+                        auto index_sub_array = index_array[0]->as_string_vector();
                         if (index_sub_array.size() > 0) {
                             auto summary = tracker_element_summary{index_sub_array[0]};
                             order_field = summary.resolved_path;
                         }
                     } else {
                         // Otherwise get the first array
-                        auto column_index_vec = column_index->second->getStringVec();
+                        auto column_index_vec = column_index->second->as_string_vector();
                         if (column_index_vec.size() >= 1) {
                             auto summary = tracker_element_summary{column_index_vec[0]};
                             order_field = summary.resolved_path;

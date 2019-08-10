@@ -1684,7 +1684,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                     if (structdata->has_key("channels")) {
                         chstruct = structdata->getStructuredByKey("channels");
-                        converted_channels = chstruct->getStringVec();
+                        converted_channels = chstruct->as_string_vector();
                     } else {
                         for (auto c : *(ds->get_source_hop_vec()))
                             converted_channels.push_back(GetTrackerValue<std::string>(c));

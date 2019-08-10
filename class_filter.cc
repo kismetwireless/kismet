@@ -347,7 +347,7 @@ unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream,
             return 500;
         }
 
-        for (auto i : filter->getStringVec()) {
+        for (auto i : filter->as_string_vector()) {
             mac_addr m{i};
 
             if (m.error) 

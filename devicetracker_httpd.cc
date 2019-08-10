@@ -490,7 +490,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
-                    structured_data::string_vec mapvec = i->getStringVec();
+                    structured_data::string_vec mapvec = i->as_string_vector();
 
                     if (mapvec.size() != 2) {
                         // fprintf(stderr, "debug - malformed rename pair\n");

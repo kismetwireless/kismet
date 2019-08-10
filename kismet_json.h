@@ -131,7 +131,7 @@ public:
         return v;
     }
 
-    virtual string_vec getStringVec() {
+    virtual string_vec as_string_vector() {
         except_if_not(is_array(), "Array/Vector");
 
         string_vec v;

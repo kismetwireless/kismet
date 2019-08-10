@@ -110,7 +110,7 @@ public:
 
     // Get vectors of numbers and strings
     virtual number_vec as_number_vector() = 0;
-    virtual string_vec getStringVec() = 0;
+    virtual string_vec as_string_vector() = 0;
 
     // Get keyed values as...
     virtual bool has_key(std::string key) = 0;
