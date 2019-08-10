@@ -265,7 +265,7 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method);
 
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);

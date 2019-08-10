@@ -29,7 +29,7 @@
 #include "ringbuf2.h"
 #include "trackedelement.h"
 
-class Kis_Net_Httpd;
+class kis_net_httpd;
 class Kis_Net_Httpd_Connection;
 
 // Basic request handler from MHD
@@ -44,12 +44,12 @@ public:
     // Handle a GET request; must allocate the response mechanism via
     // MHD_create_response_from_... and will typically call some other
     // function to generate the data for the response
-    virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
+    virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
-    virtual int Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
+    virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
@@ -122,7 +122,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<Kis_Net_Httpd> httpd;
+    std::shared_ptr<kis_net_httpd> httpd;
 };
 
 // Take a C++ stream and use it as a response
@@ -134,17 +134,17 @@ public:
 
     virtual bool httpd_verify_path(const char *path, const char *method) = 0;
 
-    virtual void httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
-    virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
+    virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd, 
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
-    virtual int Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
+    virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
@@ -155,7 +155,7 @@ class Kis_Net_Httpd_No_Files_Handler : public kis_net_httpd_cppstream_handler {
 public:
     virtual bool httpd_verify_path(const char *path, const char *method);
 
-    virtual void httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
@@ -174,11 +174,11 @@ public:
     }
     virtual ~kis_net_httpd_buffer_stream_handler();
 
-    virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
+    virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
-    virtual int Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
+    virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
@@ -195,7 +195,7 @@ public:
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete, typically used when streaming a finite
     //            amount of data through a memchunk buffer like a json serialization
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;

@@ -62,7 +62,7 @@ class Manuf;
 // Field name resolver
 class entry_tracker;
 // HTTP server
-class Kis_Net_Httpd;
+class kis_net_httpd;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1

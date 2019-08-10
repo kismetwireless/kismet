@@ -224,7 +224,7 @@ global_registry *globalregistry = NULL;
 
 void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     // Shut down the webserver first
-    auto httpd = Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
+    auto httpd = Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
     if (httpd != NULL)
         httpd->StopHttpd();
 
@@ -739,7 +739,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    Kis_Net_Httpd::create_httpd();
+    kis_net_httpd::create_httpd();
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
@@ -956,7 +956,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
-    Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>()->StartHttpd();
+    Globalreg::FetchMandatoryGlobalAs<kis_net_httpd>()->StartHttpd();
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->SpawnTimetrackerThread();

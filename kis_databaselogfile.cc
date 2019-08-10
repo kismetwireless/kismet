@@ -1346,7 +1346,7 @@ bool kis_database_logfile::httpd_verify_path(const char *path, const char *metho
     return false;
 }
 
-int kis_database_logfile::httpd_create_stream_response(Kis_Net_Httpd *httpd,
+int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {

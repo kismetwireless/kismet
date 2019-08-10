@@ -39,7 +39,7 @@
 #include "structured.h"
 #include "trackedelement.h"
 
-class Kis_Net_Httpd;
+class kis_net_httpd;
 class Kis_Net_Httpd_Session;
 class Kis_Net_Httpd_Connection;
 class Kis_Net_Httpd_Handler;
@@ -134,7 +134,7 @@ public:
     int connection_type;
 
     // httpd parent
-    Kis_Net_Httpd *httpd;    
+    kis_net_httpd *httpd;    
 
     // Handler
     Kis_Net_Httpd_Handler *httpdhandler;    
@@ -189,7 +189,7 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
@@ -221,7 +221,7 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
@@ -250,7 +250,7 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
@@ -280,7 +280,7 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
@@ -312,7 +312,7 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
@@ -328,22 +328,22 @@ protected:
 #define KIS_SESSION_COOKIE      "KISMET"
 #define KIS_HTTPD_POSTBUFFERSZ  (1024 * 32)
 
-class Kis_Net_Httpd : public lifetime_global {
+class kis_net_httpd : public lifetime_global {
 public:
     static std::string global_name() { return "HTTPD_SERVER"; }
 
-    static std::shared_ptr<Kis_Net_Httpd> create_httpd() {
-        std::shared_ptr<Kis_Net_Httpd> mon(new Kis_Net_Httpd());
+    static std::shared_ptr<kis_net_httpd> create_httpd() {
+        std::shared_ptr<kis_net_httpd> mon(new kis_net_httpd());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    Kis_Net_Httpd();
+    kis_net_httpd();
 
 public:
-    virtual ~Kis_Net_Httpd();
+    virtual ~kis_net_httpd();
 
     int StartHttpd();
     int StopHttpd();
@@ -385,20 +385,20 @@ public:
             struct MHD_Response *response, time_t in_lifetime);
 
     // Append a session cookie if we have a valid session for this connection
-    static void AppendHttpSession(Kis_Net_Httpd *httpd,
+    static void AppendHttpSession(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection);
 
     // Append timestamp and mime headers
-    static void AppendStandardHeaders(Kis_Net_Httpd *httpd,
+    static void AppendStandardHeaders(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection, const char *url);
 
     // Queue a http response
-    static int SendHttpResponse(Kis_Net_Httpd *httpd,
+    static int SendHttpResponse(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection);
 
     // Send a standard HTTP response appending the session and standard 
     // headers
-    static int SendStandardHttpResponse(Kis_Net_Httpd *httpd,
+    static int SendStandardHttpResponse(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection, const char *url);
 
     // Catch MHD panics and try to close more elegantly

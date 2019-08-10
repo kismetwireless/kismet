@@ -109,7 +109,7 @@ bool RestMessageClient::httpd_verify_path(const char *path, const char *method) 
 }
 
 void RestMessageClient::httpd_create_stream_response(
-        Kis_Net_Httpd *httpd __attribute__((unused)),
+        kis_net_httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {

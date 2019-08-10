@@ -151,7 +151,7 @@ public:
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete, typically used when streaming a finite
     //            amount of data through a memchunk buffer like a json serialization
-    virtual int httpd_create_stream_response(Kis_Net_Httpd *httpd,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;

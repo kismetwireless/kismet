@@ -214,7 +214,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     return true;
 }
 
-void Kis_Zwave_Phy::httpd_create_stream_response(Kis_Net_Httpd *httpd,
+void Kis_Zwave_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {

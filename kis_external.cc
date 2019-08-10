@@ -683,7 +683,7 @@ bool KisExternalHttpInterface::httpd_verify_path(const char *path, const char *m
 // tool, we need to set a lock and sit on it until the proxy has completed.
 // We don't need to spawn our own thread - we're already our own thread independent
 // of the IO processing system.
-int KisExternalHttpInterface::httpd_create_stream_response(Kis_Net_Httpd *httpd,
+int KisExternalHttpInterface::httpd_create_stream_response(kis_net_httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
