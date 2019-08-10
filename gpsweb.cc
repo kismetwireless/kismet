@@ -117,7 +117,7 @@ int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
     if (concls->url == "/gps/web/update.cmd") {
 #if 0
         if (strcmp(key, "msgpack") == 0 && size > 0) {
-            std::string decode = Base64::decode(std::string(data));
+            std::string decode = base64::decode(std::string(data));
 
             // Get the dictionary
             MsgpackAdapter::MsgpackStrMap params;

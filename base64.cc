@@ -22,17 +22,17 @@
 
 #include "base64.h"
 
-const char Base64::b64_values[] = 
+const char base64::b64_values[] = 
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-void Base64::decodeblock(unsigned char *in, unsigned char *out) {
+void base64::decodeblock(unsigned char *in, unsigned char *out) {
     out[0] = in[0] << 2 | in[1] >> 4;
     out[1] = in[1] << 4 | in[2] >> 2;
     out[2] = in[2] << 6 | in[3] >> 0;
     out[3] = 0;
 }
 
-std::string Base64::decode(std::string in_str) {
+std::string base64::decode(std::string in_str) {
     std::string out;
     unsigned char obuf[4], ibuf[4];
     int phase, c;
