@@ -368,7 +368,7 @@ public:
     virtual void trigger_deferred_startup() override;
 
     // Shut down all sources, this happens as kismet is terminating
-    virtual void Deferred_Shutdown() override;
+    virtual void trigger_deferred_shutdown() override;
 
     // Eventbus event we inject when a new ds is added
     class EventNewDatasource : public eventbus_event {

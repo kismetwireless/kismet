@@ -93,7 +93,7 @@ void kis_database_logfile::trigger_deferred_startup() {
         Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
 }
 
-void kis_database_logfile::Deferred_Shutdown() {
+void kis_database_logfile::trigger_deferred_shutdown() {
 
 }
 

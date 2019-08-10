@@ -218,7 +218,7 @@ void global_registry::Shutdown_Deferred() {
     local_locker lock(&deferred_mutex);
 
     for (auto i : deferred_vec)
-        i->Deferred_Shutdown();
+        i->trigger_deferred_shutdown();
 
     deferred_vec.clear();
 }

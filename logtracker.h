@@ -246,7 +246,7 @@ public:
     virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     virtual void trigger_deferred_startup() override;
-    virtual void Deferred_Shutdown() override;
+    virtual void trigger_deferred_shutdown() override;
 
     // Register a log type
     int register_log(SharedLogBuilder in_builder);

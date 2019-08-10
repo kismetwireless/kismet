@@ -188,7 +188,7 @@ void LogTracker::trigger_deferred_startup() {
     return;
 }
 
-void LogTracker::Deferred_Shutdown() {
+void LogTracker::trigger_deferred_shutdown() {
     for (auto l : *logfile_vec) {
         SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
 

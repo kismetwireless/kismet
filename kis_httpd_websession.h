@@ -50,7 +50,7 @@ public:
     ~Kis_Httpd_Websession();
 
     virtual void trigger_deferred_startup() override;
-    virtual void Deferred_Shutdown() override { };
+    virtual void trigger_deferred_shutdown() override { };
 
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 

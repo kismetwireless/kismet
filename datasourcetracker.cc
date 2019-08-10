@@ -676,7 +676,7 @@ void datasource_tracker::trigger_deferred_startup() {
     return;
 }
 
-void datasource_tracker::Deferred_Shutdown() {
+void datasource_tracker::trigger_deferred_shutdown() {
     local_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
