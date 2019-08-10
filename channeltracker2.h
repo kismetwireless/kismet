@@ -34,15 +34,15 @@
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class channeltracker_v2_channel : public tracker_component, public shared_global_data {
+class channel_tracker_v2_channel : public tracker_component, public shared_global_data {
 public:
-    channeltracker_v2_channel() :
+    channel_tracker_v2_channel() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    channeltracker_v2_channel(int in_id) :
+    channel_tracker_v2_channel(int in_id) :
         tracker_component(in_id) { 
         register_fields();
         reserve_fields(NULL);
@@ -50,7 +50,7 @@ public:
         // last_device_sec = 0;
     }
 
-    channeltracker_v2_channel(int in_id, std::shared_ptr<tracker_element_map> e) : 
+    channel_tracker_v2_channel(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
 
         register_fields();
@@ -60,7 +60,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("channeltracker_v2_channel");
+        return adler32_checksum("channel_tracker_v2_channel");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
