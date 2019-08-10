@@ -43,8 +43,8 @@ public:
 
     void IndexOUI();
 
-    std::shared_ptr<tracker_element_string> LookupOUI(mac_addr in_mac);
-    std::shared_ptr<tracker_element_string> LookupOUI(uint32_t in_oui);
+    std::shared_ptr<tracker_element_string> lookup_oui(mac_addr in_mac);
+    std::shared_ptr<tracker_element_string> lookup_oui(uint32_t in_oui);
 
     std::shared_ptr<tracker_element_string> MakeManuf(const std::string& in_manuf);
 

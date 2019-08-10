@@ -128,7 +128,7 @@ void kis_manuf::IndexOUI() {
          IntToString(index_vec.size()) + " indexes", MSGFLAG_INFO);
 }
 
-std::shared_ptr<tracker_element_string> kis_manuf::LookupOUI(mac_addr in_mac) {
+std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     uint32_t soui = in_mac.OUI(), toui;
     int matched = -1;
     char buf[1024];
@@ -218,7 +218,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::LookupOUI(mac_addr in_mac) {
     return unknown_manuf;
 }
 
-std::shared_ptr<tracker_element_string> kis_manuf::LookupOUI(uint32_t in_oui) {
+std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     uint32_t soui = in_oui, toui;
     int matched = -1;
     char buf[1024];

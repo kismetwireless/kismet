@@ -726,7 +726,7 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_type_string(in_basic_type);
 
         if (globalreg->manufdb != NULL) {
-            device->set_manuf(globalreg->manufdb->LookupOUI(in_mac));
+            device->set_manuf(globalreg->manufdb->lookup_oui(in_mac));
         }
 
         load_stored_username(device);
@@ -1502,7 +1502,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
 
         // Update the manuf in case we added a manuf db
         if (globalreg->manufdb != NULL)
-            kdb->set_manuf(globalreg->manufdb->LookupOUI(kdb->get_macaddr()));
+            kdb->set_manuf(globalreg->manufdb->lookup_oui(kdb->get_macaddr()));
 
         return kdb;
     } catch (const zstr::Exception& e) {

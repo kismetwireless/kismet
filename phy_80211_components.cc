@@ -351,7 +351,7 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_oui(tag150.vendor_oui_int());
 
-            auto resolved_manuf = Globalreg::globalreg->manufdb->LookupOUI(tag150.vendor_oui_int());
+            auto resolved_manuf = Globalreg::globalreg->manufdb->lookup_oui(tag150.vendor_oui_int());
             set_tag_oui_manuf(resolved_manuf->get());
 
             set_tag_vendor_or_sub(tag150.vendor_oui_type());
@@ -372,7 +372,7 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_oui(tag221.vendor_oui_int());
 
-            auto resolved_manuf = Globalreg::globalreg->manufdb->LookupOUI(tag221.vendor_oui_int());
+            auto resolved_manuf = Globalreg::globalreg->manufdb->lookup_oui(tag221.vendor_oui_int());
             set_tag_oui_manuf(resolved_manuf->get());
 
             set_tag_vendor_or_sub(tag221.vendor_oui_type());
