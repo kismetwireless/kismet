@@ -37,8 +37,8 @@ class kis_gps_packinfo;
 class KisGpsBuilder;
 typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
 
-class KisGps;
-typedef std::shared_ptr<KisGps> SharedGps;
+class kis_gps;
+typedef std::shared_ptr<kis_gps> SharedGps;
 
 // GPS builders are responsible for telling the GPS tracker what sort of GPS,
 // the basic priority, the type and default name, and so on.
@@ -109,11 +109,11 @@ protected:
 
 // GPS superclass; built by a GPS builder; GPS drivers implement the low-level GPS 
 // interaction (such as serial port, network, etc)
-class KisGps : public tracker_component {
+class kis_gps : public tracker_component {
 public:
-    KisGps(SharedGpsBuilder in_builder);
+    kis_gps(SharedGpsBuilder in_builder);
 
-    virtual ~KisGps();
+    virtual ~kis_gps();
 
     virtual void initialize() { };
 

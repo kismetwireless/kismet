@@ -31,8 +31,8 @@
 class KisGpsBuilder;
 typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
 
-class KisGps;
-typedef std::shared_ptr<KisGps> SharedGps;
+class kis_gps;
+typedef std::shared_ptr<kis_gps> SharedGps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
 class kis_gps_packinfo : public packet_component {
@@ -141,7 +141,7 @@ public:
     void register_gps_builder(SharedGpsBuilder in_builder);
 
     // Create a GPS from a definition string
-    std::shared_ptr<KisGps> create_gps(std::string in_definition);
+    std::shared_ptr<kis_gps> create_gps(std::string in_definition);
 
     // Remove a GPS by UUID
     bool remove_gps(uuid in_uuid);

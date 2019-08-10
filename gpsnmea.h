@@ -31,10 +31,10 @@
 
 // Generic NMEA parser for GPS
 
-class GPSNMEA : public KisGps {
+class GPSNMEA : public kis_gps {
 public:
     GPSNMEA(SharedGpsBuilder in_builder) :
-        KisGps(in_builder),
+        kis_gps(in_builder),
         nmeahandler {nullptr},
         nmeainterface {nullptr, nullptr} { }
 

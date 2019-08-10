@@ -27,7 +27,7 @@
 #include "timetracker.h"
 
 GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) : 
-    KisGps(in_builder),
+    kis_gps(in_builder),
     tcpinterface {
         [this](size_t in_amt) { 
             buffer_available(in_amt);
@@ -123,7 +123,7 @@ GPSGpsdV2::~GPSGpsdV2() {
 bool GPSGpsdV2::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
-    if (!KisGps::open_gps(in_opts))
+    if (!kis_gps::open_gps(in_opts))
         return false;
 
     set_int_device_connected(false);

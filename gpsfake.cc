@@ -22,14 +22,14 @@
 #include "messagebus.h"
 
 kis_gps_fake::kis_gps_fake(SharedGpsBuilder in_builder) : 
-    KisGps(in_builder) { }
+    kis_gps(in_builder) { }
 
 kis_gps_fake::~kis_gps_fake() { }
 
 bool kis_gps_fake::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
-    if (!KisGps::open_gps(in_opts)) {
+    if (!kis_gps::open_gps(in_opts)) {
         return false;
     }
 

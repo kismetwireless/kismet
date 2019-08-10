@@ -29,7 +29,7 @@
 //
 // Always sets a fixed location and optional altitude.
 
-class kis_gps_fake : public KisGps {
+class kis_gps_fake : public kis_gps {
 public:
     kis_gps_fake(SharedGpsBuilder in_builder);
     virtual ~kis_gps_fake();

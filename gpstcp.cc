@@ -80,7 +80,7 @@ GPSTCP::~GPSTCP() {
 bool GPSTCP::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
-    if (!KisGps::open_gps(in_opts))
+    if (!kis_gps::open_gps(in_opts))
         return false;
 
     set_int_device_connected(false);

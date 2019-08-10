@@ -34,7 +34,7 @@
 // This code uses the new buffer handler interface for communicating with a 
 // gpsd host over TCP
 
-class GPSGpsdV2 : public KisGps {
+class GPSGpsdV2 : public kis_gps {
 public:
     GPSGpsdV2(SharedGpsBuilder in_builder);
     virtual ~GPSGpsdV2();

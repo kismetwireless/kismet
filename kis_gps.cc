@@ -22,7 +22,7 @@
 #include "messagebus.h"
 #include "timetracker.h"
 
-KisGps::KisGps(SharedGpsBuilder in_builder) : 
+kis_gps::kis_gps(SharedGpsBuilder in_builder) : 
     tracker_component() {
 
     gps_mutex = std::make_shared<kis_recursive_timed_mutex>();
@@ -42,11 +42,11 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
     gps_last_location = new kis_gps_packinfo();
 }
 
-KisGps::~KisGps() {
+kis_gps::~kis_gps() {
 
 }
 
-bool KisGps::open_gps(std::string in_definition) {
+bool kis_gps::open_gps(std::string in_definition) {
     local_locker lock(gps_mutex);
 
     set_int_device_connected(false);
@@ -137,7 +137,7 @@ bool KisGps::open_gps(std::string in_definition) {
     return true;
 }
 
-double KisGps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
+double kis_gps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
     double r = GpsCalcRad((double) in_lat2);
 
@@ -184,15 +184,15 @@ double KisGps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2,
     return (double) GpsRad2Deg(angle);
 }
 
-double KisGps::GpsRad2Deg(double x) {
+double kis_gps::GpsRad2Deg(double x) {
     return (x/M_PI) * 180.0;
 }
 
-double KisGps::GpsDeg2Rad(double x) {
+double kis_gps::GpsDeg2Rad(double x) {
     return 180/(x*M_PI);
 }
 
-double KisGps::GpsEarthDistance(double in_lat, double in_lon, 
+double kis_gps::GpsEarthDistance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
     double x1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
     double x2 = 
@@ -207,7 +207,7 @@ double KisGps::GpsEarthDistance(double in_lat, double in_lon,
     return GpsCalcRad((double) (in_lat+in_lat2) / 2) * a;
 }
 
-double KisGps::GpsCalcRad(double lat) {
+double kis_gps::GpsCalcRad(double lat) {
     double a = 6378.137, r, sc, x, y, z;
     double e2 = 0.081082 * 0.081082;
 
@@ -222,7 +222,7 @@ double KisGps::GpsCalcRad(double lat) {
     return r;
 }
 
-void KisGps::update_locations() {
+void kis_gps::update_locations() {
     tracked_last_location->set_lat(gps_last_location->lat);
     tracked_last_location->set_lon(gps_last_location->lon);
     tracked_last_location->set_alt(gps_last_location->alt);

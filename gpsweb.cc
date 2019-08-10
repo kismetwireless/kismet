@@ -24,7 +24,7 @@
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
 GPSWeb::GPSWeb(SharedGpsBuilder in_builder) : 
-    KisGps(in_builder),
+    kis_gps(in_builder),
     kis_net_httpd_cppstream_handler() {
 
     last_heading_time = 0;
@@ -37,7 +37,7 @@ GPSWeb::~GPSWeb() {
 bool GPSWeb::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
-    if (!KisGps::open_gps(in_opts)) {
+    if (!kis_gps::open_gps(in_opts)) {
         return false;
     }
 
