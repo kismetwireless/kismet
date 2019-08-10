@@ -136,9 +136,9 @@ protected:
     std::map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
 };
 
-class SerializerScope {
+class serializer_scope {
 public:
-    SerializerScope(shared_tracker_element e, 
+    serializer_scope(shared_tracker_element e, 
             std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
         elem = e;
         rnmap = name_map;
@@ -155,7 +155,7 @@ public:
         }
     }
 
-    virtual ~SerializerScope() {
+    virtual ~serializer_scope() {
         if (rnmap != NULL) {
             auto nmi = rnmap->find(elem);
             if (nmi != rnmap->end()) {

@@ -178,7 +178,7 @@ void JsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
         return;
     }
 
-    SerializerScope s(e, name_map);
+    serializer_scope s(e, name_map);
 
     mac_addr mac;
     uuid euuid;
@@ -676,7 +676,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
         return;
     }
 
-    SerializerScope s(e, name_map);
+    serializer_scope s(e, name_map);
 
     mac_addr mac;
     uuid euuid;
