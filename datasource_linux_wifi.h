@@ -26,7 +26,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_linux_wifi;
-typedef std::shared_ptr<kis_datasource_linux_wifi> SharedDatasourceLinuxWifi;
+typedef std::shared_ptr<kis_datasource_linux_wifi> shared_datasource_linux_wifi;
 
 class kis_datasource_linux_wifi : public kis_datasource {
 public:
@@ -76,7 +76,7 @@ public:
     virtual ~DatasourceLinuxWifiBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceLinuxWifi(new kis_datasource_linux_wifi(in_sh_this));
+        return shared_datasource_linux_wifi(new kis_datasource_linux_wifi(in_sh_this));
     }
 
     virtual void initialize() {
