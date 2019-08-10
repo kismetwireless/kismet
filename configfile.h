@@ -56,7 +56,7 @@ public:
 
     std::string fetch_opt(std::string in_key);
     std::string fetch_opt_dfl(std::string in_key, std::string in_dfl);
-    std::string FetchOpt_nl(std::string in_key);
+    std::string fetch_opt_nl(std::string in_key);
     std::vector<std::string> fetch_opt_vec(std::string in_key);
 
 	// Fetch a true/false t/f value with a default (ie value returned if not
