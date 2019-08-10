@@ -269,7 +269,7 @@ kis_net_httpd::kis_net_httpd() {
                 if (sess->session_created + sess->session_lifetime < time(0)) 
                     continue;
 
-                // Don't use AddSession because we don't want to trigger a write, yet
+                // Don't use add_session because we don't want to trigger a write, yet
                 session_map[sess->sessionid] = sess;
             }
         }
@@ -649,13 +649,13 @@ kis_net_httpd::create_session(kis_net_httpd_connection *connection,
     if (connection != NULL)
         connection->session = s;
 
-    AddSession(s);
+    add_session(s);
 
     return s;
 }
 
 
-void kis_net_httpd::AddSession(std::shared_ptr<kis_net_httpd_session> in_session) {
+void kis_net_httpd::add_session(std::shared_ptr<kis_net_httpd_session> in_session) {
     local_locker lock(&session_mutex);
 
     session_map[in_session->sessionid] = in_session;

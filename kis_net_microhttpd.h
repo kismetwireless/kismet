@@ -469,7 +469,7 @@ protected:
 
     char *read_ssl_file(std::string in_fname);
 
-    void AddSession(std::shared_ptr<kis_net_httpd_session> in_session);
+    void add_session(std::shared_ptr<kis_net_httpd_session> in_session);
     void DelSession(std::string in_key);
     void DelSession(std::map<std::string, std::shared_ptr<kis_net_httpd_session>>::iterator in_itr);
     // Find a valid session; will return a session or nullptr if no session key is found, or if the
