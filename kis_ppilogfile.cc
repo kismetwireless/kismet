@@ -100,7 +100,7 @@ bool KisPPILogfile::log_open(std::string in_path) {
     return true;
 }
 
-void KisPPILogfile::Log_Close() {
+void KisPPILogfile::log_close() {
     local_locker lock(&log_mutex);
 
     set_int_log_open(false);
@@ -127,7 +127,7 @@ void KisPPILogfile::Log_Close() {
 }
 
 KisPPILogfile::~KisPPILogfile() {
-    Log_Close();
+    log_close();
 }
 
 void KisPPILogfile::RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {

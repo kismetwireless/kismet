@@ -28,7 +28,7 @@ KisPcapNGLogfile::KisPcapNGLogfile(shared_log_builder in_builder) :
 }
 
 KisPcapNGLogfile::~KisPcapNGLogfile() {
-    Log_Close();
+    log_close();
 }
 
 bool KisPcapNGLogfile::log_open(std::string in_path) {
@@ -58,7 +58,7 @@ bool KisPcapNGLogfile::log_open(std::string in_path) {
     return true;
 }
 
-void KisPcapNGLogfile::Log_Close() {
+void KisPcapNGLogfile::log_close() {
     local_locker lock(&log_mutex);
 
     set_int_log_open(false);

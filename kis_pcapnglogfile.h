@@ -33,7 +33,7 @@ public:
     virtual ~KisPcapNGLogfile();
 
     virtual bool log_open(std::string in_path) override;
-    virtual void Log_Close() override;
+    virtual void log_close() override;
 
 protected:
     Pcap_Stream_Packetchain *pcapng_stream;

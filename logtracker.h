@@ -189,7 +189,7 @@ public:
         return false; 
     }
 
-    virtual void Log_Close() { 
+    virtual void log_close() { 
         local_locker lock(&log_mutex);
 
         set_int_log_open(false);

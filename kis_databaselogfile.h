@@ -86,7 +86,7 @@ public:
     }
 
     virtual bool log_open(std::string in_path) override;
-    virtual void Log_Close() override;
+    virtual void log_close() override;
 
     virtual int database_upgrade_db() override;
 
