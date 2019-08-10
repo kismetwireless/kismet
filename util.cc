@@ -356,14 +356,14 @@ std::string fetch_opt(const std::string& in_key, const std::map<std::string, std
     return i->second;
 }
 
-int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
+int fetch_opt_bool(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
     std::string s = fetch_opt(in_key, in_vec);
 
 	return StringToBool(s, dvalue);
 }
 
 
-int FetchOptBoolean(const std::string& in_key, const std::map<std::string, std::string>& in_map, int dvalue) {
+int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::string>& in_map, int dvalue) {
     auto i = in_map.find(in_key);
 
     if (i == in_map.end())

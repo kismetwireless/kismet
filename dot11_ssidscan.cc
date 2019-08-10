@@ -89,7 +89,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     auto config = Globalreg::globalreg->kismet_config;
 
-    ssidscan_enabled->set(config->FetchOptBoolean("dot11_ssidscan_enabled", false));
+    ssidscan_enabled->set(config->fetch_opt_bool("dot11_ssidscan_enabled", false));
 
     for (auto s : config->fetch_opt_vec("dot11_ssidscan_ssid")) {
         target_ssids->push_back(s);
@@ -101,10 +101,10 @@ Dot11_SsidScan::Dot11_SsidScan() {
         ssidscan_datasources->push_back(hu_uuid);
     }
 
-    ignore_after_handshake->set(config->FetchOptBoolean("dot11_ssidscan_ignore_after_handshake", true));
+    ignore_after_handshake->set(config->fetch_opt_bool("dot11_ssidscan_ignore_after_handshake", true));
 
-    initial_log_filters->set(config->FetchOptBoolean("dot11_ssidscan_block_logging", false));
-    filter_logs->set(config->FetchOptBoolean("dot11_ssidscan_dynamic_logging", true));
+    initial_log_filters->set(config->fetch_opt_bool("dot11_ssidscan_block_logging", false));
+    filter_logs->set(config->fetch_opt_bool("dot11_ssidscan_dynamic_logging", true));
 
     min_scan_seconds->set(config->FetchOptUInt("dot11_ssidscan_minimum_hop", 30));
     max_contend_cap_seconds->set(config->FetchOptUInt("dot11_ssidscan_maximum_lock", 30));

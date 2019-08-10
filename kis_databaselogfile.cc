@@ -125,13 +125,13 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
 
 	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_ephemeral_dangerous", false)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false)) {
         _MSG_INFO("KISMETDB LOG IS IN EPHEMERAL MODE.  LOG WILL *** NOT *** BE PRESERVED WHEN "
                 "KISMET EXITS.");
         unlink(in_path.c_str());
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_packets", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
         _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
         std::shared_ptr<packet_chain> packetchain =
             Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
@@ -363,7 +363,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
         packet_mac_filter->set_filter(m, filter_toks[0], filter_toks[1], filter_opt);
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_messages", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
         auto messagebus = 
             Globalreg::FetchMandatoryGlobalAs<MessageBus>();
         messagebus->RegisterClient(this, MSGFLAG_ALL);

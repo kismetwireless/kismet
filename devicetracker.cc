@@ -165,7 +165,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     persistent_storage_timeout = 0;
 
 #if 0
-    if (!globalreg->kismet_config->FetchOptBoolean("persistent_config_present", false)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("persistent_config_present", false)) {
         _MSG("Kismet has recently added persistent device storage; it looks like you "
                 "need to update your Kismet configs; install the latest configs with "
                 "'make forceconfigs' from the Kismet source directory.",
@@ -186,7 +186,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         persistent_storage_timeout = 0;
     } else {
         persistent_storage =
-            globalreg->kismet_config->FetchOptBoolean("persistent_state", false);
+            globalreg->kismet_config->fetch_opt_bool("persistent_state", false);
 
         if (!persistent_storage) {
             _MSG("Persistent storage has been disabled.  Kismet will not remember devices "
@@ -252,7 +252,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
             }
 
             persistent_compression = 
-                globalreg->kismet_config->FetchOptBoolean("persistent_compression", true);
+                globalreg->kismet_config->fetch_opt_bool("persistent_compression", true);
 
             persistent_storage_timeout =
                 globalreg->kismet_config->FetchOptULong("persistent_timeout", 86400);
@@ -260,28 +260,28 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     }
 #endif
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_rrds", true)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
         ram_no_rrd = true;
     } else {
         ram_no_rrd = false;
     }
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_seenby_views", true)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("track_device_seenby_views", true)) {
         _MSG("Not building device seenby views to save RAM", MSGFLAG_INFO);
         map_seenby_views = false;
     } else {
         map_seenby_views = true;
     }
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_phy_views", true)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("track_device_phy_views", true)) {
         _MSG("Not building device phy views to save RAM", MSGFLAG_INFO);
         map_phy_views = false;
     } else {
         map_phy_views = true;
     }
 
-    if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
+    if (globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
         unsigned int lograte = 
             globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
 
@@ -376,7 +376,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     full_refresh_time = globalreg->timestamp.tv_sec;
 
     track_history_cloud =
-        globalreg->kismet_config->FetchOptBoolean("keep_location_cloud_history", true);
+        globalreg->kismet_config->fetch_opt_bool("keep_location_cloud_history", true);
 
     if (!track_history_cloud) {
         _MSG("Location history cloud tracking disabled.  This may prevent some plugins "
@@ -385,7 +385,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     }
 
     track_persource_history =
-        globalreg->kismet_config->FetchOptBoolean("keep_datasource_signal_history", true);
+        globalreg->kismet_config->fetch_opt_bool("keep_datasource_signal_history", true);
 
     if (!track_persource_history) {
         _MSG("Per-source signal history tracking disabled.  This may prevent some plugins "

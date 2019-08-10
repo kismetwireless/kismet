@@ -402,8 +402,8 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::globalreg->kismet_config->FetchOptInt("dot11_max_signal", -10);
 
     // Do we process the whole data packet?
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("hidedata", 0) ||
-            Globalreg::globalreg->kismet_config->FetchOptBoolean("dontbeevil", 0)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("hidedata", 0) ||
+            Globalreg::globalreg->kismet_config->fetch_opt_bool("dontbeevil", 0)) {
         _MSG("hidedata= set in Kismet config.  Kismet will ignore the contents "
                 "of data packets entirely", MSGFLAG_INFO);
         dissect_data = 0;
@@ -413,7 +413,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Do we process phy and control frames?  They seem to be the glitchiest
     // on many cards including the ath9k which is otherwise excellent
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_process_phy", 0)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_process_phy", 0)) {
         _MSG("PHY802.11 will process Wi-Fi 'phy' and 'control' type frames, which "
                 "gives the most complete view of device traffic but may result in "
                 "false devices due to driver and firmware quirks.", MSGFLAG_INFO);
@@ -436,7 +436,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 	}
 
     // TODO turn into REST endpoint
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("allowkeytransmit", 0)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("allowkeytransmit", 0)) {
         _MSG("Allowing Kismet clients to view WEP keys", MSGFLAG_INFO);
         client_wepkey_allowed = 1;
     } else {
@@ -549,7 +549,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         ssid_regex_vec->push_back(ssida);
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_fingerprint_devices", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_fingerprint_devices", true)) {
         auto fingerprint_s = 
             Globalreg::globalreg->kismet_config->fetch_opt_dfl("dot11_beacon_ie_fingerprint",
                     "0,1,45,48,50,61,74,127,191,195,221-00156D-00,221-0050F2-2,221-001018-2,221-506F9A-28");
@@ -602,12 +602,12 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
     }
 
     keep_ie_tags_per_bssid = 
-        Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_keep_ietags", false);
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_keep_ietags", false);
     if (keep_ie_tags_per_bssid)
         _MSG_INFO("Keeping a copy of advertised IE tags for each SSID; this can use more CPU and RAM.");
 
     // access-point view
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("dot11_view_accesspoints", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
         ap_view = 
             std::make_shared<DevicetrackerView>("phydot11_accesspoints", 
                     "IEEE802.11 Access Points",

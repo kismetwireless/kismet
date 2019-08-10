@@ -61,7 +61,7 @@ public:
 
 	// Fetch a true/false t/f value with a default (ie value returned if not
 	// equal to true, or missing.)
-	int FetchOptBoolean(std::string in_key, int dvalue);
+	int fetch_opt_bool(std::string in_key, int dvalue);
 
     // Older API
     int FetchOptInt(const std::string& in_key, int dvalue);

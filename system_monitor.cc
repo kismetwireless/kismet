@@ -133,7 +133,7 @@ Systemmonitor::Systemmonitor() :
                 return tse;
             });
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_system_status", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_system_status", true)) {
         auto snap_time_s = 
             Globalreg::globalreg->kismet_config->FetchOptAs<unsigned int>("kis_log_system_status_rate", 30);
 

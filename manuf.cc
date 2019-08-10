@@ -35,7 +35,7 @@ Manuf::Manuf() {
     unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
     unknown_manuf->set("Unknown");
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("manuf_lookup", true) == false) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
     }

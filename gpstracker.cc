@@ -57,7 +57,7 @@ GpsTracker::GpsTracker() :
     log_snapshot_timer = -1;
 
     database_logging = 
-        Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_gps_track", true);
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_gps_track", true);
 
     if (database_logging) {
         _MSG("GPS track will be logged to the Kismet logfile", MSGFLAG_INFO);

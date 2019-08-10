@@ -124,7 +124,7 @@ void LogTracker::Deferred_Startup() {
         }
     }
 
-    if (!Globalreg::globalreg->kismet_config->FetchOptBoolean("log_config_present", false)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("log_config_present", false)) {
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
         alertracker->raise_one_shot("CONFIGERROR", "It looks like Kismet is missing "
@@ -135,7 +135,7 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (arg_enable < 0)
-        set_int_logging_enabled(Globalreg::globalreg->kismet_config->FetchOptBoolean("enable_logging", true));
+        set_int_logging_enabled(Globalreg::globalreg->kismet_config->fetch_opt_bool("enable_logging", true));
     else
         set_int_logging_enabled(false);
 

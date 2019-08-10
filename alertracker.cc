@@ -114,7 +114,7 @@ alert_tracker::alert_tracker() :
 		return;
 	}
 
-    log_alerts = Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
+    log_alerts = Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_alerts", true);
 }
 
 alert_tracker::~alert_tracker() {

@@ -367,7 +367,7 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
     std::string manuf_model = fetch_opt("model", &optvec);
     std::string macstr = fetch_opt("mac", &optvec);
     std::string ssid = fetch_opt("ssid", &optvec);
-    bool matchany = FetchOptBoolean("match_any", &optvec, false);
+    bool matchany = fetch_opt_bool("match_any", &optvec, false);
 
     if (manuf_name == "") {
         _MSG("Invalid 'uav_match' configuration line, expected 'name=\"...\"' in definition, "

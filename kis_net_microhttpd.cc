@@ -191,7 +191,7 @@ kis_net_httpd::kis_net_httpd() {
     session_timeout = 
         Globalreg::globalreg->kismet_config->FetchOptUInt("httpd_session_timeout", 7200);
 
-    use_ssl = Globalreg::globalreg->kismet_config->FetchOptBoolean("httpd_ssl", false);
+    use_ssl = Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_ssl", false);
     pem_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_cert");
     key_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_key");
 

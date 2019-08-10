@@ -422,7 +422,7 @@ void Datasourcetracker::Deferred_Startup() {
                 tracker_element_factory<datasourcetracker_defaults>(),
                 "Datasource default values");
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("channel_hop", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("channel_hop", true)) {
         _MSG("Enabling channel hopping by default on sources which support channel "
                 "control.", MSGFLAG_INFO);
         config_defaults->set_hop(true);
@@ -445,18 +445,18 @@ void Datasourcetracker::Deferred_Startup() {
         config_defaults->set_hop_rate(1);
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("split_source_hopping", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("split_source_hopping", true)) {
         _MSG("Enabling channel list splitting on sources which share the same list "
                 "of channels", MSGFLAG_INFO);
         config_defaults->set_split_same_sources(true);
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("randomized_hopping", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("randomized_hopping", true)) {
         _MSG("Enabling channel list shuffling to optimize overlaps", MSGFLAG_INFO);
         config_defaults->set_random_channel_order(true);
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("retry_on_source_error", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("retry_on_source_error", true)) {
         _MSG("Sources will be re-opened if they encounter an error", MSGFLAG_INFO);
         config_defaults->set_retry_on_error(true);
     }
@@ -478,7 +478,7 @@ void Datasourcetracker::Deferred_Startup() {
     config_defaults->set_remote_cap_listen(listen);
     config_defaults->set_remote_cap_port(listenport);
 
-    config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->FetchOptBoolean("override_remote_timestamp", true));
+    config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->fetch_opt_bool("override_remote_timestamp", true));
 
     httpd_pcap = std::make_shared<Datasourcetracker_Httpd_Pcap>();
 
@@ -490,7 +490,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     database_log_enabled = false;
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_datasources", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_datasources", true)) {
         unsigned int lograte =
             Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_datasource_rate", 30);
 

@@ -303,7 +303,7 @@ std::vector<std::string> config_file::fetch_opt_vec(std::string in_key) {
     return eretvec;
 }
 
-int config_file::FetchOptBoolean(std::string in_key, int dvalue) {
+int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 

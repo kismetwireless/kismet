@@ -128,9 +128,9 @@ bool KisGps::open_gps(std::string in_definition) {
         set_int_gps_priority(gps_prototype->get_gps_priority());
     }
 
-    set_int_gps_data_only(FetchOptBoolean("dataonly", source_definition_opts, false));
+    set_int_gps_data_only(fetch_opt_bool("dataonly", source_definition_opts, false));
 
-    set_int_gps_reconnect(FetchOptBoolean("reconnect", source_definition_opts, false));
+    set_int_gps_reconnect(fetch_opt_bool("reconnect", source_definition_opts, false));
 
     set_int_device_connected(true);
 

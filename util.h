@@ -113,13 +113,13 @@ struct opt_pair {
 std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec, 
         const std::string& d_value = "");
 
-int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue);
+int fetch_opt_bool(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue);
 std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec);
 
 // Quick fetch of strings from a map of options
 std::string fetch_opt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         std::string dvalue = "");
-int FetchOptBoolean(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
+int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         int dvalue = 0);
 
 int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec);
