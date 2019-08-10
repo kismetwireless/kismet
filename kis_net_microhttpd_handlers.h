@@ -244,7 +244,7 @@ protected:
     virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
         // Allocate a buffer directly, in a multiple of the max output size for the webserver
         // buffer
-        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<buffer_handler<Chainbuf> >(new buffer_handler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
+        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<buffer_handler<chainbuf> >(new buffer_handler<chainbuf>(NULL, new chainbuf(64 * 1024, 512))));
     }
 
 };
