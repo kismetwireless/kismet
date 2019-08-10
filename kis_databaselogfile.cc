@@ -272,7 +272,7 @@ bool kis_database_logfile::log_open(std::string in_path) {
         std::make_shared<class_filter_mac_addr>("kismetdb_devices", 
                 "Kismetdb device MAC filtering");
     packet_mac_filter = 
-        std::make_shared<PacketfilterMacaddr>("kismetdb_packets", 
+        std::make_shared<packet_filter_mac_addr>("kismetdb_packets", 
                 "Kismetdb packet MAC filtering");
 
     auto device_filter_dfl = 

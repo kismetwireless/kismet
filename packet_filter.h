@@ -88,10 +88,10 @@ protected:
 // (in wifi terms, source, dest, bssid, or 4mac transmitter for wds).
 // Filters are true (filter/reject packet), or false (pass packet).  Packets not matched
 // by any filter are passed to the default filter term.
-class PacketfilterMacaddr : public Packetfilter {
+class packet_filter_mac_addr : public Packetfilter {
 public:
-    PacketfilterMacaddr(const std::string& in_id, const std::string& in_description);
-    virtual ~PacketfilterMacaddr();
+    packet_filter_mac_addr(const std::string& in_id, const std::string& in_description);
+    virtual ~packet_filter_mac_addr();
 
     virtual bool filter_packet(kis_packet *packet) override;
 

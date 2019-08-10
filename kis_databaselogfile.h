@@ -136,7 +136,7 @@ public:
     virtual void process_message(std::string in_msg, int in_flags) override;
 
     // Direct access to the filters for setting programatically
-    std::shared_ptr<PacketfilterMacaddr> GetPacketFilter() { 
+    std::shared_ptr<packet_filter_mac_addr> GetPacketFilter() { 
         return packet_mac_filter;
     }
 
@@ -232,7 +232,7 @@ protected:
     std::shared_ptr<class_filter_mac_addr> device_mac_filter;
 
     // Packet log filter
-    std::shared_ptr<PacketfilterMacaddr> packet_mac_filter;
+    std::shared_ptr<packet_filter_mac_addr> packet_mac_filter;
 };
 
 class kis_database_logfile_builder : public KisLogfileBuilder {

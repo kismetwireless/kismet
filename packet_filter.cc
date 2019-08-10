@@ -115,7 +115,7 @@ bool Packetfilter::filterstring_to_bool(const std::string& str) {
     return false;
 }
 
-PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::string& in_description) :
+packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const std::string& in_description) :
     Packetfilter(in_id, in_description, "mac_addr") {
 
     register_fields();
@@ -219,12 +219,12 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
 }
 
-PacketfilterMacaddr::~PacketfilterMacaddr() {
+packet_filter_mac_addr::~packet_filter_mac_addr() {
     if (eventbus != nullptr)
         eventbus->remove_listener(eb_id);
 }
 
-void PacketfilterMacaddr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
+void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
 	local_locker l(&mutex);
 
 	if (unknown_phy_mac_filter_map.size() == 0)
@@ -248,7 +248,7 @@ void PacketfilterMacaddr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
 	unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
-void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block, bool value) {
+void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block, bool value) {
 	local_locker l(&mutex);
 
 	// Build the tracked version of the record, building any containers we need along the way, this
@@ -339,7 +339,7 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
         phy_mac_filter_map[phy->FetchPhyId()].filter_any[in_mac] = value;
 }
 
-void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block) {
+void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block) {
 	local_locker l(&mutex);
 
 	// Build the tracked version of the record, building any containers we need along the way, this
@@ -432,7 +432,7 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
     }
 }
 
-unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream, 
+unsigned int packet_filter_mac_addr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, shared_structured structured) {
     // /filters/packet/[id]/[phy]/[block]/set_filter
     
@@ -480,7 +480,7 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
     return 500;
 }
 
-unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream, 
+unsigned int packet_filter_mac_addr::remove_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, shared_structured structured) {
     // /filters/packet/[id]/[phy]/[block]/remove_filter
 
@@ -527,7 +527,7 @@ unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream,
     return 500;
 }
 
-bool PacketfilterMacaddr::filter_packet(kis_packet *packet) {
+bool packet_filter_mac_addr::filter_packet(kis_packet *packet) {
     auto common = packet->fetch<kis_common_info>(pack_comp_common);
 
     if (common == nullptr)
@@ -579,13 +579,13 @@ bool PacketfilterMacaddr::filter_packet(kis_packet *packet) {
     return get_filter_default();
 }
 
-std::shared_ptr<tracker_element_map> PacketfilterMacaddr::self_endp_handler() {
+std::shared_ptr<tracker_element_map> packet_filter_mac_addr::self_endp_handler() {
     auto ret = std::make_shared<tracker_element_map>();
     build_self_content(ret);
     return ret;
 }
 
-void PacketfilterMacaddr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
+void packet_filter_mac_addr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
     Packetfilter::build_self_content(content);
 
     content->insert(filter_phy_blocks);
