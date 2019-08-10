@@ -143,7 +143,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
    
     packet_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_packet_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_packet_timeout", 0);
 
     if (packet_timeout != 0) {
         packet_timeout_timer = 
@@ -167,7 +167,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     device_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_device_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_timeout", 0);
 
     if (device_timeout != 0) {
         device_timeout_timer = 
@@ -187,7 +187,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     message_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_message_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_message_timeout", 0);
 
     if (message_timeout != 0) {
         message_timeout_timer = 
@@ -207,7 +207,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     alert_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_alert_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_alert_timeout", 0);
 
     if (alert_timeout != 0) {
         alert_timeout_timer = 
@@ -227,7 +227,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     snapshot_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_snapshot_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_snapshot_timeout", 0);
 
     if (snapshot_timeout != 0) {
         snapshot_timeout_timer = 

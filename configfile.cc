@@ -322,7 +322,7 @@ int config_file::fetch_opt_int(const std::string& in_key, int dvalue) {
     return FetchOptAs<int>(in_key, dvalue);
 }
 
-unsigned int config_file::FetchOptUInt(const std::string& in_key, unsigned int dvalue) {
+unsigned int config_file::fetch_opt_uint(const std::string& in_key, unsigned int dvalue) {
     return FetchOptAs<unsigned int>(in_key, dvalue);
 }
 

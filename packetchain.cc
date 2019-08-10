@@ -51,9 +51,9 @@ packet_chain::packet_chain() {
     last_packet_drop_user_warning = 0;
 
     packet_queue_warning = 
-        Globalreg::globalreg->kismet_config->FetchOptUInt("packet_log_warning", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_log_warning", 0);
     packet_queue_drop =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("packet_backlog_limit", 8192);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_backlog_limit", 8192);
 
     packet_chain_pause = false;
 

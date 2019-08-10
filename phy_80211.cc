@@ -453,7 +453,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
-            Globalreg::globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
 
         std::stringstream ss;
         ss << "Removing 802.11 device info which has been inactive for more than " <<
@@ -483,7 +483,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
-        Globalreg::globalreg->kismet_config->FetchOptUInt("packet_dedup_size", 2048);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_dedup_size", 2048);
     recent_packet_checksums = new uint32_t[recent_packet_checksums_sz];
     for (unsigned int x = 0; x < recent_packet_checksums_sz; x++) {
         recent_packet_checksums[x] = 0;

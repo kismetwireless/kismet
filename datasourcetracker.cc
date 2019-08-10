@@ -463,7 +463,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     std::string listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
     uint32_t listenport = 
-        Globalreg::globalreg->kismet_config->FetchOptUInt("remote_capture_port", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("remote_capture_port", 0);
 
     if (listen.length() == 0) {
         _MSG("No remote_capture_listen= line found in kismet.conf; no remote "
@@ -492,7 +492,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_datasources", true)) {
         unsigned int lograte =
-            Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_datasource_rate", 30);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasource_rate", 30);
 
         _MSG("Saving datasources to the Kismet database log every " + UIntToString(lograte) + 
                 " seconds.", MSGFLAG_INFO);
@@ -602,11 +602,11 @@ void Datasourcetracker::Deferred_Startup() {
     }
 
     auto stagger_thresh = 
-        Globalreg::globalreg->kismet_config->FetchOptUInt("source_stagger_threshold", 16);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_stagger_threshold", 16);
     auto simul_open = 
-        Globalreg::globalreg->kismet_config->FetchOptUInt("source_launch_group", 10);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_group", 10);
     auto simul_open_delay = 
-        Globalreg::globalreg->kismet_config->FetchOptUInt("source_launch_delay", 10);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_delay", 10);
 
     auto launch_func = [](Datasourcetracker *dst, std::string src) {
             dst->open_datasource(src, 

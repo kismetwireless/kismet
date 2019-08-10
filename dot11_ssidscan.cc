@@ -106,8 +106,8 @@ Dot11_SsidScan::Dot11_SsidScan() {
     initial_log_filters->set(config->fetch_opt_bool("dot11_ssidscan_block_logging", false));
     filter_logs->set(config->fetch_opt_bool("dot11_ssidscan_dynamic_logging", true));
 
-    min_scan_seconds->set(config->FetchOptUInt("dot11_ssidscan_minimum_hop", 30));
-    max_contend_cap_seconds->set(config->FetchOptUInt("dot11_ssidscan_maximum_lock", 30));
+    min_scan_seconds->set(config->fetch_opt_uint("dot11_ssidscan_minimum_hop", 30));
+    max_contend_cap_seconds->set(config->fetch_opt_uint("dot11_ssidscan_maximum_lock", 30));
 
     dot11_ssidscan_status_endp =
         std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/phy/phy80211/ssidscan/status", true,

@@ -196,7 +196,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
             statestore = new device_tracker_state_store(globalreg, this);
 
             unsigned int storerate = 
-                globalreg->kismet_config->FetchOptUInt("persistent_storage_rate", 60);
+                globalreg->kismet_config->fetch_opt_uint("persistent_storage_rate", 60);
 
             _MSG("Persistent device storage enabled.  Kismet will remember devices and "
                     "other information between launches.  Kismet will store devices "
@@ -283,7 +283,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     if (globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
         unsigned int lograte = 
-            globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
+            globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
         _MSG("Saving devices to the Kismet database log every " + UIntToString(lograte) + 
                 " seconds.", MSGFLAG_INFO);
@@ -330,7 +330,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     // Preload the vector for speed
     unsigned int preload_sz = 
-        globalreg->kismet_config->FetchOptUInt("tracker_device_presize", 1000);
+        globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
     tracked_vec.reserve(preload_sz);
     immutable_tracked_vec->reserve(preload_sz);
@@ -341,7 +341,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
-            globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
+            globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
 
         std::stringstream ss;
         ss << "Removing tracked devices which have been inactive for more than " <<
@@ -360,7 +360,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     }
 
 	max_num_devices =
-		globalreg->kismet_config->FetchOptUInt("tracker_max_devices", 0);
+		globalreg->kismet_config->fetch_opt_uint("tracker_max_devices", 0);
 
 	if (max_num_devices > 0) {
         _MSG_INFO("Limiting maximum number of devices to {}, older devices will be "
