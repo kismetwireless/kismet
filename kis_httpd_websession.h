@@ -29,14 +29,14 @@
 // We need to subclass the HTTPD handler directly because even though we can
 // generally act like a stream, we need to be able to directly manipulate the
 // response header
-class Kis_Httpd_Websession : public kis_net_httpd_cppstream_handler, 
+class kis_httpd_websession : public kis_net_httpd_cppstream_handler, 
     public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "WEBSESSION"; }
 
-    static std::shared_ptr<Kis_Httpd_Websession> 
+    static std::shared_ptr<kis_httpd_websession> 
         create_websession() {
-        std::shared_ptr<Kis_Httpd_Websession> mon(new Kis_Httpd_Websession());
+        std::shared_ptr<kis_httpd_websession> mon(new kis_httpd_websession());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->register_deferred_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
@@ -44,10 +44,10 @@ public:
     }
 
 private:
-    Kis_Httpd_Websession();
+    kis_httpd_websession();
 
 public:
-    ~Kis_Httpd_Websession();
+    ~kis_httpd_websession();
 
     virtual void trigger_deferred_startup() override;
     virtual void trigger_deferred_shutdown() override { };

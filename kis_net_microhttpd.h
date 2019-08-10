@@ -170,7 +170,7 @@ public:
     time_t session_lifetime;
 };
 
-class Kis_Httpd_Websession;
+class kis_httpd_websession;
 
 // Do a simple dump of a tracked object into an endpoint
 class kis_net_httpd_simple_tracked_endpoint : public kis_net_httpd_chain_stream_handler {
@@ -352,7 +352,7 @@ public:
     unsigned int FetchPort() { return http_port; };
     bool FetchUsingSSL() { return use_ssl; };
 
-    void RegisterSessionHandler(std::shared_ptr<Kis_Httpd_Websession> in_session);
+    void RegisterSessionHandler(std::shared_ptr<kis_httpd_websession> in_session);
 
     // All standard handlers require a login
     void RegisterHandler(Kis_Net_Httpd_Handler *in_handler);
@@ -483,7 +483,7 @@ protected:
     std::string sessiondb_file;
     config_file *session_db;
 
-    std::shared_ptr<Kis_Httpd_Websession> websession;
+    std::shared_ptr<kis_httpd_websession> websession;
     unsigned int session_timeout;
 
 };

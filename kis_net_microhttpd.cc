@@ -297,7 +297,7 @@ kis_net_httpd::~kis_net_httpd() {
     Globalreg::globalreg->RemoveGlobal("HTTPD_SERVER");
 }
 
-void kis_net_httpd::RegisterSessionHandler(std::shared_ptr<Kis_Httpd_Websession> in_session) {
+void kis_net_httpd::RegisterSessionHandler(std::shared_ptr<kis_httpd_websession> in_session) {
     local_locker l(&controller_mutex);
     websession = in_session;
 }

@@ -26,7 +26,7 @@
 #include "kis_httpd_websession.h"
 #include "alertracker.h"
 
-Kis_Httpd_Websession::Kis_Httpd_Websession() :
+kis_httpd_websession::kis_httpd_websession() :
     kis_net_httpd_cppstream_handler() {
 
     activated = false;
@@ -35,7 +35,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession() :
     global_config = false;
 }
 
-void Kis_Httpd_Websession::trigger_deferred_startup() {
+void kis_httpd_websession::trigger_deferred_startup() {
     local_locker l(&mutex);
 
     auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
@@ -87,7 +87,7 @@ void Kis_Httpd_Websession::trigger_deferred_startup() {
 
     // Fetch our own shared pointer 
     auto websession = 
-        Globalreg::fetch_mandatory_global_as<Kis_Httpd_Websession>();
+        Globalreg::fetch_mandatory_global_as<kis_httpd_websession>();
 
     httpd->RegisterSessionHandler(websession);
 
@@ -97,7 +97,7 @@ void Kis_Httpd_Websession::trigger_deferred_startup() {
     activated = true;
 }
 
-void Kis_Httpd_Websession::userdir_login() {
+void kis_httpd_websession::userdir_login() {
     // Parse the config file in the user directory, if it exists
     struct stat buf;
     if (stat(user_httpd_config_file.c_str(), &buf) == 0) {
@@ -120,11 +120,11 @@ void Kis_Httpd_Websession::userdir_login() {
                 "to set a password manually.", MSGFLAG_INFO | MSGFLAG_LOCAL);
 }
 
-Kis_Httpd_Websession::~Kis_Httpd_Websession() {
+kis_httpd_websession::~kis_httpd_websession() {
 
 }
 
-void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_password) {
+void kis_httpd_websession::set_login(std::string in_username, std::string in_password) {
     conf_username = in_username;
     conf_password = in_password;
 
@@ -134,7 +134,7 @@ void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_pas
     user_httpd_config->save_config(user_httpd_config_file.c_str());
 }
 
-bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
+bool kis_httpd_websession::validate_login(struct MHD_Connection *connection) {
     char *user;
     char *pass = nullptr;
 
@@ -172,7 +172,7 @@ bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
     return true;
 }
 
-bool Kis_Httpd_Websession::httpd_verify_path(const char *path, const char *method) {
+bool kis_httpd_websession::httpd_verify_path(const char *path, const char *method) {
     std::string stripped = Httpd_StripSuffix(path);
 
     if (strcmp(method, "POST") == 0) {
@@ -192,7 +192,7 @@ bool Kis_Httpd_Websession::httpd_verify_path(const char *path, const char *metho
     return false;
 }
 
-void Kis_Httpd_Websession::httpd_create_stream_response(kis_net_httpd *httpd,
+void kis_httpd_websession::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
@@ -236,7 +236,7 @@ void Kis_Httpd_Websession::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int Kis_Httpd_Websession::httpd_post_complete(kis_net_httpd_connection *concls) {
+int kis_httpd_websession::httpd_post_complete(kis_net_httpd_connection *concls) {
     local_locker l(&mutex);
 
     auto stripped = kishttpd::StripSuffix(concls->url);
