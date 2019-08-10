@@ -27,7 +27,7 @@
 #include "pcapng_stream_ringbuf.h"
 #include "filewritebuf.h"
 
-class KisPcapNGLogfile : public KisLogfile {
+class KisPcapNGLogfile : public kis_logfile {
 public:
     KisPcapNGLogfile(shared_log_builder in_builder);
     virtual ~KisPcapNGLogfile();

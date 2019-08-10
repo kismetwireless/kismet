@@ -21,7 +21,7 @@
 #include "kis_pcapnglogfile.h"
 
 KisPcapNGLogfile::KisPcapNGLogfile(shared_log_builder in_builder) :
-    KisLogfile(in_builder) {
+    kis_logfile(in_builder) {
 
     pcapng_stream = NULL;
     pcapng_file = NULL;

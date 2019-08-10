@@ -29,7 +29,7 @@
 #include "phy_80211.h"
 
 KisPPILogfile::KisPPILogfile(shared_log_builder in_builder) : 
-    KisLogfile(in_builder) {
+    kis_logfile(in_builder) {
 
 	// Default to dot11
 	dlt = DLT_IEEE802_11;

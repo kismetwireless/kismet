@@ -58,7 +58,7 @@
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
-class kis_database_logfile : public KisLogfile, public kis_database, public lifetime_global,
+class kis_database_logfile : public kis_logfile, public kis_database, public lifetime_global,
     public kis_net_httpd_ringbuf_stream_handler, public MessageClient, public deferred_startup {
 public:
     static std::string global_name() { return "DATABASELOG"; }

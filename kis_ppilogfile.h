@@ -58,7 +58,7 @@ typedef int (*dumpfile_ppi_cb)(DUMPFILE_PPI_PARMS);
 typedef kis_datachunk *(*dumpfile_pcap_filter_cb)(DUMPFILE_PCAP_FILTER_PARMS);
 
 // Pcap-based packet writer
-class KisPPILogfile : public KisLogfile {
+class KisPPILogfile : public kis_logfile {
 public:
     KisPPILogfile(shared_log_builder in_builder);
     virtual ~KisPPILogfile();

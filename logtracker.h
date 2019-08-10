@@ -33,8 +33,8 @@
 class KisLogfileBuilder;
 typedef std::shared_ptr<KisLogfileBuilder> shared_log_builder;
 
-class KisLogfile;
-typedef std::shared_ptr<KisLogfile> SharedLogfile;
+class kis_logfile;
+typedef std::shared_ptr<kis_logfile> SharedLogfile;
 
 // Logfile builders are responsible for telling the logging tracker what sort of 
 // log we are, the type and default name, if we're a singleton log that can't have multiple
@@ -119,27 +119,27 @@ protected:
 
 // Logfiles written to disk can be 'block' logs (like the device log), or they can be
 // streaming logs (like gps or pcapng streams); 
-class KisLogfile : public tracker_component, public streaming_agent {
+class kis_logfile : public tracker_component, public streaming_agent {
 public:
-    KisLogfile() :
+    kis_logfile() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisLogfile(int in_id) :
+    kis_logfile(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisLogfile(int in_id, std::shared_ptr<tracker_element_map> e) :
+    kis_logfile(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    KisLogfile(shared_log_builder in_builder) :
+    kis_logfile(shared_log_builder in_builder) :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -153,7 +153,7 @@ public:
         set_int_log_uuid(luuid);
     }
 
-    virtual ~KisLogfile() { 
+    virtual ~kis_logfile() { 
         local_locker l(&log_mutex);
 
         if (builder != NULL && builder->get_stream()) {
@@ -165,7 +165,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("KisLogfile");
+        return adler32_checksum("kis_logfile");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

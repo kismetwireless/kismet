@@ -48,7 +48,7 @@ LogTracker::~LogTracker() {
     Globalreg::globalreg->RemoveGlobal("LOGTRACKER");
 
     for (auto i : *logfile_vec) {
-        SharedLogfile f = std::static_pointer_cast<KisLogfile>(i);
+        SharedLogfile f = std::static_pointer_cast<kis_logfile>(i);
         f->Log_Close();
     }
 
@@ -67,7 +67,7 @@ void LogTracker::register_fields() {
 
     logfile_entry_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.logtracker.log",
-                tracker_element_factory<KisLogfile>(),
+                tracker_element_factory<kis_logfile>(),
                 "Log file");
 
     register_field("kismet.logtracker.logging_enabled", "logging enabled", &logging_enabled);
@@ -190,7 +190,7 @@ void LogTracker::trigger_deferred_startup() {
 
 void LogTracker::trigger_deferred_shutdown() {
     for (auto l : *logfile_vec) {
-        SharedLogfile lf = std::static_pointer_cast<KisLogfile>(l);
+        SharedLogfile lf = std::static_pointer_cast<kis_logfile>(l);
 
         lf->Log_Close();
     }
@@ -250,7 +250,7 @@ SharedLogfile LogTracker::open_log(shared_log_builder in_builder, std::string in
     // If it's a singleton, make sure we're the only one
     if (in_builder->get_singleton()) {
         for (auto l : *logfile_vec) {
-            auto lf = std::static_pointer_cast<KisLogfile>(l);
+            auto lf = std::static_pointer_cast<kis_logfile>(l);
 
             if (lf->get_builder()->get_log_class() == in_builder->get_log_class() &&
                     lf->get_log_open()) {
@@ -327,7 +327,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
             local_locker lock(&tracker_mutex);
 
             for (auto lfi : *logfile_vec) {
-                auto lf = std::static_pointer_cast<KisLogfile>(lfi);
+                auto lf = std::static_pointer_cast<kis_logfile>(lfi);
 
                 if (lf->get_log_uuid() == u)
                     return true;
@@ -423,10 +423,10 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
             local_locker lock(&tracker_mutex);
 
-            std::shared_ptr<KisLogfile> logfile;
+            std::shared_ptr<kis_logfile> logfile;
 
             for (auto lfi : *logfile_vec) {
-                auto lf = std::static_pointer_cast<KisLogfile>(lfi);
+                auto lf = std::static_pointer_cast<kis_logfile>(lfi);
 
                 if (lf->get_log_uuid() == u) {
                     logfile = lf;
