@@ -440,7 +440,7 @@ bool tcp_server_v2::AllowConnection(int in_fd) {
 
 std::shared_ptr<buffer_handler_generic> tcp_server_v2::AllocateConnection(int in_fd) {
     // Basic allocation
-    std::shared_ptr<buffer_handler_generic> rbh(new buffer_handler<RingbufV2>(ringbuf_size, ringbuf_size));  
+    std::shared_ptr<buffer_handler_generic> rbh(new buffer_handler<ringbuf_v2>(ringbuf_size, ringbuf_size));  
 
     // Protocol errors kill the connection
     auto fd_alias = in_fd;

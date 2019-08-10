@@ -166,7 +166,7 @@ bool gps_gpsd_v2::open_gps(std::string in_opts) {
     if (tcphandler == nullptr) {
         // GPSD network connection writes data as well as reading, but most of it is
         // inbound data
-        tcphandler = std::make_shared<buffer_handler<RingbufV2>>(4096, 512);
+        tcphandler = std::make_shared<buffer_handler<ringbuf_v2>>(4096, 512);
         tcphandler->set_mutex(gps_mutex);
         tcphandler->set_read_buffer_interface(&tcpinterface);
     }

@@ -39,10 +39,10 @@
 // Kismet as the rewrite continues
 //
 // Automatically thread locks locally to prevent multiple operations overlapping
-class RingbufV2 : public common_buffer {
+class ringbuf_v2 : public common_buffer {
 public:
-    RingbufV2(size_t in_sz);
-    virtual ~RingbufV2();
+    ringbuf_v2(size_t in_sz);
+    virtual ~ringbuf_v2();
 
     // Reset a buffer
     virtual void clear();

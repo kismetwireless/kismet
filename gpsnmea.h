@@ -41,7 +41,7 @@ public:
     virtual ~GPSNMEA() { };
 
 protected:
-    std::shared_ptr<buffer_handler<RingbufV2>> nmeahandler;
+    std::shared_ptr<buffer_handler<ringbuf_v2>> nmeahandler;
     buffer_interface_func nmeainterface;
 
     // buffer_interface API

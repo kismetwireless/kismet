@@ -253,7 +253,7 @@ bool kis_external_interface::run_ipc() {
     }
 
     // Make a new handler and new ipc.  Give a generous buffer.
-    ringbuf_handler = std::make_shared<buffer_handler<RingbufV2>>((1024 * 1024), (1024 * 1024));
+    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024));
     ringbuf_handler->set_mutex(ext_mutex);
     ringbuf_handler->set_read_buffer_interface(this);
 

@@ -323,7 +323,7 @@ public:
         external_binary = binary;
 
         // Grow the IPC buffer
-        ringbuf_handler.reset(new buffer_handler<RingbufV2>((1024*1024), (1024*1024)));
+        ringbuf_handler.reset(new buffer_handler<ringbuf_v2>((1024*1024), (1024*1024)));
         ringbuf_handler->set_read_buffer_interface(this);
 
         ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
