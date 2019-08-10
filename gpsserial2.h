@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -35,10 +35,10 @@
 // This code replaces gpsserial with a new gps driver based on
 // a ringbuffer interface, serialclientv2, and new kis_gps interface.
 
-class GPSSerialV2 : public kis_gps_nmea {
+class kis_gps_serial_v2 : public kis_gps_nmea {
 public:
-    GPSSerialV2(shared_gps_builder in_builder);
-    virtual ~GPSSerialV2();
+    kis_gps_serial_v2(shared_gps_builder in_builder);
+    virtual ~kis_gps_serial_v2();
 
     virtual bool open_gps(std::string in_opts);
 
@@ -88,7 +88,7 @@ public:
     }
 
     virtual shared_gps build_gps(shared_gps_builder in_builder) override {
-        return shared_gps(new GPSSerialV2(in_builder));
+        return shared_gps(new kis_gps_serial_v2(in_builder));
     }
 };
 

@@ -25,7 +25,7 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-GPSSerialV2::GPSSerialV2(shared_gps_builder in_builder) : 
+kis_gps_serial_v2::kis_gps_serial_v2(shared_gps_builder in_builder) : 
     kis_gps_nmea(in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
@@ -60,7 +60,7 @@ GPSSerialV2::GPSSerialV2(shared_gps_builder in_builder) :
                 });
 }
 
-GPSSerialV2::~GPSSerialV2() {
+kis_gps_serial_v2::~kis_gps_serial_v2() {
     if (serialclient != nullptr) {
         pollabletracker->RemovePollable(serialclient);
     }
@@ -74,7 +74,7 @@ GPSSerialV2::~GPSSerialV2() {
         timetracker->RemoveTimer(error_reconnect_timer);
 }
 
-bool GPSSerialV2::open_gps(std::string in_opts) {
+bool kis_gps_serial_v2::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
     if (!kis_gps::open_gps(in_opts))
@@ -140,7 +140,7 @@ bool GPSSerialV2::open_gps(std::string in_opts) {
     return 1;
 }
 
-bool GPSSerialV2::get_location_valid() {
+bool kis_gps_serial_v2::get_location_valid() {
     local_shared_locker lock(gps_mutex);
 
     if (gps_location == NULL) {
@@ -160,7 +160,7 @@ bool GPSSerialV2::get_location_valid() {
     return true;
 }
 
-bool GPSSerialV2::get_device_connected() {
+bool kis_gps_serial_v2::get_device_connected() {
     local_shared_locker lock(gps_mutex);
 
     if (serialclient == NULL)
@@ -169,7 +169,7 @@ bool GPSSerialV2::get_device_connected() {
     return serialclient->FetchConnected();
 }
 
-void GPSSerialV2::buffer_error(std::string in_error) {
+void kis_gps_serial_v2::buffer_error(std::string in_error) {
     local_locker lock(gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a serial error: " + in_error,
