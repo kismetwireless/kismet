@@ -168,7 +168,7 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
 }
 
 Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
-        Kis_Net_Httpd_Buffer_Stream_Handler *in_handler,
+        kis_net_httpd_buffer_stream_handler *in_handler,
         Kis_Net_Httpd_Connection *in_httpd_connection,
         std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
         void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) :
@@ -242,11 +242,11 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHan
     }
 }
 
-Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
+kis_net_httpd_buffer_stream_handler::~kis_net_httpd_buffer_stream_handler() {
 
 }
 
-ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t pos,
+ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
     Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
 
@@ -343,7 +343,7 @@ static void free_buffer_aux_callback(void *cls) {
     delete(aux);
 }
 
-int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
+int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -424,7 +424,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
     return MHD_NO;
 }
 
-int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
+int kis_net_httpd_buffer_stream_handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection, 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

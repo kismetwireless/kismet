@@ -166,13 +166,13 @@ public:
 //
 // Because this is a long-running handler, it must track the buffer state
 // inside a connection object.
-class Kis_Net_Httpd_Buffer_Stream_Handler : public Kis_Net_Httpd_Handler {
+class kis_net_httpd_buffer_stream_handler : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_Buffer_Stream_Handler() : Kis_Net_Httpd_Handler() {
+    kis_net_httpd_buffer_stream_handler() : Kis_Net_Httpd_Handler() {
         // Default rb size
         k_n_h_r_ringbuf_size = 1024*1024*4;
     }
-    virtual ~Kis_Net_Httpd_Buffer_Stream_Handler();
+    virtual ~kis_net_httpd_buffer_stream_handler();
 
     virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -226,9 +226,9 @@ protected:
 };
 
 // Ringbuf-based stream handler
-class kis_net_httpd_ringbuf_stream_handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
+class kis_net_httpd_ringbuf_stream_handler : public kis_net_httpd_buffer_stream_handler {
 public:
-    kis_net_httpd_ringbuf_stream_handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
+    kis_net_httpd_ringbuf_stream_handler() : kis_net_httpd_buffer_stream_handler() { }
 
 protected:
     virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
@@ -236,9 +236,9 @@ protected:
     }
 };
 
-class kis_net_httpd_chain_stream_handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
+class kis_net_httpd_chain_stream_handler : public kis_net_httpd_buffer_stream_handler {
 public:
-    kis_net_httpd_chain_stream_handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
+    kis_net_httpd_chain_stream_handler() : kis_net_httpd_buffer_stream_handler() { }
 
 protected:
     virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
@@ -256,7 +256,7 @@ protected:
 // itself will be freed by the httpd system.
 class Kis_Net_Httpd_Buffer_Stream_Aux : public BufferInterface {
 public:
-    Kis_Net_Httpd_Buffer_Stream_Aux(Kis_Net_Httpd_Buffer_Stream_Handler *in_handler,
+    Kis_Net_Httpd_Buffer_Stream_Aux(kis_net_httpd_buffer_stream_handler *in_handler,
             Kis_Net_Httpd_Connection *in_httpd_connection, 
             std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
             void *in_aux,
@@ -314,7 +314,7 @@ public:
     kis_recursive_timed_mutex buffer_event_mutex;
 
     // Stream handler we belong to
-    Kis_Net_Httpd_Buffer_Stream_Handler *httpd_stream_handler;
+    kis_net_httpd_buffer_stream_handler *httpd_stream_handler;
 
     // kis httpd connection we belong to
     Kis_Net_Httpd_Connection *httpd_connection;
