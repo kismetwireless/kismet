@@ -405,7 +405,7 @@ void buffer_handler_generic::RemoveWriteBufferDrainCb() {
 
 void buffer_handler_generic::buffer_error(std::string in_error) {
     read_buffer_error(in_error);
-    WriteBufferError(in_error);
+    write_buffer_error(in_error);
 }
 
 void buffer_handler_generic::read_buffer_error(std::string in_error) {
@@ -413,7 +413,7 @@ void buffer_handler_generic::read_buffer_error(std::string in_error) {
         rbuf_notify->buffer_error(in_error);
 }
 
-void buffer_handler_generic::WriteBufferError(std::string in_error) {
+void buffer_handler_generic::write_buffer_error(std::string in_error) {
     if (wbuf_notify_avail && wbuf_notify)
         wbuf_notify->buffer_error(in_error);
 }

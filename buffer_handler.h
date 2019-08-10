@@ -290,7 +290,7 @@ public:
     virtual void buffer_error(std::string in_error);
     // Propagate an error to a specific listener
     virtual void read_buffer_error(std::string in_error);
-    virtual void WriteBufferError(std::string in_error);
+    virtual void write_buffer_error(std::string in_error);
 
     // Propagate a protocol-layer error to any line-drivers (protocol parser
     // to line drivers).  We don't pass a string to the line drivers because
