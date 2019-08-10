@@ -69,7 +69,7 @@ GPSTCP::~GPSTCP() {
     }
 
     if (nmeahandler != nullptr) {
-        nmeahandler->RemoveReadBufferInterface();
+        nmeahandler->remove_read_buffer_interface();
     }
 
     std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");

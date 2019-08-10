@@ -108,7 +108,7 @@ GPSGpsdV2::~GPSGpsdV2() {
     tcpclient.reset();
 
     if (tcphandler != nullptr) {
-        tcphandler->RemoveReadBufferInterface();
+        tcphandler->remove_read_buffer_interface();
     }
 
     tcphandler.reset();

@@ -66,7 +66,7 @@ GPSSerialV2::~GPSSerialV2() {
     }
 
     if (nmeahandler != nullptr) {
-        nmeahandler->RemoveReadBufferInterface();
+        nmeahandler->remove_read_buffer_interface();
     }
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();

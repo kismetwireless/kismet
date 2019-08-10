@@ -371,7 +371,7 @@ void buffer_handler_generic::set_write_buffer_interface(buffer_interface *in_int
         wbuf_notify->BufferAvailable(pending);
 }
 
-void buffer_handler_generic::RemoveReadBufferInterface() {
+void buffer_handler_generic::remove_read_buffer_interface() {
     rbuf_notify_avail = false;
     rbuf_notify = nullptr;
 }
@@ -442,7 +442,7 @@ buffer_interface::buffer_interface() {
 buffer_interface::~buffer_interface() {
     if (buffer_handler != NULL) {
         if (read_handler)
-            buffer_handler->RemoveReadBufferInterface();
+            buffer_handler->remove_read_buffer_interface();
         if (write_handler)
             buffer_handler->RemoveWriteBufferInterface();
     }

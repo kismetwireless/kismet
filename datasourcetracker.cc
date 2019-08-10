@@ -1065,7 +1065,7 @@ void Datasourcetracker::NewConnection(std::shared_ptr<buffer_handler_generic> co
     dst_incoming_remote *incoming = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
                     uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
-            in_handler->RemoveReadBufferInterface();
+            in_handler->remove_read_buffer_interface();
             open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
         });
 
@@ -2014,7 +2014,7 @@ dst_incoming_remote::~dst_incoming_remote() {
 
     // Remove ourselves as a handler
     if (ringbuf_handler != NULL)
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
 
     // Wait for the thread to finish
     handshake_thread.join();

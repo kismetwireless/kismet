@@ -380,7 +380,7 @@ void KisDatasource::close_source() {
     }
 
     if (ringbuf_handler != nullptr) {
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
         send_shutdown("closing source");
     }
 

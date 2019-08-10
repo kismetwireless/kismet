@@ -47,7 +47,7 @@ KisExternalInterface::~KisExternalInterface() {
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != nullptr) {
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
         ringbuf_handler->ProtocolError();
     }
 
@@ -76,7 +76,7 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != nullptr) {
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
         ringbuf_handler->ProtocolError();
     }
 
@@ -248,7 +248,7 @@ bool KisExternalInterface::run_ipc() {
     }
 
     if (ringbuf_handler != nullptr) {
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
         ringbuf_handler->ProtocolError();
     }
 
@@ -302,7 +302,7 @@ void KisExternalInterface::close_external() {
     }
 
     if (ringbuf_handler != nullptr) {
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
         ringbuf_handler->ProtocolError();
     }
 

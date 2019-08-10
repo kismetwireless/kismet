@@ -275,7 +275,7 @@ public:
     virtual void set_read_buffer_interface(buffer_interface *in_interface);
     virtual void set_write_buffer_interface(buffer_interface *in_interface);
 
-    virtual void RemoveReadBufferInterface();
+    virtual void remove_read_buffer_interface();
     virtual void RemoveWriteBufferInterface();
 
     // Set simple functional callbacks to be called when we drain an interface; used to
