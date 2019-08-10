@@ -82,9 +82,9 @@ protected:
     int si_raw;
 };
 
-class GPSGpsdV2Builder : public kis_gps_builder {
+class gps_gpsd_v2_builder : public kis_gps_builder {
 public:
-    GPSGpsdV2Builder() : 
+    gps_gpsd_v2_builder() : 
         kis_gps_builder() { 
         initialize();
     }
