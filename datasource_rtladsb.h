@@ -37,23 +37,23 @@ protected:
 
 };
 
-class DatasourceRtladsbBuilder : public kis_datasource_builder {
+class datasource_rtladsb_builder : public kis_datasource_builder {
 public:
-    DatasourceRtladsbBuilder() :
+    datasource_rtladsb_builder() :
         kis_datasource_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtladsbBuilder(int in_id) :
+    datasource_rtladsb_builder(int in_id) :
         kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtladsbBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_rtladsb_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
         register_fields();
@@ -61,7 +61,7 @@ public:
         initialize();
     }
 
-    virtual ~DatasourceRtladsbBuilder() { }
+    virtual ~datasource_rtladsb_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
         return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this, false));
