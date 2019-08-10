@@ -480,7 +480,7 @@ void datasource_tracker::Deferred_Startup() {
 
     config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->fetch_opt_bool("override_remote_timestamp", true));
 
-    httpd_pcap = std::make_shared<Datasourcetracker_Httpd_Pcap>();
+    httpd_pcap = std::make_shared<datasource_tracker_httpd_pcap>();
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
@@ -1816,7 +1816,7 @@ double datasource_tracker::string_to_rate(std::string in_str, double in_default)
     }
 }
 
-bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const char *method) {
+bool datasource_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
 
         // Total pcap of all data; we put it in 2 locations
@@ -1866,7 +1866,7 @@ bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const cha
     return false;
 }
 
-int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
+int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

@@ -336,7 +336,7 @@ protected:
 };
 
 // Fwd def of datasource pcap feed
-class Datasourcetracker_Httpd_Pcap;
+class datasource_tracker_httpd_pcap;
 
 class datasource_tracker : public kis_net_httpd_cppstream_handler, 
     public lifetime_global, public DeferredStartup, public TcpServerV2 {
@@ -509,7 +509,7 @@ protected:
     void calculate_source_hopping(shared_datasource in_ds);
 
     // Our pcap http interface
-    std::shared_ptr<Datasourcetracker_Httpd_Pcap> httpd_pcap;
+    std::shared_ptr<datasource_tracker_httpd_pcap> httpd_pcap;
 
     // Datasource logging
     int database_log_timer;
@@ -523,13 +523,13 @@ protected:
 
 /* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
  */
-class Datasourcetracker_Httpd_Pcap : public kis_net_httpd_ringbuf_stream_handler {
+class datasource_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Datasourcetracker_Httpd_Pcap() : kis_net_httpd_ringbuf_stream_handler() { 
+    datasource_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
         Bind_Httpd_Server();
     }
 
-    virtual ~Datasourcetracker_Httpd_Pcap() { };
+    virtual ~datasource_tracker_httpd_pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest
