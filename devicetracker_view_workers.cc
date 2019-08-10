@@ -38,7 +38,7 @@ bool device_tracker_view_function_worker::matchDevice(std::shared_ptr<kis_tracke
 }
 
 #ifdef HAVE_LIBPCRE
-DevicetrackerViewRegexWorker::pcre_filter::pcre_filter(const std::string& in_target,
+device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in_target,
         const std::string& in_regex) {
 
     const char *compile_error, *study_error;
@@ -60,7 +60,7 @@ DevicetrackerViewRegexWorker::pcre_filter::pcre_filter(const std::string& in_tar
     }
 }
 
-DevicetrackerViewRegexWorker::pcre_filter::~pcre_filter() {
+device_tracker_view_regex_worker::pcre_filter::~pcre_filter() {
     if (re != NULL)
         pcre_free(re);
     if (study != NULL)
@@ -69,7 +69,7 @@ DevicetrackerViewRegexWorker::pcre_filter::~pcre_filter() {
 
 #endif
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>>& in_filter_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>>& in_filter_vec) {
 #ifdef HAVE_LIBPCRE
     filter_vec = in_filter_vec;
 #else
@@ -77,7 +77,7 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std
 #endif
 }
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(shared_structured shared_pcre_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(shared_structured shared_pcre_vec) {
 #ifdef HAVE_LIBPCRE
     auto vec = shared_pcre_vec->getStructuredArray();
 
@@ -90,7 +90,7 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(shared_structured sha
         auto field = rpair[0]->getString();
         auto regex = rpair[1]->getString();
 
-        auto worker_filter = std::make_shared<DevicetrackerViewRegexWorker::pcre_filter>(field, regex);
+        auto worker_filter = std::make_shared<device_tracker_view_regex_worker::pcre_filter>(field, regex);
 
         filter_vec.push_back(worker_filter);
     }
@@ -99,13 +99,13 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(shared_structured sha
 #endif
 }
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
 #ifdef HAVE_LIBPCRE
     for (auto i : str_pcre_vec) {
         auto field = std::get<0>(i);
         auto regex = std::get<1>(i);
 
-        auto worker_filter = std::make_shared<DevicetrackerViewRegexWorker::pcre_filter>(field, regex);
+        auto worker_filter = std::make_shared<device_tracker_view_regex_worker::pcre_filter>(field, regex);
 
         filter_vec.push_back(worker_filter);
     }
@@ -114,7 +114,7 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std
 #endif
 }
 
-bool DevicetrackerViewRegexWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
 #ifdef HAVE_LIBPCRE
     bool matched = false;
 

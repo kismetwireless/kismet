@@ -661,7 +661,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     if (regex != nullptr) {
         try {
             auto worker = 
-                DevicetrackerViewRegexWorker(regex);
+                device_tracker_view_regex_worker(regex);
             auto r_vec = do_readonly_device_work(worker, next_work_vec);
             next_work_vec = r_vec;
             // next_work_vec->set(r_vec->begin(), r_vec->end());

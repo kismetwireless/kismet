@@ -71,7 +71,7 @@ protected:
 };
 
 // Field:Regex matcher
-class DevicetrackerViewRegexWorker : public device_tracker_view_worker {
+class device_tracker_view_regex_worker : public device_tracker_view_worker {
 public:
     struct pcre_filter {
 #ifdef HAVE_LIBPCRE
@@ -85,28 +85,28 @@ public:
     };
 
     // Filter baed on a prepared vector
-    DevicetrackerViewRegexWorker(const std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>>& filter_vec);
+    device_tracker_view_regex_worker(const std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>>& filter_vec);
 
     // Build a PCRE from a standard regex description on a POST.
     // The shared_structured objeect is expected to be a vector of [field, regex] pairs.
     // std::runtime_error may be thrown if there is a parsing failure
-    DevicetrackerViewRegexWorker(shared_structured shared_pcre_vec);
+    device_tracker_view_regex_worker(shared_structured shared_pcre_vec);
 
     // Build a PCRE from a vector of field:pcre pairs
     // std::runtime_error may be thrown if there is a parsing failure
-    DevicetrackerViewRegexWorker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
+    device_tracker_view_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
 
-    DevicetrackerViewRegexWorker(const DevicetrackerViewRegexWorker& w) {
+    device_tracker_view_regex_worker(const device_tracker_view_regex_worker& w) {
         filter_vec = w.filter_vec;
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewRegexWorker() { }
+    virtual ~device_tracker_view_regex_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 
 protected:
-    std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>> filter_vec;
+    std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>> filter_vec;
 
 };
 
