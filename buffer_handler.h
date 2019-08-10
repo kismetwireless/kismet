@@ -276,7 +276,7 @@ public:
     virtual void set_write_buffer_interface(buffer_interface *in_interface);
 
     virtual void remove_read_buffer_interface();
-    virtual void RemoveWriteBufferInterface();
+    virtual void remove_write_buffer_interface();
 
     // Set simple functional callbacks to be called when we drain an interface; used to
     // allow quick unlocking of blocked writers

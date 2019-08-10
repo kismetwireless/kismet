@@ -202,7 +202,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
     in_error = true;
 
     if (ringbuf_handler) {
-        ringbuf_handler->RemoveWriteBufferInterface();
+        ringbuf_handler->remove_write_buffer_interface();
         ringbuf_handler->SetProtocolErrorCb(NULL);
     }
 
