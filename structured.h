@@ -41,8 +41,8 @@
 #include <map>
 #include <memory>
 
-class StructuredData;
-typedef std::shared_ptr<StructuredData> shared_structured;
+class structured_data;
+typedef std::shared_ptr<structured_data> shared_structured;
 
 // Top-level exception
 struct StructuredDataException : public std::runtime_error {
@@ -73,7 +73,7 @@ struct StructuredDataNoSuchKey : public StructuredDataException {
         StructuredDataException(message) {}
 };
 
-class StructuredData {
+class structured_data {
 public:
     typedef std::vector<shared_structured> structured_vec;
     typedef structured_vec::iterator structured_vec_iterator;
@@ -90,10 +90,10 @@ public:
     typedef std::vector<std::string> string_vec;
     typedef string_vec::iterator string_vec_iterator;
 
-    StructuredData() { };
-    StructuredData(std::string data __attribute__((unused))) { };
+    structured_data() { };
+    structured_data(std::string data __attribute__((unused))) { };
 
-    virtual ~StructuredData() { };
+    virtual ~structured_data() { };
 
     // Describe this current object
     virtual bool isNumber() = 0;

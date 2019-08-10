@@ -483,14 +483,14 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     try {
         if (structdata->has_key("fields")) {
             shared_structured fields = structdata->getStructuredByKey("fields");
-            StructuredData::structured_vec fvec = fields->getStructuredArray();
+            structured_data::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
                 if (i->isString()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
-                    StructuredData::string_vec mapvec = i->getStringVec();
+                    structured_data::string_vec mapvec = i->getStringVec();
 
                     if (mapvec.size() != 2) {
                         // fprintf(stderr, "debug - malformed rename pair\n");

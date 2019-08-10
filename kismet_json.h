@@ -50,9 +50,9 @@
 
 #include "structured.h"
 
-class structured_json : public StructuredData {
+class structured_json : public structured_data {
 public:
-    structured_json(std::string data) : StructuredData(data) {
+    structured_json(std::string data) : structured_data(data) {
         try {
             std::stringstream ss(data);
             ss >> json;

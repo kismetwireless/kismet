@@ -529,7 +529,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     unsigned int in_order_direction = 0;
 
     // Column number->path field mapping
-    auto column_number_map = StructuredData::structured_num_map{};
+    auto column_number_map = structured_data::structured_num_map{};
 
     // Parse datatables sub-data for windowing, etc
     try {

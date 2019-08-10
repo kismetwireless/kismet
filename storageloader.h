@@ -30,7 +30,7 @@
 #include "entrytracker.h"
 #include "structured.h"
 
-/* Storage loaders convert common StructuredData elements to tracked element object trees,
+/* Storage loaders convert common structured_data elements to tracked element object trees,
  * which can then be adopted by complete classes.
  *
  */

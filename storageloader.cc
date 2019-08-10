@@ -40,13 +40,13 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
     if (!d->isDictionary()) 
         throw std::runtime_error("expected dictionary object from structured serialization");
 
-    StructuredData::structured_str_map m = d->getStructuredStrMap();
+    structured_data::structured_str_map m = d->getStructuredStrMap();
 
     std::string objname;
     std::string objtypestr;
     tracker_type objtype;
 
-    std::shared_ptr<StructuredData> objdata;
+    std::shared_ptr<structured_data> objdata;
 
     shared_tracker_element elem;
     int elemid;
