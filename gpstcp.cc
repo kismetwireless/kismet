@@ -25,7 +25,7 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-GPSTCP::GPSTCP(shared_gps_builder in_builder) : 
+kis_gps_tcp::kis_gps_tcp(shared_gps_builder in_builder) : 
     kis_gps_nmea(in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
@@ -63,7 +63,7 @@ GPSTCP::GPSTCP(shared_gps_builder in_builder) :
                 });
 }
 
-GPSTCP::~GPSTCP() {
+kis_gps_tcp::~kis_gps_tcp() {
     if (tcpclient != nullptr) {
         pollabletracker->RemovePollable(tcpclient);
     }
@@ -77,7 +77,7 @@ GPSTCP::~GPSTCP() {
         timetracker->RemoveTimer(error_reconnect_timer);
 }
 
-bool GPSTCP::open_gps(std::string in_opts) {
+bool kis_gps_tcp::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
     if (!kis_gps::open_gps(in_opts))
@@ -105,18 +105,18 @@ bool GPSTCP::open_gps(std::string in_opts) {
     proto_port_s = fetch_opt("port", source_definition_opts);
 
     if (proto_host == "") {
-        _MSG("GPSTCP expected host= option, none found.", MSGFLAG_ERROR);
+        _MSG("kis_gps_tcp expected host= option, none found.", MSGFLAG_ERROR);
         return -1;
     }
 
     if (proto_port_s != "") {
         if (sscanf(proto_port_s.c_str(), "%u", &proto_port) != 1) {
-            _MSG("GPSTCP expected port in port= option.", MSGFLAG_ERROR);
+            _MSG("kis_gps_tcp expected port in port= option.", MSGFLAG_ERROR);
             return -1;
         }
     } else {
         proto_port = 4352;
-        _MSG("GPSTCP defaulting to port 4352, set the port= option if "
+        _MSG("kis_gps_tcp defaulting to port 4352, set the port= option if "
                 "your NMEA server is on a different port", MSGFLAG_INFO);
     }
 
@@ -138,7 +138,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
     host = proto_host;
     port = proto_port;
 
-    _MSG_INFO("GPSTCP connecting to GPS NMEA server on {}:{}", host, port);
+    _MSG_INFO("kis_gps_tcp connecting to GPS NMEA server on {}:{}", host, port);
 
     tcpclient->Connect(proto_host, proto_port);
     set_int_device_connected(true);
@@ -146,7 +146,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
     return 1;
 }
 
-bool GPSTCP::get_location_valid() {
+bool kis_gps_tcp::get_location_valid() {
     local_shared_locker lock(gps_mutex);
 
     if (gps_location == NULL) {
@@ -166,7 +166,7 @@ bool GPSTCP::get_location_valid() {
     return true;
 }
 
-bool GPSTCP::get_device_connected() {
+bool kis_gps_tcp::get_device_connected() {
     local_shared_locker lock(gps_mutex);
 
     if (tcpclient == NULL)
@@ -175,7 +175,7 @@ bool GPSTCP::get_device_connected() {
     return tcpclient->FetchConnected();
 }
 
-void GPSTCP::buffer_error(std::string in_error) {
+void kis_gps_tcp::buffer_error(std::string in_error) {
     local_locker lock(gps_mutex);
 
     _MSG("GPS device '" + get_gps_name() + "' encountered a network error: " + in_error,
