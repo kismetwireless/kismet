@@ -302,7 +302,7 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
 
         auto filter = structured->getStructuredByKey("filter");
 
-        if (!filter->isDictionary()) {
+        if (!filter->is_dictionary()) {
             stream << "Expected dictionary 'filter' object\n";
             return 500;
         }

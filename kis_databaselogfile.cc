@@ -1534,7 +1534,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                     if (structdata->has_key("filter")) {
                         filterdata = structdata->getStructuredByKey("filter");
 
-                        if (!filterdata->isDictionary()) 
+                        if (!filterdata->is_dictionary()) 
                             throw StructuredDataException("expected filter to be a dictionary");
                     }
                 }

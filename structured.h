@@ -100,7 +100,7 @@ public:
     virtual bool is_bool() = 0;
     virtual bool is_string() = 0;
     virtual bool is_array() = 0;
-    virtual bool isDictionary() = 0;
+    virtual bool is_dictionary() = 0;
     virtual bool isBinary() = 0;
 
     virtual double getNumber() = 0;
@@ -147,7 +147,7 @@ public:
 
                 ret.push_back(std::make_pair(sub[0]->getString(), sub[1]->getString()));
             }
-        } else if (isDictionary()) {
+        } else if (is_dictionary()) {
             for (auto i : getStructuredStrMap()) {
                 ret.push_back(std::make_pair(i.first, i.second->getString()));
             }

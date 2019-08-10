@@ -89,7 +89,7 @@ public:
         return json.is_array();
     }
 
-    virtual bool isDictionary() {
+    virtual bool is_dictionary() {
         return json.isObject();
     }
 
@@ -149,7 +149,7 @@ public:
     }
 
     virtual shared_structured getStructuredByKey(std::string key) {
-        except_if_not(isDictionary(), "Dictionary/Map");
+        except_if_not(is_dictionary(), "Dictionary/Map");
 
         if (!has_key(key)) 
             throw StructuredDataNoSuchKey("No such key: " + key);
@@ -220,7 +220,7 @@ public:
     }
 
     virtual structured_num_map getStructuredNumMap() {
-        except_if_not(isDictionary(), "dictionary/map");
+        except_if_not(is_dictionary(), "dictionary/map");
 
         structured_num_map m;
 
@@ -238,7 +238,7 @@ public:
     }
 
     virtual structured_str_map getStructuredStrMap() {
-        except_if_not(isDictionary(), "dictionary/map");
+        except_if_not(is_dictionary(), "dictionary/map");
 
         structured_str_map m;
 

@@ -37,7 +37,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
 
     // Each object should be a dictionary containing a 'storage' format record from 
     // Kismet...
-    if (!d->isDictionary()) 
+    if (!d->is_dictionary()) 
         throw std::runtime_error("expected dictionary object from structured serialization");
 
     structured_data::structured_str_map m = d->getStructuredStrMap();
