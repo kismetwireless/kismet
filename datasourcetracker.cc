@@ -198,7 +198,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
 }
 
-DST_DatasourceList::DST_DatasourceList(std::shared_ptr<tracker_element_vector> in_protovec) {
+datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec) {
     timetracker = 
         Globalreg::FetchMandatoryGlobalAs<time_tracker>();
 
@@ -209,7 +209,7 @@ DST_DatasourceList::DST_DatasourceList(std::shared_ptr<tracker_element_vector> i
     cancelled = false;
 }
 
-DST_DatasourceList::~DST_DatasourceList() {
+datasource_tracker_source_list::~datasource_tracker_source_list() {
     cancelled = true;
 
     // Cancel any probing sources and delete them
@@ -218,7 +218,7 @@ DST_DatasourceList::~DST_DatasourceList() {
     }
 }
 
-void DST_DatasourceList::cancel() {
+void datasource_tracker_source_list::cancel() {
     local_locker lock(&list_lock);
 
     if (cancelled)
@@ -236,7 +236,7 @@ void DST_DatasourceList::cancel() {
         list_cb(listed_sources);
 }
 
-void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, unsigned int in_transaction) {
+void datasource_tracker_source_list::complete_list(std::vector<SharedInterface> in_list, unsigned int in_transaction) {
     local_locker lock(&list_lock);
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them
@@ -260,7 +260,7 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
     }
 }
 
-void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
+void datasource_tracker_source_list::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
     list_cb = in_cb;
 
     std::vector<shared_datasource_builder> remote_builders;
@@ -971,7 +971,7 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb) {
     // Create a DSTProber to handle the probing
-    auto dst_list = std::make_shared<DST_DatasourceList>(proto_vec);
+    auto dst_list = std::make_shared<datasource_tracker_source_list>(proto_vec);
     unsigned int listid = 0;
    
     {
