@@ -381,7 +381,7 @@ public:
 
     // Create a session; if connection is not null, insert session into connection.
     // If response is not null, append to the response
-    std::shared_ptr<kis_net_httpd_session> CreateSession(kis_net_httpd_connection *connection, 
+    std::shared_ptr<kis_net_httpd_session> create_session(kis_net_httpd_connection *connection, 
             struct MHD_Response *response, time_t in_lifetime);
 
     // Append a session cookie if we have a valid session for this connection

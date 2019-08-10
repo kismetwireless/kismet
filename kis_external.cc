@@ -610,7 +610,7 @@ void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_se
         return;
     }
 
-    std::shared_ptr<kis_net_httpd_session> s = httpd->CreateSession(NULL, NULL, 0);
+    std::shared_ptr<kis_net_httpd_session> s = httpd->create_session(NULL, NULL, 0);
 
     if (s == NULL) {
         _MSG("Kismet external interface unable to create a HTTP auth", MSGFLAG_ERROR);

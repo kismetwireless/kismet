@@ -569,7 +569,7 @@ bool kis_net_httpd::has_valid_session(kis_net_httpd_connection *connection, bool
 
     // If we got here, we either don't have a session, or the session isn't valid.
     if (websession != NULL && websession->validate_login(connection->connection)) {
-        CreateSession(connection, NULL, session_timeout);
+        create_session(connection, NULL, session_timeout);
         return true;
     }
 
@@ -593,7 +593,7 @@ bool kis_net_httpd::has_valid_session(kis_net_httpd_connection *connection, bool
 }
 
 std::shared_ptr<kis_net_httpd_session> 
-kis_net_httpd::CreateSession(kis_net_httpd_connection *connection, 
+kis_net_httpd::create_session(kis_net_httpd_connection *connection, 
         struct MHD_Response *response, time_t in_lifetime) {
     
     std::shared_ptr<kis_net_httpd_session> s;
