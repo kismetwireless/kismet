@@ -175,7 +175,7 @@ protected:
 
     // Remove a device from any views; this is called when the devicetracker times out a 
     // device record.
-    virtual void removeDevice(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void remove_device(std::shared_ptr<kis_tracked_device_base> device);
 
 };
 

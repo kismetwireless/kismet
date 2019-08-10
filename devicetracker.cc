@@ -1355,7 +1355,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
-        vi->removeDevice(in_device);
+        vi->remove_device(in_device);
     }
 }
 

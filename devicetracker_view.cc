@@ -263,7 +263,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
     }
 }
 
-void device_tracker_view::removeDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker l(&mutex);
 
     auto di = device_presence_map.find(device->get_key());
