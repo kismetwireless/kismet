@@ -222,7 +222,7 @@ int packnum = 0, localdropnum = 0;
 // Ultimate registry of global components
 global_registry *globalregistry = NULL;
 
-void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
+void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     // Shut down the webserver first
     auto httpd = Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
     if (httpd != NULL)
@@ -655,7 +655,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	event_bus::create_eventbus();
 
     // We need to create the pollable system near the top of execution as well
-    auto pollabletracker(PollableTracker::create_pollabletracker());
+    auto pollabletracker(pollable_tracker::create_pollabletracker());
 
     // Open, initial parse, and assign the config file
     if (configfilename == "") {

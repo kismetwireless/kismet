@@ -51,7 +51,7 @@ gps_gpsd_v2::gps_gpsd_v2(shared_gps_builder in_builder) :
     last_data_time = time(0);
 
     pollabletracker = 
-        Globalreg::fetch_mandatory_global_as<PollableTracker>("POLLABLETRACKER");
+        Globalreg::fetch_mandatory_global_as<pollable_tracker>("POLLABLETRACKER");
 
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 

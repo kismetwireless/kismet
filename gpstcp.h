@@ -47,7 +47,7 @@ public:
 protected:
     time_t error_reconnect_timer;
 
-    std::shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<pollable_tracker> pollabletracker;
     std::shared_ptr<TcpClientV2> tcpclient;
 
     virtual void buffer_error(std::string error);

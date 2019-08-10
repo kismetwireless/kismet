@@ -99,7 +99,7 @@ protected:
     std::shared_ptr<kis_recursive_timed_mutex> ipc_mutex;
 
     std::shared_ptr<IPCRemoteV2Tracker> remotehandler;
-    std::shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<pollable_tracker> pollabletracker;
 
     // Handler for proxying IPC results
     std::shared_ptr<buffer_handler_generic> ipchandler;

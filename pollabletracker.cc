@@ -19,27 +19,27 @@
 #include "pollabletracker.h"
 #include "pollable.h"
 
-PollableTracker::PollableTracker() {
+pollable_tracker::pollable_tracker() {
 
 }
 
-PollableTracker::~PollableTracker() {
+pollable_tracker::~pollable_tracker() {
 
 }
 
-void PollableTracker::RegisterPollable(std::shared_ptr<kis_pollable> in_pollable) {
+void pollable_tracker::RegisterPollable(std::shared_ptr<kis_pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
     add_vec.push_back(in_pollable);
 }
 
-void PollableTracker::RemovePollable(std::shared_ptr<kis_pollable> in_pollable) {
+void pollable_tracker::RemovePollable(std::shared_ptr<kis_pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
 
     remove_map[in_pollable] = 1;
 }
 
-void PollableTracker::Maintenance() {
+void pollable_tracker::Maintenance() {
     local_locker lock(&pollable_mutex);
 
     for (auto r : remove_map) {
@@ -59,7 +59,7 @@ void PollableTracker::Maintenance() {
     add_vec.clear();
 }
 
-void PollableTracker::Selectloop(bool spindown_mode) {
+void pollable_tracker::Selectloop(bool spindown_mode) {
     int max_fd;
     fd_set rset, wset;
     struct timeval tm;
@@ -109,7 +109,7 @@ void PollableTracker::Selectloop(bool spindown_mode) {
     }
 }
 
-int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
+int pollable_tracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     int max_fd = 0;
 
     FD_ZERO(rset);
@@ -122,7 +122,7 @@ int PollableTracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     return max_fd;
 }
 
-int PollableTracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
+int pollable_tracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     int r;
     int num = 0;
 

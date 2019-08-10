@@ -44,7 +44,7 @@ public:
     virtual bool get_location_valid();
 
 protected:
-    std::shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<pollable_tracker> pollabletracker;
 
     std::shared_ptr<TcpClientV2> tcpclient;
     std::shared_ptr<buffer_handler<RingbufV2>> tcphandler;

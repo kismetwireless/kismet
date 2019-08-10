@@ -38,23 +38,23 @@
 
 class kis_pollable;
 
-class PollableTracker : public lifetime_global {
+class pollable_tracker : public lifetime_global {
 public:
     static std::string global_name() { return "POLLABLETRACKER"; }
 
-    static std::shared_ptr<PollableTracker> 
+    static std::shared_ptr<pollable_tracker> 
         create_pollabletracker() {
-        std::shared_ptr<PollableTracker> mon(new PollableTracker());
+        std::shared_ptr<pollable_tracker> mon(new pollable_tracker());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    PollableTracker();
+    pollable_tracker();
 
 public:
-    virtual ~PollableTracker();
+    virtual ~pollable_tracker();
 
     // Add a pollable item
     void RegisterPollable(std::shared_ptr<kis_pollable> in_pollable);

@@ -49,7 +49,7 @@ public:
 protected:
     time_t error_reconnect_timer;
 
-    std::shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<pollable_tracker> pollabletracker;
     std::shared_ptr<SerialClientV2> serialclient;
 
     // buffer_interface API - buffer available implemented in gpsnmea

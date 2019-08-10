@@ -348,7 +348,7 @@ public:
         Globalreg::globalreg->register_deferred_global(mon);
 
         auto pollabletracker =
-            Globalreg::fetch_mandatory_global_as<PollableTracker>("POLLABLETRACKER");
+            Globalreg::fetch_mandatory_global_as<pollable_tracker>("POLLABLETRACKER");
         pollabletracker->RegisterPollable(mon);
 
         mon->datasourcetracker = mon;

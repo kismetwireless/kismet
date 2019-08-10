@@ -37,7 +37,7 @@ IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg,
         child_pid {0} {
 
     pollabletracker =
-        Globalreg::fetch_mandatory_global_as<PollableTracker>();
+        Globalreg::fetch_mandatory_global_as<pollable_tracker>();
 
     remotehandler = 
         Globalreg::fetch_mandatory_global_as<IPCRemoteV2Tracker>();
