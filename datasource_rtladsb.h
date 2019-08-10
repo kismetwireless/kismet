@@ -24,7 +24,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_rtladsb;
-typedef std::shared_ptr<kis_datasource_rtladsb> SharedDatasourceRtladsb;
+typedef std::shared_ptr<kis_datasource_rtladsb> shared_datasource_rtladsb;
 
 class kis_datasource_rtladsb : public kis_datasource {
 public:
@@ -64,7 +64,7 @@ public:
     virtual ~DatasourceRtladsbBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return SharedDatasourceRtladsb(new kis_datasource_rtladsb(in_sh_this, false));
+        return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this, false));
     }
 
     virtual void initialize() override {
@@ -106,7 +106,7 @@ public:
     virtual ~DatasourceRtladsbMqttBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return SharedDatasourceRtladsb(new kis_datasource_rtladsb(in_sh_this, true));
+        return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this, true));
     }
 
     virtual void initialize() override {
