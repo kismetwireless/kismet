@@ -32,7 +32,7 @@ public:
         devicetracker = 
             Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-        Bind_Httpd_Server();
+        bind_httpd_server();
     }
 
     virtual ~device_tracker_httpd_pcap() { };

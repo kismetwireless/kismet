@@ -30,7 +30,7 @@ entry_tracker::entry_tracker(global_registry *in_globalreg) :
 
     next_field_num = 1;
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 entry_tracker::~entry_tracker() {

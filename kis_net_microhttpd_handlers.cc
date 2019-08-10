@@ -29,7 +29,7 @@
 kis_net_httpd_handler::kis_net_httpd_handler() {
     httpd = Globalreg::fetch_mandatory_global_as<kis_net_httpd>();
 
-    // Bind_Httpd_Server(Globalreg::globalreg);
+    // bind_httpd_server(Globalreg::globalreg);
 }
 
 kis_net_httpd_handler::~kis_net_httpd_handler() {
@@ -43,7 +43,7 @@ kis_net_httpd_handler::~kis_net_httpd_handler() {
     }
 }
 
-void kis_net_httpd_handler::Bind_Httpd_Server() {
+void kis_net_httpd_handler::bind_httpd_server() {
     httpd->register_handler(this);
 }
 

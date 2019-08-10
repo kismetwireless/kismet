@@ -75,7 +75,7 @@ alert_tracker::alert_tracker() :
 		register_alert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 
 	if (Globalreg::globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  alert_tracker called with null config\n");

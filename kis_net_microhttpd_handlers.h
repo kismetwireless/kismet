@@ -39,7 +39,7 @@ public:
     virtual ~kis_net_httpd_handler();
 
     // Bind a http server if we need to do that later in the instantiation
-    void Bind_Httpd_Server();
+    void bind_httpd_server();
 
     // Handle a GET request; must allocate the response mechanism via
     // MHD_create_response_from_... and will typically call some other

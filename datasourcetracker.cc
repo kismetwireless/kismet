@@ -362,7 +362,7 @@ datasource_tracker::datasource_tracker() :
                     return iv;
                 });
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 datasource_tracker::~datasource_tracker() {

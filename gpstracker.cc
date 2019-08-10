@@ -85,7 +85,7 @@ gps_tracker::gps_tracker() :
         create_gps(g);
     }
     
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 gps_tracker::~gps_tracker() {

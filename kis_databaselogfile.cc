@@ -77,7 +77,7 @@ kis_database_logfile::kis_database_logfile():
 
     db_enabled = false;
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 kis_database_logfile::~kis_database_logfile() {

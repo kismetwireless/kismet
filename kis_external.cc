@@ -467,7 +467,7 @@ kis_external_http_interface::kis_external_http_interface() :
 
     http_session_id = 0;
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 kis_external_http_interface::~kis_external_http_interface() {

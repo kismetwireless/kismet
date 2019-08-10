@@ -28,7 +28,7 @@ kis_httpd_registry::kis_httpd_registry(global_registry *in_globalreg) :
 
     globalreg = in_globalreg;
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 kis_httpd_registry::~kis_httpd_registry() {

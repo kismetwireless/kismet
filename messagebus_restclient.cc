@@ -46,7 +46,7 @@ RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux
 
     Globalreg::globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 RestMessageClient::~RestMessageClient() {

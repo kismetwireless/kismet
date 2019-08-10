@@ -43,7 +43,7 @@ bool kis_gps_web::open_gps(std::string in_opts) {
 
     set_int_gps_description("web-based GPS using location from browser");
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 
     return true;
 }

@@ -55,7 +55,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 
     timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 channel_tracker_v2::~channel_tracker_v2() {

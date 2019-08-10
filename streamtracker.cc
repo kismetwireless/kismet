@@ -37,7 +37,7 @@ StreamTracker::StreamTracker(global_registry *in_globalreg) :
 
     next_stream_id = 1;
     
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 StreamTracker::~StreamTracker() {

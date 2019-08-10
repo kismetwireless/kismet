@@ -449,7 +449,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 handle_new_datasource_event(evt);
             });
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 
     auto all_view =
         std::make_shared<device_tracker_view>("all", 

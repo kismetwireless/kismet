@@ -526,7 +526,7 @@ protected:
 class datasource_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
     datasource_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
-        Bind_Httpd_Server();
+        bind_httpd_server();
     }
 
     virtual ~datasource_tracker_httpd_pcap() { };

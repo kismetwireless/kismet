@@ -98,7 +98,7 @@ public:
     Kis_Zwave_Phy(global_registry *in_globalreg) :
         kis_phy_handler(in_globalreg),
         kis_net_httpd_cppstream_handler() { 
-            Bind_Httpd_Server();
+            bind_httpd_server();
         };
 
 	// Build a strong version of ourselves

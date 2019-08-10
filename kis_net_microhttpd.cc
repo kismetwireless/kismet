@@ -1224,7 +1224,7 @@ kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(con
     content {in_element},
     generator {nullptr},
     mutex {in_mutex} { 
-        Bind_Httpd_Server();
+        bind_httpd_server();
     }
 
 kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(const std::string& in_uri,
@@ -1235,7 +1235,7 @@ kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(con
     generator {in_func},
     mutex {nullptr} {
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(const std::string& in_uri,
@@ -1247,7 +1247,7 @@ kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(con
     generator {in_func},
     mutex {in_mutex} {
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 bool kis_net_httpd_simple_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {
@@ -1644,7 +1644,7 @@ kis_net_httpd_path_tracked_endpoint::kis_net_httpd_path_tracked_endpoint(
     path { in_path },
     generator {in_gen},
     mutex {nullptr} { 
-        Bind_Httpd_Server();
+        bind_httpd_server();
 }
 
 kis_net_httpd_path_tracked_endpoint::kis_net_httpd_path_tracked_endpoint(
@@ -1655,7 +1655,7 @@ kis_net_httpd_path_tracked_endpoint::kis_net_httpd_path_tracked_endpoint(
     path { in_path },
     generator {in_gen},
     mutex {in_mutex} { 
-        Bind_Httpd_Server();
+        bind_httpd_server();
 }
 
 
@@ -1847,7 +1847,7 @@ kis_net_httpd_simple_post_endpoint::kis_net_httpd_simple_post_endpoint(const std
     generator {in_func}, 
     mutex {nullptr} {
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 kis_net_httpd_simple_post_endpoint::kis_net_httpd_simple_post_endpoint(const std::string& in_uri,
@@ -1858,7 +1858,7 @@ kis_net_httpd_simple_post_endpoint::kis_net_httpd_simple_post_endpoint(const std
     generator {in_func},
     mutex {in_mutex} {
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 bool kis_net_httpd_simple_post_endpoint::httpd_verify_path(const char *path, const char *method) {
@@ -1945,7 +1945,7 @@ kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
     path {in_path},
     generator {in_func}, 
     mutex {nullptr} {
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
@@ -1957,7 +1957,7 @@ kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
     generator {in_func},
     mutex {in_mutex} {
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
 bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {

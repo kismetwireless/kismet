@@ -369,7 +369,7 @@ public:
     Kis_UAV_Phy(global_registry *in_globalreg) :
         kis_phy_handler(in_globalreg),
         kis_net_httpd_cppstream_handler() {
-            Bind_Httpd_Server();
+            bind_httpd_server();
         }
 
     virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) {
