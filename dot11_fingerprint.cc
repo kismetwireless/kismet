@@ -360,7 +360,7 @@ void Dot11FingerprintTracker::rebuild_config() {
 
     for (auto fpi : *fingerprint_map) {
         auto fp = std::static_pointer_cast<tracked_dot11_fingerprint>(fpi.second);
-        v.push_back(fp->asConfigComplex(fpi.first).to_string());
+        v.push_back(fp->as_config_complex(fpi.first).to_string());
     }
 
     configfile->set_opt_vec(configvalue, v, true);

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -66,7 +66,7 @@ public:
     __Proxy(probe_hash, uint32_t, uint32_t, uint32_t, probe_hash);
 
     // Turn it into a complex config line
-    header_value_config asConfigComplex(mac_addr m) {
+    header_value_config as_config_complex(mac_addr m) {
         header_value_config hc;
         hc.set_header(m.asString());
         hc.set_value("beacon_hash", get_beacon_hash());
