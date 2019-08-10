@@ -274,7 +274,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
 
         if (FD_ISSET(i->first, &in_wset)) {
-            len = i->second->ZeroCopyPeekWriteBufferData((void **) &buf, 
+            len = i->second->zero_copy_peek_write_buffer_data((void **) &buf, 
                     i->second->get_write_buffer_used());
 
             if (len > 0) {

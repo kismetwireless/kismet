@@ -272,7 +272,7 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
         // We want to send everything we had in the buffer, even if we're in an error 
         // state, because the error text might be in the buffer (or the buffer generator
         // has completed and it's time to return)
-        read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
+        read_sz = rbh->zero_copy_peek_write_buffer_data((void **) &zbuf, max);
 
         // fmt::print(stderr, "buffer read sz {}\n", read_sz);
 
@@ -322,7 +322,7 @@ static void free_buffer_aux_callback(void *cls) {
     while (aux->get_in_error() == false) {
         // aux->block_until_data(rbh);
 
-        read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
+        read_sz = rbh->zero_copy_peek_write_buffer_data((void **) &zbuf, 1024);
 
         rbh->PeekFreeWriteBufferData(zbuf);
         rbh->ConsumeWriteBufferData(read_sz);

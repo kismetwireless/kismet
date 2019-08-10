@@ -199,7 +199,7 @@ public:
     // data.  When possible, minimizes copying of data (or performs no copy of data),
     // and is suitable for draining a buffer to the IO system.
     virtual ssize_t zero_copy_peek_read_buffer_data(void **in_ptr, size_t in_sz);
-    virtual ssize_t ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz);
+    virtual ssize_t zero_copy_peek_write_buffer_data(void **in_ptr, size_t in_sz);
 
     virtual void PeekFreeReadBufferData(void *in_ptr);
     virtual void PeekFreeWriteBufferData(void *in_ptr);

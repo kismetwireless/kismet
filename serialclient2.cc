@@ -212,7 +212,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         len = handler->get_write_buffer_used();
 
         // Peek the data into our buffer
-        ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+        ret = handler->zero_copy_peek_write_buffer_data((void **) &buf, len);
 
         if ((iret = write(device_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {

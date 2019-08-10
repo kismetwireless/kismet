@@ -123,7 +123,7 @@ ssize_t buffer_handler_generic::zero_copy_peek_read_buffer_data(void **in_ptr, s
     return 0;
 }
 
-ssize_t buffer_handler_generic::ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::zero_copy_peek_write_buffer_data(void **in_ptr, size_t in_sz) {
     if (write_buffer)
         return write_buffer->zero_copy_peek((unsigned char **) in_ptr, in_sz);
 

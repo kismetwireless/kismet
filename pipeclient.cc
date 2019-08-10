@@ -177,7 +177,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         if (len > 0) {
             // Peek the data into our buffer
-            ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+            ret = handler->zero_copy_peek_write_buffer_data((void **) &buf, len);
 
             // fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
 

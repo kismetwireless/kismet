@@ -262,7 +262,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     if (connected && FD_ISSET(cli_fd, &in_wset)) {
         // Peek the entire data 
-        len = handler->ZeroCopyPeekWriteBufferData((void **) &buf, 
+        len = handler->zero_copy_peek_write_buffer_data((void **) &buf, 
                 handler->get_write_buffer_used());
 
         ret = send(cli_fd, buf, len, MSG_DONTWAIT);
