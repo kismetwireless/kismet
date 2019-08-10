@@ -232,7 +232,7 @@ void tracked_system_status::register_fields() {
 int Systemmonitor::timetracker_event(int eventid) {
     local_locker lock(&monitor_mutex);
 
-    int num_devices = devicetracker->FetchNumDevices();
+    int num_devices = devicetracker->fetch_num_devices();
 
     // Grab the devices
     status->set_devices(num_devices);

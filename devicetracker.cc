@@ -542,7 +542,7 @@ std::string device_tracker::FetchPhyName(int in_phy) {
     return phyh->FetchPhyName();
 }
 
-int device_tracker::FetchNumDevices() {
+int device_tracker::fetch_num_devices() {
     local_shared_locker lock(&devicelist_mutex);
 
     return tracked_map.size();
