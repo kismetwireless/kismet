@@ -735,7 +735,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Make the timetracker
-    auto timetracker = Timetracker::create_timetracker();
+    auto timetracker = time_tracker::create_timetracker();
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things

@@ -57,7 +57,7 @@ Systemmonitor::Systemmonitor() :
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>();
     timer_id = 
         timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
@@ -192,7 +192,7 @@ Systemmonitor::~Systemmonitor() {
 
     Globalreg::globalreg->RemoveGlobal("SYSTEMMONITOR");
 
-    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
         timetracker->RemoveTimer(timer_id);
         timetracker->RemoveTimer(kismetdb_log_timer);

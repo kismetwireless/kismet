@@ -370,7 +370,7 @@ public:
 
     virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
-    // Timetracker event handler
+    // time_tracker event handler
     virtual int timetracker_event(int eventid) override;
 
     // Restore stored dot11 records
@@ -398,7 +398,7 @@ public:
 protected:
     std::shared_ptr<alert_tracker> alertracker;
     std::shared_ptr<packetchain> packetchain;
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<Eventbus> eventbus;
 

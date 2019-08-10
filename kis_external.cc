@@ -32,7 +32,7 @@
 KisExternalInterface::KisExternalInterface() :
     buffer_interface(),
     ext_mutex {std::make_shared<kis_recursive_timed_mutex>()},
-    timetracker {Globalreg::FetchMandatoryGlobalAs<Timetracker>()},
+    timetracker {Globalreg::FetchMandatoryGlobalAs<time_tracker>()},
     seqno {0},
     last_pong {0},
     ping_timer_id {-1} { }

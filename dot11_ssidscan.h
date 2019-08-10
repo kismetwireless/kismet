@@ -148,7 +148,7 @@ protected:
     // seen a wpa handshake
     std::shared_ptr<DevicetrackerView> completed_device_view;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
     int hopping_mode_end_timer;
     int capture_mode_end_timer;
 

@@ -47,7 +47,7 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 
     pollabletracker = Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
-    auto timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
@@ -72,7 +72,7 @@ GPSTCP::~GPSTCP() {
         nmeahandler->remove_read_buffer_interface();
     }
 
-    std::shared_ptr<Timetracker> timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    std::shared_ptr<time_tracker> timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr)
         timetracker->RemoveTimer(error_reconnect_timer);
 }

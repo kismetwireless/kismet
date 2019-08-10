@@ -101,7 +101,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     local_locker dbl(&ds_mutex);
 
     auto timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     bool dbr = Database_Open(in_path);
 
@@ -407,7 +407,7 @@ void kis_database_logfile::Log_Close() {
 
     // Kill the timers
     auto timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>();
+        Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != NULL) {
         timetracker->RemoveTimer(transaction_timer);
         timetracker->RemoveTimer(packet_timeout_timer);

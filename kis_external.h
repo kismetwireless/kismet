@@ -119,7 +119,7 @@ protected:
     // with the IPC instance.
     std::shared_ptr<IPCRemoteV2> ipc_remote;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     std::atomic<uint32_t> seqno;
     std::atomic<time_t> last_pong;

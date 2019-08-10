@@ -46,7 +46,7 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
         Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
 
     auto timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
@@ -69,7 +69,7 @@ GPSSerialV2::~GPSSerialV2() {
         nmeahandler->remove_read_buffer_interface();
     }
 
-    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>();
+    auto timetracker = Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != nullptr)
         timetracker->RemoveTimer(error_reconnect_timer);
 }

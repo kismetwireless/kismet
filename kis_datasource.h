@@ -435,7 +435,7 @@ protected:
             command_time = time(0);
 
             timetracker = 
-                Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+                Globalreg::FetchMandatoryGlobalAs<time_tracker>();
 
             // Generate a timeout for 5 seconds from now
             auto src_alias = in_src;
@@ -454,7 +454,7 @@ protected:
             }
         }
 
-        std::shared_ptr<Timetracker> timetracker;
+        std::shared_ptr<time_tracker> timetracker;
 
         unsigned int transaction;
         uint32_t command_seq;

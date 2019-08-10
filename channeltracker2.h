@@ -163,7 +163,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    // Timetracker API
+    // time_tracker API
     virtual int timetracker_event(int event_id);
 
     // Update device counts
@@ -175,7 +175,7 @@ protected:
     kis_recursive_timed_mutex lock;
 
     std::shared_ptr<device_tracker> devicetracker;
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     // packetchain callback
     static int packet_chain_handler(CHAINCALL_PARMS);

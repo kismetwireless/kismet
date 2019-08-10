@@ -153,8 +153,8 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 	packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    std::shared_ptr<time_tracker> timetracker = 
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>(globalreg, "TIMETRACKER");
 
    
     // Always disable persistent storage for now
@@ -487,8 +487,8 @@ device_tracker::~device_tracker() {
                 CHAINPOS_TRACKER);
     }
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    std::shared_ptr<time_tracker> timetracker = 
+        Globalreg::FetchGlobalAs<time_tracker>(globalreg, "TIMETRACKER");
     if (timetracker != NULL) {
         timetracker->RemoveTimer(device_idle_timer);
         timetracker->RemoveTimer(max_devices_timer);

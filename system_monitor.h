@@ -148,7 +148,7 @@ private:
 public:
     virtual ~Systemmonitor();
 
-    // Timetracker callback
+    // time_tracker callback
     virtual int timetracker_event(int eventid) override;
 
 protected:

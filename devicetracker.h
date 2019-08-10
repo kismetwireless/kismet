@@ -272,7 +272,7 @@ public:
 
     virtual int httpd_post_complete(kis_net_httpd_connection *concls);
     
-    // Timetracker event handler
+    // time_tracker event handler
     virtual int timetracker_event(int eventid);
 
     // CLI extension

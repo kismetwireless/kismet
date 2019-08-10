@@ -160,7 +160,7 @@ public:
     // more than in_max_delay.
     int ensure_all_ipc_killed(int in_soft_delay, int in_max_delay);
 
-    // Timetracker API
+    // time_tracker API
     virtual int timetracker_event(int event_id);
 
 protected:

@@ -39,7 +39,7 @@
 DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition, 
         std::shared_ptr<tracker_element_vector> in_protovec) {
 
-    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+    timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     definition = in_definition;
     proto_vec = in_protovec;
@@ -200,7 +200,7 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
 
 DST_DatasourceList::DST_DatasourceList(std::shared_ptr<tracker_element_vector> in_protovec) {
     timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>();
 
     proto_vec = in_protovec;
 
@@ -300,7 +300,7 @@ Datasourcetracker::Datasourcetracker() :
     kis_net_httpd_cppstream_handler(),
     TcpServerV2(Globalreg::globalreg) {
 
-    timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+    timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>();
     eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     proto_id = 

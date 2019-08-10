@@ -116,7 +116,7 @@ public:
 protected:
     kis_recursive_timed_mutex probe_lock;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_probe_map;
@@ -172,7 +172,7 @@ public:
 protected:
     kis_recursive_timed_mutex list_lock;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_list_map;
@@ -458,7 +458,7 @@ protected:
     virtual void databaselog_write_datasources();
 
     std::shared_ptr<Datasourcetracker> datasourcetracker;
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<Eventbus> eventbus;
 
     kis_recursive_timed_mutex dst_lock;

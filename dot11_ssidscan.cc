@@ -24,7 +24,7 @@
 
 Dot11_SsidScan::Dot11_SsidScan() {
     timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>();
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>();
     hopping_mode_end_timer = -1;
     capture_mode_end_timer = -1;
 

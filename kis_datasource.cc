@@ -41,7 +41,7 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     }
 
     timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     packetchain =
         Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");

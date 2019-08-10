@@ -51,7 +51,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     trigger_tm.tv_usec = 0;
 
     timetracker =
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 
@@ -61,7 +61,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 channel_tracker_v2::~channel_tracker_v2() {
     local_locker locker(&lock);
 
-    auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
+    auto timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr)
         timetracker->RemoveTimer(timer_id);
 
