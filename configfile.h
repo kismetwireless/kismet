@@ -192,7 +192,7 @@ public:
     // std::runtime_error if the content cannot be coerced.  
     // If the key is not present, return the defautl value
     template<typename T>
-    T getValueAs(const std::string& in_key, const T& dvalue) {
+    T get_value_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&mutex);
 
         auto ki = content_map.find(StrLower(in_key));
