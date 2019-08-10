@@ -65,7 +65,7 @@
 #define IEEE80211_RADIOTAP_F_BADFCS     0x40    /* frame has bad FCS */
 #endif
 
-Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
+kis_dlt_radiotap::kis_dlt_radiotap() :
 	kis_dlt_handler() {
 
 	dlt_name = "Radiotap";
@@ -127,7 +127,7 @@ Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
 #define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
-int Kis_DLT_Radiotap::handle_packet(kis_packet *in_pack) {
+int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     static int packnum = 0;
 
     packnum++;
@@ -508,7 +508,7 @@ int Kis_DLT_Radiotap::handle_packet(kis_packet *in_pack) {
 #undef BIT
 
 // Taken from the BBN USRP 802.11 encoding code
-unsigned int Kis_DLT_Radiotap::update_crc32_80211(unsigned int crc, const unsigned char *data,
+unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const unsigned char *data,
         int len, unsigned int poly) {
 	int i, j;
 	unsigned short ch;
@@ -527,7 +527,7 @@ unsigned int Kis_DLT_Radiotap::update_crc32_80211(unsigned int crc, const unsign
 	return crc;
 }
 
-void Kis_DLT_Radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
+void kis_dlt_radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
 	int i;
 	unsigned char c;
 
@@ -537,7 +537,7 @@ void Kis_DLT_Radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
 	}
 }
 
-unsigned int Kis_DLT_Radiotap::crc32_le_80211(unsigned int *crc32_table, 
+unsigned int kis_dlt_radiotap::crc32_le_80211(unsigned int *crc32_table, 
         const unsigned char *buf, int len) {
 	int i;
 	unsigned int crc = 0xFFFFFFFF;

@@ -32,22 +32,22 @@
 #define DLT_IEEE802_11_RADIO 127
 #endif
 
-class Kis_DLT_Radiotap : public kis_dlt_handler {
+class kis_dlt_radiotap : public kis_dlt_handler {
 public:
     static std::string global_name() { return "DLT_RADIOTAP"; }
 
-    static std::shared_ptr<Kis_DLT_Radiotap> create_dlt() {
-        std::shared_ptr<Kis_DLT_Radiotap> mon(new Kis_DLT_Radiotap());
+    static std::shared_ptr<kis_dlt_radiotap> create_dlt() {
+        std::shared_ptr<kis_dlt_radiotap> mon(new kis_dlt_radiotap());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-	Kis_DLT_Radiotap();
+	kis_dlt_radiotap();
 
 public:
-	virtual ~Kis_DLT_Radiotap() { };
+	virtual ~kis_dlt_radiotap() { };
 
 	virtual int handle_packet(kis_packet *in_pack);
 

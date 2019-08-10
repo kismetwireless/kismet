@@ -855,7 +855,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Register the DLT handlers
     kis_dlt_ppi::create_dlt();
-    Kis_DLT_Radiotap::create_dlt();
+    kis_dlt_radiotap::create_dlt();
 
     new kis_dissector_ip_data(globalregistry);
 
