@@ -89,7 +89,7 @@ void kis_httpd_websession::trigger_deferred_startup() {
     auto websession = 
         Globalreg::fetch_mandatory_global_as<kis_httpd_websession>();
 
-    httpd->RegisterSessionHandler(websession);
+    httpd->register_session_handler(websession);
 
     // Register as not requiring a login for these endpoints
     httpd->RegisterUnauthHandler(this);

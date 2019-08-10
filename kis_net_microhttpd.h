@@ -352,7 +352,7 @@ public:
     unsigned int fetch_port() { return http_port; };
     bool fetch_using_ssl() { return use_ssl; };
 
-    void RegisterSessionHandler(std::shared_ptr<kis_httpd_websession> in_session);
+    void register_session_handler(std::shared_ptr<kis_httpd_websession> in_session);
 
     // All standard handlers require a login
     void RegisterHandler(kis_net_httpd_handler *in_handler);
