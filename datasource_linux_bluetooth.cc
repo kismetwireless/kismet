@@ -25,7 +25,7 @@
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
-KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(shared_datasource_builder in_builder) : 
+kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource_builder in_builder) : 
     kis_datasource(in_builder) {
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
@@ -34,7 +34,7 @@ KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(shared_datasource_build
     pack_comp_meta = packetchain->RegisterPacketComponent("METABLOB");
 }
 
-bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     if (kis_datasource::dispatch_rx_packet(c))
         return true;
 
@@ -46,7 +46,7 @@ bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExter
     return false;
 }
 
-void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno, 
+void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno, 
         std::string in_content) {
 
     // If we're paused, throw away this packet

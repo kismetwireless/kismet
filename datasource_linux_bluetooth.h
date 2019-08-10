@@ -25,14 +25,14 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceLinuxBluetooth;
-typedef std::shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBluetooth;
+class kis_datasource_linux_bluetooth;
+typedef std::shared_ptr<kis_datasource_linux_bluetooth> SharedDatasourceLinuxBluetooth;
 
-class KisDatasourceLinuxBluetooth : public kis_datasource {
+class kis_datasource_linux_bluetooth : public kis_datasource {
 public:
-    KisDatasourceLinuxBluetooth(shared_datasource_builder in_builder);
+    kis_datasource_linux_bluetooth(shared_datasource_builder in_builder);
 
-    virtual ~KisDatasourceLinuxBluetooth() { };
+    virtual ~kis_datasource_linux_bluetooth() { };
 
 protected:
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
@@ -71,7 +71,7 @@ public:
     virtual ~DatasourceLinuxBluetoothBuilder() override { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return std::make_shared<KisDatasourceLinuxBluetooth>(in_sh_this);
+        return std::make_shared<kis_datasource_linux_bluetooth>(in_sh_this);
     }
 
     virtual void initialize() override {
