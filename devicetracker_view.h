@@ -110,7 +110,7 @@ public:
     // Called when a device undergoes a change that might make it eligible for inclusion
     // into a view; Integration with view filtering needs to be added to other locations
     // to activate this.
-    virtual void updateDevice(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void update_device(std::shared_ptr<kis_tracked_device_base> device);
 
     // Direct calls to views that do not participate in the traditional view population 
     // and are instead directly manipulated by another component (such as the ssidscan system which

@@ -227,7 +227,7 @@ void device_tracker_view::newDevice(std::shared_ptr<kis_tracked_device_base> dev
     }
 }
 
-void device_tracker_view::updateDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base> device) {
 
     if (update_cb == nullptr)
         return;

@@ -1346,7 +1346,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
-        vi->updateDevice(in_device);
+        vi->update_device(in_device);
     }
 }
 
