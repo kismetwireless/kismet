@@ -222,7 +222,7 @@ public:
     // Phy handlers should call this to populate associated devices when a phy
     // packet is encountered.
     //
-    // It is recommended that plugin developers look at the UpdateCommonDevice
+    // It is recommended that plugin developers look at the update_common_device
     // implementation in devicetracker.cc as well as the reference implementations
     // in phy80211 and other native code, as this is one of the most complex
     // functions a phy handler will interact with when building trackable devices.
@@ -250,7 +250,7 @@ public:
 // Only update location if we have no existing location
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
-    std::shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
+    std::shared_ptr<kis_tracked_device_base> update_common_device(kis_common_info *pack_common,
             mac_addr in_mac, kis_phy_handler *phy, kis_packet *in_pack, unsigned int in_flags,
             std::string in_basic_type);
 

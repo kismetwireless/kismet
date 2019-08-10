@@ -190,7 +190,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     common->transmitter = rtlmac;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common, common->source, this, packet,
+        devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTL433 Sensor");
 

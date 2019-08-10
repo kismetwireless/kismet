@@ -162,7 +162,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     pack->insert(pack_comp_common, common);
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common, common->source, this, pack,
+        devicetracker->update_common_device(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "Z-Wave");
 

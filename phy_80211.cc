@@ -986,7 +986,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
 
             bssid_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->bssid_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -998,7 +998,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->source_mac != globalreg->empty_mac && 
                 !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
             source_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->source_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -1011,7 +1011,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->dest_mac != globalreg->empty_mac && 
                 !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
             dest_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->dest_mac, d11phy, in_pack, 
                         (UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_EMPTY_LOCATION |
@@ -1315,7 +1315,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
         if (dot11info->bssid_mac != globalreg->empty_mac && 
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
             bssid_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->bssid_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -1327,7 +1327,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->source_mac != globalreg->empty_mac && 
                 !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
             source_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->source_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -1341,7 +1341,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
             // Only update signal and location if we have no other record
             dest_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo,
+                d11phy->devicetracker->update_common_device(commoninfo,
                         dot11info->dest_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                          UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION | 
@@ -1355,7 +1355,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 dot11info->other_mac != globalreg->empty_mac && 
                 !(dot11info->other_mac.bitwise_and(globalreg->multicast_mac)) ) {
             other_dev =
-                d11phy->devicetracker->UpdateCommonDevice(commoninfo, 
+                d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->other_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                          UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |

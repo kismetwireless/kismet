@@ -115,7 +115,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
         return 0;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        btphy->devicetracker->UpdateCommonDevice(ci, ci->source, btphy, in_pack, 
+        btphy->devicetracker->update_common_device(ci, ci->source, btphy, in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),

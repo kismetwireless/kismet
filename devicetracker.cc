@@ -680,7 +680,7 @@ int device_tracker::common_tracker(kis_packet *in_pack) {
 // the access point, source, and destination devices), only the specific common device 
 // being passed will be updated.
 std::shared_ptr<kis_tracked_device_base> 
-    device_tracker::UpdateCommonDevice(kis_common_info *pack_common, 
+    device_tracker::update_common_device(kis_common_info *pack_common, 
             mac_addr in_mac, kis_phy_handler *in_phy, kis_packet *in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 

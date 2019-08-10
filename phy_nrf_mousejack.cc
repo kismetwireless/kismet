@@ -135,7 +135,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto device = 
-        mphy->devicetracker->UpdateCommonDevice(common,
+        mphy->devicetracker->update_common_device(common,
                 common->source, mphy, in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
