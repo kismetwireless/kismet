@@ -448,7 +448,7 @@ protected:
     void handle_new_datasource_event(std::shared_ptr<eventbus_event> evt);
 
     // Insert a device directly into the records
-    void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
+    void add_device(std::shared_ptr<kis_tracked_device_base> device);
 
     // Load a specific device
     virtual std::shared_ptr<kis_tracked_device_base> load_device(kis_phy_handler *phy, 

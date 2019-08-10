@@ -1280,7 +1280,7 @@ int device_tracker::database_upgrade_db() {
     return 0;
 }
 
-void device_tracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker lock(&devicelist_mutex);
 
     if (fetch_device(device->get_key()) != NULL) {
@@ -1977,7 +1977,7 @@ int device_tracker_state_store::load_devices() {
                 devicetracker->convert_stored_device(m, rowstr, rowlen);
 
             if (kdb != NULL) {
-                devicetracker->AddDevice(kdb);
+                devicetracker->add_device(kdb);
                 num_devices++;
             }
         } else if (r == SQLITE_DONE) {
