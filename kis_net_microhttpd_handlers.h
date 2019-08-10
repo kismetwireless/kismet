@@ -236,9 +236,9 @@ protected:
     }
 };
 
-class Kis_Net_Httpd_Chain_Stream_Handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
+class kis_net_httpd_chain_stream_handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
 public:
-    Kis_Net_Httpd_Chain_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
+    kis_net_httpd_chain_stream_handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
 
 protected:
     virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {

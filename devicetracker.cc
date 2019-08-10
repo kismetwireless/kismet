@@ -60,7 +60,7 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 }
 
 device_tracker::device_tracker(global_registry *in_globalreg) :
-    Kis_Net_Httpd_Chain_Stream_Handler(),
+    kis_net_httpd_chain_stream_handler(),
     kis_database(in_globalreg, "devicetracker") {
 
 	globalreg = in_globalreg;

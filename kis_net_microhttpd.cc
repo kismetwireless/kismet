@@ -1219,7 +1219,7 @@ int Kis_Net_Httpd::SendStandardHttpResponse(Kis_Net_Httpd *httpd,
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
         std::shared_ptr<tracker_element> in_element, kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri},
     content {in_element},
     generator {nullptr},
@@ -1229,7 +1229,7 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri}, 
     content { nullptr },
     generator {in_func},
@@ -1241,7 +1241,7 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func,
         kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri}, 
     content { nullptr },
     generator {in_func},
@@ -1430,7 +1430,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 
 Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
         std::shared_ptr<tracker_element> in_element, kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri},
     content {in_element},
     generator {nullptr},
@@ -1440,7 +1440,7 @@ Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracke
 
 Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri}, 
     content { nullptr },
     generator {in_func},
@@ -1451,7 +1451,7 @@ Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracke
 Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Tracked_Endpoint::gen_func in_func,
         kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri}, 
     content { nullptr },
     generator {in_func},
@@ -1640,7 +1640,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Htt
 Kis_Net_Httpd_Path_Tracked_Endpoint::Kis_Net_Httpd_Path_Tracked_Endpoint(
         Kis_Net_Httpd_Path_Tracked_Endpoint::path_func in_path,
         Kis_Net_Httpd_Path_Tracked_Endpoint::gen_func in_gen) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     path { in_path },
     generator {in_gen},
     mutex {nullptr} { 
@@ -1651,7 +1651,7 @@ Kis_Net_Httpd_Path_Tracked_Endpoint::Kis_Net_Httpd_Path_Tracked_Endpoint(
         Kis_Net_Httpd_Path_Tracked_Endpoint::path_func in_path,
         Kis_Net_Httpd_Path_Tracked_Endpoint::gen_func in_gen,
         kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     path { in_path },
     generator {in_gen},
     mutex {in_mutex} { 
@@ -1842,7 +1842,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
 
 Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri},
     generator {in_func}, 
     mutex {nullptr} {
@@ -1853,7 +1853,7 @@ Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std
 Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri,
         Kis_Net_Httpd_Simple_Post_Endpoint::handler_func in_func, 
         kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     uri {in_uri},
     generator {in_func},
     mutex {in_mutex} {
@@ -1941,7 +1941,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connect
 Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
         Kis_Net_Httpd_Path_Post_Endpoint::path_func in_path,
         Kis_Net_Httpd_Path_Post_Endpoint::handler_func in_func) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     path {in_path},
     generator {in_func}, 
     mutex {nullptr} {
@@ -1952,7 +1952,7 @@ Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
         Kis_Net_Httpd_Path_Post_Endpoint::path_func in_path,
         Kis_Net_Httpd_Path_Post_Endpoint::handler_func in_func, 
         kis_recursive_timed_mutex *in_mutex) :
-    Kis_Net_Httpd_Chain_Stream_Handler {},
+    kis_net_httpd_chain_stream_handler {},
     path {in_path},
     generator {in_func},
     mutex {in_mutex} {

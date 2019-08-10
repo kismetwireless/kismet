@@ -173,7 +173,7 @@ public:
 class Kis_Httpd_Websession;
 
 // Do a simple dump of a tracked object into an endpoint
-class Kis_Net_Httpd_Simple_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+class Kis_Net_Httpd_Simple_Tracked_Endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using gen_func = std::function<std::shared_ptr<tracker_element> ()>;
 
@@ -205,7 +205,7 @@ protected:
 
 // Do a simple dump of a tracked object into an endpoint, DO NOT require authentication.
 // This should be very rarely used.
-class Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+class Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using gen_func = std::function<std::shared_ptr<tracker_element> ()>;
 
@@ -237,7 +237,7 @@ protected:
 
 // A similar simplified endpoint dump but with a callback function for the path processing
 // and for the endpoint generation; for more rest-like paths
-class Kis_Net_Httpd_Path_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+class Kis_Net_Httpd_Path_Tracked_Endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using gen_func = std::function<std::shared_ptr<tracker_element> (const std::vector<std::string>&)>;
     using path_func = std::function<bool (const std::vector<std::string>&)>;
@@ -265,7 +265,7 @@ protected:
 
 
 // Extremely simple callback-based POST responder linked to a chainbuf buffer
-class Kis_Net_Httpd_Simple_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+class Kis_Net_Httpd_Simple_Post_Endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, const std::string& uri, SharedStructured post_structured,
@@ -294,7 +294,7 @@ protected:
 };
 
 // Path-based basic post responder linked to a chainbuf buffer
-class Kis_Net_Httpd_Path_Post_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
+class Kis_Net_Httpd_Path_Post_Endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using path_func = std::function<bool (const std::vector<std::string>& path, const std::string& uri)>;
     using handler_func = 

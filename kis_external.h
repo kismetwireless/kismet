@@ -130,7 +130,7 @@ protected:
     int ping_timer_id;
 };
 
-class KisExternalHttpInterface : public KisExternalInterface, Kis_Net_Httpd_Chain_Stream_Handler {
+class KisExternalHttpInterface : public KisExternalInterface, kis_net_httpd_chain_stream_handler {
 public:
     KisExternalHttpInterface();
     virtual ~KisExternalHttpInterface();
