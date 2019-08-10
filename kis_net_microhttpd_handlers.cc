@@ -39,7 +39,7 @@ kis_net_httpd_handler::~kis_net_httpd_handler() {
     // Remove as both type of handlers for safety
     if (httpd != nullptr) {
         httpd->remove_handler(this);
-        httpd->RemoveUnauthHandler(this);
+        httpd->remove_unauth_handler(this);
     }
 }
 

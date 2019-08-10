@@ -406,7 +406,7 @@ void kis_net_httpd::register_unauth_handler(kis_net_httpd_handler *in_handler) {
     unauth_handler_vec.push_back(in_handler);
 }
 
-void kis_net_httpd::RemoveUnauthHandler(kis_net_httpd_handler *in_handler) {
+void kis_net_httpd::remove_unauth_handler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     for (unsigned int x = 0; x < unauth_handler_vec.size(); x++) {
