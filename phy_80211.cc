@@ -491,7 +491,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
     recent_packet_checksum_pos = 0;
 
     // Parse the ssid regex options
-    auto apspoof_lines = Globalreg::globalreg->kismet_config->FetchOptVec("apspoof");
+    auto apspoof_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("apspoof");
 
     for (auto l : apspoof_lines) {
         size_t cpos = l.find(':');
@@ -842,7 +842,7 @@ const std::string Kis_80211_Phy::KhzToChannel(const double in_khz) {
 int Kis_80211_Phy::LoadWepkeys() {
     // Convert the WEP mappings to our real map
     std::vector<std::string> raw_wepmap_vec;
-    raw_wepmap_vec = Globalreg::globalreg->kismet_config->FetchOptVec("wepkey");
+    raw_wepmap_vec = Globalreg::globalreg->kismet_config->fetch_opt_vec("wepkey");
     for (size_t rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
         std::string wepline = raw_wepmap_vec[rwvi];
 

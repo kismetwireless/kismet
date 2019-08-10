@@ -592,7 +592,7 @@ void Datasourcetracker::Deferred_Startup() {
         _MSG("Data sources passed on the command line (via -c source), ignoring "
                 "source= definitions in the Kismet config file.", MSGFLAG_INFO);
     } else {
-        src_vec = Globalreg::globalreg->kismet_config->FetchOptVec("source");
+        src_vec = Globalreg::globalreg->kismet_config->fetch_opt_vec("source");
     }
 
     if (src_vec.size() == 0) {

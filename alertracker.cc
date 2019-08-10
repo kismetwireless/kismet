@@ -520,7 +520,7 @@ int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
 }
 
 int alert_tracker::parse_alert_config(config_file *in_conf) {
-    std::vector<std::string> clines = in_conf->FetchOptVec("alert");
+    std::vector<std::string> clines = in_conf->fetch_opt_vec("alert");
 
     for (unsigned int x = 0; x < clines.size(); x++) {
         alert_conf_rec *rec = new alert_conf_rec;

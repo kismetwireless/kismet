@@ -80,7 +80,7 @@ GpsTracker::GpsTracker() :
     register_gps_builder(SharedGpsBuilder(new GPSWebBuilder()));
 
     // Process any gps options in the config file
-    std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->FetchOptVec("gps");
+    std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->fetch_opt_vec("gps");
     for (auto g : gpsvec) {
         create_gps(g);
     }

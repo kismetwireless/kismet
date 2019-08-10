@@ -288,7 +288,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     auto device_filter_vec =
-        Globalreg::globalreg->kismet_config->FetchOptVec("kis_log_device_filter");
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("kis_log_device_filter");
     for (auto dfi : device_filter_vec) {
         // phy,mac,value
         auto filter_toks = StrTokenize(dfi, ",");
@@ -332,7 +332,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     }
 
     auto packet_filter_vec =
-        Globalreg::globalreg->kismet_config->FetchOptVec("kis_log_packet_filter");
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("kis_log_packet_filter");
     for (auto dfi : packet_filter_vec) {
         // phy,block,mac,value
         auto filter_toks = StrTokenize(dfi, ",");

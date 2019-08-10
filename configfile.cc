@@ -285,7 +285,7 @@ std::string config_file::fetch_opt_dfl(std::string in_key, std::string in_dfl) {
     return r;
 }
 
-std::vector<std::string> config_file::FetchOptVec(std::string in_key) {
+std::vector<std::string> config_file::fetch_opt_vec(std::string in_key) {
     local_locker lock(&config_locker);
 
     // Empty vec to return

@@ -40,7 +40,7 @@ Manuf::Manuf() {
         return;
     }
 
-    auto fname = Globalreg::globalreg->kismet_config->FetchOptVec("ouifile");
+    auto fname = Globalreg::globalreg->kismet_config->fetch_opt_vec("ouifile");
     if (fname.size() == 0) {
         _MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
              "names for MAC addresses", MSGFLAG_ERROR);

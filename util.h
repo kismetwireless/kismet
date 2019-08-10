@@ -114,7 +114,7 @@ std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec,
         const std::string& d_value = "");
 
 int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue);
-std::vector<std::string> FetchOptVec(const std::string& in_key, std::vector<opt_pair> *in_vec);
+std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec);
 
 // Quick fetch of strings from a map of options
 std::string fetch_opt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 

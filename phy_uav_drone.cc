@@ -113,7 +113,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
     httpregistry->register_js_module("kismet_ui_uav", "js/kismet.ui.uav.js");
 
     // Parse the ssid regex options
-    auto uav_lines = Globalreg::globalreg->kismet_config->FetchOptVec("uav_match");
+    auto uav_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("uav_match");
     for (auto l : uav_lines)
         parse_manuf_definition(l);
 

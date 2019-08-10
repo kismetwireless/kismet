@@ -91,11 +91,11 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     ssidscan_enabled->set(config->FetchOptBoolean("dot11_ssidscan_enabled", false));
 
-    for (auto s : config->FetchOptVec("dot11_ssidscan_ssid")) {
+    for (auto s : config->fetch_opt_vec("dot11_ssidscan_ssid")) {
         target_ssids->push_back(s);
     }
 
-    for (auto hu : config->FetchOptVec("dot11_ssidscan_datasource")) {
+    for (auto hu : config->fetch_opt_vec("dot11_ssidscan_datasource")) {
         auto hu_uuid = 
             std::make_shared<tracker_element_uuid>(uuid(hu));
         ssidscan_datasources->push_back(hu_uuid);

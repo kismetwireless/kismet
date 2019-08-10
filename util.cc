@@ -372,7 +372,7 @@ int FetchOptBoolean(const std::string& in_key, const std::map<std::string, std::
     return StringToBool(i->second, dvalue);
 }
 
-std::vector<std::string> FetchOptVec(const std::string& in_key, std::vector<opt_pair> *in_vec) {
+std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec) {
     std::string lkey = StrLower(in_key);
     std::vector<std::string> ret;
 

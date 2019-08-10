@@ -210,7 +210,7 @@ bool KisExternalInterface::check_ipc(const std::string& in_binary) {
     struct stat fstat;
 
     std::vector<std::string> bin_paths = 
-        Globalreg::globalreg->kismet_config->FetchOptVec("helper_binary_path");
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
 
     if (bin_paths.size() == 0) {
         bin_paths.push_back("%B");
@@ -262,7 +262,7 @@ bool KisExternalInterface::run_ipc() {
 
     // Get allowed paths for binaries
     std::vector<std::string> bin_paths = 
-        Globalreg::globalreg->kismet_config->FetchOptVec("helper_binary_path");
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
 
     if (bin_paths.size() == 0) {
         _MSG("No helper_binary_path found in kismet.conf, make sure your config "

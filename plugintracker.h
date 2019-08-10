@@ -328,7 +328,7 @@ public:
         ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
 
         // Get the allowed paths for binaries and populate
-        auto bin_paths = Globalreg::globalreg->kismet_config->FetchOptVec("helper_binary_path");
+        auto bin_paths = Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
 
         if (bin_paths.size() == 0) {
             _MSG_ERROR("No 'helper_binary_path' found in kismet.conf; make sure your config files are up "

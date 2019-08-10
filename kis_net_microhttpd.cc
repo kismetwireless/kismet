@@ -205,7 +205,7 @@ kis_net_httpd::kis_net_httpd() {
     RegisterMimeType("ekjson", "application/json");
     RegisterMimeType("pcap", "application/vnd.tcpdump.pcap");
 
-    std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->FetchOptVec("httpd_mime");
+    std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->fetch_opt_vec("httpd_mime");
     for (unsigned int i = 0; i < mimeopts.size(); i++) {
         std::vector<std::string> mime_comps = StrTokenize(mimeopts[i], ":");
 
@@ -238,7 +238,7 @@ kis_net_httpd::kis_net_httpd() {
         if (stat(sessiondb_file.c_str(), &buf) == 0) {
             session_db->parse_config(sessiondb_file.c_str());
 
-            std::vector<std::string> oldsessions = session_db->FetchOptVec("session");
+            std::vector<std::string> oldsessions = session_db->fetch_opt_vec("session");
 
             if (oldsessions.size() > 0) 
                 _MSG("Loading saved HTTP sessions", MSGFLAG_INFO);
