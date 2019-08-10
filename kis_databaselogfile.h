@@ -78,7 +78,7 @@ public:
     virtual void trigger_deferred_startup() override;
     virtual void trigger_deferred_shutdown() override;
 
-    void SetDatabaseBuilder(SharedLogBuilder in_builder) {
+    void set_database_builder(SharedLogBuilder in_builder) {
         builder = in_builder;
 
         if (builder != nullptr)
@@ -267,7 +267,7 @@ public:
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
         std::shared_ptr<kis_database_logfile> logfile =
             Globalreg::fetch_mandatory_global_as<kis_database_logfile>("DATABASELOG");
-        logfile->SetDatabaseBuilder(builder);
+        logfile->set_database_builder(builder);
         return logfile;
     }
 
