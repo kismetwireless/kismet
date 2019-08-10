@@ -118,7 +118,7 @@ public:
         return json.asBool();
     }
 
-    virtual number_vec getNumberVec() {
+    virtual number_vec as_number_vector() {
         except_if_not(is_array(), "Array/Vector");
 
         number_vec v;

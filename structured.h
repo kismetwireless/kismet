@@ -109,7 +109,7 @@ public:
     virtual std::string as_binary_string() = 0;
 
     // Get vectors of numbers and strings
-    virtual number_vec getNumberVec() = 0;
+    virtual number_vec as_number_vector() = 0;
     virtual string_vec getStringVec() = 0;
 
     // Get keyed values as...
