@@ -69,7 +69,7 @@ public:
         local_locker lock(&mutex);
 
         if (in_elem->get_type() == TrackerType::TrackerVector) {
-            for (auto i : *(std::static_pointer_cast<TrackerElementVector>(in_elem))) {
+            for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
                 JsonAdapter::Pack(stream, i, name_map);
                 stream << "\n";
             }

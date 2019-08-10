@@ -79,7 +79,7 @@ int Classfilter::default_set_endp_handler(std::ostream& stream, SharedStructured
     return 500;
 }
 
-void Classfilter::build_self_content(std::shared_ptr<TrackerElementMap> content) {
+void Classfilter::build_self_content(std::shared_ptr<tracker_element_map> content) {
     content->insert(filter_id);
     content->insert(filter_description);
     content->insert(filter_type);
@@ -195,13 +195,13 @@ void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, 
 	// Build the tracked version of the record, building any containers we need along the way, this
 	// always gets built even for unknown phys
 	auto tracked_phy_key = filter_phy_block->find(in_phy);
-	std::shared_ptr<TrackerElementMacMap> tracked_mac_map;
+	std::shared_ptr<tracker_element_mac_map> tracked_mac_map;
 
 	if (tracked_phy_key == filter_phy_block->end()) {
-		tracked_mac_map = std::make_shared<TrackerElementMacMap>(filter_sub_mac_id);
+		tracked_mac_map = std::make_shared<tracker_element_mac_map>(filter_sub_mac_id);
 		filter_phy_block->insert(in_phy, tracked_mac_map);
 	} else {
-		tracked_mac_map = TrackerElement::safe_cast_as<TrackerElementMacMap>(tracked_phy_key->second);
+		tracked_mac_map = TrackerElement::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
 	}
 
 	auto tracked_mac_key = tracked_mac_map->find(in_mac);
@@ -233,7 +233,7 @@ void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_ph
 	// Remove it from the tracked version we display
 	auto tracked_phy_key = filter_phy_block->find(in_phy);
 	if (tracked_phy_key != filter_phy_block->end()) {
-		auto tracked_mac_map = TrackerElement::safe_cast_as<TrackerElementMacMap>(tracked_phy_key->second);
+		auto tracked_mac_map = TrackerElement::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
 		auto tracked_mac_key = tracked_mac_map->find(in_mac);
 
 		if (tracked_mac_key != tracked_mac_map->end())
@@ -386,13 +386,13 @@ bool ClassfilterMacaddr::filter(mac_addr mac, unsigned int phy) {
 	return si->second;
 }
 
-std::shared_ptr<TrackerElementMap> ClassfilterMacaddr::self_endp_handler() {
-    auto ret = std::make_shared<TrackerElementMap>();
+std::shared_ptr<tracker_element_map> ClassfilterMacaddr::self_endp_handler() {
+    auto ret = std::make_shared<tracker_element_map>();
     build_self_content(ret);
     return ret;
 }
 
-void ClassfilterMacaddr::build_self_content(std::shared_ptr<TrackerElementMap> content) { 
+void ClassfilterMacaddr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
     Classfilter::build_self_content(content);
 
     content->insert(filter_phy_block);

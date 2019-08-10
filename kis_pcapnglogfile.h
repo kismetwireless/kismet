@@ -57,7 +57,7 @@ public:
         initialize();
     }
 
-    KisPcapNGLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisPcapNGLogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisLogfileBuilder(in_id, e) {
         register_fields();
         reserve_fields(e);

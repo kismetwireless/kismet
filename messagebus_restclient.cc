@@ -31,7 +31,7 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
 
     message_vec_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.list",
-                TrackerElementFactory<TrackerElementVector>(),
+                TrackerElementFactory<tracker_element_vector>(),
                 "list of messages");
 
     message_timestamp_id =
@@ -155,13 +155,13 @@ void RestMessageClient::Httpd_CreateStreamResponse(
         local_locker lock(&msg_mutex);
 
         std::shared_ptr<TrackerElement> transmit;
-        std::shared_ptr<TrackerElementMap> wrapper;
-        auto msgvec = std::make_shared<TrackerElementVector>(message_vec_id);
+        std::shared_ptr<tracker_element_map> wrapper;
+        auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
        
         // If we're doing a time-since, wrap the vector
         if (wrap) {
             wrapper =
-                std::make_shared<TrackerElementMap>();
+                std::make_shared<tracker_element_map>();
             wrapper->insert(msgvec);
 
             auto ts =

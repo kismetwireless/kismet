@@ -252,7 +252,7 @@ public:
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisDatabaseLogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisLogfileBuilder(in_id, e) {
 
         register_fields();

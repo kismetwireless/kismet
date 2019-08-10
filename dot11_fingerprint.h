@@ -41,7 +41,7 @@ public:
         reserve_fields(nullptr);
     }
 
-    tracked_dot11_fingerprint(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_dot11_fingerprint(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component{in_id} {
         register_fields();
         reserve_fields(e);
@@ -155,7 +155,7 @@ protected:
 
     std::vector<std::string> base_uri;
 
-    std::shared_ptr<TrackerElementMacMap> fingerprint_map;
+    std::shared_ptr<tracker_element_mac_map> fingerprint_map;
 
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> fingerprint_endp;
     std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> update_endp;

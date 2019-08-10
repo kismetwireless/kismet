@@ -151,8 +151,8 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
             packetchain->RegisterPacketComponent("RADIODATA");
 
         ssid_regex_vec =
-            Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("phy80211.ssid_alerts", 
-                    TrackerElementFactory<TrackerElementVector>(),
+            Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("phy80211.ssid_alerts", 
+                    TrackerElementFactory<tracker_element_vector>(),
                     "Regex SSID alert configuration");
 
         ssid_regex_vec_element_id =
@@ -682,7 +682,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 return true;
                 },
                 [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
-                auto cl = std::make_shared<TrackerElementVector>();
+                auto cl = std::make_shared<tracker_element_vector>();
 
                 try {
                     auto key = StringTo<device_key>(path[3]);
@@ -743,7 +743,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 return true;
                 },
                 [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
-                auto cl = std::make_shared<TrackerElementVector>();
+                auto cl = std::make_shared<tracker_element_vector>();
 
                 try {
                     auto key = StringTo<device_key>(path[3]);
@@ -2498,7 +2498,7 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
         uint8_t keymask = 0;
 
         if (bssid_vec->size() > 16) {
-            for (TrackerElementVector::iterator kvi = bssid_vec->begin();
+            for (tracker_element_vector::iterator kvi = bssid_vec->begin();
                     kvi != bssid_vec->end(); ++kvi) {
                 auto ke = std::static_pointer_cast<dot11_tracked_eapol>(*kvi);
 
@@ -3043,7 +3043,7 @@ public:
         // Iterate over all the SSID records
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
         std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
-        TrackerElementIntMap::iterator int_itr;
+        tracker_element_int_map::iterator int_itr;
 
         for (int_itr = adv_ssid_map->begin(); int_itr != adv_ssid_map->end(); ++int_itr) {
             // Always leave one
@@ -3083,7 +3083,7 @@ public:
 
         auto client_map = dot11dev->get_client_map();
         std::shared_ptr<dot11_client> client = NULL;
-        TrackerElementMacMap::iterator mac_itr;
+        tracker_element_mac_map::iterator mac_itr;
 
         for (mac_itr = client_map->begin(); mac_itr != client_map->end(); ++mac_itr) {
             // Always leave one
@@ -3130,7 +3130,7 @@ void Kis_80211_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTracke
         return;
 
     auto in_map =
-        std::static_pointer_cast<TrackerElementMap>(in_storage);
+        std::static_pointer_cast<tracker_element_map>(in_storage);
 
     // Does the imported record have dot11?
     auto d11devi = in_map->find(dot11_device_entry_id);
@@ -3142,7 +3142,7 @@ void Kis_80211_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTracke
 
         auto d11dev =
             std::make_shared<dot11_tracked_device>(dot11_device_entry_id,
-                    std::static_pointer_cast<TrackerElementMap>(d11devi->second));
+                    std::static_pointer_cast<tracker_element_map>(d11devi->second));
         in_map->insert(d11dev);
     }
 }

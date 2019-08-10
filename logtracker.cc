@@ -77,7 +77,7 @@ void LogTracker::register_fields() {
     RegisterField("kismet.logtracker.log_types", "enabled log types", &log_types_vec);
 }
 
-void LogTracker::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
+void LogTracker::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     tracker_component::reserve_fields(e);
 
     // Normally we'd need to implement vector repair for the complex nested

@@ -68,7 +68,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     next_phy_id = 0;
 
     // create a vector
-    immutable_tracked_vec = std::make_shared<TrackerElementVector>();
+    immutable_tracked_vec = std::make_shared<tracker_element_vector>();
 
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
@@ -82,13 +82,13 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 "core device record");
     device_list_base_id =
         entrytracker->RegisterField("kismet.device.list",
-                TrackerElementFactory<TrackerElementVector>(),
+                TrackerElementFactory<tracker_element_vector>(),
                 "list of devices");
 
 
     device_summary_base_id =
         entrytracker->RegisterField("kismet.device.summary_list",
-                TrackerElementFactory<TrackerElementVector>(),
+                TrackerElementFactory<tracker_element_vector>(),
                 "summary list of devices");
 
     device_update_required_id =
@@ -394,7 +394,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     }
 
     // Initialize the view system
-    view_vec = std::make_shared<TrackerElementVector>();
+    view_vec = std::make_shared<tracker_element_vector>();
     view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/devices/views/all_views", 
             view_vec, &view_mutex);
 
@@ -408,7 +408,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     phy_phyentry_id =
         entrytracker->RegisterField("kismet.phy.phy",
-                TrackerElementFactory<TrackerElementMap>(),
+                TrackerElementFactory<tracker_element_map>(),
                 "Kismet PHY handler");
 
     phy_phyname_id =
@@ -908,26 +908,26 @@ bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 }
 
 void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker locker(&devicelist_mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(vec);
+        immutable_copy = std::make_shared<tracker_element_vector>(vec);
     }
 
     MatchOnDevicesRaw(worker, immutable_copy, batch);
 }
 
 void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker locker(&devicelist_mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(vec);
+        immutable_copy = std::make_shared<tracker_element_vector>(vec);
     }
 
     MatchOnReadonlyDevicesRaw(worker, immutable_copy, batch);
@@ -935,7 +935,7 @@ void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWo
 }
 
 void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
            if (val == nullptr)
@@ -960,7 +960,7 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
 }
 
 void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     if (vec == nullptr)
         return;
@@ -1360,8 +1360,8 @@ void Devicetracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> 
 }
 
 int Devicetracker::store_devices() {
-    auto devs = std::make_shared<TrackerElementVector>();
-    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
+    auto devs = std::make_shared<tracker_element_vector>();
+    auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
 
     // Find anything that has changed
     for (auto v : *immutable_copy) {
@@ -1379,13 +1379,13 @@ int Devicetracker::store_devices() {
 }
 
 int Devicetracker::store_all_devices() {
-    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
+    auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
     last_devicelist_saved = time(0);
 
     return store_devices(immutable_copy);
 }
 
-int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) {
+int Devicetracker::store_devices(std::shared_ptr<tracker_element_vector> devices) {
     if (!persistent_storage)
         return 0;
 
@@ -1490,7 +1490,7 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
 
         // Adopt it into a device
         auto kdb = std::make_shared<kis_tracked_device_base>(device_base_id, 
-                std::static_pointer_cast<TrackerElementMap>(e));
+                std::static_pointer_cast<tracker_element_map>(e));
 
         // Give all the phys a shot at it
         for (auto p : phy_handler_map)
@@ -2053,7 +2053,7 @@ DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
     return NULL;
 }
 
-int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector> devices) {
+int DevicetrackerStateStore::store_devices(std::shared_ptr<tracker_element_vector> devices) {
     local_locker lock(&ds_mutex);
 
     if (!Database_Valid()) {

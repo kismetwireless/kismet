@@ -44,7 +44,7 @@ class kis_tracked_location_triplet : public tracker_component {
 public:
     kis_tracked_location_triplet();
     kis_tracked_location_triplet(int in_id);
-    kis_tracked_location_triplet(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -104,7 +104,7 @@ public:
 
     kis_tracked_location();
     kis_tracked_location(int in_id);
-    kis_tracked_location(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -157,7 +157,7 @@ class kis_historic_location : public tracker_component {
 public:
     kis_historic_location();
     kis_historic_location(int in_id);
-    kis_historic_location(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_historic_location(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -202,7 +202,7 @@ class kis_location_history : public tracker_component {
 public:
     kis_location_history();
     kis_location_history(int in_id);
-    kis_location_history(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_location_history(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -222,11 +222,11 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<TrackerElementVector> samples_100;
-    std::shared_ptr<TrackerElementVector> samples_10k;
-    std::shared_ptr<TrackerElementVector> samples_1m;
+    std::shared_ptr<tracker_element_vector> samples_100;
+    std::shared_ptr<tracker_element_vector> samples_10k;
+    std::shared_ptr<tracker_element_vector> samples_1m;
 
     std::shared_ptr<TrackerElementUInt64> last_sample_ts;
 

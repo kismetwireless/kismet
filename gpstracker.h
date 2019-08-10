@@ -159,11 +159,11 @@ public:
 protected:
     kis_recursive_timed_mutex gpsmanager_mutex;
 
-    std::shared_ptr<TrackerElementVector> gps_prototypes_vec;
+    std::shared_ptr<tracker_element_vector> gps_prototypes_vec;
 
     // GPS instances, as a vector, sorted by priority; we don't mind doing a 
     // linear search because we'll typically have very few GPS devices
-    std::shared_ptr<TrackerElementVector> gps_instances_vec;
+    std::shared_ptr<tracker_element_vector> gps_instances_vec;
 
     // Extra field we insert into a location triplet
     int tracked_uuid_addition_id;

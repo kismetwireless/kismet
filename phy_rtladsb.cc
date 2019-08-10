@@ -48,7 +48,7 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     rtladsb_holder_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device", 
-                TrackerElementFactory<TrackerElementMap>(),
+                TrackerElementFactory<tracker_element_map>(),
                 "rtl_adsb device");
 
     rtladsb_common_id =
@@ -188,12 +188,12 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_type_string("Airplane");
     basedev->set_devicename(dn);
 
-    auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtladsb_holder_id);
+    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtladsb_holder_id);
     bool newrtl = false;
 
     if (rtlholder == NULL) {
         rtlholder =
-            std::make_shared<TrackerElementMap>(rtladsb_holder_id);
+            std::make_shared<tracker_element_map>(rtladsb_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -268,7 +268,7 @@ bool Kis_RTLADSB_Phy::is_adsb(Json::Value json) {
     return false;
 }
 
-void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto icao_j = json["icao"];
 
     if (!icao_j.isNull()) {

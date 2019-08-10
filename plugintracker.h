@@ -131,7 +131,7 @@ public:
         dlfile = NULL;
     }
 
-    PluginRegistrationData(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    PluginRegistrationData(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
         register_fields();
@@ -299,7 +299,7 @@ protected:
 	int ScanDirectory(DIR *in_dir, std::string in_path);
 
     // Final vector of registered activated plugins
-    std::shared_ptr<TrackerElementVector> plugin_registry_vec;
+    std::shared_ptr<tracker_element_vector> plugin_registry_vec;
 
     // List of plugins before they're loaded
     std::vector<SharedPluginData> plugin_preload;

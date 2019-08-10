@@ -46,7 +46,7 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_message(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_message(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);

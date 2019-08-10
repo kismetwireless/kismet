@@ -42,7 +42,7 @@ Alertracker::Alertracker() :
 
     alert_vec_id =
         entrytracker->RegisterField("kismet.alert.list",
-                TrackerElementFactory<TrackerElementVector>(), 
+                TrackerElementFactory<tracker_element_vector>(), 
                 "list of alerts");
 
     alert_timestamp_id =
@@ -57,8 +57,8 @@ Alertracker::Alertracker() :
 
 
     alert_defs_vec = 
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.alert.definition_list",
-                TrackerElementFactory<TrackerElementVector>(), 
+        entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.alert.definition_list",
+                TrackerElementFactory<tracker_element_vector>(), 
                 "Kismet alert definitions");
 
     alert_def_id =
@@ -688,12 +688,12 @@ void Alertracker::Httpd_CreateStreamResponse(
     }
 
     std::shared_ptr<TrackerElement> transmit;
-    std::shared_ptr<TrackerElementMap> wrapper;
-    std::shared_ptr<TrackerElementVector> msgvec = std::make_shared<TrackerElementVector>(alert_vec_id);
+    std::shared_ptr<tracker_element_map> wrapper;
+    std::shared_ptr<tracker_element_vector> msgvec = std::make_shared<tracker_element_vector>(alert_vec_id);
 
     // If we're doing a time-since, wrap the vector
     if (wrap) {
-        wrapper = std::make_shared<TrackerElementMap>();
+        wrapper = std::make_shared<tracker_element_map>();
         wrapper->insert(msgvec);
 
         auto ts = std::make_shared<TrackerElementDouble>(alert_timestamp_id, ts_now_to_double());

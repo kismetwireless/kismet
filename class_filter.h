@@ -79,9 +79,9 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> self_endp;
     // Build the return object; subfilters must implement this to bypass class hierarchy & call
     // build_self_content
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() = 0;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() = 0;
     // Cascading build
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content);
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content);
 };
 
 // MAC based filter
@@ -115,7 +115,7 @@ protected:
 
         // Mac based map filter_sub_mac_id =
         RegisterField("kismet.classfilter.macaddr.filter_block",
-                TrackerElementFactory<TrackerElementMacMap>(),
+                TrackerElementFactory<tracker_element_mac_map>(),
                 "MAC address filters");
 
 		// Filter value
@@ -125,7 +125,7 @@ protected:
                     "Filter value");
     }
 
-	std::shared_ptr<TrackerElementStringMap> filter_phy_block;
+	std::shared_ptr<tracker_element_string_map> filter_phy_block;
 
 	// Nested phy types
     int filter_sub_mac_id, filter_sub_value_id;
@@ -145,8 +145,8 @@ protected:
     unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
             SharedStructured structured);
 
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() override;
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content) override;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() override;
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content) override;
 
 };
 

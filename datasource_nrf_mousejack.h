@@ -58,7 +58,7 @@ public:
         initialize();
     }
 
-    DatasourceNrfMousejackBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    DatasourceNrfMousejackBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisDatasourceBuilder(in_id, e) {
 
         register_fields();

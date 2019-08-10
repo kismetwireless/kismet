@@ -47,10 +47,10 @@ public:
 
 protected:
     // Target SSIDs
-    std::shared_ptr<TrackerElementVector> target_ssids;
+    std::shared_ptr<tracker_element_vector> target_ssids;
 
-    std::shared_ptr<TrackerElementVector> hopping_datasources;
-    std::shared_ptr<TrackerElementVector> locking_datasources;
+    std::shared_ptr<tracker_element_vector> hopping_datasources;
+    std::shared_ptr<tracker_element_vector> locking_datasources;
 
 };
 

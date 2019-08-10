@@ -58,7 +58,7 @@ public:
         initialize();
     }
 
-    KisLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisLogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -133,7 +133,7 @@ public:
         reserve_fields(NULL);
     }
 
-    KisLogfile(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisLogfile(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -274,18 +274,18 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     kis_recursive_timed_mutex tracker_mutex;
 
     std::shared_ptr<StreamTracker> streamtracker;
 
     // Vector of prototypes
-    std::shared_ptr<TrackerElementVector> logproto_vec;
+    std::shared_ptr<tracker_element_vector> logproto_vec;
     int logproto_entry_id;
 
     // Vector of logs
-    std::shared_ptr<TrackerElementVector> logfile_vec;
+    std::shared_ptr<tracker_element_vector> logfile_vec;
     int logfile_entry_id;
 
     // Various global config items common to all
@@ -294,7 +294,7 @@ protected:
     std::shared_ptr<TrackerElementString> log_prefix;
     std::shared_ptr<TrackerElementString> log_template;
 
-    std::shared_ptr<TrackerElementVector> log_types_vec;
+    std::shared_ptr<tracker_element_vector> log_types_vec;
 };
 
 #endif

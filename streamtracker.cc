@@ -33,7 +33,7 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
                 "Kismet data stream");
 
     tracked_stream_map =
-        std::make_shared<TrackerElementDoubleMap>();
+        std::make_shared<tracker_element_double_map>();
 
     next_stream_id = 1;
     
@@ -109,7 +109,7 @@ void StreamTracker::Httpd_CreateStreamResponse(
     std::string stripped = httpd->StripSuffix(path);
 
     if (stripped == "/streams/all_streams") {
-        auto outvec = std::make_shared<TrackerElementVector>();
+        auto outvec = std::make_shared<tracker_element_vector>();
 
         for (auto si : *tracked_stream_map) {
             outvec->push_back(si.second);

@@ -1177,7 +1177,7 @@ int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) 
     if (!db_enabled)
         return 0;
 
-    for (auto ds : *(std::static_pointer_cast<TrackerElementVector>(in_datasource_vec))) {
+    for (auto ds : *(std::static_pointer_cast<tracker_element_vector>(in_datasource_vec))) {
         r = log_datasource(ds);
 
         if (r < 0)
@@ -1787,7 +1787,7 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
 }
 
 std::shared_ptr<TrackerElement> KisDatabaseLogfile::list_poi_endp_handler() {
-    return std::make_shared<TrackerElementVector>();
+    return std::make_shared<tracker_element_vector>();
 }
 
 Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,

@@ -68,7 +68,7 @@ public:
         initialize();
     }
 
-    KisDatasourceBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisDatasourceBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -191,7 +191,7 @@ public:
         reserve_fields(NULL);
     }
 
-    KisDatasource(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisDatasource(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id),
         KisExternalInterface() {
         register_fields();
@@ -262,7 +262,7 @@ public:
             configure_callback_t in_cb);
     // Set the channel hop rate using a TrackerElement vector object
     virtual void set_channel_hop(double in_rate, 
-            std::shared_ptr<TrackerElementVector> in_chans,
+            std::shared_ptr<tracker_element_vector> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     // Set just the channel hop rate; internally this is the same as setting a 
@@ -326,7 +326,7 @@ public:
 
     __ProxyGetMS(source_dlt, uint32_t, uint32_t, source_dlt, ext_mutex);
 
-    __ProxyTrackableMS(source_channels_vec, TrackerElementVector, source_channels_vec, ext_mutex);
+    __ProxyTrackableMS(source_channels_vec, tracker_element_vector, source_channels_vec, ext_mutex);
 
     // Any alert state passed from the driver we want to be able to consistently
     // report to the user
@@ -339,7 +339,7 @@ public:
     __ProxyGetMS(source_hop_offset, uint32_t, uint32_t, source_hop_offset, ext_mutex);
     __ProxyGetMS(source_hop_shuffle, uint8_t, bool, source_hop_shuffle, ext_mutex);
     __ProxyGetMS(source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, ext_mutex);
-    __ProxyTrackableMS(source_hop_vec, TrackerElementVector, source_hop_vec, ext_mutex);
+    __ProxyTrackableMS(source_hop_vec, tracker_element_vector, source_hop_vec, ext_mutex);
 
     __ProxyGetMS(source_running, uint8_t, bool, source_running, ext_mutex);
 
@@ -498,7 +498,7 @@ protected:
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_configure_channel_hop(double in_rate,
-            std::shared_ptr<TrackerElementVector> in_chans,
+            std::shared_ptr<tracker_element_vector> in_chans,
             bool in_shuffle, unsigned int in_offt, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
@@ -536,7 +536,7 @@ protected:
     __ProxySetMS(int_source_cap_interface, std::string, std::string, source_cap_interface, ext_mutex);
     __ProxySetMS(int_source_hardware, std::string, std::string, source_hardware, ext_mutex);
     __ProxySetMS(int_source_dlt, uint32_t, uint32_t, source_dlt, ext_mutex);
-    __ProxyTrackableMS(int_source_channels_vec, TrackerElementVector, source_channels_vec, ext_mutex);
+    __ProxyTrackableMS(int_source_channels_vec, tracker_element_vector, source_channels_vec, ext_mutex);
 
     __ProxySetMS(int_source_warning, std::string, std::string, source_warning, ext_mutex);
 
@@ -547,7 +547,7 @@ protected:
     __ProxySetMS(int_source_hop_shuffle, uint8_t, bool, source_hop_shuffle, ext_mutex);
     __ProxySetMS(int_source_hop_shuffle_skip, uint32_t, uint32_t, source_hop_shuffle_skip, ext_mutex);
     __ProxySetMS(int_source_hop_offset, uint32_t, uint32_t, source_hop_offset, ext_mutex);
-    __ProxyTrackableMS(int_source_hop_vec, TrackerElementVector, source_hop_vec, ext_mutex);
+    __ProxyTrackableMS(int_source_hop_vec, tracker_element_vector, source_hop_vec, ext_mutex);
 
     // Prototype object which created us, defines our overall capabilities
     std::shared_ptr<KisDatasourceBuilder> source_builder;
@@ -576,7 +576,7 @@ protected:
     int channel_entry_id;
 
     // Possible channels supported by this source
-    std::shared_ptr<TrackerElementVector> source_channels_vec;
+    std::shared_ptr<tracker_element_vector> source_channels_vec;
 
     // Warning to the user if something is funny in the source
     std::shared_ptr<TrackerElementString> source_warning;
@@ -589,7 +589,7 @@ protected:
 
     // Current hop rate and vector of channels we hop through, if we're hopping
     std::shared_ptr<TrackerElementDouble> source_hop_rate;
-    std::shared_ptr<TrackerElementVector> source_hop_vec;
+    std::shared_ptr<tracker_element_vector> source_hop_vec;
     int source_hop_vec_id;
 
     std::shared_ptr<TrackerElementUInt8> source_hop_split;
@@ -723,7 +723,7 @@ public:
         reserve_fields(NULL);
     }
 
-    KisDatasourceInterface(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisDatasourceInterface(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -748,7 +748,7 @@ public:
     }
 
     __Proxy(interface, std::string, std::string, std::string, interface);
-    __ProxyTrackable(options_vec, TrackerElementVector, options_vec);
+    __ProxyTrackable(options_vec, tracker_element_vector, options_vec);
 
     __ProxyTrackable(prototype, KisDatasourceBuilder, prototype);
 
@@ -795,7 +795,7 @@ protected:
     }
 
     std::shared_ptr<TrackerElementString> interface;
-    std::shared_ptr<TrackerElementVector> options_vec;
+    std::shared_ptr<tracker_element_vector> options_vec;
 
     std::shared_ptr<KisDatasourceBuilder> prototype;
 

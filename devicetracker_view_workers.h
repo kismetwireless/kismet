@@ -39,17 +39,17 @@ public:
     virtual ~DevicetrackerViewWorker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) = 0;
-    virtual std::shared_ptr<TrackerElementVector> getMatchedDevices() {
+    virtual std::shared_ptr<tracker_element_vector> getMatchedDevices() {
         return matched;
     }
 
 protected:
     friend class DevicetrackerView;
 
-    virtual void setMatchedDevices(std::shared_ptr<TrackerElementVector> devices);
+    virtual void setMatchedDevices(std::shared_ptr<tracker_element_vector> devices);
 
     kis_recursive_timed_mutex mutex;
-    std::shared_ptr<TrackerElementVector> matched;
+    std::shared_ptr<tracker_element_vector> matched;
 };
 
 class DevicetrackerViewFunctionWorker : public DevicetrackerViewWorker {

@@ -186,15 +186,15 @@ void Kis_Mousejack_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
     if (in_storage == nullptr || in_device == nullptr)
         return;
 
-    auto storage = std::static_pointer_cast<TrackerElementMap>(in_storage);
+    auto storage = std::static_pointer_cast<tracker_element_map>(in_storage);
 
     auto nrfdevi = storage->find(mousejack_device_entry_id);
 
     if (nrfdevi != storage->end()) {
         auto nrfdev =
             std::make_shared<mousejack_tracked_device>(mousejack_device_entry_id,
-                    std::static_pointer_cast<TrackerElementMap>(nrfdevi->second));
-        std::static_pointer_cast<TrackerElementMap>(in_device)->insert(nrfdev);
+                    std::static_pointer_cast<tracker_element_map>(nrfdevi->second));
+        std::static_pointer_cast<tracker_element_map>(in_device)->insert(nrfdev);
     }
 }
 

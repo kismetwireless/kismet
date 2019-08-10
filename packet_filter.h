@@ -78,9 +78,9 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> self_endp;
     // Build the return object; subfilters must implement this to bypass class heirarchy & call
     // build_self_content
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() = 0;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() = 0;
     // Cascading build
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content);
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content);
 };
 
 // Mac-address based filter.
@@ -117,27 +117,27 @@ protected:
 
         filter_source_id =
             RegisterField("kismet.packetfilter.macaddr.source", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+                    TrackerElementFactory<tracker_element_mac_map>(),
                     "Source address filters");
 
         filter_dest_id =
             RegisterField("kismet.packetfilter.macaddr.destination", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+                    TrackerElementFactory<tracker_element_mac_map>(),
                     "Destination address filters");
 
         filter_network_id =
             RegisterField("kismet.packetfilter.macaddr.network", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+                    TrackerElementFactory<tracker_element_mac_map>(),
                     "Network/BSSID address filters");
 
         filter_other_id =
             RegisterField("kismet.packetfilter.macaddr.other", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+                    TrackerElementFactory<tracker_element_mac_map>(),
                     "Other address filters");
 
         filter_any_id =
             RegisterField("kismet.packetfilter.macaddr.any", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+                    TrackerElementFactory<tracker_element_mac_map>(),
                     "Any matching address type");
     }
 
@@ -153,7 +153,7 @@ protected:
         filter_network_id, filter_other_id, filter_any_id;
 
     // Externally exposed tracked table
-    std::shared_ptr<TrackerElementStringMap> filter_phy_blocks;
+    std::shared_ptr<tracker_element_string_map> filter_phy_blocks;
 
     struct phy_filter_group {
         std::map<mac_addr, bool> filter_source;
@@ -177,7 +177,7 @@ protected:
     unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
             SharedStructured structured);
 
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() override;
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content) override;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() override;
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content) override;
 };
 

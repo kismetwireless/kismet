@@ -56,7 +56,7 @@ public:
 
     // Combine a vector for a higher-level record (seconds to minutes, minutes to 
     // hours, and so on).
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0;
         for (auto i : *e)
             avg += i;
@@ -91,7 +91,7 @@ public:
         update_first = true;
     }
 
-    kis_tracked_rrd(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    kis_tracked_rrd(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
         register_fields();
@@ -373,7 +373,7 @@ protected:
 
     } 
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         // Build slots for all the times
@@ -404,9 +404,9 @@ protected:
 
     std::shared_ptr<TrackerElementUInt64> last_time;
 
-    std::shared_ptr<TrackerElementVectorDouble> minute_vec;
-    std::shared_ptr<TrackerElementVectorDouble> hour_vec;
-    std::shared_ptr<TrackerElementVectorDouble> day_vec;
+    std::shared_ptr<tracker_element_vector_double> minute_vec;
+    std::shared_ptr<tracker_element_vector_double> hour_vec;
+    std::shared_ptr<tracker_element_vector_double> day_vec;
 
     std::shared_ptr<TrackerElementInt64> blank_val;
     std::shared_ptr<TrackerElementString> aggregator_name;
@@ -439,7 +439,7 @@ public:
         update_first = true;
     }
 
-    kis_tracked_minute_rrd(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    kis_tracked_minute_rrd(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
         register_fields();
@@ -559,7 +559,7 @@ protected:
         RegisterField("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
     } 
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         set_last_time(0);
@@ -578,7 +578,7 @@ protected:
     }
 
     std::shared_ptr<TrackerElementUInt64> last_time;
-    std::shared_ptr<TrackerElementVectorDouble> minute_vec;
+    std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<TrackerElementInt64> blank_val;
     std::shared_ptr<TrackerElementString> aggregator_name;
 
@@ -605,7 +605,7 @@ public:
     }
 
     // Select the strongest signal of the bucket
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0, avgc = 0;
 
         for (auto i : *e) {
@@ -663,7 +663,7 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0;
 
         for (auto i : *e) 

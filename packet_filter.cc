@@ -81,7 +81,7 @@ int Packetfilter::default_set_endp_handler(std::ostream& stream, SharedStructure
     return 500;
 }
 
-void Packetfilter::build_self_content(std::shared_ptr<TrackerElementMap> content) {
+void Packetfilter::build_self_content(std::shared_ptr<tracker_element_map> content) {
     content->insert(filter_id);
     content->insert(filter_description);
     content->insert(filter_type);
@@ -255,8 +255,8 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
 	// always gets built even for unknown phys
 	auto tracked_phy_key = filter_phy_blocks->find(in_phy);
 
-	std::shared_ptr<TrackerElementMap> tracked_phy_map;
-    std::shared_ptr<TrackerElementMacMap> target_block_map;
+	std::shared_ptr<tracker_element_map> tracked_phy_map;
+    std::shared_ptr<tracker_element_mac_map> target_block_map;
     int target_block_map_id;
 
     if (in_block == "source")
@@ -275,13 +275,13 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
 
     if (tracked_phy_key == filter_phy_blocks->end()) {
         // Generate all the required blocks
-        tracked_phy_map = std::make_shared<TrackerElementMap>();
+        tracked_phy_map = std::make_shared<tracker_element_map>();
 
-        auto block_source = std::make_shared<TrackerElementMap>(filter_source_id);
-        auto block_dest = std::make_shared<TrackerElementMap>(filter_dest_id);
-        auto block_network = std::make_shared<TrackerElementMap>(filter_network_id);
-        auto block_other = std::make_shared<TrackerElementMap>(filter_other_id);
-        auto block_any = std::make_shared<TrackerElementMap>(filter_any_id);
+        auto block_source = std::make_shared<tracker_element_map>(filter_source_id);
+        auto block_dest = std::make_shared<tracker_element_map>(filter_dest_id);
+        auto block_network = std::make_shared<tracker_element_map>(filter_network_id);
+        auto block_other = std::make_shared<tracker_element_map>(filter_other_id);
+        auto block_any = std::make_shared<tracker_element_map>(filter_any_id);
 
         tracked_phy_map->insert(block_source);
         tracked_phy_map->insert(block_dest);
@@ -291,11 +291,11 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
 
         filter_phy_blocks->insert(in_phy, tracked_phy_map);
 	} else {
-        tracked_phy_map = TrackerElement::safe_cast_as<TrackerElementMap>(tracked_phy_key->second);
+        tracked_phy_map = TrackerElement::safe_cast_as<tracker_element_map>(tracked_phy_key->second);
 	}
 
     // Find the target filter block
-    target_block_map = tracked_phy_map->get_sub_as<TrackerElementMacMap>(target_block_map_id);
+    target_block_map = tracked_phy_map->get_sub_as<tracker_element_mac_map>(target_block_map_id);
 
     // Find the actual filter
     auto tracked_mac_key = target_block_map->find(in_mac);
@@ -346,8 +346,8 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
 	// always gets built even for unknown phys
 	auto tracked_phy_key = filter_phy_blocks->find(in_phy);
 
-	std::shared_ptr<TrackerElementMap> tracked_phy_map;
-    std::shared_ptr<TrackerElementMacMap> target_block_map;
+	std::shared_ptr<tracker_element_map> tracked_phy_map;
+    std::shared_ptr<tracker_element_mac_map> target_block_map;
     int target_block_map_id;
 
     if (in_block == "source") {
@@ -368,11 +368,11 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
 	if (tracked_phy_key == filter_phy_blocks->end()) {
         return;
 	} else {
-        tracked_phy_map = TrackerElement::safe_cast_as<TrackerElementMap>(tracked_phy_key->second);
+        tracked_phy_map = TrackerElement::safe_cast_as<tracker_element_map>(tracked_phy_key->second);
 	}
 
     // Find the target filter block
-    target_block_map = tracked_phy_map->get_sub_as<TrackerElementMacMap>(target_block_map_id);
+    target_block_map = tracked_phy_map->get_sub_as<tracker_element_mac_map>(target_block_map_id);
 
     // Find the actual filter
 	auto tracked_mac_key = target_block_map->find(in_mac);
@@ -579,13 +579,13 @@ bool PacketfilterMacaddr::filter_packet(kis_packet *packet) {
     return get_filter_default();
 }
 
-std::shared_ptr<TrackerElementMap> PacketfilterMacaddr::self_endp_handler() {
-    auto ret = std::make_shared<TrackerElementMap>();
+std::shared_ptr<tracker_element_map> PacketfilterMacaddr::self_endp_handler() {
+    auto ret = std::make_shared<tracker_element_map>();
     build_self_content(ret);
     return ret;
 }
 
-void PacketfilterMacaddr::build_self_content(std::shared_ptr<TrackerElementMap> content) { 
+void PacketfilterMacaddr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
     Packetfilter::build_self_content(content);
 
     content->insert(filter_phy_blocks);

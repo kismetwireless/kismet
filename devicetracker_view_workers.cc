@@ -25,7 +25,7 @@
 #include "kis_mutex.h"
 #include "kismet_algorithm.h"
 
-void DevicetrackerViewWorker::setMatchedDevices(std::shared_ptr<TrackerElementVector> devs) {
+void DevicetrackerViewWorker::setMatchedDevices(std::shared_ptr<tracker_element_vector> devs) {
     local_locker l(&mutex);
     matched = devs;
 }

@@ -291,7 +291,7 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     }
 
     // Convert the std::vector to a channel vector
-    auto vec = std::make_shared<TrackerElementVector>(source_hop_vec_id);
+    auto vec = std::make_shared<tracker_element_vector>(source_hop_vec_id);
 
     for (auto i : in_chans) {
         auto c = std::make_shared<TrackerElementString>(channel_entry_id);
@@ -304,7 +304,7 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
 }
 
 void KisDatasource::set_channel_hop(double in_rate, 
-        std::shared_ptr<TrackerElementVector> in_chans,
+        std::shared_ptr<tracker_element_vector> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(ext_mutex);
@@ -1404,7 +1404,7 @@ unsigned int KisDatasource::send_configure_channel(std::string in_chan,
 }
 
 unsigned int KisDatasource::send_configure_channel_hop(double in_rate, 
-        std::shared_ptr<TrackerElementVector> in_chans,
+        std::shared_ptr<tracker_element_vector> in_chans,
         bool in_shuffle, unsigned int in_offt,
         unsigned int in_transaction,
         configure_callback_t in_cb) {

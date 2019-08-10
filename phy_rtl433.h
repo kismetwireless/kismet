@@ -65,7 +65,7 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0;
         int64_t avg_c = 0;
 
@@ -109,7 +109,7 @@ public:
         }
 
     rtl433_tracked_common(int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
+            std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -174,7 +174,7 @@ public:
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_thermometer(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtl433_tracked_thermometer(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -236,7 +236,7 @@ public:
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_weatherstation(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtl433_tracked_weatherstation(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -332,7 +332,7 @@ public:
             reserve_fields(nullptr);
         }
 
-    rtl433_tracked_lightningsensor(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtl433_tracked_lightningsensor(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
             register_fields();
             reserve_fields(e);
@@ -390,7 +390,7 @@ public:
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_tpms(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtl433_tracked_tpms(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -452,7 +452,7 @@ public:
             reserve_fields(NULL);
         }
 
-    rtl433_tracked_switch(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtl433_tracked_switch(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -474,7 +474,7 @@ public:
         return std::move(dup);
     }
 
-    __ProxyTrackable(switch_vec, TrackerElementVector, switch_vec);
+    __ProxyTrackable(switch_vec, tracker_element_vector, switch_vec);
 
     SharedTrackerElement make_switch_entry(int x) {
         auto e = std::make_shared<TrackerElementInt32>(switch_vec_entry_id, x);
@@ -490,7 +490,7 @@ protected:
                     "Switch position");
     }
 
-    std::shared_ptr<TrackerElementVector> switch_vec;
+    std::shared_ptr<tracker_element_vector> switch_vec;
     int switch_vec_entry_id;
 
 };
@@ -525,11 +525,11 @@ protected:
     bool is_switch(Json::Value json);
     bool is_lightning(Json::Value json);
 
-    void add_weather_station(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
-    void add_thermometer(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
-    void add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
-    void add_switch(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
-    void add_lightning(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_weather_station(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_thermometer(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_tpms(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
 

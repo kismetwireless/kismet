@@ -53,7 +53,7 @@ public:
         initialize();
     }
 
-    DatasourceRtlamrBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    DatasourceRtlamrBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisDatasourceBuilder(in_id, e) {
 
         register_fields();
@@ -96,7 +96,7 @@ public:
         initialize();
     }
 
-    DatasourceRtlamrMqttBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    DatasourceRtlamrMqttBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisDatasourceBuilder(in_id, e) {
         register_fields();
         reserve_fields(e);

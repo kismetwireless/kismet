@@ -37,7 +37,7 @@ class DevicetrackerFilterWorker {
 
 public:
     DevicetrackerFilterWorker() {
-        matched_devices = std::make_shared<TrackerElementVector>();
+        matched_devices = std::make_shared<tracker_element_vector>();
     };
     virtual ~DevicetrackerFilterWorker() { };
 
@@ -48,7 +48,7 @@ public:
     // Finalize operations
     virtual void Finalize(Devicetracker *devicetracker __attribute__((unused))) { }
 
-    virtual std::shared_ptr<TrackerElementVector> GetMatchedDevices() {
+    virtual std::shared_ptr<tracker_element_vector> GetMatchedDevices() {
         return matched_devices;
     }
 
@@ -59,7 +59,7 @@ protected:
     }
 
     kis_recursive_timed_mutex worker_mutex;
-    std::shared_ptr<TrackerElementVector> matched_devices;
+    std::shared_ptr<tracker_element_vector> matched_devices;
 };
 
 // C++ lambda matcher

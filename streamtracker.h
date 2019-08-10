@@ -97,7 +97,7 @@ public:
         set_stream_time(time(0));
     }
 
-    streaming_info_record(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    streaming_info_record(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -227,7 +227,7 @@ protected:
 
     GlobalRegistry *globalreg;
 
-    std::shared_ptr<TrackerElementDoubleMap> tracked_stream_map;
+    std::shared_ptr<tracker_element_double_map> tracked_stream_map;
 
     int info_builder_id;
 

@@ -107,11 +107,11 @@ protected:
     std::shared_ptr<TrackerElementUInt8> ssidscan_enabled;
 
     // Target SSIDs
-    std::shared_ptr<TrackerElementVectorString> target_ssids;
+    std::shared_ptr<tracker_element_vector_string> target_ssids;
 
     // Datasources we use; wanted UUIDs and actual sources
-    std::shared_ptr<TrackerElementVector> ssidscan_datasources_uuids;
-    std::shared_ptr<TrackerElementVector> ssidscan_datasources;
+    std::shared_ptr<tracker_element_vector> ssidscan_datasources_uuids;
+    std::shared_ptr<tracker_element_vector> ssidscan_datasources;
 
     // Do we ignore a target bssid after we think we got a handshake?
     std::shared_ptr<TrackerElementUInt8> ignore_after_handshake;
@@ -173,7 +173,7 @@ protected:
     // Original state for interfaces
     struct datasource_state {
         bool hopping;
-        std::shared_ptr<TrackerElementVector> source_hop_vec;
+        std::shared_ptr<tracker_element_vector> source_hop_vec;
         std::string source_channel;
     };
     std::map<uuid, datasource_state> previous_datasource_hop_map;

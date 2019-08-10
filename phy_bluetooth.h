@@ -73,7 +73,7 @@ public:
     }
 
     bluetooth_tracked_device(int in_id, 
-            std::shared_ptr<TrackerElementMap> e) : 
+            std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
 
         register_fields();
@@ -96,7 +96,7 @@ public:
         return std::move(dup);
     }
 
-    __ProxyTrackable(service_uuid_vec, TrackerElementVector, service_uuid_vec);
+    __ProxyTrackable(service_uuid_vec, tracker_element_vector, service_uuid_vec);
     __Proxy(txpower, int16_t, int16_t, int16_t, txpower);
 
 protected:
@@ -107,12 +107,12 @@ protected:
                 "advertised transmit power", &txpower);
     }
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
     }
 
-    std::shared_ptr<TrackerElementVector> service_uuid_vec;
+    std::shared_ptr<tracker_element_vector> service_uuid_vec;
     std::shared_ptr<TrackerElementInt16> txpower;
 };
 

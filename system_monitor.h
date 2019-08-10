@@ -46,7 +46,7 @@ public:
         reserve_fields(nullptr);
     }
 
-    tracked_system_status(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_system_status(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -94,8 +94,8 @@ public:
     __ProxyTrackable(memory_rrd, kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>, memory_rrd);
     __ProxyTrackable(devices_rrd, kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>, devices_rrd);
 
-    __ProxyTrackable(sensors_fans, TrackerElementStringMap, sensors_fans);
-    __ProxyTrackable(sensors_temp, TrackerElementStringMap, sensors_temp);
+    __ProxyTrackable(sensors_fans, tracker_element_string_map, sensors_fans);
+    __ProxyTrackable(sensors_temp, tracker_element_string_map, sensors_temp);
 
     virtual void pre_serialize() override;
 
@@ -127,8 +127,8 @@ protected:
     std::shared_ptr<TrackerElementUInt64> devices;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
 
-    std::shared_ptr<TrackerElementStringMap> sensors_fans;
-    std::shared_ptr<TrackerElementStringMap> sensors_temp;
+    std::shared_ptr<tracker_element_string_map> sensors_fans;
+    std::shared_ptr<tracker_element_string_map> sensors_temp;
 };
 
 class Systemmonitor : public LifetimeGlobal, public TimetrackerEvent {

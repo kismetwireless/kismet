@@ -101,7 +101,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "UAV device");
 
     manuf_match_vec =
-        std::make_shared<TrackerElementVector>();
+        std::make_shared<tracker_element_vector>();
 
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
@@ -129,7 +129,7 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerE
         return;
 
     auto storage_map =
-        TrackerElement::safe_cast_as<TrackerElementMap>(in_storage);
+        TrackerElement::safe_cast_as<tracker_element_map>(in_storage);
 
     // Does the imported record have UAV?
     auto devi = storage_map->find(uav_device_id);
@@ -137,9 +137,9 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerE
     if (devi != storage_map->end()) {
         auto uavdev =
             std::make_shared<uav_tracked_device>(uav_device_id, 
-                    TrackerElement::safe_cast_as<TrackerElementMap>(devi->second));
+                    TrackerElement::safe_cast_as<tracker_element_map>(devi->second));
 
-        TrackerElement::safe_cast_as<TrackerElementMap>(in_device)->insert(uavdev);
+        TrackerElement::safe_cast_as<tracker_element_map>(in_device)->insert(uavdev);
     }
 }
 

@@ -39,7 +39,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     view_id->set(in_id);
     view_description->set(in_description);
 
-    device_list = std::make_shared<TrackerElementVector>();
+    device_list = std::make_shared<tracker_element_vector>();
 
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
@@ -75,7 +75,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     view_id->set(in_id);
     view_description->set(in_description);
 
-    device_list = std::make_shared<TrackerElementVector>();
+    device_list = std::make_shared<tracker_element_vector>();
 
     // Because we can't lock the device view and acquire locks on devices while the caller
     // might also hold locks on devices, we need to specially handle the mutex ourselves;
@@ -124,31 +124,31 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
+std::shared_ptr<tracker_element_vector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker dl(&mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(device_list);
+        immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
     return doDeviceWork(worker, immutable_copy);
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker) {
+std::shared_ptr<tracker_element_vector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker) {
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker dl(&mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(device_list);
+        immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
     return doReadonlyDeviceWork(worker, immutable_copy);
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker,
-        std::shared_ptr<TrackerElementVector> devices) {
-    auto ret = std::make_shared<TrackerElementVector>();
+std::shared_ptr<tracker_element_vector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker,
+        std::shared_ptr<tracker_element_vector> devices) {
+    auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
@@ -178,9 +178,9 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
     return ret;
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
-        std::shared_ptr<TrackerElementVector> devices) {
-    auto ret = std::make_shared<TrackerElementVector>();
+std::shared_ptr<tracker_element_vector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
+        std::shared_ptr<tracker_element_vector> devices) {
+    auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
@@ -340,7 +340,7 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const st
     // The device worker creates an immutable copy of the device list under its own RO mutex,
     // so we don't have to lock here.
     
-    auto ret = std::make_shared<TrackerElementVector>();
+    auto ret = std::make_shared<tracker_element_vector>();
 
     if (path.size() < 6)
         return ret;
@@ -401,7 +401,7 @@ bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::str
 std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(const std::vector<std::string>& path) {
     // The device worker creates an immutable copy of the device list under its own RO mutex,
     // so we don't have to lock here.
-    auto ret = std::make_shared<TrackerElementVector>();
+    auto ret = std::make_shared<tracker_element_vector>();
 
     auto extras_sz = uri_extras.size();
 
@@ -459,7 +459,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     auto regex = SharedStructured{};
 
     // Wrapper, if any, we insert under
-    std::shared_ptr<TrackerElementStringMap> wrapper_elem;
+    std::shared_ptr<tracker_element_string_map> wrapper_elem;
 
     // Field we transmit in the final stage (dervied array, or map)
     std::shared_ptr<TrackerElement> transmit;
@@ -473,7 +473,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     auto filtered_sz_elem = std::make_shared<TrackerElementUInt64>();
 
     // Output device list, should be copied into for final output
-    auto output_devices_elem = std::make_shared<TrackerElementVector>();
+    auto output_devices_elem = std::make_shared<tracker_element_vector>();
 
     // Datatables specific draw element
     auto dt_draw_elem = std::make_shared<TrackerElementUInt64>();
@@ -606,7 +606,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
             dt_draw_elem->set(in_dt_draw);
 
             // Set up the datatables wrapper
-            wrapper_elem = std::make_shared<TrackerElementStringMap>();
+            wrapper_elem = std::make_shared<tracker_element_string_map>();
             transmit = wrapper_elem;
 
             wrapper_elem->insert("draw", dt_draw_elem);
@@ -623,7 +623,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     }
 
     // Next vector we do work on
-    auto next_work_vec = std::make_shared<TrackerElementVector>();
+    auto next_work_vec = std::make_shared<tracker_element_vector>();
 
     // Copy the entire vector list, under lock, to the next work vector; this makes it an independent copy
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
@@ -681,8 +681,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Update the start
     start_elem->set(in_window_start);
 
-    TrackerElementVector::iterator si = std::next(next_work_vec->begin(), in_window_start);
-    TrackerElementVector::iterator ei;
+    tracker_element_vector::iterator si = std::next(next_work_vec->begin(), in_window_start);
+    tracker_element_vector::iterator ei;
 
     if (in_window_len + in_window_start >= next_work_vec->size() || in_window_len == 0)
         ei = next_work_vec->end();

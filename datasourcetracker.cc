@@ -37,7 +37,7 @@
 #include "kis_databaselogfile.h"
 
 DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition, 
-        std::shared_ptr<TrackerElementVector> in_protovec) {
+        std::shared_ptr<tracker_element_vector> in_protovec) {
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
 
@@ -198,7 +198,7 @@ void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuil
 
 }
 
-DST_DatasourceList::DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec) {
+DST_DatasourceList::DST_DatasourceList(std::shared_ptr<tracker_element_vector> in_protovec) {
     timetracker = 
         Globalreg::FetchMandatoryGlobalAs<Timetracker>();
 
@@ -314,18 +314,18 @@ Datasourcetracker::Datasourcetracker() :
                 "Datasource");
 
     proto_vec =
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.drivers",
-                TrackerElementFactory<TrackerElementVector>(), "Known drivers");
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.datasourcetracker.drivers",
+                TrackerElementFactory<tracker_element_vector>(), "Known drivers");
 
     datasource_vec =
-        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.datasourcetracker.sources",
-                TrackerElementFactory<TrackerElementVector>(), "Configured sources");
+        Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.datasourcetracker.sources",
+                TrackerElementFactory<tracker_element_vector>(), "Configured sources");
 
     all_sources_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources",
                 [this]() -> std::shared_ptr<TrackerElement> {
                     local_shared_locker sl(&dst_lock);
-                    auto serial_vec = std::make_shared<TrackerElementVector>(datasource_vec);
+                    auto serial_vec = std::make_shared<tracker_element_vector>(datasource_vec);
                     return serial_vec;
                 });
 
@@ -354,7 +354,7 @@ Datasourcetracker::Datasourcetracker() :
                     // Block until the list cmd unlocks us
                     auto iflist = cl->block_until();
 
-                    auto iv = std::make_shared<TrackerElementVector>();
+                    auto iv = std::make_shared<tracker_element_vector>();
 
                     for (auto li : iflist)
                         iv->push_back(li);
@@ -394,11 +394,11 @@ void Datasourcetracker::databaselog_write_datasources() {
         return;
 
     // Fire off a database log, using a copy of the datasource vec
-    std::shared_ptr<TrackerElementVector> v;
+    std::shared_ptr<tracker_element_vector> v;
 
     {
         local_shared_locker l(&dst_lock);
-        v = std::make_shared<TrackerElementVector>(datasource_vec);
+        v = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
     dbf->log_datasources(v);
@@ -685,11 +685,11 @@ void Datasourcetracker::Deferred_Shutdown() {
 }
 
 void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
 
     {
         local_locker lock(&dst_lock);
-        immutable_copy = std::make_shared<TrackerElementVector>(datasource_vec);
+        immutable_copy = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
     for (auto kds : *immutable_copy) {

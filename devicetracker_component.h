@@ -58,7 +58,7 @@ class kis_tracked_ip_data : public tracker_component {
 public:
     kis_tracked_ip_data();
     kis_tracked_ip_data(int in_id);
-    kis_tracked_ip_data(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -92,7 +92,7 @@ class kis_tracked_signal_data : public tracker_component {
 public:
     kis_tracked_signal_data();
     kis_tracked_signal_data(int in_id);
-    kis_tracked_signal_data(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -161,7 +161,7 @@ class kis_tracked_seenby_data : public tracker_component {
 public:
     kis_tracked_seenby_data();
     kis_tracked_seenby_data(int in_id);
-    kis_tracked_seenby_data(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
 
     virtual std::unique_ptr<TrackerElement> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -181,7 +181,7 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyTrackable(freq_khz_map, TrackerElementDoubleMapDouble, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, tracker_element_double_mapDouble, freq_khz_map);
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
@@ -194,7 +194,7 @@ protected:
     std::shared_ptr<TrackerElementUInt64> last_time;
     std::shared_ptr<TrackerElementUInt64> num_packets;
 
-    std::shared_ptr<TrackerElementDoubleMapDouble> freq_khz_map;
+    std::shared_ptr<tracker_element_double_mapDouble> freq_khz_map;
     int frequency_val_id;
 
     std::shared_ptr<kis_tracked_signal_data> signal_data;
@@ -248,7 +248,7 @@ public:
         reserve_fields(NULL);
     }
 
-    kis_tracked_device_base(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -407,20 +407,20 @@ public:
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data,
             signal_data_id);
 
-    __ProxyTrackable(freq_khz_map, TrackerElementDoubleMapDouble, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, tracker_element_double_mapDouble, freq_khz_map);
 
     void inc_frequency_count(double frequency);
 
-    __ProxyTrackable(seenby_map, TrackerElementIntMap, seenby_map);
+    __ProxyTrackable(seenby_map, tracker_element_int_map, seenby_map);
 
     void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
             Packinfo_Sig_Combo *siginfo, bool update_rrd);
 
-    __ProxyTrackable(tag_map, TrackerElementStringMap, tag_map);
+    __ProxyTrackable(tag_map, tracker_element_string_map, tag_map);
 
     __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
 
-    __ProxyTrackable(related_devices_map, TrackerElementStringMap, related_devices_map);
+    __ProxyTrackable(related_devices_map, tracker_element_string_map, related_devices_map);
     void add_related_device(const std::string& in_relationship, const device_key in_key);
 
     // Non-exported internal counter used for structured sorting
@@ -448,7 +448,7 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     // Unique, meaningless, incremental ID.  Practically, this is the order
     // in which kismet saw devices; it has no purpose other than a sorting
@@ -537,7 +537,7 @@ protected:
     std::shared_ptr<kis_tracked_signal_data> signal_data;
 
     // Global frequency distribution
-    std::shared_ptr<TrackerElementDoubleMapDouble> freq_khz_map;
+    std::shared_ptr<tracker_element_double_mapDouble> freq_khz_map;
 
     // Manufacturer, if we're able to derive, either from OUI or 
     // from other data (phy-dependent)
@@ -547,7 +547,7 @@ protected:
     std::shared_ptr<TrackerElementUInt32> alert;
 
     // Stringmap of tags
-    std::shared_ptr<TrackerElementStringMap> tag_map;
+    std::shared_ptr<tracker_element_string_map> tag_map;
     // Entry ID for tag map
     int tag_entry_id;
 
@@ -559,7 +559,7 @@ protected:
     int location_cloud_id;
 
     // Seenby map (mapped by int16 device id)
-    std::shared_ptr<TrackerElementIntMap> seenby_map;
+    std::shared_ptr<tracker_element_int_map> seenby_map;
     int seenby_map_id;
 
     // Server UUID which generated this device
@@ -573,7 +573,7 @@ protected:
 
     // Related devices, keyed by strings.  Each related device group is then a key map
     // presented as a vector
-    std::shared_ptr<TrackerElementStringMap> related_devices_map;
+    std::shared_ptr<tracker_element_string_map> related_devices_map;
     int related_device_group_id;
 };
 

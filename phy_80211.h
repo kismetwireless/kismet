@@ -468,7 +468,7 @@ protected:
     int dissect_strings, dissect_all_strings;
 
     // SSID regex filter
-    std::shared_ptr<TrackerElementVector> ssid_regex_vec;
+    std::shared_ptr<tracker_element_vector> ssid_regex_vec;
     int ssid_regex_vec_element_id;
 
     // Dissector alert references

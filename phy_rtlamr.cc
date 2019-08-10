@@ -48,7 +48,7 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     rtlamr_holder_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device", 
-                TrackerElementFactory<TrackerElementMap>(),
+                TrackerElementFactory<tracker_element_map>(),
                 "rtl_amr device");
 
     rtlamr_common_id =
@@ -184,12 +184,12 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_type_string("Power Meter");
     basedev->set_devicename(dn);
 
-    auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtlamr_holder_id);
+    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtlamr_holder_id);
     bool newrtl = false;
 
     if (rtlholder == NULL) {
         rtlholder =
-            std::make_shared<TrackerElementMap>(rtlamr_holder_id);
+            std::make_shared<tracker_element_map>(rtlamr_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -281,7 +281,7 @@ bool Kis_RTLAMR_Phy::is_powermeter(Json::Value json) {
     return false;
 }
 
-void Kis_RTLAMR_Phy::add_powermeter(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTLAMR_Phy::add_powermeter(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto msgjson = json["Message"];
     auto id_j = msgjson["ID"];
     auto consumption_j = msgjson["Consumption"];

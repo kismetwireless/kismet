@@ -39,7 +39,7 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id) :
 } 
 
 kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id, 
-        std::shared_ptr<TrackerElementMap> e) : 
+        std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
 
     register_fields();
@@ -128,7 +128,7 @@ kis_tracked_location::kis_tracked_location(int in_id) :
     reserve_fields(NULL);
 }
 
-kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
 
     register_fields();
@@ -262,7 +262,7 @@ kis_historic_location::kis_historic_location(int in_id) :
     reserve_fields(NULL);
 } 
 
-kis_historic_location::kis_historic_location(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_historic_location::kis_historic_location(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -293,7 +293,7 @@ kis_location_history::kis_location_history(int in_id) :
     reserve_fields(NULL);
 } 
 
-kis_location_history::kis_location_history(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_location_history::kis_location_history(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -310,7 +310,7 @@ void kis_location_history::register_fields() {
     RegisterField("kis.gps.rrd.last_sample_ts", "time (unix ts) of last sample", &last_sample_ts);
 }
 
-void kis_location_history::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
+void kis_location_history::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     tracker_component::reserve_fields(e);
 
     samples_100_cascade = 0;

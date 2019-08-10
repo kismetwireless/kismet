@@ -52,7 +52,7 @@ public:
         reserve_fields(NULL);
     }
 
-    zwave_tracked_device(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    zwave_tracked_device(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);

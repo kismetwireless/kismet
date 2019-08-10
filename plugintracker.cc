@@ -50,7 +50,7 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
     Kis_Net_Httpd_CPPStream_Handler() {
     globalreg = in_globalreg;
 
-    plugin_registry_vec = std::make_shared<TrackerElementVector>();
+    plugin_registry_vec = std::make_shared<tracker_element_vector>();
 
     int option_idx = 0;
     int cmdline_disable = 0;

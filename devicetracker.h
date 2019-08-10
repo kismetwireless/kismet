@@ -165,10 +165,10 @@ public:
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is duplicated under mutex and then processed.
     void match_on_devices(std::shared_ptr<device_tracker_filter_worker> worker, 
-            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+            std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly filter, MUST NOT modify devices
     void match_on_readonly_devices(std::shared_ptr<device_tracker_filter_worker> worker, 
-            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+            std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is NOT duplicated, caller must ensure this is
@@ -177,7 +177,7 @@ public:
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly match
     void MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+            std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is duplicated under mutex and then processed.
@@ -291,7 +291,7 @@ public:
     // Store all devices to the database
     virtual int store_devices();
     virtual int store_all_devices();
-    virtual int store_devices(std::shared_ptr<TrackerElementVector> devices);
+    virtual int store_devices(std::shared_ptr<tracker_element_vector> devices);
 
     // Store all devices to the database
     virtual void databaselog_write_devices();
@@ -387,11 +387,11 @@ protected:
     // Immutable vector, one entry per device; may never be sorted.  Devices
     // which are removed are set to 'null'.  Each position corresponds to the
     // device ID.
-    std::shared_ptr<TrackerElementVector> immutable_tracked_vec;
+    std::shared_ptr<tracker_element_vector> immutable_tracked_vec;
 
     // List of views using new API as we transition the rest to the new API
     kis_recursive_timed_mutex view_mutex;
-    std::shared_ptr<TrackerElementVector> view_vec;
+    std::shared_ptr<tracker_element_vector> view_vec;
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> view_endp;
 
     // Multimac endpoint using new http API

@@ -95,17 +95,17 @@ public:
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
     // before performing work
-    virtual std::shared_ptr<TrackerElementVector> doDeviceWork(DevicetrackerViewWorker& worker);
+    virtual std::shared_ptr<tracker_element_vector> doDeviceWork(DevicetrackerViewWorker& worker);
     // Do read-only work; this MAY NOT modify devices in the worker!
-    virtual std::shared_ptr<TrackerElementVector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker);
+    virtual std::shared_ptr<tracker_element_vector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker);
 
     // Do work on a specific vector; this does NOT make an immutable copy of the vector.  You
     // must not call this on a vector which can be altered in another thread.
-    virtual std::shared_ptr<TrackerElementVector> doDeviceWork(DevicetrackerViewWorker& worker,
-            std::shared_ptr<TrackerElementVector> vec);
+    virtual std::shared_ptr<tracker_element_vector> doDeviceWork(DevicetrackerViewWorker& worker,
+            std::shared_ptr<tracker_element_vector> vec);
     // Do read-only work; this MAY NOT modify devices in the worker!
-    virtual std::shared_ptr<TrackerElementVector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
-            std::shared_ptr<TrackerElementVector> vec);
+    virtual std::shared_ptr<tracker_element_vector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
+            std::shared_ptr<tracker_element_vector> vec);
 
     // Called when a device undergoes a change that might make it eligible for inclusion
     // into a view; Integration with view filtering needs to be added to other locations
@@ -141,7 +141,7 @@ protected:
     updated_device_cb update_cb;
 
     // Main vector of devices
-    std::shared_ptr<TrackerElementVector> device_list;
+    std::shared_ptr<tracker_element_vector> device_list;
     // Map of device presence in our list for fast referece during updates
     std::map<device_key, bool> device_presence_map;
 

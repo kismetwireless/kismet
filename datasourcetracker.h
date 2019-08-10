@@ -99,7 +99,7 @@ public:
 // After 5 seconds, probing is cancelled.
 class DST_DatasourceProbe {
 public:
-    DST_DatasourceProbe(std::string in_definition, std::shared_ptr<TrackerElementVector> in_protovec);
+    DST_DatasourceProbe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~DST_DatasourceProbe();
 
     void probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb);
@@ -121,7 +121,7 @@ protected:
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_probe_map;
 
-    std::shared_ptr<TrackerElementVector> proto_vec;
+    std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Vector of sources which are complete and waiting for cleanup
     std::vector<SharedDatasource> complete_vec;
@@ -157,7 +157,7 @@ typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 // List requests cancelled after 5 seconds
 class DST_DatasourceList {
 public:
-    DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec);
+    DST_DatasourceList(std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~DST_DatasourceList();
 
     void list_sources(std::function<void (std::vector<SharedInterface>)> in_cb);
@@ -177,7 +177,7 @@ protected:
     // Probing instances
     std::map<unsigned int, SharedDatasource> ipc_list_map;
 
-    std::shared_ptr<TrackerElementVector> proto_vec;
+    std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Vector of sources we're still waiting to return from listing 
     std::vector<SharedDatasource> list_vec;
@@ -213,7 +213,7 @@ public:
         reserve_fields(NULL);
     }
 
-    datasourcetracker_defaults(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    datasourcetracker_defaults(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -467,10 +467,10 @@ protected:
     int source_id;
 
     // Available prototypes
-    std::shared_ptr<TrackerElementVector> proto_vec;
+    std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Active data sources
-    std::shared_ptr<TrackerElementVector> datasource_vec;
+    std::shared_ptr<tracker_element_vector> datasource_vec;
 
     // Sub-workers probing for a source definition
     std::map<unsigned int, SharedDSTProbe> probing_map;

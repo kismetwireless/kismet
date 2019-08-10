@@ -57,7 +57,7 @@ public:
         reserve_fields(NULL);
     }
 
-    uav_tracked_telemetry(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    uav_tracked_telemetry(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -186,7 +186,7 @@ public:
         reserve_fields(NULL);
     }
 
-    uav_manuf_match(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    uav_manuf_match(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
 #ifdef HAVE_LIBPCRE
@@ -269,7 +269,7 @@ public:
         reserve_fields(NULL);
     }
 
-    uav_tracked_device(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    uav_tracked_device(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
         register_fields();
@@ -292,7 +292,7 @@ public:
         return std::make_shared<uav_tracked_telemetry>(telem_history_entry_id);
     }
 
-    __ProxyTrackable(uav_telem_history, TrackerElementVector, uav_telem_history);
+    __ProxyTrackable(uav_telem_history, tracker_element_vector, uav_telem_history);
 
     __Proxy(uav_match_type, std::string, std::string, std::string, uav_match_type);
 
@@ -328,14 +328,14 @@ protected:
             RegisterField("uav.type", "Matched device", &matched_type);
     }
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
             for (auto l = uav_telem_history->begin(); l != uav_telem_history->end(); ++l) {
                 auto telem =
                     std::make_shared<uav_tracked_telemetry>(telem_history_entry_id,
-                            std::static_pointer_cast<TrackerElementMap>(*l));
+                            std::static_pointer_cast<tracker_element_map>(*l));
                 *l = telem;
             }
         }
@@ -348,7 +348,7 @@ protected:
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
 
-    std::shared_ptr<TrackerElementVector> uav_telem_history;
+    std::shared_ptr<tracker_element_vector> uav_telem_history;
 
     int telem_history_entry_id;
 
@@ -408,7 +408,7 @@ protected:
 
     int uav_device_id;
 
-    std::shared_ptr<TrackerElementVector> manuf_match_vec;
+    std::shared_ptr<tracker_element_vector> manuf_match_vec;
 };
 
 #endif

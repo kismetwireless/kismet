@@ -110,7 +110,7 @@ Systemmonitor::Systemmonitor() :
     user_monitor_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint>("/system/user_status", 
             [this](void) -> std::shared_ptr<TrackerElement> {
-                auto use = std::make_shared<TrackerElementMap>();
+                auto use = std::make_shared<tracker_element_map>();
 
                 use->insert(status->get_tracker_username());
 
@@ -119,7 +119,7 @@ Systemmonitor::Systemmonitor() :
     timestamp_endp = 
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/system/timestamp", 
             [this](void) -> std::shared_ptr<TrackerElement> {
-                auto tse = std::make_shared<TrackerElementMap>();
+                auto tse = std::make_shared<tracker_element_map>();
 
                 tse->insert(status->get_tracker_timestamp_sec());
                 tse->insert(status->get_tracker_timestamp_usec());

@@ -114,7 +114,7 @@ public:
         initialize();
     }
 
-    KisPPILogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    KisPPILogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisLogfileBuilder(in_id, e) {
 
         register_fields();

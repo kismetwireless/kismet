@@ -182,7 +182,7 @@ void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
     if (in_storage == nullptr || in_device == nullptr)
         return;
 
-    auto storage = std::static_pointer_cast<TrackerElementMap>(in_storage);
+    auto storage = std::static_pointer_cast<tracker_element_map>(in_storage);
 
     // Does the imported record have bt?
     auto btdevi = storage->find(bluetooth_device_entry_id);
@@ -191,8 +191,8 @@ void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
     if (btdevi != storage->end()) {
         auto btdev = 
             std::make_shared<bluetooth_tracked_device>(bluetooth_device_entry_id, 
-                    std::static_pointer_cast<TrackerElementMap>(btdevi->second));
-        std::static_pointer_cast<TrackerElementMap>(in_device)->insert(btdev);
+                    std::static_pointer_cast<tracker_element_map>(btdevi->second));
+        std::static_pointer_cast<tracker_element_map>(in_device)->insert(btdev);
     }
 }
 

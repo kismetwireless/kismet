@@ -65,7 +65,7 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0;
         int64_t avg_c = 0;
 
@@ -109,7 +109,7 @@ public:
         }
 
     rtladsb_tracked_common(int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
+            std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -172,7 +172,7 @@ public:
             reserve_fields(NULL);
         }
 
-    rtladsb_tracked_adsb(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtladsb_tracked_adsb(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -268,7 +268,7 @@ protected:
 
     bool is_adsb(Json::Value json);
 
-    void add_adsb(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
 

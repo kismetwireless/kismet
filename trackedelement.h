@@ -1268,12 +1268,12 @@ protected:
 };
 
 // Dictionary / map-by-id
-class TrackerElementMap : public TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>> {
+class tracker_element_map : public TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementMap() :
+    tracker_element_map() :
         TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMap) { }
 
-    TrackerElementMap(int id) :
+    tracker_element_map(int id) :
         TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMap, id) { }
 
     static TrackerType static_type() {
@@ -1370,12 +1370,12 @@ public:
 };
 
 // Int-keyed map
-class TrackerElementIntMap : public TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>> {
+class tracker_element_int_map : public TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementIntMap() :
+    tracker_element_int_map() :
         TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerIntMap) { }
 
-    TrackerElementIntMap(int id) :
+    tracker_element_int_map(int id) :
         TrackerElementCoreMap<int, std::shared_ptr<TrackerElement>>(TrackerType::TrackerIntMap, id) { }
 
     static TrackerType static_type() {
@@ -1397,12 +1397,12 @@ public:
 };
 
 // Hash key compatible map
-class TrackerElementHashkeyMap : public TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>> {
+class tracker_element_hashkey_map : public TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementHashkeyMap() :
+    tracker_element_hashkey_map() :
         TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>>(TrackerType::TrackerHashkeyMap) { }
 
-    TrackerElementHashkeyMap(int id) :
+    tracker_element_hashkey_map(int id) :
         TrackerElementCoreMap<size_t, std::shared_ptr<TrackerElement>>(TrackerType::TrackerHashkeyMap, id) { }
 
     static TrackerType static_type() {
@@ -1424,12 +1424,12 @@ public:
 };
 
 // Double-keyed map
-class TrackerElementDoubleMap : public TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>> {
+class tracker_element_double_map : public TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementDoubleMap() :
+    tracker_element_double_map() :
         TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>>(TrackerType::TrackerDoubleMap) { }
 
-    TrackerElementDoubleMap(int id) :
+    tracker_element_double_map(int id) :
         TrackerElementCoreMap<double, std::shared_ptr<TrackerElement>>(TrackerType::TrackerDoubleMap, id) { }
 
     static TrackerType static_type() {
@@ -1450,12 +1450,12 @@ public:
 };
 
 // Mac-keyed map
-class TrackerElementMacMap : public TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>> {
+class tracker_element_mac_map : public TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementMacMap() :
+    tracker_element_mac_map() :
         TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMacMap) { }
 
-    TrackerElementMacMap(int id) :
+    tracker_element_mac_map(int id) :
         TrackerElementCoreMap<mac_addr, std::shared_ptr<TrackerElement>>(TrackerType::TrackerMacMap, id) { }
 
     static TrackerType static_type() {
@@ -1476,12 +1476,12 @@ public:
 };
 
 // String-keyed map
-class TrackerElementStringMap : public TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>> {
+class tracker_element_string_map : public TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementStringMap() :
+    tracker_element_string_map() :
         TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>>(TrackerType::TrackerStringMap) { }
 
-    TrackerElementStringMap(int id) :
+    tracker_element_string_map(int id) :
         TrackerElementCoreMap<std::string, std::shared_ptr<TrackerElement>>(TrackerType::TrackerStringMap, id) { }
 
     static TrackerType static_type() {
@@ -1502,12 +1502,12 @@ public:
 };
 
 // Device-key map
-class TrackerElementDeviceKeyMap : public TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>> {
+class tracker_element_device_key_map : public TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementDeviceKeyMap() :
+    tracker_element_device_key_map() :
         TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>>(TrackerType::TrackerKeyMap) { }
 
-    TrackerElementDeviceKeyMap(int id) :
+    tracker_element_device_key_map(int id) :
         TrackerElementCoreMap<device_key, std::shared_ptr<TrackerElement>>(TrackerType::TrackerKeyMap, id) { }
 
     static TrackerType static_type() {
@@ -1528,12 +1528,12 @@ public:
 };
 
 // Double::Double map
-class TrackerElementDoubleMapDouble : public TrackerElementCoreMap<double, double> {
+class tracker_element_double_mapDouble : public TrackerElementCoreMap<double, double> {
 public:
-    TrackerElementDoubleMapDouble() :
+    tracker_element_double_mapDouble() :
         TrackerElementCoreMap<double, double>(TrackerType::TrackerDoubleMapDouble) { }
 
-    TrackerElementDoubleMapDouble(int id) :
+    tracker_element_double_mapDouble(int id) :
         TrackerElementCoreMap<double, double>(TrackerType::TrackerDoubleMapDouble, id) { }
 
     static TrackerType static_type() {
@@ -1555,18 +1555,18 @@ public:
 
 // Core vector
 template<typename T>
-class TrackerElementCoreVector : public TrackerElement {
+class tracker_element_core_vector : public TrackerElement {
 public:
     using vector_t = std::vector<T>;
     using iterator = typename vector_t::iterator;
     using const_iterator = typename vector_t::const_iterator;
 
-    TrackerElementCoreVector() = delete;
+    tracker_element_core_vector() = delete;
 
-    TrackerElementCoreVector(TrackerType t) :
+    tracker_element_core_vector(TrackerType t) :
         TrackerElement(t) { }
 
-    TrackerElementCoreVector(TrackerType t, int id) :
+    tracker_element_core_vector(TrackerType t, int id) :
         TrackerElement(t, id) { }
 
     virtual void coercive_set(const std::string& in_str) override {
@@ -1651,21 +1651,21 @@ protected:
     vector_t vector;
 };
 
-class TrackerElementVector : public TrackerElementCoreVector<std::shared_ptr<TrackerElement>> {
+class tracker_element_vector : public tracker_element_core_vector<std::shared_ptr<TrackerElement>> {
 public:
-    TrackerElementVector() : 
-        TrackerElementCoreVector(TrackerType::TrackerVector) { }
+    tracker_element_vector() : 
+        tracker_element_core_vector(TrackerType::TrackerVector) { }
 
-    TrackerElementVector(int id) :
-        TrackerElementCoreVector(TrackerType::TrackerVector, id) { }
+    tracker_element_vector(int id) :
+        tracker_element_core_vector(TrackerType::TrackerVector, id) { }
 
-    TrackerElementVector(std::shared_ptr<TrackerElementVector> v) :
-        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
+    tracker_element_vector(std::shared_ptr<tracker_element_vector> v) :
+        tracker_element_core_vector(TrackerType::TrackerVector, v->get_id()) { 
         vector = vector_t(v->begin(), v->end());
     }
 
-    TrackerElementVector(const_iterator a, const_iterator b) :
-        TrackerElementCoreVector(TrackerType::TrackerVector) { 
+    tracker_element_vector(const_iterator a, const_iterator b) :
+        tracker_element_core_vector(TrackerType::TrackerVector) { 
         vector = vector_t(a, b);
     }
 
@@ -1686,26 +1686,26 @@ public:
     }
 };
 
-class TrackerElementVectorDouble : public TrackerElementCoreVector<double> {
+class tracker_element_vector_double : public tracker_element_core_vector<double> {
 public:
-    TrackerElementVectorDouble() :
-        TrackerElementCoreVector<double>(TrackerType::TrackerVectorDouble) { }
+    tracker_element_vector_double() :
+        tracker_element_core_vector<double>(TrackerType::TrackerVectorDouble) { }
 
-    TrackerElementVectorDouble(int id) :
-        TrackerElementCoreVector<double>(TrackerType::TrackerVectorDouble, id) { }
+    tracker_element_vector_double(int id) :
+        tracker_element_core_vector<double>(TrackerType::TrackerVectorDouble, id) { }
 
-    TrackerElementVectorDouble(std::shared_ptr<TrackerElementVectorDouble> v) :
-        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
+    tracker_element_vector_double(std::shared_ptr<tracker_element_vector_double> v) :
+        tracker_element_core_vector(TrackerType::TrackerVector, v->get_id()) { 
         vector = v->vector;
     }
 
-    TrackerElementVectorDouble(const_iterator a, const_iterator b) :
-        TrackerElementCoreVector(TrackerType::TrackerVector) { 
+    tracker_element_vector_double(const_iterator a, const_iterator b) :
+        tracker_element_core_vector(TrackerType::TrackerVector) { 
         vector = vector_t(a, b);
     }
 
-    TrackerElementVectorDouble(const vector_t& v) :
-        TrackerElementCoreVector(TrackerType::TrackerVector) {
+    tracker_element_vector_double(const vector_t& v) :
+        tracker_element_core_vector(TrackerType::TrackerVector) {
         vector = vector_t(v);
     }
 
@@ -1726,21 +1726,21 @@ public:
     }
 };
 
-class TrackerElementVectorString : public TrackerElementCoreVector<std::string> {
+class tracker_element_vector_string : public tracker_element_core_vector<std::string> {
 public:
-    TrackerElementVectorString() :
-        TrackerElementCoreVector<std::string>(TrackerType::TrackerVectorString) { }
+    tracker_element_vector_string() :
+        tracker_element_core_vector<std::string>(TrackerType::TrackerVectorString) { }
 
-    TrackerElementVectorString(int id) :
-        TrackerElementCoreVector<std::string>(TrackerType::TrackerVectorString, id) { }
+    tracker_element_vector_string(int id) :
+        tracker_element_core_vector<std::string>(TrackerType::TrackerVectorString, id) { }
 
-    TrackerElementVectorString(std::shared_ptr<TrackerElementVectorString> v) :
-        TrackerElementCoreVector(TrackerType::TrackerVector, v->get_id()) { 
+    tracker_element_vector_string(std::shared_ptr<tracker_element_vector_string> v) :
+        tracker_element_core_vector(TrackerType::TrackerVector, v->get_id()) { 
         vector = v->vector;
     }
 
-    TrackerElementVectorString(const_iterator a, const_iterator b) :
-        TrackerElementCoreVector(TrackerType::TrackerVector) { 
+    tracker_element_vector_string(const_iterator a, const_iterator b) :
+        tracker_element_core_vector(TrackerType::TrackerVector) { 
         vector = vector_t(a, b);
     }
 

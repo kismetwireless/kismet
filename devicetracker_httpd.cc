@@ -367,7 +367,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 return MHD_YES;
             }
 
-            auto devvec = std::make_shared<TrackerElementVector>();
+            auto devvec = std::make_shared<tracker_element_vector>();
 
             const auto& mmp = tracked_mac_multimap.equal_range(mac);
             for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
@@ -395,7 +395,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             if (!Httpd_CanSerialize(tokenurl[4]))
                 return MHD_YES;
 
-            std::shared_ptr<TrackerElementVector> devvec;
+            std::shared_ptr<tracker_element_vector> devvec;
 
             auto fw = std::make_shared<devicetracker_function_worker>(
                     [devvec, lastts](Devicetracker *, 
@@ -565,7 +565,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 std::string target = Httpd_StripSuffix(tokenurl[4]);
 
                 if (target == "devices") {
-                    auto devvec = std::make_shared<TrackerElementVector>();
+                    auto devvec = std::make_shared<tracker_element_vector>();
 
                     lock.lock();
                     auto mmp = tracked_mac_multimap.equal_range(mac);
@@ -687,10 +687,10 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
 
                 // List of devices that pass the timestamp filter
-                std::shared_ptr<TrackerElementVector> timedevs;
+                std::shared_ptr<tracker_element_vector> timedevs;
 
                 //  List of devices that pass the regex filter
-                auto regexdevs = std::make_shared<TrackerElementVector>();
+                auto regexdevs = std::make_shared<tracker_element_vector>();
 
                 auto tw = std::make_shared<devicetracker_function_worker>(
                         [lastts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
@@ -712,7 +712,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 // Final devices being simplified and sent out
-                auto outdevs = std::make_shared<TrackerElementVector>();
+                auto outdevs = std::make_shared<tracker_element_vector>();
 
                 for (const auto& rei : *regexdevs) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
@@ -742,7 +742,7 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
         SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
 
     try {
-        auto ret_devices = std::make_shared<TrackerElementVector>();
+        auto ret_devices = std::make_shared<tracker_element_vector>();
         auto macs = std::vector<mac_addr>{};
 
         if (!structured->hasKey("devices"))
@@ -796,11 +796,11 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
 
 std::shared_ptr<TrackerElement> Devicetracker::all_phys_endp_handler() {
     auto ret_vec = 
-        std::make_shared<TrackerElementVector>();
+        std::make_shared<tracker_element_vector>();
 
     for (auto i : phy_handler_map) {
         auto tracked_phy =
-            std::make_shared<TrackerElementMap>(phy_phyentry_id);
+            std::make_shared<tracker_element_map>(phy_phyentry_id);
 
         auto tracked_name =
             std::make_shared<TrackerElementString>(phy_phyname_id, i.second->FetchPhyName());

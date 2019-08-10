@@ -43,7 +43,7 @@ int tracker_component::RegisterField(const std::string& in_name,
     return id;
 }
 
-void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
+void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         auto& rf = registered_fields[i];
 
@@ -61,7 +61,7 @@ void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     }
 }
 
-SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerElementMap> e, int i) {
+SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {
     SharedTrackerElement r;
 
     // Find the value of any known fields in the importer element; only try
@@ -122,7 +122,7 @@ SharedTrackerElement tracker_component::get_child_path(const std::vector<std::st
         } else if (next_elem->get_type() == TrackerType::TrackerMap) {
             // Otherwise, find the next element of the path in the object in the chain
             // we're currently inspecting, assuming it's a map
-            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
         }
 
         // If we can't find it, bail

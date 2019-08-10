@@ -48,18 +48,18 @@ Dot11_SsidScan::Dot11_SsidScan() {
                 "SSIDScan module enabled");
 
     target_ssids =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVectorString>("dot11.ssidscan.targets",
-                TrackerElementFactory<TrackerElementVectorString>(),
+        entrytracker->RegisterAndGetFieldAs<tracker_element_vector_string>("dot11.ssidscan.targets",
+                TrackerElementFactory<tracker_element_vector_string>(),
                 "Target SSID regexes");
 
     ssidscan_datasources_uuids =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.datasources",
-                TrackerElementFactory<TrackerElementVector>(),
+        entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("dot11.ssidscan.datasources",
+                TrackerElementFactory<tracker_element_vector>(),
                 "Usable datasource pool (UUIDs)");
 
     ssidscan_datasources =
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("dot11.ssidscan.datasources",
-                TrackerElementFactory<TrackerElementVector>(),
+        entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("dot11.ssidscan.datasources",
+                TrackerElementFactory<tracker_element_vector>(),
                 "Active datasource pool");
 
     ignore_after_handshake =
@@ -112,7 +112,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
     dot11_ssidscan_status_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/phy/phy80211/ssidscan/status", true,
                 [this]() -> std::shared_ptr<TrackerElement> {
-                    auto retmap = std::make_shared<TrackerElementMap>();
+                    auto retmap = std::make_shared<tracker_element_map>();
 
                     retmap->insert(ssidscan_enabled);
                     retmap->insert(target_ssids);

@@ -109,7 +109,7 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_alert(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_alert(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -220,7 +220,7 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_alert_definition(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_alert_definition(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -414,7 +414,7 @@ protected:
     std::map<int, shared_alert_def> alert_ref_map;
 
     // Tracked mapping for export
-    std::shared_ptr<TrackerElementVector> alert_defs_vec;
+    std::shared_ptr<tracker_element_vector> alert_defs_vec;
 
     int num_backlog;
 

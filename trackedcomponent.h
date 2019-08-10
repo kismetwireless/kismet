@@ -56,7 +56,7 @@
 //
 // Subclasses MUST override the signature, typically with a checksum of the class
 // name, so that the entry tracker can differentiate multiple TrackerMap classes
-class tracker_component : public TrackerElementMap {
+class tracker_component : public tracker_element_map {
 
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a TrackerElement of type <ptype>, returning type 
@@ -651,13 +651,13 @@ class tracker_component : public TrackerElementMap {
 
 public:
     tracker_component() :
-        TrackerElementMap(0) { }
+        tracker_element_map(0) { }
 
     tracker_component(int in_id) :
-        TrackerElementMap(in_id) { }
+        tracker_element_map(in_id) { }
 
-    tracker_component(int in_id, std::shared_ptr<TrackerElementMap> e __attribute__((unused))) :
-        TrackerElementMap(in_id) { }
+    tracker_component(int in_id, std::shared_ptr<tracker_element_map> e __attribute__((unused))) :
+        tracker_element_map(in_id) { }
 
 	virtual ~tracker_component() { }
 
@@ -743,11 +743,11 @@ protected:
     //  that we can track usage and delete() appropriately.
     // Populate automatically based on the fields we have reserved, subclasses can 
     // override if they really need to do something special
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e);
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e);
 
     // Inherit from an existing element or assign a new one.
     // Add imported or new field to our map for use tracking.
-    virtual SharedTrackerElement import_or_new(std::shared_ptr<TrackerElementMap> e, int i);
+    virtual SharedTrackerElement import_or_new(std::shared_ptr<tracker_element_map> e, int i);
 
     class registered_field {
         public:

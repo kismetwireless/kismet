@@ -60,7 +60,7 @@ public:
     }
 
     mousejack_tracked_device(int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
+            std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);

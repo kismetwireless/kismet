@@ -50,7 +50,7 @@ public:
         // last_device_sec = 0;
     }
 
-    Channeltracker_V2_Channel(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    Channeltracker_V2_Channel(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
 
         register_fields();
@@ -108,7 +108,7 @@ protected:
         RegisterField("kismet.channelrec.signal", "signal records", &signal_data);
     }
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         // Don't fast-forward the device RRD
@@ -185,10 +185,10 @@ protected:
 
     // Seen channels as string-named channels, so logical channel allocation
     // per phy
-    std::shared_ptr<TrackerElementStringMap> channel_map;
+    std::shared_ptr<tracker_element_string_map> channel_map;
 
     // Collapsed frequency information, multi-phy, spec-an, etc
-    std::shared_ptr<TrackerElementDoubleMap> frequency_map;
+    std::shared_ptr<tracker_element_double_map> frequency_map;
 
     // Channel/freq content
     int channel_entry_id;

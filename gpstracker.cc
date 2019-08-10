@@ -50,8 +50,8 @@ GpsTracker::GpsTracker() :
     Globalreg::globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
             CHAINPOS_POSTCAP, -100);
 
-    gps_prototypes_vec = std::make_shared<TrackerElementVector>();
-    gps_instances_vec = std::make_shared<TrackerElementVector>();
+    gps_prototypes_vec = std::make_shared<tracker_element_vector>();
+    gps_instances_vec = std::make_shared<tracker_element_vector>();
 
     // Manage logging
     log_snapshot_timer = -1;

@@ -45,7 +45,7 @@ kis_tracked_ip_data::kis_tracked_ip_data(int in_id) :
     reserve_fields(NULL);
 } 
 
-kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -78,7 +78,7 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id) :
     signal_type->set("none");
 } 
 
-kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -297,7 +297,7 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id) :
     reserve_fields(NULL);
 } 
 
-kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<TrackerElementMap> e) :
+kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e) :
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -475,10 +475,10 @@ void kis_tracked_device_base::register_fields() {
 
     related_device_group_id =
         RegisterField("kismet.device.base.related_group", 
-                TrackerElementFactory<TrackerElementDeviceKeyMap>(), "Related devices, by key");
+                TrackerElementFactory<tracker_element_device_key_map>(), "Related devices, by key");
 }
 
-void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
+void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     tracker_component::reserve_fields(e);
 
     seenby_map->set_as_vector(true);
@@ -490,7 +490,7 @@ void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> 
             // Build a proper seenby record for each item in the list
             auto sbd = 
                 std::make_shared<kis_tracked_seenby_data>(seenby_val_id, 
-                        std::static_pointer_cast<TrackerElementMap>(s.second));
+                        std::static_pointer_cast<tracker_element_map>(s.second));
             // And assign it over the same key
             s.second = sbd;
         }
@@ -501,12 +501,12 @@ void kis_tracked_device_base::add_related_device(const std::string& in_relations
     auto related_group_i = related_devices_map->find(in_relationship);
 
     if (related_group_i == related_devices_map->end()) {
-        auto related_group = std::make_shared<TrackerElementDeviceKeyMap>(related_device_group_id);
+        auto related_group = std::make_shared<tracker_element_device_key_map>(related_device_group_id);
         related_group->set_as_key_vector(true);
         related_group->insert(in_key, nullptr);
         related_devices_map->insert(in_relationship, related_group);
     } else {
-        auto related_group = std::static_pointer_cast<TrackerElementDeviceKeyMap>(related_group_i->second);
+        auto related_group = std::static_pointer_cast<tracker_element_device_key_map>(related_group_i->second);
         related_group->insert(in_key, nullptr);
     }
 }

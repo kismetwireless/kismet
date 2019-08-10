@@ -48,7 +48,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     rtl433_holder_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtl433.device", 
-                TrackerElementFactory<TrackerElementMap>(),
+                TrackerElementFactory<tracker_element_map>(),
                 "rtl_433 device");
 
     rtl433_common_id =
@@ -207,12 +207,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_type_string("Sensor");
     basedev->set_devicename(dn);
 
-    auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtl433_holder_id);
+    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtl433_holder_id);
     bool newrtl = false;
 
     if (rtlholder == NULL) {
         rtlholder =
-            std::make_shared<TrackerElementMap>(rtl433_holder_id);
+            std::make_shared<tracker_element_map>(rtl433_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -371,7 +371,7 @@ bool Kis_RTL433_Phy::is_lightning(Json::Value json) {
 }
 
 void Kis_RTL433_Phy::add_weather_station(Json::Value json, 
-        std::shared_ptr<TrackerElementMap> rtlholder) {
+        std::shared_ptr<tracker_element_map> rtlholder) {
     auto direction_j = json["direction_deg"];
     auto windstrength_j = json["windstrength"];
     auto winddirection_j = json["winddirection"];
@@ -438,7 +438,7 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json,
     }
 }
 
-void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto humidity_j = json["humidity"];
     auto moisture_j = json["moisture"];
     auto temp_f_j = json["temperature_F"];
@@ -472,7 +472,7 @@ void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<TrackerEl
     }
 }
 
-void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto type_j = json["type"];
     auto pressure_j = json["pressure_bar"];
     auto pressurekpa_j = json["pressure_kPa"];
@@ -519,7 +519,7 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMa
 
 }
 
-void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
 
@@ -570,7 +570,7 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<TrackerElement
     }
 }
 
-void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
     auto strike_j = json["strike_count"];
     auto storm_j = json["storm_dist"];
