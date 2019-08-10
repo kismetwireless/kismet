@@ -874,7 +874,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Add the datasources
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourcePcapfileBuilder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceKismetdbBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_kismetdb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceLinuxWifiBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceLinuxBluetoothBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceOsxCorewlanWifiBuilder()));

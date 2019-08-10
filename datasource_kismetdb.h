@@ -54,9 +54,9 @@ public:
 };
 
 
-class DatasourceKismetdbBuilder : public kis_datasource_builder {
+class datasource_kismetdb_builder : public kis_datasource_builder {
 public:
-    DatasourceKismetdbBuilder() :
+    datasource_kismetdb_builder() :
         kis_datasource_builder() {
 
         register_fields();
@@ -64,7 +64,7 @@ public:
         initialize();
     }
 
-    DatasourceKismetdbBuilder(int in_id) :
+    datasource_kismetdb_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
         register_fields();
@@ -72,7 +72,7 @@ public:
         initialize();
     }
 
-    DatasourceKismetdbBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_kismetdb_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
         register_fields();
@@ -80,7 +80,7 @@ public:
         initialize();
     }
 
-    virtual ~DatasourceKismetdbBuilder() { }
+    virtual ~datasource_kismetdb_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return shared_datasource_kismetdb(new kis_datasource_kismetdb(in_sh_this));
