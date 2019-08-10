@@ -30,7 +30,7 @@
 #include "protobuf_cpp/http.pb.h"
 
 KisExternalInterface::KisExternalInterface() :
-    BufferInterface(),
+    buffer_interface(),
     ext_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::FetchMandatoryGlobalAs<Timetracker>()},
     seqno {0},

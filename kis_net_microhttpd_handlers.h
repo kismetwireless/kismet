@@ -254,7 +254,7 @@ protected:
 //
 // Free_aux_cb is called to free any aux data added into this record; the stream_aux
 // itself will be freed by the httpd system.
-class Kis_Net_Httpd_Buffer_Stream_Aux : public BufferInterface {
+class Kis_Net_Httpd_Buffer_Stream_Aux : public buffer_interface {
 public:
     Kis_Net_Httpd_Buffer_Stream_Aux(kis_net_httpd_buffer_stream_handler *in_handler,
             kis_net_httpd_connection *in_httpd_connection, 

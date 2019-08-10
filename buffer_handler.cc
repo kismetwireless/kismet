@@ -350,7 +350,7 @@ void BufferHandlerGeneric::ClearWriteBuffer() {
         write_buffer->clear();
 }
 
-void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface) {
+void BufferHandlerGeneric::SetReadBufferInterface(buffer_interface *in_interface) {
     rbuf_notify_avail = false;
     rbuf_notify = in_interface;
     rbuf_notify_avail = true;
@@ -360,7 +360,7 @@ void BufferHandlerGeneric::SetReadBufferInterface(BufferInterface *in_interface)
         rbuf_notify->BufferAvailable(pending);
 }
 
-void BufferHandlerGeneric::SetWriteBufferInterface(BufferInterface *in_interface) {
+void BufferHandlerGeneric::SetWriteBufferInterface(buffer_interface *in_interface) {
     wbuf_notify_avail = false;
     wbuf_notify = in_interface;
     wbuf_notify_avail = true;
@@ -433,13 +433,13 @@ void BufferHandlerGeneric::ProtocolError() {
 
 }
 
-BufferInterface::BufferInterface() {
+buffer_interface::buffer_interface() {
     buffer_handler = NULL;
     read_handler = false;
     write_handler = false;
 }
 
-BufferInterface::~BufferInterface() {
+buffer_interface::~buffer_interface() {
     if (buffer_handler != NULL) {
         if (read_handler)
             buffer_handler->RemoveReadBufferInterface();

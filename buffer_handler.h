@@ -31,7 +31,7 @@
 #include "util.h"
 #include "kis_mutex.h"
 
-class BufferInterface;
+class buffer_interface;
 
 // Common minimal API for a buffer
 class CommonBuffer {
@@ -272,8 +272,8 @@ public:
     virtual void TriggerReadCallback(size_t in_sz);
 
     // Set interface callbacks to be called when we have data in the buffers
-    virtual void SetReadBufferInterface(BufferInterface *in_interface);
-    virtual void SetWriteBufferInterface(BufferInterface *in_interface);
+    virtual void SetReadBufferInterface(buffer_interface *in_interface);
+    virtual void SetWriteBufferInterface(buffer_interface *in_interface);
 
     virtual void RemoveReadBufferInterface();
     virtual void RemoveWriteBufferInterface();
@@ -310,8 +310,8 @@ protected:
     // Interfaces we notify when there has been activity on a buffer; use atomic booleans
     // to indicate if the function is available
     std::atomic<bool> wbuf_notify_avail, rbuf_notify_avail;
-    BufferInterface *wbuf_notify;
-    BufferInterface *rbuf_notify;
+    buffer_interface *wbuf_notify;
+    buffer_interface *rbuf_notify;
 
     std::shared_ptr<kis_recursive_timed_mutex> handler_mutex;
 
@@ -393,10 +393,10 @@ private:
 
 
 // buffer interface, interacts with a buffer handler 
-class BufferInterface {
+class buffer_interface {
 public:
-    BufferInterface();
-    virtual ~BufferInterface();
+    buffer_interface();
+    virtual ~buffer_interface();
 
     // Called when the linked buffer has new data available
     virtual void BufferAvailable(size_t in_amt) = 0;
@@ -410,11 +410,11 @@ protected:
     bool write_handler;
 };
 
-class BufferInterfaceFunc : public BufferInterface {
+class BufferInterfaceFunc : public buffer_interface {
 public:
     BufferInterfaceFunc(std::function<void (size_t)> in_available_cb,
             std::function<void (std::string)> in_error_cb) : 
-        BufferInterface(),
+        buffer_interface(),
         available_fn {in_available_cb},
         error_fn {in_error_cb} { }
 

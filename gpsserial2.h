@@ -52,7 +52,7 @@ protected:
     std::shared_ptr<PollableTracker> pollabletracker;
     std::shared_ptr<SerialClientV2> serialclient;
 
-    // BufferInterface API - buffer available implemented in gpsnmea
+    // buffer_interface API - buffer available implemented in gpsnmea
     virtual void BufferError(std::string error);
 
     // Device

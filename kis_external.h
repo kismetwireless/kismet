@@ -57,7 +57,7 @@ struct KisExternalHttpUri {
 };
 
 // Basic external interface, implements the core ping/pong/id/message/etc protocols
-class KisExternalInterface : public BufferInterface {
+class KisExternalInterface : public buffer_interface {
 public:
     KisExternalInterface();
     virtual ~KisExternalInterface();
