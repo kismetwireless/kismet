@@ -34,7 +34,7 @@ public:
 
 	virtual int handle_packet(kis_packet *in_pack) = 0;
 
-	virtual int FetchDLT() { return dlt; }
+	virtual int fetch_dlt() { return dlt; }
 	virtual std::string FetchDLTName() { return dlt_name; }
 
 protected:
