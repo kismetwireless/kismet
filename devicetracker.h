@@ -64,15 +64,15 @@ class Kis_Phy_Handler;
 
 // Small database helper class for the state store; we need to be able to 
 // segregate it from the devicetracker store
-class DevicetrackerStateStore : public KisDatabase {
+class device_tracker_state_store : public kis_database {
 public:
-    DevicetrackerStateStore(GlobalRegistry *in_globalreg, Devicetracker *in_devicetracker);
-    virtual ~DevicetrackerStateStore() { }
+    device_tracker_state_store(global_registry *in_globalreg, device_tracker *in_devicetracker);
+    virtual ~device_tracker_state_store() { }
 
-    virtual int Database_UpgradeDB();
+    virtual int database_upgradedb();
 
     // Store a selection of devices
-    virtual int store_devices(std::shared_ptr<TrackerElementVector> devices);
+    virtual int store_devices(std::shared_ptr<tracker_element_vector> devices);
 
     // Iterate over all phys and load from the database
     virtual int load_devices();
@@ -84,72 +84,72 @@ public:
     virtual int clear_all_devices();
 
     // Load a specific device
-    std::shared_ptr<kis_tracked_device_base> load_device(Kis_Phy_Handler *in_phy,
+    std::shared_ptr<kis_tracked_device_base> load_device(kis_phy_handler *in_phy,
             mac_addr in_mac);
 
 protected:
-    Devicetracker *devicetracker;
+    devicetracker *devicetracker;
 };
 
 
-class Devicetracker : public Kis_Net_Httpd_Chain_Stream_Handler,
-    public TimetrackerEvent, public LifetimeGlobal, public KisDatabase {
+class device_tracker : public kis_net_httpd_chain_stream_handler,
+    public timetracker_event, public lifetime_global, public kis_database {
 
 // Allow direct access for the state storing class
-friend class DevicetrackerStateStore;
+friend class device_tracker_state_store;
 
 public:
     static std::string global_name() { return "DEVICETRACKER"; }
 
-    static std::shared_ptr<Devicetracker> create_devicetracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Devicetracker> mon(new Devicetracker(in_globalreg));
+    static std::shared_ptr<device_tracker> create_device_tracker(global_registry *in_globalreg) {
+        std::shared_ptr<device_tracker> mon(new device_tracker(in_globalreg));
         in_globalreg->devicetracker = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-	Devicetracker(GlobalRegistry *in_globalreg);
+	device_tracker(global_registry *in_globalreg);
 
 public:
-	virtual ~Devicetracker();
+	virtual ~device_tracker();
 
 	// Register a phy handler weak class, used to instantiate the strong class
 	// inside devtracker
-	int RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler);
+	int register_phy_handler(kis_phy_handler *in_weak_handler);
 
-	Kis_Phy_Handler *FetchPhyHandler(int in_phy);
-    Kis_Phy_Handler *FetchPhyHandlerByName(std::string in_name);
+	kis_phy_handler *fetch_phy_handler(int in_phy);
+    kis_phy_handler *fetch_phy_handler_by_name(std::string in_name);
 
     // Eventbus event we inject when a new phy is added
-    class EventNewPhy : public EventbusEvent {
+    class event_new_phy : public eventbus_event {
     public:
-        static std::string Event() { return "NEW_PHY"; }
+        static std::string event() { return "NEW_PHY"; }
 
-        EventNewPhy(Kis_Phy_Handler *handler) :
-            EventbusEvent(Event()),
+        event_new_phy(Kis_Phy_Handler *handler) :
+            eventbus_event(event()),
             phy{handler} { }
-        virtual ~EventNewPhy() {}
+        virtual ~event_new_phy() {}
 
-        Kis_Phy_Handler *phy;
+        kis_phy_handler *phy;
     };
 
-    std::string FetchPhyName(int in_phy);
+    std::string fetch_phy_name(int in_phy);
 
-	int FetchNumDevices();
-	int FetchNumPackets();
+	int fetch_num_devices();
+	int fetch_num_packets();
 
-	int AddFilter(std::string in_filter);
-	int AddNetCliFilter(std::string in_filter);
+	int add_filter(std::string in_filter);
+	int add_net_cli_filter(std::string in_filter);
 
     // Flag that we've altered the device structure in a way that a client should
     // perform a full pull.  For instance, removing devices or device record
     // components due to timeouts / max device cleanup
-    void UpdateFullRefresh();
+    void update_full_refresh();
 
 	// Look for an existing device record
-    std::shared_ptr<kis_tracked_device_base> FetchDevice(device_key in_key);
+    std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
 
     // Perform a device filter.  Pass a subclassed filter instance.
     //
@@ -158,23 +158,23 @@ public:
     // to operate.
     //
     // Typically used to build a subset of devices for serialization
-    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch = true);
+    void match_on_devices(std::shared_ptr<device_tracker_filter_worker> worker, bool batch = true);
     // Perform a read-only match; MAY NOT edit devices in the worker!
-    void MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch = true);
+    void match_on_readonly_devices(std::shared_ptr<device_tracker_filter_worker> worker, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is duplicated under mutex and then processed.
-    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+    void match_on_devices(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
     // Perform a readonly filter, MUST NOT modify devices
-    void MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+    void match_on_readonly_devices(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is NOT duplicated, caller must ensure this is
     // a safe operation (the vector must not be modified during execution of the worker)
-    void MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-            std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
+    void match_on_devices_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
+            std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly match
     void MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
             std::shared_ptr<TrackerElementVector> source_vec, bool batch = true);
