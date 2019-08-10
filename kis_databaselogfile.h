@@ -140,7 +140,7 @@ public:
         return packet_mac_filter;
     }
 
-    std::shared_ptr<class_filter_mac_addr> GetDeviceFilter() {
+    std::shared_ptr<class_filter_mac_addr> get_device_filter() {
         return device_mac_filter;
     }
 
