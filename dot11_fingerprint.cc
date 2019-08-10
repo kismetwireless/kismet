@@ -78,7 +78,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
 
 Dot11FingerprintTracker::~Dot11FingerprintTracker() {
     if (configfile != nullptr)
-        configfile->SaveConfig(configpath);
+        configfile->save_config(configpath);
 }
 
 std::tuple<Dot11FingerprintTracker::uri_endpoint, mac_addr>
@@ -364,7 +364,7 @@ void Dot11FingerprintTracker::rebuild_config() {
     }
 
     configfile->SetOptVec(configvalue, v, true);
-    configfile->SaveConfig(configpath);
+    configfile->save_config(configpath);
 }
 
 

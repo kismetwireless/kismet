@@ -234,7 +234,7 @@ int config_file::ParseOptOverride(const std::string path) {
 }
 
 
-int config_file::SaveConfig(const char *in_fname) {
+int config_file::save_config(const char *in_fname) {
     local_locker lock(&config_locker);
 
     std::stringstream sstream;

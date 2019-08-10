@@ -49,9 +49,9 @@ public:
         return parse_config(in_fname.c_str());
     }
 
-	int SaveConfig(const char *in_fname);
-    int SaveConfig(const std::string& in_fname) {
-        return SaveConfig(in_fname.c_str());
+	int save_config(const char *in_fname);
+    int save_config(const std::string& in_fname) {
+        return save_config(in_fname.c_str());
     }
 
     std::string FetchOpt(std::string in_key);

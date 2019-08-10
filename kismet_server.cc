@@ -396,7 +396,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
         _MSG("Generated server UUID " + confuuid.UUID2String() + " and storing in " +
                 uuidconfpath, MSGFLAG_INFO);
         uuidconf.SetOpt("server_uuid", confuuid.UUID2String(), true);
-        uuidconf.SaveConfig(uuidconfpath.c_str());
+        uuidconf.save_config(uuidconfpath.c_str());
     }
 
     _MSG_INFO("Setting server UUID {}", confuuid.UUID2String());

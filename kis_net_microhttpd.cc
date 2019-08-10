@@ -725,7 +725,7 @@ void kis_net_httpd::WriteSessions() {
     session_db->SetOptVec("session", sessions, true);
 
     // Ignore failures here I guess?
-    session_db->SaveConfig(sessiondb_file.c_str());
+    session_db->save_config(sessiondb_file.c_str());
 }
 
 int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connection,

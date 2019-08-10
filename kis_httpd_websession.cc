@@ -131,7 +131,7 @@ void Kis_Httpd_Websession::set_login(std::string in_username, std::string in_pas
     user_httpd_config->SetOpt("httpd_username", conf_username, true);
     user_httpd_config->SetOpt("httpd_password", conf_password, true);
 
-    user_httpd_config->SaveConfig(user_httpd_config_file.c_str());
+    user_httpd_config->save_config(user_httpd_config_file.c_str());
 }
 
 bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
