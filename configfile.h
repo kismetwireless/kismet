@@ -183,10 +183,10 @@ public:
     bool has_key(const std::string& in_key);
 
     // Get a value by key, value MUST exist or std::runtime_exception is thrown
-    std::string getValue(const std::string& in_key);
+    std::string get_value(const std::string& in_key);
 
     // Get a value by key, if value is not present, return default value
-    std::string getValue(const std::string& in_key, const std::string& in_default);
+    std::string get_value(const std::string& in_key, const std::string& in_default);
 
     // Get a value by key, coercing string content to another type; will throw 
     // std::runtime_error if the content cannot be coerced.  

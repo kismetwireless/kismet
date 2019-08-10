@@ -664,7 +664,7 @@ bool header_value_config::has_key(const std::string& in_str) {
     return (content_map.find(in_str) != content_map.end());
 }
 
-std::string header_value_config::getValue(const std::string& in_str) {
+std::string header_value_config::get_value(const std::string& in_str) {
     local_locker l(&mutex);
     
     auto vi = content_map.find(in_str);
@@ -675,7 +675,7 @@ std::string header_value_config::getValue(const std::string& in_str) {
     return vi->second;
 }
 
-std::string header_value_config::getValue(const std::string& in_str, const std::string& in_defl) {
+std::string header_value_config::get_value(const std::string& in_str, const std::string& in_defl) {
     local_locker l(&mutex);
 
     auto vi = content_map.find(in_str);
