@@ -155,7 +155,7 @@ bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_d
     return false;
 }
 
-DevicetrackerViewStringmatchWorker::DevicetrackerViewStringmatchWorker(const std::string& in_query,
+device_tracker_view_stringmatch_worker::device_tracker_view_stringmatch_worker(const std::string& in_query,
         const std::vector<std::vector<int>>& in_paths) :
     query { in_query },
     fieldpaths { in_paths } {
@@ -164,7 +164,7 @@ DevicetrackerViewStringmatchWorker::DevicetrackerViewStringmatchWorker(const std
     mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
 }
 
-bool DevicetrackerViewStringmatchWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     for (auto i : fieldpaths) {
