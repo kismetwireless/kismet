@@ -75,7 +75,7 @@ public:
     virtual unsigned int Database_GetDBVersion();
 
     // Upgrade a database which doesn't match our version
-    virtual int Database_UpgradeDB() = 0;
+    virtual int database_upgrade_db() = 0;
 
 protected:
     virtual bool Database_CreateMasterTable();

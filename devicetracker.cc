@@ -441,7 +441,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     // Open and upgrade the DB, default path
     Database_Open("");
-    Database_UpgradeDB();
+    database_upgrade_db();
 
     new_datasource_evt_id = 
         eventbus->register_listener("NEW_DATASOURCE",
@@ -1195,7 +1195,7 @@ void device_tracker::unlock_devicelist() {
     local_unlocker unlock(&devicelist_mutex);
 }
 
-int device_tracker::Database_UpgradeDB() {
+int device_tracker::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
     unsigned int dbv = Database_GetDBVersion();
@@ -1783,10 +1783,10 @@ device_tracker_state_store::device_tracker_state_store(global_registry *in_globa
 
     // Open and upgrade the DB, default path
     Database_Open("");
-    Database_UpgradeDB();
+    database_upgrade_db();
 }
 
-int device_tracker_state_store::Database_UpgradeDB() {
+int device_tracker_state_store::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
     unsigned int dbv = Database_GetDBVersion();

@@ -286,7 +286,7 @@ public:
     }
 
     // Database API
-    virtual int Database_UpgradeDB();
+    virtual int database_upgrade_db();
 
     // Store all devices to the database
     virtual int store_devices();

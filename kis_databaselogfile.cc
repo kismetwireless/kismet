@@ -112,7 +112,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
         return false;
     }
 
-    dbr = Database_UpgradeDB();
+    dbr = database_upgrade_db();
 
     if (!dbr) {
         _MSG_FATAL("Unable to update existing KismetDB log at {}", in_path);
@@ -478,7 +478,7 @@ void kis_database_logfile::Log_Close() {
     Database_Close();
 }
 
-int kis_database_logfile::Database_UpgradeDB() {
+int kis_database_logfile::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
     std::string sql;
