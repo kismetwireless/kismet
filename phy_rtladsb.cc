@@ -33,11 +33,11 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("RTLADSB");
 
     packetchain =
-        Globalreg::fetch_mandatory_global-as<packet_chain>();
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
     entrytracker =
-        Globalreg::fetch_mandatory_global-as<entry_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
     devicetracker =
-        Globalreg::fetch_mandatory_global-as<device_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -66,7 +66,7 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry =
-        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>();
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_rtladsb", "js/kismet.ui.rtladsb.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);

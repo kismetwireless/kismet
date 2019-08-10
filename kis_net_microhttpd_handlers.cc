@@ -27,7 +27,7 @@
 #include "messagebus.h"
 
 Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler() {
-    httpd = Globalreg::fetch_mandatory_global-as<kis_net_httpd>();
+    httpd = Globalreg::FetchMandatoryGlobalAs<kis_net_httpd>();
 
     // Bind_Httpd_Server(Globalreg::globalreg);
 }

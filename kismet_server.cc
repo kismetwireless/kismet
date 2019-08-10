@@ -956,7 +956,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
-    Globalreg::fetch_mandatory_global-as<kis_net_httpd>()->StartHttpd();
+    Globalreg::FetchMandatoryGlobalAs<kis_net_httpd>()->StartHttpd();
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->SpawnTimetrackerThread();

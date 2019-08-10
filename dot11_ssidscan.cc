@@ -24,22 +24,22 @@
 
 Dot11_SsidScan::Dot11_SsidScan() {
     timetracker = 
-        Globalreg::fetch_mandatory_global-as<time_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>();
     hopping_mode_end_timer = -1;
     capture_mode_end_timer = -1;
 
     auto entrytracker = 
-        Globalreg::fetch_mandatory_global-as<entry_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
 
     auto devicetracker =
-        Globalreg::fetch_mandatory_global-as<device_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
     eventbus =
-        Globalreg::fetch_mandatory_global-as<event_bus>();
+        Globalreg::FetchMandatoryGlobalAs<event_bus>();
     eventbus_id = 0;
 
     databaselog =
-        Globalreg::fetch_mandatory_global-as<kis_database_logfile>();
+        Globalreg::FetchMandatoryGlobalAs<kis_database_logfile>();
 
     // We aren't a tracked component so we register our sub elements directly
     ssidscan_enabled =

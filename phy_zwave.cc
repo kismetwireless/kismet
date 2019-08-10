@@ -35,11 +35,11 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("Z-Wave");
 
     packetchain =
-        Globalreg::fetch_mandatory_global-as<packet_chain>();
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
     entrytracker =
-        Globalreg::fetch_mandatory_global-as<entry_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
     devicetracker =
-        Globalreg::fetch_mandatory_global-as<device_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -53,7 +53,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "js/kismet.ui.zwave.js");
 }
 

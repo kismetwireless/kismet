@@ -119,9 +119,9 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
     register_fields();
     reserve_fields(nullptr);
 
-	devicetracker = Globalreg::fetch_mandatory_global-as<device_tracker>();
+	devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
-	eventbus = Globalreg::fetch_mandatory_global-as<event_bus>();
+	eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
 	eb_id = 
 		eventbus->register_listener("NEW_PHY",
 				[this](std::shared_ptr<eventbus_event> evt) {

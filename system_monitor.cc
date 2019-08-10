@@ -43,8 +43,8 @@
 Systemmonitor::Systemmonitor() :
     lifetime_global() {
 
-    devicetracker = Globalreg::fetch_mandatory_global-as<device_tracker>();
-    eventbus = Globalreg::fetch_mandatory_global-as<event_bus>();
+    devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+    eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
     status = std::make_shared<tracked_system_status>();
 
@@ -57,7 +57,7 @@ Systemmonitor::Systemmonitor() :
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    auto timetracker = Globalreg::fetch_mandatory_global-as<time_tracker>();
+    auto timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>();
     timer_id = 
         timetracker->RegisterTimer(0, &trigger_tm, 0, this);
 

@@ -84,9 +84,9 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
     phyname = "UAV";
 
     packetchain =
-        Globalreg::fetch_mandatory_global-as<packet_chain>();
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
     devicetracker =
-        Globalreg::fetch_mandatory_global-as<device_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -109,7 +109,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>();
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_uav", "js/kismet.ui.uav.js");
 
     // Parse the ssid regex options

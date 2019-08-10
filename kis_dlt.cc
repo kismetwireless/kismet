@@ -35,7 +35,7 @@ Kis_DLT_Handler::Kis_DLT_Handler() :
     dlt {-1} {
 
     auto packetchain =
-        Globalreg::fetch_mandatory_global-as<packet_chain>();
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
 
 	chainid = 
 		packetchain->RegisterHandler(&kis_dlt_packethook, this,

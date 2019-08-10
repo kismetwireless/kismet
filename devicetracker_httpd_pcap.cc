@@ -69,7 +69,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
         return MHD_YES;
     }
 
-    auto packetchain = Globalreg::fetch_mandatory_global-as<packet_chain>("PACKETCHAIN");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
     int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 
     // /devices/by-key/[key]/pcap/[key].pcapng
@@ -122,7 +122,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
                 return false;
             }, NULL);
 
-    auto streamtracker = Globalreg::fetch_mandatory_global-as<StreamTracker>("STREAMTRACKER");
+    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     saux->set_aux(psrb, 
         [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {

@@ -63,7 +63,7 @@ GpsTracker::GpsTracker() :
         _MSG("GPS track will be logged to the Kismet logfile", MSGFLAG_INFO);
 
         std::shared_ptr<time_tracker> timetracker = 
-            Globalreg::fetch_mandatory_global-as<time_tracker>("TIMETRACKER");
+            Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
         log_snapshot_timer =
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
@@ -97,7 +97,7 @@ GpsTracker::~GpsTracker() {
     Globalreg::globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
 
     std::shared_ptr<time_tracker> timetracker = 
-        Globalreg::fetch_mandatory_global-as<time_tracker>("TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     timetracker->RemoveTimer(log_snapshot_timer);
 }

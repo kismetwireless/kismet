@@ -1307,7 +1307,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_response(
         else
             output_content = content;
 
-        Globalreg::fetch_mandatory_global-as<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
     } catch (const std::exception& e) {
         stream << "Error: " << e.what() << "\n";
         connection->httpcode = 500;
@@ -1516,7 +1516,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
         else
             output_content = content;
 
-        Globalreg::fetch_mandatory_global-as<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
     } catch (const std::exception& e) {
         stream << "Error: " << e.what() << "\n";
         connection->httpcode = 500;
@@ -1728,7 +1728,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
         return MHD_YES;
     }
 
-    Globalreg::fetch_mandatory_global-as<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
+    Globalreg::FetchMandatoryGlobalAs<entry_tracker>("ENTRYTRACKER")->Serialize(httpd->GetSuffix(connection->url), stream, output_content, nullptr);
 
     return MHD_YES;
 }

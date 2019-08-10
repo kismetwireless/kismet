@@ -39,7 +39,7 @@ public:
 
         // Get and register a DLT
         auto dltt = 
-            Globalreg::fetch_mandatory_global-as<DltTracker>("DLTTRACKER");
+            Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
 
         set_int_source_override_linktype(dltt->register_linktype("NRFMOUSEJACK"));
     }

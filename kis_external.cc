@@ -32,7 +32,7 @@
 kis_external_interface::kis_external_interface() :
     buffer_interface(),
     ext_mutex {std::make_shared<kis_recursive_timed_mutex>()},
-    timetracker {Globalreg::fetch_mandatory_global-as<time_tracker>()},
+    timetracker {Globalreg::FetchMandatoryGlobalAs<time_tracker>()},
     seqno {0},
     last_pong {0},
     ping_timer_id {-1} { }
@@ -286,7 +286,7 @@ bool kis_external_interface::run_ipc() {
     }
 
     auto remotehandler = 
-        Globalreg::fetch_mandatory_global-as<IPCRemoteV2Tracker>("IPCHANDLER");
+        Globalreg::FetchMandatoryGlobalAs<IPCRemoteV2Tracker>("IPCHANDLER");
     remotehandler->add_ipc(ipc_remote);
 
     return true;

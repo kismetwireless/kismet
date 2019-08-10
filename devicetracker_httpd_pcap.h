@@ -30,7 +30,7 @@ class device_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
     device_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() {
         devicetracker = 
-            Globalreg::fetch_mandatory_global-as<device_tracker>();
+            Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
         Bind_Httpd_Server();
     }

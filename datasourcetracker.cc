@@ -39,7 +39,7 @@
 datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_definition, 
         std::shared_ptr<tracker_element_vector> in_protovec) {
 
-    timetracker = Globalreg::fetch_mandatory_global-as<time_tracker>("TIMETRACKER");
+    timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     definition = in_definition;
     proto_vec = in_protovec;
@@ -200,7 +200,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
 datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec) {
     timetracker = 
-        Globalreg::fetch_mandatory_global-as<time_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>();
 
     proto_vec = in_protovec;
 
@@ -300,8 +300,8 @@ datasource_tracker::datasource_tracker() :
     kis_net_httpd_cppstream_handler(),
     tcp_server_v2(Globalreg::globalreg) {
 
-    timetracker = Globalreg::fetch_mandatory_global-as<time_tracker>();
-    eventbus = Globalreg::fetch_mandatory_global-as<event_bus>();
+    timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>();
+    eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
     proto_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.driver",
@@ -484,7 +484,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_datasources", 
             "js/kismet.ui.datasources.js");
 
@@ -540,7 +540,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
 
     // Create an alert for source errors
-    auto alertracker = Globalreg::fetch_mandatory_global-as<alert_tracker>("ALERTTRACKER");
+    auto alertracker = Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
 
     alertracker->define_alert("SOURCEERROR", sat_second, 1, sat_second, 10);
     alertracker->activate_configured_alert("SOURCEERROR",
@@ -1845,12 +1845,12 @@ bool datasource_tracker_httpd_pcap::httpd_verify_path(const char *path, const ch
 
                     if (datasourcetracker == NULL) {
                         datasourcetracker =
-                            Globalreg::fetch_mandatory_global-as<datasource_tracker>("DATASOURCETRACKER");
+                            Globalreg::FetchMandatoryGlobalAs<datasource_tracker>("DATASOURCETRACKER");
                     }
 
                     if (packetchain == NULL) {
                         std::shared_ptr<packet_chain> packetchain = 
-                            Globalreg::fetch_mandatory_global-as<packet_chain>("PACKETCHAIN");
+                            Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
                         pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
                     }
 
@@ -1875,7 +1875,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
         return MHD_YES;
     }
 
-    auto streamtracker = Globalreg::fetch_mandatory_global-as<StreamTracker>("STREAMTRACKER");
+    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
 
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
@@ -1922,10 +1922,10 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
                 }
 
                 datasourcetracker =
-                    Globalreg::fetch_mandatory_global-as<datasource_tracker>("DATASOURCETRACKER");
+                    Globalreg::FetchMandatoryGlobalAs<datasource_tracker>("DATASOURCETRACKER");
 
                 std::shared_ptr<packet_chain> packetchain = 
-                    Globalreg::fetch_mandatory_global-as<packet_chain>("PACKETCHAIN");
+                    Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
                 pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
                 shared_datasource ds = datasourcetracker->find_datasource(u);

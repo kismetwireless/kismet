@@ -266,7 +266,7 @@ public:
     // logfile system instead
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
         std::shared_ptr<kis_database_logfile> logfile =
-            Globalreg::fetch_mandatory_global-as<kis_database_logfile>("DATABASELOG");
+            Globalreg::FetchMandatoryGlobalAs<kis_database_logfile>("DATABASELOG");
         logfile->SetDatabaseBuilder(builder);
         return logfile;
     }

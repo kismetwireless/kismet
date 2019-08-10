@@ -86,19 +86,19 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
     kis_net_httpd_cppstream_handler() {
 
         alertracker =
-            Globalreg::fetch_mandatory_global-as<alert_tracker>();
+            Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
 
         packetchain =
-            Globalreg::fetch_mandatory_global-as<packet_chain>();
+            Globalreg::FetchMandatoryGlobalAs<packet_chain>();
 
         timetracker =
-            Globalreg::fetch_mandatory_global-as<time_tracker>();
+            Globalreg::FetchMandatoryGlobalAs<time_tracker>();
 
         devicetracker =
-            Globalreg::fetch_mandatory_global-as<device_tracker>();
+            Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
         eventbus =
-            Globalreg::fetch_mandatory_global-as<event_bus>();
+            Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
         // Initialize the crc tables
         crc32_init_table_80211(Globalreg::globalreg->crc32_table);
@@ -647,7 +647,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>();
+        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_dot11", "js/kismet.ui.dot11.js");
 
     clients_of_endp =

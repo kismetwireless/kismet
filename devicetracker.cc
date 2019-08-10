@@ -71,10 +71,10 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     immutable_tracked_vec = std::make_shared<tracker_element_vector>();
 
     entrytracker =
-        Globalreg::fetch_mandatory_global-as<entry_tracker>();
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
 
 	eventbus =
-		Globalreg::fetch_mandatory_global-as<event_bus>();
+		Globalreg::FetchMandatoryGlobalAs<event_bus>();
 
     device_base_id =
         entrytracker->register_field("kismet.device.base", 
@@ -124,7 +124,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 		num_filterpackets = 0;
 
     std::shared_ptr<packet_chain> packetchain =
-        Globalreg::fetch_mandatory_global-as<packet_chain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>(globalreg, "PACKETCHAIN");
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
@@ -154,7 +154,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 											this, CHAINPOS_TRACKER, -100);
 
     std::shared_ptr<time_tracker> timetracker = 
-        Globalreg::fetch_mandatory_global-as<time_tracker>(globalreg, "TIMETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<time_tracker>(globalreg, "TIMETRACKER");
 
    
     // Always disable persistent storage for now
@@ -172,7 +172,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 MSGFLAG_ERROR);
 
         std::shared_ptr<alert_tracker> alertracker =
-            Globalreg::fetch_mandatory_global-as<alert_tracker>(globalreg, "ALERTTRACKER");
+            Globalreg::FetchMandatoryGlobalAs<alert_tracker>(globalreg, "ALERTTRACKER");
         alertracker->raise_one_shot("CONFIGERROR", 
                 "Kismet has recently added persistent device storage; it looks like "
                 "kismet_storage.conf is missing; You should install the latest Kismet "
@@ -481,7 +481,7 @@ device_tracker::~device_tracker() {
     globalreg->RemoveGlobal("DEVICETRACKER");
 
     std::shared_ptr<packet_chain> packetchain =
-        Globalreg::fetch_mandatory_global-as<packet_chain>(globalreg, "PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>(globalreg, "PACKETCHAIN");
     if (packetchain != NULL) {
         packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);
