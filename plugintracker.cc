@@ -403,7 +403,7 @@ int plugin_tracker::ActivatePlugins() {
         x->activate_external_http();
 
         // Alias the plugin directory
-        httpd->RegisterStaticDir("/plugin/" + x->get_plugin_dirname() + "/",
+        httpd->register_static_dir("/plugin/" + x->get_plugin_dirname() + "/",
                 x->get_plugin_path() + "/httpd/");
 
         _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);

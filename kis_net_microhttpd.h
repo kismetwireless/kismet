@@ -369,7 +369,7 @@ public:
     std::string get_mime_type(std::string suffix);
 
     // Register a static files directory (used for system, home, and plugin data)
-    void RegisterStaticDir(std::string in_url_prefix, std::string in_path);
+    void register_static_dir(std::string in_url_prefix, std::string in_path);
 
     // Fixed alias/rewrites
     void RegisterAlias(const std::string& in_alias, const std::string& in_dest);

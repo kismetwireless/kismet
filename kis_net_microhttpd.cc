@@ -166,7 +166,7 @@ kis_net_httpd::kis_net_httpd() {
         http_serve_files = true;
 
         // Add it as a possible file dir
-        RegisterStaticDir("/", http_data_dir);
+        register_static_dir("/", http_data_dir);
     }
 
     if (http_aux_data_dir == "") {
@@ -181,7 +181,7 @@ kis_net_httpd::kis_net_httpd() {
         http_serve_user_files = true;
         
         // Add it as a second possible source of '/' files
-        RegisterStaticDir("/", http_aux_data_dir);
+        register_static_dir("/", http_aux_data_dir);
     }
 
     if (http_serve_files == false && http_serve_user_files == false) {
@@ -377,7 +377,7 @@ void kis_net_httpd::RemoveAlias(const std::string& in_alias) {
         alias_rewrite_map.erase(k);
 }
 
-void kis_net_httpd::RegisterStaticDir(std::string in_prefix, std::string in_path) {
+void kis_net_httpd::register_static_dir(std::string in_prefix, std::string in_path) {
     local_locker lock(&controller_mutex);
 
     static_dir_vec.push_back(static_dir(in_prefix, in_path));
