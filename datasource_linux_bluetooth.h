@@ -26,7 +26,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_linux_bluetooth;
-typedef std::shared_ptr<kis_datasource_linux_bluetooth> SharedDatasourceLinuxBluetooth;
+typedef std::shared_ptr<kis_datasource_linux_bluetooth> shared_datasource_linux_bluetooth;
 
 class kis_datasource_linux_bluetooth : public kis_datasource {
 public:
