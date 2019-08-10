@@ -381,7 +381,7 @@ void buffer_handler_generic::remove_write_buffer_interface() {
     wbuf_notify = nullptr;
 }
 
-void buffer_handler_generic::SetReadBufferDrainCb(std::function<void (size_t)> in_cb) {
+void buffer_handler_generic::set_read_buffer_drain_cb(std::function<void (size_t)> in_cb) {
     rbuf_drain_avail = false;
     readbuf_drain_cb = in_cb;
     rbuf_drain_avail = true;

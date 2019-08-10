@@ -42,7 +42,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
 
     // Set the buffer locker
     if (block_for_buffer) {
-        handler->SetReadBufferDrainCb([this](size_t) {
+        handler->set_read_buffer_drain_cb([this](size_t) {
             local_locker l(&required_bytes_mutex);
             if (locker_required_bytes != 0 && handler->get_write_buffer_available() > locker_required_bytes) {
                 buffer_available_locker.unlock(1);
