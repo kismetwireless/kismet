@@ -293,7 +293,7 @@ void LogTracker::Usage(const char *argv0) {
 		   " -n, --no-logging             Disable logging entirely\n");
 }
 
-bool LogTracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool LogTracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         if (!Httpd_CanSerialize(path))
             return false;

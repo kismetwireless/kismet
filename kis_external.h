@@ -139,7 +139,7 @@ public:
     virtual void trigger_error(std::string reason) override;
 
     // Webserver proxy interface - standard verifypath
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     // Called as a connection is being set up;  brokers access with the http
     // proxy
@@ -183,7 +183,7 @@ protected:
     // Webserver proxy code
     
     // Valid URIs, mapped by method (GET, POST, etc); these are matched in
-    // Httpd_VerifyPath and then passed on; if a URI is present here, it's mapped
+    // httpd_verify_path and then passed on; if a URI is present here, it's mapped
     // to true
     std::map<std::string, std::vector<struct KisExternalHttpUri *> > http_proxy_uri_map;
 

@@ -84,7 +84,7 @@ void Channeltracker_V2::register_fields() {
                 "channel/frequency entry");
 }
 
-bool Channeltracker_V2::Httpd_VerifyPath(const char *path, const char *method) {
+bool Channeltracker_V2::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 

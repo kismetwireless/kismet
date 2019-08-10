@@ -24,7 +24,7 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 
-bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
+bool Phy_80211_Httpd_Pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
 

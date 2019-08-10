@@ -2829,7 +2829,7 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
     return "Other";
 }
 
-bool Kis_80211_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_80211_Phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
 

@@ -23,7 +23,7 @@
 #include "pcapng_stream_ringbuf.h"
 #include "devicetracker.h"
 
-bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
+bool Devicetracker_Httpd_Pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // /devices/by-key/[key]/pcap/[key].pcapng
        

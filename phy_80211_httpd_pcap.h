@@ -37,7 +37,7 @@ public:
     // Same for HandlePostRequest
    
     // Standard path validation
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
     // We use this to attach the pcap stream
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,

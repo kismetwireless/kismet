@@ -1336,7 +1336,7 @@ void kis_database_logfile::Usage(const char *argv0) {
 
 }
 
-bool kis_database_logfile::Httpd_VerifyPath(const char *path, const char *method) {
+bool kis_database_logfile::httpd_verify_path(const char *path, const char *method) {
     std::string stripped = Httpd_StripSuffix(path);
     std::string suffix = Httpd_GetSuffix(path);
 

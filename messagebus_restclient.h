@@ -115,7 +115,7 @@ public:
 
     virtual void ProcessMessage(std::string in_msg, int in_flags) override;
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,

@@ -55,7 +55,7 @@ public:
             size_t *upload_data_size) = 0;
 
     // Can this handler process this request?
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+    virtual bool httpd_verify_path(const char *path, const char *method) = 0;
 
     // Shortcut to checking if the serializer can handle this, since most
     // endpoints will be implementing serialization
@@ -132,7 +132,7 @@ public:
         Kis_Net_Httpd_Handler() { }
     virtual ~kis_net_httpd_cppstream_handler() { };
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+    virtual bool httpd_verify_path(const char *path, const char *method) = 0;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -153,7 +153,7 @@ public:
 // Fallback handler to report that we can't serve static files
 class Kis_Net_Httpd_No_Files_Handler : public kis_net_httpd_cppstream_handler {
 public:
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -184,7 +184,7 @@ public:
             size_t *upload_data_size);
 
     // Can this handler process this request?
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
+    virtual bool httpd_verify_path(const char *path, const char *method) = 0;
 
     // Called as a connection is being set up; responsible for populating
     //

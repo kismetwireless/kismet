@@ -50,7 +50,7 @@
 #include "base64.h"
 
 // HTTP interfaces
-bool device_tracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool device_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // Simple fixed URLS
 

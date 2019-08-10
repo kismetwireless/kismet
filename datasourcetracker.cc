@@ -1313,7 +1313,7 @@ void Datasourcetracker::queue_dead_remote(dst_incoming_remote *in_dead) {
 }
 
 
-bool Datasourcetracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool Datasourcetracker::httpd_verify_path(const char *path, const char *method) {
     std::string stripped = Httpd_StripSuffix(path);
 
     if (strcmp(method, "POST") == 0) {
@@ -1816,7 +1816,7 @@ double Datasourcetracker::string_to_rate(std::string in_str, double in_default) 
     }
 }
 
-bool Datasourcetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
+bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
 
         // Total pcap of all data; we put it in 2 locations

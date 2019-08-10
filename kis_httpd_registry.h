@@ -57,7 +57,7 @@ public:
     // Register a javascript module
     virtual bool register_js_module(std::string in_module, std::string in_path);
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,

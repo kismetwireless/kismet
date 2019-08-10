@@ -64,7 +64,7 @@ bool Kis_Httpd_Registry::register_js_module(std::string in_module, std::string i
     return true;
 }
 
-bool Kis_Httpd_Registry::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Httpd_Registry::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 

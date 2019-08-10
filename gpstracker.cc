@@ -258,7 +258,7 @@ int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     return 1;
 }
 
-bool GpsTracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool GpsTracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 

@@ -79,7 +79,7 @@ bool GPSWeb::get_device_connected() {
     return true;
 }
 
-bool GPSWeb::Httpd_VerifyPath(const char *path, const char *method) {
+bool GPSWeb::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "POST") == 0 &&
             strcmp(path, "/gps/web/update.cmd") == 0) {
         return true;

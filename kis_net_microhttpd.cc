@@ -810,7 +810,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         /* Look for a handler that can process this; first we look for handlers which
          * don't require auth */
         for (auto h : kishttpd->unauth_handler_vec) {
-            if (h->Httpd_VerifyPath(url.c_str(), method)) {
+            if (h->httpd_verify_path(url.c_str(), method)) {
                 handler = h;
                 break;
             }
@@ -820,7 +820,7 @@ int Kis_Net_Httpd::http_request_handler(void *cls, struct MHD_Connection *connec
          * force them to have a valid login */
         if (handler == nullptr) {
             for (auto h : kishttpd->handler_vec) {
-                if (h->Httpd_VerifyPath(url.c_str(), method)) {
+                if (h->httpd_verify_path(url.c_str(), method)) {
                     if (!kishttpd->HasValidSession(concls, true)) {
                         /*
                         auto fourohone = fmt::format("<h1>401 - Access denied</h1>Login required to access this resource.\n");
@@ -1250,7 +1250,7 @@ Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(con
     Bind_Httpd_Server();
 }
 
-bool Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_verify_path(const char *path, const char *method) {
     auto stripped = Httpd_StripSuffix(path);
 
     if (stripped == uri && Httpd_CanSerialize(path))
@@ -1459,7 +1459,7 @@ Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracke
     httpd->RegisterUnauthHandler(this);
 }
 
-bool Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_verify_path(const char *path, const char *method) {
     auto stripped = Httpd_StripSuffix(path);
 
     if (stripped == uri && Httpd_CanSerialize(path))
@@ -1659,7 +1659,7 @@ Kis_Net_Httpd_Path_Tracked_Endpoint::Kis_Net_Httpd_Path_Tracked_Endpoint(
 }
 
 
-bool Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_VerifyPath(const char *in_path, const char *in_method) {
+bool Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
     if (!Httpd_CanSerialize(in_path))
         return false;
 
@@ -1861,7 +1861,7 @@ Kis_Net_Httpd_Simple_Post_Endpoint::Kis_Net_Httpd_Simple_Post_Endpoint(const std
     Bind_Httpd_Server();
 }
 
-bool Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Net_Httpd_Simple_Post_Endpoint::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "POST") != 0)
         return false;
 
@@ -1960,7 +1960,7 @@ Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
     Bind_Httpd_Server();
 }
 
-bool Kis_Net_Httpd_Path_Post_Endpoint::Httpd_VerifyPath(const char *in_path, const char *in_method) {
+bool Kis_Net_Httpd_Path_Post_Endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
     if (strcmp(in_method, "POST") != 0)
         return false;
 

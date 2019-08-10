@@ -52,7 +52,7 @@ public:
     virtual void Deferred_Startup() override;
     virtual void Deferred_Shutdown() override { };
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,

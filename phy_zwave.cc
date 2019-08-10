@@ -61,7 +61,7 @@ Kis_Zwave_Phy::~Kis_Zwave_Phy() {
 
 }
 
-bool Kis_Zwave_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Zwave_Phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "POST") == 0) {
         if (strcmp(path, "/phy/phyZwave/post_zwave_json.cmd") == 0)
             return true;

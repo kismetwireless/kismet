@@ -163,7 +163,7 @@ std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(const std::stri
     return iter->second->builder->clone_type(iter->second->field_id);
 }
 
-bool EntryTracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool EntryTracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 

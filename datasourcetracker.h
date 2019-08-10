@@ -425,7 +425,7 @@ public:
     void list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb);
 
     // HTTP api
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -535,7 +535,7 @@ public:
     // Same for HandlePostRequest
    
     // Standard path validation
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     // We use this to attach the pcap stream
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,

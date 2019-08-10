@@ -81,7 +81,7 @@ void RestMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     }
 }
 
-bool RestMessageClient::Httpd_VerifyPath(const char *path, const char *method) {
+bool RestMessageClient::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) {
         return false;
     }

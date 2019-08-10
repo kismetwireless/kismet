@@ -656,7 +656,7 @@ unsigned int KisExternalHttpInterface::send_http_auth(std::string in_cookie) {
     return send_packet(c);
 }
 
-bool KisExternalHttpInterface::Httpd_VerifyPath(const char *path, const char *method) {
+bool KisExternalHttpInterface::httpd_verify_path(const char *path, const char *method) {
     local_locker lock(ext_mutex);
 
     // Find all the registered endpoints for this method

@@ -44,7 +44,7 @@ StreamTracker::~StreamTracker() {
     local_locker lock(&mutex);
 }
 
-bool StreamTracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool StreamTracker::httpd_verify_path(const char *path, const char *method) {
     local_demand_locker lock(&mutex);
 
     if (strcmp(method, "GET") != 0) 

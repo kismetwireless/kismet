@@ -187,7 +187,7 @@ public:
     virtual ~Kis_Net_Httpd_Simple_Tracked_Endpoint() { }
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -219,7 +219,7 @@ public:
     virtual ~Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint() { }
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -248,7 +248,7 @@ public:
     virtual ~Kis_Net_Httpd_Path_Tracked_Endpoint() { }
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -278,7 +278,7 @@ public:
     virtual ~Kis_Net_Httpd_Simple_Post_Endpoint() { }
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
@@ -310,7 +310,7 @@ public:
     virtual ~Kis_Net_Httpd_Path_Post_Endpoint() { }
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,

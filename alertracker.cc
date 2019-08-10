@@ -607,7 +607,7 @@ int alert_tracker::find_activated_alert(std::string in_header) {
     return -1;
 }
 
-bool alert_tracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;
 

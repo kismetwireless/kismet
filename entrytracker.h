@@ -104,7 +104,7 @@ public:
             std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
     // HTTP api
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
     virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,

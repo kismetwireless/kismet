@@ -172,7 +172,7 @@ bool Kis_Httpd_Websession::validate_login(struct MHD_Connection *connection) {
     return true;
 }
 
-bool Kis_Httpd_Websession::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Httpd_Websession::httpd_verify_path(const char *path, const char *method) {
     std::string stripped = Httpd_StripSuffix(path);
 
     if (strcmp(method, "POST") == 0) {

@@ -130,7 +130,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
     return MHD_YES;
 }
 
-bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path, 
+bool Kis_Net_Httpd_No_Files_Handler::httpd_verify_path(const char *path, 
         const char *method) {
 
     if (strcmp(method, "GET") != 0)

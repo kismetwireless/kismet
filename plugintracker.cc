@@ -455,7 +455,7 @@ int Plugintracker::ShutdownPlugins() {
     return 0;
 }
 
-bool Plugintracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool Plugintracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) 
         return false;
 

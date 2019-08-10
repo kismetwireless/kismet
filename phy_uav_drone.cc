@@ -300,7 +300,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 }
 
 
-bool Kis_UAV_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_UAV_Phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         std::string stripped = Httpd_StripSuffix(path);
 
