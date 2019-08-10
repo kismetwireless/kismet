@@ -39,7 +39,7 @@
 void print_help(char *argv) {
     printf("Kismet packet content strip tool.\n");
     printf("A simple tool for stripping the packet data from a KismetDB log file.\n");
-    printf("Usage: %s [OPTION]\n", argv);
+    printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output kismetdb file with packet content stripped\n"
            " -v, --verbose                Verbose output\n"

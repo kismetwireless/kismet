@@ -289,8 +289,8 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     exit(globalregistry->fatal_condition ? 1 : 0);
 }
 
-int Usage(char *argv) {
-    printf("Usage: %s [OPTION]\n", argv);
+int usage(char *argv) {
+    printf("usage: %s [OPTION]\n", argv);
     printf("Nearly all of these options are run-time overrides for values in the\n"
            "kismet.conf configuration file.  Permanent changes should be made to\n"
            "the configuration file.\n");
@@ -317,7 +317,7 @@ int Usage(char *argv) {
            "                               compile time.\n"
            );
 
-    LogTracker::Usage(argv);
+    LogTracker::usage(argv);
 
     for (std::vector<global_registry::usage_func>::iterator i = 
             globalregistry->usage_func_vec.begin();
@@ -603,7 +603,7 @@ int main(int argc, char *argv[], char *envp[]) {
             printf("Kismet %s-%s-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             exit(1);
         } else if (r == 'h') {
-            Usage(argv[0]);
+            usage(argv[0]);
             exit(1);
         } else if (r == 'f') {
             configfilename = std::string(optarg);

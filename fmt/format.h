@@ -980,7 +980,7 @@ inline char *lg(uint32_t n, Handler h) {
 }
 
 // An lg handler that formats a decimal number.
-// Usage: lg(n, decimal_formatter(buffer));
+// usage: lg(n, decimal_formatter(buffer));
 class decimal_formatter {
  private:
   char *buffer_;
@@ -3245,7 +3245,7 @@ struct formatter<T, Char,
 
 // A formatter for types known only at run time such as variant alternatives.
 //
-// Usage:
+// usage:
 //   typedef std::variant<int, std::string> variant;
 //   template <>
 //   struct formatter<variant>: dynamic_formatter<> {

@@ -260,7 +260,7 @@ public:
     // Close a log
     int close_log(SharedLogfile in_logfile);
 
-    static void Usage(const char *argv0);
+    static void usage(const char *argv0);
 private:
     LogTracker();
 

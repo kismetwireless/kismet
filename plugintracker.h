@@ -267,7 +267,7 @@ private:
 	plugin_tracker(global_registry *in_globalreg);
 
 public:
-	static void Usage(char *name);
+	static void usage(char *name);
 
 	virtual ~plugin_tracker();
 

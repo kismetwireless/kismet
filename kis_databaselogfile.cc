@@ -1332,7 +1332,7 @@ int kis_database_logfile::packet_handler(CHAINCALL_PARMS) {
     return logfile->log_packet(in_pack);
 }
 
-void kis_database_logfile::Usage(const char *argv0) {
+void kis_database_logfile::usage(const char *argv0) {
 
 }
 

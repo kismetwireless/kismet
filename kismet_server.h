@@ -28,7 +28,7 @@
 
 void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
-int Usage(char *argv);
+int usage(char *argv);
 int NetWriteStatus(const char *in_status);
 void NetWriteInfo();
 int SayText(string in_text);

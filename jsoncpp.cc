@@ -2344,7 +2344,7 @@ ValueIteratorBase::computeDistance(const SelfType& other) const {
     return 0;
   }
 
-  // Usage of std::distance is not portable (does not compile with Sun Studio 12
+  // usage of std::distance is not portable (does not compile with Sun Studio 12
   // RogueWave STL,
   // which is the one used by default).
   // Using a portable hand-made version for non random iterator instead:

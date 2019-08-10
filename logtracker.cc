@@ -285,7 +285,7 @@ int LogTracker::close_log(SharedLogfile in_logfile) {
     return 1;
 }
 
-void LogTracker::Usage(const char *argv0) {
+void LogTracker::usage(const char *argv0) {
     printf(" *** Logging Options ***\n");
 	printf(" -T, --log-types <types>      Override activated log types\n"
 		   " -t, --log-title <title>      Override default log title\n"

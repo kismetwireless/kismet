@@ -1652,7 +1652,7 @@ public:
 
 /** \brief Build a CharReader implementation.
 
-Usage:
+usage:
 \code
   using namespace Json;
   CharReaderBuilder builder;
@@ -1820,7 +1820,7 @@ class Value;
 
 /**
 
-Usage:
+usage:
 \code
   using namespace Json;
   void writeToStdout(StreamWriter::Factory const& factory, Value const& value) {
@@ -1865,7 +1865,7 @@ JSONCPP_STRING JSON_API writeString(StreamWriter::Factory const& factory, Value 
 
 /** \brief Build a StreamWriter implementation.
 
-Usage:
+usage:
 \code
   using namespace Json;
   Value value = ...;

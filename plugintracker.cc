@@ -101,7 +101,7 @@ plugin_tracker::~plugin_tracker() {
     ShutdownPlugins();
 }
 
-void plugin_tracker::Usage(char *name __attribute__((unused))) {
+void plugin_tracker::usage(char *name __attribute__((unused))) {
     printf(" *** Plugin Options ***\n");
     printf("     --disable-plugins		  Turn off the plugin "
            "system\n");

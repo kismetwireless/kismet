@@ -825,7 +825,7 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
     
     if (caph->remote_capable) {
         fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
-                "Usage: %s [options]\n"
+                "usage: %s [options]\n"
                 " --connect [host]:[port]     Connect to remote Kismet server on [host] \n"
                 "                             and [port]; typically Kismet accepts remote \n"
                 "                             capture on port 3501.\n"

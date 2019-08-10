@@ -204,7 +204,7 @@ public:
     using device_itr = device_map_t::iterator;
     using const_device_itr = device_map_t::const_iterator;
 
-	static void Usage(char *argv);
+	static void usage(char *argv);
 
 	// Common classifier for keeping phy counts
 	int CommonTracker(kis_packet *in_packet);

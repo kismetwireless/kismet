@@ -158,7 +158,7 @@ void print_help(char *argv) {
     printf("Kismetdb to WigleCSV\n");
     printf("A simple tool for converting the packet data from a KismetDB log file to\n"
            "the CSV format used by Wigle\n");
-    printf("Usage: %s [OPTION]\n", argv);
+    printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output Wigle CSV file\n"
            " -f, --force                  Force writing to the target file, even if it exists.\n"
