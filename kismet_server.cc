@@ -878,7 +878,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_linux_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_linux_bluetooth_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_osx_corewlan_wifi_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433Builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtl433_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433MqttBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrMqttBuilder()));
