@@ -135,7 +135,7 @@ Systemmonitor::Systemmonitor() :
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_system_status", true)) {
         auto snap_time_s = 
-            Globalreg::globalreg->kismet_config->FetchOptAs<unsigned int>("kis_log_system_status_rate", 30);
+            Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kis_log_system_status_rate", 30);
 
         kismetdb_log_timer =
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * snap_time_s, nullptr, 1, 

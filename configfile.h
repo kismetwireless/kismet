@@ -72,7 +72,7 @@ public:
     // std::runtime_error if the type can not be converted.  If the key is not found, the
     // default value is used.
     template<typename T>
-    T FetchOptAs(const std::string& in_key, const T& dvalue) {
+    T fetch_opt_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&config_locker);
 
         auto ki = config_map.find(StrLower(in_key));
