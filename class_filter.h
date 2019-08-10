@@ -137,11 +137,11 @@ protected:
 	std::map<std::string, std::map<mac_addr, bool>> unknown_phy_mac_filter_map;
 
     // Address management endpoint keyed on path
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_edit_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_edit_endp;
     unsigned int edit_endp_handler(std::ostream& stream, const std::vector<std::string>& path, 
             shared_structured structured);
 
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_remove_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_remove_endp;
     unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
             shared_structured structured);
 

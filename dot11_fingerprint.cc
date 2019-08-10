@@ -34,7 +34,7 @@ dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri) 
                 fingerprint_map, &mutex);
 
     update_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_path_post_endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, 
@@ -60,7 +60,7 @@ dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri,
                 fingerprint_map, &mutex);
 
     update_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_path_post_endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, 

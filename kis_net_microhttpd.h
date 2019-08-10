@@ -294,7 +294,7 @@ protected:
 };
 
 // Path-based basic post responder linked to a chainbuf buffer
-class Kis_Net_Httpd_Path_Post_Endpoint : public kis_net_httpd_chain_stream_handler {
+class kis_net_httpd_path_post_endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using path_func = std::function<bool (const std::vector<std::string>& path, const std::string& uri)>;
     using handler_func = 
@@ -303,11 +303,11 @@ public:
                 shared_structured post_structured,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
-    Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, handler_func in_func);
-    Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, handler_func in_func,
+    kis_net_httpd_path_post_endpoint(path_func in_path, handler_func in_func);
+    kis_net_httpd_path_post_endpoint(path_func in_path, handler_func in_func,
             kis_recursive_timed_mutex *in_mutex);
 
-    virtual ~Kis_Net_Httpd_Path_Post_Endpoint() { }
+    virtual ~kis_net_httpd_path_post_endpoint() { }
 
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;

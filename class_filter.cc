@@ -130,7 +130,7 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
 
     // Set and clear endpoints
     macaddr_edit_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_path_post_endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     // /filters/class/[id]/[phyname]/set_filter
                     if (path.size() < 5)
@@ -157,7 +157,7 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
                 }, &mutex);
 
     macaddr_remove_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_path_post_endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     // /filters/class/[id]/[phyname]/remove_filter
                     if (path.size() < 5)

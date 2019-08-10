@@ -1938,9 +1938,9 @@ int kis_net_httpd_simple_post_endpoint::httpd_post_complete(kis_net_httpd_connec
     return MHD_YES;
 }
 
-Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
-        Kis_Net_Httpd_Path_Post_Endpoint::path_func in_path,
-        Kis_Net_Httpd_Path_Post_Endpoint::handler_func in_func) :
+kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
+        kis_net_httpd_path_post_endpoint::path_func in_path,
+        kis_net_httpd_path_post_endpoint::handler_func in_func) :
     kis_net_httpd_chain_stream_handler {},
     path {in_path},
     generator {in_func}, 
@@ -1948,9 +1948,9 @@ Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
     Bind_Httpd_Server();
 }
 
-Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
-        Kis_Net_Httpd_Path_Post_Endpoint::path_func in_path,
-        Kis_Net_Httpd_Path_Post_Endpoint::handler_func in_func, 
+kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
+        kis_net_httpd_path_post_endpoint::path_func in_path,
+        kis_net_httpd_path_post_endpoint::handler_func in_func, 
         kis_recursive_timed_mutex *in_mutex) :
     kis_net_httpd_chain_stream_handler {},
     path {in_path},
@@ -1960,7 +1960,7 @@ Kis_Net_Httpd_Path_Post_Endpoint::Kis_Net_Httpd_Path_Post_Endpoint(
     Bind_Httpd_Server();
 }
 
-bool Kis_Net_Httpd_Path_Post_Endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
+bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
     if (strcmp(in_method, "POST") != 0)
         return false;
 
@@ -1981,7 +1981,7 @@ bool Kis_Net_Httpd_Path_Post_Endpoint::httpd_verify_path(const char *in_path, co
     return path(tokenurl, in_path);
 }
 
-int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
+int kis_net_httpd_path_post_endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection,
         const char *in_path, const char *in_method, const char *upload_data,
@@ -1991,7 +1991,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
+int kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
