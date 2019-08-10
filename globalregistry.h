@@ -161,13 +161,13 @@ struct critical_fail {
 };
 
 // Stub class for global data
-class SharedGlobalData {
+class shared_global_data {
 public:
-    virtual ~SharedGlobalData() { }
+    virtual ~shared_global_data() { }
 };
 
 // Stub class for lifetime globals to inherit from to get auto-destroyed on exit
-class lifetime_global : public SharedGlobalData {
+class lifetime_global : public shared_global_data {
 public:
     virtual ~lifetime_global() { }
 };

@@ -25,7 +25,7 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class Kis_Dissector_IPdata : public SharedGlobalData {
+class Kis_Dissector_IPdata : public shared_global_data {
 public:
 	Kis_Dissector_IPdata() { 
 		fprintf(stderr, "FATAL OOPS: Kis_Dissector_IPdata()\n"); 

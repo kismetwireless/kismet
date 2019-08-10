@@ -34,7 +34,7 @@
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class channeltracker_v2_channel : public tracker_component, public SharedGlobalData {
+class channeltracker_v2_channel : public tracker_component, public shared_global_data {
 public:
     channeltracker_v2_channel() :
         tracker_component() {
