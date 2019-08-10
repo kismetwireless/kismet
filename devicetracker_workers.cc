@@ -147,9 +147,9 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(shared_structured raw_pcre_
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
 
-    structured_data::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    structured_data::structured_vec rawvec = raw_pcre_vec->as_vector();
     for (auto i : rawvec) {
-        structured_data::structured_vec rpair = i->getStructuredArray();
+        structured_data::structured_vec rpair = i->as_vector();
 
         if (rpair.size() != 2)
             throw StructuredDataException("expected [field, regex] pair");
@@ -220,7 +220,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_targe
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
 
-    structured_data::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    structured_data::structured_vec rawvec = raw_pcre_vec->as_vector();
     for (auto i : rawvec) {
         std::string regex = i->as_string();
 

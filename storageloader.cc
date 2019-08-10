@@ -142,7 +142,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
                 // Map and vector types need to be iteratively processed
             case tracker_type::tracker_vector:
                 elem = std::make_shared<tracker_element_vector>();
-                for (auto i : objdata->getStructuredArray()) {
+                for (auto i : objdata->as_vector()) {
                     auto re = storage_to_tracker(i);
 
                     if (re != NULL)

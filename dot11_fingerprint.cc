@@ -299,7 +299,7 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
 
     try {
         auto fpv = structured->get_structured_by_key("fingerprints");
-        auto fingerprints = fpv->getStructuredArray();
+        auto fingerprints = fpv->as_vector();
 
         int num_added = 0;
 

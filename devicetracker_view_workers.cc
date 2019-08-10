@@ -79,10 +79,10 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 
 device_tracker_view_regex_worker::device_tracker_view_regex_worker(shared_structured shared_pcre_vec) {
 #ifdef HAVE_LIBPCRE
-    auto vec = shared_pcre_vec->getStructuredArray();
+    auto vec = shared_pcre_vec->as_vector();
 
     for (auto i : vec) {
-        auto rpair = i->getStructuredArray();
+        auto rpair = i->as_vector();
 
         if (rpair.size() != 2)
             throw std::runtime_error("expected [field, regex] pair from incoming filter");

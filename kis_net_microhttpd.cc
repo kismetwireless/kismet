@@ -102,7 +102,7 @@ std::shared_ptr<tracker_element> kishttpd::SummarizeWithStructured(std::shared_p
 
     if (structured->has_key("fields")) {
         auto fields = structured->get_structured_by_key("fields");
-        auto fvec = fields->getStructuredArray();
+        auto fvec = fields->as_vector();
 
         for (const auto& i : fvec) {
             if (i->is_string()) {
@@ -1385,7 +1385,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
     try {
         if (structdata->has_key("fields")) {
             shared_structured fields = structdata->get_structured_by_key("fields");
-            structured_data::structured_vec fvec = fields->getStructuredArray();
+            structured_data::structured_vec fvec = fields->as_vector();
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
@@ -1594,7 +1594,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
     try {
         if (structdata->has_key("fields")) {
             shared_structured fields = structdata->get_structured_by_key("fields");
-            structured_data::structured_vec fvec = fields->getStructuredArray();
+            structured_data::structured_vec fvec = fields->as_vector();
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
@@ -1797,7 +1797,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
     try {
         if (structdata->has_key("fields")) {
             shared_structured fields = structdata->get_structured_by_key("fields");
-            structured_data::structured_vec fvec = fields->getStructuredArray();
+            structured_data::structured_vec fvec = fields->as_vector();
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {

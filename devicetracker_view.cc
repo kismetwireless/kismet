@@ -483,7 +483,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
         // simplification
         if (structured->has_key("fields")) {
             auto fields = structured->get_structured_by_key("fields");
-            auto fvec = fields->getStructuredArray();
+            auto fvec = fields->as_vector();
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
@@ -577,7 +577,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                     in_order_direction = 0;
 
                 // Resolve the path, we only allow the first one
-                auto index_array = column_index->second->getStructuredArray();
+                auto index_array = column_index->second->as_vector();
                 if (index_array.size() > 0) {
                     if (index_array[0]->is_array()) {
                         // We only allow the first field, but make sure we're not a nested array

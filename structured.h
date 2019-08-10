@@ -123,7 +123,7 @@ public:
     virtual bool key_as_bool(std::string key, bool def) = 0;
 
     // Get structured sub-arrays
-    virtual structured_vec getStructuredArray() = 0;
+    virtual structured_vec as_vector() = 0;
     virtual structured_num_map getStructuredNumMap() = 0;
     virtual structured_str_map getStructuredStrMap() = 0;
 
@@ -134,12 +134,12 @@ public:
         auto ret = std::vector<std::pair<std::string, std::string>>();
 
         if (is_array()) {
-            for (auto i : getStructuredArray()) {
+            for (auto i : as_vector()) {
                 if (!i->is_array()) 
                     throw StructuredDataUnsuitable("Cannot parse object as vector of pairs for converstion to "
                             "pair list");
 
-                auto sub = i->getStructuredArray();
+                auto sub = i->as_vector();
 
                 if (sub.size() != 2) 
                     throw StructuredDataUnsuitable("Cannot parse object as vector of pairs, expected 2"

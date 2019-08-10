@@ -207,7 +207,7 @@ public:
         return v->as_bool();
     }
 
-    virtual structured_vec getStructuredArray() {
+    virtual structured_vec as_vector() {
         except_if_not(is_array(), "array/vector");
 
         structured_vec v;
