@@ -58,7 +58,7 @@ namespace kishttpd {
     // Modifies the rename_map field, which must be provided by the caller.
     // Returns a summarized vector (if passed a vector) or summarized device (if passed
     // a summarized device)
-    std::shared_ptr<tracker_element> SummarizeWithStructured(std::shared_ptr<tracker_element> in_data,
+    std::shared_ptr<tracker_element> summarize_with_structured(std::shared_ptr<tracker_element> in_data,
             shared_structured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 };
 

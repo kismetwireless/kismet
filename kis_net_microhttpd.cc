@@ -95,7 +95,7 @@ std::string kishttpd::escape_html(const std::string& in) {
     return ss.str();
 }
 
-std::shared_ptr<tracker_element> kishttpd::SummarizeWithStructured(std::shared_ptr<tracker_element> in_data,
+std::shared_ptr<tracker_element> kishttpd::summarize_with_structured(std::shared_ptr<tracker_element> in_data,
         shared_structured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};

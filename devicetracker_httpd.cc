@@ -779,7 +779,7 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
         auto output = 
-            kishttpd::SummarizeWithStructured(ret_devices, structured, rename_map);
+            kishttpd::summarize_with_structured(ret_devices, structured, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
 
