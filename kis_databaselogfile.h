@@ -145,12 +145,12 @@ public:
     }
 
     // event_bus event we inject when the log is opened
-    class EventDblogOpened : public eventbus_event {
+    class event_dblog_opened : public eventbus_event {
     public:
         static std::string Event() { return "KISMETDB_LOG_OPEN"; }
-        EventDblogOpened() :
+        event_dblog_opened() :
             eventbus_event(Event()) { }
-        virtual ~EventDblogOpened() {}
+        virtual ~event_dblog_opened() {}
     };
 
 protected:
