@@ -30,12 +30,12 @@
 // Filters act on 'true' results:  Default behavior of 'true' defaults to BLOCKING
 // the action, behavior of 'false' defaults to PASSING actions.
 
-class Classfilter : public tracker_component {
+class class_filter : public tracker_component {
 public:
-    Classfilter(const std::string& in_id, const std::string& in_description,
+    class_filter(const std::string& in_id, const std::string& in_description,
             const std::string& in_type);
 
-    virtual ~Classfilter() {
+    virtual ~class_filter() {
         local_locker l(&mutex);
     }
 
@@ -85,7 +85,7 @@ protected:
 };
 
 // MAC based filter
-class ClassfilterMacaddr : public Classfilter {
+class ClassfilterMacaddr : public class_filter {
 public:
     ClassfilterMacaddr(const std::string& in_id, const std::string& in_descripton);
     virtual ~ClassfilterMacaddr();
@@ -107,7 +107,7 @@ protected:
 	// map[string, phy] -> map[mac, boolean].
 
     virtual void register_fields() override {
-        Classfilter::register_fields();
+        class_filter::register_fields();
 
 		// Phy-based map
         register_field("kismet.classfilter.macaddr.address_by_phy",

@@ -23,7 +23,7 @@
 #include "util.h"
 #include "devicetracker.h"
 
-Classfilter::Classfilter(const std::string& in_id, const std::string& in_description,
+class_filter::class_filter(const std::string& in_id, const std::string& in_description,
         const std::string& in_type) :
     tracker_component() {
 
@@ -61,7 +61,7 @@ Classfilter::Classfilter(const std::string& in_id, const std::string& in_descrip
     
 }
 
-int Classfilter::default_set_endp_handler(std::ostream& stream, SharedStructured structured) {
+int class_filter::default_set_endp_handler(std::ostream& stream, SharedStructured structured) {
     try {
         if (structured->hasKey("default")) {
             set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
@@ -79,14 +79,14 @@ int Classfilter::default_set_endp_handler(std::ostream& stream, SharedStructured
     return 500;
 }
 
-void Classfilter::build_self_content(std::shared_ptr<tracker_element_map> content) {
+void class_filter::build_self_content(std::shared_ptr<tracker_element_map> content) {
     content->insert(filter_id);
     content->insert(filter_description);
     content->insert(filter_type);
     content->insert(filter_default);
 }
 
-bool Classfilter::filterstring_to_bool(const std::string& str) {
+bool class_filter::filterstring_to_bool(const std::string& str) {
     auto cstr = StrLower(str);
 
     if (cstr == "1")
@@ -114,7 +114,7 @@ bool Classfilter::filterstring_to_bool(const std::string& str) {
 }
 
 ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::string& in_description) :
-    Classfilter(in_id, in_description, "mac_addr") {
+    class_filter(in_id, in_description, "mac_addr") {
 
     register_fields();
     reserve_fields(nullptr);
@@ -393,7 +393,7 @@ std::shared_ptr<tracker_element_map> ClassfilterMacaddr::self_endp_handler() {
 }
 
 void ClassfilterMacaddr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
-    Classfilter::build_self_content(content);
+    class_filter::build_self_content(content);
 
     content->insert(filter_phy_block);
 }
