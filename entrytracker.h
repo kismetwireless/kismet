@@ -97,7 +97,7 @@ public:
     std::shared_ptr<tracker_element> get_shared_instance(int in_id);
 
     // Register a serializer for auto-serialization based on type
-    void RegisterSerializer(const std::string& type, std::shared_ptr<tracker_element_serializer> in_ser);
+    void register_serializer(const std::string& type, std::shared_ptr<tracker_element_serializer> in_ser);
     void RemoveSerializer(const std::string& type);
     bool CanSerialize(const std::string& type);
     bool Serialize(const std::string& type, std::ostream &stream, shared_tracker_element elem,

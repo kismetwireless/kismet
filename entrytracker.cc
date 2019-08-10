@@ -219,7 +219,7 @@ void entry_tracker::httpd_create_stream_response(
 
 }
 
-void entry_tracker::RegisterSerializer(const std::string& in_name, 
+void entry_tracker::register_serializer(const std::string& in_name, 
         std::shared_ptr<tracker_element_serializer> in_ser) {
     local_locker lock(&serializer_mutex);
     

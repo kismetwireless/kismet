@@ -755,13 +755,13 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Base serializers
-    entrytracker->RegisterSerializer("json", std::make_shared<JsonAdapter::Serializer>());
-    entrytracker->RegisterSerializer("ekjson", std::make_shared<EkJsonAdapter::Serializer>());
-    entrytracker->RegisterSerializer("prettyjson", std::make_shared<PrettyJsonAdapter::Serializer>());
-    entrytracker->RegisterSerializer("storagejson", std::make_shared<StorageJsonAdapter::Serializer>());
+    entrytracker->register_serializer("json", std::make_shared<JsonAdapter::Serializer>());
+    entrytracker->register_serializer("ekjson", std::make_shared<EkJsonAdapter::Serializer>());
+    entrytracker->register_serializer("prettyjson", std::make_shared<PrettyJsonAdapter::Serializer>());
+    entrytracker->register_serializer("storagejson", std::make_shared<StorageJsonAdapter::Serializer>());
 
-    entrytracker->RegisterSerializer("jcmd", std::make_shared<JsonAdapter::Serializer>());
-    entrytracker->RegisterSerializer("cmd", std::make_shared<JsonAdapter::Serializer>());
+    entrytracker->register_serializer("jcmd", std::make_shared<JsonAdapter::Serializer>());
+    entrytracker->register_serializer("cmd", std::make_shared<JsonAdapter::Serializer>());
 
     if (daemonize) {
         // remove messagebus clients so we stop printing
