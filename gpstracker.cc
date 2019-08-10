@@ -76,7 +76,7 @@ GpsTracker::GpsTracker() :
     register_gps_builder(shared_gps_builder(new GPSSerialV2Builder()));
     register_gps_builder(shared_gps_builder(new GPSTCPBuilder()));
     register_gps_builder(shared_gps_builder(new GPSGpsdV2Builder()));
-    register_gps_builder(shared_gps_builder(new GPSFakeBuilder()));
+    register_gps_builder(shared_gps_builder(new gps_fake_builder()));
     register_gps_builder(shared_gps_builder(new GPSWebBuilder()));
 
     // Process any gps options in the config file

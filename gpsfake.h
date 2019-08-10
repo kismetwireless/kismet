@@ -43,9 +43,9 @@ public:
     virtual kis_gps_packinfo *get_last_location();
 };
 
-class GPSFakeBuilder : public KisGpsBuilder {
+class gps_fake_builder : public KisGpsBuilder {
 public:
-    GPSFakeBuilder() : 
+    gps_fake_builder() : 
         KisGpsBuilder() { 
         initialize();
     }
