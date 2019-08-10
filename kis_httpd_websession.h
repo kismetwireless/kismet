@@ -38,7 +38,7 @@ public:
         create_websession() {
         std::shared_ptr<Kis_Httpd_Websession> mon(new Kis_Httpd_Websession());
         Globalreg::globalreg->register_lifetime_global(mon);
-        Globalreg::globalreg->RegisterDeferredGlobal(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }

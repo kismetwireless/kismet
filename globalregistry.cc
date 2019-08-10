@@ -184,7 +184,7 @@ void global_registry::Deletelifetime_globals() {
     lifetime_vec.clear();
 }
 
-void global_registry::RegisterDeferredGlobal(std::shared_ptr<deferred_startup> in_d) {
+void global_registry::register_deferred_global(std::shared_ptr<deferred_startup> in_d) {
     local_locker lock(&deferred_mutex);
 
     deferred_vec.push_back(in_d);

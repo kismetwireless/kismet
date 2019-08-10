@@ -345,7 +345,7 @@ public:
         auto mon = std::make_shared<datasource_tracker>();
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
-        Globalreg::globalreg->RegisterDeferredGlobal(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
 
         auto pollabletracker =
             Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");

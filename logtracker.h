@@ -231,7 +231,7 @@ public:
     static std::shared_ptr<LogTracker> create_logtracker() {
         std::shared_ptr<LogTracker> mon(new LogTracker());
         Globalreg::globalreg->register_lifetime_global(mon);
-        Globalreg::globalreg->RegisterDeferredGlobal(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
