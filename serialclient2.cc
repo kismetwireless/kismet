@@ -163,7 +163,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (FD_ISSET(device_fd, &in_rset)) {
         // Trigger an event on buffer full
         if (handler->get_read_buffer_available() == 0)
-            handler->TriggerReadCallback(0);
+            handler->trigger_read_callback(0);
 
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.

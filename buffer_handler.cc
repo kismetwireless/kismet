@@ -293,7 +293,7 @@ void buffer_handler_generic::TriggerWriteCallback(size_t in_sz) {
     }
 }
 
-void buffer_handler_generic::TriggerReadCallback(size_t in_sz) {
+void buffer_handler_generic::trigger_read_callback(size_t in_sz) {
     if (rbuf_notify_avail && rbuf_notify) {
         rbuf_notify->BufferAvailable(in_sz);
     }
