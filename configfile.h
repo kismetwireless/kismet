@@ -91,7 +91,7 @@ public:
     }
 
 	int fetch_opt_dirty(const std::string& in_key);
-	void SetOptDirty(const std::string& in_key, int in_dirty);
+	void set_opt_dirty(const std::string& in_key, int in_dirty);
 
     // Set a value, converting the arbitrary input into a string
     template<typename T>
@@ -101,7 +101,7 @@ public:
         config_entity e(fmt::format("{}", in_value), "::dynamic::");
         v.push_back(e);
         config_map[StrLower(in_key)] = v;
-        SetOptDirty(in_key, in_dirty);
+        set_opt_dirty(in_key, in_dirty);
     }
 
 	void SetOpt(const std::string& in_key, const std::string& in_val, int in_dirty);

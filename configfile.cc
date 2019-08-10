@@ -338,7 +338,7 @@ int config_file::fetch_opt_dirty(const std::string& in_key) {
     return config_map_dirty[StrLower(in_key)];
 }
 
-void config_file::SetOptDirty(const std::string& in_key, int in_dirty) {
+void config_file::set_opt_dirty(const std::string& in_key, int in_dirty) {
     local_locker lock(&config_locker);
     config_map_dirty[StrLower(in_key)] = in_dirty;
 }
@@ -350,7 +350,7 @@ void config_file::SetOpt(const std::string& in_key, const std::string& in_val, i
     config_entity e(in_val, "::dynamic::");
     v.push_back(e);
     config_map[StrLower(in_key)] = v;
-    SetOptDirty(in_key, in_dirty);
+    set_opt_dirty(in_key, in_dirty);
 }
 
 void config_file::SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, 
@@ -364,7 +364,7 @@ void config_file::SetOptVec(const std::string& in_key, const std::vector<std::st
     }
 
     config_map[StrLower(in_key)] = cev;
-    SetOptDirty(in_key, in_dirty);
+    set_opt_dirty(in_key, in_dirty);
 }
 
 
