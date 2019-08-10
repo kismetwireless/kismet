@@ -49,14 +49,14 @@
  * of the packet destined for export.
  *
  */
-class Pcap_Stream_Ringbuf : public streaming_agent {
+class pcap_stream_ringbuf : public streaming_agent {
 public:
-    Pcap_Stream_Ringbuf(global_registry *in_globalreg, 
+    pcap_stream_ringbuf(global_registry *in_globalreg, 
             std::shared_ptr<buffer_handler_generic> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector,
             bool block_for_buffer);
-    virtual ~Pcap_Stream_Ringbuf();
+    virtual ~pcap_stream_ringbuf();
 
     virtual void set_blocking(bool in_block) {
         block_for_buffer = in_block;
@@ -126,7 +126,7 @@ protected:
     kis_recursive_timed_mutex required_bytes_mutex;
 };
 
-class Pcap_Stream_Packetchain : public Pcap_Stream_Ringbuf {
+class Pcap_Stream_Packetchain : public pcap_stream_ringbuf {
 public:
     Pcap_Stream_Packetchain(global_registry *in_globalreg, 
             std::shared_ptr<buffer_handler_generic> in_handler,

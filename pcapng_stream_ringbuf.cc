@@ -20,7 +20,7 @@
 
 #include "pcapng_stream_ringbuf.h"
 
-Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
+pcap_stream_ringbuf::pcap_stream_ringbuf(global_registry *in_globalreg,
         std::shared_ptr<buffer_handler_generic> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector,
@@ -56,11 +56,11 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
         return;
 }
 
-Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
+pcap_stream_ringbuf::~pcap_stream_ringbuf() {
     handler->protocol_error();
 }
 
-int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
+int pcap_stream_ringbuf::lock_until_writeable(ssize_t req_bytes) {
     // Got the space already?  We're fine.
     if (handler->get_write_buffer_available() >= req_bytes) {
         return 1;
@@ -86,19 +86,19 @@ int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
     return 1;
 }
 
-void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
+void pcap_stream_ringbuf::stop_stream(std::string in_reason) {
     // Unlock the conditional with an error
     buffer_available_locker.unlock(-1);
 }
 
-ssize_t Pcap_Stream_Ringbuf::buffer_available() {
+ssize_t pcap_stream_ringbuf::buffer_available() {
     if (handler != nullptr) 
         return handler->get_write_buffer_available();
 
     return 0;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app) {
+int pcap_stream_ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app) {
     uint8_t *buf = NULL;
     pcapng_shb *shb;
 
@@ -210,7 +210,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     return 1;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
+int pcap_stream_ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
     
     std::string ifname;
     ifname = in_datasource->get_source_name();
@@ -224,7 +224,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
             in_datasource->get_source_dlt());
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
+int pcap_stream_ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
         std::string in_desc, int in_dlt) {
     // Put it in the map of datasource IDs to local log IDs.  The sequential 
     // position in the list of IDBs is the size of the map because we never
@@ -325,7 +325,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     return logid;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
+int pcap_stream_ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
         struct timeval *in_tv, std::vector<data_block> in_blocks) {
     local_locker lg(packet_mutex);
 
@@ -470,7 +470,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     return 1;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
+int pcap_stream_ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
     local_locker lg(packet_mutex);
 
     shared_datasource kis_datasource;
@@ -510,7 +510,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachun
 //
 // Interface descriptors are automatically created during packet insertion, and
 // packets linked to the proper interface.
-void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
+void pcap_stream_ringbuf::handle_packet(kis_packet *in_packet) {
     kis_datachunk *target_datachunk;
 
     // If we have an accept filter and it rejects, we're done
@@ -552,7 +552,7 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
         std::shared_ptr<buffer_handler_generic> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector) :
-    Pcap_Stream_Ringbuf(in_globalreg, in_handler, accept_filter, data_selector, false) {
+    pcap_stream_ringbuf(in_globalreg, in_handler, accept_filter, data_selector, false) {
 
     packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
             handle_packet(packet);
@@ -572,7 +572,7 @@ void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
             packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
             });
 
-    Pcap_Stream_Ringbuf::stop_stream(in_reason);
+    pcap_stream_ringbuf::stop_stream(in_reason);
     t.join();
 }
 

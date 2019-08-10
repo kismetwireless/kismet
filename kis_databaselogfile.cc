@@ -1792,7 +1792,7 @@ std::shared_ptr<tracker_element> kis_database_logfile::list_poi_endp_handler() {
 
 pcap_stream_database::pcap_stream_database(global_registry *in_globalreg,
         std::shared_ptr<buffer_handler_generic> in_handler) :
-        Pcap_Stream_Ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
+        pcap_stream_ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
         next_pcap_intf_id {0} {
 
     // Populate a junk interface
