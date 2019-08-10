@@ -468,7 +468,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data; expected command dictionary in json= field");

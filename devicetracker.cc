@@ -1478,7 +1478,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
         std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
 
         // Read out the structured json
-        shared_structured sjson(new StructuredJson(uzbuf));
+        shared_structured sjson(new structured_json(uzbuf));
 
         // Process structured object into a shared element
         shared_tracker_element e = 

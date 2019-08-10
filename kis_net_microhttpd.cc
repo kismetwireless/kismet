@@ -1370,7 +1370,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
         if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
@@ -1579,7 +1579,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
         if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
             throw StructuredDataException("Missing data");
@@ -1783,10 +1783,10 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
     try {
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             structdata =
-                std::make_shared<StructuredJson>(std::string{"{}"});
+                std::make_shared<structured_json>(std::string{"{}"});
         }
     } catch(const StructuredDataException& e) {
         stream << "Invalid request: " << e.what() << "\n";
@@ -1917,10 +1917,10 @@ int kis_net_httpd_simple_post_endpoint::httpd_post_complete(kis_net_httpd_connec
 
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             structdata =
-                std::make_shared<StructuredJson>(std::string{"{}"});
+                std::make_shared<structured_json>(std::string{"{}"});
         }
 
         auto r = generator(stream, concls->url, structdata, concls->variable_cache);
@@ -2028,10 +2028,10 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(kis_net_httpd_connecti
 
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             structdata = 
-                std::make_shared<StructuredJson>(std::string{"{}"});
+                std::make_shared<structured_json>(std::string{"{}"});
         }
 
         auto r = generator(stream, tokenurl, concls->url, structdata, concls->variable_cache);

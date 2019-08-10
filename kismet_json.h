@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -50,9 +50,9 @@
 
 #include "structured.h"
 
-class StructuredJson : public StructuredData {
+class structured_json : public StructuredData {
 public:
-    StructuredJson(std::string data) : StructuredData(data) {
+    structured_json(std::string data) : StructuredData(data) {
         try {
             std::stringstream ss(data);
             ss >> json;
@@ -61,11 +61,11 @@ public:
         }
     }
 
-    StructuredJson(Json::Value in_json) {
+    structured_json(Json::Value in_json) {
         json = in_json;
     }
 
-    virtual ~StructuredJson() { }
+    virtual ~structured_json() { }
 
     void exceptIfNot(bool match, std::string t) {
         if (!match) {
@@ -156,7 +156,7 @@ public:
 
         auto ki = json[key];
 
-        return shared_structured(new StructuredJson(ki));
+        return shared_structured(new structured_json(ki));
     }
 
     virtual double getKeyAsNumber(std::string key) {
@@ -213,7 +213,7 @@ public:
         structured_vec v;
 
         for (auto jvi : json) {
-            v.push_back(shared_structured(new StructuredJson(jvi)));
+            v.push_back(shared_structured(new structured_json(jvi)));
         }
 
         return v;
@@ -231,7 +231,7 @@ public:
                 throw StructuredDataUnsuitable("got non-numerical key converting "
                         "to structured numerical map");
             
-            m[n] = shared_structured(new StructuredJson(*jvi));
+            m[n] = shared_structured(new structured_json(*jvi));
         }
 
         return m;
@@ -243,7 +243,7 @@ public:
         structured_str_map m;
 
         for (Json::ValueIterator jvi = json.begin(); jvi != json.end(); ++jvi) {
-            m[jvi.key().asString()] = shared_structured(new StructuredJson(*jvi));
+            m[jvi.key().asString()] = shared_structured(new structured_json(*jvi));
         }
 
         return m;

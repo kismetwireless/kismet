@@ -499,7 +499,7 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         // Parse the json
         if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
-            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+            structdata.reset(new structured_json(concls->variable_cache["json"]->str()));
         } else {
             throw StructuredDataException("Missing data");
         }
