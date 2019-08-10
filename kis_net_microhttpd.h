@@ -475,7 +475,7 @@ protected:
     // Find a valid session; will return a session or nullptr if no session key is found, or if the
     // session is found but expired.
     std::shared_ptr<kis_net_httpd_session> FindSession(const std::string& in_session_key);
-    void WriteSessions();
+    void write_sessions();
 
     std::map<std::string, std::shared_ptr<kis_net_httpd_session>> session_map;
 

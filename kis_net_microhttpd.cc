@@ -659,7 +659,7 @@ void kis_net_httpd::add_session(std::shared_ptr<kis_net_httpd_session> in_sessio
     local_locker lock(&session_mutex);
 
     session_map[in_session->sessionid] = in_session;
-    WriteSessions();
+    write_sessions();
 }
 
 void kis_net_httpd::del_session(std::string in_key) {
@@ -669,7 +669,7 @@ void kis_net_httpd::del_session(std::string in_key) {
 
     if (i != session_map.end()) {
         session_map.erase(i);
-        WriteSessions();
+        write_sessions();
     }
 }
 
@@ -678,7 +678,7 @@ void kis_net_httpd::del_session(std::map<std::string, std::shared_ptr<kis_net_ht
 
     if (in_itr != session_map.end()) {
         session_map.erase(in_itr);
-        WriteSessions();
+        write_sessions();
     }
 }
 
@@ -702,7 +702,7 @@ std::shared_ptr<kis_net_httpd_session> kis_net_httpd::FindSession(const std::str
 }
 
 
-void kis_net_httpd::WriteSessions() {
+void kis_net_httpd::write_sessions() {
     if (!store_sessions)
         return;
 
