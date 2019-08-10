@@ -659,7 +659,7 @@ void header_value_config::set_header(const std::string& in_str) {
     header = in_str;
 }
 
-bool header_value_config::hasKey(const std::string& in_str) {
+bool header_value_config::has_key(const std::string& in_str) {
     local_locker l(&mutex);
     return (content_map.find(in_str) != content_map.end());
 }

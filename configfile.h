@@ -180,7 +180,7 @@ public:
     void set_header(const std::string& in_str);
 
     // Does a key exist?
-    bool hasKey(const std::string& in_key);
+    bool has_key(const std::string& in_key);
 
     // Get a value by key, value MUST exist or std::runtime_exception is thrown
     std::string getValue(const std::string& in_key);

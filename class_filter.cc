@@ -63,7 +63,7 @@ class_filter::class_filter(const std::string& in_id, const std::string& in_descr
 
 int class_filter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
     try {
-        if (structured->hasKey("default")) {
+        if (structured->has_key("default")) {
             set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
             stream << "Default filter: " << get_filter_default() << "\n";
             return 200;
@@ -295,7 +295,7 @@ void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) 
 unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, shared_structured structured) {
     try {
-        if (!structured->hasKey("filter")) {
+        if (!structured->has_key("filter")) {
             stream << "Missing 'filter' object in request\n";
             return 500;
         }
@@ -335,7 +335,7 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
 unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream, 
         const std::vector<std::string>& path, shared_structured structured) {
     try {
-        if (!structured->hasKey("filter")) {
+        if (!structured->has_key("filter")) {
             stream << "Missing 'filter' object in request\n";
             return 500;
         }

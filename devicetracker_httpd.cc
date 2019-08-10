@@ -481,7 +481,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     }
 
     try {
-        if (structdata->hasKey("fields")) {
+        if (structdata->has_key("fields")) {
             shared_structured fields = structdata->getStructuredByKey("fields");
             StructuredData::structured_vec fvec = fields->getStructuredArray();
 
@@ -509,11 +509,11 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         // Get the wrapper, if one exists, default to empty if it doesn't
         wrapper_name = structdata->getKeyAsString("wrapper", "");
 
-        if (structdata->hasKey("regex")) {
+        if (structdata->has_key("regex")) {
             regexdata = structdata->getStructuredByKey("regex");
         }
 
-        if (structdata->hasKey("last_time")) {
+        if (structdata->has_key("last_time")) {
             int64_t rawt = structdata->getKeyAsNumber("last_time");
 
             if (rawt < 0)
@@ -627,7 +627,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     if (!httpd->HasValidSession(concls)) 
                         throw std::runtime_error("login required");
 
-                    if (!structdata->hasKey("username")) 
+                    if (!structdata->has_key("username")) 
                         throw std::runtime_error("expected username in command dictionary");
 
                     name = structdata->getKeyAsString("username");
@@ -644,10 +644,10 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     if (!httpd->HasValidSession(concls))
                         throw std::runtime_error("login required");
 
-                    if (!structdata->hasKey("tagname"))
+                    if (!structdata->has_key("tagname"))
                         throw std::runtime_error("expected tagname in command dictionary");
 
-                    if (!structdata->hasKey("tagvalue"))
+                    if (!structdata->has_key("tagvalue"))
                         throw std::runtime_error("expected tagvalue in command dictionary");
 
                     tag = structdata->getKeyAsString("tagname");
@@ -745,7 +745,7 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         auto ret_devices = std::make_shared<tracker_element_vector>();
         auto macs = std::vector<mac_addr>{};
 
-        if (!structured->hasKey("devices"))
+        if (!structured->has_key("devices"))
             throw std::runtime_error("Missing 'devices' key in command dictionary");
         
         auto maclist = structured->getStructuredByKey("devices")->getStructuredArray();

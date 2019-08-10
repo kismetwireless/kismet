@@ -1555,7 +1555,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             SharedDatasource r;
             std::string error_reason;
 
-            if (!structdata->hasKey("definition")) {
+            if (!structdata->has_key("definition")) {
                 throw std::runtime_error("POST data missing source definition");
             }
 
@@ -1631,7 +1631,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             }
 
             if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
-                if (structdata->hasKey("channel")) {
+                if (structdata->has_key("channel")) {
                     std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
                     std::string ch = structdata->getKeyAsString("channel", "");
 
@@ -1672,8 +1672,8 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 } else {
                     // We need at least a channels or a rate to kick into
                     // hopping mode
-                    if (!structdata->hasKey("channels") &&
-                            !structdata->hasKey("rate")) {
+                    if (!structdata->has_key("channels") &&
+                            !structdata->has_key("rate")) {
                         throw std::runtime_error("invalid hop command, expected channel, channels, or rate");
                     }
 
@@ -1682,7 +1682,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     shared_structured chstruct;
                     std::vector<std::string> converted_channels;
 
-                    if (structdata->hasKey("channels")) {
+                    if (structdata->has_key("channels")) {
                         chstruct = structdata->getStructuredByKey("channels");
                         converted_channels = chstruct->getStringVec();
                     } else {

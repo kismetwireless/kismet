@@ -1531,7 +1531,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                     std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
 
                 if (structdata != nullptr) {
-                    if (structdata->hasKey("filter")) {
+                    if (structdata->has_key("filter")) {
                         filterdata = structdata->getStructuredByKey("filter");
 
                         if (!filterdata->isDictionary()) 
@@ -1571,82 +1571,82 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
     if (filterdata != nullptr) {
         try {
-            if (filterdata->hasKey("timestamp_start")) 
+            if (filterdata->has_key("timestamp_start")) 
                 query.append_where(AND, 
                         _WHERE("ts_sec", GE, filterdata->getKeyAsNumber("timestamp_start")));
 
-            if (filterdata->hasKey("timestamp_end")) 
+            if (filterdata->has_key("timestamp_end")) 
                 query.append_where(AND, 
                         _WHERE("ts_sec", LE, filterdata->getKeyAsNumber("timestamp_end")));
 
-            if (filterdata->hasKey("datasource")) 
+            if (filterdata->has_key("datasource")) 
                 query.append_where(AND, 
                         _WHERE("datasource", LIKE, filterdata->getKeyAsString("datasource")));
 
-            if (filterdata->hasKey("device_id")) 
+            if (filterdata->has_key("device_id")) 
                 query.append_where(AND, _WHERE("devkey", LIKE, filterdata->getKeyAsString("device_id")));
 
-            if (filterdata->hasKey("dlt")) 
+            if (filterdata->has_key("dlt")) 
                 query.append_where(AND, _WHERE("dlt", EQ, filterdata->getKeyAsNumber("dlt")));
 
-            if (filterdata->hasKey("frequency")) 
+            if (filterdata->has_key("frequency")) 
                 query.append_where(AND, 
                         _WHERE("frequency", EQ, filterdata->getKeyAsNumber("frequency")));
 
-            if (filterdata->hasKey("frequency_min")) 
+            if (filterdata->has_key("frequency_min")) 
                 query.append_where(AND, 
                         _WHERE("frequency", GE, filterdata->getKeyAsNumber("frequency_min")));
 
-            if (filterdata->hasKey("frequency_max")) 
+            if (filterdata->has_key("frequency_max")) 
                 query.append_where(AND, 
                         _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
 
             /*
-            if (filterdata->hasKey("channel")) 
+            if (filterdata->has_key("channel")) 
                 query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->getKeyAsNumber("channel")));
                 */
 
-            if (filterdata->hasKey("signal_min"))
+            if (filterdata->has_key("signal_min"))
                 query.append_where(AND, _WHERE("signal", GE, filterdata->getKeyAsNumber("signal_min")));
 
-            if (filterdata->hasKey("signal_max"))
+            if (filterdata->has_key("signal_max"))
                 query.append_where(AND, _WHERE("signal", LE, filterdata->getKeyAsNumber("signal_max")));
 
-            if (filterdata->hasKey("address_source")) 
+            if (filterdata->has_key("address_source")) 
                 query.append_where(AND, 
                         _WHERE("sourcemac", LIKE, filterdata->getKeyAsString("address_source")));
 
-            if (filterdata->hasKey("address_dest")) 
+            if (filterdata->has_key("address_dest")) 
                 query.append_where(AND, 
                         _WHERE("destmac", LIKE, filterdata->getKeyAsString("address_dest")));
 
-            if (filterdata->hasKey("address_trans")) 
+            if (filterdata->has_key("address_trans")) 
                 query.append_where(AND, 
                         _WHERE("transmac", LIKE, filterdata->getKeyAsString("address_trans")));
 
-            if (filterdata->hasKey("location_lat_min"))
+            if (filterdata->has_key("location_lat_min"))
                 query.append_where(AND, 
                         _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min")));
 
-            if (filterdata->hasKey("location_lon_min"))
+            if (filterdata->has_key("location_lon_min"))
                 query.append_where(AND, 
                         _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min")));
 
-            if (filterdata->hasKey("location_lat_max"))
+            if (filterdata->has_key("location_lat_max"))
                 query.append_where(AND, 
                         _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max")));
 
-            if (filterdata->hasKey("location_lon_max"))
+            if (filterdata->has_key("location_lon_max"))
                 query.append_where(AND, 
                         _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max")));
 
-            if (filterdata->hasKey("size_min"))
+            if (filterdata->has_key("size_min"))
                 query.append_where(AND, _WHERE("size", GE, filterdata->getKeyAsNumber("size_min")));
 
-            if (filterdata->hasKey("size_max"))
+            if (filterdata->has_key("size_max"))
                 query.append_where(AND, _WHERE("size_max", LE, filterdata->getKeyAsNumber("size_max")));
 
-            if (filterdata->hasKey("limit"))
+            if (filterdata->has_key("limit"))
                 query.append_clause(LIMIT, filterdata->getKeyAsNumber("limit"));
 
         } catch (const StructuredDataException& e) {
@@ -1737,7 +1737,7 @@ unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& os
     }
 
     try {
-        if (structured->hasKey("drop_before")) {
+        if (structured->has_key("drop_before")) {
             auto drop_query = 
                 _DELETE(db, "packets", _WHERE("ts_sec", LE, 
                             structured->getKeyAsNumber("drop_before")));
@@ -1768,7 +1768,7 @@ unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream,
     std::string poi_data;
 
     if (structured != nullptr) {
-        if (structured->hasKey("note")) {
+        if (structured->has_key("note")) {
             poi_data = "{\"note\": \"" +
                 JsonAdapter::SanitizeString(structured->getKeyAsString("note")) +
                         "\"}";

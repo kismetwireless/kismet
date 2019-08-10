@@ -65,7 +65,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
 
 int Packetfilter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
     try {
-        if (structured->hasKey("default")) {
+        if (structured->has_key("default")) {
             set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
             stream << "Default filter: " << get_filter_default() << "\n";
             return 200;
@@ -442,7 +442,7 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
     }
 
     try {
-        if (!structured->hasKey("filter")) {
+        if (!structured->has_key("filter")) {
             stream << "Missing 'filter' object in request\n";
             return 500;
         }
@@ -490,7 +490,7 @@ unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream,
     }
 
     try {
-        if (!structured->hasKey("filter")) {
+        if (!structured->has_key("filter")) {
             stream << "Missing 'filter' object in request\n";
             return 500;
         }

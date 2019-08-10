@@ -481,7 +481,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     try {
         // If the structured component has a 'fields' record, derive the fields
         // simplification
-        if (structured->hasKey("fields")) {
+        if (structured->has_key("fields")) {
             auto fields = structured->getStructuredByKey("fields");
             auto fvec = fields->getStructuredArray();
 
@@ -513,7 +513,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
             timestamp_min = raw_ts;
 
         // Regex
-        if (structured->hasKey("regex"))
+        if (structured->has_key("regex"))
             regex = structured->getStructuredByKey("regex");
 
     } catch (const StructuredDataException& e) {
@@ -534,7 +534,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Parse datatables sub-data for windowing, etc
     try {
         // Extract the column number -> column fieldpath data
-        if (structured->hasKey("colmap")) 
+        if (structured->has_key("colmap")) 
             column_number_map = structured->getStructuredByKey("colmap")->getStructuredNumMap();
 
         if (structured->getKeyAsBool("datatable", false)) {

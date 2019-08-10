@@ -172,7 +172,7 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
         shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
-        if (post_structured->hasKey("ssidscan_enabled")) {
+        if (post_structured->has_key("ssidscan_enabled")) {
             auto enabled = post_structured->getKeyAsBool("ssidscan_enabled");
 
             if (enabled != ssidscan_enabled->get()) {
@@ -186,16 +186,16 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
             }
         }
 
-        if (post_structured->hasKey("ignore_after_handshake"))
+        if (post_structured->has_key("ignore_after_handshake"))
             ignore_after_handshake->set(post_structured->getKeyAsBool("ignore_after_handshake"));
 
-        if (post_structured->hasKey("max_capture_seconds")) 
+        if (post_structured->has_key("max_capture_seconds")) 
             max_contend_cap_seconds->set(post_structured->getKeyAsNumber("max_capture_seconds"));
 
-        if (post_structured->hasKey("min_scan_seconds")) 
+        if (post_structured->has_key("min_scan_seconds")) 
             min_scan_seconds->set(post_structured->getKeyAsNumber("min_scan_seconds"));
 
-        if (post_structured->hasKey("restrict_log_filters")) {
+        if (post_structured->has_key("restrict_log_filters")) {
             auto enabled = post_structured->getKeyAsBool("restrict_log_filters");
 
             if (enabled != filter_logs->get()) {

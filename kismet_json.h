@@ -144,14 +144,14 @@ public:
         return v;
     }
 
-    virtual bool hasKey(std::string key) {
+    virtual bool has_key(std::string key) {
         return json.isMember(key);
     }
 
     virtual shared_structured getStructuredByKey(std::string key) {
         exceptIfNot(isDictionary(), "Dictionary/Map");
 
-        if (!hasKey(key)) 
+        if (!has_key(key)) 
             throw StructuredDataNoSuchKey("No such key: " + key);
 
         auto ki = json[key];
@@ -164,7 +164,7 @@ public:
     }
 
     virtual double getKeyAsNumber(std::string key, double def) {
-        if (!hasKey(key))
+        if (!has_key(key))
             return def;
 
         shared_structured v = getStructuredByKey(key);
@@ -180,7 +180,7 @@ public:
     }
 
     virtual std::string getKeyAsString(std::string key, std::string def) {
-        if (!hasKey(key))
+        if (!has_key(key))
             return def;
 
         shared_structured v = getStructuredByKey(key);
@@ -196,7 +196,7 @@ public:
     }
 
     virtual bool getKeyAsBool(std::string key, bool def) {
-        if (!hasKey(key))
+        if (!has_key(key))
             return def;
 
         shared_structured v = getStructuredByKey(key);

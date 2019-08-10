@@ -177,13 +177,13 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
     auto fp = std::static_pointer_cast<tracked_dot11_fingerprint>(fpi->second);
 
     try {
-        if (structured->hasKey("beacon_hash"))
+        if (structured->has_key("beacon_hash"))
             fp->set_beacon_hash(structured->getKeyAsNumber("beacon_hash"));
 
-        if (structured->hasKey("response_hash"))
+        if (structured->has_key("response_hash"))
             fp->set_response_hash(structured->getKeyAsNumber("response_hash"));
 
-        if (structured->hasKey("probe_hash"))
+        if (structured->has_key("probe_hash"))
             fp->set_probe_hash(structured->getKeyAsNumber("probe_hash"));
 
         rebuild_config();
@@ -203,7 +203,7 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
 unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream, 
         shared_structured structured) {
     try {
-        if (!structured->hasKey("macaddr"))
+        if (!structured->has_key("macaddr"))
             throw StructuredDataException("Missing 'macaddr' field in insert command");
 
         auto mac = mac_addr { structured->getKeyAsString("macaddr") };
@@ -305,7 +305,7 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
 
         for (auto fpi : fingerprints) {
             // Get the sub-dictionarys from the vector
-            if (!fpi->hasKey("macaddr"))
+            if (!fpi->has_key("macaddr"))
                 throw StructuredDataException("Fingerprint dictionary missing 'macaddr'");
 
             auto mac = mac_addr { fpi->getKeyAsString("macaddr") };
