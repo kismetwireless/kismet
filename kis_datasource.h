@@ -43,8 +43,8 @@ class kis_datasource_builder;
 typedef std::shared_ptr<kis_datasource_builder> shared_datasource_builder;
 
 // Auto-discovered interface
-class KisDatasourceInterface;
-typedef std::shared_ptr<KisDatasourceInterface> shared_interface;
+class kis_datasource_interface;
+typedef std::shared_ptr<kis_datasource_interface> shared_interface;
 
 // Simple keyed object derived from the low-level C protocol
 class KisDatasourceCapKeyedObject;
@@ -705,34 +705,34 @@ protected:
 
 typedef std::shared_ptr<kis_datasource> shared_datasource;
 
-// KisDatasourceInterface
+// kis_datasource_interface
 // An automatically discovered interface, and any parameters needed to instantiate
 // it; returned by the probe API
 
-class KisDatasourceInterface : public tracker_component {
+class kis_datasource_interface : public tracker_component {
 public:
-    KisDatasourceInterface() :
+    kis_datasource_interface() :
         tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasourceInterface(int in_id) :
+    kis_datasource_interface(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasourceInterface(int in_id, std::shared_ptr<tracker_element_map> e) :
+    kis_datasource_interface(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual ~KisDatasourceInterface() { };
+    virtual ~kis_datasource_interface() { };
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("KisDatasourceInterface");
+        return adler32_checksum("kis_datasource_interface");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

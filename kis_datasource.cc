@@ -61,7 +61,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
 
     listed_interface_entry_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.listed_interface",
-                tracker_element_factory<KisDatasourceInterface>(),
+                tracker_element_factory<kis_datasource_interface>(),
                 "automatically discovered available interface");
 
     last_pong = time(0);
@@ -984,7 +984,7 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
     for (auto rintf : report.interfaces()) {
         auto intf = 
-            std::make_shared<KisDatasourceInterface>(listed_interface_entry_id);
+            std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
 
         intf->populate(rintf.interface(), rintf.flags());
         intf->set_prototype(get_source_builder());
