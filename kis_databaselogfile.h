@@ -136,7 +136,7 @@ public:
     virtual void process_message(std::string in_msg, int in_flags) override;
 
     // Direct access to the filters for setting programatically
-    std::shared_ptr<packet_filter_mac_addr> GetPacketFilter() { 
+    std::shared_ptr<packet_filter_mac_addr> get_packet_filter() { 
         return packet_mac_filter;
     }
 
