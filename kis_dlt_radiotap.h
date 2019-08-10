@@ -32,7 +32,7 @@
 #define DLT_IEEE802_11_RADIO 127
 #endif
 
-class Kis_DLT_Radiotap : public Kis_DLT_Handler {
+class Kis_DLT_Radiotap : public kis_dlt_handler {
 public:
     static std::string global_name() { return "DLT_RADIOTAP"; }
 

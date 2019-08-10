@@ -28,7 +28,7 @@
 #include "packetchain.h"
 #include "kis_dlt.h"
 
-class Kis_DLT_PPI : public Kis_DLT_Handler {
+class Kis_DLT_PPI : public kis_dlt_handler {
 public:
     static std::string global_name() { return "DLT_PPI"; }
 

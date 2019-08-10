@@ -66,7 +66,7 @@
 #endif
 
 Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
-	Kis_DLT_Handler() {
+	kis_dlt_handler() {
 
 	dlt_name = "Radiotap";
 	dlt = DLT_IEEE802_11_RADIO;

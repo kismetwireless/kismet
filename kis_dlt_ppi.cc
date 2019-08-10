@@ -35,7 +35,7 @@
 #include "gpstracker.h"
 
 Kis_DLT_PPI::Kis_DLT_PPI() :
-	Kis_DLT_Handler() {
+	kis_dlt_handler() {
 
 	dlt_name = "PPI";
 	dlt = DLT_PPI;

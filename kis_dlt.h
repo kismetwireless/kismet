@@ -27,10 +27,10 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class Kis_DLT_Handler : public lifetime_global {
+class kis_dlt_handler : public lifetime_global {
 public:
-	Kis_DLT_Handler();
-	virtual ~Kis_DLT_Handler();
+	kis_dlt_handler();
+	virtual ~kis_dlt_handler();
 
 	virtual int handle_packet(kis_packet *in_pack) = 0;
 

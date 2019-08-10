@@ -26,10 +26,10 @@
 #include "kis_dlt.h"
 
 int kis_dlt_packethook(CHAINCALL_PARMS) {
-	return ((Kis_DLT_Handler *) auxdata)->handle_packet(in_pack);
+	return ((kis_dlt_handler *) auxdata)->handle_packet(in_pack);
 }
 
-Kis_DLT_Handler::Kis_DLT_Handler() :
+kis_dlt_handler::kis_dlt_handler() :
     lifetime_global(), 
     dlt_name {"UNASSIGNED"},
     dlt {-1} {
@@ -56,7 +56,7 @@ Kis_DLT_Handler::Kis_DLT_Handler() :
 
 }
 
-Kis_DLT_Handler::~Kis_DLT_Handler() {
+kis_dlt_handler::~kis_dlt_handler() {
     auto packetchain = 
         Globalreg::FetchGlobalAs<packet_chain>();
 
