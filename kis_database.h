@@ -70,7 +70,7 @@ public:
     virtual bool database_open(std::string in_path);
     virtual void database_close();
 
-    virtual bool Database_Valid();
+    virtual bool database_valid();
 
     virtual unsigned int Database_GetDBVersion();
 

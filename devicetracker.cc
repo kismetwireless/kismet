@@ -1424,7 +1424,7 @@ int device_tracker::load_devices() {
     if (!persistent_storage || persistent_mode != MODE_ONSTART || statestore == NULL)
         return 0;
 
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     int r;
@@ -1447,7 +1447,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::load_device(kis_phy_han
     if (!persistent_storage || persistent_mode != MODE_ONDEMAND || statestore == NULL)
         return NULL;
 
-    if (!statestore->Database_Valid())
+    if (!statestore->database_valid())
         return NULL;
 
     return statestore->load_device(in_phy, in_mac);
@@ -1530,7 +1530,7 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
     // Lock the database; we're doing a single query
     local_locker dblock(&ds_mutex);
 
-    if (!Database_Valid())
+    if (!database_valid())
         return;
 
     // Lock the device itself
@@ -1583,7 +1583,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
     // Lock the database; we're doing a single query
     local_locker dblock(&ds_mutex);
 
-    if (!Database_Valid())
+    if (!database_valid())
         return;
 
     // Lock the device itself
@@ -1644,7 +1644,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 
     in_dev->set_username(in_username);
 
-    if (!Database_Valid()) {
+    if (!database_valid()) {
         _MSG("Unable to store device name to permanent storage, the database connection "
                 "is not available", MSGFLAG_ERROR);
         return;
@@ -1705,7 +1705,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
         sm->insert(in_tag, e);
     }
 
-    if (!Database_Valid()) {
+    if (!database_valid()) {
         _MSG("Unable to store device name to permanent storage, the database connection "
                 "is not available", MSGFLAG_ERROR);
         return;
@@ -1856,7 +1856,7 @@ int device_tracker_state_store::clear_old_devices() {
     int r;
     char *sErrMsg = NULL;
 
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     if (devicetracker->persistent_storage_timeout == 0)
@@ -1889,7 +1889,7 @@ int device_tracker_state_store::clear_all_devices() {
     int r;
     char *sErrMsg = NULL;
 
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     if (devicetracker->persistent_storage_timeout == 0)
@@ -1912,7 +1912,7 @@ int device_tracker_state_store::clear_all_devices() {
 
 
 int device_tracker_state_store::load_devices() {
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     std::string sql;
@@ -1998,7 +1998,7 @@ int device_tracker_state_store::load_devices() {
 // or if there was an error
 std::shared_ptr<kis_tracked_device_base> 
 device_tracker_state_store::load_device(kis_phy_handler *in_phy, mac_addr in_mac) {
-    if (!Database_Valid())
+    if (!database_valid())
         return NULL;
 
     // Lock the database; we're doing a single query
@@ -2056,7 +2056,7 @@ device_tracker_state_store::load_device(kis_phy_handler *in_phy, mac_addr in_mac
 int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_vector> devices) {
     local_locker lock(&ds_mutex);
 
-    if (!Database_Valid()) {
+    if (!database_valid()) {
         _MSG("Unable to snapshot device records!  The database connection to " +
                 ds_dbfile + " is invalid...", MSGFLAG_ERROR);
         return 0;

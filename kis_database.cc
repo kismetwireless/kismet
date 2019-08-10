@@ -164,7 +164,7 @@ bool kis_database::Database_CreateMasterTable() {
     return true;
 }
 
-bool kis_database::Database_Valid() {
+bool kis_database::database_valid() {
     local_locker dblock(&ds_mutex);
 
     return (db != NULL);
