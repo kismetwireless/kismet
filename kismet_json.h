@@ -94,7 +94,7 @@ public:
     }
 
     // Binary in json is an encoded string
-    virtual bool isBinary() {
+    virtual bool is_binary() {
         return is_string();
     }
 

@@ -101,7 +101,7 @@ public:
     virtual bool is_string() = 0;
     virtual bool is_array() = 0;
     virtual bool is_dictionary() = 0;
-    virtual bool isBinary() = 0;
+    virtual bool is_binary() = 0;
 
     virtual double getNumber() = 0;
     virtual std::string getString() = 0;
