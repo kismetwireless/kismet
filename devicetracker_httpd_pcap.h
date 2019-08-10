@@ -26,16 +26,16 @@
 /* This implements a devicetracker-wide pcapng stream, with optional
  * filtering per specific device key */
 
-class Devicetracker_Httpd_Pcap : public kis_net_httpd_ringbuf_stream_handler {
+class device_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Devicetracker_Httpd_Pcap() : kis_net_httpd_ringbuf_stream_handler() {
+    device_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() {
         devicetracker = 
             Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
         Bind_Httpd_Server();
     }
 
-    virtual ~Devicetracker_Httpd_Pcap() { };
+    virtual ~device_tracker_httpd_pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest

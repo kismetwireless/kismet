@@ -845,7 +845,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the pcap tracker
     auto devicetracker_pcap =
-        std::make_shared<Devicetracker_Httpd_Pcap>();
+        std::make_shared<device_tracker_httpd_pcap>();
 
     // Add channel tracking
     channel_tracker_v2::create_channeltracker(globalregistry);
