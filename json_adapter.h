@@ -57,7 +57,7 @@ public:
 // type*, it will serialize each member of the vector independently as a complete
 // JSON object separated by newlines.  This allows for a 'streamed' JSON output
 // which will not require loading the entire object into RAM
-namespace EkJsonAdapter {
+namespace ek_json_adapter {
 
 class serializer : public tracker_element_serializer {
 public:
