@@ -286,7 +286,7 @@ bool kis_external_interface::run_ipc() {
     }
 
     auto remotehandler = 
-        Globalreg::fetch_mandatory_global_as<IPCRemoteV2Tracker>("IPCHANDLER");
+        Globalreg::fetch_mandatory_global_as<ipc_remote_v2_tracker>("IPCHANDLER");
     remotehandler->add_ipc(ipc_remote);
 
     return true;

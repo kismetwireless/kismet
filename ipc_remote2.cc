@@ -40,7 +40,7 @@ IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg,
         Globalreg::fetch_mandatory_global_as<pollable_tracker>();
 
     remotehandler = 
-        Globalreg::fetch_mandatory_global_as<IPCRemoteV2Tracker>();
+        Globalreg::fetch_mandatory_global_as<ipc_remote_v2_tracker>();
 
     tracker_free = false;
 
@@ -466,7 +466,7 @@ void IPCRemoteV2::notify_killed(int in_exit) {
     close_ipc();
 }
 
-IPCRemoteV2Tracker::IPCRemoteV2Tracker(global_registry *in_globalreg) {
+ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
     globalreg = in_globalreg;
 
     timer_id = 
@@ -474,14 +474,14 @@ IPCRemoteV2Tracker::IPCRemoteV2Tracker(global_registry *in_globalreg) {
     cleanup_timer_id = -1;
 }
 
-IPCRemoteV2Tracker::~IPCRemoteV2Tracker() {
+ipc_remote_v2_tracker::~ipc_remote_v2_tracker() {
     globalreg->RemoveGlobal("IPCHANDLER");
 
     globalreg->timetracker->RemoveTimer(timer_id);
     globalreg->timetracker->RemoveTimer(cleanup_timer_id);
 }
 
-void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
+void ipc_remote_v2_tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
     local_locker lock(&ipc_mutex);
 
     if (in_remote == nullptr) {
@@ -506,7 +506,7 @@ void IPCRemoteV2Tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
     // fmt::print(stderr, "debug - + ipc {} process vec {}\n", in_remote->get_pid(), process_vec.size());
 }
 
-std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remote) {
+std::shared_ptr<IPCRemoteV2> ipc_remote_v2_tracker::remove_ipc(IPCRemoteV2 *in_remote) {
     local_locker lock(&ipc_mutex);
 
     std::shared_ptr<IPCRemoteV2> ret;
@@ -527,7 +527,7 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(IPCRemoteV2 *in_remo
     return ret;
 }
 
-void IPCRemoteV2Tracker::schedule_cleanup() {
+void ipc_remote_v2_tracker::schedule_cleanup() {
     if (cleanup_timer_id > 0)
         return;
 
@@ -542,7 +542,7 @@ void IPCRemoteV2Tracker::schedule_cleanup() {
 
 }
 
-std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
+std::shared_ptr<IPCRemoteV2> ipc_remote_v2_tracker::remove_ipc(pid_t in_pid) {
     local_locker lock(&ipc_mutex);
 
     std::shared_ptr<IPCRemoteV2> ret;
@@ -563,7 +563,7 @@ std::shared_ptr<IPCRemoteV2> IPCRemoteV2Tracker::remove_ipc(pid_t in_pid) {
     return ret;
 }
 
-void IPCRemoteV2Tracker::kill_all_ipc(bool in_hardkill) {
+void ipc_remote_v2_tracker::kill_all_ipc(bool in_hardkill) {
     local_locker lock(&ipc_mutex);
 
     // Leave everything in the vec until we properly reap it, we might
@@ -576,7 +576,7 @@ void IPCRemoteV2Tracker::kill_all_ipc(bool in_hardkill) {
     }
 }
 
-int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_delay) {
+int ipc_remote_v2_tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_delay) {
     // We can't immediately lock since killall will need to
 
     // Soft-kill every process
@@ -671,7 +671,7 @@ int IPCRemoteV2Tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_dela
     return -1;
 }
 
-int IPCRemoteV2Tracker::timetracker_event(int event_id __attribute__((unused))) {
+int ipc_remote_v2_tracker::timetracker_event(int event_id __attribute__((unused))) {
     local_locker l(&ipc_mutex);
 
     std::stringstream str;

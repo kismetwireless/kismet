@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -46,7 +46,7 @@
  *
  */
 
-class IPCRemoteV2Tracker;
+class ipc_remote_v2_tracker;
 
 class IPCRemoteV2 {
 public:
@@ -98,7 +98,7 @@ protected:
 
     std::shared_ptr<kis_recursive_timed_mutex> ipc_mutex;
 
-    std::shared_ptr<IPCRemoteV2Tracker> remotehandler;
+    std::shared_ptr<ipc_remote_v2_tracker> remotehandler;
     std::shared_ptr<pollable_tracker> pollabletracker;
 
     // Handler for proxying IPC results
@@ -126,22 +126,22 @@ protected:
  * and shutdown.
  *
  */
-class IPCRemoteV2Tracker : public time_tracker_event, public lifetime_global {
+class ipc_remote_v2_tracker : public time_tracker_event, public lifetime_global {
 public:
     static std::string global_name() { return "IPCHANDLER"; }
 
-    static std::shared_ptr<IPCRemoteV2Tracker> create_ipcremote(global_registry *in_globalreg) {
-        std::shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
+    static std::shared_ptr<ipc_remote_v2_tracker> create_ipcremote(global_registry *in_globalreg) {
+        std::shared_ptr<ipc_remote_v2_tracker> mon(new ipc_remote_v2_tracker(in_globalreg));
         in_globalreg->register_lifetime_global(mon);
         in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    IPCRemoteV2Tracker(global_registry *in_globalreg);
+    ipc_remote_v2_tracker(global_registry *in_globalreg);
 
 public:
-    virtual ~IPCRemoteV2Tracker();
+    virtual ~ipc_remote_v2_tracker();
 
     // Add an IPC handler to tracking
     void add_ipc(std::shared_ptr<IPCRemoteV2> in_remote);

@@ -780,7 +780,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the IPC handler
-    IPCRemoteV2Tracker::create_ipcremote(globalregistry);
+    ipc_remote_v2_tracker::create_ipcremote(globalregistry);
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
