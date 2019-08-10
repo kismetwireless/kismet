@@ -351,7 +351,7 @@ void packet_chain::packet_queue_processor(int slot_number) {
     }
 }
 
-int packet_chain::ProcessPacket(kis_packet *in_pack) {
+int packet_chain::process_packet(kis_packet *in_pack) {
     std::unique_lock<std::mutex> lock(packetqueue_cv_mutex);
 
     if (packet_queue.size() > packet_queue_warning &&

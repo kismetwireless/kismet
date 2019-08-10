@@ -35,7 +35,7 @@ ProbeNoJoinAutomata::~ProbeNoJoinAutomata() {
     }
 }
 
-int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
+int ProbeNoJoinAutomata::process_packet(const packet_info *in_info) {
     _fsa_element *elem;
     map<mac_addr, _fsa_element *>::iterator iter;
 
@@ -108,7 +108,7 @@ DisassocTrafficAutomata::~DisassocTrafficAutomata() {
 
 }
 
-int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
+int DisassocTrafficAutomata::process_packet(const packet_info *in_info) {
     _fsa_element *elem;
     map<mac_addr, _fsa_element *>::iterator iter;
     char atext[STATUS_MAX];
@@ -183,7 +183,7 @@ BssTimestampAutomata::~BssTimestampAutomata() {
     }
 }
 
-int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
+int BssTimestampAutomata::process_packet(const packet_info *in_info) {
     _bs_fsa_element *elem;
     char atext[1024];
 
@@ -239,7 +239,7 @@ WepRebroadcastAutomata::WepRebroadcastAutomata(global_registry *in_globalreg,
 WepRebroadcastAutomata::~WepRebroadcastAutomata() {
 }
 
-int WepRebroadcastAutomata::ProcessPacket(const packet_info *in_info) {
+int WepRebroadcastAutomata::process_packet(const packet_info *in_info) {
     return 0;
 }
 
@@ -255,7 +255,7 @@ SequenceSpoofAutomata::~SequenceSpoofAutomata() {
 }
 
 
-int SequenceSpoofAutomata::ProcessPacket(const packet_info *in_info) {
+int SequenceSpoofAutomata::process_packet(const packet_info *in_info) {
     // Only sequence-track beacons (for now)
     int ret = 0;
     char atext[STATUS_MAX];

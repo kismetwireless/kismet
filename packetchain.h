@@ -111,7 +111,7 @@ public:
     // Generate a packet and hand it back
     kis_packet *GeneratePacket();
     // Inject a packet into the chain
-    int ProcessPacket(kis_packet *in_pack);
+    int process_packet(kis_packet *in_pack);
     // Destroy a packet at the end of its life
     void DestroyPacket(kis_packet *in_pack);
  

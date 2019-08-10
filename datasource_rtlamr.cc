@@ -87,7 +87,7 @@ int kis_datasource_rtlamr::httpd_post_complete(kis_net_httpd_connection *concls)
         inc_source_num_packets(1);
         get_source_packet_rrd()->add_sample(1, time(0));
 
-        packetchain->ProcessPacket(packet);
+        packetchain->process_packet(packet);
     }
 
     return MHD_NO;

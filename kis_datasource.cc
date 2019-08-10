@@ -1221,7 +1221,7 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     get_source_packet_rrd()->add_sample(1, time(0));
 
     // Inject the packet into the packetchain if we have one
-    packetchain->ProcessPacket(packet);
+    packetchain->process_packet(packet);
 
 }
 

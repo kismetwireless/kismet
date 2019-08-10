@@ -138,7 +138,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     get_source_packet_rrd()->add_sample(1, time(0));
 
     // Inject the packet into the packetchain if we have one
-    packetchain->ProcessPacket(packet);
+    packetchain->process_packet(packet);
 
 }
 

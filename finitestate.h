@@ -54,7 +54,7 @@ public:
     virtual ~finite_automata() { }
 
     // Handle a packet
-    virtual int ProcessPacket(const packet_info *in_info) = 0;
+    virtual int process_packet(const packet_info *in_info) = 0;
 
     int fetch_alert_ref() { return alertid; }
 
@@ -77,7 +77,7 @@ public:
 
     // Threshold if state == 2 && counter is over threshold
 
-    int ProcessPacket(const packet_info *in_info);
+    int process_packet(const packet_info *in_info);
 
 protected:
     // Map of probing clients to responding people.  If the client sends any "normal" data
@@ -94,7 +94,7 @@ public:
                         int in_rate, int in_burstrate);
     ~DisassocTrafficAutomata();
 
-    int ProcessPacket(const packet_info *in_info);
+    int process_packet(const packet_info *in_info);
 protected:
     // State 0 - got a disassoc
     // State 1 - got a deauth
@@ -122,7 +122,7 @@ public:
                          int in_rate, int in_burstrate);
     ~BssTimestampAutomata();
 
-    int ProcessPacket(const packet_info *in_info);
+    int process_packet(const packet_info *in_info);
 
 protected:
     macmap<BssTimestampAutomata::_bs_fsa_element *> bss_map;
@@ -136,7 +136,7 @@ public:
                            int in_rate, int in_burstrate);
     ~WepRebroadcastAutomata();
 
-    int ProcessPacket(const packet_info *in_info);
+    int process_packet(const packet_info *in_info);
 
 protected:
     class _wreb_element : public _fsa_element {
@@ -157,7 +157,7 @@ public:
                           alert_time_unit in_unit, int in_rate, int in_burstrate);
     ~SequenceSpoofAutomata();
 
-    int ProcessPacket(const packet_info *in_info);
+    int process_packet(const packet_info *in_info);
 
 protected:
     // State 0 - Undefined source
