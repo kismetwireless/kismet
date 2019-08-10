@@ -32,7 +32,7 @@
 shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
 
     // A '0' object is a NULL reference, skip it
-    if (d->is_number() && d->getNumber() == 0)
+    if (d->is_number() && d->get_number() == 0)
         return NULL;
 
     // Each object should be a dictionary containing a 'storage' format record from 
@@ -84,43 +84,43 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             // Integer types are directly coerced
             case tracker_type::tracker_int8:
                 elem = std::make_shared<tracker_element_int8>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_uint8:
                 elem = std::make_shared<tracker_element_uint8>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_int16:
                 elem = std::make_shared<tracker_element_int16>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_uint16:
                 elem = std::make_shared<tracker_element_uint16>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_int32:
                 elem = std::make_shared<tracker_element_int32>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_uint32:
                 elem = std::make_shared<tracker_element_uint32>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_int64:
                 elem = std::make_shared<tracker_element_int64>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_uint64:
                 elem = std::make_shared<tracker_element_uint64>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_float:
                 elem = std::make_shared<tracker_element_float>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
             case tracker_type::tracker_double:
                 elem = std::make_shared<tracker_element_double>();
-                elem->coercive_set(objdata->getNumber());
+                elem->coercive_set(objdata->get_number());
                 break;
                 // String and string-like types are directly coerced
             case tracker_type::tracker_string:
