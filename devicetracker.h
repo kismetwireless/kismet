@@ -173,7 +173,7 @@ public:
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is NOT duplicated, caller must ensure this is
     // a safe operation (the vector must not be modified during execution of the worker)
-    void match_on_devices_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
+    void do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly match
     void do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
