@@ -280,7 +280,7 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
         soft_kill();
     }
 
-    pipeclient.reset(new PipeClient(globalreg, ipchandler));
+    pipeclient.reset(new pipe_client(globalreg, ipchandler));
     pipeclient->set_mutex(ipc_mutex);
 
     // Read from the child write pair, write to the child read pair
@@ -393,7 +393,7 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
     close(inpipepair[1]);
     close(outpipepair[0]);
 
-    pipeclient.reset(new PipeClient(globalreg, ipchandler));
+    pipeclient.reset(new pipe_client(globalreg, ipchandler));
     pipeclient->set_mutex(ipc_mutex);
 
     pollabletracker->RegisterPollable(pipeclient);

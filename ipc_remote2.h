@@ -105,7 +105,7 @@ protected:
     std::shared_ptr<buffer_handler_generic> ipchandler;
 
     // Client that reads/writes from the pipes and populates the IPC
-    std::shared_ptr<PipeClient> pipeclient;
+    std::shared_ptr<pipe_client> pipeclient;
 
     bool tracker_free;
 

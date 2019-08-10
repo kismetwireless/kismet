@@ -40,10 +40,10 @@
 //
 // Like other backend clients of a ringbuf handler, does not register as a read
 // or write directly but consumes out of the handler
-class PipeClient : public kis_pollable {
+class pipe_client : public kis_pollable {
 public:
-    PipeClient(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
-    virtual ~PipeClient();
+    pipe_client(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~pipe_client();
 
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 

@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-PipeClient::PipeClient(global_registry *in_globalreg, 
+pipe_client::pipe_client(global_registry *in_globalreg, 
         std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     pipe_mutex {std::make_shared<kis_recursive_timed_mutex>()},
@@ -38,7 +38,7 @@ PipeClient::PipeClient(global_registry *in_globalreg,
     read_fd {-1},
     write_fd {-1} { }
 
-PipeClient::~PipeClient() {
+pipe_client::~pipe_client() {
     local_locker l(pipe_mutex);
 
     // printf("~pipeclient %p\n", this);
@@ -53,7 +53,7 @@ PipeClient::~PipeClient() {
     }
 }
 
-void PipeClient::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void pipe_client::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(pipe_mutex);
 
     if (in_parent != nullptr)
@@ -62,7 +62,7 @@ void PipeClient::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent)
         pipe_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-int PipeClient::OpenPipes(int rpipe, int wpipe) {
+int pipe_client::OpenPipes(int rpipe, int wpipe) {
     local_locker lock(pipe_mutex);
 
     if (read_fd > -1 || write_fd > -1) {
@@ -85,13 +85,13 @@ int PipeClient::OpenPipes(int rpipe, int wpipe) {
     return 0;
 }
 
-bool PipeClient::FetchConnected() {
+bool pipe_client::FetchConnected() {
     local_shared_locker lock(pipe_mutex);
 
     return handler == nullptr || read_fd > -1 || write_fd > -1;
 }
 
-int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int pipe_client::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker lock(pipe_mutex);
 
     if (handler == nullptr)
@@ -118,7 +118,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     return max_fd;
 }
 
-int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
+int pipe_client::Poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker lock(pipe_mutex);
 
     std::stringstream msg;
@@ -207,7 +207,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-int PipeClient::FlushRead() {
+int pipe_client::FlushRead() {
     local_locker lock(pipe_mutex);
 
     std::stringstream msg;
@@ -254,7 +254,7 @@ int PipeClient::FlushRead() {
     return 0;
 }
 
-void PipeClient::ClosePipes() {
+void pipe_client::ClosePipes() {
     // printf("%p looking for pipe lock lock %p\n", this, &pipe_lock);
     local_locker lock(pipe_mutex);
     // printf("%p got pipe lock\n", this);
