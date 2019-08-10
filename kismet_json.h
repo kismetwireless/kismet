@@ -148,7 +148,7 @@ public:
         return json.isMember(key);
     }
 
-    virtual shared_structured getStructuredByKey(std::string key) {
+    virtual shared_structured get_structured_by_key(std::string key) {
         except_if_not(is_dictionary(), "Dictionary/Map");
 
         if (!has_key(key)) 
@@ -160,14 +160,14 @@ public:
     }
 
     virtual double getKeyAsNumber(std::string key) {
-        return getStructuredByKey(key)->as_number();
+        return get_structured_by_key(key)->as_number();
     }
 
     virtual double getKeyAsNumber(std::string key, double def) {
         if (!has_key(key))
             return def;
 
-        shared_structured v = getStructuredByKey(key);
+        shared_structured v = get_structured_by_key(key);
 
         if (!v->is_number())
             return def;
@@ -176,14 +176,14 @@ public:
     }
 
     virtual std::string getKeyAsString(std::string key) {
-        return getStructuredByKey(key)->as_string();
+        return get_structured_by_key(key)->as_string();
     }
 
     virtual std::string getKeyAsString(std::string key, std::string def) {
         if (!has_key(key))
             return def;
 
-        shared_structured v = getStructuredByKey(key);
+        shared_structured v = get_structured_by_key(key);
 
         if (!v->is_string())
             return def;
@@ -192,14 +192,14 @@ public:
     }
 
     virtual bool getKeyAsBool(std::string key) {
-        return getStructuredByKey(key)->as_bool();
+        return get_structured_by_key(key)->as_bool();
     }
 
     virtual bool getKeyAsBool(std::string key, bool def) {
         if (!has_key(key))
             return def;
 
-        shared_structured v = getStructuredByKey(key);
+        shared_structured v = get_structured_by_key(key);
 
         if (!v->is_bool())
             return def;

@@ -300,7 +300,7 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
             return 500;
         }
 
-        auto filter = structured->getStructuredByKey("filter");
+        auto filter = structured->get_structured_by_key("filter");
 
         if (!filter->is_dictionary()) {
             stream << "Expected dictionary 'filter' object\n";
@@ -340,7 +340,7 @@ unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream,
             return 500;
         }
 
-        auto filter = structured->getStructuredByKey("filter");
+        auto filter = structured->get_structured_by_key("filter");
 
         if (!filter->is_array()) {
             stream << "Expected dictionary 'filter' object\n";

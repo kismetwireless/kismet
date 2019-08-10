@@ -1532,7 +1532,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
                 if (structdata != nullptr) {
                     if (structdata->has_key("filter")) {
-                        filterdata = structdata->getStructuredByKey("filter");
+                        filterdata = structdata->get_structured_by_key("filter");
 
                         if (!filterdata->is_dictionary()) 
                             throw StructuredDataException("expected filter to be a dictionary");

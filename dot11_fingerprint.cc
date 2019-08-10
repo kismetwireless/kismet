@@ -260,7 +260,7 @@ unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& st
         shared_structured structured) {
 
     try {
-        auto fpv = structured->getStructuredByKey("fingerprints");
+        auto fpv = structured->get_structured_by_key("fingerprints");
         auto fingerprints = fpv->as_string_vector();
 
         int num_erased = 0;
@@ -298,7 +298,7 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
         shared_structured structured) {
 
     try {
-        auto fpv = structured->getStructuredByKey("fingerprints");
+        auto fpv = structured->get_structured_by_key("fingerprints");
         auto fingerprints = fpv->getStructuredArray();
 
         int num_added = 0;

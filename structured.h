@@ -114,7 +114,7 @@ public:
 
     // Get keyed values as...
     virtual bool has_key(std::string key) = 0;
-    virtual shared_structured getStructuredByKey(std::string key) = 0;
+    virtual shared_structured get_structured_by_key(std::string key) = 0;
     virtual double getKeyAsNumber(std::string key) = 0;
     virtual double getKeyAsNumber(std::string key, double def) = 0;
     virtual std::string getKeyAsString(std::string key, std::string def) = 0;

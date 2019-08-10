@@ -70,9 +70,9 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
     objtype = tracker_element::typestring_to_type(objtypestr);
 
     if (d->has_key("od"))
-        objdata = d->getStructuredByKey("od");
+        objdata = d->get_structured_by_key("od");
     else if (d->has_key("objdata"))
-        objdata = d->getStructuredByKey("objdata");
+        objdata = d->get_structured_by_key("objdata");
     else
         throw std::runtime_error("storage object missing 'od'/'objdata'");
 

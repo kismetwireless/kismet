@@ -482,7 +482,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     try {
         if (structdata->has_key("fields")) {
-            shared_structured fields = structdata->getStructuredByKey("fields");
+            shared_structured fields = structdata->get_structured_by_key("fields");
             structured_data::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
@@ -510,7 +510,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         wrapper_name = structdata->getKeyAsString("wrapper", "");
 
         if (structdata->has_key("regex")) {
-            regexdata = structdata->getStructuredByKey("regex");
+            regexdata = structdata->get_structured_by_key("regex");
         }
 
         if (structdata->has_key("last_time")) {
@@ -748,7 +748,7 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         if (!structured->has_key("devices"))
             throw std::runtime_error("Missing 'devices' key in command dictionary");
         
-        auto maclist = structured->getStructuredByKey("devices")->getStructuredArray();
+        auto maclist = structured->get_structured_by_key("devices")->getStructuredArray();
 
         for (auto m : maclist) {
             mac_addr ma{m->as_string()};
