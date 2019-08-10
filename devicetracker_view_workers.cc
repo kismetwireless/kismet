@@ -195,7 +195,7 @@ bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tra
     return false;
 }
 
-DevicetrackerViewICaseStringmatchWorker::DevicetrackerViewICaseStringmatchWorker(const std::string& in_query,
+device_tracker_view_icasestringmatch_worker::device_tracker_view_icasestringmatch_worker(const std::string& in_query,
         const std::vector<std::vector<int>>& in_paths) :
     query { in_query },
     fieldpaths { in_paths } {
@@ -204,7 +204,7 @@ DevicetrackerViewICaseStringmatchWorker::DevicetrackerViewICaseStringmatchWorker
     mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
 }
 
-bool DevicetrackerViewICaseStringmatchWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     auto icasesearch = [](const std::string& haystack, const std::string& needle) -> bool {

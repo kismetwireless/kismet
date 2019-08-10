@@ -139,12 +139,12 @@ protected:
 
 // Generic string search for any string-like value (and a few more complex values, like MAC addresses).
 // Searches multiple fields for a given string
-class DevicetrackerViewICaseStringmatchWorker : public device_tracker_view_worker {
+class device_tracker_view_icasestringmatch_worker : public device_tracker_view_worker {
 public:
     // Match a given string against a list of resovled field paths
-    DevicetrackerViewICaseStringmatchWorker(const std::string& in_query,
+    device_tracker_view_icasestringmatch_worker(const std::string& in_query,
             const std::vector<std::vector<int>>& in_paths);
-    DevicetrackerViewICaseStringmatchWorker(const DevicetrackerViewICaseStringmatchWorker& w) {
+    device_tracker_view_icasestringmatch_worker(const device_tracker_view_icasestringmatch_worker& w) {
         query = w.query;
         fieldpaths = w.fieldpaths;
         mac_query_term = w.mac_query_term;
@@ -152,7 +152,7 @@ public:
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewICaseStringmatchWorker() { }
+    virtual ~device_tracker_view_icasestringmatch_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 
