@@ -289,7 +289,7 @@ public:
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
     virtual void buffer_error(std::string in_error);
     // Propagate an error to a specific listener
-    virtual void ReadBufferError(std::string in_error);
+    virtual void read_buffer_error(std::string in_error);
     virtual void WriteBufferError(std::string in_error);
 
     // Propagate a protocol-layer error to any line-drivers (protocol parser
