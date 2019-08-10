@@ -178,7 +178,7 @@ protected:
     std::shared_ptr<Timetracker> timetracker;
 
     // packetchain callback
-    static int PacketChainHandler(CHAINCALL_PARMS);
+    static int packet_chain_handler(CHAINCALL_PARMS);
 
     // Tracker component
     virtual void register_fields();

@@ -37,7 +37,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 
     auto packetchain = Globalreg::FetchMandatoryGlobalAs<packetchain>("PACKETCHAIN");
 
-    packetchain->RegisterHandler(&PacketChainHandler, this, CHAINPOS_LOGGING, 0);
+    packetchain->RegisterHandler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
 	pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
@@ -67,7 +67,7 @@ channel_tracker_v2::~channel_tracker_v2() {
 
     auto packetchain = Globalreg::FetchGlobalAs<packetchain>("PACKETCHAIN");
     if (packetchain != nullptr)
-        packetchain->RemoveHandler(&PacketChainHandler, CHAINPOS_LOGGING);
+        packetchain->RemoveHandler(&packet_chain_handler, CHAINPOS_LOGGING);
 
     Globalreg::globalreg->RemoveGlobal("CHANNEL_TRACKER");
 }
@@ -207,7 +207,7 @@ void channel_tracker_v2::update_device_counts(std::map<double, unsigned int> in_
     }
 }
 
-int channel_tracker_v2::PacketChainHandler(CHAINCALL_PARMS) {
+int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
     channel_tracker_v2 *cv2 = (channel_tracker_v2 *) auxdata;
 
     local_locker locker(&(cv2->lock));
