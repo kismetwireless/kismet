@@ -54,7 +54,7 @@ void buffer_handler_generic::set_mutex(std::shared_ptr<kis_recursive_timed_mutex
         handler_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-ssize_t buffer_handler_generic::GetReadBufferSize() {
+ssize_t buffer_handler_generic::get_read_buffer_size() {
     if (read_buffer)
         return read_buffer->size();
 

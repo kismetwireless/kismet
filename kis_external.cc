@@ -134,7 +134,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         frame_sz = data_sz + sizeof(kismet_external_frame);
 
         // If we'll never be able to read it, blow up
-        if ((long int) frame_sz >= ringbuf_handler->GetReadBufferSize()) {
+        if ((long int) frame_sz >= ringbuf_handler->get_read_buffer_size()) {
             ringbuf_handler->PeekFreeReadBufferData(frame);
 
             std::stringstream ss;

@@ -174,7 +174,7 @@ public:
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Basic size ops
-    virtual ssize_t GetReadBufferSize();
+    virtual ssize_t get_read_buffer_size();
     virtual ssize_t GetWriteBufferSize();
 
     virtual size_t GetReadBufferUsed();
