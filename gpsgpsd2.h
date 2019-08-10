@@ -34,10 +34,10 @@
 // This code uses the new buffer handler interface for communicating with a 
 // gpsd host over TCP
 
-class gps_gpsd_v2 : public kis_gps {
+class kis_gps_gpsd_v2 : public kis_gps {
 public:
-    gps_gpsd_v2(shared_gps_builder in_builder);
-    virtual ~gps_gpsd_v2();
+    kis_gps_gpsd_v2(shared_gps_builder in_builder);
+    virtual ~kis_gps_gpsd_v2();
 
     virtual bool open_gps(std::string in_definition);
 
@@ -98,7 +98,7 @@ public:
     }
 
     virtual shared_gps build_gps(shared_gps_builder in_builder) {
-        return shared_gps(new gps_gpsd_v2(in_builder));
+        return shared_gps(new kis_gps_gpsd_v2(in_builder));
     }
 };
 

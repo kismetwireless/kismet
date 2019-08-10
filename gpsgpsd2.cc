@@ -26,7 +26,7 @@
 #include "pollabletracker.h"
 #include "timetracker.h"
 
-gps_gpsd_v2::gps_gpsd_v2(shared_gps_builder in_builder) : 
+kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     tcpinterface {
         [this](size_t in_amt) { 
@@ -100,7 +100,7 @@ gps_gpsd_v2::gps_gpsd_v2(shared_gps_builder in_builder) :
 
 }
 
-gps_gpsd_v2::~gps_gpsd_v2() {
+kis_gps_gpsd_v2::~kis_gps_gpsd_v2() {
     if (tcpclient != nullptr) {
         pollabletracker->RemovePollable(tcpclient);
     }
@@ -120,7 +120,7 @@ gps_gpsd_v2::~gps_gpsd_v2() {
     }
 }
 
-bool gps_gpsd_v2::open_gps(std::string in_opts) {
+bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
     if (!kis_gps::open_gps(in_opts))
@@ -147,18 +147,18 @@ bool gps_gpsd_v2::open_gps(std::string in_opts) {
     proto_port_s = fetch_opt("port", source_definition_opts);
 
     if (proto_host == "") {
-        _MSG("gps_gpsd_v2 expected host= option, none found.", MSGFLAG_ERROR);
+        _MSG("kis_gps_gpsd_v2 expected host= option, none found.", MSGFLAG_ERROR);
         return -1;
     }
 
     if (proto_port_s != "") {
         if (sscanf(proto_port_s.c_str(), "%u", &proto_port) != 1) {
-            _MSG("gps_gpsd_v2 expected port in port= option.", MSGFLAG_ERROR);
+            _MSG("kis_gps_gpsd_v2 expected port in port= option.", MSGFLAG_ERROR);
             return -1;
         }
     } else {
         proto_port = 2947;
-        _MSG("gps_gpsd_v2 defaulting to port 2947, set the port= option if "
+        _MSG("kis_gps_gpsd_v2 defaulting to port 2947, set the port= option if "
                 "your gpsd is on a different port", MSGFLAG_INFO);
     }
 
@@ -193,7 +193,7 @@ bool gps_gpsd_v2::open_gps(std::string in_opts) {
     return 1;
 }
 
-bool gps_gpsd_v2::get_location_valid() {
+bool kis_gps_gpsd_v2::get_location_valid() {
     local_shared_locker lock(gps_mutex);
 
     if (!get_device_connected()) {
@@ -216,7 +216,7 @@ bool gps_gpsd_v2::get_location_valid() {
     return true;
 }
 
-void gps_gpsd_v2::buffer_available(size_t in_amt) {
+void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
     local_locker lock(gps_mutex);
 
     size_t buf_sz;
@@ -292,7 +292,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
                 if (msg_class == "VERSION") {
                     std::string version  = MungeToPrintable(json["release"].asString());
 
-                    _MSG("gps_gpsd_v2 connected to a JSON-enabled GPSD version " +
+                    _MSG("kis_gps_gpsd_v2 connected to a JSON-enabled GPSD version " +
                             version + ", turning on JSON mode", MSGFLAG_INFO);
 
                     // Set JSON mode
@@ -305,7 +305,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
 
                     if (tcphandler->put_write_buffer_data((void *) json_msg.c_str(), 
                                 json_msg.length(), true) < json_msg.length()) {
-                        _MSG("gps_gpsd_v2 could not not write JSON enable command",
+                        _MSG("kis_gps_gpsd_v2 could not not write JSON enable command",
                                 MSGFLAG_ERROR);
                     }
                 } else if (msg_class == "TPV") {
@@ -431,7 +431,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
             std::string init_cmd = "L\n";
             if (tcphandler->put_write_buffer_data((void *) init_cmd.c_str(), 
                         init_cmd.length(), true) < init_cmd.length()) {
-                _MSG("gps_gpsd_v2 could not not write NMEA enable command",
+                _MSG("kis_gps_gpsd_v2 could not not write NMEA enable command",
                         MSGFLAG_ERROR);
             }
 
@@ -444,7 +444,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
             std::string cmd = "R=1\n";
             if (tcphandler->put_write_buffer_data((void *) cmd.c_str(), 
                         cmd.length(), true) < cmd.length()) {
-                _MSG("gps_gpsd_v2 could not not write NMEA enable command",
+                _MSG("kis_gps_gpsd_v2 could not not write NMEA enable command",
                         MSGFLAG_ERROR);
             }
 
@@ -478,7 +478,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
             std::string watch_cmd = "J=1,W=1,R=1\n";
             if (tcphandler->put_write_buffer_data((void *) watch_cmd.c_str(), 
                         watch_cmd.length(), true) < watch_cmd.length()) {
-                _MSG("gps_gpsd_v2 could not not write GPSD watch command",
+                _MSG("kis_gps_gpsd_v2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);
             }
 
@@ -486,7 +486,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
             std::string poll_cmd = "PAVM\n";
             if (tcphandler->put_write_buffer_data((void *) poll_cmd.c_str(), 
                         poll_cmd.length(), true) < poll_cmd.length()) {
-                _MSG("gps_gpsd_v2 could not not write GPSD watch command",
+                _MSG("kis_gps_gpsd_v2 could not not write GPSD watch command",
                         MSGFLAG_ERROR);
             }
 
@@ -744,7 +744,7 @@ void gps_gpsd_v2::buffer_available(size_t in_amt) {
     update_locations();
 }
 
-void gps_gpsd_v2::buffer_error(std::string in_error) {
+void kis_gps_gpsd_v2::buffer_error(std::string in_error) {
     local_locker lock(gps_mutex);
 
     set_int_device_connected(false);
