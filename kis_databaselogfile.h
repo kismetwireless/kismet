@@ -235,17 +235,17 @@ protected:
     std::shared_ptr<packet_filter_mac_addr> packet_mac_filter;
 };
 
-class kis_database_logfile_builder : public KisLogfileBuilder {
+class kis_database_logfile_builder : public kis_logfile_builder {
 public:
     kis_database_logfile_builder() :
-        KisLogfileBuilder() {
+        kis_logfile_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     kis_database_logfile_builder(int in_id) :
-        KisLogfileBuilder(in_id) {
+        kis_logfile_builder(in_id) {
            
         register_fields();
         reserve_fields(NULL);
@@ -253,7 +253,7 @@ public:
     }
 
     kis_database_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        KisLogfileBuilder(in_id, e) {
+        kis_logfile_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);

@@ -30,8 +30,8 @@
 #include "devicetracker_component.h"
 #include "streamtracker.h"
 
-class KisLogfileBuilder;
-typedef std::shared_ptr<KisLogfileBuilder> shared_log_builder;
+class kis_logfile_builder;
+typedef std::shared_ptr<kis_logfile_builder> shared_log_builder;
 
 class kis_logfile;
 typedef std::shared_ptr<kis_logfile> SharedLogfile;
@@ -40,9 +40,9 @@ typedef std::shared_ptr<kis_logfile> SharedLogfile;
 // log we are, the type and default name, if we're a singleton log that can't have multiple
 // simultaneous instances, how to actually instantiate the log, and various other
 // attributes
-class KisLogfileBuilder : public tracker_component {
+class kis_logfile_builder : public tracker_component {
 public:
-    KisLogfileBuilder() :
+    kis_logfile_builder() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -50,7 +50,7 @@ public:
         initialize();
     }
 
-    KisLogfileBuilder(int in_id) :
+    kis_logfile_builder(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
@@ -58,7 +58,7 @@ public:
         initialize();
     }
 
-    KisLogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    kis_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -66,10 +66,10 @@ public:
         initialize();
     }
 
-    virtual ~KisLogfileBuilder() { };
+    virtual ~kis_logfile_builder() { };
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("KisLogfileBuilder");
+        return adler32_checksum("kis_logfile_builder");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -196,7 +196,7 @@ public:
     }
 
     __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
-    __ProxyTrackable(builder, KisLogfileBuilder, builder);
+    __ProxyTrackable(builder, kis_logfile_builder, builder);
     __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
     __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
     __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);

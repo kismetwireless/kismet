@@ -62,7 +62,7 @@ void LogTracker::register_fields() {
 
     logproto_entry_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.logtracker.driver",
-                tracker_element_factory<KisLogfileBuilder>(),
+                tracker_element_factory<kis_logfile_builder>(),
                 "Log driver");
 
     logfile_entry_id =
@@ -202,7 +202,7 @@ int LogTracker::register_log(shared_log_builder in_builder) {
     local_locker lock(&tracker_mutex);
 
     for (auto i : *logproto_vec) {
-        auto b = std::static_pointer_cast<KisLogfileBuilder>(i);
+        auto b = std::static_pointer_cast<kis_logfile_builder>(i);
 
         if (StrLower(b->get_log_class()) == StrLower(in_builder->get_log_class())) {
             _MSG("A logfile driver has already been registered for '" + 
@@ -227,7 +227,7 @@ SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
     shared_log_builder target_builder;
 
     for (auto b : *logproto_vec) {
-        auto builder = std::static_pointer_cast<KisLogfileBuilder>(b);
+        auto builder = std::static_pointer_cast<kis_logfile_builder>(b);
 
         if (builder->get_log_class() == in_class) {
             return open_log(builder, in_title);
@@ -339,7 +339,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
             local_locker lock(&tracker_mutex);
 
             for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
+                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3])
                     return true;
@@ -369,7 +369,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
             local_locker lock(&tracker_mutex);
 
             for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
+                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3])
                     return true;
@@ -448,10 +448,10 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
         } else if (tokenurl[2] == "by-class") {
             local_locker lock(&tracker_mutex);
 
-            std::shared_ptr<KisLogfileBuilder> builder;
+            std::shared_ptr<kis_logfile_builder> builder;
 
             for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
+                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3]) {
                     builder = lfb;
@@ -526,10 +526,10 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         if (tokenurl[2] == "by-class") {
             local_locker lock(&tracker_mutex);
 
-            std::shared_ptr<KisLogfileBuilder> builder;
+            std::shared_ptr<kis_logfile_builder> builder;
 
             for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<KisLogfileBuilder>(lfi);
+                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
 
                 if (lfb->get_log_class() == tokenurl[3]) {
                     builder = lfb;

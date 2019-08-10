@@ -41,24 +41,24 @@ protected:
     file_write_buffer *pcapng_file;
 };
 
-class KisPcapNGLogfileBuilder : public KisLogfileBuilder {
+class KisPcapNGLogfileBuilder : public kis_logfile_builder {
 public:
     KisPcapNGLogfileBuilder() :
-        KisLogfileBuilder() {
+        kis_logfile_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     KisPcapNGLogfileBuilder(int in_id) :
-        KisLogfileBuilder(in_id) {
+        kis_logfile_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     KisPcapNGLogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        KisLogfileBuilder(in_id, e) {
+        kis_logfile_builder(in_id, e) {
         register_fields();
         reserve_fields(e);
         initialize();
