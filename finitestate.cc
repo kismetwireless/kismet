@@ -244,18 +244,18 @@ int WepRebroadcastAutomata::process_packet(const packet_info *in_info) {
 }
 
 #if 0
-SequenceSpoofAutomata::SequenceSpoofAutomata(Packetracker *in_ptracker, alert_tracker *in_atracker,
+dot11_sequence_spoof_automata::dot11_sequence_spoof_automata(Packetracker *in_ptracker, alert_tracker *in_atracker,
                                              alert_time_unit in_unit, int in_rate, int in_burstrate) {
     atracker = in_atracker;
     ptracker = in_ptracker;
     alertid = atracker->register_alert("SEQUENCESPOOF", in_unit, in_rate, in_burstrate);
 }
 
-SequenceSpoofAutomata::~SequenceSpoofAutomata() {
+dot11_sequence_spoof_automata::~dot11_sequence_spoof_automata() {
 }
 
 
-int SequenceSpoofAutomata::process_packet(const packet_info *in_info) {
+int dot11_sequence_spoof_automata::process_packet(const packet_info *in_info) {
     // Only sequence-track beacons (for now)
     int ret = 0;
     char atext[STATUS_MAX];

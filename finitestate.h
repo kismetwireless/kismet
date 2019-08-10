@@ -151,11 +151,11 @@ protected:
 #if 0
 // This doesn't really work so we won't use it.
 // Finite state automata to watch sequence numbers
-class SequenceSpoofAutomata : public finite_automata {
+class dot11_sequence_spoof_automata : public finite_automata {
 public:
-    SequenceSpoofAutomata(Packetracker *in_ptracker, alert_tracker *in_atracker,
+    dot11_sequence_spoof_automata(Packetracker *in_ptracker, alert_tracker *in_atracker,
                           alert_time_unit in_unit, int in_rate, int in_burstrate);
-    ~SequenceSpoofAutomata();
+    ~dot11_sequence_spoof_automata();
 
     int process_packet(const packet_info *in_info);
 
